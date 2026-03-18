@@ -1,0 +1,176 @@
+import { useParams, Link } from 'react-router-dom';
+import {
+  getRelatieById,
+  getZoekprofielenByRelatie,
+  getDealsByRelatie,
+  getTakenByRelatie,
+  getMatchesForRelatie,
+  getObjectById,
+  formatCurrency,
+  formatDate,
+} from '@/data/mock-data';
+import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
+import { ArrowLeft, Phone, Mail, Building2, MapPin } from 'lucide-react';
+
+export default function RelatieDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const relatie = getRelatieById(id!);
+
+  if (!relatie) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground">Relatie niet gevonden.</p>
+        <Link to="/relaties" className="text-accent hover:underline text-sm mt-2 inline-block">← Terug naar relaties</Link>
+      </div>
+    );
+  }
+
+  const zoekprofielen = getZoekprofielenByRelatie(relatie.id);
+  const deals = getDealsByRelatie(relatie.id);
+  const taken = getTakenByRelatie(relatie.id);
+  const matches = getMatchesForRelatie(relatie.id);
+
+  return (
+    <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-8 fade-in">
+      <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <ArrowLeft className="h-4 w-4" /> Relaties
+      </Link>
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-foreground">{relatie.bedrijfsnaam}</h1>
+            <LeadStatusBadge status={relatie.leadStatus} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">{relatie.contactpersoon} · {relatie.type}</p>
+        </div>
+        <div className="flex gap-2">
+          <a href={`tel:${relatie.telefoon}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <Phone className="h-4 w-4" /> Bel
+          </a>
+          <a href={`mailto:${relatie.email}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <Mail className="h-4 w-4" /> Mail
+          </a>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Info */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-foreground">Basisgegevens</h2>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">Telefoon</span><p className="text-foreground">{relatie.telefoon}</p></div>
+              <div><span className="text-muted-foreground">E-mail</span><p className="text-foreground">{relatie.email}</p></div>
+              <div><span className="text-muted-foreground">Regio</span><p className="text-foreground">{relatie.regio.join(', ')}</p></div>
+              <div><span className="text-muted-foreground">Asset classes</span><p className="text-foreground capitalize">{relatie.assetClasses.join(', ')}</p></div>
+              {relatie.budgetMin && (
+                <div><span className="text-muted-foreground">Budget</span><p className="text-foreground font-mono-data">{formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}</p></div>
+              )}
+              <div><span className="text-muted-foreground">Laatste contact</span><p className="text-foreground">{formatDate(relatie.laatsteContact)}</p></div>
+            </div>
+            {relatie.aankoopcriteria && (
+              <div><span className="text-xs text-muted-foreground">Aankoopcriteria</span><p className="text-sm text-foreground mt-1">{relatie.aankoopcriteria}</p></div>
+            )}
+            {relatie.verkoopintentie && (
+              <div><span className="text-xs text-muted-foreground">Verkoopintentie</span><p className="text-sm text-foreground mt-1">{relatie.verkoopintentie}</p></div>
+            )}
+            {relatie.notities && (
+              <div><span className="text-xs text-muted-foreground">Notities</span><p className="text-sm text-foreground mt-1">{relatie.notities}</p></div>
+            )}
+          </div>
+
+          {/* Deals */}
+          {deals.length > 0 && (
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-5 py-4 border-b border-border">
+                <h2 className="text-sm font-semibold text-foreground">Gekoppelde deals ({deals.length})</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {deals.map(deal => {
+                  const obj = getObjectById(deal.objectId);
+                  return (
+                    <Link key={deal.id} to={`/deals/${deal.id}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-foreground">{obj?.titel}</p>
+                          <p className="text-xs text-muted-foreground">{obj?.plaats} · {formatCurrency(obj?.vraagprijs)}</p>
+                        </div>
+                        <DealFaseBadge fase={deal.fase} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Taken */}
+          {taken.length > 0 && (
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-5 py-4 border-b border-border">
+                <h2 className="text-sm font-semibold text-foreground">Open taken ({taken.length})</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {taken.map(taak => (
+                  <div key={taak.id} className="px-5 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-foreground">{taak.titel}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(taak.deadline)}</p>
+                    </div>
+                    <PrioriteitBadge prioriteit={taak.prioriteit} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar: Matches & Zoekprofielen */}
+        <div className="space-y-6">
+          {zoekprofielen.length > 0 && (
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-5 py-4 border-b border-border">
+                <h2 className="text-sm font-semibold text-foreground">Zoekprofielen ({zoekprofielen.length})</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {zoekprofielen.map(zp => (
+                  <div key={zp.id} className="px-5 py-3">
+                    <p className="text-sm font-medium text-foreground">{zp.naam}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ')}</p>
+                    {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {matches.length > 0 && (
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-5 py-4 border-b border-border">
+                <h2 className="text-sm font-semibold text-foreground">Matchende objecten ({matches.length})</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {matches.slice(0, 5).map((m, i) => {
+                  const obj = getObjectById(m.objectId);
+                  return (
+                    <Link key={i} to={`/objecten/${m.objectId}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm text-foreground truncate">{obj?.titel}</p>
+                          <p className="text-xs text-muted-foreground">{obj?.plaats}</p>
+                        </div>
+                        <MatchScoreBadge score={m.score} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
