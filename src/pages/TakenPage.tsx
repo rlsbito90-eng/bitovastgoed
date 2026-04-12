@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { taken, getRelatieById, getDealById, getObjectById, formatDate } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { formatDate } from '@/data/mock-data';
 import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus } from 'lucide-react';
 import type { TaakPrioriteit, TaakStatus } from '@/data/mock-data';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
 
 export default function TakenPage() {
+  const { taken, getRelatieById, getDealById, getObjectById } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>('');
   const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTaak, setEditTaak] = useState<typeof taken[0] | null>(null);
 
   const filtered = taken.filter(t => {
     const matchZoek = !zoek || t.titel.toLowerCase().includes(zoek.toLowerCase());
@@ -24,7 +29,7 @@ export default function TakenPage() {
           <h1 className="text-2xl font-semibold text-foreground">Taken</h1>
           <p className="text-sm text-muted-foreground mt-1">{taken.filter(t => t.status !== 'afgerond').length} open taken</p>
         </div>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
+        <button onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
           <Plus className="h-4 w-4" /> Nieuwe taak
         </button>
       </div>
@@ -56,7 +61,7 @@ export default function TakenPage() {
             const deal = taak.dealId ? getDealById(taak.dealId) : null;
             const obj = deal ? getObjectById(deal.objectId) : null;
             return (
-              <div key={taak.id} className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
+              <div key={taak.id} onClick={() => { setEditTaak(taak); setFormOpen(true); }} className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors cursor-pointer">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{taak.titel}</p>
                   <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
@@ -75,6 +80,8 @@ export default function TakenPage() {
           })}
         </div>
       </div>
+
+      <TaakFormDialog open={formOpen} onOpenChange={setFormOpen} taak={editTaak} />
     </div>
   );
 }

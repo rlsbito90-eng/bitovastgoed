@@ -1,20 +1,20 @@
-import { useParams, Link } from 'react-router-dom';
-import {
-  getRelatieById,
-  getZoekprofielenByRelatie,
-  getDealsByRelatie,
-  getTakenByRelatie,
-  getMatchesForRelatie,
-  getObjectById,
-  formatCurrency,
-  formatDate,
-} from '@/data/mock-data';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useDataStore } from '@/hooks/useDataStore';
+import { getMatchesForRelatie } from '@/data/mock-data';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
-import { ArrowLeft, Phone, Mail, Building2, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Pencil, Trash2 } from 'lucide-react';
+import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export default function RelatieDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const relatie = getRelatieById(id!);
+  const navigate = useNavigate();
+  const store = useDataStore();
+  const relatie = store.getRelatieById(id!);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!relatie) {
     return (
@@ -25,10 +25,16 @@ export default function RelatieDetailPage() {
     );
   }
 
-  const zoekprofielen = getZoekprofielenByRelatie(relatie.id);
-  const deals = getDealsByRelatie(relatie.id);
-  const taken = getTakenByRelatie(relatie.id);
+  const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
+  const deals = store.getDealsByRelatie(relatie.id);
+  const taken = store.getTakenByRelatie(relatie.id);
   const matches = getMatchesForRelatie(relatie.id);
+
+  const handleDelete = () => {
+    store.deleteRelatie(relatie.id);
+    toast.success('Relatie verwijderd');
+    navigate('/relaties');
+  };
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-8 fade-in">
@@ -36,7 +42,6 @@ export default function RelatieDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Relaties
       </Link>
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -52,11 +57,30 @@ export default function RelatieDetailPage() {
           <a href={`mailto:${relatie.email}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Mail className="h-4 w-4" /> Mail
           </a>
+          <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <Pencil className="h-4 w-4" /> Bewerken
+          </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Relatie verwijderen?</AlertDialogTitle>
+                <AlertDialogDescription>Weet je zeker dat je {relatie.bedrijfsnaam} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Info */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-card border border-border rounded-lg p-5 space-y-4">
             <h2 className="text-sm font-semibold text-foreground">Basisgegevens</h2>
@@ -81,7 +105,6 @@ export default function RelatieDetailPage() {
             )}
           </div>
 
-          {/* Deals */}
           {deals.length > 0 && (
             <div className="bg-card border border-border rounded-lg">
               <div className="px-5 py-4 border-b border-border">
@@ -89,7 +112,7 @@ export default function RelatieDetailPage() {
               </div>
               <div className="divide-y divide-border">
                 {deals.map(deal => {
-                  const obj = getObjectById(deal.objectId);
+                  const obj = store.getObjectById(deal.objectId);
                   return (
                     <Link key={deal.id} to={`/deals/${deal.id}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center justify-between">
@@ -106,7 +129,6 @@ export default function RelatieDetailPage() {
             </div>
           )}
 
-          {/* Taken */}
           {taken.length > 0 && (
             <div className="bg-card border border-border rounded-lg">
               <div className="px-5 py-4 border-b border-border">
@@ -127,7 +149,6 @@ export default function RelatieDetailPage() {
           )}
         </div>
 
-        {/* Sidebar: Matches & Zoekprofielen */}
         <div className="space-y-6">
           {zoekprofielen.length > 0 && (
             <div className="bg-card border border-border rounded-lg">
@@ -153,7 +174,7 @@ export default function RelatieDetailPage() {
               </div>
               <div className="divide-y divide-border">
                 {matches.slice(0, 5).map((m, i) => {
-                  const obj = getObjectById(m.objectId);
+                  const obj = store.getObjectById(m.objectId);
                   return (
                     <Link key={i} to={`/objecten/${m.objectId}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center justify-between">
@@ -171,6 +192,8 @@ export default function RelatieDetailPage() {
           )}
         </div>
       </div>
+
+      <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
     </div>
   );
 }

@@ -1,7 +1,10 @@
-import { deals, relaties, objecten, taken, getAllMatches } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { getAllMatches } from '@/data/mock-data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function RapportagePage() {
+  const { relaties, objecten, deals, taken } = useDataStore();
+
   const dealsByFase = [
     { fase: 'Lead', aantal: deals.filter(d => d.fase === 'lead').length },
     { fase: 'Introductie', aantal: deals.filter(d => d.fase === 'introductie').length },
@@ -57,7 +60,6 @@ export default function RapportagePage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Deals per fase */}
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Deals per fase</h2>
           <ResponsiveContainer width="100%" height={250}>
@@ -71,7 +73,6 @@ export default function RapportagePage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Relaties per status */}
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Relaties per status</h2>
           <div className="flex items-center justify-center">
@@ -88,7 +89,6 @@ export default function RapportagePage() {
           </div>
         </div>
 
-        {/* Objecten per type */}
         <div className="bg-card border border-border rounded-lg p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-foreground mb-4">Objecten per type vastgoed</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

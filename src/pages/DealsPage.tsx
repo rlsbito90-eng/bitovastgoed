@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deals, getRelatieById, getObjectById, formatCurrency, formatDate } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { formatCurrency } from '@/data/mock-data';
 import { DealFaseBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus } from 'lucide-react';
 import type { DealFase } from '@/data/mock-data';
+import DealFormDialog from '@/components/forms/DealFormDialog';
 
 const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
 export default function DealsPage() {
+  const { deals, getRelatieById, getObjectById } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const filtered = deals.filter(d => {
     const obj = getObjectById(d.objectId);
@@ -27,7 +31,7 @@ export default function DealsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Deals</h1>
           <p className="text-sm text-muted-foreground mt-1">{deals.length} deals in de pipeline</p>
         </div>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
+        <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
           <Plus className="h-4 w-4" /> Nieuwe deal
         </button>
       </div>
@@ -80,6 +84,8 @@ export default function DealsPage() {
           </table>
         </div>
       </div>
+
+      <DealFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }
