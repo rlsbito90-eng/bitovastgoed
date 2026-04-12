@@ -1,11 +1,19 @@
-import { useParams, Link } from 'react-router-dom';
-import { getDealById, getRelatieById, getObjectById, formatCurrency, formatDate } from '@/data/mock-data';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useDataStore } from '@/hooks/useDataStore';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { DealFaseBadge, LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import DealFormDialog from '@/components/forms/DealFormDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const deal = getDealById(id!);
+  const navigate = useNavigate();
+  const store = useDataStore();
+  const deal = store.getDealById(id!);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!deal) {
     return (
@@ -16,8 +24,14 @@ export default function DealDetailPage() {
     );
   }
 
-  const relatie = getRelatieById(deal.relatieId);
-  const object = getObjectById(deal.objectId);
+  const relatie = store.getRelatieById(deal.relatieId);
+  const object = store.getObjectById(deal.objectId);
+
+  const handleDelete = () => {
+    store.deleteDeal(deal.id);
+    toast.success('Deal verwijderd');
+    navigate('/deals');
+  };
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-8 fade-in">
@@ -25,19 +39,42 @@ export default function DealDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Deals
       </Link>
 
-      <div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-semibold text-foreground">{object?.titel || 'Deal'}</h1>
-          <DealFaseBadge fase={deal.fase} />
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-semibold text-foreground">{object?.titel || 'Deal'}</h1>
+            <DealFaseBadge fase={deal.fase} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            {relatie?.bedrijfsnaam} · {object?.plaats}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {relatie?.bedrijfsnaam} · {object?.plaats}
-        </p>
+        <div className="flex gap-2">
+          <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <Pencil className="h-4 w-4" /> Bewerken
+          </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deal verwijderen?</AlertDialogTitle>
+                <AlertDialogDescription>Weet je zeker dat je deze deal wilt verwijderen?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Deal Info */}
           <div className="bg-card border border-border rounded-lg p-5 space-y-4">
             <h2 className="text-sm font-semibold text-foreground">Dealgegevens</h2>
             <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -53,7 +90,6 @@ export default function DealDetailPage() {
             )}
           </div>
 
-          {/* Object card */}
           {object && (
             <Link to={`/objecten/${object.id}`} className="block bg-card border border-border rounded-lg p-5 hover:border-accent/30 transition-colors">
               <div className="flex items-center justify-between mb-2">
@@ -70,7 +106,6 @@ export default function DealDetailPage() {
           )}
         </div>
 
-        {/* Sidebar: Relatie */}
         <div>
           {relatie && (
             <Link to={`/relaties/${relatie.id}`} className="block bg-card border border-border rounded-lg p-5 hover:border-accent/30 transition-colors">
@@ -89,6 +124,8 @@ export default function DealDetailPage() {
           )}
         </div>
       </div>
+
+      <DealFormDialog open={editOpen} onOpenChange={setEditOpen} deal={deal} />
     </div>
   );
 }

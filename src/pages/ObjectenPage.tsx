@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { objecten, formatCurrency, formatDate } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { formatCurrency } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus } from 'lucide-react';
 import type { AssetClass, ObjectStatus } from '@/data/mock-data';
+import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 
 export default function ObjectenPage() {
+  const { objecten } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [typeFilter, setTypeFilter] = useState<AssetClass | ''>('');
   const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const filtered = objecten.filter(o => {
     const matchZoek = !zoek || o.titel.toLowerCase().includes(zoek.toLowerCase()) || o.plaats.toLowerCase().includes(zoek.toLowerCase());
@@ -25,7 +29,7 @@ export default function ObjectenPage() {
           <h1 className="text-2xl font-semibold text-foreground">Objecten</h1>
           <p className="text-sm text-muted-foreground mt-1">{objecten.length} objecten in beheer</p>
         </div>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
+        <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors">
           <Plus className="h-4 w-4" /> Nieuw object
         </button>
       </div>
@@ -91,6 +95,8 @@ export default function ObjectenPage() {
           </table>
         </div>
       </div>
+
+      <ObjectFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }
