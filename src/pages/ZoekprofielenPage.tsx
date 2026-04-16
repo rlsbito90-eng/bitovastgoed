@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { zoekprofielen, getRelatieById, formatCurrency } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { formatCurrency } from '@/data/mock-data';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function ZoekprofielenPage() {
+  const { zoekprofielen, getRelatieById } = useDataStore();
   const [zoek, setZoek] = useState('');
 
   const filtered = zoekprofielen.filter(z => {
@@ -24,6 +26,16 @@ export default function ZoekprofielenPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Zoek op profiel of relatie..." className="pl-9" value={zoek} onChange={e => setZoek(e.target.value)} />
       </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            {zoekprofielen.length === 0
+              ? 'Nog geen zoekprofielen aangemaakt. Voeg een zoekprofiel toe vanuit de detailpagina van een relatie.'
+              : 'Geen zoekprofielen gevonden voor deze zoekopdracht.'}
+          </p>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(zp => {

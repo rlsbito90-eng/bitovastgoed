@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getMatchesForRelatie } from '@/data/mock-data';
-import { formatCurrency, formatDate } from '@/data/mock-data';
+import { getMatchesForRelatieFromData, formatCurrency, formatDate } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
 import { ArrowLeft, Phone, Mail, Pencil, Trash2 } from 'lucide-react';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
@@ -28,7 +27,7 @@ export default function RelatieDetailPage() {
   const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
   const deals = store.getDealsByRelatie(relatie.id);
   const taken = store.getTakenByRelatie(relatie.id);
-  const matches = getMatchesForRelatie(relatie.id);
+  const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
   const handleDelete = () => {
     store.deleteRelatie(relatie.id);
