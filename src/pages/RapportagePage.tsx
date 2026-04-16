@@ -1,9 +1,10 @@
 import { useDataStore } from '@/hooks/useDataStore';
-import { getAllMatches } from '@/data/mock-data';
+import { getAllMatchesFromData } from '@/data/mock-data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function RapportagePage() {
-  const { relaties, objecten, deals, taken } = useDataStore();
+  const { relaties, objecten, deals, taken, zoekprofielen } = useDataStore();
+  const matches = getAllMatchesFromData(zoekprofielen, objecten);
 
   const dealsByFase = [
     { fase: 'Lead', aantal: deals.filter(d => d.fase === 'lead').length },
@@ -51,7 +52,7 @@ export default function RapportagePage() {
         </div>
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-xs text-muted-foreground">Matches</p>
-          <p className="text-2xl font-semibold font-mono-data text-foreground mt-1">{getAllMatches().length}</p>
+          <p className="text-2xl font-semibold font-mono-data text-foreground mt-1">{matches.length}</p>
         </div>
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-xs text-muted-foreground">Open taken</p>

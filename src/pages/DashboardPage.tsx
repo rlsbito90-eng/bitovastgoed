@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency, formatDate, getAllMatches } from '@/data/mock-data';
+import { formatCurrency, formatDate, getAllMatchesFromData } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import { Users, Handshake, CheckSquare, TrendingUp, Zap, Building2 } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const actieveObjecten = objecten.filter(o => o.status === 'off-market' || o.status === 'in_onderzoek');
   const openTaken = taken.filter(t => t.status !== 'afgerond');
   const actieveDeals = deals.filter(d => !['afgerond', 'afgevallen'].includes(d.fase));
-  const matches = getAllMatches();
+  const matches = getAllMatchesFromData(store.zoekprofielen, store.objecten);
 
   const dealWaarde = actieveDeals.reduce((sum, d) => {
     const obj = store.getObjectById(d.objectId);

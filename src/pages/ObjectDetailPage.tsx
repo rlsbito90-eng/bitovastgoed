@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getMatchesForObject, formatCurrency, formatDate } from '@/data/mock-data';
+import { getMatchesForObjectFromData, formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import { ArrowLeft, MapPin, Pencil, Trash2 } from 'lucide-react';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
@@ -25,7 +25,7 @@ export default function ObjectDetailPage() {
   }
 
   const deals = store.getDealsByObject(object.id);
-  const matches = getMatchesForObject(object.id);
+  const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const rendement = object.huurinkomsten && object.vraagprijs ? ((object.huurinkomsten / object.vraagprijs) * 100).toFixed(1) : null;
   const huurPerM2 = object.huurinkomsten && object.oppervlakte ? Math.round(object.huurinkomsten / object.oppervlakte) : null;
 
