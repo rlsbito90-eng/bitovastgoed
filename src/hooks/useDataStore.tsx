@@ -1,16 +1,196 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import {
-  relaties as initialRelaties,
-  objecten as initialObjecten,
-  deals as initialDeals,
-  taken as initialTaken,
-  zoekprofielen as initialZoekprofielen,
-  type Relatie,
-  type ObjectVastgoed,
-  type Deal,
-  type Taak,
-  type Zoekprofiel,
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import type {
+  Relatie,
+  ObjectVastgoed,
+  Deal,
+  Taak,
+  Zoekprofiel,
 } from '@/data/mock-data';
+
+// =====================================================
+// MAPPERS — DB (snake_case) <-> App (camelCase)
+// We bewaren bestaande type-API zodat pagina's niets hoeven te veranderen.
+// =====================================================
+
+const relatieFromDb = (r: any): Relatie => ({
+  id: r.id,
+  bedrijfsnaam: r.bedrijfsnaam,
+  contactpersoon: r.contactpersoon ?? '',
+  type: r.type_partij,
+  telefoon: r.telefoon ?? '',
+  email: r.email ?? '',
+  regio: r.regio ?? [],
+  assetClasses: r.asset_classes ?? [],
+  budgetMin: r.budget_min ?? undefined,
+  budgetMax: r.budget_max ?? undefined,
+  aankoopcriteria: r.aankoopcriteria ?? undefined,
+  verkoopintentie: r.verkoopintentie ?? undefined,
+  leadStatus: r.lead_status,
+  laatsteContact: r.laatste_contactdatum ?? '',
+  volgendeActie: r.volgende_actie ?? undefined,
+  notities: r.notities ?? undefined,
+});
+
+const relatieToDb = (r: Partial<Relatie>) => ({
+  bedrijfsnaam: r.bedrijfsnaam,
+  contactpersoon: r.contactpersoon || null,
+  type_partij: r.type,
+  telefoon: r.telefoon || null,
+  email: r.email || null,
+  regio: r.regio ?? [],
+  asset_classes: r.assetClasses ?? [],
+  budget_min: r.budgetMin ?? null,
+  budget_max: r.budgetMax ?? null,
+  aankoopcriteria: r.aankoopcriteria || null,
+  verkoopintentie: r.verkoopintentie || null,
+  lead_status: r.leadStatus,
+  laatste_contactdatum: r.laatsteContact || null,
+  volgende_actie: r.volgendeActie || null,
+  notities: r.notities || null,
+});
+
+const objectFromDb = (o: any): ObjectVastgoed => ({
+  id: o.id,
+  titel: o.objectnaam,
+  plaats: o.plaats ?? '',
+  provincie: o.provincie ?? '',
+  type: o.type_vastgoed,
+  vraagprijs: o.vraagprijs ?? undefined,
+  huurinkomsten: o.huurinkomsten ?? undefined,
+  aantalHuurders: o.aantal_huurders ?? undefined,
+  verhuurStatus: o.verhuurstatus ?? 'leeg',
+  oppervlakte: o.oppervlakte ?? undefined,
+  bouwjaar: o.bouwjaar ?? undefined,
+  onderhoudsstaat: o.onderhoudsstaat ?? undefined,
+  ontwikkelPotentie: !!o.ontwikkelpotentie,
+  transformatiePotentie: !!o.transformatiepotentie,
+  bron: o.bron ?? undefined,
+  exclusief: !!o.exclusief,
+  status: mapDbObjectStatusNaarApp(o.status),
+  samenvatting: o.samenvatting ?? undefined,
+  documentenBeschikbaar: !!o.documentatie_beschikbaar,
+  interneOpmerkingen: o.interne_opmerkingen ?? undefined,
+  datumToegevoegd: o.created_at?.split('T')[0] ?? '',
+});
+
+const objectToDb = (o: Partial<ObjectVastgoed>) => ({
+  objectnaam: o.titel,
+  plaats: o.plaats || null,
+  provincie: o.provincie || null,
+  type_vastgoed: o.type,
+  vraagprijs: o.vraagprijs ?? null,
+  huurinkomsten: o.huurinkomsten ?? null,
+  aantal_huurders: o.aantalHuurders ?? null,
+  verhuurstatus: o.verhuurStatus ?? null,
+  oppervlakte: o.oppervlakte ?? null,
+  bouwjaar: o.bouwjaar ?? null,
+  onderhoudsstaat: o.onderhoudsstaat || null,
+  ontwikkelpotentie: !!o.ontwikkelPotentie,
+  transformatiepotentie: !!o.transformatiePotentie,
+  bron: o.bron || null,
+  exclusief: !!o.exclusief,
+  status: mapAppObjectStatusNaarDb(o.status),
+  samenvatting: o.samenvatting || null,
+  documentatie_beschikbaar: !!o.documentenBeschikbaar,
+  interne_opmerkingen: o.interneOpmerkingen || null,
+});
+
+// App heeft 'off-market', 'in_onderzoek', 'onder_optie', 'verkocht', 'ingetrokken'
+// DB heeft  'nieuw', 'in_voorbereiding', 'beschikbaar', 'in_onderhandeling', 'verkocht', 'ingetrokken'
+function mapDbObjectStatusNaarApp(s: string): any {
+  switch (s) {
+    case 'nieuw': return 'off-market';
+    case 'in_voorbereiding': return 'in_onderzoek';
+    case 'beschikbaar': return 'off-market';
+    case 'in_onderhandeling': return 'onder_optie';
+    case 'verkocht': return 'verkocht';
+    case 'ingetrokken': return 'ingetrokken';
+    default: return 'off-market';
+  }
+}
+function mapAppObjectStatusNaarDb(s: any): string {
+  switch (s) {
+    case 'off-market': return 'nieuw';
+    case 'in_onderzoek': return 'in_voorbereiding';
+    case 'onder_optie': return 'in_onderhandeling';
+    case 'verkocht': return 'verkocht';
+    case 'ingetrokken': return 'ingetrokken';
+    default: return 'nieuw';
+  }
+}
+
+const dealFromDb = (d: any): Deal => ({
+  id: d.id,
+  objectId: d.object_id,
+  relatieId: d.relatie_id,
+  fase: d.fase,
+  interessegraad: d.interessegraad ?? 3,
+  datumEersteContact: d.datum_eerste_contact,
+  datumFollowUp: d.datum_follow_up ?? undefined,
+  bezichtigingGepland: d.bezichtiging_gepland ?? undefined,
+  indicatiefBod: d.indicatief_bod ?? undefined,
+  notities: d.notities ?? undefined,
+});
+
+const dealToDb = (d: Partial<Deal>) => ({
+  object_id: d.objectId,
+  relatie_id: d.relatieId,
+  fase: d.fase,
+  interessegraad: d.interessegraad ?? null,
+  datum_eerste_contact: d.datumEersteContact,
+  datum_follow_up: d.datumFollowUp || null,
+  bezichtiging_gepland: d.bezichtigingGepland || null,
+  indicatief_bod: d.indicatiefBod ?? null,
+  notities: d.notities || null,
+});
+
+const taakFromDb = (t: any): Taak => ({
+  id: t.id,
+  titel: t.titel,
+  relatieId: t.relatie_id ?? undefined,
+  dealId: t.deal_id ?? undefined,
+  type: t.type_taak ?? 'Overig',
+  deadline: t.deadline ?? '',
+  prioriteit: t.prioriteit,
+  status: t.status,
+  notities: t.notities ?? undefined,
+});
+
+const taakToDb = (t: Partial<Taak>) => ({
+  titel: t.titel,
+  relatie_id: t.relatieId || null,
+  deal_id: t.dealId || null,
+  type_taak: t.type || null,
+  deadline: t.deadline || null,
+  prioriteit: t.prioriteit,
+  status: t.status,
+  notities: t.notities || null,
+});
+
+const zoekprofielFromDb = (z: any): Zoekprofiel => ({
+  id: z.id,
+  naam: z.profielnaam,
+  relatieId: z.relatie_id,
+  typeVastgoed: z.type_vastgoed ?? [],
+  regio: z.regio ?? [],
+  stad: z.steden?.[0] ?? undefined,
+  prijsMin: z.prijs_min ?? undefined,
+  prijsMax: z.prijs_max ?? undefined,
+  oppervlakteMin: z.oppervlakte_min ?? undefined,
+  oppervlakteMax: z.oppervlakte_max ?? undefined,
+  verhuurStatus: z.verhuur_voorkeur ?? undefined,
+  rendementseis: z.rendementseis ?? undefined,
+  ontwikkelPotentie: !!z.ontwikkelpotentie,
+  transformatiePotentie: !!z.transformatiepotentie,
+  aanvullendeCriteria: z.aanvullende_criteria ?? undefined,
+  status: z.status === 'gepauzeerd' ? 'pauze' : z.status,
+});
+
+// =====================================================
+// CONTEXT
+// =====================================================
 
 interface DataStore {
   relaties: Relatie[];
@@ -18,18 +198,25 @@ interface DataStore {
   deals: Deal[];
   taken: Taak[];
   zoekprofielen: Zoekprofiel[];
-  addRelatie: (r: Omit<Relatie, 'id'>) => Relatie;
-  updateRelatie: (id: string, r: Partial<Relatie>) => void;
-  deleteRelatie: (id: string) => void;
-  addObject: (o: Omit<ObjectVastgoed, 'id'>) => ObjectVastgoed;
-  updateObject: (id: string, o: Partial<ObjectVastgoed>) => void;
-  deleteObject: (id: string) => void;
-  addDeal: (d: Omit<Deal, 'id'>) => Deal;
-  updateDeal: (id: string, d: Partial<Deal>) => void;
-  deleteDeal: (id: string) => void;
-  addTaak: (t: Omit<Taak, 'id'>) => Taak;
-  updateTaak: (id: string, t: Partial<Taak>) => void;
-  deleteTaak: (id: string) => void;
+  loading: boolean;
+  refresh: () => Promise<void>;
+
+  addRelatie: (r: Omit<Relatie, 'id'>) => Promise<Relatie | null>;
+  updateRelatie: (id: string, r: Partial<Relatie>) => Promise<void>;
+  deleteRelatie: (id: string) => Promise<void>;
+
+  addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
+  updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
+  deleteObject: (id: string) => Promise<void>;
+
+  addDeal: (d: Omit<Deal, 'id'>) => Promise<Deal | null>;
+  updateDeal: (id: string, d: Partial<Deal>) => Promise<void>;
+  deleteDeal: (id: string) => Promise<void>;
+
+  addTaak: (t: Omit<Taak, 'id'>) => Promise<Taak | null>;
+  updateTaak: (id: string, t: Partial<Taak>) => Promise<void>;
+  deleteTaak: (id: string) => Promise<void>;
+
   getRelatieById: (id: string) => Relatie | undefined;
   getObjectById: (id: string) => ObjectVastgoed | undefined;
   getDealById: (id: string) => Deal | undefined;
@@ -42,70 +229,165 @@ interface DataStore {
 
 const DataStoreContext = createContext<DataStore | null>(null);
 
-let counter = 100;
-const genId = (prefix: string) => `${prefix}-${++counter}`;
-
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
-  const [relaties, setRelaties] = useState<Relatie[]>(initialRelaties);
-  const [objecten, setObjecten] = useState<ObjectVastgoed[]>(initialObjecten);
-  const [deals, setDeals] = useState<Deal[]>(initialDeals);
-  const [taken, setTaken] = useState<Taak[]>(initialTaken);
-  const [zoekprofielen] = useState<Zoekprofiel[]>(initialZoekprofielen);
+  const { heeftToegang } = useAuth();
+  const [relaties, setRelaties] = useState<Relatie[]>([]);
+  const [objecten, setObjecten] = useState<ObjectVastgoed[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [taken, setTaken] = useState<Taak[]>([]);
+  const [zoekprofielen, setZoekprofielen] = useState<Zoekprofiel[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const addRelatie = useCallback((r: Omit<Relatie, 'id'>) => {
-    const newR = { ...r, id: genId('rel') } as Relatie;
-    setRelaties(prev => [...prev, newR]);
-    return newR;
+  const refresh = useCallback(async () => {
+    if (!heeftToegang) return;
+    setLoading(true);
+    const [relRes, objRes, dealRes, taakRes, zpRes] = await Promise.all([
+      supabase.from('relaties').select('*').order('created_at', { ascending: false }),
+      supabase.from('objecten').select('*').order('created_at', { ascending: false }),
+      supabase.from('deals').select('*').order('created_at', { ascending: false }),
+      supabase.from('taken').select('*').order('deadline', { ascending: true, nullsFirst: false }),
+      supabase.from('zoekprofielen').select('*').order('created_at', { ascending: false }),
+    ]);
+    if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
+    if (objRes.data) setObjecten(objRes.data.map(objectFromDb));
+    if (dealRes.data) setDeals(dealRes.data.map(dealFromDb));
+    if (taakRes.data) setTaken(taakRes.data.map(taakFromDb));
+    if (zpRes.data) setZoekprofielen(zpRes.data.map(zoekprofielFromDb));
+    setLoading(false);
+  }, [heeftToegang]);
+
+  useEffect(() => {
+    if (heeftToegang) refresh();
+  }, [heeftToegang, refresh]);
+
+  // -------- RELATIES --------
+  const addRelatie = useCallback(async (r: Omit<Relatie, 'id'>) => {
+    const { data, error } = await supabase
+      .from('relaties')
+      .insert(relatieToDb(r) as any)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    const nieuw = relatieFromDb(data);
+    setRelaties(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
-  const updateRelatie = useCallback((id: string, r: Partial<Relatie>) => {
-    setRelaties(prev => prev.map(x => x.id === id ? { ...x, ...r } : x));
+
+  const updateRelatie = useCallback(async (id: string, r: Partial<Relatie>) => {
+    const { data, error } = await supabase
+      .from('relaties')
+      .update(relatieToDb(r) as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+    const upd = relatieFromDb(data);
+    setRelaties(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
-  const deleteRelatie = useCallback((id: string) => {
+
+  const deleteRelatie = useCallback(async (id: string) => {
+    const { error } = await supabase.from('relaties').delete().eq('id', id);
+    if (error) { console.error(error); return; }
     setRelaties(prev => prev.filter(x => x.id !== id));
+    setDeals(prev => prev.filter(d => d.relatieId !== id));
   }, []);
 
-  const addObject = useCallback((o: Omit<ObjectVastgoed, 'id'>) => {
-    const newO = { ...o, id: genId('obj') } as ObjectVastgoed;
-    setObjecten(prev => [...prev, newO]);
-    return newO;
+  // -------- OBJECTEN --------
+  const addObject = useCallback(async (o: Omit<ObjectVastgoed, 'id'>) => {
+    const { data, error } = await supabase
+      .from('objecten')
+      .insert(objectToDb(o) as any)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    const nieuw = objectFromDb(data);
+    setObjecten(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
-  const updateObject = useCallback((id: string, o: Partial<ObjectVastgoed>) => {
-    setObjecten(prev => prev.map(x => x.id === id ? { ...x, ...o } : x));
+
+  const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
+    const { data, error } = await supabase
+      .from('objecten')
+      .update(objectToDb(o) as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+    const upd = objectFromDb(data);
+    setObjecten(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
-  const deleteObject = useCallback((id: string) => {
+
+  const deleteObject = useCallback(async (id: string) => {
+    const { error } = await supabase.from('objecten').delete().eq('id', id);
+    if (error) { console.error(error); return; }
     setObjecten(prev => prev.filter(x => x.id !== id));
+    setDeals(prev => prev.filter(d => d.objectId !== id));
   }, []);
 
-  const addDeal = useCallback((d: Omit<Deal, 'id'>) => {
-    const newD = { ...d, id: genId('deal') } as Deal;
-    setDeals(prev => [...prev, newD]);
-    return newD;
+  // -------- DEALS --------
+  const addDeal = useCallback(async (d: Omit<Deal, 'id'>) => {
+    const { data, error } = await supabase
+      .from('deals')
+      .insert(dealToDb(d) as any)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    const nieuw = dealFromDb(data);
+    setDeals(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
-  const updateDeal = useCallback((id: string, d: Partial<Deal>) => {
-    setDeals(prev => prev.map(x => x.id === id ? { ...x, ...d } : x));
+
+  const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
+    const { data, error } = await supabase
+      .from('deals')
+      .update(dealToDb(d) as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+    const upd = dealFromDb(data);
+    setDeals(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
-  const deleteDeal = useCallback((id: string) => {
+
+  const deleteDeal = useCallback(async (id: string) => {
+    const { error } = await supabase.from('deals').delete().eq('id', id);
+    if (error) { console.error(error); return; }
     setDeals(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  const addTaak = useCallback((t: Omit<Taak, 'id'>) => {
-    const newT = { ...t, id: genId('taak') } as Taak;
-    setTaken(prev => [...prev, newT]);
-    return newT;
+  // -------- TAKEN --------
+  const addTaak = useCallback(async (t: Omit<Taak, 'id'>) => {
+    const { data, error } = await supabase
+      .from('taken')
+      .insert(taakToDb(t) as any)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    const nieuw = taakFromDb(data);
+    setTaken(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
-  const updateTaak = useCallback((id: string, t: Partial<Taak>) => {
-    setTaken(prev => prev.map(x => x.id === id ? { ...x, ...t } : x));
+
+  const updateTaak = useCallback(async (id: string, t: Partial<Taak>) => {
+    const { data, error } = await supabase
+      .from('taken')
+      .update(taakToDb(t) as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+    const upd = taakFromDb(data);
+    setTaken(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
-  const deleteTaak = useCallback((id: string) => {
+
+  const deleteTaak = useCallback(async (id: string) => {
+    const { error } = await supabase.from('taken').delete().eq('id', id);
+    if (error) { console.error(error); return; }
     setTaken(prev => prev.filter(x => x.id !== id));
   }, []);
 
   const store: DataStore = {
-    relaties,
-    objecten,
-    deals,
-    taken,
-    zoekprofielen,
+    relaties, objecten, deals, taken, zoekprofielen, loading, refresh,
     addRelatie, updateRelatie, deleteRelatie,
     addObject, updateObject, deleteObject,
     addDeal, updateDeal, deleteDeal,
