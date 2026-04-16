@@ -1,17 +1,15 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  Search,
-  Building2,
-  Handshake,
-  CheckSquare,
-  FileText,
-  BarChart3,
-  Menu,
-  X,
+  LayoutDashboard, Users, Search, Building2, Handshake, CheckSquare,
+  BarChart3, Menu, X, LogOut, Shield,
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,6 +21,43 @@ const navItems = [
   { path: '/rapportage', label: 'Rapportage', icon: BarChart3 },
 ];
 
+function GebruikerMenu() {
+  const { user, isAdmin, signOut } = useAuth();
+  if (!user) return null;
+  const initialen = (user.email || '?').slice(0, 2).toUpperCase();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors w-full text-left">
+          <div className="h-7 w-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-medium shrink-0">
+            {initialen}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-foreground truncate font-medium">{user.email}</p>
+            <p className="text-[10px] text-muted-foreground">{isAdmin ? 'Admin' : 'Medewerker'}</p>
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <p className="text-xs text-muted-foreground">Ingelogd als</p>
+          <p className="text-sm truncate">{user.email}</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin"><Shield className="h-4 w-4 mr-2" /> Gebruikersbeheer</Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={() => signOut()}>
+          <LogOut className="h-4 w-4 mr-2" /> Uitloggen
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -32,12 +67,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-56 border-r border-border bg-card">
         <div className="h-14 flex items-center px-5 border-b border-border">
-          <span className="text-lg font-semibold tracking-tight text-foreground">
-            Bito
-          </span>
-          <span className="text-lg font-light tracking-tight text-muted-foreground ml-1">
-            Vastgoed
-          </span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">Bito</span>
+          <span className="text-lg font-light tracking-tight text-muted-foreground ml-1">Vastgoed</span>
         </div>
         <nav className="flex-1 py-3 px-2 space-y-0.5">
           {navItems.map((item) => {
@@ -60,8 +91,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
-          <p className="text-xs text-muted-foreground">Bito Dealflow v1.0</p>
+        <div className="p-2 border-t border-border">
+          <GebruikerMenu />
         </div>
       </aside>
 
@@ -83,12 +114,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Mobile Nav Overlay */}
         {mobileOpen && (
           <div className="lg:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
-            <div className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border p-4" onClick={e => e.stopPropagation()}>
+            <div className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border p-4 flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="mb-6">
                 <span className="text-lg font-semibold text-foreground">Bito</span>
                 <span className="text-lg font-light text-muted-foreground ml-1">Vastgoed</span>
               </div>
-              <nav className="space-y-1">
+              <nav className="space-y-1 flex-1">
                 {navItems.map((item) => {
                   const isActive = item.path === '/'
                     ? location.pathname === '/'
@@ -110,6 +141,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   );
                 })}
               </nav>
+              <div className="border-t border-border pt-3">
+                <GebruikerMenu />
+              </div>
             </div>
           </div>
         )}
