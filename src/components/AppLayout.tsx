@@ -29,13 +29,13 @@ function GebruikerMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors w-full text-left">
-          <div className="h-7 w-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-medium shrink-0">
+        <button className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors w-full text-left">
+          <div className="h-7 w-7 rounded-full bg-sidebar-primary/20 text-sidebar-primary flex items-center justify-center text-xs font-medium shrink-0">
             {initialen}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-foreground truncate font-medium">{user.email}</p>
-            <p className="text-[10px] text-muted-foreground">{isAdmin ? 'Admin' : 'Medewerker'}</p>
+            <p className="text-xs text-sidebar-foreground truncate font-medium">{user.email}</p>
+            <p className="text-[10px] text-sidebar-foreground/60">{isAdmin ? 'Admin' : 'Medewerker'}</p>
           </div>
         </button>
       </DropdownMenuTrigger>
