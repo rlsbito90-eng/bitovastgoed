@@ -65,10 +65,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-56 border-r border-border bg-card">
-        <div className="h-14 flex items-center px-5 border-b border-border">
-          <span className="text-lg font-semibold tracking-tight text-foreground">Bito</span>
-          <span className="text-lg font-light tracking-tight text-muted-foreground ml-1">Vastgoed</span>
+      <aside className="hidden lg:flex lg:flex-col lg:w-56 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <div className="h-14 flex items-center px-5 border-b border-sidebar-border">
+          <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
+          <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
         </div>
         <nav className="flex-1 py-3 px-2 space-y-0.5">
           {navItems.map((item) => {
@@ -81,8 +81,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 to={item.path}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
-                    ? 'bg-accent/10 text-accent font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-sidebar-primary/15 text-sidebar-primary font-medium'
+                    : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
                 }`}
               >
                 <item.icon className="h-4 w-4" />
@@ -91,7 +91,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-2 border-t border-border">
+        <div className="p-2 border-t border-sidebar-border">
           <GebruikerMenu />
         </div>
       </aside>
