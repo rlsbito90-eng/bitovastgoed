@@ -188,6 +188,24 @@ const zoekprofielFromDb = (z: any): Zoekprofiel => ({
   status: z.status === 'gepauzeerd' ? 'pauze' : z.status,
 });
 
+const zoekprofielToDb = (z: Partial<Zoekprofiel>) => ({
+  profielnaam: z.naam,
+  relatie_id: z.relatieId,
+  type_vastgoed: z.typeVastgoed ?? [],
+  regio: z.regio ?? [],
+  steden: z.stad ? [z.stad] : [],
+  prijs_min: z.prijsMin ?? null,
+  prijs_max: z.prijsMax ?? null,
+  oppervlakte_min: z.oppervlakteMin ?? null,
+  oppervlakte_max: z.oppervlakteMax ?? null,
+  verhuur_voorkeur: z.verhuurStatus ?? null,
+  rendementseis: z.rendementseis ?? null,
+  ontwikkelpotentie: !!z.ontwikkelPotentie,
+  transformatiepotentie: !!z.transformatiePotentie,
+  aanvullende_criteria: z.aanvullendeCriteria || null,
+  status: z.status === 'pauze' ? 'gepauzeerd' : (z.status ?? 'actief'),
+});
+
 // =====================================================
 // CONTEXT
 // =====================================================
@@ -216,6 +234,10 @@ interface DataStore {
   addTaak: (t: Omit<Taak, 'id'>) => Promise<Taak | null>;
   updateTaak: (id: string, t: Partial<Taak>) => Promise<void>;
   deleteTaak: (id: string) => Promise<void>;
+
+  addZoekprofiel: (z: Omit<Zoekprofiel, 'id'>) => Promise<Zoekprofiel | null>;
+  updateZoekprofiel: (id: string, z: Partial<Zoekprofiel>) => Promise<void>;
+  deleteZoekprofiel: (id: string) => Promise<void>;
 
   getRelatieById: (id: string) => Relatie | undefined;
   getObjectById: (id: string) => ObjectVastgoed | undefined;
@@ -386,12 +408,44 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setTaken(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  // -------- ZOEKPROFIELEN --------
+  const addZoekprofiel = useCallback(async (z: Omit<Zoekprofiel, 'id'>) => {
+    const { data, error } = await supabase
+      .from('zoekprofielen')
+      .insert(zoekprofielToDb(z) as any)
+      .select()
+      .single();
+    if (error) { console.error(error); return null; }
+    const nieuw = zoekprofielFromDb(data);
+    setZoekprofielen(prev => [nieuw, ...prev]);
+    return nieuw;
+  }, []);
+
+  const updateZoekprofiel = useCallback(async (id: string, z: Partial<Zoekprofiel>) => {
+    const { data, error } = await supabase
+      .from('zoekprofielen')
+      .update(zoekprofielToDb(z) as any)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) { console.error(error); return; }
+    const upd = zoekprofielFromDb(data);
+    setZoekprofielen(prev => prev.map(x => x.id === id ? upd : x));
+  }, []);
+
+  const deleteZoekprofiel = useCallback(async (id: string) => {
+    const { error } = await supabase.from('zoekprofielen').delete().eq('id', id);
+    if (error) { console.error(error); return; }
+    setZoekprofielen(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   const store: DataStore = {
     relaties, objecten, deals, taken, zoekprofielen, loading, refresh,
     addRelatie, updateRelatie, deleteRelatie,
     addObject, updateObject, deleteObject,
     addDeal, updateDeal, deleteDeal,
     addTaak, updateTaak, deleteTaak,
+    addZoekprofiel, updateZoekprofiel, deleteZoekprofiel,
     getRelatieById: (id) => relaties.find(r => r.id === id),
     getObjectById: (id) => objecten.find(o => o.id === id),
     getDealById: (id) => deals.find(d => d.id === id),

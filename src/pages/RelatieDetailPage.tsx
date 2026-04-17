@@ -5,8 +5,10 @@ import { getMatchesForRelatieFromData, formatCurrency, formatDate } from '@/data
 import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
 import { ArrowLeft, Phone, Mail, Pencil, Trash2 } from 'lucide-react';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 export default function RelatieDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +16,7 @@ export default function RelatieDetailPage() {
   const store = useDataStore();
   const relatie = store.getRelatieById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [zpOpen, setZpOpen] = useState(false);
 
   if (!relatie) {
     return (
@@ -149,22 +152,26 @@ export default function RelatieDetailPage() {
         </div>
 
         <div className="space-y-6">
-          {zoekprofielen.length > 0 && (
-            <div className="bg-card border border-border rounded-lg">
-              <div className="px-5 py-4 border-b border-border">
-                <h2 className="text-sm font-semibold text-foreground">Zoekprofielen ({zoekprofielen.length})</h2>
-              </div>
-              <div className="divide-y divide-border">
-                {zoekprofielen.map(zp => (
-                  <div key={zp.id} className="px-5 py-3">
-                    <p className="text-sm font-medium text-foreground">{zp.naam}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ')}</p>
-                    {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
-                  </div>
-                ))}
-              </div>
+          <div className="bg-card border border-border rounded-lg">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Zoekprofielen ({zoekprofielen.length})</h2>
+              <button onClick={() => setZpOpen(true)} className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
+                <Plus className="h-3 w-3" /> Nieuw
+              </button>
             </div>
-          )}
+            <div className="divide-y divide-border">
+              {zoekprofielen.length === 0 && (
+                <p className="px-5 py-4 text-xs text-muted-foreground">Nog geen zoekprofielen.</p>
+              )}
+              {zoekprofielen.map(zp => (
+                <div key={zp.id} className="px-5 py-3">
+                  <p className="text-sm font-medium text-foreground">{zp.naam}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 capitalize">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ')}</p>
+                  {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
 
           {matches.length > 0 && (
             <div className="bg-card border border-border rounded-lg">
@@ -193,6 +200,7 @@ export default function RelatieDetailPage() {
       </div>
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
+      <ZoekprofielFormDialog open={zpOpen} onOpenChange={setZpOpen} defaultRelatieId={relatie.id} />
     </div>
   );
 }
