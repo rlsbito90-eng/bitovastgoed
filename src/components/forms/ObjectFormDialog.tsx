@@ -23,7 +23,7 @@ const emptyForm = {
   vraagprijs: '',
   huurinkomsten: '',
   aantalHuurders: '',
-  verhuurStatus: 'verhuurd' as VerhuurStatus,
+  verhuurStatus: 'leeg' as VerhuurStatus,
   oppervlakte: '',
   bouwjaar: '',
   onderhoudsstaat: '',
@@ -181,6 +181,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
                 <option value="off-market">Off-market</option>
                 <option value="in_onderzoek">In onderzoek</option>
+                <option value="beschikbaar">Beschikbaar</option>
                 <option value="onder_optie">Onder optie</option>
                 <option value="verkocht">Verkocht</option>
                 <option value="ingetrokken">Ingetrokken</option>
