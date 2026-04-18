@@ -29,10 +29,14 @@ export default function ObjectDetailPage() {
   const rendement = object.huurinkomsten && object.vraagprijs ? ((object.huurinkomsten / object.vraagprijs) * 100).toFixed(1) : null;
   const huurPerM2 = object.huurinkomsten && object.oppervlakte ? Math.round(object.huurinkomsten / object.oppervlakte) : null;
 
-  const handleDelete = () => {
-    store.deleteObject(object.id);
-    toast.success('Object verwijderd');
-    navigate('/objecten');
+  const handleDelete = async () => {
+    try {
+      await store.deleteObject(object.id);
+      toast.success('Object verwijderd');
+      navigate('/objecten');
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
   };
 
   return (

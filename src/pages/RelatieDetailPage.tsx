@@ -32,10 +32,14 @@ export default function RelatieDetailPage() {
   const taken = store.getTakenByRelatie(relatie.id);
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
-  const handleDelete = () => {
-    store.deleteRelatie(relatie.id);
-    toast.success('Relatie verwijderd');
-    navigate('/relaties');
+  const handleDelete = async () => {
+    try {
+      await store.deleteRelatie(relatie.id);
+      toast.success('Relatie verwijderd');
+      navigate('/relaties');
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
   };
 
   return (

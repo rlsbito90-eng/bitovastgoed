@@ -57,10 +57,14 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
     }
   }, [deal, open, defaultRelatieId, defaultObjectId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.objectId || !form.relatieId) {
       toast.error('Object en relatie zijn verplicht');
+      return;
+    }
+    if (!form.datumEersteContact) {
+      toast.error('Datum eerste contact is verplicht');
       return;
     }
 
@@ -76,14 +80,18 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
       notities: form.notities || undefined,
     };
 
-    if (isEdit && deal) {
-      updateDeal(deal.id, data);
-      toast.success('Deal bijgewerkt');
-    } else {
-      addDeal(data);
-      toast.success('Deal aangemaakt');
+    try {
+      if (isEdit && deal) {
+        await updateDeal(deal.id, data);
+        toast.success('Deal bijgewerkt');
+      } else {
+        await addDeal(data);
+        toast.success('Deal aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     }
-    onOpenChange(false);
   };
 
   const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));

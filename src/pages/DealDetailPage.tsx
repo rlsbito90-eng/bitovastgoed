@@ -27,10 +27,14 @@ export default function DealDetailPage() {
   const relatie = store.getRelatieById(deal.relatieId);
   const object = store.getObjectById(deal.objectId);
 
-  const handleDelete = () => {
-    store.deleteDeal(deal.id);
-    toast.success('Deal verwijderd');
-    navigate('/deals');
+  const handleDelete = async () => {
+    try {
+      await store.deleteDeal(deal.id);
+      toast.success('Deal verwijderd');
+      navigate('/deals');
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
   };
 
   return (

@@ -97,13 +97,14 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => ({
   interne_opmerkingen: o.interneOpmerkingen || null,
 });
 
-// App heeft 'off-market', 'in_onderzoek', 'onder_optie', 'verkocht', 'ingetrokken'
-// DB heeft  'nieuw', 'in_voorbereiding', 'beschikbaar', 'in_onderhandeling', 'verkocht', 'ingetrokken'
+// 1-op-1 mapping tussen App-statussen en DB-enum (geen verlies bij round-trip).
+// App: 'off-market' | 'in_onderzoek' | 'beschikbaar' | 'onder_optie' | 'verkocht' | 'ingetrokken'
+// DB:  'nieuw'      | 'in_voorbereiding' | 'beschikbaar' | 'in_onderhandeling' | 'verkocht' | 'ingetrokken'
 function mapDbObjectStatusNaarApp(s: string): any {
   switch (s) {
     case 'nieuw': return 'off-market';
     case 'in_voorbereiding': return 'in_onderzoek';
-    case 'beschikbaar': return 'off-market';
+    case 'beschikbaar': return 'beschikbaar';
     case 'in_onderhandeling': return 'onder_optie';
     case 'verkocht': return 'verkocht';
     case 'ingetrokken': return 'ingetrokken';
@@ -114,6 +115,7 @@ function mapAppObjectStatusNaarDb(s: any): string {
   switch (s) {
     case 'off-market': return 'nieuw';
     case 'in_onderzoek': return 'in_voorbereiding';
+    case 'beschikbaar': return 'beschikbaar';
     case 'onder_optie': return 'in_onderhandeling';
     case 'verkocht': return 'verkocht';
     case 'ingetrokken': return 'ingetrokken';
@@ -282,6 +284,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     if (heeftToegang) refresh();
   }, [heeftToegang, refresh]);
 
+  // Generieke helpers — gooien een nette Error met de DB-message zodat dialogs het kunnen tonen.
+  const throwIfError = (error: any) => {
+    if (error) {
+      console.error('[Supabase]', error);
+      throw new Error(error.message || 'Onbekende databasefout');
+    }
+  };
+
   // -------- RELATIES --------
   const addRelatie = useCallback(async (r: Omit<Relatie, 'id'>) => {
     const { data, error } = await supabase
@@ -289,7 +299,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(relatieToDb(r) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = relatieFromDb(data);
     setRelaties(prev => [nieuw, ...prev]);
     return nieuw;
@@ -302,14 +312,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = relatieFromDb(data);
     setRelaties(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteRelatie = useCallback(async (id: string) => {
     const { error } = await supabase.from('relaties').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setRelaties(prev => prev.filter(x => x.id !== id));
     setDeals(prev => prev.filter(d => d.relatieId !== id));
   }, []);
@@ -321,7 +331,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(objectToDb(o) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = objectFromDb(data);
     setObjecten(prev => [nieuw, ...prev]);
     return nieuw;
@@ -334,14 +344,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = objectFromDb(data);
     setObjecten(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteObject = useCallback(async (id: string) => {
     const { error } = await supabase.from('objecten').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setObjecten(prev => prev.filter(x => x.id !== id));
     setDeals(prev => prev.filter(d => d.objectId !== id));
   }, []);
@@ -353,7 +363,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(dealToDb(d) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = dealFromDb(data);
     setDeals(prev => [nieuw, ...prev]);
     return nieuw;
@@ -366,14 +376,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = dealFromDb(data);
     setDeals(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteDeal = useCallback(async (id: string) => {
     const { error } = await supabase.from('deals').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setDeals(prev => prev.filter(x => x.id !== id));
   }, []);
 
@@ -384,7 +394,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(taakToDb(t) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = taakFromDb(data);
     setTaken(prev => [nieuw, ...prev]);
     return nieuw;
@@ -397,14 +407,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = taakFromDb(data);
     setTaken(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteTaak = useCallback(async (id: string) => {
     const { error } = await supabase.from('taken').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setTaken(prev => prev.filter(x => x.id !== id));
   }, []);
 
@@ -415,7 +425,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(zoekprofielToDb(z) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = zoekprofielFromDb(data);
     setZoekprofielen(prev => [nieuw, ...prev]);
     return nieuw;
@@ -428,14 +438,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = zoekprofielFromDb(data);
     setZoekprofielen(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteZoekprofiel = useCallback(async (id: string) => {
     const { error } = await supabase.from('zoekprofielen').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setZoekprofielen(prev => prev.filter(x => x.id !== id));
   }, []);
 

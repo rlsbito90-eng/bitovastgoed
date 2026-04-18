@@ -78,6 +78,14 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
       toast.error('Naam, relatie en minstens één type vastgoed zijn verplicht');
       return;
     }
+    if (form.prijsMin && form.prijsMax && Number(form.prijsMin) > Number(form.prijsMax)) {
+      toast.error('Prijs min mag niet groter zijn dan prijs max');
+      return;
+    }
+    if (form.oppervlakteMin && form.oppervlakteMax && Number(form.oppervlakteMin) > Number(form.oppervlakteMax)) {
+      toast.error('Oppervlakte min mag niet groter zijn dan oppervlakte max');
+      return;
+    }
 
     const data: Omit<Zoekprofiel, 'id'> = {
       naam: form.naam.trim(),
@@ -96,14 +104,18 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
       status: form.status,
     };
 
-    if (isEdit && zoekprofiel) {
-      await updateZoekprofiel(zoekprofiel.id, data);
-      toast.success('Zoekprofiel bijgewerkt');
-    } else {
-      await addZoekprofiel(data);
-      toast.success('Zoekprofiel aangemaakt');
+    try {
+      if (isEdit && zoekprofiel) {
+        await updateZoekprofiel(zoekprofiel.id, data);
+        toast.success('Zoekprofiel bijgewerkt');
+      } else {
+        await addZoekprofiel(data);
+        toast.success('Zoekprofiel aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     }
-    onOpenChange(false);
   };
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));

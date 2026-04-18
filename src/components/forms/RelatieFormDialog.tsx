@@ -59,14 +59,22 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
     }
   }, [relatie, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.bedrijfsnaam.trim() || !form.contactpersoon.trim()) {
       toast.error('Bedrijfsnaam en contactpersoon zijn verplicht');
       return;
     }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      toast.error('Vul een geldig e-mailadres in');
+      return;
+    }
+    if (form.budgetMin && form.budgetMax && Number(form.budgetMin) > Number(form.budgetMax)) {
+      toast.error('Budget min mag niet groter zijn dan budget max');
+      return;
+    }
 
-    const data: Omit<Relatie, 'id'> = {
+    const data: Partial<Relatie> = {
       bedrijfsnaam: form.bedrijfsnaam.trim(),
       contactpersoon: form.contactpersoon.trim(),
       type: form.type,
@@ -79,19 +87,24 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
       aankoopcriteria: form.aankoopcriteria || undefined,
       verkoopintentie: form.verkoopintentie || undefined,
       leadStatus: form.leadStatus,
-      laatsteContact: new Date().toISOString().split('T')[0],
       volgendeActie: form.volgendeActie || undefined,
       notities: form.notities || undefined,
     };
 
-    if (isEdit && relatie) {
-      updateRelatie(relatie.id, data);
-      toast.success('Relatie bijgewerkt');
-    } else {
-      addRelatie(data);
-      toast.success('Relatie aangemaakt');
+    try {
+      if (isEdit && relatie) {
+        // BIJ EDIT: laatsteContact NIET overschrijven (zou de echte contactdatum wissen).
+        await updateRelatie(relatie.id, data);
+        toast.success('Relatie bijgewerkt');
+      } else {
+        // BIJ CREATE: laatsteContact = vandaag als eerste registratie.
+        await addRelatie({ ...data, laatsteContact: new Date().toISOString().split('T')[0] } as Omit<Relatie, 'id'>);
+        toast.success('Relatie aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     }
-    onOpenChange(false);
   };
 
   const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));

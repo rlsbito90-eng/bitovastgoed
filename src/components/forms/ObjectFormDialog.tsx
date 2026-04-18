@@ -23,7 +23,7 @@ const emptyForm = {
   vraagprijs: '',
   huurinkomsten: '',
   aantalHuurders: '',
-  verhuurStatus: 'verhuurd' as VerhuurStatus,
+  verhuurStatus: 'leeg' as VerhuurStatus,
   oppervlakte: '',
   bouwjaar: '',
   onderhoudsstaat: '',
@@ -70,10 +70,14 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     }
   }, [object, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titel.trim() || !form.plaats.trim()) {
-      toast.error('Titel en plaats zijn verplicht');
+      toast.error('Objectnaam en plaats zijn verplicht');
+      return;
+    }
+    if (form.bouwjaar && (Number(form.bouwjaar) < 1700 || Number(form.bouwjaar) > new Date().getFullYear() + 5)) {
+      toast.error('Vul een realistisch bouwjaar in');
       return;
     }
 
@@ -100,14 +104,18 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       datumToegevoegd: isEdit ? object!.datumToegevoegd : new Date().toISOString().split('T')[0],
     };
 
-    if (isEdit && object) {
-      updateObject(object.id, data);
-      toast.success('Object bijgewerkt');
-    } else {
-      addObject(data);
-      toast.success('Object aangemaakt');
+    try {
+      if (isEdit && object) {
+        await updateObject(object.id, data);
+        toast.success('Object bijgewerkt');
+      } else {
+        await addObject(data);
+        toast.success('Object aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     }
-    onOpenChange(false);
   };
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
@@ -181,6 +189,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
                 <option value="off-market">Off-market</option>
                 <option value="in_onderzoek">In onderzoek</option>
+                <option value="beschikbaar">Beschikbaar</option>
                 <option value="onder_optie">Onder optie</option>
                 <option value="verkocht">Verkocht</option>
                 <option value="ingetrokken">Ingetrokken</option>
