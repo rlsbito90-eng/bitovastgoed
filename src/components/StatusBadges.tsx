@@ -23,6 +23,7 @@ const dealFaseConfig: Record<DealFase, { label: string; className: string }> = {
 const objectStatusConfig: Record<ObjectStatus, { label: string; className: string }> = {
   'off-market': { label: 'Off-market', className: 'bg-success/15 text-success' },
   'in_onderzoek': { label: 'In onderzoek', className: 'bg-accent/15 text-accent' },
+  'beschikbaar': { label: 'Beschikbaar', className: 'bg-success/15 text-success' },
   'onder_optie': { label: 'Onder optie', className: 'bg-warning/15 text-warning' },
   'verkocht': { label: 'Verkocht', className: 'bg-muted text-muted-foreground' },
   'ingetrokken': { label: 'Ingetrokken', className: 'bg-destructive/15 text-destructive' },
