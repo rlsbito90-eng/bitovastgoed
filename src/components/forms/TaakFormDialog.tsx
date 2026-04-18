@@ -53,7 +53,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
   }, [taak, open, defaultRelatieId, defaultDealId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titel.trim()) {
       toast.error('Titel is verplicht');
@@ -71,14 +71,18 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       notities: form.notities || undefined,
     };
 
-    if (isEdit && taak) {
-      updateTaak(taak.id, data);
-      toast.success('Taak bijgewerkt');
-    } else {
-      addTaak(data);
-      toast.success('Taak aangemaakt');
+    try {
+      if (isEdit && taak) {
+        await updateTaak(taak.id, data);
+        toast.success('Taak bijgewerkt');
+      } else {
+        await addTaak(data);
+        toast.success('Taak aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     }
-    onOpenChange(false);
   };
 
   const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
