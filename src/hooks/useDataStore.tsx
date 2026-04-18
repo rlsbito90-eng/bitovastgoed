@@ -97,13 +97,14 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => ({
   interne_opmerkingen: o.interneOpmerkingen || null,
 });
 
-// App heeft 'off-market', 'in_onderzoek', 'onder_optie', 'verkocht', 'ingetrokken'
-// DB heeft  'nieuw', 'in_voorbereiding', 'beschikbaar', 'in_onderhandeling', 'verkocht', 'ingetrokken'
+// 1-op-1 mapping tussen App-statussen en DB-enum (geen verlies bij round-trip).
+// App: 'off-market' | 'in_onderzoek' | 'beschikbaar' | 'onder_optie' | 'verkocht' | 'ingetrokken'
+// DB:  'nieuw'      | 'in_voorbereiding' | 'beschikbaar' | 'in_onderhandeling' | 'verkocht' | 'ingetrokken'
 function mapDbObjectStatusNaarApp(s: string): any {
   switch (s) {
     case 'nieuw': return 'off-market';
     case 'in_voorbereiding': return 'in_onderzoek';
-    case 'beschikbaar': return 'off-market';
+    case 'beschikbaar': return 'beschikbaar';
     case 'in_onderhandeling': return 'onder_optie';
     case 'verkocht': return 'verkocht';
     case 'ingetrokken': return 'ingetrokken';
@@ -114,6 +115,7 @@ function mapAppObjectStatusNaarDb(s: any): string {
   switch (s) {
     case 'off-market': return 'nieuw';
     case 'in_onderzoek': return 'in_voorbereiding';
+    case 'beschikbaar': return 'beschikbaar';
     case 'onder_optie': return 'in_onderhandeling';
     case 'verkocht': return 'verkocht';
     case 'ingetrokken': return 'ingetrokken';
