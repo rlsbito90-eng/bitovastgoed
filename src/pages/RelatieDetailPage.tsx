@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getMatchesForRelatieFromData, formatCurrency, formatDate } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
-import { ArrowLeft, Phone, Mail, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Pencil, Trash2, Plus } from 'lucide-react';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="field-label">{label}</p>
+      <div className="text-sm text-foreground mt-1 break-words">{children}</div>
+    </div>
+  );
+}
 
 export default function RelatieDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,32 +51,36 @@ export default function RelatieDetailPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-8 fade-in">
+    <div className="page-shell-narrow">
       <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Relaties
       </Link>
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-foreground">{relatie.bedrijfsnaam}</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">{relatie.bedrijfsnaam}</h1>
             <LeadStatusBadge status={relatie.leadStatus} />
           </div>
-          <p className="text-sm text-muted-foreground mt-1">{relatie.contactpersoon} · {relatie.type}</p>
+          <p className="text-sm text-muted-foreground mt-1.5">{relatie.contactpersoon} · <span className="capitalize">{relatie.type}</span></p>
         </div>
-        <div className="flex gap-2">
-          <a href={`tel:${relatie.telefoon}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
-            <Phone className="h-4 w-4" /> Bel
-          </a>
-          <a href={`mailto:${relatie.email}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
-            <Mail className="h-4 w-4" /> Mail
-          </a>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {relatie.telefoon && (
+            <a href={`tel:${relatie.telefoon}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+              <Phone className="h-4 w-4" /> Bel
+            </a>
+          )}
+          {relatie.email && (
+            <a href={`mailto:${relatie.email}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+              <Mail className="h-4 w-4" /> Mail
+            </a>
+          )}
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive">
+              <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
                 <Trash2 className="h-4 w-4" />
               </button>
             </AlertDialogTrigger>
@@ -86,45 +98,42 @@ export default function RelatieDetailPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-foreground">Basisgegevens</h2>
-            <div className="grid sm:grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">Telefoon</span><p className="text-foreground">{relatie.telefoon}</p></div>
-              <div><span className="text-muted-foreground">E-mail</span><p className="text-foreground">{relatie.email}</p></div>
-              <div><span className="text-muted-foreground">Regio</span><p className="text-foreground">{relatie.regio.join(', ')}</p></div>
-              <div><span className="text-muted-foreground">Asset classes</span><p className="text-foreground capitalize">{relatie.assetClasses.join(', ')}</p></div>
+      <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+          <section className="section-card p-5 sm:p-6 space-y-5">
+            <h2 className="section-title">Basisgegevens</h2>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+              <Field label="Telefoon">{relatie.telefoon || '—'}</Field>
+              <Field label="E-mail">{relatie.email || '—'}</Field>
+              <Field label="Regio">{relatie.regio.length ? relatie.regio.join(', ') : '—'}</Field>
+              <Field label="Asset classes"><span className="capitalize">{relatie.assetClasses.length ? relatie.assetClasses.join(', ') : '—'}</span></Field>
               {relatie.budgetMin && (
-                <div><span className="text-muted-foreground">Budget</span><p className="text-foreground font-mono-data">{formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}</p></div>
+                <Field label="Budget"><span className="font-mono-data">{formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}</span></Field>
               )}
-              <div><span className="text-muted-foreground">Laatste contact</span><p className="text-foreground">{formatDate(relatie.laatsteContact)}</p></div>
+              <Field label="Laatste contact"><span className="tabular-nums">{formatDate(relatie.laatsteContact)}</span></Field>
             </div>
-            {relatie.aankoopcriteria && (
-              <div><span className="text-xs text-muted-foreground">Aankoopcriteria</span><p className="text-sm text-foreground mt-1">{relatie.aankoopcriteria}</p></div>
+
+            {(relatie.aankoopcriteria || relatie.verkoopintentie || relatie.notities) && (
+              <div className="space-y-4 hairline pt-5">
+                {relatie.aankoopcriteria && <Field label="Aankoopcriteria">{relatie.aankoopcriteria}</Field>}
+                {relatie.verkoopintentie && <Field label="Verkoopintentie">{relatie.verkoopintentie}</Field>}
+                {relatie.notities && <Field label="Notities">{relatie.notities}</Field>}
+              </div>
             )}
-            {relatie.verkoopintentie && (
-              <div><span className="text-xs text-muted-foreground">Verkoopintentie</span><p className="text-sm text-foreground mt-1">{relatie.verkoopintentie}</p></div>
-            )}
-            {relatie.notities && (
-              <div><span className="text-xs text-muted-foreground">Notities</span><p className="text-sm text-foreground mt-1">{relatie.notities}</p></div>
-            )}
-          </div>
+          </section>
 
           {deals.length > 0 && (
-            <div className="bg-card border border-border rounded-lg">
-              <div className="px-5 py-4 border-b border-border">
-                <h2 className="text-sm font-semibold text-foreground">Gekoppelde deals ({deals.length})</h2>
-              </div>
-              <div className="divide-y divide-border">
+            <section className="section-card">
+              <header className="section-header"><h2 className="section-title">Gekoppelde deals ({deals.length})</h2></header>
+              <div className="divide-y divide-border/70">
                 {deals.map(deal => {
                   const obj = store.getObjectById(deal.objectId);
                   return (
-                    <Link key={deal.id} to={`/deals/${deal.id}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-foreground">{obj?.titel}</p>
-                          <p className="text-xs text-muted-foreground">{obj?.plaats} · {formatCurrency(obj?.vraagprijs)}</p>
+                    <Link key={deal.id} to={`/deals/${deal.id}`} className="block px-5 py-3.5 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm text-foreground truncate">{obj?.titel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj?.plaats} · <span className="font-mono-data">{formatCurrency(obj?.vraagprijs)}</span></p>
                         </div>
                         <DealFaseBadge fase={deal.fase} />
                       </div>
@@ -132,65 +141,61 @@ export default function RelatieDetailPage() {
                   );
                 })}
               </div>
-            </div>
+            </section>
           )}
 
           {taken.length > 0 && (
-            <div className="bg-card border border-border rounded-lg">
-              <div className="px-5 py-4 border-b border-border">
-                <h2 className="text-sm font-semibold text-foreground">Open taken ({taken.length})</h2>
-              </div>
-              <div className="divide-y divide-border">
+            <section className="section-card">
+              <header className="section-header"><h2 className="section-title">Open taken ({taken.length})</h2></header>
+              <div className="divide-y divide-border/70">
                 {taken.map(taak => (
-                  <div key={taak.id} className="px-5 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-foreground">{taak.titel}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(taak.deadline)}</p>
+                  <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground truncate">{taak.titel}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{formatDate(taak.deadline)}</p>
                     </div>
                     <PrioriteitBadge prioriteit={taak.prioriteit} />
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-card border border-border rounded-lg">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Zoekprofielen ({zoekprofielen.length})</h2>
-              <button onClick={() => setZpOpen(true)} className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
+        <div className="space-y-4 lg:space-y-6">
+          <section className="section-card">
+            <header className="section-header">
+              <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
+              <button onClick={() => setZpOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80">
                 <Plus className="h-3 w-3" /> Nieuw
               </button>
-            </div>
-            <div className="divide-y divide-border">
+            </header>
+            <div className="divide-y divide-border/70">
               {zoekprofielen.length === 0 && (
-                <p className="px-5 py-4 text-xs text-muted-foreground">Nog geen zoekprofielen.</p>
+                <p className="px-5 py-6 text-xs text-muted-foreground">Nog geen zoekprofielen.</p>
               )}
               {zoekprofielen.map(zp => (
-                <div key={zp.id} className="px-5 py-3">
-                  <p className="text-sm font-medium text-foreground">{zp.naam}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 capitalize">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ')}</p>
-                  {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
+                <div key={zp.id} className="px-5 py-3.5">
+                  <p className="text-sm font-medium text-foreground truncate">{zp.naam}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 capitalize truncate">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ') || '—'}</p>
+                  {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data mt-0.5">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
           {matches.length > 0 && (
-            <div className="bg-card border border-border rounded-lg">
-              <div className="px-5 py-4 border-b border-border">
-                <h2 className="text-sm font-semibold text-foreground">Matchende objecten ({matches.length})</h2>
-              </div>
-              <div className="divide-y divide-border">
+            <section className="section-card">
+              <header className="section-header"><h2 className="section-title">Matchende objecten ({matches.length})</h2></header>
+              <div className="divide-y divide-border/70">
                 {matches.slice(0, 5).map((m, i) => {
                   const obj = store.getObjectById(m.objectId);
                   return (
-                    <Link key={i} to={`/objecten/${m.objectId}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
+                    <Link key={i} to={`/objecten/${m.objectId}`} className="block px-5 py-3.5 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm text-foreground truncate">{obj?.titel}</p>
-                          <p className="text-xs text-muted-foreground">{obj?.plaats}</p>
+                          <p className="text-xs text-muted-foreground truncate">{obj?.plaats}</p>
                         </div>
                         <MatchScoreBadge score={m.score} />
                       </div>
@@ -198,7 +203,7 @@ export default function RelatieDetailPage() {
                   );
                 })}
               </div>
-            </div>
+            </section>
           )}
         </div>
       </div>
