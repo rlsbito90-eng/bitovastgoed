@@ -27,8 +27,12 @@ export default function ZoekprofielenPage() {
   const openNieuw = () => { setEditing(null); setFormOpen(true); };
   const openBewerk = (z: Zoekprofiel) => { setEditing(z); setFormOpen(true); };
   const handleDelete = async (id: string) => {
-    await deleteZoekprofiel(id);
-    toast.success('Zoekprofiel verwijderd');
+    try {
+      await deleteZoekprofiel(id);
+      toast.success('Zoekprofiel verwijderd');
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
   };
 
   return (
