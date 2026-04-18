@@ -284,6 +284,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     if (heeftToegang) refresh();
   }, [heeftToegang, refresh]);
 
+  // Generieke helpers — gooien een nette Error met de DB-message zodat dialogs het kunnen tonen.
+  const throwIfError = (error: any) => {
+    if (error) {
+      console.error('[Supabase]', error);
+      throw new Error(error.message || 'Onbekende databasefout');
+    }
+  };
+
   // -------- RELATIES --------
   const addRelatie = useCallback(async (r: Omit<Relatie, 'id'>) => {
     const { data, error } = await supabase
@@ -291,7 +299,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(relatieToDb(r) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = relatieFromDb(data);
     setRelaties(prev => [nieuw, ...prev]);
     return nieuw;
@@ -304,14 +312,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = relatieFromDb(data);
     setRelaties(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteRelatie = useCallback(async (id: string) => {
     const { error } = await supabase.from('relaties').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setRelaties(prev => prev.filter(x => x.id !== id));
     setDeals(prev => prev.filter(d => d.relatieId !== id));
   }, []);
@@ -323,7 +331,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(objectToDb(o) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = objectFromDb(data);
     setObjecten(prev => [nieuw, ...prev]);
     return nieuw;
@@ -336,14 +344,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = objectFromDb(data);
     setObjecten(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteObject = useCallback(async (id: string) => {
     const { error } = await supabase.from('objecten').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setObjecten(prev => prev.filter(x => x.id !== id));
     setDeals(prev => prev.filter(d => d.objectId !== id));
   }, []);
@@ -355,7 +363,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(dealToDb(d) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = dealFromDb(data);
     setDeals(prev => [nieuw, ...prev]);
     return nieuw;
@@ -368,14 +376,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = dealFromDb(data);
     setDeals(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteDeal = useCallback(async (id: string) => {
     const { error } = await supabase.from('deals').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setDeals(prev => prev.filter(x => x.id !== id));
   }, []);
 
@@ -386,7 +394,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(taakToDb(t) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = taakFromDb(data);
     setTaken(prev => [nieuw, ...prev]);
     return nieuw;
@@ -399,14 +407,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = taakFromDb(data);
     setTaken(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteTaak = useCallback(async (id: string) => {
     const { error } = await supabase.from('taken').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setTaken(prev => prev.filter(x => x.id !== id));
   }, []);
 
@@ -417,7 +425,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .insert(zoekprofielToDb(z) as any)
       .select()
       .single();
-    if (error) { console.error(error); return null; }
+    throwIfError(error);
     const nieuw = zoekprofielFromDb(data);
     setZoekprofielen(prev => [nieuw, ...prev]);
     return nieuw;
@@ -430,14 +438,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .eq('id', id)
       .select()
       .single();
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     const upd = zoekprofielFromDb(data);
     setZoekprofielen(prev => prev.map(x => x.id === id ? upd : x));
   }, []);
 
   const deleteZoekprofiel = useCallback(async (id: string) => {
     const { error } = await supabase.from('zoekprofielen').delete().eq('id', id);
-    if (error) { console.error(error); return; }
+    throwIfError(error);
     setZoekprofielen(prev => prev.filter(x => x.id !== id));
   }, []);
 
