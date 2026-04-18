@@ -65,12 +65,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-56 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-        <div className="h-14 flex items-center px-5 border-b border-sidebar-border">
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
           <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
           <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
+          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
         </div>
-        <nav className="flex-1 py-3 px-2 space-y-0.5">
+        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = item.path === '/'
               ? location.pathname === '/'
@@ -79,13 +80,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                className={`relative flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
-                    ? 'bg-sidebar-primary/15 text-sidebar-primary font-medium'
-                    : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+                    ? 'bg-sidebar-accent text-sidebar-foreground font-medium'
+                    : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
                 }`}
               >
-                <item.icon className="h-4 w-4" />
+                {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />}
+                <item.icon className={`h-4 w-4 ${isActive ? 'text-accent' : ''}`} />
                 {item.label}
               </Link>
             );
@@ -98,14 +100,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile Header */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card">
+        <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-30">
           <div className="flex items-center">
             <span className="text-lg font-semibold text-foreground">Bito</span>
             <span className="text-lg font-light text-muted-foreground ml-1">Vastgoed</span>
           </div>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-md hover:bg-muted text-foreground"
+            className="p-2 -mr-2 rounded-md hover:bg-muted text-foreground"
+            aria-label={mobileOpen ? 'Menu sluiten' : 'Menu openen'}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -113,11 +116,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Mobile Nav Overlay */}
         {mobileOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
-            <div className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border p-4 flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="mb-6">
-                <span className="text-lg font-semibold text-foreground">Bito</span>
-                <span className="text-lg font-light text-muted-foreground ml-1">Vastgoed</span>
+          <div className="lg:hidden fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
+            <div className="fixed left-0 top-0 bottom-0 w-72 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="mb-6 flex items-center">
+                <span className="text-lg font-semibold text-sidebar-foreground">Bito</span>
+                <span className="text-lg font-light text-sidebar-foreground/60 ml-1">Vastgoed</span>
               </div>
               <nav className="space-y-1 flex-1">
                 {navItems.map((item) => {
@@ -131,17 +134,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       onClick={() => setMobileOpen(false)}
                       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm transition-colors ${
                         isActive
-                          ? 'bg-accent/10 text-accent font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-sidebar-accent text-sidebar-foreground font-medium'
+                          : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
                       }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className={`h-4 w-4 ${isActive ? 'text-accent' : ''}`} />
                       {item.label}
                     </Link>
                   );
                 })}
               </nav>
-              <div className="border-t border-border pt-3">
+              <div className="border-t border-sidebar-border pt-3">
                 <GebruikerMenu />
               </div>
             </div>
