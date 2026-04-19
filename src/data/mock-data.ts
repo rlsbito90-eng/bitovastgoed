@@ -10,6 +10,7 @@ export type ObjectStatus = 'off-market' | 'in_onderzoek' | 'beschikbaar' | 'onde
 export type TaakPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 export type TaakStatus = 'open' | 'in_uitvoering' | 'afgerond';
 export type ZoekprofielStatus = 'actief' | 'pauze' | 'gearchiveerd';
+export type KandidaatStatus = 'geinteresseerd' | 'bezichtiging' | 'bod' | 'afgevallen' | 'gewonnen';
 
 export interface Relatie {
   id: string;
@@ -71,18 +72,52 @@ export interface ObjectVastgoed {
   documentenBeschikbaar: boolean;
   interneOpmerkingen?: string;
   datumToegevoegd: string;
+  // Uitgebreide pandinformatie
+  internReferentienummer?: string;
+  adres?: string;
+  postcode?: string;
+  subcategorie?: string;
+  prijsindicatie?: string;
+  huurPerM2?: number;
+  brutoAanvangsrendement?: number;
+  leegstandPct?: number;
+  oppervlakteVvo?: number;
+  oppervlakteBvo?: number;
+  perceelOppervlakte?: number;
+  energielabel?: string;
+  eigendomssituatie?: string;
+  erfpachtinformatie?: string;
+  bestemmingsinformatie?: string;
+  beschikbaarVanaf?: string;
+  opmerkingen?: string;
 }
 
 export interface Deal {
   id: string;
-  objectId: string;
-  relatieId: string;
+  objectId: string; // primair object (legacy + snelle weergave)
+  relatieId: string; // primaire relatie (legacy + snelle weergave)
   fase: DealFase;
   interessegraad: number; // 1-5
   datumEersteContact: string;
   datumFollowUp?: string;
   bezichtigingGepland?: string;
   indicatiefBod?: number;
+  notities?: string;
+}
+
+export interface DealObjectKoppeling {
+  id: string;
+  dealId: string;
+  objectId: string;
+  isPrimair: boolean;
+  notities?: string;
+}
+
+export interface DealKandidaat {
+  id: string;
+  dealId: string;
+  relatieId: string;
+  status: KandidaatStatus;
   notities?: string;
 }
 
@@ -93,6 +128,7 @@ export interface Taak {
   dealId?: string;
   type: string;
   deadline: string;
+  deadlineTijd?: string; // 'HH:MM' optioneel
   prioriteit: TaakPrioriteit;
   status: TaakStatus;
   notities?: string;
@@ -104,90 +140,132 @@ export const formatCurrency = (amount?: number): string => {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 };
 
+// Compactere variant voor mobiele KPI's. €1.234.567 -> €1,2 mln
+export const formatCurrencyCompact = (amount?: number): string => {
+  if (!amount && amount !== 0) return '—';
+  if (Math.abs(amount) >= 1_000_000) {
+    return `€${(amount / 1_000_000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln`;
+  }
+  if (Math.abs(amount) >= 1_000) {
+    return `€${Math.round(amount / 1_000).toLocaleString('nl-NL')}k`;
+  }
+  return formatCurrency(amount);
+};
+
 export const formatDate = (date?: string): string => {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+export const formatDateTime = (date?: string, tijd?: string): string => {
+  if (!date) return '—';
+  const datum = formatDate(date);
+  return tijd ? `${datum} · ${tijd.slice(0, 5)}` : datum;
+};
+
 // === MATCHING ENGINE ===
+// Harde criteria: type, regio (indien opgegeven), budget, oppervlakte (min/max).
+// Een hard criterium dat faalt -> géén match.
+// Zachte criteria: verhuurstatus-voorkeur, ontwikkel-/transformatiepotentie -> geven score-bonus.
 export interface MatchResult {
   zoekprofielId: string;
   relatieId: string;
   objectId: string;
   score: number;
   redenen: string[];
+  hardeCriteriaOk: boolean;
+}
+
+const RANDSTAD_PROVINCIES = ['Noord-Holland', 'Zuid-Holland', 'Utrecht', 'Flevoland'];
+
+function regioMatcht(profiel: Zoekprofiel, object: ObjectVastgoed): boolean {
+  if (!profiel.regio || profiel.regio.length === 0) return true; // geen voorkeur = altijd ok
+  const provincie = (object.provincie || '').toLowerCase();
+  const plaats = (object.plaats || '').toLowerCase();
+  return profiel.regio.some(r => {
+    const key = r.trim().toLowerCase();
+    if (!key) return false;
+    if (key === 'randstad') return RANDSTAD_PROVINCIES.map(p => p.toLowerCase()).includes(provincie);
+    return provincie.includes(key) || plaats.includes(key);
+  });
 }
 
 export function berekenMatchScore(object: ObjectVastgoed, profiel: Zoekprofiel): MatchResult | null {
-  let score = 0;
   const redenen: string[] = [];
+  let score = 0;
 
-  // Hard filter: type moet matchen
+  // === HARDE CRITERIA ===
+  // 1. Type vastgoed verplicht
+  if (!profiel.typeVastgoed || profiel.typeVastgoed.length === 0) return null;
   if (!profiel.typeVastgoed.includes(object.type)) return null;
-
-  // Type match +25
   score += 25;
-  redenen.push(`Type vastgoed matcht: ${object.type}`);
+  redenen.push(`Type matcht (${object.type})`);
 
-  // Regio match +25
-  const regioMatch = profiel.regio.some(r =>
-    object.provincie.toLowerCase().includes(r.toLowerCase()) ||
-    (r.toLowerCase() === 'randstad' && ['Noord-Holland', 'Zuid-Holland', 'Utrecht'].includes(object.provincie))
-  );
-  if (regioMatch) {
-    score += 25;
-    redenen.push(`Regio matcht: ${object.plaats}, ${object.provincie}`);
-  }
-
-  // Budget match +20
-  if (object.vraagprijs) {
-    const inBudget = (!profiel.prijsMin || object.vraagprijs >= profiel.prijsMin * 0.9) &&
-                     (!profiel.prijsMax || object.vraagprijs <= profiel.prijsMax * 1.1);
-    if (inBudget) {
-      score += 20;
-      redenen.push(`Prijs binnen budget`);
-    } else if (profiel.prijsMax && object.vraagprijs <= profiel.prijsMax * 1.2) {
-      score += 10;
-      redenen.push(`Prijs net boven budget (< 20%)`);
-    }
-  }
-
-  // Oppervlakte match +10
-  if (object.oppervlakte && profiel.oppervlakteMin) {
-    if (object.oppervlakte >= profiel.oppervlakteMin) {
-      score += 10;
-      redenen.push(`Oppervlakte voldoet aan minimumeis`);
-    }
+  // 2. Regio (indien opgegeven)
+  if (profiel.regio && profiel.regio.length > 0) {
+    if (!regioMatcht(profiel, object)) return null;
+    score += 20;
+    redenen.push(`Regio matcht (${object.plaats || object.provincie})`);
   } else {
-    score += 5;
+    score += 5; // geen voorkeur = klein bonusje
   }
 
-  // Verhuurstatus match +10
-  if (profiel.verhuurStatus && object.verhuurStatus === profiel.verhuurStatus) {
-    score += 10;
-    redenen.push(`Verhuurstatus matcht: ${object.verhuurStatus}`);
-  } else if (!profiel.verhuurStatus) {
-    score += 5;
+  // 3. Budget — STRIKT: object moet binnen [prijsMin, prijsMax] vallen.
+  //    Onbekende vraagprijs blokkeert niet, maar geeft ook geen score.
+  if (typeof object.vraagprijs === 'number') {
+    if (typeof profiel.prijsMin === 'number' && object.vraagprijs < profiel.prijsMin) return null;
+    if (typeof profiel.prijsMax === 'number' && object.vraagprijs > profiel.prijsMax) return null;
+    if (typeof profiel.prijsMin === 'number' || typeof profiel.prijsMax === 'number') {
+      score += 25;
+      redenen.push('Prijs binnen budget');
+    } else {
+      score += 5;
+    }
+  } else if (typeof profiel.prijsMin === 'number' || typeof profiel.prijsMax === 'number') {
+    // Profiel heeft budgeteis maar object geen prijs: zachte penalty, niet uitsluiten
+    redenen.push('Vraagprijs onbekend');
   }
 
-  // Potentie match +10
+  // 4. Oppervlakte — STRIKT: object moet binnen [min, max] vallen indien bekend.
+  if (typeof object.oppervlakte === 'number') {
+    if (typeof profiel.oppervlakteMin === 'number' && object.oppervlakte < profiel.oppervlakteMin) return null;
+    if (typeof profiel.oppervlakteMax === 'number' && object.oppervlakte > profiel.oppervlakteMax) return null;
+    if (typeof profiel.oppervlakteMin === 'number' || typeof profiel.oppervlakteMax === 'number') {
+      score += 10;
+      redenen.push('Oppervlakte binnen range');
+    }
+  }
+
+  // === ZACHTE CRITERIA ===
+  if (profiel.verhuurStatus) {
+    if (object.verhuurStatus === profiel.verhuurStatus) {
+      score += 10;
+      redenen.push(`Verhuurstatus matcht (${object.verhuurStatus})`);
+    } else {
+      score -= 5; // mismatch op zacht criterium = lichte penalty
+    }
+  }
+
   if (profiel.ontwikkelPotentie && object.ontwikkelPotentie) {
     score += 5;
-    redenen.push(`Ontwikkelpotentie aanwezig`);
+    redenen.push('Ontwikkelpotentie aanwezig');
   }
   if (profiel.transformatiePotentie && object.transformatiePotentie) {
     score += 5;
-    redenen.push(`Transformatiepotentie aanwezig`);
+    redenen.push('Transformatiepotentie aanwezig');
   }
 
+  // Score begrenzen
+  score = Math.max(0, Math.min(100, score));
   if (score < 25) return null;
 
   return {
     zoekprofielId: profiel.id,
     relatieId: profiel.relatieId,
     objectId: object.id,
-    score: Math.min(score, 100),
+    score,
     redenen,
+    hardeCriteriaOk: true,
   };
 }
 
@@ -207,7 +285,7 @@ export function getMatchesForRelatieFromData(
   profielen: Zoekprofiel[],
   objecten: ObjectVastgoed[]
 ): MatchResult[] {
-  const eigenProfielen = profielen.filter(z => z.relatieId === relatieId);
+  const eigenProfielen = profielen.filter(z => z.relatieId === relatieId && z.status === 'actief');
   const results: MatchResult[] = [];
   for (const profiel of eigenProfielen) {
     for (const object of objecten) {
