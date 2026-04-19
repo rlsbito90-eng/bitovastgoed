@@ -287,8 +287,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   // Generieke helpers — gooien een nette Error met de DB-message zodat dialogs het kunnen tonen.
   const throwIfError = (error: any) => {
     if (error) {
-      console.error('[Supabase]', error);
-      throw new Error(error.message || 'Onbekende databasefout');
+      // Geen ruwe Supabase/Postgres details loggen of doorgeven aan UI
+      console.warn('Databasebewerking mislukt');
+      throw new Error('De bewerking kon niet worden voltooid. Probeer het opnieuw.');
     }
   };
 

@@ -30,7 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('role')
       .eq('user_id', userId);
     if (error) {
-      console.error('Rollen ophalen mislukt', error);
+      // Bewust geen ruwe fout loggen om gevoelige DB-details te verbergen
+      console.warn('Rollen konden niet worden geladen');
       setRollen([]);
       return;
     }
