@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      deal_kandidaten: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          notities: string | null
+          relatie_id: string
+          status: Database["public"]["Enums"]["kandidaat_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          notities?: string | null
+          relatie_id: string
+          status?: Database["public"]["Enums"]["kandidaat_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          notities?: string | null
+          relatie_id?: string
+          status?: Database["public"]["Enums"]["kandidaat_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_kandidaten_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_kandidaten_relatie_id_fkey"
+            columns: ["relatie_id"]
+            isOneToOne: false
+            referencedRelation: "relaties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_objecten: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          is_primair: boolean
+          notities: string | null
+          object_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          is_primair?: boolean
+          notities?: string | null
+          object_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          is_primair?: boolean
+          notities?: string | null
+          object_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_objecten_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_objecten_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           bezichtiging_gepland: string | null
@@ -192,24 +279,41 @@ export type Database = {
         Row: {
           aangemaakt_door: string | null
           aantal_huurders: number | null
+          adres: string | null
+          beschikbaar_vanaf: string | null
+          bestemmingsinformatie: string | null
           bouwjaar: number | null
           bron: string | null
+          bruto_aanvangsrendement: number | null
           created_at: string
           documentatie_beschikbaar: boolean | null
           eigenaar_relatie_id: string | null
+          eigendomssituatie: string | null
+          energielabel: string | null
+          erfpachtinformatie: string | null
           exclusief: boolean | null
+          huur_per_m2: number | null
           huurinkomsten: number | null
           id: string
+          intern_referentienummer: string | null
           intern_vertrouwelijk: boolean | null
           interne_opmerkingen: string | null
+          leegstand_pct: number | null
           objectnaam: string
           onderhoudsstaat: string | null
           ontwikkelpotentie: boolean | null
+          opmerkingen: string | null
           oppervlakte: number | null
+          oppervlakte_bvo: number | null
+          oppervlakte_vvo: number | null
+          perceel_oppervlakte: number | null
           plaats: string | null
+          postcode: string | null
+          prijsindicatie: string | null
           provincie: string | null
           samenvatting: string | null
           status: Database["public"]["Enums"]["object_status"]
+          subcategorie: string | null
           transformatiepotentie: boolean | null
           type_vastgoed: Database["public"]["Enums"]["asset_class"]
           updated_at: string
@@ -219,24 +323,41 @@ export type Database = {
         Insert: {
           aangemaakt_door?: string | null
           aantal_huurders?: number | null
+          adres?: string | null
+          beschikbaar_vanaf?: string | null
+          bestemmingsinformatie?: string | null
           bouwjaar?: number | null
           bron?: string | null
+          bruto_aanvangsrendement?: number | null
           created_at?: string
           documentatie_beschikbaar?: boolean | null
           eigenaar_relatie_id?: string | null
+          eigendomssituatie?: string | null
+          energielabel?: string | null
+          erfpachtinformatie?: string | null
           exclusief?: boolean | null
+          huur_per_m2?: number | null
           huurinkomsten?: number | null
           id?: string
+          intern_referentienummer?: string | null
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
+          leegstand_pct?: number | null
           objectnaam: string
           onderhoudsstaat?: string | null
           ontwikkelpotentie?: boolean | null
+          opmerkingen?: string | null
           oppervlakte?: number | null
+          oppervlakte_bvo?: number | null
+          oppervlakte_vvo?: number | null
+          perceel_oppervlakte?: number | null
           plaats?: string | null
+          postcode?: string | null
+          prijsindicatie?: string | null
           provincie?: string | null
           samenvatting?: string | null
           status?: Database["public"]["Enums"]["object_status"]
+          subcategorie?: string | null
           transformatiepotentie?: boolean | null
           type_vastgoed: Database["public"]["Enums"]["asset_class"]
           updated_at?: string
@@ -246,24 +367,41 @@ export type Database = {
         Update: {
           aangemaakt_door?: string | null
           aantal_huurders?: number | null
+          adres?: string | null
+          beschikbaar_vanaf?: string | null
+          bestemmingsinformatie?: string | null
           bouwjaar?: number | null
           bron?: string | null
+          bruto_aanvangsrendement?: number | null
           created_at?: string
           documentatie_beschikbaar?: boolean | null
           eigenaar_relatie_id?: string | null
+          eigendomssituatie?: string | null
+          energielabel?: string | null
+          erfpachtinformatie?: string | null
           exclusief?: boolean | null
+          huur_per_m2?: number | null
           huurinkomsten?: number | null
           id?: string
+          intern_referentienummer?: string | null
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
+          leegstand_pct?: number | null
           objectnaam?: string
           onderhoudsstaat?: string | null
           ontwikkelpotentie?: boolean | null
+          opmerkingen?: string | null
           oppervlakte?: number | null
+          oppervlakte_bvo?: number | null
+          oppervlakte_vvo?: number | null
+          perceel_oppervlakte?: number | null
           plaats?: string | null
+          postcode?: string | null
+          prijsindicatie?: string | null
           provincie?: string | null
           samenvatting?: string | null
           status?: Database["public"]["Enums"]["object_status"]
+          subcategorie?: string | null
           transformatiepotentie?: boolean | null
           type_vastgoed?: Database["public"]["Enums"]["asset_class"]
           updated_at?: string
@@ -406,6 +544,7 @@ export type Database = {
           aangemaakt_door: string | null
           created_at: string
           deadline: string | null
+          deadline_tijd: string | null
           deal_id: string | null
           id: string
           notities: string | null
@@ -422,6 +561,7 @@ export type Database = {
           aangemaakt_door?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_tijd?: string | null
           deal_id?: string | null
           id?: string
           notities?: string | null
@@ -438,6 +578,7 @@ export type Database = {
           aangemaakt_door?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_tijd?: string | null
           deal_id?: string | null
           id?: string
           notities?: string | null
@@ -621,6 +762,12 @@ export type Database = {
         | "closing"
         | "afgerond"
         | "afgevallen"
+      kandidaat_status:
+        | "geinteresseerd"
+        | "bezichtiging"
+        | "bod"
+        | "afgevallen"
+        | "gewonnen"
       lead_status: "koud" | "lauw" | "warm" | "actief"
       object_status:
         | "nieuw"
@@ -787,6 +934,13 @@ export const Constants = {
         "closing",
         "afgerond",
         "afgevallen",
+      ],
+      kandidaat_status: [
+        "geinteresseerd",
+        "bezichtiging",
+        "bod",
+        "afgevallen",
+        "gewonnen",
       ],
       lead_status: ["koud", "lauw", "warm", "actief"],
       object_status: [
