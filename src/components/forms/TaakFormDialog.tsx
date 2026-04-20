@@ -22,6 +22,7 @@ const emptyForm = {
   dealId: '',
   type: 'Opvolging',
   deadline: new Date().toISOString().split('T')[0],
+  deadlineTijd: '',
   prioriteit: 'normaal' as TaakPrioriteit,
   status: 'open' as TaakStatus,
   notities: '',
@@ -30,6 +31,7 @@ const emptyForm = {
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
   const { addTaak, updateTaak, relaties, deals, getObjectById } = useDataStore();
   const [form, setForm] = useState(emptyForm);
+  const [bezig, setBezig] = useState(false);
   const isEdit = !!taak;
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         dealId: taak.dealId || '',
         type: taak.type,
         deadline: taak.deadline,
+        deadlineTijd: taak.deadlineTijd ? taak.deadlineTijd.slice(0, 5) : '',
         prioriteit: taak.prioriteit,
         status: taak.status,
         notities: taak.notities || '',
@@ -55,17 +58,16 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.titel.trim()) {
-      toast.error('Titel is verplicht');
-      return;
-    }
+    if (bezig) return;
+    setBezig(true);
 
     const data: Omit<Taak, 'id'> = {
-      titel: form.titel.trim(),
+      titel: form.titel.trim() || 'Naamloze taak',
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
       type: form.type,
-      deadline: form.deadline,
+      deadline: form.deadline || '',
+      deadlineTijd: form.deadlineTijd || undefined,
       prioriteit: form.prioriteit,
       status: form.status,
       notities: form.notities || undefined,
@@ -82,6 +84,8 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
     }
   };
 
@@ -95,7 +99,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Titel *</Label>
+            <Label>Titel</Label>
             <Input value={form.titel} onChange={e => set('titel', e.target.value)} />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -111,10 +115,6 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label>Deadline</Label>
-              <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
               <Label>Prioriteit</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
                 <option value="laag">Laag</option>
@@ -122,6 +122,14 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                 <option value="hoog">Hoog</option>
                 <option value="urgent">Urgent</option>
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Deadline (datum)</Label>
+              <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tijd (optioneel)</Label>
+              <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
@@ -135,10 +143,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               <Label>Relatie</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.relatieId} onChange={e => set('relatieId', e.target.value)}>
                 <option value="">Geen</option>
-                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam}</option>)}
+                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>)}
               </select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>Deal</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.dealId} onChange={e => set('dealId', e.target.value)}>
                 <option value="">Geen</option>
@@ -155,7 +163,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit">{isEdit ? 'Opslaan' : 'Aanmaken'}</Button>
+            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
           </div>
         </form>
       </DialogContent>

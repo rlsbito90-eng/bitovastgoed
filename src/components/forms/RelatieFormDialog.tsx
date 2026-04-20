@@ -26,7 +26,7 @@ const emptyForm = {
   budgetMax: '',
   aankoopcriteria: '',
   verkoopintentie: '',
-  leadStatus: 'koud' as LeadStatus,
+  leadStatus: 'lauw' as LeadStatus,
   volgendeActie: '',
   notities: '',
 };
@@ -34,6 +34,7 @@ const emptyForm = {
 export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
   const { addRelatie, updateRelatie } = useDataStore();
   const [form, setForm] = useState(emptyForm);
+  const [bezig, setBezig] = useState(false);
   const isEdit = !!relatie;
 
   useEffect(() => {
@@ -61,18 +62,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.bedrijfsnaam.trim() || !form.contactpersoon.trim()) {
-      toast.error('Bedrijfsnaam en contactpersoon zijn verplicht');
-      return;
-    }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      toast.error('Vul een geldig e-mailadres in');
-      return;
-    }
-    if (form.budgetMin && form.budgetMax && Number(form.budgetMin) > Number(form.budgetMax)) {
-      toast.error('Budget min mag niet groter zijn dan budget max');
-      return;
-    }
+    if (bezig) return;
+    setBezig(true);
 
     const data: Partial<Relatie> = {
       bedrijfsnaam: form.bedrijfsnaam.trim(),
@@ -93,17 +84,17 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
 
     try {
       if (isEdit && relatie) {
-        // BIJ EDIT: laatsteContact NIET overschrijven (zou de echte contactdatum wissen).
         await updateRelatie(relatie.id, data);
         toast.success('Relatie bijgewerkt');
       } else {
-        // BIJ CREATE: laatsteContact = vandaag als eerste registratie.
         await addRelatie({ ...data, laatsteContact: new Date().toISOString().split('T')[0] } as Omit<Relatie, 'id'>);
         toast.success('Relatie aangemaakt');
       }
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
     }
   };
 
@@ -118,11 +109,11 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Bedrijfsnaam *</Label>
+              <Label>Bedrijfsnaam</Label>
               <Input value={form.bedrijfsnaam} onChange={e => set('bedrijfsnaam', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Contactpersoon *</Label>
+              <Label>Contactpersoon</Label>
               <Input value={form.contactpersoon} onChange={e => set('contactpersoon', e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -133,6 +124,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                 <option value="eigenaar">Eigenaar</option>
                 <option value="makelaar">Makelaar</option>
                 <option value="partner">Partner</option>
+                <option value="overig">Overig</option>
               </select>
             </div>
             <div className="space-y-1.5">
@@ -187,7 +179,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit">{isEdit ? 'Opslaan' : 'Aanmaken'}</Button>
+            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
           </div>
         </form>
       </DialogContent>

@@ -5,6 +5,8 @@ import { formatCurrency, formatDate } from '@/data/mock-data';
 import { DealFaseBadge, LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
 import { ArrowLeft, Pencil, Trash2, Star } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
+import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
@@ -114,7 +116,9 @@ export default function DealDetailPage() {
           {object && (
             <Link to={`/objecten/${object.id}`} className="block section-card p-5 sm:p-6 hover:border-accent/40 transition-colors">
               <div className="flex items-center justify-between mb-3 gap-3">
-                <h2 className="section-title">Gekoppeld object</h2>
+                <h2 className="section-title flex items-center gap-2">
+                  Primair object <Star className="h-3.5 w-3.5 fill-accent text-accent" />
+                </h2>
                 <ObjectStatusBadge status={object.status} />
               </div>
               <p className="text-foreground font-medium truncate">{object.titel}</p>
@@ -125,13 +129,16 @@ export default function DealDetailPage() {
               </div>
             </Link>
           )}
+
+          <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
+          <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
         </div>
 
         <div>
           {relatie && (
             <Link to={`/relaties/${relatie.id}`} className="block section-card p-5 sm:p-6 hover:border-accent/40 transition-colors space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="section-title">Relatie</h2>
+                <h2 className="section-title">Primaire relatie</h2>
                 <LeadStatusBadge status={relatie.leadStatus} />
               </div>
               <div>

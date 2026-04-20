@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency, formatDate, getAllMatchesFromData } from '@/data/mock-data';
+import { formatCurrency, formatCurrencyCompact, formatDate, getAllMatchesFromData } from '@/data/mock-data';
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
@@ -14,7 +14,7 @@ function KPICard({
   highlight = false,
 }: {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   hint?: string;
   icon: React.ElementType;
   highlight?: boolean;
@@ -31,7 +31,7 @@ function KPICard({
         </span>
         <Icon className={`h-4 w-4 shrink-0 ${highlight ? 'text-accent' : 'text-muted-foreground/70'}`} />
       </div>
-      <p className="text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none truncate">
+      <p className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none truncate min-w-0">
         {value}
       </p>
       {hint && <p className="text-xs text-muted-foreground truncate">{hint}</p>}
@@ -79,9 +79,20 @@ export default function DashboardPage() {
         }
       />
 
-      {/* KPI rij */}
+      {/* KPI rij — op mobiel compacte bedragen, op desktop volledig */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <KPICard label="Actieve dealwaarde" value={formatCurrency(dealWaarde)} hint={`${actieveDeals.length} lopende deals`} icon={TrendingUp} highlight />
+        <KPICard
+          label="Actieve dealwaarde"
+          value={
+            <>
+              <span className="sm:hidden">{formatCurrencyCompact(dealWaarde)}</span>
+              <span className="hidden sm:inline">{formatCurrency(dealWaarde)}</span>
+            </>
+          }
+          hint={`${actieveDeals.length} lopende deals`}
+          icon={TrendingUp}
+          highlight
+        />
         <KPICard label="Nieuwe matches" value={matches.length} hint="Op basis van zoekprofielen" icon={Zap} highlight />
         <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} />
         <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} />
