@@ -38,6 +38,7 @@ const emptyForm = {
 export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel, defaultRelatieId }: Props) {
   const { addZoekprofiel, updateZoekprofiel, relaties } = useDataStore();
   const [form, setForm] = useState(emptyForm);
+  const [bezig, setBezig] = useState(false);
   const isEdit = !!zoekprofiel;
 
   useEffect(() => {
@@ -74,21 +75,16 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.naam.trim() || !form.relatieId || form.typeVastgoed.length === 0) {
-      toast.error('Naam, relatie en minstens één type vastgoed zijn verplicht');
+    if (bezig) return;
+    // Enige technische eis: een zoekprofiel hoort bij een relatie.
+    if (!form.relatieId) {
+      toast.error('Kies een relatie waar dit zoekprofiel bij hoort');
       return;
     }
-    if (form.prijsMin && form.prijsMax && Number(form.prijsMin) > Number(form.prijsMax)) {
-      toast.error('Prijs min mag niet groter zijn dan prijs max');
-      return;
-    }
-    if (form.oppervlakteMin && form.oppervlakteMax && Number(form.oppervlakteMin) > Number(form.oppervlakteMax)) {
-      toast.error('Oppervlakte min mag niet groter zijn dan oppervlakte max');
-      return;
-    }
+    setBezig(true);
 
     const data: Omit<Zoekprofiel, 'id'> = {
-      naam: form.naam.trim(),
+      naam: form.naam.trim() || 'Naamloos zoekprofiel',
       relatieId: form.relatieId,
       typeVastgoed: form.typeVastgoed,
       regio: form.regio.split(',').map(s => s.trim()).filter(Boolean),
@@ -115,6 +111,8 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
     }
   };
 
@@ -129,7 +127,7 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Profielnaam *</Label>
+              <Label>Profielnaam</Label>
               <Input value={form.naam} onChange={e => set('naam', e.target.value)} placeholder="bv. Logistiek Brabant" />
             </div>
             <div className="space-y-1.5">
@@ -141,13 +139,13 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
                 disabled={!!defaultRelatieId}
               >
                 <option value="">— Kies relatie —</option>
-                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam}</option>)}
+                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>)}
               </select>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type vastgoed *</Label>
+            <Label>Type vastgoed</Label>
             <div className="flex flex-wrap gap-2">
               {assetOptions.map(t => (
                 <label key={t} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border cursor-pointer transition-colors capitalize ${
@@ -220,7 +218,7 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit">{isEdit ? 'Opslaan' : 'Aanmaken'}</Button>
+            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
           </div>
         </form>
       </DialogContent>

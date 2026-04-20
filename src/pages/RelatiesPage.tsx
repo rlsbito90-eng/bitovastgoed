@@ -4,9 +4,10 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight } from 'lucide-react';
+import { Search, Plus, ChevronRight, Upload } from 'lucide-react';
 import type { LeadStatus, PartijType } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import PageHeader from '@/components/PageHeader';
 
 export default function RelatiesPage() {
@@ -15,6 +16,7 @@ export default function RelatiesPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const filtered = relaties.filter(r => {
     const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
@@ -29,9 +31,14 @@ export default function RelatiesPage() {
         title="Relaties"
         subtitle={`${relaties.length} contacten`}
         actions={
-          <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
-            <Plus className="h-4 w-4" /> Nieuwe relatie
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
+              <Upload className="h-4 w-4" /> Bulk importeren
+            </button>
+            <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
+              <Plus className="h-4 w-4" /> Nieuwe relatie
+            </button>
+          </div>
         }
       />
 
@@ -71,8 +78,8 @@ export default function RelatiesPage() {
               <Link key={r.id} to={`/relaties/${r.id}`} className="section-card block p-4 active:bg-muted/40 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground truncate">{r.bedrijfsnaam}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.contactpersoon} · <span className="capitalize">{r.type}</span></p>
+                    <p className="font-medium text-foreground truncate">{r.bedrijfsnaam || '(geen naam)'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.contactpersoon || '—'} · <span className="capitalize">{r.type}</span></p>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
                       {r.regio.length > 0 ? r.regio.join(', ') : '—'} · laatst {formatDate(r.laatsteContact)}
                     </p>
@@ -104,8 +111,8 @@ export default function RelatiesPage() {
                     <tr key={r.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
                       <td className="px-5 py-3.5">
                         <Link to={`/relaties/${r.id}`} className="block">
-                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{r.bedrijfsnaam}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.contactpersoon}</p>
+                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{r.bedrijfsnaam || '(geen naam)'}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.contactpersoon || '—'}</p>
                         </Link>
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>
@@ -122,6 +129,7 @@ export default function RelatiesPage() {
       )}
 
       <RelatieFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <BulkRelatieImportDialog open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   );
 }

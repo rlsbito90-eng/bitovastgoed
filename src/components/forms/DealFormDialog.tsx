@@ -33,6 +33,7 @@ const emptyForm = {
 export default function DealFormDialog({ open, onOpenChange, deal, defaultRelatieId, defaultObjectId }: Props) {
   const { addDeal, updateDeal, relaties, objecten } = useDataStore();
   const [form, setForm] = useState(emptyForm);
+  const [bezig, setBezig] = useState(false);
   const isEdit = !!deal;
 
   useEffect(() => {
@@ -59,21 +60,20 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (bezig) return;
+    // Technisch minimum: een deal heeft altijd een primair object en een primaire relatie nodig.
     if (!form.objectId || !form.relatieId) {
-      toast.error('Object en relatie zijn verplicht');
+      toast.error('Kies een primair object en relatie');
       return;
     }
-    if (!form.datumEersteContact) {
-      toast.error('Datum eerste contact is verplicht');
-      return;
-    }
+    setBezig(true);
 
     const data: Omit<Deal, 'id'> = {
       objectId: form.objectId,
       relatieId: form.relatieId,
       fase: form.fase,
       interessegraad: Number(form.interessegraad),
-      datumEersteContact: form.datumEersteContact,
+      datumEersteContact: form.datumEersteContact || new Date().toISOString().split('T')[0],
       datumFollowUp: form.datumFollowUp || undefined,
       bezichtigingGepland: form.bezichtigingGepland || undefined,
       indicatiefBod: form.indicatiefBod ? Number(form.indicatiefBod) : undefined,
@@ -91,6 +91,8 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
     }
   };
 
@@ -103,19 +105,22 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
           <DialogTitle>{isEdit ? 'Deal bewerken' : 'Nieuwe deal'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Primair object & primaire relatie zijn vereist. Extra objecten en kandidaten beheer je daarna op de dealpagina.
+          </p>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Object *</Label>
+              <Label>Primair object *</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.objectId} onChange={e => set('objectId', e.target.value)}>
                 <option value="">Selecteer object</option>
                 {objecten.map(o => <option key={o.id} value={o.id}>{o.titel}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label>Relatie *</Label>
+              <Label>Primaire relatie *</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.relatieId} onChange={e => set('relatieId', e.target.value)}>
                 <option value="">Selecteer relatie</option>
-                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam}</option>)}
+                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -153,7 +158,7 @@ export default function DealFormDialog({ open, onOpenChange, deal, defaultRelati
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit">{isEdit ? 'Opslaan' : 'Aanmaken'}</Button>
+            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
           </div>
         </form>
       </DialogContent>
