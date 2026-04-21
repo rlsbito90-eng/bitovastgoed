@@ -98,6 +98,7 @@ export default function ZoekprofielFormDialog({ open, onOpenChange, zoekprofiel,
       transformatiePotentie: form.transformatiePotentie,
       aanvullendeCriteria: form.aanvullendeCriteria || undefined,
       status: form.status,
+      prioriteit: 3,
     };
 
     try {

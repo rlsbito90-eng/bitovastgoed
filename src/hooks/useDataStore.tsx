@@ -33,6 +33,7 @@ const relatieFromDb = (r: any): Relatie => ({
   laatsteContact: r.laatste_contactdatum ?? '',
   volgendeActie: r.volgende_actie ?? undefined,
   notities: r.notities ?? undefined,
+  ndaGetekend: !!r.nda_getekend,
 });
 
 // Helper: alleen niet-undefined velden meesturen, zodat partial updates niet andere
@@ -85,6 +86,8 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   documentenBeschikbaar: !!o.documentatie_beschikbaar,
   interneOpmerkingen: o.interne_opmerkingen ?? undefined,
   datumToegevoegd: o.created_at?.split('T')[0] ?? '',
+  anoniem: false,
+  isPortefeuille: false,
   internReferentienummer: o.intern_referentienummer ?? undefined,
   adres: o.adres ?? undefined,
   postcode: o.postcode ?? undefined,
@@ -233,6 +236,7 @@ const zoekprofielFromDb = (z: any): Zoekprofiel => ({
   transformatiePotentie: !!z.transformatiepotentie,
   aanvullendeCriteria: z.aanvullende_criteria ?? undefined,
   status: z.status === 'gepauzeerd' ? 'pauze' : z.status,
+  prioriteit: 3,
 });
 
 const zoekprofielToDb = (z: Partial<Zoekprofiel>) => cleanPayload({
