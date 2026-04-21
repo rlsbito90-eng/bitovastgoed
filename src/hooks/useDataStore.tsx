@@ -86,6 +86,8 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   documentenBeschikbaar: !!o.documentatie_beschikbaar,
   interneOpmerkingen: o.interne_opmerkingen ?? undefined,
   datumToegevoegd: o.created_at?.split('T')[0] ?? '',
+  anoniem: false,
+  isPortefeuille: false,
   internReferentienummer: o.intern_referentienummer ?? undefined,
   adres: o.adres ?? undefined,
   postcode: o.postcode ?? undefined,
