@@ -167,6 +167,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       samenvatting: form.samenvatting || undefined,
       opmerkingen: form.opmerkingen || undefined,
       interneOpmerkingen: form.interneOpmerkingen || undefined,
+      anoniem: false,
+      isPortefeuille: false,
       datumToegevoegd: isEdit ? object!.datumToegevoegd : new Date().toISOString().split('T')[0],
     };
 
