@@ -236,6 +236,7 @@ const zoekprofielFromDb = (z: any): Zoekprofiel => ({
   transformatiePotentie: !!z.transformatiepotentie,
   aanvullendeCriteria: z.aanvullende_criteria ?? undefined,
   status: z.status === 'gepauzeerd' ? 'pauze' : z.status,
+  prioriteit: 3,
 });
 
 const zoekprofielToDb = (z: Partial<Zoekprofiel>) => cleanPayload({
