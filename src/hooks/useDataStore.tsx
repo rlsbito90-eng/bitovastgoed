@@ -33,6 +33,7 @@ const relatieFromDb = (r: any): Relatie => ({
   laatsteContact: r.laatste_contactdatum ?? '',
   volgendeActie: r.volgende_actie ?? undefined,
   notities: r.notities ?? undefined,
+  ndaGetekend: !!r.nda_getekend,
 });
 
 // Helper: alleen niet-undefined velden meesturen, zodat partial updates niet andere
