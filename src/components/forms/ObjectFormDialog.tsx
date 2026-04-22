@@ -1,3 +1,8 @@
+// src/components/forms/ObjectFormDialog.tsx
+// Compleet herbouwd object-formulier in 8 tabs.
+// Nieuwe objecten: media-tab is disabled tot het object een ID heeft
+// (eerst één keer opslaan, daarna upload).
+
 import { useState, useEffect, ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -5,9 +10,24 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
-import type { ObjectVastgoed, AssetClass, VerhuurStatus, ObjectStatus } from '@/data/mock-data';
+import type {
+  ObjectVastgoed, AssetClass, VerhuurStatus, ObjectStatus,
+  Energielabel, OnderhoudsstaatNiveau, VerkoperVia,
+} from '@/data/mock-data';
+import {
+  ASSET_CLASS_LABELS,
+  ONDERHOUDSSTAAT_LABELS,
+  VERKOPER_VIA_LABELS,
+  PROVINCIES,
+} from '@/data/mock-data';
 import { toast } from 'sonner';
+import SubcategorieSelect from '@/components/object/SubcategorieSelect';
+import HuurdersPanel from '@/components/object/HuurdersPanel';
+import DocumentenPanel from '@/components/object/DocumentenPanel';
+import FotosPanel from '@/components/object/FotosPanel';
+import { Info, Image as ImageIcon, FileText, Users } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -15,398 +35,772 @@ interface Props {
   object?: ObjectVastgoed | null;
 }
 
-const emptyForm = {
-  // Identificatie
+// ---------------------------------------------------------------------
+// Form state
+// ---------------------------------------------------------------------
+
+type FormState = Omit<ObjectVastgoed, 'id' | 'datumToegevoegd' | 'softDeletedAt'>;
+
+const leegForm: FormState = {
   titel: '',
-  internReferentienummer: '',
-  // Locatie
-  adres: '',
-  postcode: '',
+  internReferentienummer: undefined,
+  anoniem: true,
+  publiekeNaam: undefined,
+  publiekeRegio: undefined,
+  adres: undefined,
+  postcode: undefined,
   plaats: '',
   provincie: '',
-  // Classificatie
-  type: 'wonen' as AssetClass,
-  subcategorie: '',
-  status: 'off-market' as ObjectStatus,
-  beschikbaarVanaf: '',
-  // Financieel
-  vraagprijs: '',
-  prijsindicatie: '',
-  huurinkomsten: '',
-  huurPerM2: '',
-  brutoAanvangsrendement: '',
-  // Verhuur
-  verhuurStatus: 'leeg' as VerhuurStatus,
-  aantalHuurders: '',
-  leegstandPct: '',
-  // Oppervlakten
-  oppervlakte: '',
-  oppervlakteVvo: '',
-  oppervlakteBvo: '',
-  perceelOppervlakte: '',
-  // Bouwkundig / juridisch
-  bouwjaar: '',
-  energielabel: '',
-  onderhoudsstaat: '',
-  eigendomssituatie: '',
-  erfpachtinformatie: '',
-  bestemmingsinformatie: '',
-  // Potentie
+  type: 'wonen',
+  subcategorie: undefined,
+  subcategorieId: undefined,
+  status: 'off-market',
+  beschikbaarVanaf: undefined,
+  bron: undefined,
+  exclusief: false,
+  vraagprijs: undefined,
+  prijsindicatie: undefined,
+  huurinkomsten: undefined,
+  huurPerM2: undefined,
+  brutoAanvangsrendement: undefined,
+  nettoAanvangsrendement: undefined,
+  noi: undefined,
+  servicekostenJaar: undefined,
+  wozWaarde: undefined,
+  wozPeildatum: undefined,
+  taxatiewaarde: undefined,
+  taxatiedatum: undefined,
+  verhuurStatus: 'leeg',
+  aantalHuurders: undefined,
+  leegstandPct: undefined,
+  oppervlakte: undefined,
+  oppervlakteVvo: undefined,
+  oppervlakteBvo: undefined,
+  oppervlakteGbo: undefined,
+  perceelOppervlakte: undefined,
+  bouwjaar: undefined,
+  energielabel: undefined,
+  energielabelV2: undefined,
+  huidigGebruik: undefined,
+  aantalVerdiepingen: undefined,
+  aantalUnits: undefined,
+  onderhoudsstaat: undefined,
+  onderhoudsstaatNiveau: undefined,
+  recenteInvesteringen: undefined,
+  achterstalligOnderhoud: undefined,
+  asbestinventarisatieAanwezig: false,
+  eigendomssituatie: undefined,
+  erfpachtinformatie: undefined,
+  bestemmingsinformatie: undefined,
+  kadastraleGemeente: undefined,
+  kadastraleSectie: undefined,
+  kadastraalNummer: undefined,
   ontwikkelPotentie: false,
   transformatiePotentie: false,
-  // Bron / intern
-  bron: '',
-  exclusief: false,
+  samenvatting: undefined,
+  investeringsthese: undefined,
+  risicos: undefined,
+  onderscheidendeKenmerken: undefined,
+  verkoperNaam: undefined,
+  verkoperRol: undefined,
+  verkoperVia: 'onbekend',
+  verkoperTelefoon: undefined,
+  verkoperEmail: undefined,
+  verkoopmotivatie: undefined,
+  isPortefeuille: false,
+  parentObjectId: undefined,
   documentenBeschikbaar: false,
-  samenvatting: '',
-  opmerkingen: '',
-  interneOpmerkingen: '',
+  interneOpmerkingen: undefined,
+  opmerkingen: undefined,
 };
 
-function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5">{titel}</h3>
-      {children}
-    </div>
-  );
-}
+const ENERGIELABELS: Energielabel[] =
+  ['A++++', 'A+++', 'A++', 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'onbekend'];
+
+// ---------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------
 
 export default function ObjectFormDialog({ open, onOpenChange, object }: Props) {
-  const { addObject, updateObject } = useDataStore();
-  const [form, setForm] = useState(emptyForm);
-  const [bezig, setBezig] = useState(false);
+  const { addObject, updateObject, objecten } = useDataStore();
   const isEdit = !!object;
+
+  // Voor nieuw: we houden object-id bij na 1e opslag zodat media-tabs beschikbaar zijn
+  const [gemaaktId, setGemaaktId] = useState<string | undefined>(object?.id);
+  const objectId = object?.id ?? gemaaktId;
+
+  const [form, setForm] = useState<FormState>(leegForm);
+  const [bezig, setBezig] = useState(false);
+  const [tab, setTab] = useState('algemeen');
 
   useEffect(() => {
     if (object) {
-      setForm({
-        titel: object.titel,
-        internReferentienummer: object.internReferentienummer || '',
-        adres: object.adres || '',
-        postcode: object.postcode || '',
-        plaats: object.plaats,
-        provincie: object.provincie,
-        type: object.type,
-        subcategorie: object.subcategorie || '',
-        status: object.status,
-        beschikbaarVanaf: object.beschikbaarVanaf || '',
-        vraagprijs: object.vraagprijs?.toString() || '',
-        prijsindicatie: object.prijsindicatie || '',
-        huurinkomsten: object.huurinkomsten?.toString() || '',
-        huurPerM2: object.huurPerM2?.toString() || '',
-        brutoAanvangsrendement: object.brutoAanvangsrendement?.toString() || '',
-        verhuurStatus: object.verhuurStatus,
-        aantalHuurders: object.aantalHuurders?.toString() || '',
-        leegstandPct: object.leegstandPct?.toString() || '',
-        oppervlakte: object.oppervlakte?.toString() || '',
-        oppervlakteVvo: object.oppervlakteVvo?.toString() || '',
-        oppervlakteBvo: object.oppervlakteBvo?.toString() || '',
-        perceelOppervlakte: object.perceelOppervlakte?.toString() || '',
-        bouwjaar: object.bouwjaar?.toString() || '',
-        energielabel: object.energielabel || '',
-        onderhoudsstaat: object.onderhoudsstaat || '',
-        eigendomssituatie: object.eigendomssituatie || '',
-        erfpachtinformatie: object.erfpachtinformatie || '',
-        bestemmingsinformatie: object.bestemmingsinformatie || '',
-        ontwikkelPotentie: object.ontwikkelPotentie,
-        transformatiePotentie: object.transformatiePotentie,
-        bron: object.bron || '',
-        exclusief: object.exclusief,
-        documentenBeschikbaar: object.documentenBeschikbaar,
-        samenvatting: object.samenvatting || '',
-        opmerkingen: object.opmerkingen || '',
-        interneOpmerkingen: object.interneOpmerkingen || '',
-      });
+      const { id, datumToegevoegd, softDeletedAt, ...rest } = object as any;
+      setForm({ ...leegForm, ...rest });
+      setGemaaktId(object.id);
     } else {
-      setForm(emptyForm);
+      setForm(leegForm);
+      setGemaaktId(undefined);
     }
+    setTab('algemeen');
   }, [object, open]);
 
-  const num = (v: string) => (v === '' || v === null ? undefined : Number(v));
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setForm(prev => ({ ...prev, [k]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const num = (v: string): number | undefined => v === '' ? undefined : Number(v);
+
+  // Wijzig type -> reset subcategorieId (is afhankelijk van type)
+  const setType = (nieuwType: AssetClass) => {
+    setForm(prev => ({ ...prev, type: nieuwType, subcategorieId: undefined }));
+  };
+
+  const handleSave = async () => {
     if (bezig) return;
+    if (!form.titel.trim()) {
+      toast.error('Titel is verplicht');
+      setTab('algemeen');
+      return;
+    }
     setBezig(true);
 
-    const data: Omit<ObjectVastgoed, 'id'> = {
+    const data = {
+      ...form,
       titel: form.titel.trim() || 'Onbekend object',
-      internReferentienummer: form.internReferentienummer.trim() || undefined,
-      adres: form.adres.trim() || undefined,
-      postcode: form.postcode.trim() || undefined,
-      plaats: form.plaats.trim(),
-      provincie: form.provincie.trim(),
-      type: form.type,
-      subcategorie: form.subcategorie.trim() || undefined,
-      status: form.status,
-      beschikbaarVanaf: form.beschikbaarVanaf || undefined,
-      vraagprijs: num(form.vraagprijs),
-      prijsindicatie: form.prijsindicatie.trim() || undefined,
-      huurinkomsten: num(form.huurinkomsten),
-      huurPerM2: num(form.huurPerM2),
-      brutoAanvangsrendement: num(form.brutoAanvangsrendement),
-      verhuurStatus: form.verhuurStatus,
-      aantalHuurders: num(form.aantalHuurders),
-      leegstandPct: num(form.leegstandPct),
-      oppervlakte: num(form.oppervlakte),
-      oppervlakteVvo: num(form.oppervlakteVvo),
-      oppervlakteBvo: num(form.oppervlakteBvo),
-      perceelOppervlakte: num(form.perceelOppervlakte),
-      bouwjaar: num(form.bouwjaar),
-      energielabel: form.energielabel.trim() || undefined,
-      onderhoudsstaat: form.onderhoudsstaat.trim() || undefined,
-      eigendomssituatie: form.eigendomssituatie.trim() || undefined,
-      erfpachtinformatie: form.erfpachtinformatie.trim() || undefined,
-      bestemmingsinformatie: form.bestemmingsinformatie.trim() || undefined,
-      ontwikkelPotentie: form.ontwikkelPotentie,
-      transformatiePotentie: form.transformatiePotentie,
-      bron: form.bron.trim() || undefined,
-      exclusief: form.exclusief,
-      documentenBeschikbaar: form.documentenBeschikbaar,
-      samenvatting: form.samenvatting || undefined,
-      opmerkingen: form.opmerkingen || undefined,
-      interneOpmerkingen: form.interneOpmerkingen || undefined,
-      anoniem: false,
-      isPortefeuille: false,
-      datumToegevoegd: isEdit ? object!.datumToegevoegd : new Date().toISOString().split('T')[0],
     };
 
     try {
       if (isEdit && object) {
         await updateObject(object.id, data);
         toast.success('Object bijgewerkt');
+      } else if (gemaaktId) {
+        await updateObject(gemaaktId, data);
+        toast.success('Object bijgewerkt');
       } else {
-        await addObject(data);
-        toast.success('Object aangemaakt');
+        const payload = { ...data, datumToegevoegd: new Date().toISOString().split('T')[0] };
+        const nieuw = await addObject(payload as any);
+        if (nieuw?.id) {
+          setGemaaktId(nieuw.id);
+          toast.success("Object aangemaakt — je kunt nu huurders, documenten en foto's toevoegen");
+        }
       }
-      onOpenChange(false);
     } catch (err: any) {
-      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+      toast.error(err.message ?? 'Opslaan mislukt');
     } finally {
       setBezig(false);
     }
   };
 
-  const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
+  // Parent-object opties voor portefeuille-structuur
+  const parentOpties = objecten.filter(o =>
+    o.isPortefeuille && o.id !== (object?.id ?? gemaaktId)
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Object bewerken' : 'Nieuw object'}</DialogTitle>
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
+          <DialogTitle>
+            {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Sectie titel="Identificatie">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Objectnaam</Label>
-                <Input value={form.titel} onChange={e => set('titel', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Intern referentienummer</Label>
-                <Input value={form.internReferentienummer} onChange={e => set('internReferentienummer', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
 
-          <Sectie titel="Locatie">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Adres</Label>
-                <Input value={form.adres} onChange={e => set('adres', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Postcode</Label>
-                <Input value={form.postcode} onChange={e => set('postcode', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Plaats</Label>
-                <Input value={form.plaats} onChange={e => set('plaats', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Provincie</Label>
-                <Input value={form.provincie} onChange={e => set('provincie', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Classificatie & status">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Type vastgoed</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
-                  <option value="wonen">Wonen</option>
-                  <option value="winkels">Winkels</option>
-                  <option value="kantoren">Kantoren</option>
-                  <option value="logistiek">Logistiek</option>
-                  <option value="bedrijfshallen">Bedrijfshallen</option>
-                  <option value="industrieel">Industrieel</option>
-                  <option value="hotels">Hotels</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Subcategorie</Label>
-                <Input value={form.subcategorie} onChange={e => set('subcategorie', e.target.value)} placeholder="bv. solitaire winkel, A-locatie" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
-                  <option value="off-market">Off-market</option>
-                  <option value="in_onderzoek">In onderzoek</option>
-                  <option value="beschikbaar">Beschikbaar</option>
-                  <option value="onder_optie">Onder optie</option>
-                  <option value="verkocht">Verkocht</option>
-                  <option value="ingetrokken">Ingetrokken</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Beschikbaar vanaf</Label>
-                <Input type="date" value={form.beschikbaarVanaf} onChange={e => set('beschikbaarVanaf', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Financieel">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Vraagprijs (€)</Label>
-                <Input type="number" value={form.vraagprijs} onChange={e => set('vraagprijs', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Prijsindicatie</Label>
-                <Input value={form.prijsindicatie} onChange={e => set('prijsindicatie', e.target.value)} placeholder="bv. op aanvraag, koers € 5–6 mln" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Huurinkomsten (€/jr)</Label>
-                <Input type="number" value={form.huurinkomsten} onChange={e => set('huurinkomsten', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Huur per m² (€)</Label>
-                <Input type="number" step="0.01" value={form.huurPerM2} onChange={e => set('huurPerM2', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Bruto aanvangsrendement (%)</Label>
-                <Input type="number" step="0.01" value={form.brutoAanvangsrendement} onChange={e => set('brutoAanvangsrendement', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Verhuur">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Verhuurstatus</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.verhuurStatus} onChange={e => set('verhuurStatus', e.target.value)}>
-                  <option value="verhuurd">Verhuurd</option>
-                  <option value="leeg">Leeg</option>
-                  <option value="gedeeltelijk">Gedeeltelijk</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Aantal huurders</Label>
-                <Input type="number" value={form.aantalHuurders} onChange={e => set('aantalHuurders', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Leegstand (%)</Label>
-                <Input type="number" step="0.1" value={form.leegstandPct} onChange={e => set('leegstandPct', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Oppervlakten">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Oppervlakte totaal (m²)</Label>
-                <Input type="number" value={form.oppervlakte} onChange={e => set('oppervlakte', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>VVO (m²)</Label>
-                <Input type="number" value={form.oppervlakteVvo} onChange={e => set('oppervlakteVvo', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>BVO (m²)</Label>
-                <Input type="number" value={form.oppervlakteBvo} onChange={e => set('oppervlakteBvo', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Perceeloppervlakte (m²)</Label>
-                <Input type="number" value={form.perceelOppervlakte} onChange={e => set('perceelOppervlakte', e.target.value)} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Bouwkundig & juridisch">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Bouwjaar</Label>
-                <Input type="number" value={form.bouwjaar} onChange={e => set('bouwjaar', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Energielabel</Label>
-                <Input value={form.energielabel} onChange={e => set('energielabel', e.target.value)} placeholder="A, B, C..." />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Onderhoudsstaat</Label>
-                <Input value={form.onderhoudsstaat} onChange={e => set('onderhoudsstaat', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Eigendomssituatie</Label>
-                <Input value={form.eigendomssituatie} onChange={e => set('eigendomssituatie', e.target.value)} placeholder="vol eigendom, erfpacht..." />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Erfpachtinformatie</Label>
-                <Textarea value={form.erfpachtinformatie} onChange={e => set('erfpachtinformatie', e.target.value)} rows={2} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Bestemmingsinformatie</Label>
-                <Textarea value={form.bestemmingsinformatie} onChange={e => set('bestemmingsinformatie', e.target.value)} rows={2} />
-              </div>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Potentie & kenmerken">
-            <div className="flex flex-wrap gap-x-6 gap-y-3">
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={form.ontwikkelPotentie} onCheckedChange={v => set('ontwikkelPotentie', !!v)} /> Ontwikkelpotentie
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={form.transformatiePotentie} onCheckedChange={v => set('transformatiePotentie', !!v)} /> Transformatiepotentie
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={form.exclusief} onCheckedChange={v => set('exclusief', !!v)} /> Exclusief
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={form.documentenBeschikbaar} onCheckedChange={v => set('documentenBeschikbaar', !!v)} /> Documenten beschikbaar
-              </label>
-            </div>
-          </Sectie>
-
-          <Sectie titel="Bron & opmerkingen">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Bron</Label>
-                <Input value={form.bron} onChange={e => set('bron', e.target.value)} placeholder="bv. eigen netwerk, makelaar X" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Samenvatting</Label>
-              <Textarea value={form.samenvatting} onChange={e => set('samenvatting', e.target.value)} rows={3} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Opmerkingen</Label>
-              <Textarea value={form.opmerkingen} onChange={e => set('opmerkingen', e.target.value)} rows={2} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Interne opmerkingen</Label>
-              <Textarea value={form.interneOpmerkingen} onChange={e => set('interneOpmerkingen', e.target.value)} rows={2} />
-            </div>
-          </Sectie>
-
-          <div className="flex justify-end gap-2 pt-2 sticky bottom-0 bg-background pb-1">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 pt-3 border-b border-border overflow-x-auto">
+            <TabsList className="inline-flex">
+              <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
+              <TabsTrigger value="financieel">Financieel</TabsTrigger>
+              <TabsTrigger value="verhuur">Verhuur</TabsTrigger>
+              <TabsTrigger value="pand">Pand</TabsTrigger>
+              <TabsTrigger value="juridisch">Juridisch</TabsTrigger>
+              <TabsTrigger value="verkoper">Verkoper</TabsTrigger>
+              <TabsTrigger value="thesis">Thesis</TabsTrigger>
+              <TabsTrigger value="media" disabled={!objectId}>
+                <span className="hidden sm:inline">Media</span>
+                <ImageIcon className="h-4 w-4 sm:hidden" />
+              </TabsTrigger>
+            </TabsList>
           </div>
-        </form>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {/* TAB 1: ALGEMEEN */}
+            <TabsContent value="algemeen" className="space-y-5 mt-0">
+              <Sectie titel="Identificatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Titel *" span={2}>
+                    <Input
+                      value={form.titel}
+                      onChange={e => set('titel', e.target.value)}
+                      placeholder="bv. Woningportefeuille Amsterdam-West"
+                    />
+                  </Veld>
+                  <Veld label="Intern referentienummer">
+                    <Input
+                      value={form.internReferentienummer ?? ''}
+                      onChange={e => set('internReferentienummer', e.target.value || undefined)}
+                      placeholder="BITO-2026-042"
+                    />
+                  </Veld>
+                  <Veld label="Status">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.status}
+                      onChange={e => set('status', e.target.value as ObjectStatus)}
+                    >
+                      <option value="off-market">Off-market</option>
+                      <option value="in_onderzoek">In onderzoek</option>
+                      <option value="beschikbaar">Beschikbaar</option>
+                      <option value="onder_optie">Onder optie</option>
+                      <option value="verkocht">Verkocht</option>
+                      <option value="ingetrokken">Ingetrokken</option>
+                    </select>
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Anonimiteit">
+                <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2 mb-3">
+                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    Default aan — bij off-market is het verstandig het werkelijke adres intern te houden. De publieke naam/regio kan worden getoond op 1-pagers zonder de eigenaar prijs te geven.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={form.anoniem}
+                      onCheckedChange={v => set('anoniem', !!v)}
+                    />
+                    Anoniem presenteren
+                  </label>
+                  <div />
+                  <Veld label="Publieke naam (voor 1-pager)">
+                    <Input
+                      value={form.publiekeNaam ?? ''}
+                      onChange={e => set('publiekeNaam', e.target.value || undefined)}
+                      placeholder="bv. Woonpand grachtengordel"
+                      disabled={!form.anoniem}
+                    />
+                  </Veld>
+                  <Veld label="Publieke regio">
+                    <Input
+                      value={form.publiekeRegio ?? ''}
+                      onChange={e => set('publiekeRegio', e.target.value || undefined)}
+                      placeholder="bv. Randstad-Noord"
+                      disabled={!form.anoniem}
+                    />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Locatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Adres">
+                    <Input value={form.adres ?? ''} onChange={e => set('adres', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Postcode">
+                    <Input value={form.postcode ?? ''} onChange={e => set('postcode', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Plaats">
+                    <Input value={form.plaats} onChange={e => set('plaats', e.target.value)} />
+                  </Veld>
+                  <Veld label="Provincie">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.provincie}
+                      onChange={e => set('provincie', e.target.value)}
+                    >
+                      <option value="">— Kies provincie —</option>
+                      {PROVINCIES.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Classificatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Type vastgoed">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.type}
+                      onChange={e => setType(e.target.value as AssetClass)}
+                    >
+                      {Object.entries(ASSET_CLASS_LABELS).map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </Veld>
+                  <Veld label="Subcategorie">
+                    <SubcategorieSelect
+                      assetClass={form.type}
+                      value={form.subcategorieId}
+                      onChange={id => set('subcategorieId', id)}
+                    />
+                  </Veld>
+                  <Veld label="Beschikbaar vanaf">
+                    <Input
+                      type="date"
+                      value={form.beschikbaarVanaf ?? ''}
+                      onChange={e => set('beschikbaarVanaf', e.target.value || undefined)}
+                    />
+                  </Veld>
+                  <Veld label="Huidig gebruik">
+                    <Input
+                      value={form.huidigGebruik ?? ''}
+                      onChange={e => set('huidigGebruik', e.target.value || undefined)}
+                      placeholder="bv. verhuurd aan supermarkt"
+                    />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Portefeuille & bron">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={form.isPortefeuille}
+                      onCheckedChange={v => set('isPortefeuille', !!v)}
+                    />
+                    Dit is een portefeuille
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={form.exclusief}
+                      onCheckedChange={v => set('exclusief', !!v)}
+                    />
+                    Exclusief aangeboden
+                  </label>
+                  {parentOpties.length > 0 && (
+                    <Veld label="Onderdeel van portefeuille">
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.parentObjectId ?? ''}
+                        onChange={e => set('parentObjectId', e.target.value || undefined)}
+                      >
+                        <option value="">— Geen —</option>
+                        {parentOpties.map(o => (
+                          <option key={o.id} value={o.id}>{o.titel}</option>
+                        ))}
+                      </select>
+                    </Veld>
+                  )}
+                  <Veld label="Bron">
+                    <Input
+                      value={form.bron ?? ''}
+                      onChange={e => set('bron', e.target.value || undefined)}
+                      placeholder="bv. eigen netwerk, makelaar X"
+                    />
+                  </Veld>
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 2: FINANCIEEL */}
+            <TabsContent value="financieel" className="space-y-5 mt-0">
+              <Sectie titel="Prijs">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Vraagprijs (€)">
+                    <Input type="number" value={form.vraagprijs ?? ''}
+                      onChange={e => set('vraagprijs', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Prijsindicatie (tekstueel)">
+                    <Input value={form.prijsindicatie ?? ''}
+                      onChange={e => set('prijsindicatie', e.target.value || undefined)}
+                      placeholder="bv. op aanvraag, koers € 5–6 mln" />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Huur & rendement">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Totale huurinkomsten (€/jr)">
+                    <Input type="number" value={form.huurinkomsten ?? ''}
+                      onChange={e => set('huurinkomsten', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Huur per m² (€)">
+                    <Input type="number" step="0.01" value={form.huurPerM2 ?? ''}
+                      onChange={e => set('huurPerM2', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Servicekosten (€/jr)">
+                    <Input type="number" value={form.servicekostenJaar ?? ''}
+                      onChange={e => set('servicekostenJaar', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="NOI – netto operationeel inkomen (€/jr)">
+                    <Input type="number" value={form.noi ?? ''}
+                      onChange={e => set('noi', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="BAR – bruto aanvangsrendement (%)">
+                    <Input type="number" step="0.01" value={form.brutoAanvangsrendement ?? ''}
+                      onChange={e => set('brutoAanvangsrendement', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="NAR – netto aanvangsrendement (%)">
+                    <Input type="number" step="0.01" value={form.nettoAanvangsrendement ?? ''}
+                      onChange={e => set('nettoAanvangsrendement', num(e.target.value))} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Waarderingen">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="WOZ-waarde (€)">
+                    <Input type="number" value={form.wozWaarde ?? ''}
+                      onChange={e => set('wozWaarde', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="WOZ peildatum">
+                    <Input type="date" value={form.wozPeildatum ?? ''}
+                      onChange={e => set('wozPeildatum', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Taxatiewaarde (€)">
+                    <Input type="number" value={form.taxatiewaarde ?? ''}
+                      onChange={e => set('taxatiewaarde', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Taxatiedatum">
+                    <Input type="date" value={form.taxatiedatum ?? ''}
+                      onChange={e => set('taxatiedatum', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 3: VERHUUR */}
+            <TabsContent value="verhuur" className="space-y-5 mt-0">
+              <Sectie titel="Verhuurstatus">
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <Veld label="Status">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.verhuurStatus}
+                      onChange={e => set('verhuurStatus', e.target.value as VerhuurStatus)}
+                    >
+                      <option value="verhuurd">Verhuurd</option>
+                      <option value="gedeeltelijk">Gedeeltelijk</option>
+                      <option value="leeg">Leeg</option>
+                    </select>
+                  </Veld>
+                  <Veld label="Aantal huurders (aggregaat)">
+                    <Input type="number" value={form.aantalHuurders ?? ''}
+                      onChange={e => set('aantalHuurders', num(e.target.value))}
+                      placeholder="Automatisch: onderstaand beheer" />
+                  </Veld>
+                  <Veld label="Leegstand (%)">
+                    <Input type="number" step="0.1" value={form.leegstandPct ?? ''}
+                      onChange={e => set('leegstandPct', num(e.target.value))} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Huurders">
+                {objectId ? (
+                  <HuurdersPanel objectId={objectId} />
+                ) : (
+                  <PlaceholderEerstOpslaan
+                    icon={<Users className="h-6 w-6" />}
+                    boodschap="Sla het object eerst op om huurders toe te voegen."
+                  />
+                )}
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 4: PAND */}
+            <TabsContent value="pand" className="space-y-5 mt-0">
+              <Sectie titel="Oppervlakten (NEN 2580)">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Oppervlakte totaal (m²)">
+                    <Input type="number" value={form.oppervlakte ?? ''}
+                      onChange={e => set('oppervlakte', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="VVO – verhuurbaar vloeroppervlak (m²)">
+                    <Input type="number" value={form.oppervlakteVvo ?? ''}
+                      onChange={e => set('oppervlakteVvo', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="BVO – bruto vloeroppervlak (m²)">
+                    <Input type="number" value={form.oppervlakteBvo ?? ''}
+                      onChange={e => set('oppervlakteBvo', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="GBO – gebruiksoppervlak (m²)">
+                    <Input type="number" value={form.oppervlakteGbo ?? ''}
+                      onChange={e => set('oppervlakteGbo', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Perceeloppervlak (m²)">
+                    <Input type="number" value={form.perceelOppervlakte ?? ''}
+                      onChange={e => set('perceelOppervlakte', num(e.target.value))} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Bouw">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Bouwjaar">
+                    <Input type="number" value={form.bouwjaar ?? ''}
+                      onChange={e => set('bouwjaar', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Energielabel">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.energielabelV2 ?? ''}
+                      onChange={e => set('energielabelV2', (e.target.value || undefined) as Energielabel | undefined)}
+                    >
+                      <option value="">— Onbekend —</option>
+                      {ENERGIELABELS.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </Veld>
+                  <Veld label="Aantal verdiepingen">
+                    <Input type="number" value={form.aantalVerdiepingen ?? ''}
+                      onChange={e => set('aantalVerdiepingen', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Aantal units">
+                    <Input type="number" value={form.aantalUnits ?? ''}
+                      onChange={e => set('aantalUnits', num(e.target.value))} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Onderhoud">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Onderhoudsstaat">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.onderhoudsstaatNiveau ?? ''}
+                      onChange={e => set('onderhoudsstaatNiveau', (e.target.value || undefined) as OnderhoudsstaatNiveau | undefined)}
+                    >
+                      <option value="">— Onbekend —</option>
+                      {Object.entries(ONDERHOUDSSTAAT_LABELS).map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </Veld>
+                  <label className="flex items-center gap-2 text-sm self-end pb-2">
+                    <Checkbox
+                      checked={form.asbestinventarisatieAanwezig ?? false}
+                      onCheckedChange={v => set('asbestinventarisatieAanwezig', !!v)}
+                    />
+                    Asbestinventarisatie aanwezig
+                  </label>
+                  <Veld label="Recente investeringen" span={2}>
+                    <Textarea rows={2} value={form.recenteInvesteringen ?? ''}
+                      onChange={e => set('recenteInvesteringen', e.target.value || undefined)}
+                      placeholder="bv. dak 2022, CV 2024" />
+                  </Veld>
+                  <Veld label="Achterstallig onderhoud" span={2}>
+                    <Textarea rows={2} value={form.achterstalligOnderhoud ?? ''}
+                      onChange={e => set('achterstalligOnderhoud', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Potentie">
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={form.ontwikkelPotentie}
+                      onCheckedChange={v => set('ontwikkelPotentie', !!v)} />
+                    Ontwikkelpotentie
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={form.transformatiePotentie}
+                      onCheckedChange={v => set('transformatiePotentie', !!v)} />
+                    Transformatiepotentie
+                  </label>
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 5: JURIDISCH */}
+            <TabsContent value="juridisch" className="space-y-5 mt-0">
+              <Sectie titel="Eigendom & erfpacht">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Eigendomssituatie">
+                    <Input value={form.eigendomssituatie ?? ''}
+                      onChange={e => set('eigendomssituatie', e.target.value || undefined)}
+                      placeholder="vol eigendom / erfpacht / ..." />
+                  </Veld>
+                </div>
+                <Veld label="Erfpachtinformatie">
+                  <Textarea rows={2} value={form.erfpachtinformatie ?? ''}
+                    onChange={e => set('erfpachtinformatie', e.target.value || undefined)} />
+                </Veld>
+                <Veld label="Bestemmingsinformatie">
+                  <Textarea rows={2} value={form.bestemmingsinformatie ?? ''}
+                    onChange={e => set('bestemmingsinformatie', e.target.value || undefined)}
+                    placeholder="bv. gemengde bestemming, planologie" />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Kadaster">
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <Veld label="Kadastrale gemeente">
+                    <Input value={form.kadastraleGemeente ?? ''}
+                      onChange={e => set('kadastraleGemeente', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Sectie">
+                    <Input value={form.kadastraleSectie ?? ''}
+                      onChange={e => set('kadastraleSectie', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Perceel-/kadastraal nummer">
+                    <Input value={form.kadastraalNummer ?? ''}
+                      onChange={e => set('kadastraalNummer', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 6: VERKOPER */}
+            <TabsContent value="verkoper" className="space-y-5 mt-0">
+              <Sectie titel="Verkoper / contact">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Verkoper naam">
+                    <Input value={form.verkoperNaam ?? ''}
+                      onChange={e => set('verkoperNaam', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Rol">
+                    <Input value={form.verkoperRol ?? ''}
+                      onChange={e => set('verkoperRol', e.target.value || undefined)}
+                      placeholder="eigenaar, beheerder, adviseur, ..." />
+                  </Veld>
+                  <Veld label="Via">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.verkoperVia ?? 'onbekend'}
+                      onChange={e => set('verkoperVia', e.target.value as VerkoperVia)}
+                    >
+                      {Object.entries(VERKOPER_VIA_LABELS).map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </Veld>
+                  <Veld label="Telefoon">
+                    <Input value={form.verkoperTelefoon ?? ''}
+                      onChange={e => set('verkoperTelefoon', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="E-mail">
+                    <Input type="email" value={form.verkoperEmail ?? ''}
+                      onChange={e => set('verkoperEmail', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+                <Veld label="Verkoopmotivatie">
+                  <Textarea rows={2} value={form.verkoopmotivatie ?? ''}
+                    onChange={e => set('verkoopmotivatie', e.target.value || undefined)}
+                    placeholder="waarom wil de verkoper van het object af" />
+                </Veld>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 7: THESIS */}
+            <TabsContent value="thesis" className="space-y-5 mt-0">
+              <Sectie titel="Samenvatting (voor 1-pager)">
+                <Veld label="Samenvatting">
+                  <Textarea rows={3} value={form.samenvatting ?? ''}
+                    onChange={e => set('samenvatting', e.target.value || undefined)}
+                    placeholder="Korte omschrijving van het object zoals getoond op de 1-pager" />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Investeringsthese">
+                <Veld label="Waarom interessant (bullets)">
+                  <Textarea rows={5} value={form.investeringsthese ?? ''}
+                    onChange={e => set('investeringsthese', e.target.value || undefined)}
+                    placeholder={'- Sterke locatie\n- Stabiele kasstroom\n- Transformatiepotentie'} />
+                </Veld>
+                <Veld label="Onderscheidende kenmerken">
+                  <Textarea rows={2} value={form.onderscheidendeKenmerken ?? ''}
+                    onChange={e => set('onderscheidendeKenmerken', e.target.value || undefined)} />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Risico's">
+                <Veld label="Risico's (bullets)">
+                  <Textarea rows={4} value={form.risicos ?? ''}
+                    onChange={e => set('risicos', e.target.value || undefined)}
+                    placeholder={'- Korte WALT\n- Achterstallig onderhoud\n- Afhankelijk van 1 huurder'} />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Interne notities">
+                <Veld label="Opmerkingen (extern)">
+                  <Textarea rows={2} value={form.opmerkingen ?? ''}
+                    onChange={e => set('opmerkingen', e.target.value || undefined)} />
+                </Veld>
+                <Veld label="Interne opmerkingen (alleen Bito)">
+                  <Textarea rows={2} value={form.interneOpmerkingen ?? ''}
+                    onChange={e => set('interneOpmerkingen', e.target.value || undefined)} />
+                </Veld>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 8: MEDIA */}
+            <TabsContent value="media" className="space-y-6 mt-0">
+              {objectId ? (
+                <>
+                  <Sectie titel="Foto's">
+                    <FotosPanel objectId={objectId} />
+                  </Sectie>
+                  <Sectie titel="Documenten">
+                    <DocumentenPanel objectId={objectId} />
+                  </Sectie>
+                </>
+              ) : (
+                <PlaceholderEerstOpslaan
+                  icon={<FileText className="h-6 w-6" />}
+                  boodschap="Sla het object eerst op om foto's en documenten te uploaden."
+                />
+              )}
+            </TabsContent>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-border px-6 py-3 flex justify-between items-center gap-3">
+            <p className="text-xs text-muted-foreground">
+              {isEdit || gemaaktId ? 'Wijzigingen worden direct opgeslagen na klikken' : 'Sla op om media toe te voegen'}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose}>
+                {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
+              </Button>
+              <Button onClick={handleSave} disabled={bezig}>
+                {bezig ? 'Bezig…' : (isEdit || gemaaktId ? 'Opslaan' : 'Aanmaken')}
+              </Button>
+            </div>
+          </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Sub-componenten – layout helpers
+// ---------------------------------------------------------------------
+
+function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5">
+        {titel}
+      </h3>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function Veld({ label, children, span = 1 }: { label: string; children: ReactNode; span?: 1 | 2 }) {
+  return (
+    <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function PlaceholderEerstOpslaan({
+  icon, boodschap,
+}: { icon: ReactNode; boodschap: string }) {
+  return (
+    <div className="border border-dashed border-border rounded-md p-8 text-center">
+      <div className="text-muted-foreground inline-flex">{icon}</div>
+      <p className="text-sm text-muted-foreground mt-2">{boodschap}</p>
+    </div>
   );
 }
