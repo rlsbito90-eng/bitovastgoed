@@ -725,3 +725,95 @@ export function getAllMatchesFromData(
   }
   return results.sort((a, b) => b.score - a.score);
 }
+
+
+// =====================================================================
+// JAAR-DOELEN
+// =====================================================================
+
+export interface JaarDoel {
+  id: string;
+  jaar: number;
+  commissieDoelBedrag?: number;
+  dealwaardeDoelBedrag?: number;
+  notities?: string;
+}
+
+
+// =====================================================================
+// COMMISSIE / SUCCESSEN HELPERS
+// =====================================================================
+// Gewogen pipeline-waarde: commissie × kans per fase.
+// Percentages als uitgangspunt — kunnen later verfijnd worden per dealtype.
+
+export const FASE_KANS: Record<DealFase, number> = {
+  lead: 0.05,
+  introductie: 0.10,
+  interesse: 0.20,
+  bezichtiging: 0.35,
+  bieding: 0.55,
+  onderhandeling: 0.75,
+  closing: 0.90,
+  afgerond: 1.00,
+  afgevallen: 0.00,
+};
+
+export interface CommissieStats {
+  gerealiseerdBedrag: number;           // sum commissie_bedrag afgeronde deals (huidig jaar)
+  gerealiseerdAantalDeals: number;      // aantal afgeronde deals (huidig jaar)
+  pipelineBedragGewogen: number;        // sum commissie × fase-kans actieve deals
+  pipelineBedragTotaal: number;         // sum commissie_bedrag actieve deals (ongewogen)
+  pipelineAantalDeals: number;          // aantal actieve deals
+  dealwaardeGerealiseerd: number;       // sum vraagprijs afgeronde deals (huidig jaar)
+}
+
+export function berekenCommissieStats(
+  deals: Deal[],
+  vraagprijsPerObject: (objectId: string) => number | undefined,
+  jaar?: number,
+): CommissieStats {
+  const huidigJaar = jaar ?? new Date().getFullYear();
+  let gerealiseerdBedrag = 0;
+  let gerealiseerdAantalDeals = 0;
+  let pipelineBedragGewogen = 0;
+  let pipelineBedragTotaal = 0;
+  let pipelineAantalDeals = 0;
+  let dealwaardeGerealiseerd = 0;
+
+  for (const deal of deals) {
+    const commissie = deal.commissieBedrag ?? 0;
+    const jaarVanDeal = deal.verwachteClosingdatum
+      ? new Date(deal.verwachteClosingdatum).getFullYear()
+      : (deal.datumEersteContact ? new Date(deal.datumEersteContact).getFullYear() : huidigJaar);
+
+    if (deal.fase === 'afgerond' && jaarVanDeal === huidigJaar) {
+      gerealiseerdBedrag += commissie;
+      gerealiseerdAantalDeals += 1;
+      dealwaardeGerealiseerd += vraagprijsPerObject(deal.objectId) ?? 0;
+    } else if (deal.fase !== 'afgerond' && deal.fase !== 'afgevallen') {
+      pipelineBedragTotaal += commissie;
+      pipelineBedragGewogen += commissie * FASE_KANS[deal.fase];
+      pipelineAantalDeals += 1;
+    }
+  }
+
+  return {
+    gerealiseerdBedrag,
+    gerealiseerdAantalDeals,
+    pipelineBedragGewogen,
+    pipelineBedragTotaal,
+    pipelineAantalDeals,
+    dealwaardeGerealiseerd,
+  };
+}
+
+export function getRecenteSuccessen(deals: Deal[], limit = 5): Deal[] {
+  return deals
+    .filter(d => d.fase === 'afgerond')
+    .sort((a, b) => {
+      const dA = a.verwachteClosingdatum ?? a.datumEersteContact ?? '';
+      const dB = b.verwachteClosingdatum ?? b.datumEersteContact ?? '';
+      return dB.localeCompare(dA);
+    })
+    .slice(0, limit);
+}
