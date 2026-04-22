@@ -1,10 +1,5 @@
-// Bito Vastgoed — Types, helpers en matching engine.
-// Data komt uit Supabase via useDataStore. Hier alleen pure utilities.
-//
-// FASE 1: uitgebreide types matching het nieuwe datamodel.
-// Bestaande velden blijven bestaan voor backwards compatibility met de UI;
-// nieuwe velden zijn optioneel zodat de huidige formulieren niet stuk gaan
-// totdat Fase 2 (formulieren) is opgeleverd.
+// Bito Vastgoed — Types + helpers + matching engine.
+// Centraal typen-bestand. Gebruikt door alle pages, forms, hooks.
 
 // =====================================================================
 // ENUMS
@@ -12,35 +7,25 @@
 
 export type LeadStatus = 'koud' | 'lauw' | 'warm' | 'actief';
 
-export type PartijType = 'belegger' | 'ontwikkelaar' | 'eigenaar' | 'makelaar' | 'partner' | 'overig';
+export type PartijType =
+  | 'belegger' | 'ontwikkelaar' | 'eigenaar'
+  | 'makelaar' | 'partner' | 'overig';
 
 export type InvesteerderSubtype =
-  | 'private_belegger'
-  | 'hnwi'
-  | 'family_office'
-  | 'institutioneel'
-  | 'fonds'
-  | 'bv'
-  | 'nv'
-  | 'cv';
+  | 'private_belegger' | 'hnwi' | 'family_office' | 'institutioneel'
+  | 'fonds' | 'bv' | 'nv' | 'cv';
 
 export type AssetClass =
-  | 'wonen'
-  | 'winkels'
-  | 'bedrijfshallen'
-  | 'logistiek'
-  | 'industrieel'
-  | 'kantoren'
-  | 'hotels'
-  | 'zorgvastgoed'
-  | 'mixed_use'
-  | 'ontwikkellocatie';
+  | 'wonen' | 'winkels' | 'bedrijfshallen' | 'logistiek'
+  | 'industrieel' | 'kantoren' | 'hotels'
+  | 'zorgvastgoed' | 'mixed_use' | 'ontwikkellocatie';
 
 export type VerhuurStatus = 'verhuurd' | 'leeg' | 'gedeeltelijk';
 
 export type DealFase =
   | 'lead' | 'introductie' | 'interesse' | 'bezichtiging'
-  | 'bieding' | 'onderhandeling' | 'closing' | 'afgerond' | 'afgevallen';
+  | 'bieding' | 'onderhandeling' | 'closing'
+  | 'afgerond' | 'afgevallen';
 
 export type ObjectStatus =
   | 'off-market' | 'in_onderzoek' | 'beschikbaar'
@@ -70,15 +55,18 @@ export type KapitaalSituatie =
 export type DocumentType =
   | 'huurovereenkomst' | 'taxatierapport' | 'mjop' | 'asbestinventarisatie'
   | 'bouwkundig_rapport' | 'energielabel_rapport' | 'informatiememorandum'
-  | 'plattegrond' | 'kadasterbericht' | 'wozbeschikking' | 'jaarrekening_huurder'
-  | 'fotorapport' | 'dd_overzicht' | 'anders';
+  | 'plattegrond' | 'kadasterbericht' | 'wozbeschikking'
+  | 'jaarrekening_huurder' | 'fotorapport' | 'dd_overzicht' | 'anders';
 
 export type Energielabel =
-  'A++++' | 'A+++' | 'A++' | 'A+' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'onbekend';
+  | 'A++++' | 'A+++' | 'A++' | 'A+' | 'A'
+  | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'onbekend';
 
-export type ExclusiviteitVoorkeur = 'alleen_off_market' | 'beide' | 'geen_voorkeur';
+export type ExclusiviteitVoorkeur =
+  'alleen_off_market' | 'beide' | 'geen_voorkeur';
 
-export type DDStatus = 'niet_gestart' | 'in_uitvoering' | 'afgerond' | 'niet_van_toepassing';
+export type DDStatus =
+  'niet_gestart' | 'in_uitvoering' | 'afgerond' | 'niet_van_toepassing';
 
 export type IndexatieBasis = 'CPI' | 'vast_pct' | 'geen' | 'custom';
 
@@ -89,11 +77,11 @@ export type Transactietype =
 
 
 // =====================================================================
-// LOOKUP / METADATA
+// INTERFACES
 // =====================================================================
 
 export interface ObjectSubcategorie {
-  id: string;                 // bv 'wonen.studentenhuisvesting'
+  id: string;
   assetClass: AssetClass;
   subcategorieKey: string;
   label: string;
@@ -102,15 +90,10 @@ export interface ObjectSubcategorie {
   actief: boolean;
 }
 
-
-// =====================================================================
-// RELATIES
-// =====================================================================
-
 export interface Relatie {
   id: string;
   bedrijfsnaam: string;
-  contactpersoon: string;     // legacy weergave; gedetailleerd in RelatieContactpersoon[]
+  contactpersoon: string;   // legacy; gedetailleerd in RelatieContactpersoon[]
   type: PartijType;
   investeerderSubtype?: InvesteerderSubtype;
   telefoon: string;
@@ -128,9 +111,9 @@ export interface Relatie {
   assetClasses: AssetClass[];
   budgetMin?: number;
   budgetMax?: number;
-  rendementseis?: number;     // %
+  rendementseis?: number;
   kapitaalsituatie?: KapitaalSituatie;
-  eigenVermogenPct?: number;  // 0-100
+  eigenVermogenPct?: number;
   voorkeurDealstructuur?: Dealstructuur[];
   voorkeurKanaal?: CommunicatieKanaal;
   voorkeurTaal?: string;
@@ -139,7 +122,7 @@ export interface Relatie {
   verkoopintentie?: string;
 
   ndaGetekend: boolean;
-  ndaDatum?: string;          // ISO date
+  ndaDatum?: string;
 
   bronRelatie?: string;
   leadStatus: LeadStatus;
@@ -164,11 +147,6 @@ export interface RelatieContactpersoon {
   notities?: string;
 }
 
-
-// =====================================================================
-// OBJECTEN
-// =====================================================================
-
 export interface ObjectVastgoed {
   id: string;
   titel: string;
@@ -187,7 +165,7 @@ export interface ObjectVastgoed {
 
   // Classificatie
   type: AssetClass;
-  subcategorie?: string;          // legacy text-veld
+  subcategorie?: string;          // legacy free-text
   subcategorieId?: string;        // FK naar object_subcategorieen
   status: ObjectStatus;
   beschikbaarVanaf?: string;
@@ -213,23 +191,23 @@ export interface ObjectVastgoed {
   aantalHuurders?: number;
   leegstandPct?: number;
 
-  // Oppervlakten (NEN 2580)
-  oppervlakte?: number;           // generiek
-  oppervlakteVvo?: number;        // verhuurbaar vloeroppervlak
-  oppervlakteBvo?: number;        // bruto vloeroppervlak
-  oppervlakteGbo?: number;        // gebruiksoppervlak (NIEUW)
+  // Oppervlakten
+  oppervlakte?: number;
+  oppervlakteVvo?: number;
+  oppervlakteBvo?: number;
+  oppervlakteGbo?: number;
   perceelOppervlakte?: number;
 
   // Pand
   bouwjaar?: number;
-  energielabel?: string;          // legacy text
-  energielabelV2?: Energielabel;  // gestandaardiseerd
+  energielabel?: string;          // legacy
+  energielabelV2?: Energielabel;
   huidigGebruik?: string;
   aantalVerdiepingen?: number;
   aantalUnits?: number;
 
   // Onderhoud
-  onderhoudsstaat?: string;       // legacy text
+  onderhoudsstaat?: string;       // legacy
   onderhoudsstaatNiveau?: OnderhoudsstaatNiveau;
   recenteInvesteringen?: string;
   achterstalligOnderhoud?: string;
@@ -247,10 +225,10 @@ export interface ObjectVastgoed {
   ontwikkelPotentie: boolean;
   transformatiePotentie: boolean;
 
-  // Investeringsthese
+  // Thesis
   samenvatting?: string;
-  investeringsthese?: string;     // markdown bullets
-  risicos?: string;               // markdown bullets
+  investeringsthese?: string;
+  risicos?: string;
   onderscheidendeKenmerken?: string;
 
   // Verkoper
@@ -261,11 +239,11 @@ export interface ObjectVastgoed {
   verkoperEmail?: string;
   verkoopmotivatie?: string;
 
-  // Portefeuille-structuur
+  // Portefeuille
   isPortefeuille: boolean;
   parentObjectId?: string;
 
-  // Documenten / overig
+  // Overig
   documentenBeschikbaar: boolean;
   interneOpmerkingen?: string;
   opmerkingen?: string;
@@ -294,7 +272,7 @@ export interface ObjectDocument {
   objectId: string;
   documenttype: DocumentType;
   bestandsnaam: string;
-  storagePath: string;            // pad in bucket bito-objecten
+  storagePath: string;
   bestandsgrootteBytes?: number;
   mimeType?: string;
   vertrouwelijk: boolean;
@@ -313,7 +291,6 @@ export interface ObjectFoto {
   bestandsgrootteBytes?: number;
 }
 
-// View: berekende huurmetrics per object
 export interface ObjectHuurMetrics {
   objectId: string;
   aantalHuurders: number;
@@ -323,11 +300,6 @@ export interface ObjectHuurMetrics {
   walbJaren?: number;
 }
 
-
-// =====================================================================
-// ZOEKPROFIELEN
-// =====================================================================
-
 export interface Zoekprofiel {
   id: string;
   naam: string;
@@ -335,8 +307,8 @@ export interface Zoekprofiel {
   typeVastgoed: AssetClass[];
   subcategorieIds?: string[];
   regio: string[];
-  stad?: string;                  // legacy single
-  steden?: string[];              // gebruik deze ipv stad
+  stad?: string;
+  steden?: string[];
   prijsMin?: number;
   prijsMax?: number;
   oppervlakteMin?: number;
@@ -352,22 +324,17 @@ export interface Zoekprofiel {
   transformatiePotentie: boolean;
   transactietypeVoorkeur?: Transactietype[];
   exclusiviteitVoorkeur?: ExclusiviteitVoorkeur;
-  prioriteit: number;             // 1-5
+  prioriteit: number;
   aanvullendeCriteria?: string;
   status: ZoekprofielStatus;
 }
-
-
-// =====================================================================
-// DEALS
-// =====================================================================
 
 export interface Deal {
   id: string;
   objectId: string;
   relatieId: string;
   fase: DealFase;
-  interessegraad: number;         // 1-5
+  interessegraad: number;
   datumEersteContact: string;
   datumFollowUp?: string;
   bezichtigingGepland?: string;
@@ -401,11 +368,6 @@ export interface DealKandidaat {
   notities?: string;
 }
 
-
-// =====================================================================
-// TAKEN
-// =====================================================================
-
 export interface Taak {
   id: string;
   titel: string;
@@ -422,11 +384,130 @@ export interface Taak {
 
 
 // =====================================================================
+// LABEL-MAPPINGEN (voor UI-weergave)
+// =====================================================================
+
+export const ASSET_CLASS_LABELS: Record<AssetClass, string> = {
+  wonen: 'Wonen',
+  winkels: 'Winkels / Retail',
+  kantoren: 'Kantoren',
+  logistiek: 'Logistiek',
+  bedrijfshallen: 'Bedrijfshallen',
+  industrieel: 'Industrieel',
+  hotels: 'Hotels',
+  zorgvastgoed: 'Zorgvastgoed',
+  mixed_use: 'Mixed-use',
+  ontwikkellocatie: 'Ontwikkellocatie',
+};
+
+export const INVESTEERDER_SUBTYPE_LABELS: Record<InvesteerderSubtype, string> = {
+  private_belegger: 'Private belegger',
+  hnwi: 'HNWI',
+  family_office: 'Family office',
+  institutioneel: 'Institutioneel',
+  fonds: 'Fonds',
+  bv: 'BV',
+  nv: 'NV',
+  cv: 'CV',
+};
+
+export const KAPITAAL_SITUATIE_LABELS: Record<KapitaalSituatie, string> = {
+  cash_ready: 'Cash-ready',
+  financiering_vereist: 'Financiering vereist',
+  hybride: 'Hybride',
+  onbekend: 'Onbekend',
+};
+
+export const COMMUNICATIE_KANAAL_LABELS: Record<CommunicatieKanaal, string> = {
+  whatsapp: 'WhatsApp',
+  email: 'E-mail',
+  telefoon: 'Telefoon',
+  signal: 'Signal',
+  linkedin: 'LinkedIn',
+};
+
+export const VERKOPER_VIA_LABELS: Record<VerkoperVia, string> = {
+  rechtstreeks_eigenaar: 'Rechtstreeks eigenaar',
+  via_makelaar: 'Via makelaar',
+  via_beheerder: 'Via beheerder',
+  via_adviseur: 'Via adviseur',
+  via_netwerk: 'Via netwerk',
+  onbekend: 'Onbekend',
+};
+
+export const ONDERHOUDSSTAAT_LABELS: Record<OnderhoudsstaatNiveau, string> = {
+  uitstekend: 'Uitstekend',
+  goed: 'Goed',
+  redelijk: 'Redelijk',
+  matig: 'Matig',
+  slecht: 'Slecht',
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  huurovereenkomst: 'Huurovereenkomst',
+  taxatierapport: 'Taxatierapport',
+  mjop: 'MJOP',
+  asbestinventarisatie: 'Asbestinventarisatie',
+  bouwkundig_rapport: 'Bouwkundig rapport',
+  energielabel_rapport: 'Energielabel rapport',
+  informatiememorandum: 'Informatiememorandum',
+  plattegrond: 'Plattegrond',
+  kadasterbericht: 'Kadasterbericht',
+  wozbeschikking: 'WOZ-beschikking',
+  jaarrekening_huurder: 'Jaarrekening huurder',
+  fotorapport: 'Fotorapport',
+  dd_overzicht: 'Due diligence-overzicht',
+  anders: 'Anders',
+};
+
+export const DEAL_FASE_LABELS: Record<DealFase, string> = {
+  lead: 'Lead',
+  introductie: 'Introductie',
+  interesse: 'Interesse',
+  bezichtiging: 'Bezichtiging',
+  bieding: 'Bieding',
+  onderhandeling: 'Onderhandeling',
+  closing: 'Closing',
+  afgerond: 'Afgerond',
+  afgevallen: 'Afgevallen',
+};
+
+export const DD_STATUS_LABELS: Record<DDStatus, string> = {
+  niet_gestart: 'Niet gestart',
+  in_uitvoering: 'In uitvoering',
+  afgerond: 'Afgerond',
+  niet_van_toepassing: 'N.v.t.',
+};
+
+export const INDEXATIE_BASIS_LABELS: Record<IndexatieBasis, string> = {
+  CPI: 'CPI',
+  vast_pct: 'Vast %',
+  geen: 'Geen indexatie',
+  custom: 'Custom',
+};
+
+export const EXCLUSIVITEIT_LABELS: Record<ExclusiviteitVoorkeur, string> = {
+  alleen_off_market: 'Alleen off-market',
+  beide: 'Beide',
+  geen_voorkeur: 'Geen voorkeur',
+};
+
+export const PROVINCIES = [
+  'Groningen', 'Friesland', 'Drenthe',
+  'Overijssel', 'Flevoland', 'Gelderland',
+  'Utrecht', 'Noord-Holland', 'Zuid-Holland', 'Zeeland',
+  'Noord-Brabant', 'Limburg',
+];
+
+export const REGIO_OPTIES = ['Randstad', ...PROVINCIES];
+
+
+// =====================================================================
 // HELPERS
 // =====================================================================
 
 export const formatCurrency = (amount?: number): string => {
-  if (!amount && amount !== 0) return '—';
+  if (amount == null) return '—';
   return new Intl.NumberFormat('nl-NL', {
     style: 'currency', currency: 'EUR',
     minimumFractionDigits: 0, maximumFractionDigits: 0,
@@ -434,7 +515,7 @@ export const formatCurrency = (amount?: number): string => {
 };
 
 export const formatCurrencyCompact = (amount?: number): string => {
-  if (!amount && amount !== 0) return '—';
+  if (amount == null) return '—';
   if (Math.abs(amount) >= 1_000_000) {
     return `€${(amount / 1_000_000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln`;
   }
@@ -457,7 +538,21 @@ export const formatDateTime = (date?: string, tijd?: string): string => {
   return tijd ? `${datum} · ${tijd.slice(0, 5)}` : datum;
 };
 
-// === MATCHING ENGINE ===
+export const formatPercent = (n?: number, digits = 1): string => {
+  if (n == null) return '—';
+  return `${n.toLocaleString('nl-NL', { maximumFractionDigits: digits })}%`;
+};
+
+export const formatM2 = (n?: number): string => {
+  if (n == null) return '—';
+  return `${n.toLocaleString('nl-NL')} m²`;
+};
+
+
+// =====================================================================
+// MATCHING ENGINE
+// =====================================================================
+
 export interface MatchResult {
   zoekprofielId: string;
   relatieId: string;
@@ -483,6 +578,9 @@ function regioMatcht(profiel: Zoekprofiel, object: ObjectVastgoed): boolean {
   });
 }
 
+const ENERGIELABEL_VOLGORDE: Energielabel[] =
+  ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
+
 export function berekenMatchScore(
   object: ObjectVastgoed,
   profiel: Zoekprofiel,
@@ -490,13 +588,12 @@ export function berekenMatchScore(
   const redenen: string[] = [];
   let score = 0;
 
-  // === HARDE CRITERIA ===
+  // HARDE CRITERIA
   if (!profiel.typeVastgoed || profiel.typeVastgoed.length === 0) return null;
   if (!profiel.typeVastgoed.includes(object.type)) return null;
   score += 25;
-  redenen.push(`Type matcht (${object.type})`);
+  redenen.push(`Type matcht (${ASSET_CLASS_LABELS[object.type]})`);
 
-  // Subcategorie filter (nieuw, optioneel)
   if (profiel.subcategorieIds && profiel.subcategorieIds.length > 0) {
     if (!object.subcategorieId || !profiel.subcategorieIds.includes(object.subcategorieId)) {
       return null;
@@ -535,7 +632,20 @@ export function berekenMatchScore(
     }
   }
 
-  // === ZACHTE CRITERIA ===
+  // Bouwjaar
+  if (typeof object.bouwjaar === 'number') {
+    if (typeof profiel.bouwjaarMin === 'number' && object.bouwjaar < profiel.bouwjaarMin) return null;
+    if (typeof profiel.bouwjaarMax === 'number' && object.bouwjaar > profiel.bouwjaarMax) return null;
+  }
+
+  // Leegstand
+  if (typeof profiel.leegstandMaxPct === 'number' && typeof object.leegstandPct === 'number') {
+    if (object.leegstandPct > profiel.leegstandMaxPct) return null;
+    score += 5;
+    redenen.push('Leegstand binnen grens');
+  }
+
+  // ZACHTE CRITERIA
   if (profiel.verhuurStatus) {
     if (object.verhuurStatus === profiel.verhuurStatus) {
       score += 10;
@@ -554,10 +664,9 @@ export function berekenMatchScore(
     redenen.push('Transformatiepotentie aanwezig');
   }
 
-  // Energielabel-eis (nieuw, zacht)
   if (profiel.energielabelMin && object.energielabelV2) {
-    const order: Energielabel[] = ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
-    if (order.indexOf(object.energielabelV2) <= order.indexOf(profiel.energielabelMin)) {
+    if (ENERGIELABEL_VOLGORDE.indexOf(object.energielabelV2)
+        <= ENERGIELABEL_VOLGORDE.indexOf(profiel.energielabelMin)) {
       score += 5;
       redenen.push('Energielabel voldoet');
     }

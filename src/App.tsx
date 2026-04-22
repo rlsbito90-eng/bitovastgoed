@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DataStoreProvider } from "@/hooks/useDataStore";
+import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
@@ -30,41 +31,43 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <DataStoreProvider>
-            <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route
-                path="*"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Routes>
-                        <Route path="/" element={<DashboardPage />} />
-                        <Route path="/relaties" element={<RelatiesPage />} />
-                        <Route path="/relaties/:id" element={<RelatieDetailPage />} />
-                        <Route path="/objecten" element={<ObjectenPage />} />
-                        <Route path="/objecten/:id" element={<ObjectDetailPage />} />
-                        <Route path="/deals" element={<DealsPage />} />
-                        <Route path="/deals/:id" element={<DealDetailPage />} />
-                        <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
-                        <Route path="/taken" element={<TakenPage />} />
-                        <Route path="/rapportage" element={<RapportagePage />} />
-                        <Route
-                          path="/admin"
-                          element={
-                            <ProtectedRoute vereistAdmin>
-                              <AdminPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </DataStoreProvider>
+          <SubcategorieProvider>
+            <DataStoreProvider>
+              <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route
+                  path="*"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Routes>
+                          <Route path="/" element={<DashboardPage />} />
+                          <Route path="/relaties" element={<RelatiesPage />} />
+                          <Route path="/relaties/:id" element={<RelatieDetailPage />} />
+                          <Route path="/objecten" element={<ObjectenPage />} />
+                          <Route path="/objecten/:id" element={<ObjectDetailPage />} />
+                          <Route path="/deals" element={<DealsPage />} />
+                          <Route path="/deals/:id" element={<DealDetailPage />} />
+                          <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
+                          <Route path="/taken" element={<TakenPage />} />
+                          <Route path="/rapportage" element={<RapportagePage />} />
+                          <Route
+                            path="/admin"
+                            element={
+                              <ProtectedRoute vereistAdmin>
+                                <AdminPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </DataStoreProvider>
+          </SubcategorieProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
