@@ -1,7 +1,18 @@
 // src/components/forms/ObjectFormDialog.tsx
-// Compleet herbouwd object-formulier in 8 tabs.
+// Compleet herbouwd object-formulier, fase 2 batch 2.
+//
+// Indeling: 8 tabs binnen 1 dialog
+//   1. Algemeen     — identificatie, locatie, classificatie, anonimiteit
+//   2. Financieel   — prijs, rendementen, WOZ/taxatie
+//   3. Verhuur      — status + HuurdersPanel
+//   4. Pand         — oppervlakten, bouwjaar, onderhoud
+//   5. Juridisch    — eigendom, erfpacht, bestemming, kadaster
+//   6. Verkoper     — verkoper-info
+//   7. Thesis       — samenvatting, investeringsthese, risico's
+//   8. Media        — documenten + foto's (alleen na opslaan zichtbaar)
+//
 // Nieuwe objecten: media-tab is disabled tot het object een ID heeft
-// (eerst één keer opslaan, daarna upload).
+// (oftewel: eerst één keer opslaan, daarna upload).
 
 import { useState, useEffect, ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,7 +38,7 @@ import SubcategorieSelect from '@/components/object/SubcategorieSelect';
 import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
-import { Info, Image as ImageIcon, FileText, Users } from 'lucide-react';
+import { Info, Image, FileText, Users } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -115,17 +126,17 @@ const leegForm: FormState = {
 };
 
 const ENERGIELABELS: Energielabel[] =
-  ['A++++', 'A+++', 'A++', 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'onbekend'];
+  ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
 
 // ---------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------
 
 export default function ObjectFormDialog({ open, onOpenChange, object }: Props) {
-  const { addObject, updateObject, objecten } = useDataStore();
+  const { addObject, updateObject, objecten, genereerRefnummer } = useDataStore();
   const isEdit = !!object;
 
-  // Voor nieuw: we houden object-id bij na 1e opslag zodat media-tabs beschikbaar zijn
+  // Voor nieuw: we houden object-id bij na 1e opslag zodat media-tabs beschikbaar worden
   const [gemaaktId, setGemaaktId] = useState<string | undefined>(object?.id);
   const objectId = object?.id ?? gemaaktId;
 
@@ -133,9 +144,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
 
+  // Hydreer form bij open
   useEffect(() => {
     if (object) {
-      const { id, datumToegevoegd, softDeletedAt, ...rest } = object as any;
+      const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
     } else {
@@ -144,6 +156,20 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     }
     setTab('algemeen');
   }, [object, open]);
+
+  // Genereer referentienummer automatisch voor nieuwe objecten
+  useEffect(() => {
+    if (!open) return;
+    if (object || gemaaktId) return;
+    if (form.internReferentienummer) return;
+    let cancelled = false;
+    genereerRefnummer().then(nr => {
+      if (!cancelled) {
+        setForm(prev => prev.internReferentienummer ? prev : { ...prev, internReferentienummer: nr });
+      }
+    }).catch(() => { /* silent — veld blijft leeg en user kan zelf invullen */ });
+    return () => { cancelled = true; };
+  }, [open, object, gemaaktId, form.internReferentienummer, genereerRefnummer]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
@@ -174,6 +200,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
         await updateObject(object.id, data);
         toast.success('Object bijgewerkt');
       } else if (gemaaktId) {
+        // Al eens opgeslagen in deze sessie, nu extra wijzigingen
         await updateObject(gemaaktId, data);
         toast.success('Object bijgewerkt');
       } else {
@@ -181,7 +208,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
         const nieuw = await addObject(payload as any);
         if (nieuw?.id) {
           setGemaaktId(nieuw.id);
-          toast.success("Object aangemaakt — je kunt nu huurders, documenten en foto's toevoegen");
+          toast.success('Object aangemaakt — je kunt nu huurders, documenten en foto\'s toevoegen');
         }
       }
     } catch (err: any) {
@@ -202,15 +229,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
+      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle>
             {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 pt-3 border-b border-border overflow-x-auto">
+        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
+          <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
               <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
               <TabsTrigger value="financieel">Financieel</TabsTrigger>
@@ -221,12 +248,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <TabsTrigger value="thesis">Thesis</TabsTrigger>
               <TabsTrigger value="media" disabled={!objectId}>
                 <span className="hidden sm:inline">Media</span>
-                <ImageIcon className="h-4 w-4 sm:hidden" />
+                <Image className="h-4 w-4 sm:hidden" />
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             {/* TAB 1: ALGEMEEN */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
               <Sectie titel="Identificatie">
@@ -242,7 +269,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input
                       value={form.internReferentienummer ?? ''}
                       onChange={e => set('internReferentienummer', e.target.value || undefined)}
-                      placeholder="BITO-2026-042"
+                      placeholder="BITO-YYYY-NNN (wordt automatisch gegenereerd)"
                     />
                   </Veld>
                   <Veld label="Status">
@@ -266,7 +293,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                 <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2 mb-3">
                   <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    Default aan — bij off-market is het verstandig het werkelijke adres intern te houden. De publieke naam/regio kan worden getoond op 1-pagers zonder de eigenaar prijs te geven.
+                    Default aan — bij off-market is het verstandig het werkelijke adres
+                    intern te houden. De publieke naam/regio kan worden getoond op
+                    1-pagers zonder de eigenaar prijs te geven.
                   </p>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -410,7 +439,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                   <Veld label="Prijsindicatie (tekstueel)">
                     <Input value={form.prijsindicatie ?? ''}
                       onChange={e => set('prijsindicatie', e.target.value || undefined)}
-                      placeholder="bv. op aanvraag, koers € 5–6 mln" />
+                      placeholder="bv. op aanvraag, koers € 5-6 mln" />
                   </Veld>
                 </div>
               </Sectie>
@@ -429,15 +458,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.servicekostenJaar ?? ''}
                       onChange={e => set('servicekostenJaar', num(e.target.value))} />
                   </Veld>
-                  <Veld label="NOI – netto operationeel inkomen (€/jr)">
+                  <Veld label="NOI — netto operationeel inkomen (€/jr)">
                     <Input type="number" value={form.noi ?? ''}
                       onChange={e => set('noi', num(e.target.value))} />
                   </Veld>
-                  <Veld label="BAR – bruto aanvangsrendement (%)">
+                  <Veld label="BAR — bruto aanvangsrendement (%)">
                     <Input type="number" step="0.01" value={form.brutoAanvangsrendement ?? ''}
                       onChange={e => set('brutoAanvangsrendement', num(e.target.value))} />
                   </Veld>
-                  <Veld label="NAR – netto aanvangsrendement (%)">
+                  <Veld label="NAR — netto aanvangsrendement (%)">
                     <Input type="number" step="0.01" value={form.nettoAanvangsrendement ?? ''}
                       onChange={e => set('nettoAanvangsrendement', num(e.target.value))} />
                   </Veld>
@@ -513,15 +542,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.oppervlakte ?? ''}
                       onChange={e => set('oppervlakte', num(e.target.value))} />
                   </Veld>
-                  <Veld label="VVO – verhuurbaar vloeroppervlak (m²)">
+                  <Veld label="VVO — verhuurbaar vloeroppervlak (m²)">
                     <Input type="number" value={form.oppervlakteVvo ?? ''}
                       onChange={e => set('oppervlakteVvo', num(e.target.value))} />
                   </Veld>
-                  <Veld label="BVO – bruto vloeroppervlak (m²)">
+                  <Veld label="BVO — bruto vloeroppervlak (m²)">
                     <Input type="number" value={form.oppervlakteBvo ?? ''}
                       onChange={e => set('oppervlakteBvo', num(e.target.value))} />
                   </Veld>
-                  <Veld label="GBO – gebruiksoppervlak (m²)">
+                  <Veld label="GBO — gebruiksoppervlak (m²)">
                     <Input type="number" value={form.oppervlakteGbo ?? ''}
                       onChange={e => set('oppervlakteGbo', num(e.target.value))} />
                   </Veld>
@@ -751,11 +780,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border px-6 py-3 flex justify-between items-center gap-3">
-            <p className="text-xs text-muted-foreground">
-              {isEdit || gemaaktId ? 'Wijzigingen worden direct opgeslagen na klikken' : 'Sla op om media toe te voegen'}
+          <div className="shrink-0 border-t border-border px-6 py-3 flex justify-between items-center gap-3 bg-background">
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {isEdit || gemaaktId ? 'Wijzigingen worden direct opgeslagen na klikken' : 'Eerst opslaan om media toe te voegen'}
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 ml-auto">
               <Button variant="outline" onClick={handleClose}>
                 {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
               </Button>
@@ -770,8 +799,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   );
 }
 
+
 // ---------------------------------------------------------------------
-// Sub-componenten – layout helpers
+// Sub-componenten — layout helpers
 // ---------------------------------------------------------------------
 
 function Sectie({ titel, children }: { titel: string; children: ReactNode }) {

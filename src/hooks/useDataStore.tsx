@@ -1,5 +1,9 @@
 // src/hooks/useDataStore.tsx
 // Centrale datastore voor Bito Vastgoed CRM.
+// - Laadt alle entiteiten bij login
+// - Mapper's tussen Supabase snake_case en app camelCase
+// - CRUD voor alle tabellen (inclusief fase-1 uitbreidingen)
+// - Soft delete waar geconfigureerd
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,23 +22,37 @@ import type {
   DealObjectKoppeling,
   DealKandidaat,
   KandidaatStatus,
+  AssetClass,
+  JaarDoel,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
+
+// =====================================================================
+// UTIL
+// =====================================================================
+
 const cleanPayload = <T extends Record<string, any>>(obj: T): Partial<T> => {
   const out: any = {};
-  Object.entries(obj).forEach(([k, v]) => { if (v !== undefined) out[k] = v; });
+  Object.entries(obj).forEach(([k, v]) => {
+    if (v !== undefined) out[k] = v;
+  });
   return out;
 };
 
 const throwIfError = (error: any) => {
   if (error) {
+    // Log volledige fout naar console voor debugging — UI krijgt generieke melding
     console.error('Database-bewerking mislukt:', error);
     throw new Error(error.message || 'De bewerking kon niet worden voltooid. Probeer het opnieuw.');
   }
 };
 
-// =========== MAPPERS — RELATIES ===========
+
+// =====================================================================
+// MAPPERS — RELATIES
+// =====================================================================
+
 const relatieFromDb = (r: any): Relatie => ({
   id: r.id,
   bedrijfsnaam: r.bedrijfsnaam ?? '',
@@ -107,7 +125,11 @@ const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
   notities: r.notities !== undefined ? (r.notities || null) : undefined,
 });
 
-// =========== MAPPERS — CONTACTPERSONEN ===========
+
+// =====================================================================
+// MAPPERS — CONTACTPERSONEN
+// =====================================================================
+
 const contactpersoonFromDb = (c: any): RelatieContactpersoon => ({
   id: c.id,
   relatieId: c.relatie_id,
@@ -137,7 +159,11 @@ const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
   notities: c.notities !== undefined ? (c.notities || null) : undefined,
 });
 
-// =========== MAPPERS — OBJECTEN ===========
+
+// =====================================================================
+// MAPPERS — OBJECTEN
+// =====================================================================
+
 function mapDbObjectStatusNaarApp(s: string): any {
   switch (s) {
     case 'nieuw': return 'off-market';
@@ -310,12 +336,21 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   opmerkingen: o.opmerkingen !== undefined ? (o.opmerkingen || null) : undefined,
 });
 
-// =========== MAPPERS — OVERIG ===========
+
+// =====================================================================
+// MAPPERS — OVERIG
+// =====================================================================
+
 const huurderFromDb = (h: any): ObjectHuurder => ({
-  id: h.id, objectId: h.object_id, huurderNaam: h.huurder_naam ?? '',
-  branche: h.branche ?? undefined, oppervlakteM2: h.oppervlakte_m2 ?? undefined,
-  jaarhuur: h.jaarhuur ?? undefined, servicekostenJaar: h.servicekosten_jaar ?? undefined,
-  ingangsdatum: h.ingangsdatum ?? undefined, einddatum: h.einddatum ?? undefined,
+  id: h.id,
+  objectId: h.object_id,
+  huurderNaam: h.huurder_naam ?? '',
+  branche: h.branche ?? undefined,
+  oppervlakteM2: h.oppervlakte_m2 ?? undefined,
+  jaarhuur: h.jaarhuur ?? undefined,
+  servicekostenJaar: h.servicekosten_jaar ?? undefined,
+  ingangsdatum: h.ingangsdatum ?? undefined,
+  einddatum: h.einddatum ?? undefined,
   opzegmogelijkheid: h.opzegmogelijkheid ?? undefined,
   indexatieBasis: h.indexatie_basis ?? undefined,
   indexatiePct: h.indexatie_pct != null ? Number(h.indexatie_pct) : undefined,
@@ -338,53 +373,78 @@ const huurderToDb = (h: Partial<ObjectHuurder>) => cleanPayload({
 });
 
 const documentFromDb = (d: any): ObjectDocument => ({
-  id: d.id, objectId: d.object_id, documenttype: d.documenttype ?? 'anders',
-  bestandsnaam: d.bestandsnaam ?? '', storagePath: d.storage_path ?? '',
+  id: d.id,
+  objectId: d.object_id,
+  documenttype: d.documenttype ?? 'anders',
+  bestandsnaam: d.bestandsnaam ?? '',
+  storagePath: d.storage_path ?? '',
   bestandsgrootteBytes: d.bestandsgrootte_bytes ?? undefined,
-  mimeType: d.mime_type ?? undefined, vertrouwelijk: !!d.vertrouwelijk,
-  notities: d.notities ?? undefined, geuploadDoor: d.geupload_door ?? undefined,
+  mimeType: d.mime_type ?? undefined,
+  vertrouwelijk: !!d.vertrouwelijk,
+  notities: d.notities ?? undefined,
+  geuploadDoor: d.geupload_door ?? undefined,
   createdAt: d.created_at ?? '',
 });
 
 const fotoFromDb = (f: any): ObjectFoto => ({
-  id: f.id, objectId: f.object_id, storagePath: f.storage_path ?? '',
-  bijschrift: f.bijschrift ?? undefined, isHoofdfoto: !!f.is_hoofdfoto,
+  id: f.id,
+  objectId: f.object_id,
+  storagePath: f.storage_path ?? '',
+  bijschrift: f.bijschrift ?? undefined,
+  isHoofdfoto: !!f.is_hoofdfoto,
   volgorde: f.volgorde ?? 0,
   bestandsgrootteBytes: f.bestandsgrootte_bytes ?? undefined,
 });
 
 const huurMetricsFromDb = (m: any): ObjectHuurMetrics => ({
-  objectId: m.object_id, aantalHuurders: m.aantal_huurders ?? 0,
-  totaleJaarhuur: m.totale_jaarhuur ?? 0, verhuurdeM2: m.verhuurde_m2 ?? 0,
+  objectId: m.object_id,
+  aantalHuurders: m.aantal_huurders ?? 0,
+  totaleJaarhuur: m.totale_jaarhuur ?? 0,
+  verhuurdeM2: m.verhuurde_m2 ?? 0,
   waltJaren: m.walt_jaren != null ? Number(m.walt_jaren) : undefined,
   walbJaren: m.walb_jaren != null ? Number(m.walb_jaren) : undefined,
 });
 
-// =========== MAPPERS — DEALS / TAKEN / ZOEKPROFIELEN ===========
+
+// =====================================================================
+// MAPPERS — DEALS / TAKEN / ZOEKPROFIELEN / KOPPELINGEN
+// =====================================================================
+
 const dealFromDb = (d: any): Deal => ({
-  id: d.id, objectId: d.object_id, relatieId: d.relatie_id, fase: d.fase,
-  interessegraad: d.interessegraad ?? 3, datumEersteContact: d.datum_eerste_contact,
+  id: d.id,
+  objectId: d.object_id,
+  relatieId: d.relatie_id,
+  fase: d.fase,
+  interessegraad: d.interessegraad ?? 3,
+  datumEersteContact: d.datum_eerste_contact,
   datumFollowUp: d.datum_follow_up ?? undefined,
   bezichtigingGepland: d.bezichtiging_gepland ?? undefined,
   indicatiefBod: d.indicatief_bod ?? undefined,
   verwachteClosingdatum: d.verwachte_closingdatum ?? undefined,
   commissiePct: d.commissie_pct != null ? Number(d.commissie_pct) : undefined,
   commissieBedrag: d.commissie_bedrag ?? undefined,
-  feeStructuur: d.fee_structuur ?? undefined, ddStatus: d.dd_status ?? 'niet_gestart',
-  notaris: d.notaris ?? undefined, bank: d.bank ?? undefined,
+  feeStructuur: d.fee_structuur ?? undefined,
+  ddStatus: d.dd_status ?? 'niet_gestart',
+  notaris: d.notaris ?? undefined,
+  bank: d.bank ?? undefined,
   tegenpartijMakelaar: d.tegenpartij_makelaar ?? undefined,
   afwijzingsreden: d.afwijzingsreden ?? undefined,
-  notities: d.notities ?? undefined, softDeletedAt: d.soft_deleted_at ?? undefined,
+  notities: d.notities ?? undefined,
+  softDeletedAt: d.soft_deleted_at ?? undefined,
 });
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
-  object_id: d.objectId, relatie_id: d.relatieId, fase: d.fase,
-  interessegraad: d.interessegraad ?? null, datum_eerste_contact: d.datumEersteContact,
+  object_id: d.objectId,
+  relatie_id: d.relatieId,
+  fase: d.fase,
+  interessegraad: d.interessegraad ?? null,
+  datum_eerste_contact: d.datumEersteContact,
   datum_follow_up: d.datumFollowUp !== undefined ? (d.datumFollowUp || null) : undefined,
   bezichtiging_gepland: d.bezichtigingGepland !== undefined ? (d.bezichtigingGepland || null) : undefined,
   indicatief_bod: d.indicatiefBod ?? null,
   verwachte_closingdatum: d.verwachteClosingdatum !== undefined ? (d.verwachteClosingdatum || null) : undefined,
-  commissie_pct: d.commissiePct ?? null, commissie_bedrag: d.commissieBedrag ?? null,
+  commissie_pct: d.commissiePct ?? null,
+  commissie_bedrag: d.commissieBedrag ?? null,
   fee_structuur: d.feeStructuur !== undefined ? (d.feeStructuur || null) : undefined,
   dd_status: d.ddStatus,
   notaris: d.notaris !== undefined ? (d.notaris || null) : undefined,
@@ -395,11 +455,17 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
 });
 
 const taakFromDb = (t: any): Taak => ({
-  id: t.id, titel: t.titel ?? '', relatieId: t.relatie_id ?? undefined,
-  dealId: t.deal_id ?? undefined, type: t.type_taak ?? 'Overig',
-  deadline: t.deadline ?? '', deadlineTijd: t.deadline_tijd ?? undefined,
-  prioriteit: t.prioriteit ?? 'normaal', status: t.status ?? 'open',
-  notities: t.notities ?? undefined, softDeletedAt: t.soft_deleted_at ?? undefined,
+  id: t.id,
+  titel: t.titel ?? '',
+  relatieId: t.relatie_id ?? undefined,
+  dealId: t.deal_id ?? undefined,
+  type: t.type_taak ?? 'Overig',
+  deadline: t.deadline ?? '',
+  deadlineTijd: t.deadline_tijd ?? undefined,
+  prioriteit: t.prioriteit ?? 'normaal',
+  status: t.status ?? 'open',
+  notities: t.notities ?? undefined,
+  softDeletedAt: t.soft_deleted_at ?? undefined,
 });
 
 const taakToDb = (t: Partial<Taak>) => cleanPayload({
@@ -409,108 +475,192 @@ const taakToDb = (t: Partial<Taak>) => cleanPayload({
   type_taak: t.type !== undefined ? (t.type || null) : undefined,
   deadline: t.deadline !== undefined ? (t.deadline || null) : undefined,
   deadline_tijd: t.deadlineTijd !== undefined ? (t.deadlineTijd || null) : undefined,
-  prioriteit: t.prioriteit, status: t.status,
+  prioriteit: t.prioriteit,
+  status: t.status,
   notities: t.notities !== undefined ? (t.notities || null) : undefined,
 });
 
 const zoekprofielFromDb = (z: any): Zoekprofiel => ({
-  id: z.id, naam: z.profielnaam ?? '', relatieId: z.relatie_id,
-  typeVastgoed: z.type_vastgoed ?? [], subcategorieIds: z.subcategorie_ids ?? [],
-  regio: z.regio ?? [], stad: z.steden?.[0] ?? undefined, steden: z.steden ?? [],
-  prijsMin: z.prijs_min ?? undefined, prijsMax: z.prijs_max ?? undefined,
-  oppervlakteMin: z.oppervlakte_min ?? undefined, oppervlakteMax: z.oppervlakte_max ?? undefined,
-  bouwjaarMin: z.bouwjaar_min ?? undefined, bouwjaarMax: z.bouwjaar_max ?? undefined,
+  id: z.id,
+  naam: z.profielnaam ?? '',
+  relatieId: z.relatie_id,
+  typeVastgoed: z.type_vastgoed ?? [],
+  subcategorieIds: z.subcategorie_ids ?? [],
+  regio: z.regio ?? [],
+  stad: z.steden?.[0] ?? undefined,
+  steden: z.steden ?? [],
+  prijsMin: z.prijs_min ?? undefined,
+  prijsMax: z.prijs_max ?? undefined,
+  oppervlakteMin: z.oppervlakte_min ?? undefined,
+  oppervlakteMax: z.oppervlakte_max ?? undefined,
+  bouwjaarMin: z.bouwjaar_min ?? undefined,
+  bouwjaarMax: z.bouwjaar_max ?? undefined,
   energielabelMin: z.energielabel_min ?? undefined,
   verhuurStatus: z.verhuur_voorkeur ?? undefined,
   rendementseis: z.rendementseis != null ? Number(z.rendementseis) : undefined,
   waltMin: z.walt_min != null ? Number(z.walt_min) : undefined,
   leegstandMaxPct: z.leegstand_max_pct != null ? Number(z.leegstand_max_pct) : undefined,
-  ontwikkelPotentie: !!z.ontwikkelpotentie, transformatiePotentie: !!z.transformatiepotentie,
+  ontwikkelPotentie: !!z.ontwikkelpotentie,
+  transformatiePotentie: !!z.transformatiepotentie,
   transactietypeVoorkeur: z.transactietype_voorkeur ?? [],
   exclusiviteitVoorkeur: z.exclusiviteit_voorkeur ?? 'beide',
-  prioriteit: z.prioriteit ?? 3, aanvullendeCriteria: z.aanvullende_criteria ?? undefined,
+  prioriteit: z.prioriteit ?? 3,
+  aanvullendeCriteria: z.aanvullende_criteria ?? undefined,
   status: z.status === 'gepauzeerd' ? 'pauze' : z.status,
 });
 
 const zoekprofielToDb = (z: Partial<Zoekprofiel>) => cleanPayload({
   profielnaam: z.naam !== undefined ? (z.naam || 'Naamloos zoekprofiel') : undefined,
-  relatie_id: z.relatieId, type_vastgoed: z.typeVastgoed,
-  subcategorie_ids: z.subcategorieIds, regio: z.regio,
+  relatie_id: z.relatieId,
+  type_vastgoed: z.typeVastgoed,
+  subcategorie_ids: z.subcategorieIds,
+  regio: z.regio,
   steden: z.steden !== undefined ? z.steden : (z.stad !== undefined ? (z.stad ? [z.stad] : []) : undefined),
-  prijs_min: z.prijsMin ?? null, prijs_max: z.prijsMax ?? null,
-  oppervlakte_min: z.oppervlakteMin ?? null, oppervlakte_max: z.oppervlakteMax ?? null,
-  bouwjaar_min: z.bouwjaarMin ?? null, bouwjaar_max: z.bouwjaarMax ?? null,
+  prijs_min: z.prijsMin ?? null,
+  prijs_max: z.prijsMax ?? null,
+  oppervlakte_min: z.oppervlakteMin ?? null,
+  oppervlakte_max: z.oppervlakteMax ?? null,
+  bouwjaar_min: z.bouwjaarMin ?? null,
+  bouwjaar_max: z.bouwjaarMax ?? null,
   energielabel_min: z.energielabelMin !== undefined ? (z.energielabelMin || null) : undefined,
   verhuur_voorkeur: z.verhuurStatus ?? null,
-  rendementseis: z.rendementseis ?? null, walt_min: z.waltMin ?? null,
+  rendementseis: z.rendementseis ?? null,
+  walt_min: z.waltMin ?? null,
   leegstand_max_pct: z.leegstandMaxPct ?? null,
-  ontwikkelpotentie: z.ontwikkelPotentie, transformatiepotentie: z.transformatiePotentie,
+  ontwikkelpotentie: z.ontwikkelPotentie,
+  transformatiepotentie: z.transformatiePotentie,
   transactietype_voorkeur: z.transactietypeVoorkeur,
-  exclusiviteit_voorkeur: z.exclusiviteitVoorkeur, prioriteit: z.prioriteit,
+  exclusiviteit_voorkeur: z.exclusiviteitVoorkeur,
+  prioriteit: z.prioriteit,
   aanvullende_criteria: z.aanvullendeCriteria !== undefined ? (z.aanvullendeCriteria || null) : undefined,
   status: z.status !== undefined ? (z.status === 'pauze' ? 'gepauzeerd' : z.status) : undefined,
 });
 
 const dealObjectFromDb = (r: any): DealObjectKoppeling => ({
-  id: r.id, dealId: r.deal_id, objectId: r.object_id,
-  isPrimair: !!r.is_primair, notities: r.notities ?? undefined,
+  id: r.id,
+  dealId: r.deal_id,
+  objectId: r.object_id,
+  isPrimair: !!r.is_primair,
+  notities: r.notities ?? undefined,
 });
 
 const dealKandidaatFromDb = (r: any): DealKandidaat => ({
-  id: r.id, dealId: r.deal_id, relatieId: r.relatie_id,
-  status: r.status, notities: r.notities ?? undefined,
+  id: r.id,
+  dealId: r.deal_id,
+  relatieId: r.relatie_id,
+  status: r.status,
+  notities: r.notities ?? undefined,
 });
 
-// =========== CONTEXT ===========
+const jaarDoelFromDb = (j: any): JaarDoel => ({
+  id: j.id,
+  jaar: j.jaar,
+  commissieDoelBedrag: j.commissie_doel_bedrag ?? undefined,
+  dealwaardeDoelBedrag: j.dealwaarde_doel_bedrag ?? undefined,
+  notities: j.notities ?? undefined,
+});
+
+const jaarDoelToDb = (j: Partial<JaarDoel>) => cleanPayload({
+  jaar: j.jaar,
+  commissie_doel_bedrag: j.commissieDoelBedrag ?? null,
+  dealwaarde_doel_bedrag: j.dealwaardeDoelBedrag ?? null,
+  notities: j.notities !== undefined ? (j.notities || null) : undefined,
+});
+
+
+// =====================================================================
+// CONTEXT
+// =====================================================================
+
 interface DataStore {
-  relaties: Relatie[]; contactpersonen: RelatieContactpersoon[];
-  objecten: ObjectVastgoed[]; huurders: ObjectHuurder[];
-  documenten: ObjectDocument[]; fotos: ObjectFoto[];
+  // Data
+  relaties: Relatie[];
+  contactpersonen: RelatieContactpersoon[];
+  objecten: ObjectVastgoed[];
+  huurders: ObjectHuurder[];
+  documenten: ObjectDocument[];
+  fotos: ObjectFoto[];
   huurMetrics: Record<string, ObjectHuurMetrics>;
-  deals: Deal[]; taken: Taak[]; zoekprofielen: Zoekprofiel[];
-  dealObjecten: DealObjectKoppeling[]; dealKandidaten: DealKandidaat[];
-  loading: boolean; refresh: () => Promise<void>;
+  deals: Deal[];
+  taken: Taak[];
+  zoekprofielen: Zoekprofiel[];
+  dealObjecten: DealObjectKoppeling[];
+  dealKandidaten: DealKandidaat[];
+  jaarDoelen: JaarDoel[];
+  loading: boolean;
+  refresh: () => Promise<void>;
+
+  // Relaties
   addRelatie: (r: Omit<Relatie, 'id'>) => Promise<Relatie | null>;
   updateRelatie: (id: string, r: Partial<Relatie>) => Promise<void>;
   deleteRelatie: (id: string) => Promise<void>;
   bulkInsertRelaties: (rows: Partial<Relatie>[]) => Promise<{ ok: number; fout: number }>;
+
+  // Contactpersonen
   addContactpersoon: (c: Omit<RelatieContactpersoon, 'id'>) => Promise<RelatieContactpersoon | null>;
   updateContactpersoon: (id: string, c: Partial<RelatieContactpersoon>) => Promise<void>;
   deleteContactpersoon: (id: string) => Promise<void>;
   getContactpersonenVoorRelatie: (rid: string) => RelatieContactpersoon[];
+
+  // Objecten
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
   updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
+
+  // Huurders
   addHuurder: (h: Omit<ObjectHuurder, 'id'>) => Promise<ObjectHuurder | null>;
   updateHuurder: (id: string, h: Partial<ObjectHuurder>) => Promise<void>;
   deleteHuurder: (id: string) => Promise<void>;
   getHuurdersVoorObject: (oid: string) => ObjectHuurder[];
   getHuurMetrics: (oid: string) => ObjectHuurMetrics | undefined;
+
+  // Documenten
   addDocument: (d: Omit<ObjectDocument, 'id' | 'createdAt'>) => Promise<ObjectDocument | null>;
   deleteDocument: (id: string) => Promise<void>;
   getDocumentenVoorObject: (oid: string) => ObjectDocument[];
+
+  // Foto's
   addFoto: (f: Omit<ObjectFoto, 'id'>) => Promise<ObjectFoto | null>;
   updateFoto: (id: string, f: Partial<ObjectFoto>) => Promise<void>;
   deleteFoto: (id: string) => Promise<void>;
   setHoofdfoto: (objectId: string, fotoId: string) => Promise<void>;
   getFotosVoorObject: (oid: string) => ObjectFoto[];
+
+  // Deals
   addDeal: (d: Omit<Deal, 'id'>) => Promise<Deal | null>;
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>;
   deleteDeal: (id: string) => Promise<void>;
+
+  // Taken
   addTaak: (t: Omit<Taak, 'id'>) => Promise<Taak | null>;
   updateTaak: (id: string, t: Partial<Taak>) => Promise<void>;
   deleteTaak: (id: string) => Promise<void>;
+
+  // Zoekprofielen
   addZoekprofiel: (z: Omit<Zoekprofiel, 'id'>) => Promise<Zoekprofiel | null>;
   updateZoekprofiel: (id: string, z: Partial<Zoekprofiel>) => Promise<void>;
   deleteZoekprofiel: (id: string) => Promise<void>;
+
+  // Deal-koppelingen
   addDealObject: (dealId: string, objectId: string, isPrimair?: boolean) => Promise<void>;
   removeDealObject: (id: string) => Promise<void>;
   setPrimairDealObject: (dealId: string, koppelingId: string) => Promise<void>;
   getObjectenVoorDeal: (dealId: string) => DealObjectKoppeling[];
+
   addDealKandidaat: (dealId: string, relatieId: string, status?: KandidaatStatus) => Promise<void>;
   updateDealKandidaat: (id: string, patch: { status?: KandidaatStatus; notities?: string }) => Promise<void>;
   removeDealKandidaat: (id: string) => Promise<void>;
   getKandidatenVoorDeal: (dealId: string) => DealKandidaat[];
+
+  // Jaar-doelen
+  upsertJaarDoel: (doel: Omit<JaarDoel, 'id'>) => Promise<JaarDoel | null>;
+  deleteJaarDoel: (id: string) => Promise<void>;
+  getJaarDoel: (jaar: number) => JaarDoel | undefined;
+
+  // RPC
+  genereerRefnummer: () => Promise<string>;
+
+  // Selectors
   getRelatieById: (id: string) => Relatie | undefined;
   getObjectById: (id: string) => ObjectVastgoed | undefined;
   getDealById: (id: string) => Deal | undefined;
@@ -523,8 +673,14 @@ interface DataStore {
 
 const DataStoreContext = createContext<DataStore | null>(null);
 
+
+// =====================================================================
+// PROVIDER
+// =====================================================================
+
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const { heeftToegang } = useAuth();
+
   const [relaties, setRelaties] = useState<Relatie[]>([]);
   const [contactpersonen, setContactpersonen] = useState<RelatieContactpersoon[]>([]);
   const [objecten, setObjecten] = useState<ObjectVastgoed[]>([]);
@@ -537,6 +693,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [zoekprofielen, setZoekprofielen] = useState<Zoekprofiel[]>([]);
   const [dealObjecten, setDealObjecten] = useState<DealObjectKoppeling[]>([]);
   const [dealKandidaten, setDealKandidaten] = useState<DealKandidaat[]>([]);
+  const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -545,7 +702,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
-        dealRes, taakRes, zpRes, doRes, dkRes,
+        dealRes, taakRes, zpRes, doRes, dkRes, jdRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -559,7 +716,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('zoekprofielen').select('*').order('created_at', { ascending: false }),
         supabase.from('deal_objecten' as any).select('*'),
         supabase.from('deal_kandidaten' as any).select('*'),
+        supabase.from('jaar_doelen' as any).select('*').order('jaar', { ascending: false }),
       ]);
+
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
       if (cpRes.data) setContactpersonen((cpRes.data as any[]).map(contactpersoonFromDb));
       if (objRes.data) setObjecten(objRes.data.map(objectFromDb));
@@ -568,7 +727,10 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (fotoRes.data) setFotos((fotoRes.data as any[]).map(fotoFromDb));
       if (metricsRes.data) {
         const map: Record<string, ObjectHuurMetrics> = {};
-        (metricsRes.data as any[]).forEach(m => { const mm = huurMetricsFromDb(m); map[mm.objectId] = mm; });
+        (metricsRes.data as any[]).forEach(m => {
+          const mm = huurMetricsFromDb(m);
+          map[mm.objectId] = mm;
+        });
         setHuurMetrics(map);
       }
       if (dealRes.data) setDeals(dealRes.data.map(dealFromDb));
@@ -576,138 +738,208 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (zpRes.data) setZoekprofielen(zpRes.data.map(zoekprofielFromDb));
       if (doRes.data) setDealObjecten((doRes.data as any[]).map(dealObjectFromDb));
       if (dkRes.data) setDealKandidaten((dkRes.data as any[]).map(dealKandidaatFromDb));
-    } finally { setLoading(false); }
+      if (jdRes.data) setJaarDoelen((jdRes.data as any[]).map(jaarDoelFromDb));
+    } finally {
+      setLoading(false);
+    }
   }, [heeftToegang]);
 
-  useEffect(() => { if (heeftToegang) refresh(); }, [heeftToegang, refresh]);
+  useEffect(() => {
+    if (heeftToegang) refresh();
+  }, [heeftToegang, refresh]);
 
+
+  // -------- RELATIES --------
   const addRelatie = useCallback(async (r: Omit<Relatie, 'id'>) => {
     const { data, error } = await supabase.from('relaties').insert(relatieToDb(r) as any).select().single();
-    throwIfError(error); const nieuw = relatieFromDb(data);
-    setRelaties(prev => [nieuw, ...prev]); return nieuw;
+    throwIfError(error);
+    const nieuw = relatieFromDb(data);
+    setRelaties(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
+
   const updateRelatie = useCallback(async (id: string, r: Partial<Relatie>) => {
     const { data, error } = await supabase.from('relaties').update(relatieToDb(r) as any).eq('id', id).select().single();
-    throwIfError(error); setRelaties(prev => prev.map(x => x.id === id ? relatieFromDb(data) : x));
+    throwIfError(error);
+    setRelaties(prev => prev.map(x => x.id === id ? relatieFromDb(data) : x));
   }, []);
+
   const deleteRelatie = useCallback(async (id: string) => {
+    // Soft delete
     const { error } = await supabase.from('relaties').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
-    throwIfError(error); setRelaties(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setRelaties(prev => prev.filter(x => x.id !== id));
     setDeals(prev => prev.filter(d => d.relatieId !== id));
   }, []);
+
   const bulkInsertRelaties = useCallback(async (rows: Partial<Relatie>[]) => {
     if (rows.length === 0) return { ok: 0, fout: 0 };
     const payload = rows.map(r => relatieToDb({
       leadStatus: 'lauw', type: 'belegger', regio: [], assetClasses: [], ndaGetekend: false, ...r,
     }) as any);
     const { data, error } = await supabase.from('relaties').insert(payload).select();
-    if (error) { console.error('Bulk insert mislukt:', error); throw new Error('Bulk import mislukt. Controleer de invoer.'); }
+    if (error) {
+      console.error('Bulk insert mislukt:', error);
+      throw new Error('Bulk import mislukt. Controleer de invoer.');
+    }
     const nieuwe = (data ?? []).map(relatieFromDb);
     setRelaties(prev => [...nieuwe, ...prev]);
     return { ok: nieuwe.length, fout: rows.length - nieuwe.length };
   }, []);
 
+  // -------- CONTACTPERSONEN --------
   const addContactpersoon = useCallback(async (c: Omit<RelatieContactpersoon, 'id'>) => {
     const { data, error } = await supabase.from('relatie_contactpersonen' as any).insert(contactpersoonToDb(c) as any).select().single();
-    throwIfError(error); const nieuw = contactpersoonFromDb(data);
-    setContactpersonen(prev => [...prev, nieuw]); return nieuw;
-  }, []);
-  const updateContactpersoon = useCallback(async (id: string, c: Partial<RelatieContactpersoon>) => {
-    const { data, error } = await supabase.from('relatie_contactpersonen' as any).update(contactpersoonToDb(c) as any).eq('id', id).select().single();
-    throwIfError(error); setContactpersonen(prev => prev.map(x => x.id === id ? contactpersoonFromDb(data) : x));
-  }, []);
-  const deleteContactpersoon = useCallback(async (id: string) => {
-    const { error } = await supabase.from('relatie_contactpersonen' as any).delete().eq('id', id);
-    throwIfError(error); setContactpersonen(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    const nieuw = contactpersoonFromDb(data);
+    setContactpersonen(prev => [...prev, nieuw]);
+    return nieuw;
   }, []);
 
+  const updateContactpersoon = useCallback(async (id: string, c: Partial<RelatieContactpersoon>) => {
+    const { data, error } = await supabase.from('relatie_contactpersonen' as any).update(contactpersoonToDb(c) as any).eq('id', id).select().single();
+    throwIfError(error);
+    setContactpersonen(prev => prev.map(x => x.id === id ? contactpersoonFromDb(data) : x));
+  }, []);
+
+  const deleteContactpersoon = useCallback(async (id: string) => {
+    const { error } = await supabase.from('relatie_contactpersonen' as any).delete().eq('id', id);
+    throwIfError(error);
+    setContactpersonen(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // -------- OBJECTEN --------
   const addObject = useCallback(async (o: Omit<ObjectVastgoed, 'id'>) => {
     const { data, error } = await supabase.from('objecten').insert(objectToDb(o) as any).select().single();
-    throwIfError(error); const nieuw = objectFromDb(data);
-    setObjecten(prev => [nieuw, ...prev]); return nieuw;
+    throwIfError(error);
+    const nieuw = objectFromDb(data);
+    setObjecten(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
+
   const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
     const { data, error } = await supabase.from('objecten').update(objectToDb(o) as any).eq('id', id).select().single();
-    throwIfError(error); setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
   }, []);
+
   const deleteObject = useCallback(async (id: string) => {
+    // Verzamel storage-paden zodat we de bestanden ook opruimen
     const paths: string[] = [
       ...documenten.filter(d => d.objectId === id).map(d => d.storagePath),
       ...fotos.filter(f => f.objectId === id).map(f => f.storagePath),
     ];
     const { error } = await supabase.from('objecten').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
-    throwIfError(error); setObjecten(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setObjecten(prev => prev.filter(x => x.id !== id));
+    // Files opruimen (best effort — niet blocking)
     if (paths.length > 0) deleteBestanden(paths).catch(() => void 0);
   }, [documenten, fotos]);
 
+  // -------- HUURDERS --------
   const addHuurder = useCallback(async (h: Omit<ObjectHuurder, 'id'>) => {
     const { data, error } = await supabase.from('object_huurders' as any).insert(huurderToDb(h) as any).select().single();
-    throwIfError(error); const nieuw = huurderFromDb(data);
-    setHuurders(prev => [...prev, nieuw]); refresh(); return nieuw;
-  }, [refresh]);
-  const updateHuurder = useCallback(async (id: string, h: Partial<ObjectHuurder>) => {
-    const { data, error } = await supabase.from('object_huurders' as any).update(huurderToDb(h) as any).eq('id', id).select().single();
-    throwIfError(error); setHuurders(prev => prev.map(x => x.id === id ? huurderFromDb(data) : x)); refresh();
-  }, [refresh]);
-  const deleteHuurder = useCallback(async (id: string) => {
-    const { error } = await supabase.from('object_huurders' as any).delete().eq('id', id);
-    throwIfError(error); setHuurders(prev => prev.filter(x => x.id !== id)); refresh();
+    throwIfError(error);
+    const nieuw = huurderFromDb(data);
+    setHuurders(prev => [...prev, nieuw]);
+    refresh(); // herlaadt huur_metrics view
+    return nieuw;
   }, [refresh]);
 
+  const updateHuurder = useCallback(async (id: string, h: Partial<ObjectHuurder>) => {
+    const { data, error } = await supabase.from('object_huurders' as any).update(huurderToDb(h) as any).eq('id', id).select().single();
+    throwIfError(error);
+    setHuurders(prev => prev.map(x => x.id === id ? huurderFromDb(data) : x));
+    refresh();
+  }, [refresh]);
+
+  const deleteHuurder = useCallback(async (id: string) => {
+    const { error } = await supabase.from('object_huurders' as any).delete().eq('id', id);
+    throwIfError(error);
+    setHuurders(prev => prev.filter(x => x.id !== id));
+    refresh();
+  }, [refresh]);
+
+  // -------- DOCUMENTEN --------
   const addDocument = useCallback(async (d: Omit<ObjectDocument, 'id' | 'createdAt'>) => {
     const payload = cleanPayload({
-      object_id: d.objectId, documenttype: d.documenttype,
-      bestandsnaam: d.bestandsnaam, storage_path: d.storagePath,
+      object_id: d.objectId,
+      documenttype: d.documenttype,
+      bestandsnaam: d.bestandsnaam,
+      storage_path: d.storagePath,
       bestandsgrootte_bytes: d.bestandsgrootteBytes ?? null,
-      mime_type: d.mimeType ?? null, vertrouwelijk: d.vertrouwelijk,
-      notities: d.notities ?? null, geupload_door: d.geuploadDoor ?? null,
+      mime_type: d.mimeType ?? null,
+      vertrouwelijk: d.vertrouwelijk,
+      notities: d.notities ?? null,
+      geupload_door: d.geuploadDoor ?? null,
     });
     const { data, error } = await supabase.from('object_documenten' as any).insert(payload as any).select().single();
-    throwIfError(error); const nieuw = documentFromDb(data);
-    setDocumenten(prev => [nieuw, ...prev]); return nieuw;
+    throwIfError(error);
+    const nieuw = documentFromDb(data);
+    setDocumenten(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
+
   const deleteDocument = useCallback(async (id: string) => {
     const doc = documenten.find(d => d.id === id);
     const { error } = await supabase.from('object_documenten' as any).delete().eq('id', id);
-    throwIfError(error); setDocumenten(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setDocumenten(prev => prev.filter(x => x.id !== id));
     if (doc?.storagePath) deleteBestanden([doc.storagePath]).catch(() => void 0);
   }, [documenten]);
 
+  // -------- FOTO'S --------
   const addFoto = useCallback(async (f: Omit<ObjectFoto, 'id'>) => {
     const payload = cleanPayload({
-      object_id: f.objectId, storage_path: f.storagePath,
-      bijschrift: f.bijschrift ?? null, is_hoofdfoto: f.isHoofdfoto,
-      volgorde: f.volgorde, bestandsgrootte_bytes: f.bestandsgrootteBytes ?? null,
+      object_id: f.objectId,
+      storage_path: f.storagePath,
+      bijschrift: f.bijschrift ?? null,
+      is_hoofdfoto: f.isHoofdfoto,
+      volgorde: f.volgorde,
+      bestandsgrootte_bytes: f.bestandsgrootteBytes ?? null,
     });
     const { data, error } = await supabase.from('object_fotos' as any).insert(payload as any).select().single();
-    throwIfError(error); const nieuw = fotoFromDb(data);
-    setFotos(prev => [...prev, nieuw]); return nieuw;
+    throwIfError(error);
+    const nieuw = fotoFromDb(data);
+    setFotos(prev => [...prev, nieuw]);
+    return nieuw;
   }, []);
+
   const updateFoto = useCallback(async (id: string, f: Partial<ObjectFoto>) => {
     const payload = cleanPayload({
       bijschrift: f.bijschrift !== undefined ? (f.bijschrift || null) : undefined,
-      is_hoofdfoto: f.isHoofdfoto, volgorde: f.volgorde,
+      is_hoofdfoto: f.isHoofdfoto,
+      volgorde: f.volgorde,
     });
     const { data, error } = await supabase.from('object_fotos' as any).update(payload as any).eq('id', id).select().single();
-    throwIfError(error); setFotos(prev => prev.map(x => x.id === id ? fotoFromDb(data) : x));
+    throwIfError(error);
+    setFotos(prev => prev.map(x => x.id === id ? fotoFromDb(data) : x));
   }, []);
+
   const deleteFoto = useCallback(async (id: string) => {
     const foto = fotos.find(f => f.id === id);
     const { error } = await supabase.from('object_fotos' as any).delete().eq('id', id);
-    throwIfError(error); setFotos(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setFotos(prev => prev.filter(x => x.id !== id));
     if (foto?.storagePath) deleteBestanden([foto.storagePath]).catch(() => void 0);
   }, [fotos]);
+
   const setHoofdfoto = useCallback(async (objectId: string, fotoId: string) => {
+    // Alleen één hoofdfoto per object — eerst allen op false zetten
     const { error: e1 } = await supabase.from('object_fotos' as any).update({ is_hoofdfoto: false } as any).eq('object_id', objectId);
     throwIfError(e1);
     const { error: e2 } = await supabase.from('object_fotos' as any).update({ is_hoofdfoto: true } as any).eq('id', fotoId);
     throwIfError(e2);
-    setFotos(prev => prev.map(f => f.objectId === objectId ? { ...f, isHoofdfoto: f.id === fotoId } : f));
+    setFotos(prev => prev.map(f =>
+      f.objectId === objectId ? { ...f, isHoofdfoto: f.id === fotoId } : f
+    ));
   }, []);
 
+  // -------- DEALS --------
   const addDeal = useCallback(async (d: Omit<Deal, 'id'>) => {
     const { data, error } = await supabase.from('deals').insert(dealToDb(d) as any).select().single();
-    throwIfError(error); const nieuw = dealFromDb(data);
+    throwIfError(error);
+    const nieuw = dealFromDb(data);
     setDeals(prev => [nieuw, ...prev]);
     if (nieuw.objectId) {
       await supabase.from('deal_objecten' as any).insert({ deal_id: nieuw.id, object_id: nieuw.objectId, is_primair: true } as any);
@@ -715,57 +947,81 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     if (nieuw.relatieId) {
       await supabase.from('deal_kandidaten' as any).insert({ deal_id: nieuw.id, relatie_id: nieuw.relatieId, status: 'geinteresseerd' } as any);
     }
-    await refresh(); return nieuw;
+    await refresh();
+    return nieuw;
   }, [refresh]);
+
   const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
     const { data, error } = await supabase.from('deals').update(dealToDb(d) as any).eq('id', id).select().single();
-    throwIfError(error); setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
+    throwIfError(error);
+    setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
   }, []);
+
   const deleteDeal = useCallback(async (id: string) => {
     const { error } = await supabase.from('deals').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
-    throwIfError(error); setDeals(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setDeals(prev => prev.filter(x => x.id !== id));
     setDealObjecten(prev => prev.filter(x => x.dealId !== id));
     setDealKandidaten(prev => prev.filter(x => x.dealId !== id));
   }, []);
 
+  // -------- TAKEN --------
   const addTaak = useCallback(async (t: Omit<Taak, 'id'>) => {
     const { data, error } = await supabase.from('taken').insert(taakToDb(t) as any).select().single();
-    throwIfError(error); const nieuw = taakFromDb(data);
-    setTaken(prev => [nieuw, ...prev]); return nieuw;
+    throwIfError(error);
+    const nieuw = taakFromDb(data);
+    setTaken(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
+
   const updateTaak = useCallback(async (id: string, t: Partial<Taak>) => {
     const { data, error } = await supabase.from('taken').update(taakToDb(t) as any).eq('id', id).select().single();
-    throwIfError(error); setTaken(prev => prev.map(x => x.id === id ? taakFromDb(data) : x));
+    throwIfError(error);
+    setTaken(prev => prev.map(x => x.id === id ? taakFromDb(data) : x));
   }, []);
+
   const deleteTaak = useCallback(async (id: string) => {
     const { error } = await supabase.from('taken').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
-    throwIfError(error); setTaken(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setTaken(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  // -------- ZOEKPROFIELEN --------
   const addZoekprofiel = useCallback(async (z: Omit<Zoekprofiel, 'id'>) => {
     const { data, error } = await supabase.from('zoekprofielen').insert(zoekprofielToDb(z) as any).select().single();
-    throwIfError(error); const nieuw = zoekprofielFromDb(data);
-    setZoekprofielen(prev => [nieuw, ...prev]); return nieuw;
-  }, []);
-  const updateZoekprofiel = useCallback(async (id: string, z: Partial<Zoekprofiel>) => {
-    const { data, error } = await supabase.from('zoekprofielen').update(zoekprofielToDb(z) as any).eq('id', id).select().single();
-    throwIfError(error); setZoekprofielen(prev => prev.map(x => x.id === id ? zoekprofielFromDb(data) : x));
-  }, []);
-  const deleteZoekprofiel = useCallback(async (id: string) => {
-    const { error } = await supabase.from('zoekprofielen').delete().eq('id', id);
-    throwIfError(error); setZoekprofielen(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    const nieuw = zoekprofielFromDb(data);
+    setZoekprofielen(prev => [nieuw, ...prev]);
+    return nieuw;
   }, []);
 
+  const updateZoekprofiel = useCallback(async (id: string, z: Partial<Zoekprofiel>) => {
+    const { data, error } = await supabase.from('zoekprofielen').update(zoekprofielToDb(z) as any).eq('id', id).select().single();
+    throwIfError(error);
+    setZoekprofielen(prev => prev.map(x => x.id === id ? zoekprofielFromDb(data) : x));
+  }, []);
+
+  const deleteZoekprofiel = useCallback(async (id: string) => {
+    const { error } = await supabase.from('zoekprofielen').delete().eq('id', id);
+    throwIfError(error);
+    setZoekprofielen(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // -------- DEAL-KOPPELINGEN --------
   const addDealObject = useCallback(async (dealId: string, objectId: string, isPrimair = false) => {
     const { data, error } = await supabase.from('deal_objecten' as any)
       .insert({ deal_id: dealId, object_id: objectId, is_primair: isPrimair } as any)
       .select().single();
-    throwIfError(error); setDealObjecten(prev => [...prev, dealObjectFromDb(data)]);
+    throwIfError(error);
+    setDealObjecten(prev => [...prev, dealObjectFromDb(data)]);
   }, []);
+
   const removeDealObject = useCallback(async (id: string) => {
     const { error } = await supabase.from('deal_objecten' as any).delete().eq('id', id);
-    throwIfError(error); setDealObjecten(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setDealObjecten(prev => prev.filter(x => x.id !== id));
   }, []);
+
   const setPrimairDealObject = useCallback(async (dealId: string, koppelingId: string) => {
     const { error: e1 } = await supabase.from('deal_objecten' as any).update({ is_primair: false } as any).eq('deal_id', dealId);
     throwIfError(e1);
@@ -777,42 +1033,96 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     }
     await refresh();
   }, [dealObjecten, refresh]);
+
   const addDealKandidaat = useCallback(async (dealId: string, relatieId: string, status: KandidaatStatus = 'geinteresseerd') => {
     const { data, error } = await supabase.from('deal_kandidaten' as any)
-      .insert({ deal_id: dealId, relatie_id: relatieId, status } as any).select().single();
-    throwIfError(error); setDealKandidaten(prev => [...prev, dealKandidaatFromDb(data)]);
+      .insert({ deal_id: dealId, relatie_id: relatieId, status } as any)
+      .select().single();
+    throwIfError(error);
+    setDealKandidaten(prev => [...prev, dealKandidaatFromDb(data)]);
   }, []);
+
   const updateDealKandidaat = useCallback(async (id: string, patch: { status?: KandidaatStatus; notities?: string }) => {
     const { data, error } = await supabase.from('deal_kandidaten' as any)
       .update(cleanPayload(patch) as any).eq('id', id).select().single();
-    throwIfError(error); setDealKandidaten(prev => prev.map(x => x.id === id ? dealKandidaatFromDb(data) : x));
-  }, []);
-  const removeDealKandidaat = useCallback(async (id: string) => {
-    const { error } = await supabase.from('deal_kandidaten' as any).delete().eq('id', id);
-    throwIfError(error); setDealKandidaten(prev => prev.filter(x => x.id !== id));
+    throwIfError(error);
+    setDealKandidaten(prev => prev.map(x => x.id === id ? dealKandidaatFromDb(data) : x));
   }, []);
 
+  const removeDealKandidaat = useCallback(async (id: string) => {
+    const { error } = await supabase.from('deal_kandidaten' as any).delete().eq('id', id);
+    throwIfError(error);
+    setDealKandidaten(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // -------- JAAR-DOELEN --------
+  const upsertJaarDoel = useCallback(async (doel: Omit<JaarDoel, 'id'>) => {
+    const { data, error } = await supabase
+      .from('jaar_doelen' as any)
+      .upsert(jaarDoelToDb(doel) as any, { onConflict: 'jaar' })
+      .select().single();
+    throwIfError(error);
+    const nieuw = jaarDoelFromDb(data);
+    setJaarDoelen(prev => {
+      const zonder = prev.filter(x => x.jaar !== nieuw.jaar);
+      return [nieuw, ...zonder].sort((a, b) => b.jaar - a.jaar);
+    });
+    return nieuw;
+  }, []);
+
+  const deleteJaarDoel = useCallback(async (id: string) => {
+    const { error } = await supabase.from('jaar_doelen' as any).delete().eq('id', id);
+    throwIfError(error);
+    setJaarDoelen(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // -------- RPC: refnummer generator --------
+  const genereerRefnummer = useCallback(async (): Promise<string> => {
+    const { data, error } = await supabase.rpc('generate_refnummer' as any);
+    if (error) {
+      console.error('generate_refnummer RPC mislukt:', error);
+      // Fallback client-side
+      const jaar = new Date().getFullYear();
+      return `BITO-${jaar}-${Date.now().toString().slice(-4)}`;
+    }
+    return (data as string) ?? `BITO-${new Date().getFullYear()}-001`;
+  }, []);
+
+  // -------- STORE --------
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
-    deals, taken, zoekprofielen, dealObjecten, dealKandidaten, loading, refresh,
+    deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
+
     addRelatie, updateRelatie, deleteRelatie, bulkInsertRelaties,
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
     getContactpersonenVoorRelatie: (rid) => contactpersonen.filter(c => c.relatieId === rid),
+
     addObject, updateObject, deleteObject,
     addHuurder, updateHuurder, deleteHuurder,
     getHuurdersVoorObject: (oid) => huurders.filter(h => h.objectId === oid),
     getHuurMetrics: (oid) => huurMetrics[oid],
+
     addDocument, deleteDocument,
     getDocumentenVoorObject: (oid) => documenten.filter(d => d.objectId === oid),
+
     addFoto, updateFoto, deleteFoto, setHoofdfoto,
     getFotosVoorObject: (oid) => fotos.filter(f => f.objectId === oid).sort((a, b) => a.volgorde - b.volgorde),
+
     addDeal, updateDeal, deleteDeal,
     addTaak, updateTaak, deleteTaak,
     addZoekprofiel, updateZoekprofiel, deleteZoekprofiel,
+
     addDealObject, removeDealObject, setPrimairDealObject,
     getObjectenVoorDeal: (dealId) => dealObjecten.filter(x => x.dealId === dealId),
+
     addDealKandidaat, updateDealKandidaat, removeDealKandidaat,
     getKandidatenVoorDeal: (dealId) => dealKandidaten.filter(x => x.dealId === dealId),
+
+    upsertJaarDoel, deleteJaarDoel,
+    getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
+
+    genereerRefnummer,
+
     getRelatieById: (id) => relaties.find(r => r.id === id),
     getObjectById: (id) => objecten.find(o => o.id === id),
     getDealById: (id) => deals.find(d => d.id === id),

@@ -5,6 +5,7 @@ import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
 import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight } from 'lucide-react';
+import CommissieWidget from '@/components/dashboard/CommissieWidget';
 
 function KPICard({
   label,
@@ -97,6 +98,9 @@ export default function DashboardPage() {
         <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} />
         <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} />
       </div>
+
+      {/* Commissie & successen */}
+      <CommissieWidget />
 
       {/* Pipeline funnel */}
       <section className="section-card">

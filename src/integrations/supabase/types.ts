@@ -215,6 +215,39 @@ export type Database = {
           },
         ]
       }
+      jaar_doelen: {
+        Row: {
+          aangemaakt_door: string | null
+          commissie_doel_bedrag: number | null
+          created_at: string
+          dealwaarde_doel_bedrag: number | null
+          id: string
+          jaar: number
+          notities: string | null
+          updated_at: string
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          commissie_doel_bedrag?: number | null
+          created_at?: string
+          dealwaarde_doel_bedrag?: number | null
+          id?: string
+          jaar: number
+          notities?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          commissie_doel_bedrag?: number | null
+          created_at?: string
+          dealwaarde_doel_bedrag?: number | null
+          id?: string
+          jaar?: number
+          notities?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           bekeken: boolean | null
@@ -1331,6 +1364,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_refnummer: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
