@@ -146,6 +146,8 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
         bouwjaar: bouwjaarNum,
         energielabel: (energielabel || undefined) as Energielabel | undefined,
         huurstatus: (huurstatus || undefined) as VerhuurStatus | undefined,
+        huurprijsPerMaand: huurMaandNum != null && !Number.isNaN(huurMaandNum) ? Math.round(huurMaandNum) : undefined,
+        huurprijsPerJaar: huurJaarNum != null && !Number.isNaN(huurJaarNum) ? Math.round(huurJaarNum) : undefined,
         bron: bron.trim() || undefined,
         notities: notities.trim() || undefined,
       };
