@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Plus, Link2Off, BarChart3, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 
 interface Props {
   dealId: string;
@@ -31,6 +32,7 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
 
   const [koppelOpen, setKoppelOpen] = useState(false);
   const [zoek, setZoek] = useState('');
+  const [nieuwOpen, setNieuwOpen] = useState(false);
 
   const stats = useMemo(() => {
     const perM2 = gekoppeld
@@ -66,6 +68,16 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
       toast.success('Referentie ontkoppeld');
     } catch (e: any) {
       toast.error(e?.message ?? 'Ontkoppelen mislukt');
+    }
+  };
+
+  // Na succesvol aanmaken via het inline form: direct koppelen aan deze deal.
+  const handleNieuwAangemaakt = async (saved: ReferentieObject) => {
+    try {
+      await store.koppelReferentieAanDeal(dealId, saved.id);
+      toast.success('Nieuw referentieobject aangemaakt en gekoppeld');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Koppelen mislukt');
     }
   };
 
