@@ -27,7 +27,7 @@ function mediaan(getallen: number[]): number | undefined {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-export default function DealReferentieAnalyseSectie({ dealId }: Props) {
+export default function DealReferentieAnalyseSectie({ dealId, objectM2 }: Props) {
   const store = useDataStore();
   const gekoppeld = store.getReferentiesVoorDeal(dealId);
   const koppelingen = store.dealReferenties.filter(x => x.dealId === dealId);
