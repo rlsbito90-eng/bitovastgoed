@@ -192,6 +192,9 @@ export default function ReferentieObjectenPage() {
                 <TableHead className="text-right">m²</TableHead>
                 <TableHead className="text-right">Vraagprijs</TableHead>
                 <TableHead className="text-right">€ / m²</TableHead>
+                <TableHead className="text-right">Huur / jaar</TableHead>
+                <TableHead className="text-right">Huur €/m²/jr</TableHead>
+                <TableHead>Huurstatus</TableHead>
                 <TableHead className="text-right">Bouwjaar</TableHead>
                 <TableHead>Energielabel</TableHead>
                 <TableHead>Kwaliteit</TableHead>
@@ -202,6 +205,8 @@ export default function ReferentieObjectenPage() {
             <TableBody>
               {filtered.map(r => {
                 const gekoppeldeDeals = dealsPerReferentie.get(r.id) ?? [];
+                const huurPerM2Jaar =
+                  r.huurprijsPerJaar != null && r.m2 > 0 ? r.huurprijsPerJaar / r.m2 : undefined;
                 return (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => handleEdit(r)}>
                   <TableCell className="font-medium text-foreground">{r.adres}</TableCell>
@@ -211,6 +216,15 @@ export default function ReferentieObjectenPage() {
                   <TableCell className="text-right font-mono-data">{formatCurrency(r.vraagprijs)}</TableCell>
                   <TableCell className="text-right font-mono-data">
                     {r.prijsPerM2 != null ? formatCurrency(Math.round(r.prijsPerM2)) : '—'}
+                  </TableCell>
+                  <TableCell className="text-right font-mono-data">
+                    {r.huurprijsPerJaar != null ? formatCurrency(r.huurprijsPerJaar) : '—'}
+                  </TableCell>
+                  <TableCell className="text-right font-mono-data">
+                    {huurPerM2Jaar != null ? formatCurrency(Math.round(huurPerM2Jaar)) : '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground capitalize">
+                    {r.huurstatus ? r.huurstatus.replace('_', ' ') : '—'}
                   </TableCell>
                   <TableCell className="text-right font-mono-data">{r.bouwjaar}</TableCell>
                   <TableCell className="text-muted-foreground">{r.energielabel ?? '—'}</TableCell>

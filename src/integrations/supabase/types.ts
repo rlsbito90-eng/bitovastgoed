@@ -926,6 +926,8 @@ export type Database = {
           bron: string | null
           created_at: string
           energielabel: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurprijs_per_jaar: number | null
+          huurprijs_per_maand: number | null
           huurstatus: Database["public"]["Enums"]["verhuur_status"] | null
           id: string
           m2: number
@@ -945,6 +947,8 @@ export type Database = {
           bron?: string | null
           created_at?: string
           energielabel?: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurprijs_per_jaar?: number | null
+          huurprijs_per_maand?: number | null
           huurstatus?: Database["public"]["Enums"]["verhuur_status"] | null
           id?: string
           m2: number
@@ -964,6 +968,8 @@ export type Database = {
           bron?: string | null
           created_at?: string
           energielabel?: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurprijs_per_jaar?: number | null
+          huurprijs_per_maand?: number | null
           huurstatus?: Database["public"]["Enums"]["verhuur_status"] | null
           id?: string
           m2?: number

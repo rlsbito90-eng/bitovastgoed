@@ -13,6 +13,8 @@ import {
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   berekenPrijsPerM2,
+  berekenHuurPerM2PerJaar,
+  berekenHuurPerM2PerMaand,
   formatCurrency,
   type AssetClass,
   type Energielabel,
@@ -52,6 +54,8 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
   const [bouwjaar, setBouwjaar] = useState<string>('');
   const [energielabel, setEnergielabel] = useState<Energielabel | ''>('');
   const [huurstatus, setHuurstatus] = useState<VerhuurStatus | ''>('');
+  const [huurMaand, setHuurMaand] = useState<string>('');
+  const [huurJaar, setHuurJaar] = useState<string>('');
   const [bron, setBron] = useState('');
   const [notities, setNotities] = useState('');
   const [bezig, setBezig] = useState(false);
@@ -67,12 +71,16 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
       setBouwjaar(String(referentie.bouwjaar ?? ''));
       setEnergielabel(referentie.energielabel ?? '');
       setHuurstatus(referentie.huurstatus ?? '');
+      setHuurMaand(referentie.huurprijsPerMaand != null ? String(referentie.huurprijsPerMaand) : '');
+      setHuurJaar(referentie.huurprijsPerJaar != null ? String(referentie.huurprijsPerJaar) : '');
       setBron(referentie.bron ?? '');
       setNotities(referentie.notities ?? '');
     } else {
       setAdres(''); setPostcode(''); setPlaats(''); setAssetClass('');
       setM2(''); setVraagprijs(''); setBouwjaar('');
-      setEnergielabel(''); setHuurstatus(''); setBron(''); setNotities('');
+      setEnergielabel(''); setHuurstatus('');
+      setHuurMaand(''); setHuurJaar('');
+      setBron(''); setNotities('');
     }
   }, [referentie, open]);
 
@@ -80,6 +88,27 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
   const vraagprijsNum = vraagprijs ? Number(vraagprijs) : undefined;
   const bouwjaarNum = bouwjaar ? Number(bouwjaar) : undefined;
   const prijsPerM2 = berekenPrijsPerM2(vraagprijsNum, m2Num);
+
+  const huurMaandNum = huurMaand ? Number(huurMaand) : undefined;
+  const huurJaarNum = huurJaar ? Number(huurJaar) : undefined;
+  const huurPerM2Maand = berekenHuurPerM2PerMaand(huurMaandNum, m2Num);
+  const huurPerM2Jaar = berekenHuurPerM2PerJaar(huurJaarNum, m2Num);
+
+  // Auto-aanvullen: maand <-> jaar (alleen invullen als de andere leeg is).
+  // Bewerkt rauwe string-state zodat de gebruiker waardes kan blijven aanpassen.
+  useEffect(() => {
+    if (huurMaand && !huurJaar) {
+      const v = Number(huurMaand);
+      if (!Number.isNaN(v) && v > 0) setHuurJaar(String(Math.round(v * 12)));
+    }
+  }, [huurMaand, huurJaar]);
+
+  useEffect(() => {
+    if (huurJaar && !huurMaand) {
+      const v = Number(huurJaar);
+      if (!Number.isNaN(v) && v > 0) setHuurMaand(String(Math.round(v / 12)));
+    }
+  }, [huurJaar, huurMaand]);
 
   const kwaliteit = useMemo(() => berekenReferentieKwaliteit({
     adres, postcode, plaats,
@@ -117,6 +146,8 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
         bouwjaar: bouwjaarNum,
         energielabel: (energielabel || undefined) as Energielabel | undefined,
         huurstatus: (huurstatus || undefined) as VerhuurStatus | undefined,
+        huurprijsPerMaand: huurMaandNum != null && !Number.isNaN(huurMaandNum) ? Math.round(huurMaandNum) : undefined,
+        huurprijsPerJaar: huurJaarNum != null && !Number.isNaN(huurJaarNum) ? Math.round(huurJaarNum) : undefined,
         bron: bron.trim() || undefined,
         notities: notities.trim() || undefined,
       };
@@ -275,6 +306,46 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           <div className="sm:col-span-2">
             <Label htmlFor="notities">Notities</Label>
             <Textarea id="notities" rows={3} value={notities} onChange={e => setNotities(e.target.value)} placeholder="Toelichting, bijzonderheden, vergelijkingsoverwegingen..." />
+          </div>
+        </div>
+
+        {/* HUURBLOK — alleen voor referentieobjecten */}
+        <div className="section-card p-4 bg-muted/20 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+              Huurinformatie <span className="text-muted-foreground/70 normal-case font-normal">(optioneel)</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Maand ↔ jaar wordt automatisch aangevuld als één van beide leeg is.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="huurMaand">Huurprijs / maand (€)</Label>
+              <Input
+                id="huurMaand" type="number" min={0} value={huurMaand}
+                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12500"
+              />
+            </div>
+            <div>
+              <Label htmlFor="huurJaar">Huurprijs / jaar (€)</Label>
+              <Input
+                id="huurJaar" type="number" min={0} value={huurJaar}
+                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150000"
+              />
+            </div>
+            <div>
+              <Label>Huur / m² / maand <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
+              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm font-mono-data">
+                {huurPerM2Maand != null ? `${formatCurrency(Math.round(huurPerM2Maand * 100) / 100)} / m² / mnd` : '—'}
+              </div>
+            </div>
+            <div>
+              <Label>Huur / m² / jaar <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
+              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm font-mono-data">
+                {huurPerM2Jaar != null ? `${formatCurrency(Math.round(huurPerM2Jaar))} / m² / jr` : '—'}
+              </div>
+            </div>
           </div>
         </div>
 
