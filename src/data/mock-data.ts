@@ -837,9 +837,24 @@ export interface ReferentieObject {
   huurstatus?: VerhuurStatus;
   bron?: string;
   notities?: string;
+  // Huurinformatie (optioneel) — alleen voor Referentieobjecten
+  huurprijsPerMaand?: number;
+  huurprijsPerJaar?: number;
   aangemaaktDoor?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Huur per m² per jaar — afgeleid uit jaarhuur en m². */
+export function berekenHuurPerM2PerJaar(jaarhuur?: number, m2?: number): number | undefined {
+  if (jaarhuur == null || !m2 || m2 <= 0) return undefined;
+  return jaarhuur / m2;
+}
+
+/** Huur per m² per maand — afgeleid uit maandhuur en m². */
+export function berekenHuurPerM2PerMaand(maandhuur?: number, m2?: number): number | undefined {
+  if (maandhuur == null || !m2 || m2 <= 0) return undefined;
+  return maandhuur / m2;
 }
 
 export interface DealReferentie {
