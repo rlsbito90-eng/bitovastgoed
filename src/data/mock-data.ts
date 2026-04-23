@@ -817,3 +817,121 @@ export function getRecenteSuccessen(deals: Deal[], limit = 5): Deal[] {
     })
     .slice(0, limit);
 }
+
+
+// =====================================================================
+// REFERENTIEOBJECTEN (MVP)
+// =====================================================================
+
+export interface ReferentieObject {
+  id: string;
+  adres: string;
+  postcode: string;
+  plaats: string;
+  assetClass: AssetClass;
+  m2: number;
+  vraagprijs: number;
+  prijsPerM2?: number;          // server-berekend (GENERATED)
+  bouwjaar: number;
+  energielabel?: Energielabel;
+  huurstatus?: VerhuurStatus;
+  bron?: string;
+  notities?: string;
+  aangemaaktDoor?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DealReferentie {
+  id: string;
+  dealId: string;
+  referentieObjectId: string;
+  notities?: string;
+}
+
+export type ReferentieKwaliteit = 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak';
+
+export const REFERENTIE_KWALITEIT_LABELS: Record<ReferentieKwaliteit, string> = {
+  zeer_sterk: 'Zeer sterk',
+  goed: 'Goed',
+  bruikbaar: 'Bruikbaar',
+  zwak: 'Zwak',
+};
+
+export interface ReferentieKwaliteitResult {
+  completenessPct: number;        // % van álle (verplichte + aanbevolen) velden
+  qualityScore: number;           // 0-100
+  kwaliteit: ReferentieKwaliteit;
+  ontbrekendeAanbevolen: string[];
+  ontbrekendeNuttig: string[];
+}
+
+// Velden ** = sterk aanbevolen (zwaarder gewicht)
+const VERPLICHT_PLUS_VELDEN: { key: keyof ReferentieObject; label: string; gewicht: number }[] = [
+  { key: 'adres',       label: 'Adres',        gewicht: 12 },
+  { key: 'postcode',    label: 'Postcode',     gewicht: 10 },
+  { key: 'plaats',      label: 'Plaats',       gewicht: 10 },
+  { key: 'assetClass',  label: 'Asset class',  gewicht: 10 },
+  { key: 'm2',          label: 'm²',           gewicht: 12 },
+  { key: 'vraagprijs',  label: 'Vraagprijs',   gewicht: 12 },
+  { key: 'bouwjaar',    label: 'Bouwjaar',     gewicht: 10 },
+];
+
+// Velden * = nuttig (lichter gewicht)
+const NUTTIGE_VELDEN: { key: keyof ReferentieObject; label: string; gewicht: number }[] = [
+  { key: 'energielabel', label: 'Energielabel', gewicht: 8 },
+  { key: 'huurstatus',   label: 'Huurstatus',   gewicht: 8 },
+  { key: 'bron',         label: 'Bron',         gewicht: 8 },
+];
+
+function isLeeg(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (typeof value === 'number') return Number.isNaN(value);
+  return false;
+}
+
+export function berekenReferentieKwaliteit(
+  obj: Partial<ReferentieObject>,
+): ReferentieKwaliteitResult {
+  let totaalGewicht = 0;
+  let behaaldGewicht = 0;
+  const ontbrekendeAanbevolen: string[] = [];
+  const ontbrekendeNuttig: string[] = [];
+
+  for (const veld of VERPLICHT_PLUS_VELDEN) {
+    totaalGewicht += veld.gewicht;
+    if (isLeeg(obj[veld.key])) {
+      ontbrekendeAanbevolen.push(veld.label);
+    } else {
+      behaaldGewicht += veld.gewicht;
+    }
+  }
+  for (const veld of NUTTIGE_VELDEN) {
+    totaalGewicht += veld.gewicht;
+    if (isLeeg(obj[veld.key])) {
+      ontbrekendeNuttig.push(veld.label);
+    } else {
+      behaaldGewicht += veld.gewicht;
+    }
+  }
+
+  const alleVelden = VERPLICHT_PLUS_VELDEN.length + NUTTIGE_VELDEN.length;
+  const ingevuld = alleVelden -
+    (ontbrekendeAanbevolen.length + ontbrekendeNuttig.length);
+  const completenessPct = Math.round((ingevuld / alleVelden) * 100);
+  const qualityScore = Math.round((behaaldGewicht / totaalGewicht) * 100);
+
+  let kwaliteit: ReferentieKwaliteit;
+  if (qualityScore >= 90) kwaliteit = 'zeer_sterk';
+  else if (qualityScore >= 75) kwaliteit = 'goed';
+  else if (qualityScore >= 60) kwaliteit = 'bruikbaar';
+  else kwaliteit = 'zwak';
+
+  return { completenessPct, qualityScore, kwaliteit, ontbrekendeAanbevolen, ontbrekendeNuttig };
+}
+
+export function berekenPrijsPerM2(vraagprijs?: number, m2?: number): number | undefined {
+  if (vraagprijs == null || !m2 || m2 <= 0) return undefined;
+  return vraagprijs / m2;
+}

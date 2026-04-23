@@ -108,6 +108,45 @@ export type Database = {
           },
         ]
       }
+      deal_referenties: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          notities: string | null
+          referentie_object_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          notities?: string | null
+          referentie_object_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          notities?: string | null
+          referentie_object_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_referenties_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_referenties_referentie_object_id_fkey"
+            columns: ["referentie_object_id"]
+            isOneToOne: false
+            referencedRelation: "referentie_objecten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           afwijzingsreden: string | null
@@ -877,6 +916,74 @@ export type Database = {
           volledige_naam?: string | null
         }
         Relationships: []
+      }
+      referentie_objecten: {
+        Row: {
+          aangemaakt_door: string | null
+          adres: string
+          asset_class: Database["public"]["Enums"]["asset_class"]
+          bouwjaar: number
+          bron: string | null
+          created_at: string
+          energielabel: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurstatus: Database["public"]["Enums"]["verhuur_status"] | null
+          id: string
+          m2: number
+          notities: string | null
+          plaats: string
+          postcode: string
+          prijs_per_m2: number | null
+          soft_deleted_at: string | null
+          updated_at: string
+          vraagprijs: number
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          adres: string
+          asset_class: Database["public"]["Enums"]["asset_class"]
+          bouwjaar: number
+          bron?: string | null
+          created_at?: string
+          energielabel?: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurstatus?: Database["public"]["Enums"]["verhuur_status"] | null
+          id?: string
+          m2: number
+          notities?: string | null
+          plaats: string
+          postcode: string
+          prijs_per_m2?: number | null
+          soft_deleted_at?: string | null
+          updated_at?: string
+          vraagprijs: number
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          adres?: string
+          asset_class?: Database["public"]["Enums"]["asset_class"]
+          bouwjaar?: number
+          bron?: string | null
+          created_at?: string
+          energielabel?: Database["public"]["Enums"]["energielabel_v2"] | null
+          huurstatus?: Database["public"]["Enums"]["verhuur_status"] | null
+          id?: string
+          m2?: number
+          notities?: string | null
+          plaats?: string
+          postcode?: string
+          prijs_per_m2?: number | null
+          soft_deleted_at?: string | null
+          updated_at?: string
+          vraagprijs?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referentie_objecten_aangemaakt_door_fkey"
+            columns: ["aangemaakt_door"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relatie_contactpersonen: {
         Row: {
