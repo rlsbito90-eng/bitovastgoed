@@ -909,12 +909,27 @@ function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
-function Veld({ label, children, span = 1 }: { label: string; children: ReactNode; span?: 1 | 2 }) {
+function Veld({ label, children, span = 1 }: { label: ReactNode; children: ReactNode; span?: 1 | 2 }) {
   return (
     <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
       <Label>{label}</Label>
       {children}
     </div>
+  );
+}
+
+/** Visuele markering: ** = sterk aanbevolen voor referentiegebruik, * = nuttig. */
+function RefMark({ level, show }: { level: 'sterk' | 'nuttig'; show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      className={`ml-1 ${level === 'sterk' ? 'text-accent font-semibold' : 'text-muted-foreground'}`}
+      title={level === 'sterk'
+        ? 'Sterk aanbevolen om dit object later als referentie te kunnen gebruiken'
+        : 'Nuttig voor referentiegebruik'}
+    >
+      {level === 'sterk' ? '**' : '*'}
+    </span>
   );
 }
 
