@@ -157,18 +157,23 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
           <DialogHeader>
             <DialogTitle>Referentieobject koppelen</DialogTitle>
             <DialogDescription>
-              Kies een bestaand referentieobject om te koppelen aan deze deal.
+              Kies een bestaand referentieobject of maak direct een nieuwe aan.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Zoek op adres, plaats of postcode..."
-              className="pl-9"
-              value={zoek}
-              onChange={e => setZoek(e.target.value)}
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Zoek op adres, plaats of postcode..."
+                className="pl-9"
+                value={zoek}
+                onChange={e => setZoek(e.target.value)}
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setNieuwOpen(true)} className="gap-1.5 shrink-0">
+              <Plus className="h-4 w-4" /> Nieuw
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto -mx-2 px-2 space-y-1.5">
@@ -202,6 +207,13 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* INLINE: NIEUW REFERENTIEOBJECT */}
+      <ReferentieObjectFormDialog
+        open={nieuwOpen}
+        onOpenChange={setNieuwOpen}
+        onSaved={handleNieuwAangemaakt}
+      />
     </section>
   );
 }
