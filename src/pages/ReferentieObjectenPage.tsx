@@ -63,6 +63,21 @@ export default function ReferentieObjectenPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
 
+  // Map: referentieObjectId → array van gekoppelde deals (incl. object voor labelen)
+  const dealsPerReferentie = useMemo(() => {
+    const map = new Map<string, Array<{ dealId: string; label: string; fase: string }>>();
+    for (const koppeling of store.dealReferenties) {
+      const deal = store.deals.find(d => d.id === koppeling.dealId);
+      if (!deal) continue;
+      const obj = store.objecten.find(o => o.id === deal.objectId);
+      const label = obj?.titel ?? obj?.adres ?? 'Onbekende deal';
+      const arr = map.get(koppeling.referentieObjectId) ?? [];
+      arr.push({ dealId: deal.id, label, fase: DEAL_FASE_LABELS[deal.fase] ?? deal.fase });
+      map.set(koppeling.referentieObjectId, arr);
+    }
+    return map;
+  }, [store.dealReferenties, store.deals, store.objecten]);
+
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     return store.referentieObjecten.filter(r => {
