@@ -307,7 +307,47 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
             <Label htmlFor="notities">Notities</Label>
             <Textarea id="notities" rows={3} value={notities} onChange={e => setNotities(e.target.value)} placeholder="Toelichting, bijzonderheden, vergelijkingsoverwegingen..." />
           </div>
-        </div>
+          </div>
+
+          {/* HUURBLOK — alleen voor referentieobjecten */}
+          <div className="sm:col-span-2 section-card p-4 bg-muted/20 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Huurinformatie <span className="text-muted-foreground/70 normal-case font-normal">(optioneel)</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Maand ↔ jaar wordt automatisch aangevuld als één van beide leeg is.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="huurMaand">Huurprijs / maand (€)</Label>
+                <Input
+                  id="huurMaand" type="number" min={0} value={huurMaand}
+                  onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12500"
+                />
+              </div>
+              <div>
+                <Label htmlFor="huurJaar">Huurprijs / jaar (€)</Label>
+                <Input
+                  id="huurJaar" type="number" min={0} value={huurJaar}
+                  onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150000"
+                />
+              </div>
+              <div>
+                <Label>Huur / m² / maand <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
+                <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm font-mono-data">
+                  {huurPerM2Maand != null ? `${formatCurrency(Math.round(huurPerM2Maand * 100) / 100)} / m² / mnd` : '—'}
+                </div>
+              </div>
+              <div>
+                <Label>Huur / m² / jaar <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
+                <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm font-mono-data">
+                  {huurPerM2Jaar != null ? `${formatCurrency(Math.round(huurPerM2Jaar))} / m² / jr` : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
