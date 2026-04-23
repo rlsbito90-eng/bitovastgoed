@@ -446,7 +446,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Classificatie">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Type vastgoed">
+                  <Veld label={<>Type vastgoed<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.type}
@@ -511,7 +511,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                       </select>
                     </Veld>
                   )}
-                  <Veld label="Bron">
+                  <Veld label={<>Bron<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input
                       value={form.bron ?? ''}
                       onChange={e => set('bron', e.target.value || undefined)}
@@ -526,7 +526,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="financieel" className="space-y-5 mt-0">
               <Sectie titel="Prijs">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Vraagprijs (€)">
+                  <Veld label={<>Vraagprijs (€)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.vraagprijs ?? ''}
                       onChange={e => set('vraagprijs', num(e.target.value))} />
                   </Veld>
