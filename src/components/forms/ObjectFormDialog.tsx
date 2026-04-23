@@ -14,13 +14,15 @@
 // Nieuwe objecten: media-tab is disabled tot het object een ID heeft
 // (oftewel: eerst één keer opslaan, daarna upload).
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import type {
@@ -32,13 +34,15 @@ import {
   ONDERHOUDSSTAAT_LABELS,
   VERKOPER_VIA_LABELS,
   PROVINCIES,
+  REFERENTIE_KWALITEIT_LABELS,
+  berekenObjectReferentieKwaliteit,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import SubcategorieSelect from '@/components/object/SubcategorieSelect';
 import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
-import { Info, Image, FileText, Users } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -143,6 +147,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
+  // UI-only toggle: "Ook bruikbaar als referentieobject"
+  // Wordt bewust niet in de database opgeslagen — dient als visuele hint
+  // én als trigger voor het kwaliteitsblok. Een echt referentieobject
+  // wordt apart aangemaakt via het Referentieobject-formulier.
+  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
 
   // Hydreer form bij open
   useEffect(() => {
@@ -155,6 +164,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       setGemaaktId(undefined);
     }
     setTab('algemeen');
+    setMarkeerAlsReferentie(false);
   }, [object, open]);
 
   // Genereer referentienummer automatisch voor nieuwe objecten
@@ -227,14 +237,98 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     o.isPortefeuille && o.id !== (object?.id ?? gemaaktId)
   );
 
+  // Referentiekwaliteit op basis van objectvelden
+  const refKwaliteit = useMemo(() => berekenObjectReferentieKwaliteit({
+    adres: form.adres,
+    postcode: form.postcode,
+    plaats: form.plaats,
+    type: form.type,
+    oppervlakte: form.oppervlakte,
+    vraagprijs: form.vraagprijs,
+    bouwjaar: form.bouwjaar,
+    energielabelV2: form.energielabelV2,
+    verhuurStatus: form.verhuurStatus,
+    bron: form.bron,
+    perceelOppervlakte: form.perceelOppervlakte,
+    onderhoudsstaatNiveau: form.onderhoudsstaatNiveau,
+    huurPerM2: form.huurPerM2,
+  }), [
+    form.adres, form.postcode, form.plaats, form.type, form.oppervlakte,
+    form.vraagprijs, form.bouwjaar, form.energielabelV2, form.verhuurStatus,
+    form.bron, form.perceelOppervlakte, form.onderhoudsstaatNiveau, form.huurPerM2,
+  ]);
+
+  const kwaliteitKleur =
+    refKwaliteit.qualityScore >= 75 ? 'text-success'
+    : refKwaliteit.qualityScore >= 60 ? 'text-warning'
+    : 'text-destructive';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
-          <DialogTitle>
-            {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <DialogTitle>
+              {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
+            </DialogTitle>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <BookMarked className="h-3.5 w-3.5" />
+              <span>Ook bruikbaar als referentieobject</span>
+              <Switch
+                checked={markeerAlsReferentie}
+                onCheckedChange={setMarkeerAlsReferentie}
+              />
+            </label>
+          </div>
         </DialogHeader>
+
+        {markeerAlsReferentie && (
+          <div className="shrink-0 px-6 py-3 border-b border-border bg-muted/30">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <div className="flex items-center gap-2">
+                <BookMarked className="h-4 w-4 text-accent" />
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Referentiekwaliteit <span className="normal-case text-muted-foreground/80">(indicatie voor later referentiegebruik)</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <span className={`font-semibold ${kwaliteitKleur}`}>
+                  {REFERENTIE_KWALITEIT_LABELS[refKwaliteit.kwaliteit]} ·{' '}
+                  <span className="font-mono-data">{refKwaliteit.qualityScore}/100</span>
+                </span>
+                <span className="text-muted-foreground">
+                  Volledigheid: <span className="font-mono-data text-foreground">{refKwaliteit.completenessPct}%</span>
+                </span>
+              </div>
+            </div>
+            <Progress value={refKwaliteit.qualityScore} className="h-1.5 mb-2" />
+            {(refKwaliteit.ontbrekendeAanbevolen.length > 0 || refKwaliteit.ontbrekendeNuttig.length > 0) ? (
+              <div className="space-y-1 text-xs">
+                {refKwaliteit.ontbrekendeAanbevolen.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-foreground">
+                    <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                    <span>
+                      Sterk aanbevolen ontbreekt:{' '}
+                      <span className="text-muted-foreground">{refKwaliteit.ontbrekendeAanbevolen.join(', ')}</span>
+                    </span>
+                  </div>
+                )}
+                {refKwaliteit.ontbrekendeNuttig.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-muted-foreground">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Nuttig ontbreekt: <span>{refKwaliteit.ontbrekendeNuttig.join(', ')}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-success">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Alle relevante velden ingevuld — sterk geschikt als referentieobject.
+              </div>
+            )}
+          </div>
+        )}
 
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
@@ -328,13 +422,13 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Locatie">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Adres">
+                  <Veld label={<>Adres<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.adres ?? ''} onChange={e => set('adres', e.target.value || undefined)} />
                   </Veld>
-                  <Veld label="Postcode">
+                  <Veld label={<>Postcode<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.postcode ?? ''} onChange={e => set('postcode', e.target.value || undefined)} />
                   </Veld>
-                  <Veld label="Plaats">
+                  <Veld label={<>Plaats<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.plaats} onChange={e => set('plaats', e.target.value)} />
                   </Veld>
                   <Veld label="Provincie">
@@ -352,7 +446,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Classificatie">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Type vastgoed">
+                  <Veld label={<>Type vastgoed<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.type}
@@ -417,7 +511,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                       </select>
                     </Veld>
                   )}
-                  <Veld label="Bron">
+                  <Veld label={<>Bron<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input
                       value={form.bron ?? ''}
                       onChange={e => set('bron', e.target.value || undefined)}
@@ -432,7 +526,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="financieel" className="space-y-5 mt-0">
               <Sectie titel="Prijs">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Vraagprijs (€)">
+                  <Veld label={<>Vraagprijs (€)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.vraagprijs ?? ''}
                       onChange={e => set('vraagprijs', num(e.target.value))} />
                   </Veld>
@@ -450,7 +544,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.huurinkomsten ?? ''}
                       onChange={e => set('huurinkomsten', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Huur per m² (€)">
+                  <Veld label={<>Huur per m² (€)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input type="number" step="0.01" value={form.huurPerM2 ?? ''}
                       onChange={e => set('huurPerM2', num(e.target.value))} />
                   </Veld>
@@ -499,7 +593,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="verhuur" className="space-y-5 mt-0">
               <Sectie titel="Verhuurstatus">
                 <div className="grid sm:grid-cols-3 gap-4">
-                  <Veld label="Status">
+                  <Veld label={<>Status<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.verhuurStatus}
@@ -538,7 +632,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="pand" className="space-y-5 mt-0">
               <Sectie titel="Oppervlakten (NEN 2580)">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Oppervlakte totaal (m²)">
+                  <Veld label={<>Oppervlakte totaal (m²)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.oppervlakte ?? ''}
                       onChange={e => set('oppervlakte', num(e.target.value))} />
                   </Veld>
@@ -554,7 +648,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.oppervlakteGbo ?? ''}
                       onChange={e => set('oppervlakteGbo', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Perceeloppervlak (m²)">
+                  <Veld label={<>Perceeloppervlak (m²)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.perceelOppervlakte ?? ''}
                       onChange={e => set('perceelOppervlakte', num(e.target.value))} />
                   </Veld>
@@ -563,11 +657,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Bouw">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Bouwjaar">
+                  <Veld label={<>Bouwjaar<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.bouwjaar ?? ''}
                       onChange={e => set('bouwjaar', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Energielabel">
+                  <Veld label={<>Energielabel<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.energielabelV2 ?? ''}
@@ -590,7 +684,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Onderhoud">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Onderhoudsstaat">
+                  <Veld label={<>Onderhoudsstaat<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.onderhoudsstaatNiveau ?? ''}
@@ -815,12 +909,27 @@ function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
   );
 }
 
-function Veld({ label, children, span = 1 }: { label: string; children: ReactNode; span?: 1 | 2 }) {
+function Veld({ label, children, span = 1 }: { label: ReactNode; children: ReactNode; span?: 1 | 2 }) {
   return (
     <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
       <Label>{label}</Label>
       {children}
     </div>
+  );
+}
+
+/** Visuele markering: ** = sterk aanbevolen voor referentiegebruik, * = nuttig. */
+function RefMark({ level, show }: { level: 'sterk' | 'nuttig'; show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      className={`ml-1 ${level === 'sterk' ? 'text-accent font-semibold' : 'text-muted-foreground'}`}
+      title={level === 'sterk'
+        ? 'Sterk aanbevolen om dit object later als referentie te kunnen gebruiken'
+        : 'Nuttig voor referentiegebruik'}
+    >
+      {level === 'sterk' ? '**' : '*'}
+    </span>
   );
 }
 

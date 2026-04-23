@@ -935,3 +935,78 @@ export function berekenPrijsPerM2(vraagprijs?: number, m2?: number): number | un
   if (vraagprijs == null || !m2 || m2 <= 0) return undefined;
   return vraagprijs / m2;
 }
+
+// =====================================================================
+// Referentiekwaliteit voor gewone Objecten
+// (zelfde principe, maar gemapt op de velden die in een ObjectVastgoed
+// beschikbaar zijn — zodat een dealobject ook beoordeeld kan worden op
+// hoe bruikbaar het later is als referentieobject).
+// =====================================================================
+
+interface ObjectRefInput {
+  adres?: string;
+  postcode?: string;
+  plaats?: string;
+  type?: AssetClass;
+  oppervlakte?: number;          // m²
+  vraagprijs?: number;
+  bouwjaar?: number;
+  energielabelV2?: Energielabel;
+  verhuurStatus?: VerhuurStatus;
+  bron?: string;
+  perceelOppervlakte?: number;
+  onderhoudsstaatNiveau?: OnderhoudsstaatNiveau;
+  huurPerM2?: number;
+}
+
+const OBJECT_REF_VERPLICHT: { key: keyof ObjectRefInput; label: string; gewicht: number }[] = [
+  { key: 'adres',        label: 'Adres',                gewicht: 11 },
+  { key: 'postcode',     label: 'Postcode',             gewicht: 9 },
+  { key: 'plaats',       label: 'Plaats',               gewicht: 9 },
+  { key: 'type',         label: 'Asset class',          gewicht: 9 },
+  { key: 'oppervlakte',  label: 'Oppervlakte (m²)',     gewicht: 11 },
+  { key: 'vraagprijs',   label: 'Vraagprijs',           gewicht: 11 },
+  { key: 'bouwjaar',     label: 'Bouwjaar',             gewicht: 9 },
+];
+
+const OBJECT_REF_NUTTIG: { key: keyof ObjectRefInput; label: string; gewicht: number }[] = [
+  { key: 'energielabelV2',         label: 'Energielabel',        gewicht: 5 },
+  { key: 'verhuurStatus',          label: 'Huurstatus',          gewicht: 5 },
+  { key: 'bron',                   label: 'Bron',                gewicht: 5 },
+  { key: 'perceelOppervlakte',     label: 'Perceeloppervlak',    gewicht: 4 },
+  { key: 'onderhoudsstaatNiveau',  label: 'Staat / onderhoud',   gewicht: 4 },
+  { key: 'huurPerM2',              label: 'Huurprijs (€/m²)',    gewicht: 3 },
+];
+
+export function berekenObjectReferentieKwaliteit(
+  obj: ObjectRefInput,
+): ReferentieKwaliteitResult {
+  let totaalGewicht = 0;
+  let behaaldGewicht = 0;
+  const ontbrekendeAanbevolen: string[] = [];
+  const ontbrekendeNuttig: string[] = [];
+
+  for (const veld of OBJECT_REF_VERPLICHT) {
+    totaalGewicht += veld.gewicht;
+    if (isLeeg(obj[veld.key])) ontbrekendeAanbevolen.push(veld.label);
+    else behaaldGewicht += veld.gewicht;
+  }
+  for (const veld of OBJECT_REF_NUTTIG) {
+    totaalGewicht += veld.gewicht;
+    if (isLeeg(obj[veld.key])) ontbrekendeNuttig.push(veld.label);
+    else behaaldGewicht += veld.gewicht;
+  }
+
+  const alleVelden = OBJECT_REF_VERPLICHT.length + OBJECT_REF_NUTTIG.length;
+  const ingevuld = alleVelden - (ontbrekendeAanbevolen.length + ontbrekendeNuttig.length);
+  const completenessPct = Math.round((ingevuld / alleVelden) * 100);
+  const qualityScore = Math.round((behaaldGewicht / totaalGewicht) * 100);
+
+  let kwaliteit: ReferentieKwaliteit;
+  if (qualityScore >= 90) kwaliteit = 'zeer_sterk';
+  else if (qualityScore >= 75) kwaliteit = 'goed';
+  else if (qualityScore >= 60) kwaliteit = 'bruikbaar';
+  else kwaliteit = 'zwak';
+
+  return { completenessPct, qualityScore, kwaliteit, ontbrekendeAanbevolen, ontbrekendeNuttig };
+}
