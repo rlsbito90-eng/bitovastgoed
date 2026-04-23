@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Plus, Link2Off, BarChart3, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 
 interface Props {
   dealId: string;
@@ -31,6 +32,7 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
 
   const [koppelOpen, setKoppelOpen] = useState(false);
   const [zoek, setZoek] = useState('');
+  const [nieuwOpen, setNieuwOpen] = useState(false);
 
   const stats = useMemo(() => {
     const perM2 = gekoppeld
@@ -66,6 +68,16 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
       toast.success('Referentie ontkoppeld');
     } catch (e: any) {
       toast.error(e?.message ?? 'Ontkoppelen mislukt');
+    }
+  };
+
+  // Na succesvol aanmaken via het inline form: direct koppelen aan deze deal.
+  const handleNieuwAangemaakt = async (saved: ReferentieObject) => {
+    try {
+      await store.koppelReferentieAanDeal(dealId, saved.id);
+      toast.success('Nieuw referentieobject aangemaakt en gekoppeld');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Koppelen mislukt');
     }
   };
 
@@ -145,26 +157,31 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
           <DialogHeader>
             <DialogTitle>Referentieobject koppelen</DialogTitle>
             <DialogDescription>
-              Kies een bestaand referentieobject om te koppelen aan deze deal.
+              Kies een bestaand referentieobject of maak direct een nieuwe aan.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Zoek op adres, plaats of postcode..."
-              className="pl-9"
-              value={zoek}
-              onChange={e => setZoek(e.target.value)}
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Zoek op adres, plaats of postcode..."
+                className="pl-9"
+                value={zoek}
+                onChange={e => setZoek(e.target.value)}
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setNieuwOpen(true)} className="gap-1.5 shrink-0">
+              <Plus className="h-4 w-4" /> Nieuw
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto -mx-2 px-2 space-y-1.5">
             {beschikbaar.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
                 {store.referentieObjecten.length === 0
-                  ? 'Er zijn nog geen referentieobjecten. Maak er eerst een aan via de pagina Referentieobjecten.'
-                  : 'Geen beschikbare referentieobjecten.'}
+                  ? 'Er zijn nog geen referentieobjecten. Klik op "Nieuw" om er direct één aan te maken.'
+                  : 'Geen beschikbare referentieobjecten. Maak een nieuwe aan of wijzig je zoekopdracht.'}
               </p>
             ) : (
               beschikbaar.map(r => (
@@ -190,6 +207,13 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* INLINE: NIEUW REFERENTIEOBJECT */}
+      <ReferentieObjectFormDialog
+        open={nieuwOpen}
+        onOpenChange={setNieuwOpen}
+        onSaved={handleNieuwAangemaakt}
+      />
     </section>
   );
 }

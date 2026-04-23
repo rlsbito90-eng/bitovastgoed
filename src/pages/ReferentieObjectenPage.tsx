@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   ASSET_CLASS_LABELS,
+  DEAL_FASE_LABELS,
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   formatCurrency,
@@ -13,7 +15,10 @@ import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Search, Pencil, Trash2, Link2, ExternalLink } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 import {
@@ -57,6 +62,21 @@ export default function ReferentieObjectenPage() {
   const [kwaliteitFilter, setKwaliteitFilter] = useState<'' | 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak'>('');
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
+
+  // Map: referentieObjectId → array van gekoppelde deals (incl. object voor labelen)
+  const dealsPerReferentie = useMemo(() => {
+    const map = new Map<string, Array<{ dealId: string; label: string; fase: string }>>();
+    for (const koppeling of store.dealReferenties) {
+      const deal = store.deals.find(d => d.id === koppeling.dealId);
+      if (!deal) continue;
+      const obj = store.objecten.find(o => o.id === deal.objectId);
+      const label = obj?.titel ?? obj?.adres ?? 'Onbekende deal';
+      const arr = map.get(koppeling.referentieObjectId) ?? [];
+      arr.push({ dealId: deal.id, label, fase: DEAL_FASE_LABELS[deal.fase] ?? deal.fase });
+      map.set(koppeling.referentieObjectId, arr);
+    }
+    return map;
+  }, [store.dealReferenties, store.deals, store.objecten]);
 
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
@@ -175,11 +195,14 @@ export default function ReferentieObjectenPage() {
                 <TableHead className="text-right">Bouwjaar</TableHead>
                 <TableHead>Energielabel</TableHead>
                 <TableHead>Kwaliteit</TableHead>
+                <TableHead className="text-center">In deals</TableHead>
                 <TableHead className="text-right">Acties</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(r => (
+              {filtered.map(r => {
+                const gekoppeldeDeals = dealsPerReferentie.get(r.id) ?? [];
+                return (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => handleEdit(r)}>
                   <TableCell className="font-medium text-foreground">{r.adres}</TableCell>
                   <TableCell className="text-muted-foreground">{r.plaats}</TableCell>
@@ -192,6 +215,47 @@ export default function ReferentieObjectenPage() {
                   <TableCell className="text-right font-mono-data">{r.bouwjaar}</TableCell>
                   <TableCell className="text-muted-foreground">{r.energielabel ?? '—'}</TableCell>
                   <TableCell><KwaliteitChip obj={r} /></TableCell>
+                  <TableCell className="text-center" onClick={e => e.stopPropagation()}>
+                    {gekoppeldeDeals.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 gap-1.5 text-xs font-medium"
+                            aria-label={`${gekoppeldeDeals.length} gekoppelde deals tonen`}
+                          >
+                            <Link2 className="h-3.5 w-3.5 text-accent" />
+                            <span className="font-mono-data">{gekoppeldeDeals.length}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="center" className="w-72 p-2">
+                          <p className="text-[11px] uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-1.5">
+                            Gekoppeld aan {gekoppeldeDeals.length} deal{gekoppeldeDeals.length === 1 ? '' : 's'}
+                          </p>
+                          <div className="space-y-0.5">
+                            {gekoppeldeDeals.map(d => (
+                              <Link
+                                key={d.dealId}
+                                to={`/deals/${d.dealId}`}
+                                className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors group"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                                    {d.label}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{d.fase}</p>
+                                </div>
+                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+                              </Link>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                     <div className="inline-flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(r)} aria-label="Bewerken">
@@ -224,7 +288,8 @@ export default function ReferentieObjectenPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
