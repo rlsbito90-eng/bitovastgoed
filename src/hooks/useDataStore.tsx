@@ -571,6 +571,51 @@ const jaarDoelToDb = (j: Partial<JaarDoel>) => cleanPayload({
 
 
 // =====================================================================
+// MAPPERS — REFERENTIEOBJECTEN
+// =====================================================================
+
+const referentieFromDb = (r: any): ReferentieObject => ({
+  id: r.id,
+  adres: r.adres ?? '',
+  postcode: r.postcode ?? '',
+  plaats: r.plaats ?? '',
+  assetClass: r.asset_class,
+  m2: r.m2 ?? 0,
+  vraagprijs: r.vraagprijs ?? 0,
+  prijsPerM2: r.prijs_per_m2 != null ? Number(r.prijs_per_m2) : undefined,
+  bouwjaar: r.bouwjaar ?? 0,
+  energielabel: r.energielabel ?? undefined,
+  huurstatus: r.huurstatus ?? undefined,
+  bron: r.bron ?? undefined,
+  notities: r.notities ?? undefined,
+  aangemaaktDoor: r.aangemaakt_door ?? undefined,
+  createdAt: r.created_at ?? undefined,
+  updatedAt: r.updated_at ?? undefined,
+});
+
+const referentieToDb = (r: Partial<ReferentieObject>) => cleanPayload({
+  adres: r.adres,
+  postcode: r.postcode,
+  plaats: r.plaats,
+  asset_class: r.assetClass,
+  m2: r.m2,
+  vraagprijs: r.vraagprijs,
+  bouwjaar: r.bouwjaar,
+  energielabel: r.energielabel !== undefined ? (r.energielabel || null) : undefined,
+  huurstatus: r.huurstatus !== undefined ? (r.huurstatus || null) : undefined,
+  bron: r.bron !== undefined ? (r.bron || null) : undefined,
+  notities: r.notities !== undefined ? (r.notities || null) : undefined,
+});
+
+const dealReferentieFromDb = (r: any): DealReferentie => ({
+  id: r.id,
+  dealId: r.deal_id,
+  referentieObjectId: r.referentie_object_id,
+  notities: r.notities ?? undefined,
+});
+
+
+// =====================================================================
 // CONTEXT
 // =====================================================================
 
