@@ -10,12 +10,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Plus, Link2Off, BarChart3, Search } from 'lucide-react';
+import { Plus, Link2Off, BarChart3, Search, TrendingUp, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 
 interface Props {
   dealId: string;
+  /** Oppervlakte (m²) van het object van deze deal — gebruikt voor marktwaarde-indicatie. */
+  objectM2?: number;
 }
 
 function mediaan(getallen: number[]): number | undefined {
