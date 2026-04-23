@@ -1,13 +1,37 @@
 import { useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getMatchesForRelatieFromData, formatCurrency, formatDate } from '@/data/mock-data';
-import { LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge } from '@/components/StatusBadges';
-import { ArrowLeft, Phone, Mail, Pencil, Trash2, Plus } from 'lucide-react';
+import {
+  getMatchesForRelatieFromData,
+  formatCurrency,
+  formatDate,
+  ASSET_CLASS_LABELS,
+  INVESTEERDER_SUBTYPE_LABELS,
+  KAPITAAL_SITUATIE_LABELS,
+  COMMUNICATIE_KANAAL_LABELS,
+} from '@/data/mock-data';
+import {
+  LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge,
+} from '@/components/StatusBadges';
+import {
+  ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
+  ShieldCheck, Linkedin, Globe, Star, Building2, Users,
+} from 'lucide-react';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+
+const DEALSTRUCTUUR_LABELS: Record<string, string> = {
+  direct: 'Direct eigendom',
+  jv: 'JV',
+  fonds: 'Fonds',
+  asset_deal: 'Asset deal',
+  share_deal: 'Share deal',
+};
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -35,6 +59,7 @@ export default function RelatieDetailPage() {
     );
   }
 
+  const contactpersonen = store.getContactpersonenVoorRelatie(relatie.id);
   const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
   const deals = store.getDealsByRelatie(relatie.id);
   const taken = store.getTakenByRelatie(relatie.id);
@@ -50,6 +75,10 @@ export default function RelatieDetailPage() {
     }
   };
 
+  const subtypeLabel = relatie.investeerderSubtype
+    ? INVESTEERDER_SUBTYPE_LABELS[relatie.investeerderSubtype]
+    : null;
+
   return (
     <div className="page-shell-narrow">
       <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -59,10 +88,21 @@ export default function RelatieDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">{relatie.bedrijfsnaam}</h1>
+            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">
+              {relatie.bedrijfsnaam}
+            </h1>
             <LeadStatusBadge status={relatie.leadStatus} />
+            {relatie.ndaGetekend && (
+              <span className="inline-flex items-center gap-1 text-xs bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full">
+                <ShieldCheck className="h-3 w-3" /> NDA getekend
+              </span>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5">{relatie.contactpersoon} · <span className="capitalize">{relatie.type}</span></p>
+          <p className="text-sm text-muted-foreground mt-1.5 capitalize">
+            {relatie.type}
+            {subtypeLabel && ` · ${subtypeLabel}`}
+            {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           {relatie.telefoon && (
@@ -73,6 +113,16 @@ export default function RelatieDetailPage() {
           {relatie.email && (
             <a href={`mailto:${relatie.email}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
               <Mail className="h-4 w-4" /> Mail
+            </a>
+          )}
+          {relatie.website && (
+            <a href={relatie.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+              <Globe className="h-4 w-4" />
+            </a>
+          )}
+          {relatie.linkedinUrl && (
+            <a href={relatie.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+              <Linkedin className="h-4 w-4" />
             </a>
           )}
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
@@ -87,7 +137,7 @@ export default function RelatieDetailPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Relatie verwijderen?</AlertDialogTitle>
-                <AlertDialogDescription>Weet je zeker dat je {relatie.bedrijfsnaam} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</AlertDialogDescription>
+                <AlertDialogDescription>Weet je zeker dat je {relatie.bedrijfsnaam} wilt verwijderen? De relatie wordt gearchiveerd en is later terug te halen via de database.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
@@ -100,21 +150,104 @@ export default function RelatieDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+
+          {/* CONTACTPERSONEN */}
+          <section className="section-card p-5 sm:p-6 space-y-4">
+            <h2 className="section-title flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Contactpersonen ({contactpersonen.length})
+            </h2>
+            {contactpersonen.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">
+                Nog geen contactpersonen toegevoegd. Voeg ze toe via Bewerken → tab Contact.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {contactpersonen.map(c => (
+                  <div key={c.id} className="border border-border rounded-md p-3 bg-card/50">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-foreground">{c.naam}</p>
+                      {c.functie && <span className="text-xs text-muted-foreground">· {c.functie}</span>}
+                      {c.isPrimair && (
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider bg-accent/20 text-accent px-2 py-0.5 rounded-full">
+                          <Star className="h-2.5 w-2.5 fill-current" /> Primair
+                        </span>
+                      )}
+                      {c.decisionMaker && (
+                        <span className="text-[10px] uppercase tracking-wider bg-muted px-2 py-0.5 rounded-full">
+                          Decision maker
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
+                      {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground">{c.email}</a>}
+                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground">{c.telefoon}</a>}
+                      {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">LinkedIn</a>}
+                      {c.voorkeurKanaal && <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* PROFIEL & VOORKEUREN */}
           <section className="section-card p-5 sm:p-6 space-y-5">
-            <h2 className="section-title">Basisgegevens</h2>
+            <h2 className="section-title">Investeerdersprofiel</h2>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Telefoon">{relatie.telefoon || '—'}</Field>
-              <Field label="E-mail">{relatie.email || '—'}</Field>
-              <Field label="Regio">{relatie.regio.length ? relatie.regio.join(', ') : '—'}</Field>
-              <Field label="Asset classes"><span className="capitalize">{relatie.assetClasses.length ? relatie.assetClasses.join(', ') : '—'}</span></Field>
-              {relatie.budgetMin && (
-                <Field label="Budget"><span className="font-mono-data">{formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}</span></Field>
+              <Field label="Asset classes">
+                {relatie.assetClasses.length
+                  ? relatie.assetClasses.map(ac => ASSET_CLASS_LABELS[ac]).join(', ')
+                  : '—'}
+              </Field>
+              <Field label="Regio's">
+                {relatie.regio.length ? relatie.regio.join(', ') : '—'}
+              </Field>
+              {(relatie.budgetMin || relatie.budgetMax) && (
+                <Field label="Budget">
+                  <span className="font-mono-data">
+                    {formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}
+                  </span>
+                </Field>
               )}
-              <Field label="Laatste contact"><span className="tabular-nums">{formatDate(relatie.laatsteContact)}</span></Field>
+              {relatie.rendementseis != null && (
+                <Field label="Rendementseis">
+                  <span className="font-mono-data">{relatie.rendementseis}%</span>
+                </Field>
+              )}
+              {relatie.kapitaalsituatie && relatie.kapitaalsituatie !== 'onbekend' && (
+                <Field label="Kapitaalsituatie">
+                  {KAPITAAL_SITUATIE_LABELS[relatie.kapitaalsituatie]}
+                  {relatie.eigenVermogenPct != null && ` · ${relatie.eigenVermogenPct}% EV`}
+                </Field>
+              )}
+              {relatie.voorkeurDealstructuur && relatie.voorkeurDealstructuur.length > 0 && (
+                <Field label="Voorkeur dealstructuur">
+                  {relatie.voorkeurDealstructuur.map(s => DEALSTRUCTUUR_LABELS[s] ?? s).join(', ')}
+                </Field>
+              )}
+              {relatie.ndaGetekend && relatie.ndaDatum && (
+                <Field label="NDA getekend op">
+                  {formatDate(relatie.ndaDatum)}
+                </Field>
+              )}
+              <Field label="Laatste contact">
+                <span className="tabular-nums">{formatDate(relatie.laatsteContact)}</span>
+              </Field>
+              {relatie.bronRelatie && (
+                <Field label="Bron relatie">{relatie.bronRelatie}</Field>
+              )}
+              {relatie.voorkeurKanaal && (
+                <Field label="Voorkeur kanaal">
+                  {COMMUNICATIE_KANAAL_LABELS[relatie.voorkeurKanaal]}
+                  {relatie.voorkeurTaal && relatie.voorkeurTaal !== 'nl' && ` · ${relatie.voorkeurTaal.toUpperCase()}`}
+                </Field>
+              )}
             </div>
 
-            {(relatie.aankoopcriteria || relatie.verkoopintentie || relatie.notities) && (
+            {(relatie.aankoopcriteria || relatie.verkoopintentie || relatie.notities || relatie.volgendeActie) && (
               <div className="space-y-4 hairline pt-5">
+                {relatie.volgendeActie && <Field label="Volgende actie">{relatie.volgendeActie}</Field>}
                 {relatie.aankoopcriteria && <Field label="Aankoopcriteria">{relatie.aankoopcriteria}</Field>}
                 {relatie.verkoopintentie && <Field label="Verkoopintentie">{relatie.verkoopintentie}</Field>}
                 {relatie.notities && <Field label="Notities">{relatie.notities}</Field>}
@@ -122,6 +255,28 @@ export default function RelatieDetailPage() {
             )}
           </section>
 
+          {/* VESTIGING (apart blok) */}
+          {(relatie.vestigingsadres || relatie.vestigingsplaats) && (
+            <section className="section-card p-5 sm:p-6 space-y-4">
+              <h2 className="section-title flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Vestigingsgegevens
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                <Field label="Adres">
+                  {relatie.vestigingsadres ?? '—'}
+                </Field>
+                <Field label="Postcode + plaats">
+                  {[relatie.vestigingspostcode, relatie.vestigingsplaats].filter(Boolean).join(' ') || '—'}
+                </Field>
+                <Field label="Land">
+                  {relatie.vestigingsland ?? 'NL'}
+                </Field>
+              </div>
+            </section>
+          )}
+
+          {/* DEALS */}
           {deals.length > 0 && (
             <section className="section-card">
               <header className="section-header"><h2 className="section-title">Gekoppelde deals ({deals.length})</h2></header>
@@ -133,7 +288,10 @@ export default function RelatieDetailPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm text-foreground truncate">{obj?.titel}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj?.plaats} · <span className="font-mono-data">{formatCurrency(obj?.vraagprijs)}</span></p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {obj?.plaats} · <span className="font-mono-data">{formatCurrency(obj?.vraagprijs)}</span>
+                            {deal.commissieBedrag != null && ` · commissie ${formatCurrency(deal.commissieBedrag)}`}
+                          </p>
                         </div>
                         <DealFaseBadge fase={deal.fase} />
                       </div>
@@ -144,6 +302,7 @@ export default function RelatieDetailPage() {
             </section>
           )}
 
+          {/* TAKEN */}
           {taken.length > 0 && (
             <section className="section-card">
               <header className="section-header"><h2 className="section-title">Open taken ({taken.length})</h2></header>
@@ -176,9 +335,21 @@ export default function RelatieDetailPage() {
               )}
               {zoekprofielen.map(zp => (
                 <div key={zp.id} className="px-5 py-3.5">
-                  <p className="text-sm font-medium text-foreground truncate">{zp.naam}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 capitalize truncate">{zp.typeVastgoed.join(', ')} · {zp.regio.join(', ') || '—'}</p>
-                  {zp.prijsMax && <p className="text-xs text-muted-foreground font-mono-data mt-0.5">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</p>}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground truncate flex-1">{zp.naam}</p>
+                    <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+                      P{zp.prioriteit}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 capitalize truncate">
+                    {zp.typeVastgoed.map(t => ASSET_CLASS_LABELS[t]).join(', ')}
+                    {zp.regio.length > 0 && ` · ${zp.regio.join(', ')}`}
+                  </p>
+                  {zp.prijsMax && (
+                    <p className="text-xs text-muted-foreground font-mono-data mt-0.5">
+                      {formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

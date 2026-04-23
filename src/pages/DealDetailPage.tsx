@@ -1,13 +1,26 @@
 import { useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency, formatDate } from '@/data/mock-data';
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+  formatDate,
+  DEAL_FASE_LABELS,
+  DD_STATUS_LABELS,
+  FASE_KANS,
+} from '@/data/mock-data';
 import { DealFaseBadge, LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
-import { ArrowLeft, Pencil, Trash2, Star } from 'lucide-react';
+import {
+  ArrowLeft, Pencil, Trash2, Star, Trophy, AlertCircle,
+  Building2, Landmark, Users as UsersIcon,
+} from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -37,11 +50,16 @@ export default function DealDetailPage() {
 
   const relatie = store.getRelatieById(deal.relatieId);
   const object = store.getObjectById(deal.objectId);
+  const isAfgerond = deal.fase === 'afgerond';
+  const isAfgevallen = deal.fase === 'afgevallen';
+  const gewogenCommissie = deal.commissieBedrag != null
+    ? deal.commissieBedrag * (FASE_KANS[deal.fase] ?? 0)
+    : null;
 
   const handleDelete = async () => {
     try {
       await store.deleteDeal(deal.id);
-      toast.success('Deal verwijderd');
+      toast.success('Deal gearchiveerd');
       navigate('/deals');
     } catch (err: any) {
       toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
@@ -57,7 +75,9 @@ export default function DealDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">{object?.titel || 'Deal'}</h1>
+            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">
+              {object?.titel || 'Deal'}
+            </h1>
             <DealFaseBadge fase={deal.fase} />
           </div>
           <p className="text-sm text-muted-foreground mt-1.5 truncate">
@@ -76,53 +96,176 @@ export default function DealDetailPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Deal verwijderen?</AlertDialogTitle>
-                <AlertDialogDescription>Weet je zeker dat je deze deal wilt verwijderen?</AlertDialogDescription>
+                <AlertDialogTitle>Deal archiveren?</AlertDialogTitle>
+                <AlertDialogDescription>Weet je zeker dat je deze deal wilt archiveren?</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Archiveren</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
       </div>
 
+      {/* Banner: gefeliciteerd of afgevallen */}
+      {isAfgerond && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-md p-4 flex items-start gap-3">
+          <Trophy className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Deal afgerond — gefeliciteerd!</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {deal.commissieBedrag != null
+                ? `Goed voor ${formatCurrency(deal.commissieBedrag)} commissie. Telt mee in je gerealiseerde commissie op het dashboard.`
+                : 'Vul de commissie in via Bewerken om hem mee te tellen op het dashboard.'}
+            </p>
+          </div>
+        </div>
+      )}
+      {isAfgevallen && (
+        <div className="bg-muted/40 border border-border rounded-md p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Deal afgevallen</p>
+            {deal.afwijzingsreden ? (
+              <p className="text-sm text-muted-foreground mt-0.5">Reden: {deal.afwijzingsreden}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-0.5">Vul de afwijzingsreden in via Bewerken — handig voor toekomstige analyse.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+          {/* DEAL CORE */}
           <section className="section-card p-5 sm:p-6 space-y-5">
             <h2 className="section-title">Dealgegevens</h2>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Dealfase"><span className="capitalize">{deal.fase}</span></Field>
+              <Field label="Dealfase">{DEAL_FASE_LABELS[deal.fase]}</Field>
               <Field label="Interessegraad">
                 <span className="inline-flex items-center gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className={`h-3.5 w-3.5 ${i < deal.interessegraad ? 'fill-accent text-accent' : 'text-muted-foreground/30'}`} />
+                    <Star
+                      key={i}
+                      className={`h-3.5 w-3.5 ${i < deal.interessegraad ? 'fill-accent text-accent' : 'text-muted-foreground/30'}`}
+                    />
                   ))}
                 </span>
               </Field>
-              <Field label="Eerste contact"><span className="tabular-nums">{formatDate(deal.datumEersteContact)}</span></Field>
-              <Field label="Follow-up"><span className="tabular-nums">{deal.datumFollowUp ? formatDate(deal.datumFollowUp) : '—'}</span></Field>
-              {deal.bezichtigingGepland && <Field label="Bezichtiging"><span className="tabular-nums">{formatDate(deal.bezichtigingGepland)}</span></Field>}
-              {deal.indicatiefBod && <Field label="Indicatief bod"><span className="font-mono-data">{formatCurrency(deal.indicatiefBod)}</span></Field>}
+              <Field label="Eerste contact">
+                <span className="tabular-nums">{formatDate(deal.datumEersteContact)}</span>
+              </Field>
+              <Field label="Follow-up">
+                <span className="tabular-nums">{deal.datumFollowUp ? formatDate(deal.datumFollowUp) : '—'}</span>
+              </Field>
+              {deal.bezichtigingGepland && (
+                <Field label="Bezichtiging">
+                  <span className="tabular-nums">{formatDate(deal.bezichtigingGepland)}</span>
+                </Field>
+              )}
+              {deal.verwachteClosingdatum && (
+                <Field label="Verwachte closing">
+                  <span className="tabular-nums">{formatDate(deal.verwachteClosingdatum)}</span>
+                </Field>
+              )}
+              {deal.indicatiefBod != null && (
+                <Field label="Indicatief bod">
+                  <span className="font-mono-data">{formatCurrency(deal.indicatiefBod)}</span>
+                </Field>
+              )}
             </div>
-            {deal.notities && (
-              <div className="hairline pt-5">
-                <Field label="Notities">{deal.notities}</Field>
-              </div>
-            )}
           </section>
 
+          {/* COMMISSIE */}
+          {(deal.commissiePct != null || deal.commissieBedrag != null || deal.feeStructuur) && (
+            <section className={`section-card p-5 sm:p-6 space-y-4 ${isAfgerond ? 'border-green-500/30' : ''}`}>
+              <h2 className="section-title flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-accent" /> Commissie
+              </h2>
+              <div className="grid sm:grid-cols-3 gap-4">
+                {deal.commissiePct != null && (
+                  <div className="p-3 bg-muted/40 rounded-md">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Percentage</p>
+                    <p className="text-base font-semibold font-mono-data mt-0.5">{deal.commissiePct}%</p>
+                  </div>
+                )}
+                {deal.commissieBedrag != null && (
+                  <div className={`p-3 rounded-md ${isAfgerond ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted/40'}`}>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {isAfgerond ? 'Gerealiseerd' : 'Bedrag (verwacht)'}
+                    </p>
+                    <p className={`text-base font-semibold font-mono-data mt-0.5 ${isAfgerond ? 'text-green-700 dark:text-green-400' : ''}`}>
+                      {formatCurrency(deal.commissieBedrag)}
+                    </p>
+                  </div>
+                )}
+                {gewogenCommissie != null && !isAfgerond && !isAfgevallen && (
+                  <div className="p-3 bg-muted/40 rounded-md">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Gewogen ({Math.round((FASE_KANS[deal.fase] ?? 0) * 100)}%)
+                    </p>
+                    <p className="text-base font-semibold font-mono-data mt-0.5">
+                      {formatCurrencyCompact(gewogenCommissie)}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {deal.feeStructuur && (
+                <Field label="Fee-structuur">{deal.feeStructuur}</Field>
+              )}
+            </section>
+          )}
+
+          {/* PROCES / DD */}
+          {(deal.ddStatus || deal.notaris || deal.bank || deal.tegenpartijMakelaar) && (
+            <section className="section-card p-5 sm:p-6 space-y-4">
+              <h2 className="section-title">Proces & partijen</h2>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {deal.ddStatus && deal.ddStatus !== 'niet_gestart' && (
+                  <Field label="Due diligence status">
+                    {DD_STATUS_LABELS[deal.ddStatus]}
+                  </Field>
+                )}
+                {deal.notaris && <Field label="Notaris">{deal.notaris}</Field>}
+                {deal.bank && <Field label="Bank">{deal.bank}</Field>}
+                {deal.tegenpartijMakelaar && (
+                  <Field label="Tegenpartij makelaar">{deal.tegenpartijMakelaar}</Field>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* NOTITIES */}
+          {(deal.notities || (isAfgevallen && deal.afwijzingsreden)) && (
+            <section className="section-card p-5 sm:p-6 space-y-4">
+              <h2 className="section-title">Notities</h2>
+              {isAfgevallen && deal.afwijzingsreden && (
+                <Field label="Afwijzingsreden">
+                  <p className="whitespace-pre-wrap">{deal.afwijzingsreden}</p>
+                </Field>
+              )}
+              {deal.notities && (
+                <Field label="Algemeen">
+                  <p className="whitespace-pre-wrap">{deal.notities}</p>
+                </Field>
+              )}
+            </section>
+          )}
+
+          {/* PRIMAIR OBJECT */}
           {object && (
             <Link to={`/objecten/${object.id}`} className="block section-card p-5 sm:p-6 hover:border-accent/40 transition-colors">
               <div className="flex items-center justify-between mb-3 gap-3">
                 <h2 className="section-title flex items-center gap-2">
-                  Primair object <Star className="h-3.5 w-3.5 fill-accent text-accent" />
+                  <Building2 className="h-4 w-4 text-muted-foreground" /> Primair object
                 </h2>
                 <ObjectStatusBadge status={object.status} />
               </div>
               <p className="text-foreground font-medium truncate">{object.titel}</p>
-              <p className="text-sm text-muted-foreground truncate">{object.plaats}, {object.provincie}</p>
+              <p className="text-sm text-muted-foreground truncate">
+                {object.anoniem ? (object.publiekeRegio ?? object.provincie) : `${object.plaats}, ${object.provincie}`}
+              </p>
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <Field label="Prijs"><span className="font-mono-data">{formatCurrency(object.vraagprijs)}</span></Field>
                 <Field label="Oppervlakte"><span className="font-mono-data">{object.oppervlakte?.toLocaleString('nl-NL') ?? '—'} m²</span></Field>
@@ -134,22 +277,32 @@ export default function DealDetailPage() {
           <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
         </div>
 
+        {/* SIDEBAR */}
         <div>
           {relatie && (
             <Link to={`/relaties/${relatie.id}`} className="block section-card p-5 sm:p-6 hover:border-accent/40 transition-colors space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="section-title">Primaire relatie</h2>
+                <h2 className="section-title flex items-center gap-2">
+                  <UsersIcon className="h-4 w-4 text-muted-foreground" /> Primaire relatie
+                </h2>
                 <LeadStatusBadge status={relatie.leadStatus} />
               </div>
               <div>
                 <p className="text-foreground font-medium truncate">{relatie.bedrijfsnaam}</p>
-                <p className="text-sm text-muted-foreground truncate">{relatie.contactpersoon}</p>
+                {relatie.investeerderSubtype && (
+                  <p className="text-xs text-muted-foreground capitalize">{relatie.investeerderSubtype.replace('_', ' ')}</p>
+                )}
               </div>
               <div className="text-sm space-y-1 hairline pt-3">
                 {relatie.telefoon && <p className="text-muted-foreground truncate">{relatie.telefoon}</p>}
                 {relatie.email && <p className="text-muted-foreground truncate">{relatie.email}</p>}
-                {relatie.budgetMax && (
-                  <p className="font-mono-data text-muted-foreground pt-1">Budget: {formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}</p>
+                {(relatie.budgetMin || relatie.budgetMax) && (
+                  <p className="font-mono-data text-muted-foreground pt-1">
+                    Budget: {formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}
+                  </p>
+                )}
+                {relatie.ndaGetekend && (
+                  <p className="text-xs text-green-600 dark:text-green-400 pt-1">✓ NDA getekend</p>
                 )}
               </div>
             </Link>
