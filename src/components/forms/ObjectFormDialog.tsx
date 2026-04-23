@@ -14,13 +14,15 @@
 // Nieuwe objecten: media-tab is disabled tot het object een ID heeft
 // (oftewel: eerst één keer opslaan, daarna upload).
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import type {
@@ -32,13 +34,15 @@ import {
   ONDERHOUDSSTAAT_LABELS,
   VERKOPER_VIA_LABELS,
   PROVINCIES,
+  REFERENTIE_KWALITEIT_LABELS,
+  berekenObjectReferentieKwaliteit,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import SubcategorieSelect from '@/components/object/SubcategorieSelect';
 import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
-import { Info, Image, FileText, Users } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked } from 'lucide-react';
 
 interface Props {
   open: boolean;
