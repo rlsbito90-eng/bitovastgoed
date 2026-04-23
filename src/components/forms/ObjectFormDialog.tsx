@@ -422,13 +422,13 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Locatie">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Adres">
+                  <Veld label={<>Adres<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.adres ?? ''} onChange={e => set('adres', e.target.value || undefined)} />
                   </Veld>
-                  <Veld label="Postcode">
+                  <Veld label={<>Postcode<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.postcode ?? ''} onChange={e => set('postcode', e.target.value || undefined)} />
                   </Veld>
-                  <Veld label="Plaats">
+                  <Veld label={<>Plaats<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.plaats} onChange={e => set('plaats', e.target.value)} />
                   </Veld>
                   <Veld label="Provincie">
