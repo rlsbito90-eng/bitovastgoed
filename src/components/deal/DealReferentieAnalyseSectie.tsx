@@ -38,9 +38,19 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
     const perM2 = gekoppeld
       .map(r => r.prijsPerM2)
       .filter((v): v is number => v != null && !Number.isNaN(v));
-    if (perM2.length === 0) return { gemiddeld: undefined, mediaan: undefined };
-    const gemiddeld = perM2.reduce((a, b) => a + b, 0) / perM2.length;
-    return { gemiddeld, mediaan: mediaan(perM2) };
+    const huurPerM2Jaar = gekoppeld
+      .map(r => (r.huurprijsPerJaar != null && r.m2 > 0 ? r.huurprijsPerJaar / r.m2 : undefined))
+      .filter((v): v is number => v != null && !Number.isNaN(v));
+
+    const gem = (arr: number[]) =>
+      arr.length === 0 ? undefined : arr.reduce((a, b) => a + b, 0) / arr.length;
+
+    return {
+      gemiddeld: gem(perM2),
+      mediaan: mediaan(perM2),
+      huurGemiddeld: gem(huurPerM2Jaar),
+      huurMediaan: mediaan(huurPerM2Jaar),
+    };
   }, [gekoppeld]);
 
   const beschikbaar = useMemo(() => {
