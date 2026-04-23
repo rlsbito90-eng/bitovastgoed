@@ -122,6 +122,24 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
         </div>
       </div>
 
+      {/* HUUR-STATS — alleen tonen als er huur-data beschikbaar is */}
+      {(stats.huurGemiddeld != null || stats.huurMediaan != null) && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 bg-muted/40 rounded-md">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Gemiddelde huur € / m² / jr</p>
+            <p className="text-base font-semibold font-mono-data mt-0.5">
+              {stats.huurGemiddeld != null ? formatCurrency(Math.round(stats.huurGemiddeld)) : '—'}
+            </p>
+          </div>
+          <div className="p-3 bg-muted/40 rounded-md">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mediane huur € / m² / jr</p>
+            <p className="text-base font-semibold font-mono-data mt-0.5">
+              {stats.huurMediaan != null ? formatCurrency(Math.round(stats.huurMediaan)) : '—'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* LIJST */}
       {gekoppeld.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">
@@ -129,7 +147,10 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
         </p>
       ) : (
         <div className="hairline pt-3 space-y-2">
-          {gekoppeld.map(r => (
+          {gekoppeld.map(r => {
+            const huurPerM2Jaar =
+              r.huurprijsPerJaar != null && r.m2 > 0 ? r.huurprijsPerJaar / r.m2 : undefined;
+            return (
             <div key={r.id} className="flex items-start justify-between gap-3 p-3 rounded-md border border-border hover:border-accent/40 transition-colors">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">
@@ -138,13 +159,20 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {ASSET_CLASS_LABELS[r.assetClass]} · bouwjaar {r.bouwjaar}
                   {r.energielabel ? ` · label ${r.energielabel}` : ''}
+                  {r.huurstatus ? ` · ${r.huurstatus.replace('_', ' ')}` : ''}
                 </p>
-                <div className="mt-1.5 flex items-center gap-4 text-xs font-mono-data text-foreground/80">
+                <div className="mt-1.5 flex items-center gap-4 text-xs font-mono-data text-foreground/80 flex-wrap">
                   <span>{r.m2.toLocaleString('nl-NL')} m²</span>
                   <span>{formatCurrency(r.vraagprijs)}</span>
                   <span className="text-accent">
                     {r.prijsPerM2 != null ? `${formatCurrency(Math.round(r.prijsPerM2))} / m²` : '— / m²'}
                   </span>
+                  {r.huurprijsPerJaar != null && (
+                    <span className="text-muted-foreground">
+                      huur {formatCurrency(r.huurprijsPerJaar)} / jr
+                      {huurPerM2Jaar != null ? ` · ${formatCurrency(Math.round(huurPerM2Jaar))} / m² / jr` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
               <Button
@@ -157,7 +185,8 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
                 <Link2Off className="h-4 w-4" />
               </Button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
