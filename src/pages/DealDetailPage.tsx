@@ -17,6 +17,7 @@ import {
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
+import DealReferentieAnalyseSectie from '@/components/deal/DealReferentieAnalyseSectie';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
