@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   ASSET_CLASS_LABELS,
+  DEAL_FASE_LABELS,
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   formatCurrency,
@@ -13,7 +15,10 @@ import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Search, Pencil, Trash2, Link2, ExternalLink } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 import {
