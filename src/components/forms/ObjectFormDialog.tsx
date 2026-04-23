@@ -237,14 +237,98 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     o.isPortefeuille && o.id !== (object?.id ?? gemaaktId)
   );
 
+  // Referentiekwaliteit op basis van objectvelden
+  const refKwaliteit = useMemo(() => berekenObjectReferentieKwaliteit({
+    adres: form.adres,
+    postcode: form.postcode,
+    plaats: form.plaats,
+    type: form.type,
+    oppervlakte: form.oppervlakte,
+    vraagprijs: form.vraagprijs,
+    bouwjaar: form.bouwjaar,
+    energielabelV2: form.energielabelV2,
+    verhuurStatus: form.verhuurStatus,
+    bron: form.bron,
+    perceelOppervlakte: form.perceelOppervlakte,
+    onderhoudsstaatNiveau: form.onderhoudsstaatNiveau,
+    huurPerM2: form.huurPerM2,
+  }), [
+    form.adres, form.postcode, form.plaats, form.type, form.oppervlakte,
+    form.vraagprijs, form.bouwjaar, form.energielabelV2, form.verhuurStatus,
+    form.bron, form.perceelOppervlakte, form.onderhoudsstaatNiveau, form.huurPerM2,
+  ]);
+
+  const kwaliteitKleur =
+    refKwaliteit.qualityScore >= 75 ? 'text-success'
+    : refKwaliteit.qualityScore >= 60 ? 'text-warning'
+    : 'text-destructive';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
-          <DialogTitle>
-            {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <DialogTitle>
+              {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
+            </DialogTitle>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <BookMarked className="h-3.5 w-3.5" />
+              <span>Ook bruikbaar als referentieobject</span>
+              <Switch
+                checked={markeerAlsReferentie}
+                onCheckedChange={setMarkeerAlsReferentie}
+              />
+            </label>
+          </div>
         </DialogHeader>
+
+        {markeerAlsReferentie && (
+          <div className="shrink-0 px-6 py-3 border-b border-border bg-muted/30">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <div className="flex items-center gap-2">
+                <BookMarked className="h-4 w-4 text-accent" />
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Referentiekwaliteit <span className="normal-case text-muted-foreground/80">(indicatie voor later referentiegebruik)</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <span className={`font-semibold ${kwaliteitKleur}`}>
+                  {REFERENTIE_KWALITEIT_LABELS[refKwaliteit.kwaliteit]} ·{' '}
+                  <span className="font-mono-data">{refKwaliteit.qualityScore}/100</span>
+                </span>
+                <span className="text-muted-foreground">
+                  Volledigheid: <span className="font-mono-data text-foreground">{refKwaliteit.completenessPct}%</span>
+                </span>
+              </div>
+            </div>
+            <Progress value={refKwaliteit.qualityScore} className="h-1.5 mb-2" />
+            {(refKwaliteit.ontbrekendeAanbevolen.length > 0 || refKwaliteit.ontbrekendeNuttig.length > 0) ? (
+              <div className="space-y-1 text-xs">
+                {refKwaliteit.ontbrekendeAanbevolen.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-foreground">
+                    <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                    <span>
+                      Sterk aanbevolen ontbreekt:{' '}
+                      <span className="text-muted-foreground">{refKwaliteit.ontbrekendeAanbevolen.join(', ')}</span>
+                    </span>
+                  </div>
+                )}
+                {refKwaliteit.ontbrekendeNuttig.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-muted-foreground">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Nuttig ontbreekt: <span>{refKwaliteit.ontbrekendeNuttig.join(', ')}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-success">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Alle relevante velden ingevuld — sterk geschikt als referentieobject.
+              </div>
+            )}
+          </div>
+        )}
 
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
