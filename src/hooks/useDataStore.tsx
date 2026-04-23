@@ -588,6 +588,8 @@ const referentieFromDb = (r: any): ReferentieObject => ({
   huurstatus: r.huurstatus ?? undefined,
   bron: r.bron ?? undefined,
   notities: r.notities ?? undefined,
+  huurprijsPerMaand: r.huurprijs_per_maand != null ? Number(r.huurprijs_per_maand) : undefined,
+  huurprijsPerJaar: r.huurprijs_per_jaar != null ? Number(r.huurprijs_per_jaar) : undefined,
   aangemaaktDoor: r.aangemaakt_door ?? undefined,
   createdAt: r.created_at ?? undefined,
   updatedAt: r.updated_at ?? undefined,
@@ -605,6 +607,8 @@ const referentieToDb = (r: Partial<ReferentieObject>) => cleanPayload({
   huurstatus: r.huurstatus !== undefined ? (r.huurstatus || null) : undefined,
   bron: r.bron !== undefined ? (r.bron || null) : undefined,
   notities: r.notities !== undefined ? (r.notities || null) : undefined,
+  huurprijs_per_maand: r.huurprijsPerMaand !== undefined ? (r.huurprijsPerMaand ?? null) : undefined,
+  huurprijs_per_jaar: r.huurprijsPerJaar !== undefined ? (r.huurprijsPerJaar ?? null) : undefined,
 });
 
 const dealReferentieFromDb = (r: any): DealReferentie => ({
