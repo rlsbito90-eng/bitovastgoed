@@ -48,12 +48,29 @@ export default function DealReferentieAnalyseSectie({ dealId, objectM2 }: Props)
       arr.length === 0 ? undefined : arr.reduce((a, b) => a + b, 0) / arr.length;
 
     return {
+      perM2,
       gemiddeld: gem(perM2),
       mediaan: mediaan(perM2),
+      min: perM2.length ? Math.min(...perM2) : undefined,
+      max: perM2.length ? Math.max(...perM2) : undefined,
       huurGemiddeld: gem(huurPerM2Jaar),
       huurMediaan: mediaan(huurPerM2Jaar),
     };
   }, [gekoppeld]);
+
+  // MARKTWAARDE-INDICATIE
+  // Simpele, transparante MVP: gebruik laagste / mediaan / hoogste prijs per m²
+  // van gekoppelde referenties × m² van het huidige object.
+  const marktwaarde = useMemo(() => {
+    if (!objectM2 || objectM2 <= 0) return null;
+    if (stats.perM2.length < 2) return null;
+    if (stats.min == null || stats.mediaan == null || stats.max == null) return null;
+    return {
+      onder: stats.min * objectM2,
+      mediaan: stats.mediaan * objectM2,
+      boven: stats.max * objectM2,
+    };
+  }, [objectM2, stats]);
 
   const beschikbaar = useMemo(() => {
     const gekoppeldIds = new Set(gekoppeld.map(r => r.id));
