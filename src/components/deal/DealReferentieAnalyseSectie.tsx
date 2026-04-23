@@ -10,12 +10,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Plus, Link2Off, BarChart3, Search } from 'lucide-react';
+import { Plus, Link2Off, BarChart3, Search, TrendingUp, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 
 interface Props {
   dealId: string;
+  /** Oppervlakte (m²) van het object van deze deal — gebruikt voor marktwaarde-indicatie. */
+  objectM2?: number;
 }
 
 function mediaan(getallen: number[]): number | undefined {
@@ -25,7 +27,7 @@ function mediaan(getallen: number[]): number | undefined {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-export default function DealReferentieAnalyseSectie({ dealId }: Props) {
+export default function DealReferentieAnalyseSectie({ dealId, objectM2 }: Props) {
   const store = useDataStore();
   const gekoppeld = store.getReferentiesVoorDeal(dealId);
   const koppelingen = store.dealReferenties.filter(x => x.dealId === dealId);
@@ -46,12 +48,29 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
       arr.length === 0 ? undefined : arr.reduce((a, b) => a + b, 0) / arr.length;
 
     return {
+      perM2,
       gemiddeld: gem(perM2),
       mediaan: mediaan(perM2),
+      min: perM2.length ? Math.min(...perM2) : undefined,
+      max: perM2.length ? Math.max(...perM2) : undefined,
       huurGemiddeld: gem(huurPerM2Jaar),
       huurMediaan: mediaan(huurPerM2Jaar),
     };
   }, [gekoppeld]);
+
+  // MARKTWAARDE-INDICATIE
+  // Simpele, transparante MVP: gebruik laagste / mediaan / hoogste prijs per m²
+  // van gekoppelde referenties × m² van het huidige object.
+  const marktwaarde = useMemo(() => {
+    if (!objectM2 || objectM2 <= 0) return null;
+    if (stats.perM2.length < 2) return null;
+    if (stats.min == null || stats.mediaan == null || stats.max == null) return null;
+    return {
+      onder: stats.min * objectM2,
+      mediaan: stats.mediaan * objectM2,
+      boven: stats.max * objectM2,
+    };
+  }, [objectM2, stats]);
 
   const beschikbaar = useMemo(() => {
     const gekoppeldIds = new Set(gekoppeld.map(r => r.id));
@@ -139,6 +158,65 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
           </div>
         </div>
       )}
+
+      {/* MARKTWAARDE-INDICATIE */}
+      <div className="hairline pt-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-accent" /> Marktwaarde-indicatie
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Indicatief marktwaardebereik op basis van gekoppelde referentieobjecten
+          </p>
+        </div>
+
+        {!objectM2 || objectM2 <= 0 ? (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-muted/40 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Vul de oppervlakte (m²) van het object in om een marktwaarde-indicatie te tonen.</span>
+          </div>
+        ) : marktwaarde == null ? (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-muted/40 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Te weinig referentieobjecten voor een betrouwbare marktwaarde-indicatie. Koppel minimaal 2 referenties met een prijs per m².</span>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-md border border-border">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Ondergrens</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5">
+                  {formatCurrency(Math.round(marktwaarde.onder))}
+                </p>
+              </div>
+              <div className="p-3 rounded-md border border-accent/40 bg-accent/5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mediaan</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5 text-accent">
+                  {formatCurrency(Math.round(marktwaarde.mediaan))}
+                </p>
+              </div>
+              <div className="p-3 rounded-md border border-border">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bovengrens</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5">
+                  {formatCurrency(Math.round(marktwaarde.boven))}
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <p className="font-medium text-foreground/70">Onderbouwing</p>
+              <p>
+                Gebaseerd op {stats.perM2.length} referentieobject{stats.perM2.length === 1 ? '' : 'en'} ·
+                {' '}gemiddeld {stats.gemiddeld != null ? formatCurrency(Math.round(stats.gemiddeld)) : '—'} / m² ·
+                {' '}mediaan {stats.mediaan != null ? formatCurrency(Math.round(stats.mediaan)) : '—'} / m² ·
+                {' '}toegepast op {objectM2.toLocaleString('nl-NL')} m² van dit object.
+              </p>
+              <p className="italic">
+                Indicatief — gebruikt laagste / mediaan / hoogste prijs per m² × oppervlakte. Geen vervanging voor een taxatie.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* LIJST */}
       {gekoppeld.length === 0 ? (
