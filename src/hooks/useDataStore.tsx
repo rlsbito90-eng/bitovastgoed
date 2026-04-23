@@ -1142,12 +1142,60 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setJaarDoelen(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  // -------- REFERENTIEOBJECTEN --------
+  const addReferentieObject = useCallback(async (
+    r: Omit<ReferentieObject, 'id' | 'prijsPerM2' | 'createdAt' | 'updatedAt'>,
+  ) => {
+    const { data, error } = await supabase
+      .from('referentie_objecten' as any)
+      .insert(referentieToDb(r) as any)
+      .select().single();
+    throwIfError(error);
+    const nieuw = referentieFromDb(data);
+    setReferentieObjecten(prev => [nieuw, ...prev]);
+    return nieuw;
+  }, []);
+
+  const updateReferentieObject = useCallback(async (id: string, r: Partial<ReferentieObject>) => {
+    const { data, error } = await supabase
+      .from('referentie_objecten' as any)
+      .update(referentieToDb(r) as any)
+      .eq('id', id).select().single();
+    throwIfError(error);
+    setReferentieObjecten(prev => prev.map(x => x.id === id ? referentieFromDb(data) : x));
+  }, []);
+
+  const deleteReferentieObject = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('referentie_objecten' as any)
+      .update({ soft_deleted_at: new Date().toISOString() } as any)
+      .eq('id', id);
+    throwIfError(error);
+    setReferentieObjecten(prev => prev.filter(x => x.id !== id));
+    setDealReferenties(prev => prev.filter(x => x.referentieObjectId !== id));
+  }, []);
+
+  // -------- DEAL ↔ REFERENTIE --------
+  const koppelReferentieAanDeal = useCallback(async (dealId: string, referentieObjectId: string) => {
+    const { data, error } = await supabase
+      .from('deal_referenties' as any)
+      .insert({ deal_id: dealId, referentie_object_id: referentieObjectId } as any)
+      .select().single();
+    throwIfError(error);
+    setDealReferenties(prev => [...prev, dealReferentieFromDb(data)]);
+  }, []);
+
+  const ontkoppelReferentieVanDeal = useCallback(async (id: string) => {
+    const { error } = await supabase.from('deal_referenties' as any).delete().eq('id', id);
+    throwIfError(error);
+    setDealReferenties(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   // -------- RPC: refnummer generator --------
   const genereerRefnummer = useCallback(async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_refnummer' as any);
     if (error) {
       console.error('generate_refnummer RPC mislukt:', error);
-      // Fallback client-side
       const jaar = new Date().getFullYear();
       return `BITO-${jaar}-${Date.now().toString().slice(-4)}`;
     }
@@ -1157,7 +1205,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   // -------- STORE --------
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
-    deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
+    deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen,
+    referentieObjecten, dealReferenties, loading, refresh,
 
     addRelatie, updateRelatie, deleteRelatie, bulkInsertRelaties,
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
@@ -1186,6 +1235,14 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
 
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
+
+    addReferentieObject, updateReferentieObject, deleteReferentieObject,
+    getReferentieObjectById: (id) => referentieObjecten.find(r => r.id === id),
+    koppelReferentieAanDeal, ontkoppelReferentieVanDeal,
+    getReferentiesVoorDeal: (dealId) => {
+      const refIds = new Set(dealReferenties.filter(x => x.dealId === dealId).map(x => x.referentieObjectId));
+      return referentieObjecten.filter(r => refIds.has(r.id));
+    },
 
     genereerRefnummer,
 
