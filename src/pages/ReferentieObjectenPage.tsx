@@ -288,7 +288,8 @@ export default function ReferentieObjectenPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
