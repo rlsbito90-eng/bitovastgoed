@@ -54,6 +54,8 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
   const [bouwjaar, setBouwjaar] = useState<string>('');
   const [energielabel, setEnergielabel] = useState<Energielabel | ''>('');
   const [huurstatus, setHuurstatus] = useState<VerhuurStatus | ''>('');
+  const [huurMaand, setHuurMaand] = useState<string>('');
+  const [huurJaar, setHuurJaar] = useState<string>('');
   const [bron, setBron] = useState('');
   const [notities, setNotities] = useState('');
   const [bezig, setBezig] = useState(false);
