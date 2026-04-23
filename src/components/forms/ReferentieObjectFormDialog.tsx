@@ -26,6 +26,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   referentie?: ReferentieObject;
+  /** Wordt aangeroepen na succesvol toevoegen of bijwerken. Geeft het opgeslagen object door. */
+  onSaved?: (saved: ReferentieObject) => void;
 }
 
 const ENERGIELABELS: Energielabel[] = ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
@@ -37,7 +39,7 @@ const KWALITEIT_KLEUR: Record<string, string> = {
   zwak: 'text-destructive',
 };
 
-export default function ReferentieObjectFormDialog({ open, onOpenChange, referentie }: Props) {
+export default function ReferentieObjectFormDialog({ open, onOpenChange, referentie, onSaved }: Props) {
   const store = useDataStore();
   const isEdit = !!referentie;
 
@@ -122,9 +124,12 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
       if (isEdit && referentie) {
         await store.updateReferentieObject(referentie.id, payload);
         toast.success('Referentieobject bijgewerkt');
+        const updated = { ...referentie, ...payload } as ReferentieObject;
+        onSaved?.(updated);
       } else {
-        await store.addReferentieObject(payload);
+        const nieuw = await store.addReferentieObject(payload);
         toast.success('Referentieobject toegevoegd');
+        if (nieuw) onSaved?.(nieuw);
       }
       onOpenChange(false);
     } catch (err: any) {
