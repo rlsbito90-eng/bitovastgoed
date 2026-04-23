@@ -147,6 +147,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
+  // UI-only toggle: "Ook bruikbaar als referentieobject"
+  // Wordt bewust niet in de database opgeslagen — dient als visuele hint
+  // én als trigger voor het kwaliteitsblok. Een echt referentieobject
+  // wordt apart aangemaakt via het Referentieobject-formulier.
+  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
 
   // Hydreer form bij open
   useEffect(() => {
@@ -159,6 +164,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       setGemaaktId(undefined);
     }
     setTab('algemeen');
+    setMarkeerAlsReferentie(false);
   }, [object, open]);
 
   // Genereer referentienummer automatisch voor nieuwe objecten
