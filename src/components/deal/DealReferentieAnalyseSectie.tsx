@@ -180,8 +180,8 @@ export default function DealReferentieAnalyseSectie({ dealId }: Props) {
             {beschikbaar.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
                 {store.referentieObjecten.length === 0
-                  ? 'Er zijn nog geen referentieobjecten. Maak er eerst een aan via de pagina Referentieobjecten.'
-                  : 'Geen beschikbare referentieobjecten.'}
+                  ? 'Er zijn nog geen referentieobjecten. Klik op "Nieuw" om er direct één aan te maken.'
+                  : 'Geen beschikbare referentieobjecten. Maak een nieuwe aan of wijzig je zoekopdracht.'}
               </p>
             ) : (
               beschikbaar.map(r => (
