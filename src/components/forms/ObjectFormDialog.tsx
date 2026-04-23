@@ -544,7 +544,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.huurinkomsten ?? ''}
                       onChange={e => set('huurinkomsten', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Huur per m² (€)">
+                  <Veld label={<>Huur per m² (€)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input type="number" step="0.01" value={form.huurPerM2 ?? ''}
                       onChange={e => set('huurPerM2', num(e.target.value))} />
                   </Veld>
@@ -593,7 +593,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="verhuur" className="space-y-5 mt-0">
               <Sectie titel="Verhuurstatus">
                 <div className="grid sm:grid-cols-3 gap-4">
-                  <Veld label="Status">
+                  <Veld label={<>Status<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.verhuurStatus}
@@ -632,7 +632,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="pand" className="space-y-5 mt-0">
               <Sectie titel="Oppervlakten (NEN 2580)">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Oppervlakte totaal (m²)">
+                  <Veld label={<>Oppervlakte totaal (m²)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.oppervlakte ?? ''}
                       onChange={e => set('oppervlakte', num(e.target.value))} />
                   </Veld>
@@ -648,7 +648,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     <Input type="number" value={form.oppervlakteGbo ?? ''}
                       onChange={e => set('oppervlakteGbo', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Perceeloppervlak (m²)">
+                  <Veld label={<>Perceeloppervlak (m²)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.perceelOppervlakte ?? ''}
                       onChange={e => set('perceelOppervlakte', num(e.target.value))} />
                   </Veld>
@@ -657,11 +657,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Bouw">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Bouwjaar">
+                  <Veld label={<>Bouwjaar<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input type="number" value={form.bouwjaar ?? ''}
                       onChange={e => set('bouwjaar', num(e.target.value))} />
                   </Veld>
-                  <Veld label="Energielabel">
+                  <Veld label={<>Energielabel<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.energielabelV2 ?? ''}
@@ -684,7 +684,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
               <Sectie titel="Onderhoud">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Onderhoudsstaat">
+                  <Veld label={<>Onderhoudsstaat<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.onderhoudsstaatNiveau ?? ''}
