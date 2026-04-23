@@ -71,12 +71,16 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
       setBouwjaar(String(referentie.bouwjaar ?? ''));
       setEnergielabel(referentie.energielabel ?? '');
       setHuurstatus(referentie.huurstatus ?? '');
+      setHuurMaand(referentie.huurprijsPerMaand != null ? String(referentie.huurprijsPerMaand) : '');
+      setHuurJaar(referentie.huurprijsPerJaar != null ? String(referentie.huurprijsPerJaar) : '');
       setBron(referentie.bron ?? '');
       setNotities(referentie.notities ?? '');
     } else {
       setAdres(''); setPostcode(''); setPlaats(''); setAssetClass('');
       setM2(''); setVraagprijs(''); setBouwjaar('');
-      setEnergielabel(''); setHuurstatus(''); setBron(''); setNotities('');
+      setEnergielabel(''); setHuurstatus('');
+      setHuurMaand(''); setHuurJaar('');
+      setBron(''); setNotities('');
     }
   }, [referentie, open]);
 
@@ -84,6 +88,27 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
   const vraagprijsNum = vraagprijs ? Number(vraagprijs) : undefined;
   const bouwjaarNum = bouwjaar ? Number(bouwjaar) : undefined;
   const prijsPerM2 = berekenPrijsPerM2(vraagprijsNum, m2Num);
+
+  const huurMaandNum = huurMaand ? Number(huurMaand) : undefined;
+  const huurJaarNum = huurJaar ? Number(huurJaar) : undefined;
+  const huurPerM2Maand = berekenHuurPerM2PerMaand(huurMaandNum, m2Num);
+  const huurPerM2Jaar = berekenHuurPerM2PerJaar(huurJaarNum, m2Num);
+
+  // Auto-aanvullen: maand <-> jaar (alleen invullen als de andere leeg is).
+  // Bewerkt rauwe string-state zodat de gebruiker waardes kan blijven aanpassen.
+  useEffect(() => {
+    if (huurMaand && !huurJaar) {
+      const v = Number(huurMaand);
+      if (!Number.isNaN(v) && v > 0) setHuurJaar(String(Math.round(v * 12)));
+    }
+  }, [huurMaand, huurJaar]);
+
+  useEffect(() => {
+    if (huurJaar && !huurMaand) {
+      const v = Number(huurJaar);
+      if (!Number.isNaN(v) && v > 0) setHuurMaand(String(Math.round(v / 12)));
+    }
+  }, [huurJaar, huurMaand]);
 
   const kwaliteit = useMemo(() => berekenReferentieKwaliteit({
     adres, postcode, plaats,
