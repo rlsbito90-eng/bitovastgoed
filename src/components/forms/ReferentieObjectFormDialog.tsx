@@ -13,6 +13,8 @@ import {
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   berekenPrijsPerM2,
+  berekenHuurPerM2PerJaar,
+  berekenHuurPerM2PerMaand,
   formatCurrency,
   type AssetClass,
   type Energielabel,
