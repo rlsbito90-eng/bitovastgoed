@@ -704,6 +704,16 @@ interface DataStore {
   deleteJaarDoel: (id: string) => Promise<void>;
   getJaarDoel: (jaar: number) => JaarDoel | undefined;
 
+  // Referentie-objecten
+  referentieObjecten: ReferentieObject[];
+  dealReferenties: DealReferentie[];
+  addReferentieObject: (r: Omit<ReferentieObject, 'id' | 'prijsPerM2'>) => Promise<ReferentieObject | null>;
+  updateReferentieObject: (id: string, r: Partial<ReferentieObject>) => Promise<void>;
+  deleteReferentieObject: (id: string) => Promise<void>;
+  koppelReferentieAanDeal: (dealId: string, referentieObjectId: string) => Promise<void>;
+  ontkoppelReferentieVanDeal: (koppelingId: string) => Promise<void>;
+  getReferentiesVoorDeal: (dealId: string) => ReferentieObject[];
+
   // RPC
   genereerRefnummer: () => Promise<string>;
 
