@@ -384,6 +384,34 @@ export interface Taak {
   softDeletedAt?: string;
 }
 
+// ---- REFERENTIE-OBJECTEN ----
+export interface ReferentieObject {
+  id: string;
+  adres: string;
+  postcode: string;
+  plaats: string;
+  assetClass: AssetClass;
+  m2: number;
+  vraagprijs: number;
+  /** Door DB berekend (generated stored). Optioneel, omdat client soms zonder werkt. */
+  prijsPerM2?: number;
+  bouwjaar: number;
+  energielabel?: Energielabel;
+  huurstatus?: VerhuurStatus;
+  huurprijsPerMaand?: number;
+  huurprijsPerJaar?: number;
+  bron?: string;
+  notities?: string;
+  softDeletedAt?: string;
+}
+
+export interface DealReferentie {
+  id: string;
+  dealId: string;
+  referentieObjectId: string;
+  notities?: string;
+}
+
 
 // =====================================================================
 // LABEL-MAPPINGEN (voor UI-weergave)
