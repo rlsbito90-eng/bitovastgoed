@@ -384,6 +384,34 @@ export interface Taak {
   softDeletedAt?: string;
 }
 
+// ---- REFERENTIE-OBJECTEN ----
+export interface ReferentieObject {
+  id: string;
+  adres: string;
+  postcode: string;
+  plaats: string;
+  assetClass: AssetClass;
+  m2: number;
+  vraagprijs: number;
+  /** Door DB berekend (generated stored). Optioneel, omdat client soms zonder werkt. */
+  prijsPerM2?: number;
+  bouwjaar: number;
+  energielabel?: Energielabel;
+  huurstatus?: VerhuurStatus;
+  huurprijsPerMaand?: number;
+  huurprijsPerJaar?: number;
+  bron?: string;
+  notities?: string;
+  softDeletedAt?: string;
+}
+
+export interface DealReferentie {
+  id: string;
+  dealId: string;
+  referentieObjectId: string;
+  notities?: string;
+}
+
 
 // =====================================================================
 // LABEL-MAPPINGEN (voor UI-weergave)
@@ -833,4 +861,138 @@ export function getRecenteSuccessen(deals: Deal[], limit = 5): Deal[] {
       return dB.localeCompare(dA);
     })
     .slice(0, limit);
+}
+
+
+// =====================================================================
+// REFERENTIE-OBJECT KWALITEIT
+// =====================================================================
+// Heuristische scoring zodat een gebruiker direct ziet of een object goed
+// bruikbaar is als referentie. Berekent ook welke velden ontbreken.
+
+export type ReferentieKwaliteit = 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak';
+
+export const REFERENTIE_KWALITEIT_LABELS: Record<ReferentieKwaliteit, string> = {
+  zeer_sterk: 'Zeer sterke referentie',
+  goed: 'Goede referentie',
+  bruikbaar: 'Bruikbare referentie',
+  zwak: 'Zwakke referentie',
+};
+
+export interface ReferentieKwaliteitResultaat {
+  qualityScore: number;        // 0-100
+  completenessPct: number;     // 0-100
+  kwaliteit: ReferentieKwaliteit;
+  ontbrekendeAanbevolen: string[];
+  ontbrekendeNuttig: string[];
+}
+
+// Bereken eenheidsprijzen — utility, ook gebruikt in form-display.
+export function berekenPrijsPerM2(prijs?: number, m2?: number): number | undefined {
+  if (!prijs || !m2 || m2 <= 0) return undefined;
+  return prijs / m2;
+}
+export function berekenHuurPerM2PerMaand(huurMaand?: number, m2?: number): number | undefined {
+  if (!huurMaand || !m2 || m2 <= 0) return undefined;
+  return huurMaand / m2;
+}
+export function berekenHuurPerM2PerJaar(huurJaar?: number, m2?: number): number | undefined {
+  if (!huurJaar || !m2 || m2 <= 0) return undefined;
+  return huurJaar / m2;
+}
+
+interface ReferentieKwaliteitInput {
+  adres?: string;
+  postcode?: string;
+  plaats?: string;
+  assetClass?: AssetClass;
+  m2?: number;
+  vraagprijs?: number;
+  bouwjaar?: number;
+  energielabel?: Energielabel;
+  huurstatus?: VerhuurStatus;
+  bron?: string;
+}
+
+// Sterk aanbevolen (heavy) en nuttig (light) velden.
+const REF_AANBEVOLEN: { key: keyof ReferentieKwaliteitInput; label: string; weight: number }[] = [
+  { key: 'adres',      label: 'adres',       weight: 14 },
+  { key: 'postcode',   label: 'postcode',    weight: 14 },
+  { key: 'plaats',     label: 'plaats',      weight: 12 },
+  { key: 'assetClass', label: 'asset class', weight: 14 },
+  { key: 'm2',         label: 'm²',          weight: 14 },
+  { key: 'vraagprijs', label: 'vraagprijs',  weight: 14 },
+  { key: 'bouwjaar',   label: 'bouwjaar',    weight: 8 },
+];
+const REF_NUTTIG: { key: keyof ReferentieKwaliteitInput; label: string; weight: number }[] = [
+  { key: 'energielabel', label: 'energielabel', weight: 4 },
+  { key: 'huurstatus',   label: 'huurstatus',   weight: 3 },
+  { key: 'bron',         label: 'bron',         weight: 3 },
+];
+
+function isIngevuld(v: unknown): boolean {
+  if (v == null) return false;
+  if (typeof v === 'string') return v.trim().length > 0;
+  if (typeof v === 'number') return !Number.isNaN(v) && v > 0;
+  return true;
+}
+
+export function berekenReferentieKwaliteit(input: ReferentieKwaliteitInput): ReferentieKwaliteitResultaat {
+  let score = 0;
+  const ontbrekendeAanbevolen: string[] = [];
+  const ontbrekendeNuttig: string[] = [];
+
+  for (const v of REF_AANBEVOLEN) {
+    if (isIngevuld(input[v.key])) score += v.weight;
+    else ontbrekendeAanbevolen.push(v.label);
+  }
+  for (const v of REF_NUTTIG) {
+    if (isIngevuld(input[v.key])) score += v.weight;
+    else ontbrekendeNuttig.push(v.label);
+  }
+
+  const totaalGewicht = [...REF_AANBEVOLEN, ...REF_NUTTIG].reduce((a, b) => a + b.weight, 0);
+  const qualityScore = Math.round((score / totaalGewicht) * 100);
+
+  const totaalVelden = REF_AANBEVOLEN.length + REF_NUTTIG.length;
+  const ingevuld = totaalVelden - ontbrekendeAanbevolen.length - ontbrekendeNuttig.length;
+  const completenessPct = Math.round((ingevuld / totaalVelden) * 100);
+
+  const kwaliteit: ReferentieKwaliteit =
+    qualityScore >= 90 ? 'zeer_sterk'
+    : qualityScore >= 75 ? 'goed'
+    : qualityScore >= 60 ? 'bruikbaar'
+    : 'zwak';
+
+  return { qualityScore, completenessPct, kwaliteit, ontbrekendeAanbevolen, ontbrekendeNuttig };
+}
+
+// Variant op ObjectVastgoed-vorm (gewone objecten / dealobjecten).
+export function berekenObjectReferentieKwaliteit(input: {
+  adres?: string;
+  postcode?: string;
+  plaats?: string;
+  type?: AssetClass;
+  oppervlakte?: number;
+  vraagprijs?: number;
+  bouwjaar?: number;
+  energielabelV2?: Energielabel;
+  verhuurStatus?: VerhuurStatus;
+  bron?: string;
+  perceelOppervlakte?: number;
+  onderhoudsstaatNiveau?: OnderhoudsstaatNiveau;
+  huurPerM2?: number;
+}): ReferentieKwaliteitResultaat {
+  return berekenReferentieKwaliteit({
+    adres: input.adres,
+    postcode: input.postcode,
+    plaats: input.plaats,
+    assetClass: input.type,
+    m2: input.oppervlakte,
+    vraagprijs: input.vraagprijs,
+    bouwjaar: input.bouwjaar,
+    energielabel: input.energielabelV2,
+    huurstatus: input.verhuurStatus,
+    bron: input.bron,
+  });
 }
