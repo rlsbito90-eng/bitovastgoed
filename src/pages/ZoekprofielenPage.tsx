@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency } from '@/data/mock-data';
+import { formatCurrency, ASSET_CLASS_LABELS } from '@/data/mock-data';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,9 @@ export default function ZoekprofielenPage() {
 
   const filtered = zoekprofielen.filter(z => {
     const rel = getRelatieById(z.relatieId);
-    return !zoek || z.naam.toLowerCase().includes(zoek.toLowerCase()) || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
+    return !zoek
+      || z.naam.toLowerCase().includes(zoek.toLowerCase())
+      || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
   });
 
   const openNieuw = () => { setEditing(null); setFormOpen(true); };
@@ -68,47 +70,85 @@ export default function ZoekprofielenPage() {
           const rel = getRelatieById(zp.relatieId);
           const isActief = zp.status === 'actief';
           return (
-            <div key={zp.id} className="section-card p-5 flex flex-col gap-3.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{zp.naam}</p>
-                  <Link to={`/relaties/${zp.relatieId}`} className="text-xs text-accent hover:underline truncate inline-block max-w-full">{rel?.bedrijfsnaam}</Link>
+            <div key={zp.id} className="section-card p-5 flex flex-col gap-3.5 min-w-0">
+              {/* Header: titel mag wrappen, status-badge blijft compact rechts */}
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <div className="min-w-0 flex-1">
+                  {/* break-words ipv truncate — zo wrapt lange titel netjes */}
+                  <p className="text-sm font-semibold text-foreground break-words leading-snug">
+                    {zp.naam}
+                  </p>
+                  {rel && (
+                    <Link
+                      to={`/relaties/${zp.relatieId}`}
+                      className="text-xs text-accent hover:underline break-words inline-block max-w-full mt-0.5"
+                    >
+                      {rel.bedrijfsnaam}
+                    </Link>
+                  )}
                 </div>
-                <span className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium border rounded-full ${
-                  isActief ? 'bg-success/10 text-success border-success/25' : 'bg-muted/60 text-muted-foreground border-border'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isActief ? 'bg-success' : 'bg-muted-foreground/50'}`} />
-                  {zp.status}
-                </span>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium border rounded-full ${
+                    isActief
+                      ? 'bg-success/10 text-success border-success/25'
+                      : 'bg-muted/60 text-muted-foreground border-border'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${isActief ? 'bg-success' : 'bg-muted-foreground/50'}`} />
+                    {zp.status}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono-data">
+                    P{zp.prioriteit}
+                  </span>
+                </div>
               </div>
 
+              {/* Asset class chips - met leesbare labels */}
               <div className="flex flex-wrap gap-1.5">
                 {zp.typeVastgoed.map(t => (
-                  <Badge key={t} variant="secondary" className="text-[11px] capitalize bg-secondary/15 text-foreground border border-secondary/25 hover:bg-secondary/15">{t}</Badge>
+                  <Badge
+                    key={t}
+                    variant="secondary"
+                    className="text-[11px] bg-secondary/15 text-foreground border border-secondary/25 hover:bg-secondary/15"
+                  >
+                    {ASSET_CLASS_LABELS[t]}
+                  </Badge>
                 ))}
               </div>
 
+              {/* Details */}
               <div className="text-xs space-y-1.5 hairline pt-3">
                 <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Regio</span>
-                  <span className="text-foreground text-right truncate">{zp.regio.join(', ') || '—'}</span>
+                  <span className="text-muted-foreground shrink-0">Regio</span>
+                  <span className="text-foreground text-right break-words min-w-0">{zp.regio.join(', ') || '—'}</span>
                 </div>
                 {zp.prijsMax && (
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">Budget</span>
-                    <span className="text-foreground font-mono-data">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</span>
+                    <span className="text-muted-foreground shrink-0">Budget</span>
+                    <span className="text-foreground font-mono-data text-right">{formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}</span>
                   </div>
                 )}
                 {zp.oppervlakteMin && (
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">Min. opp.</span>
-                    <span className="text-foreground font-mono-data">{zp.oppervlakteMin.toLocaleString('nl-NL')} m²</span>
+                    <span className="text-muted-foreground shrink-0">Min. opp.</span>
+                    <span className="text-foreground font-mono-data text-right">{zp.oppervlakteMin.toLocaleString('nl-NL')} m²</span>
                   </div>
                 )}
                 {zp.rendementseis && (
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">Rendement</span>
-                    <span className="text-foreground font-mono-data">≥ {zp.rendementseis}%</span>
+                    <span className="text-muted-foreground shrink-0">Rendement</span>
+                    <span className="text-foreground font-mono-data text-right">≥ {zp.rendementseis}%</span>
+                  </div>
+                )}
+                {zp.energielabelMin && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">Energielabel min.</span>
+                    <span className="text-foreground font-semibold text-right">{zp.energielabelMin}</span>
+                  </div>
+                )}
+                {zp.waltMin != null && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">WALT min.</span>
+                    <span className="text-foreground font-mono-data text-right">{zp.waltMin} jr</span>
                   </div>
                 )}
               </div>

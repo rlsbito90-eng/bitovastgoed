@@ -548,6 +548,21 @@ export const formatM2 = (n?: number): string => {
   return `${n.toLocaleString('nl-NL')} m²`;
 };
 
+// €/m² formatter — voor prijs/m², huur/m² en bod/m². Gebruikt nl-NL formatting.
+// Geeft '—' terug als berekening onmogelijk is (ontbrekend bedrag of m²).
+export const formatEurPerM2 = (eur?: number, m2?: number, perJaar = false): string => {
+  if (!eur || !m2 || m2 <= 0) return '—';
+  const v = eur / m2;
+  const rounded = v >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
+  return `€${rounded.toLocaleString('nl-NL')}/m²${perJaar ? '/jr' : ''}`;
+};
+
+// Berekent €/m² als getal. Geeft `null` terug als onmogelijk te berekenen.
+export const eurPerM2 = (eur?: number, m2?: number): number | null => {
+  if (!eur || !m2 || m2 <= 0) return null;
+  return eur / m2;
+};
+
 
 // =====================================================================
 // MATCHING ENGINE

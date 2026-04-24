@@ -9,6 +9,8 @@ import {
   formatDate,
   formatM2,
   formatPercent,
+  formatEurPerM2,
+  eurPerM2,
   ASSET_CLASS_LABELS,
   ONDERHOUDSSTAAT_LABELS,
   VERKOPER_VIA_LABELS,
@@ -87,10 +89,15 @@ export default function ObjectDetailPage() {
     ?? (object.huurinkomsten && object.vraagprijs
       ? (object.huurinkomsten / object.vraagprijs) * 100
       : null);
-  const huurPerM2 = object.huurPerM2
-    ?? (object.huurinkomsten && object.oppervlakte
-      ? Math.round(object.huurinkomsten / object.oppervlakte)
-      : null);
+
+  // €/m² berekeningen — gebruik VVO indien beschikbaar, anders totale opp.
+  const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
+  const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
+  const huurPerM2Berekend = object.huurPerM2
+    ?? eurPerM2(object.huurinkomsten, m2VoorBerekening);
+  const huurPerM2Str = huurPerM2Berekend != null
+    ? `€${Math.round(huurPerM2Berekend).toLocaleString('nl-NL')}/m²/jr`
+    : '—';
 
   const handleDelete = async () => {
     try {
@@ -191,10 +198,24 @@ export default function ObjectDetailPage() {
       {/* KEY STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
+        <StatTile label="Vraagprijs / m²" value={prijsPerM2Str} />
         <StatTile label="Oppervlakte" value={object.oppervlakte ? formatM2(object.oppervlakte) : '—'} />
         <StatTile label="BAR" value={barEffect != null ? formatPercent(barEffect, 2) : '—'} />
-        <StatTile label="Huur / m²" value={huurPerM2 ? `€${huurPerM2}` : '—'} />
       </div>
+
+      {/* Huur stats apart als er huurinkomsten of huur/m² zijn */}
+      {(object.huurinkomsten || huurPerM2Berekend != null) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+          <StatTile label="Huurinkomsten / jr" value={formatCurrency(object.huurinkomsten)} />
+          <StatTile label="Huur / m² / jr" value={huurPerM2Str} />
+          {object.noi != null && (
+            <StatTile label="NOI / jr" value={formatCurrency(object.noi)} />
+          )}
+          {object.nettoAanvangsrendement != null && (
+            <StatTile label="NAR" value={formatPercent(object.nettoAanvangsrendement, 2)} />
+          )}
+        </div>
+      )}
 
       {/* WALT/WALB als er huurders zijn */}
       {huurMetrics && huurMetrics.aantalHuurders > 0 && (

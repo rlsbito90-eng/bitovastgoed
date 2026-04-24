@@ -5,6 +5,7 @@ import {
   formatCurrency,
   formatCurrencyCompact,
   formatDate,
+  formatEurPerM2,
   DEAL_FASE_LABELS,
   DD_STATUS_LABELS,
   FASE_KANS,
@@ -172,7 +173,29 @@ export default function DealDetailPage() {
               )}
               {deal.indicatiefBod != null && (
                 <Field label="Indicatief bod">
-                  <span className="font-mono-data">{formatCurrency(deal.indicatiefBod)}</span>
+                  <div className="space-y-0.5">
+                    <span className="font-mono-data">{formatCurrency(deal.indicatiefBod)}</span>
+                    {object && (
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {(object.oppervlakteVvo ?? object.oppervlakte) && (
+                          <p>
+                            Bod / m²:{' '}
+                            <span className="font-mono-data">
+                              {formatEurPerM2(deal.indicatiefBod, object.oppervlakteVvo ?? object.oppervlakte)}
+                            </span>
+                          </p>
+                        )}
+                        {object.vraagprijs && (
+                          <p>
+                            <span className="font-mono-data">
+                              {Math.round((deal.indicatiefBod / object.vraagprijs - 1) * 100)}%
+                            </span>{' '}
+                            t.o.v. vraagprijs ({formatCurrency(object.vraagprijs)})
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Field>
               )}
             </div>
