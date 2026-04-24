@@ -5,11 +5,11 @@ import {
   BarChart3, Menu, X, LogOut, Shield, Library,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import MatchAlertBadge from '@/components/MatchAlertBadge';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -64,14 +64,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-background">
+    // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
+    <div className="flex h-screen bg-background overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-        <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0">
+        <Link
+          to="/"
+          className="h-16 flex items-center px-5 border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors"
+        >
           <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
           <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
           <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
-        </div>
+        </Link>
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = item.path === '/'
@@ -99,30 +103,43 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* Main column */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
+        {/* Mobile Header */}
         <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-30">
-          <div className="flex items-center">
+          <Link to="/" className="flex items-center -ml-1 px-2 py-1 rounded-md hover:bg-muted transition-colors">
             <span className="text-lg font-semibold text-foreground">Bito</span>
             <span className="text-lg font-light text-muted-foreground ml-1">Vastgoed</span>
+          </Link>
+          <div className="flex items-center gap-1">
+            <MatchAlertBadge />
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="p-2 -mr-2 rounded-md hover:bg-muted text-foreground"
+              aria-label={mobileOpen ? 'Menu sluiten' : 'Menu openen'}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 -mr-2 rounded-md hover:bg-muted text-foreground"
-            aria-label={mobileOpen ? 'Menu sluiten' : 'Menu openen'}
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+        </header>
+
+        {/* Desktop topbar — toont alleen match-badge; sidebar verzorgt navigatie */}
+        <header className="hidden lg:flex items-center justify-end h-12 px-6 border-b border-border bg-card">
+          <MatchAlertBadge />
         </header>
 
         {/* Mobile Nav Overlay */}
         {mobileOpen && (
           <div className="lg:hidden fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
             <div className="fixed left-0 top-0 bottom-0 w-72 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="mb-6 flex items-center">
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                className="mb-6 flex items-center -mx-2 px-2 py-1 rounded-md hover:bg-sidebar-accent"
+              >
                 <span className="text-lg font-semibold text-sidebar-foreground">Bito</span>
                 <span className="text-lg font-light text-sidebar-foreground/60 ml-1">Vastgoed</span>
-              </div>
+              </Link>
               <nav className="space-y-1 flex-1">
                 {navItems.map((item) => {
                   const isActive = item.path === '/'
@@ -152,8 +169,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
+        {/* Main content area — overflow-x-hidden voorkomt mobiele zijdelingse scroll */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
