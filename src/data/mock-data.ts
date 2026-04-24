@@ -248,6 +248,7 @@ export interface ObjectVastgoed {
   interneOpmerkingen?: string;
   opmerkingen?: string;
   datumToegevoegd: string;
+  updatedAt?: string;
   softDeletedAt?: string;
 }
 
@@ -327,6 +328,7 @@ export interface Zoekprofiel {
   prioriteit: number;
   aanvullendeCriteria?: string;
   status: ZoekprofielStatus;
+  updatedAt?: string;
 }
 
 export interface Deal {
@@ -548,8 +550,7 @@ export const formatM2 = (n?: number): string => {
   return `${n.toLocaleString('nl-NL')} m²`;
 };
 
-// €/m² formatter — voor prijs/m², huur/m² en bod/m². Gebruikt nl-NL formatting.
-// Geeft '—' terug als berekening onmogelijk is (ontbrekend bedrag of m²).
+// €/m² formatter - voor prijs/m², huur/m², bod/m²
 export const formatEurPerM2 = (eur?: number, m2?: number, perJaar = false): string => {
   if (!eur || !m2 || m2 <= 0) return '—';
   const v = eur / m2;
@@ -557,7 +558,8 @@ export const formatEurPerM2 = (eur?: number, m2?: number, perJaar = false): stri
   return `€${rounded.toLocaleString('nl-NL')}/m²${perJaar ? '/jr' : ''}`;
 };
 
-// Berekent €/m² als getal. Geeft `null` terug als onmogelijk te berekenen.
+// Berekent prijs/m² (capital deal); huur/m²/jr; bod/m². Geeft `null` als
+// onmogelijk te berekenen (ontbrekende waarde of ongeldige oppervlakte).
 export const eurPerM2 = (eur?: number, m2?: number): number | null => {
   if (!eur || !m2 || m2 <= 0) return null;
   return eur / m2;
@@ -831,212 +833,4 @@ export function getRecenteSuccessen(deals: Deal[], limit = 5): Deal[] {
       return dB.localeCompare(dA);
     })
     .slice(0, limit);
-}
-
-
-// =====================================================================
-// REFERENTIEOBJECTEN (MVP)
-// =====================================================================
-
-export interface ReferentieObject {
-  id: string;
-  adres: string;
-  postcode: string;
-  plaats: string;
-  assetClass: AssetClass;
-  m2: number;
-  vraagprijs: number;
-  prijsPerM2?: number;          // server-berekend (GENERATED)
-  bouwjaar: number;
-  energielabel?: Energielabel;
-  huurstatus?: VerhuurStatus;
-  bron?: string;
-  notities?: string;
-  // Huurinformatie (optioneel) — alleen voor Referentieobjecten
-  huurprijsPerMaand?: number;
-  huurprijsPerJaar?: number;
-  aangemaaktDoor?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-/** Huur per m² per jaar — afgeleid uit jaarhuur en m². */
-export function berekenHuurPerM2PerJaar(jaarhuur?: number, m2?: number): number | undefined {
-  if (jaarhuur == null || !m2 || m2 <= 0) return undefined;
-  return jaarhuur / m2;
-}
-
-/** Huur per m² per maand — afgeleid uit maandhuur en m². */
-export function berekenHuurPerM2PerMaand(maandhuur?: number, m2?: number): number | undefined {
-  if (maandhuur == null || !m2 || m2 <= 0) return undefined;
-  return maandhuur / m2;
-}
-
-export interface DealReferentie {
-  id: string;
-  dealId: string;
-  referentieObjectId: string;
-  notities?: string;
-}
-
-export type ReferentieKwaliteit = 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak';
-
-export const REFERENTIE_KWALITEIT_LABELS: Record<ReferentieKwaliteit, string> = {
-  zeer_sterk: 'Zeer sterk',
-  goed: 'Goed',
-  bruikbaar: 'Bruikbaar',
-  zwak: 'Zwak',
-};
-
-export interface ReferentieKwaliteitResult {
-  completenessPct: number;        // % van álle (verplichte + aanbevolen) velden
-  qualityScore: number;           // 0-100
-  kwaliteit: ReferentieKwaliteit;
-  ontbrekendeAanbevolen: string[];
-  ontbrekendeNuttig: string[];
-}
-
-// Velden ** = sterk aanbevolen (zwaarder gewicht)
-const VERPLICHT_PLUS_VELDEN: { key: keyof ReferentieObject; label: string; gewicht: number }[] = [
-  { key: 'adres',       label: 'Adres',        gewicht: 12 },
-  { key: 'postcode',    label: 'Postcode',     gewicht: 10 },
-  { key: 'plaats',      label: 'Plaats',       gewicht: 10 },
-  { key: 'assetClass',  label: 'Asset class',  gewicht: 10 },
-  { key: 'm2',          label: 'm²',           gewicht: 12 },
-  { key: 'vraagprijs',  label: 'Vraagprijs',   gewicht: 12 },
-  { key: 'bouwjaar',    label: 'Bouwjaar',     gewicht: 10 },
-];
-
-// Velden * = nuttig (lichter gewicht)
-const NUTTIGE_VELDEN: { key: keyof ReferentieObject; label: string; gewicht: number }[] = [
-  { key: 'energielabel', label: 'Energielabel', gewicht: 8 },
-  { key: 'huurstatus',   label: 'Huurstatus',   gewicht: 8 },
-  { key: 'bron',         label: 'Bron',         gewicht: 8 },
-];
-
-function isLeeg(value: unknown): boolean {
-  if (value == null) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  if (typeof value === 'number') return Number.isNaN(value);
-  return false;
-}
-
-export function berekenReferentieKwaliteit(
-  obj: Partial<ReferentieObject>,
-): ReferentieKwaliteitResult {
-  let totaalGewicht = 0;
-  let behaaldGewicht = 0;
-  const ontbrekendeAanbevolen: string[] = [];
-  const ontbrekendeNuttig: string[] = [];
-
-  for (const veld of VERPLICHT_PLUS_VELDEN) {
-    totaalGewicht += veld.gewicht;
-    if (isLeeg(obj[veld.key])) {
-      ontbrekendeAanbevolen.push(veld.label);
-    } else {
-      behaaldGewicht += veld.gewicht;
-    }
-  }
-  for (const veld of NUTTIGE_VELDEN) {
-    totaalGewicht += veld.gewicht;
-    if (isLeeg(obj[veld.key])) {
-      ontbrekendeNuttig.push(veld.label);
-    } else {
-      behaaldGewicht += veld.gewicht;
-    }
-  }
-
-  const alleVelden = VERPLICHT_PLUS_VELDEN.length + NUTTIGE_VELDEN.length;
-  const ingevuld = alleVelden -
-    (ontbrekendeAanbevolen.length + ontbrekendeNuttig.length);
-  const completenessPct = Math.round((ingevuld / alleVelden) * 100);
-  const qualityScore = Math.round((behaaldGewicht / totaalGewicht) * 100);
-
-  let kwaliteit: ReferentieKwaliteit;
-  if (qualityScore >= 90) kwaliteit = 'zeer_sterk';
-  else if (qualityScore >= 75) kwaliteit = 'goed';
-  else if (qualityScore >= 60) kwaliteit = 'bruikbaar';
-  else kwaliteit = 'zwak';
-
-  return { completenessPct, qualityScore, kwaliteit, ontbrekendeAanbevolen, ontbrekendeNuttig };
-}
-
-export function berekenPrijsPerM2(vraagprijs?: number, m2?: number): number | undefined {
-  if (vraagprijs == null || !m2 || m2 <= 0) return undefined;
-  return vraagprijs / m2;
-}
-
-// =====================================================================
-// Referentiekwaliteit voor gewone Objecten
-// (zelfde principe, maar gemapt op de velden die in een ObjectVastgoed
-// beschikbaar zijn — zodat een dealobject ook beoordeeld kan worden op
-// hoe bruikbaar het later is als referentieobject).
-// =====================================================================
-
-interface ObjectRefInput {
-  adres?: string;
-  postcode?: string;
-  plaats?: string;
-  type?: AssetClass;
-  oppervlakte?: number;          // m²
-  vraagprijs?: number;
-  bouwjaar?: number;
-  energielabelV2?: Energielabel;
-  verhuurStatus?: VerhuurStatus;
-  bron?: string;
-  perceelOppervlakte?: number;
-  onderhoudsstaatNiveau?: OnderhoudsstaatNiveau;
-  huurPerM2?: number;
-}
-
-const OBJECT_REF_VERPLICHT: { key: keyof ObjectRefInput; label: string; gewicht: number }[] = [
-  { key: 'adres',        label: 'Adres',                gewicht: 11 },
-  { key: 'postcode',     label: 'Postcode',             gewicht: 9 },
-  { key: 'plaats',       label: 'Plaats',               gewicht: 9 },
-  { key: 'type',         label: 'Asset class',          gewicht: 9 },
-  { key: 'oppervlakte',  label: 'Oppervlakte (m²)',     gewicht: 11 },
-  { key: 'vraagprijs',   label: 'Vraagprijs',           gewicht: 11 },
-  { key: 'bouwjaar',     label: 'Bouwjaar',             gewicht: 9 },
-];
-
-const OBJECT_REF_NUTTIG: { key: keyof ObjectRefInput; label: string; gewicht: number }[] = [
-  { key: 'energielabelV2',         label: 'Energielabel',        gewicht: 5 },
-  { key: 'verhuurStatus',          label: 'Huurstatus',          gewicht: 5 },
-  { key: 'bron',                   label: 'Bron',                gewicht: 5 },
-  { key: 'perceelOppervlakte',     label: 'Perceeloppervlak',    gewicht: 4 },
-  { key: 'onderhoudsstaatNiveau',  label: 'Staat / onderhoud',   gewicht: 4 },
-  { key: 'huurPerM2',              label: 'Huurprijs (€/m²)',    gewicht: 3 },
-];
-
-export function berekenObjectReferentieKwaliteit(
-  obj: ObjectRefInput,
-): ReferentieKwaliteitResult {
-  let totaalGewicht = 0;
-  let behaaldGewicht = 0;
-  const ontbrekendeAanbevolen: string[] = [];
-  const ontbrekendeNuttig: string[] = [];
-
-  for (const veld of OBJECT_REF_VERPLICHT) {
-    totaalGewicht += veld.gewicht;
-    if (isLeeg(obj[veld.key])) ontbrekendeAanbevolen.push(veld.label);
-    else behaaldGewicht += veld.gewicht;
-  }
-  for (const veld of OBJECT_REF_NUTTIG) {
-    totaalGewicht += veld.gewicht;
-    if (isLeeg(obj[veld.key])) ontbrekendeNuttig.push(veld.label);
-    else behaaldGewicht += veld.gewicht;
-  }
-
-  const alleVelden = OBJECT_REF_VERPLICHT.length + OBJECT_REF_NUTTIG.length;
-  const ingevuld = alleVelden - (ontbrekendeAanbevolen.length + ontbrekendeNuttig.length);
-  const completenessPct = Math.round((ingevuld / alleVelden) * 100);
-  const qualityScore = Math.round((behaaldGewicht / totaalGewicht) * 100);
-
-  let kwaliteit: ReferentieKwaliteit;
-  if (qualityScore >= 90) kwaliteit = 'zeer_sterk';
-  else if (qualityScore >= 75) kwaliteit = 'goed';
-  else if (qualityScore >= 60) kwaliteit = 'bruikbaar';
-  else kwaliteit = 'zwak';
-
-  return { completenessPct, qualityScore, kwaliteit, ontbrekendeAanbevolen, ontbrekendeNuttig };
 }

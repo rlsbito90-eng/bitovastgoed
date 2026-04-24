@@ -92,6 +92,9 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
 
+  // Hydreer form bij open. Dependency op `relatie?.id` (stabiel) ipv het hele
+  // relatie-object om te voorkomen dat de form geherset wordt bij elke parent
+  // re-render. Dit voorkomt dat in-progress edits verdwijnen.
   useEffect(() => {
     if (relatie) {
       const { id, laatsteContact, softDeletedAt, contactpersoon, ...rest } = relatie;
@@ -102,7 +105,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
       setGemaaktId(undefined);
     }
     setTab('algemeen');
-  }, [relatie, open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relatie?.id, open]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));

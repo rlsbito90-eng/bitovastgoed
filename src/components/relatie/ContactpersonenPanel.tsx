@@ -50,6 +50,8 @@ export default function ContactpersonenPanel({ relatieId }: Props) {
     if (!confirm('Contactpersoon verwijderen?')) return;
     try {
       await store.deleteContactpersoon(id);
+      // Verse data uit DB ophalen voor zekerheid (voorkomt stale state)
+      await store.refresh();
       toast.success('Contactpersoon verwijderd');
     } catch (err: any) {
       toast.error(err.message ?? 'Verwijderen mislukt');
@@ -64,6 +66,7 @@ export default function ContactpersonenPanel({ relatieId }: Props) {
         await store.updateContactpersoon(a.id, { isPrimair: false });
       }
       await store.updateContactpersoon(id, { isPrimair: true });
+      await store.refresh();
       toast.success('Primaire contactpersoon gewijzigd');
     } catch (err: any) {
       toast.error(err.message ?? 'Wijzigen mislukt');
@@ -195,6 +198,7 @@ function ContactpersoonInlineForm({
     try {
       if (isEdit && contact) {
         await store.updateContactpersoon(contact.id, form);
+        await store.refresh();
         toast.success('Contactpersoon bijgewerkt');
       } else {
         // Bij toevoegen: als deze primair wordt, anderen op false zetten
@@ -205,6 +209,7 @@ function ContactpersoonInlineForm({
           }
         }
         await store.addContactpersoon(form);
+        await store.refresh();
         toast.success('Contactpersoon toegevoegd');
       }
       onClose();
