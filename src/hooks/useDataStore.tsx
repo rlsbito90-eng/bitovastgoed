@@ -24,6 +24,8 @@ import type {
   KandidaatStatus,
   AssetClass,
   JaarDoel,
+  ReferentieObject,
+  DealReferentie,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
