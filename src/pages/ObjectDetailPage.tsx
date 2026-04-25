@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { getSignedUrls, getSignedUrl, formatFileSize } from '@/lib/storage';
+import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -174,6 +175,7 @@ export default function ObjectDetailPage() {
             <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
               <Pencil className="h-4 w-4" /> Bewerken
             </button>
+            <ObjectPdfButton object={object} />
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
