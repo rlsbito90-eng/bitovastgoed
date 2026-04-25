@@ -74,7 +74,7 @@ export default function TakenPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[40%] sm:max-w-none">
           <PrioriteitBadge prioriteit={taak.prioriteit} />
           {!isAfgerond && <TaakStatusBadge status={taak.status} />}
         </div>
