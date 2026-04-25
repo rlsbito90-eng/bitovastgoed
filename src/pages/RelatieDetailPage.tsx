@@ -85,26 +85,28 @@ export default function RelatieDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Relaties
       </Link>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between min-w-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2 flex-wrap">
+            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words min-w-0">
               {relatie.bedrijfsnaam}
             </h1>
-            <LeadStatusBadge status={relatie.leadStatus} />
-            {relatie.ndaGetekend && (
-              <span className="inline-flex items-center gap-1 text-xs bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full">
-                <ShieldCheck className="h-3 w-3" /> NDA getekend
-              </span>
-            )}
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              <LeadStatusBadge status={relatie.leadStatus} />
+              {relatie.ndaGetekend && (
+                <span className="inline-flex items-center gap-1 text-xs bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full">
+                  <ShieldCheck className="h-3 w-3" /> NDA getekend
+                </span>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5 capitalize">
+          <p className="text-sm text-muted-foreground mt-1.5 capitalize break-words">
             {relatie.type}
             {subtypeLabel && ` · ${subtypeLabel}`}
             {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 lg:shrink-0">
           {relatie.telefoon && (
             <a href={`tel:${relatie.telefoon}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
               <Phone className="h-4 w-4" /> Bel
