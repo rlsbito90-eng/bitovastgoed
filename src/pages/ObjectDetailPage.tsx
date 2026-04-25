@@ -41,9 +41,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function StatTile({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`relative section-card p-4 sm:p-5 overflow-hidden ${accent ? 'accent-rule' : ''}`}>
-      <p className="field-label">{label}</p>
-      <p className="text-xl lg:text-2xl font-semibold font-mono-data text-foreground mt-1.5 truncate">{value}</p>
+    <div className={`relative section-card p-4 sm:p-5 overflow-hidden min-w-0 ${accent ? 'accent-rule' : ''}`}>
+      <p className="field-label break-words">{label}</p>
+      <p className="text-lg sm:text-xl lg:text-2xl font-semibold font-mono-data text-foreground mt-1.5 break-words">{value}</p>
     </div>
   );
 }

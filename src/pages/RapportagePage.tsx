@@ -180,20 +180,20 @@ export default function RapportagePage() {
     : null;
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Rapportage</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+    <div className="page-shell">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">Rapportage</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 break-words sm:truncate">
             Commissie, conversie en momentum.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <label className="text-xs text-muted-foreground">Jaar</label>
           <select
             value={jaar}
             onChange={e => setJaar(parseInt(e.target.value))}
-            className="h-9 px-3 text-sm rounded-md border border-input bg-background"
+            className="h-9 px-3 text-sm rounded-md border border-input bg-card"
           >
             {beschikbareJaren.map(j => (
               <option key={j} value={j}>{j}</option>
@@ -493,13 +493,13 @@ function KPICard({
   accent?: boolean;
 }) {
   return (
-    <div className={`bg-card border ${accent ? 'border-accent/30' : 'border-border'} rounded-lg p-4`}>
-      <div className="flex items-center gap-1.5">
-        <Icon className={`h-3.5 w-3.5 ${accent ? 'text-accent' : 'text-muted-foreground'}`} />
-        <p className="text-xs text-muted-foreground">{label}</p>
+    <div className={`bg-card border ${accent ? 'border-accent/30' : 'border-border'} rounded-lg p-4 min-w-0`}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${accent ? 'text-accent' : 'text-muted-foreground'}`} />
+        <p className="text-[11px] sm:text-xs text-muted-foreground break-words leading-tight">{label}</p>
       </div>
-      <p className="text-2xl font-semibold font-mono-data text-foreground mt-1.5">{value}</p>
-      <p className="text-[11px] text-muted-foreground mt-1 truncate">{subtext}</p>
+      <p className="text-xl sm:text-2xl font-semibold font-mono-data text-foreground mt-1.5 break-words">{value}</p>
+      <p className="text-[11px] text-muted-foreground mt-1 break-words sm:truncate">{subtext}</p>
     </div>
   );
 }
@@ -510,9 +510,9 @@ function Voortgangsbalk({
   const pct = Math.min(100, Math.round((gerealiseerd / doel) * 100));
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-1.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 mb-1.5">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xs font-mono-data text-foreground">
+        <span className="text-xs font-mono-data text-foreground break-all">
           {formatCurrencyCompact(gerealiseerd)} / {formatCurrencyCompact(doel)}
           <span className="text-muted-foreground ml-2">({pct}%)</span>
         </span>
