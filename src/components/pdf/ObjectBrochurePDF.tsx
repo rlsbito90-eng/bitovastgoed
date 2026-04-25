@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.page + 4,
     right: spacing.page,
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     fontWeight: 500,
     color: colors.accentLight,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   coverTitle: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 36,
     fontWeight: 700,
     color: colors.white,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   coverLocation: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 12,
     color: colors.accentLight,
     marginTop: spacing.md,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     paddingBottom: 64,
   },
   paragraph: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9.5,
     lineHeight: 1.6,
     color: colors.text,
@@ -141,14 +141,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   bulletDot: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9,
     color: colors.accent,
     marginRight: 6,
     lineHeight: 1.55,
   },
   bulletText: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9.5,
     color: colors.text,
     lineHeight: 1.55,
@@ -179,10 +179,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
-  huurderCellNaam: { flex: 2.5, fontFamily: 'Inter', fontSize: 9, color: colors.text },
-  huurderCellM2: { flex: 1, fontFamily: 'IBM Plex Mono', fontSize: 8.5, color: colors.text, textAlign: 'right' },
-  huurderCellHuur: { flex: 1.5, fontFamily: 'IBM Plex Mono', fontSize: 8.5, color: colors.text, textAlign: 'right' },
-  huurderCellEinde: { flex: 1.2, fontFamily: 'Inter', fontSize: 8.5, color: colors.textMuted, textAlign: 'right' },
+  huurderCellNaam: { flex: 2.5, fontFamily: 'Helvetica', fontSize: 9, color: colors.text },
+  huurderCellM2: { flex: 1, fontFamily: 'Courier', fontSize: 8.5, color: colors.text, textAlign: 'right' },
+  huurderCellHuur: { flex: 1.5, fontFamily: 'Courier', fontSize: 8.5, color: colors.text, textAlign: 'right' },
+  huurderCellEinde: { flex: 1.2, fontFamily: 'Helvetica', fontSize: 8.5, color: colors.textMuted, textAlign: 'right' },
   huurderHeader: {
     flexDirection: 'row',
     paddingVertical: spacing.sm,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary,
   },
   huurderHeaderCell: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7.5,
     fontWeight: 600,
     color: colors.primary,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.accent,
   },
   disclaimerText: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     color: colors.textMuted,
     lineHeight: 1.5,
@@ -325,11 +325,11 @@ export default function ObjectBrochurePDF({
               </View>
               <View style={[styles.coverFooterCol, { alignItems: 'flex-end' }]}>
                 <Text style={[typography.label, { color: colors.accentLight }]}>Datum</Text>
-                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 2, fontFamily: 'IBM Plex Mono' }]}>
+                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 2, fontFamily: 'Courier' }]}>
                   {datum}
                 </Text>
                 {object.internReferentienummer && (
-                  <Text style={[typography.body, { color: colors.accentLight, fontSize: 9, marginTop: 4, fontFamily: 'IBM Plex Mono' }]}>
+                  <Text style={[typography.body, { color: colors.accentLight, fontSize: 9, marginTop: 4, fontFamily: 'Courier' }]}>
                     {object.internReferentienummer}
                   </Text>
                 )}

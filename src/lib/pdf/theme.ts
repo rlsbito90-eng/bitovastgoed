@@ -60,7 +60,7 @@ export const spacing = {
 
 export const typography = StyleSheet.create({
   h1: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 28,
     fontWeight: 700,
     letterSpacing: -0.5,
@@ -68,7 +68,7 @@ export const typography = StyleSheet.create({
     lineHeight: 1.2,
   },
   h1OnDark: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 32,
     fontWeight: 700,
     letterSpacing: -0.5,
@@ -76,14 +76,14 @@ export const typography = StyleSheet.create({
     lineHeight: 1.2,
   },
   h2: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 18,
     fontWeight: 600,
     color: colors.primary,
     letterSpacing: -0.3,
   },
   h3: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 11,
     fontWeight: 600,
     color: colors.primary,
@@ -91,20 +91,20 @@ export const typography = StyleSheet.create({
     letterSpacing: 1.2,
   },
   body: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 10,
     fontWeight: 400,
     color: colors.text,
     lineHeight: 1.5,
   },
   bodySmall: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9,
     color: colors.textMuted,
     lineHeight: 1.4,
   },
   label: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     fontWeight: 500,
     color: colors.textMuted,
@@ -112,31 +112,31 @@ export const typography = StyleSheet.create({
     letterSpacing: 0.8,
   },
   data: {
-    fontFamily: 'IBM Plex Mono',
+    fontFamily: 'Courier',
     fontSize: 11,
     fontWeight: 500,
     color: colors.text,
   },
   dataLarge: {
-    fontFamily: 'IBM Plex Mono',
+    fontFamily: 'Courier',
     fontSize: 16,
     fontWeight: 600,
     color: colors.primary,
   },
   dataXL: {
-    fontFamily: 'IBM Plex Mono',
+    fontFamily: 'Courier',
     fontSize: 22,
     fontWeight: 600,
     color: colors.primary,
   },
   caption: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7,
     color: colors.textLight,
     letterSpacing: 0.4,
   },
   taglineDark: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 12,
     fontWeight: 400,
     fontStyle: 'italic',
@@ -154,7 +154,7 @@ export const pageStyles = StyleSheet.create({
   page: {
     backgroundColor: colors.white,
     padding: 0,
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 10,
     color: colors.text,
   },
@@ -162,7 +162,7 @@ export const pageStyles = StyleSheet.create({
   pageDark: {
     backgroundColor: colors.primary,
     padding: 0,
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 10,
     color: colors.white,
   },

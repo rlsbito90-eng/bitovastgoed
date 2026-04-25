@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.section,
   },
   topBlokLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     color: colors.accentLight,
     textTransform: 'uppercase',
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   topBlokTitel: {
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 22,
     fontWeight: 700,
     color: colors.white,
@@ -69,14 +69,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topBlokMetaLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7,
     color: colors.accentLight,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   topBlokMetaValue: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 10,
     fontWeight: 500,
     color: colors.white,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   faseLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7,
     color: colors.textMuted,
     textAlign: 'center',
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
 
   // === DISCLAIMER ===
   disclaimer: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7.5,
     color: colors.textLight,
     fontStyle: 'italic',
