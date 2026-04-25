@@ -47,12 +47,11 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
     () => store.getFotosVoorObject(object.id).sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0)),
     [store, object.id],
   );
-  const subcategorieen = store.subcategorieen;
+  const { labelFor } = useSubcategorieen();
   const subcategorieLabel = useMemo(() => {
     if (!object.subcategorie) return undefined;
-    const sub = subcategorieen.find(s => s.value === object.subcategorie);
-    return sub?.label;
-  }, [object.subcategorie, subcategorieen]);
+    return labelFor(object.subcategorie);
+  }, [object.subcategorie, labelFor]);
 
   // WALT/WALB/jaarhuur uit huurders
   const huurMetrics = useMemo(() => {
@@ -68,9 +67,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
       const huurJaren = h.einddatum
         ? Math.max(0, (new Date(h.einddatum).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 365))
         : null;
-      const breakJaren = h.breakOptieDatum
-        ? Math.max(0, (new Date(h.breakOptieDatum).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 365))
-        : huurJaren;
+      const breakJaren = huurJaren;
       const gewicht = h.jaarhuur ?? 0;
       if (huurJaren != null && gewicht > 0) {
         waltSum += huurJaren * gewicht;
@@ -98,15 +95,15 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
       if (includeFotos && fotos.length > 0) {
         // Hoofdfoto = eerste foto (laagste volgorde) of expliciet als hoofdfoto gemarkeerd
         const hoofd = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
-        if (hoofd?.bestandspad) {
-          hoofdfotoUrl = await downloadFotoUrl(hoofd.bestandspad);
+        if (hoofd?.storagePath) {
+          hoofdfotoUrl = await getSignedUrl(hoofd.storagePath, 60 * 30);
         }
         // Extra foto's (max 4) — alleen voor brochure
         if (type === 'brochure') {
           const extras = fotos.filter(f => f.id !== hoofd?.id).slice(0, 4);
-          extraFotoUrls = await Promise.all(
-            extras.map(f => downloadFotoUrl(f.bestandspad)),
-          );
+          extraFotoUrls = (await Promise.all(
+            extras.map(f => getSignedUrl(f.storagePath, 60 * 30)),
+          )).filter((u): u is string => !!u);
         }
       }
 
