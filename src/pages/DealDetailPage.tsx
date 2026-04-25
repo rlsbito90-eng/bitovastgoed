@@ -16,6 +16,7 @@ import {
   Building2, Landmark, Users as UsersIcon,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import DealPdfButton from '@/components/pdf/DealPdfButton';
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
 import DealReferentieAnalyseSectie from '@/components/deal/DealReferentieAnalyseSectie';
@@ -90,6 +91,9 @@ export default function DealDetailPage() {
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
+          {object && relatie && (
+            <DealPdfButton deal={deal} object={object} relatie={relatie} />
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
