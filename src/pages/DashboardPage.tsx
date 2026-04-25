@@ -139,14 +139,16 @@ export default function DashboardPage() {
             const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
             const isOverdue = new Date(taak.deadline) < vandaag;
             return (
-              <div key={taak.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
+              <div key={taak.id} className="px-5 py-3 row-with-action">
+                <div className="row-flex">
                   <p className="text-sm text-foreground truncate">{taak.titel}</p>
                   <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {relatie?.bedrijfsnaam ? `${relatie.bedrijfsnaam} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
                   </p>
                 </div>
-                <PrioriteitBadge prioriteit={taak.prioriteit} />
+                <div className="row-action">
+                  <PrioriteitBadge prioriteit={taak.prioriteit} />
+                </div>
               </div>
             );
           })}
@@ -160,14 +162,16 @@ export default function DashboardPage() {
         >
           {warmeRelaties.slice(0, 6).map(rel => (
             <Link key={rel.id} to={`/relaties/${rel.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
+              <div className="row-with-action">
+                <div className="row-flex">
                   <p className="text-sm text-foreground truncate">{rel.bedrijfsnaam}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {rel.contactpersoon} · {rel.volgendeActie || 'Geen actie gepland'}
                   </p>
                 </div>
-                <LeadStatusBadge status={rel.leadStatus} />
+                <div className="row-action">
+                  <LeadStatusBadge status={rel.leadStatus} />
+                </div>
               </div>
             </Link>
           ))}
@@ -184,14 +188,16 @@ export default function DashboardPage() {
             const object = store.getObjectById(deal.objectId);
             return (
               <Link key={deal.id} to={`/deals/${deal.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="row-with-action">
+                  <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{object?.titel}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {relatie?.bedrijfsnaam} · <span className="font-mono-data">{object?.vraagprijs ? formatCurrency(object.vraagprijs) : '—'}</span>
                     </p>
                   </div>
-                  <DealFaseBadge fase={deal.fase} />
+                  <div className="row-action">
+                    <DealFaseBadge fase={deal.fase} />
+                  </div>
                 </div>
               </Link>
             );
@@ -208,12 +214,14 @@ export default function DashboardPage() {
             const object = store.getObjectById(match.objectId);
             return (
               <Link key={i} to={`/objecten/${match.objectId}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="row-with-action">
+                  <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{object?.titel}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">→ {relatie?.bedrijfsnaam}</p>
                   </div>
-                  <MatchScoreBadge score={match.score} />
+                  <div className="row-action">
+                    <MatchScoreBadge score={match.score} />
+                  </div>
                 </div>
               </Link>
             );
@@ -229,14 +237,16 @@ export default function DashboardPage() {
           >
             {actieveObjecten.slice(0, 5).map(obj => (
               <Link key={obj.id} to={`/objecten/${obj.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="row-with-action">
+                  <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{obj.titel}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {obj.plaats} · <span className="font-mono-data">{formatCurrency(obj.vraagprijs)}</span>
                     </p>
                   </div>
-                  <ObjectStatusBadge status={obj.status} />
+                  <div className="row-action">
+                    <ObjectStatusBadge status={obj.status} />
+                  </div>
                 </div>
               </Link>
             ))}

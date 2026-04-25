@@ -351,6 +351,12 @@ export interface Deal {
   tegenpartijMakelaar?: string;
   afwijzingsreden?: string;
   notities?: string;
+  /**
+   * Toggle om de referentieanalyse-sectie op deze deal-detail te tonen.
+   * Default true (sectie zichtbaar). Aan/uit te zetten in DealFormDialog
+   * tab Basis. Bestaande deals krijgen `true` via DB-default.
+   */
+  referentieanalyseZichtbaar?: boolean;
   softDeletedAt?: string;
 }
 
@@ -995,4 +1001,95 @@ export function berekenObjectReferentieKwaliteit(input: {
     huurstatus: input.verhuurStatus,
     bron: input.bron,
   });
+}
+
+
+// =====================================================================
+// REFERENTIE AUTO-MATCHING
+// =====================================================================
+// Helper voor het vinden van vergelijkbare referentieobjecten voor een
+// gegeven object. Gebruikt voor auto-suggesties in de
+// DealReferentieAnalyseSectie (geen automatische koppeling — Ramysh
+// blijft in controle).
+//
+// Scoring:
+//   - Asset class match: VERPLICHT (anders score 0)
+//   - Plaats match: 50 punten
+//   - Bouwjaar binnen 15 jaar: tot 25 punten (lineair afnemend)
+//   - Oppervlakte binnen 50%: tot 25 punten (lineair afnemend)
+// Maximum: 100, weergegeven als "X% match".
+
+export interface ReferentieMatch {
+  referentie: ReferentieObject;
+  matchScore: number;          // 0-100
+  matchRedenen: string[];      // korte beschrijvingen voor UI
+}
+
+export interface ReferentieMatchInput {
+  type?: AssetClass;
+  plaats?: string;
+  bouwjaar?: number;
+  oppervlakte?: number;
+}
+
+export function vindVergelijkbareReferenties(
+  doel: ReferentieMatchInput,
+  alleReferenties: ReferentieObject[],
+  reedsGekoppelde: Set<string>,
+  drempel = 50,
+): ReferentieMatch[] {
+  if (!doel.type) return [];
+
+  const resultaten: ReferentieMatch[] = [];
+
+  for (const ref of alleReferenties) {
+    if (reedsGekoppelde.has(ref.id)) continue;
+    if (ref.assetClass !== doel.type) continue;
+
+    let score = 0;
+    const redenen: string[] = [`Zelfde type: ${ASSET_CLASS_LABELS[ref.assetClass]}`];
+
+    // Plaats match (50 punten)
+    if (doel.plaats && ref.plaats &&
+        doel.plaats.toLowerCase().trim() === ref.plaats.toLowerCase().trim()) {
+      score += 50;
+      redenen.push(`Zelfde plaats: ${ref.plaats}`);
+    } else if (doel.plaats && ref.plaats) {
+      // Plaats niet gelijk — geef geen punten maar laat de match bestaan
+      // (kan nog meetellen voor referentie-doeleinden in regio).
+      redenen.push(`Andere plaats: ${ref.plaats}`);
+    }
+
+    // Bouwjaar (max 25 punten, lineair afnemend over 15 jaar)
+    if (doel.bouwjaar && ref.bouwjaar) {
+      const verschil = Math.abs(doel.bouwjaar - ref.bouwjaar);
+      if (verschil <= 15) {
+        const punten = Math.round(25 * (1 - verschil / 15));
+        score += punten;
+        if (verschil <= 5) redenen.push(`Vergelijkbaar bouwjaar: ${ref.bouwjaar}`);
+        else redenen.push(`Bouwjaar ${ref.bouwjaar} (±${verschil} jr)`);
+      }
+    }
+
+    // Oppervlakte (max 25 punten, lineair afnemend over ±50%)
+    if (doel.oppervlakte && ref.m2 && doel.oppervlakte > 0 && ref.m2 > 0) {
+      const verhouding = Math.min(doel.oppervlakte, ref.m2) / Math.max(doel.oppervlakte, ref.m2);
+      if (verhouding >= 0.5) {
+        // verhouding 1.0 = 25 pt, verhouding 0.5 = 0 pt
+        const punten = Math.round(25 * ((verhouding - 0.5) / 0.5));
+        score += punten;
+        const pctVerschil = Math.round((1 - verhouding) * 100);
+        if (pctVerschil <= 10) redenen.push(`Vergelijkbare m² (${ref.m2.toLocaleString('nl-NL')})`);
+        else redenen.push(`${ref.m2.toLocaleString('nl-NL')} m² (Δ ${pctVerschil}%)`);
+      }
+    }
+
+    if (score >= drempel) {
+      resultaten.push({ referentie: ref, matchScore: score, matchRedenen: redenen });
+    }
+  }
+
+  // Sorteer aflopend op score
+  resultaten.sort((a, b) => b.matchScore - a.matchScore);
+  return resultaten;
 }

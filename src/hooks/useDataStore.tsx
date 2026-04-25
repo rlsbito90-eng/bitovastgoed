@@ -433,6 +433,8 @@ const dealFromDb = (d: any): Deal => ({
   tegenpartijMakelaar: d.tegenpartij_makelaar ?? undefined,
   afwijzingsreden: d.afwijzingsreden ?? undefined,
   notities: d.notities ?? undefined,
+  // Toggle voor referentieanalyse-sectie. Default true (aan).
+  referentieanalyseZichtbaar: d.referentieanalyse_zichtbaar !== false,
   softDeletedAt: d.soft_deleted_at ?? undefined,
 });
 
@@ -455,6 +457,7 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
   tegenpartij_makelaar: d.tegenpartijMakelaar !== undefined ? (d.tegenpartijMakelaar || null) : undefined,
   afwijzingsreden: d.afwijzingsreden !== undefined ? (d.afwijzingsreden || null) : undefined,
   notities: d.notities !== undefined ? (d.notities || null) : undefined,
+  referentieanalyse_zichtbaar: d.referentieanalyseZichtbaar,
 });
 
 const taakFromDb = (t: any): Taak => ({

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -69,52 +69,59 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     -webkit-font-smoothing: antialiased;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.02em;
     font-weight: 600;
+  }
+
+  /*
+    GLOBAL OVERFLOW PROTECTION
+    Voorkomt dat body of html zelf horizontaal scrollt door per ongeluk te
+    brede content (lange titels, getallen die out-of-bounds gaan, etc).
+    Werkt samen met overflow-x-hidden op AppLayout root.
+  */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
 @layer utilities {
   .font-mono-data {
-    font-family: "IBM Plex Mono", monospace;
+    font-family: 'IBM Plex Mono', monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
   }
 
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 
-  .slide-over-enter {
-    animation: slideOver 250ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .fade-in {
-    animation: fadeIn 200ms ease-out;
-  }
+  .slide-over-enter { animation: slideOver 250ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-in { animation: fadeIn 200ms ease-out; }
 
   /* Section card – consistent boutique container */
   .section-card {
     @apply bg-card border border-border rounded-lg shadow-[0_1px_0_0_hsl(var(--border)/0.6)];
   }
+  /*
+    .section-header
+    AANGEPAST voor mobile: title (links) + action-link (rechts) kunnen op
+    mobiel knel komen. We zorgen dat:
+    - de title kan wrappen of inkrimpen (min-w-0 + flex-1)
+    - de action-link niet inkrimpt en zijn ruimte houdt (shrink-0)
+  */
   .section-header {
     @apply px-5 py-4 border-b border-border flex items-center justify-between gap-3;
   }
   .section-title {
-    @apply text-sm font-semibold text-foreground tracking-tight;
+    @apply text-sm font-semibold text-foreground tracking-tight min-w-0;
   }
   .section-link {
-    @apply text-xs font-medium text-accent hover:text-accent/80 transition-colors;
+    @apply text-xs font-medium text-accent hover:text-accent/80 transition-colors shrink-0 whitespace-nowrap;
   }
 
   /* Subtle gold rule used on KPI cards */
@@ -124,10 +131,10 @@
 
   /* Page-level header pattern */
   .page-shell {
-    @apply px-5 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-6 lg:space-y-8 fade-in;
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-6 lg:space-y-8 fade-in;
   }
   .page-shell-narrow {
-    @apply px-5 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-5xl mx-auto space-y-6 lg:space-y-8 fade-in;
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-5xl mx-auto space-y-6 lg:space-y-8 fade-in;
   }
 
   /* Field label */
@@ -136,8 +143,45 @@
   }
 
   /* Subtle divider used inside cards */
-  .hairline {
-    @apply border-t border-border/70;
+  .hairline { @apply border-t border-border/70; }
+
+  /*
+    MOBILE OVERFLOW UTILITIES
+    Drie helpers die we toepassen op rij-componenten waar mobiele overflow
+    optreedt (titel + badge, titel + actie-link, etc).
+
+    Pattern: een rij heeft `.row-with-action` als wrapper, dan kan de
+    linker-content `.row-flex` (krimp toegestaan) en de rechter-content
+    `.row-action` (geen krimp, blijft zichtbaar).
+  */
+
+  /* Wrap een flex-rij waarin een action-element nooit afgekapt mag worden */
+  .row-with-action {
+    @apply flex items-start justify-between gap-3 min-w-0;
+  }
+
+  /* Linker-content (titel etc) — mag inkrimpen, mag wrappen */
+  .row-flex {
+    @apply min-w-0 flex-1;
+  }
+
+  /* Rechter-content (badge, link) — krimpt nooit, blijft zichtbaar */
+  .row-action {
+    @apply shrink-0;
+  }
+
+  /* Zachtere variant van truncate die op mobiel wrapt ipv afkapt */
+  .text-clamp-mobile {
+    @apply break-words sm:truncate;
+  }
+
+  /*
+    Status-badge mobile-friendly variant:
+    iets kleinere text op mobiel + kleinere padding zodat ze altijd passen.
+    Kan toegepast worden op StatusBadges componenten.
+  */
+  .badge-mobile {
+    @apply text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5;
   }
 }
 
@@ -153,12 +197,6 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
