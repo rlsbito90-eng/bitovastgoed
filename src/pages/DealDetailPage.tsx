@@ -75,21 +75,8 @@ export default function DealDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Deals
       </Link>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between min-w-0">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2 flex-wrap">
-            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words min-w-0">
-              {object?.titel || 'Deal'}
-            </h1>
-            <div className="pt-1">
-              <DealFaseBadge fase={deal.fase} />
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1.5 break-words">
-            {relatie?.bedrijfsnaam} · {object?.plaats}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 lg:shrink-0">
+      <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-wrap justify-end gap-2">
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
@@ -113,6 +100,17 @@ export default function DealDetailPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">
+            {object?.titel || 'Deal'}
+          </h1>
+          <div className="mt-2">
+            <DealFaseBadge fase={deal.fase} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-1.5 break-words">
+            {relatie?.bedrijfsnaam} · {object?.plaats}
+          </p>
         </div>
       </div>
 
