@@ -510,9 +510,9 @@ function Voortgangsbalk({
   const pct = Math.min(100, Math.round((gerealiseerd / doel) * 100));
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-1.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 mb-1.5">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xs font-mono-data text-foreground">
+        <span className="text-xs font-mono-data text-foreground break-all">
           {formatCurrencyCompact(gerealiseerd)} / {formatCurrencyCompact(doel)}
           <span className="text-muted-foreground ml-2">({pct}%)</span>
         </span>
