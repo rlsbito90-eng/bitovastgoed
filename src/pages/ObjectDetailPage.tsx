@@ -135,47 +135,8 @@ export default function ObjectDetailPage() {
             <img src={fotoUrls[hoofdfoto.storagePath]} alt="" className="w-full h-full object-cover" />
           </div>
         )}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between min-w-0">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-2 flex-wrap">
-              <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words min-w-0">{object.titel}</h1>
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <ObjectStatusBadge status={object.status} />
-                {object.exclusief && (
-                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border border-accent/30 text-accent rounded-full bg-accent/10">
-                    Exclusief
-                  </span>
-                )}
-                {object.anoniem && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    <EyeOff className="h-3 w-3" /> Anoniem
-                  </span>
-                )}
-                {object.isPortefeuille && (
-                  <span className="inline-flex items-center gap-1 text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                    <Building2 className="h-3 w-3" /> Portefeuille
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-1.5 flex-wrap">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="break-words">
-                {object.anoniem
-                  ? (object.publiekeRegio ?? `${object.provincie}`)
-                  : `${object.plaats}, ${object.provincie}`}
-              </span>
-              <span>·</span>
-              <span>{ASSET_CLASS_LABELS[object.type]}</span>
-              {subcatLabel && <span>· {subcatLabel}</span>}
-              {object.internReferentienummer && (
-                <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded ml-1">
-                  {object.internReferentienummer}
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 lg:shrink-0">
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex flex-wrap justify-end gap-2">
             <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
               <Pencil className="h-4 w-4" /> Bewerken
             </button>
@@ -197,6 +158,43 @@ export default function ObjectDetailPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">{object.titel}</h1>
+            <div className="flex items-center gap-2 flex-wrap mt-2">
+              <ObjectStatusBadge status={object.status} />
+              {object.exclusief && (
+                <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border border-accent/30 text-accent rounded-full bg-accent/10">
+                  Exclusief
+                </span>
+              )}
+              {object.anoniem && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  <EyeOff className="h-3 w-3" /> Anoniem
+                </span>
+              )}
+              {object.isPortefeuille && (
+                <span className="inline-flex items-center gap-1 text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                  <Building2 className="h-3 w-3" /> Portefeuille
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-1.5 flex-wrap">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="break-words">
+                {object.anoniem
+                  ? (object.publiekeRegio ?? `${object.provincie}`)
+                  : `${object.plaats}, ${object.provincie}`}
+              </span>
+              <span>·</span>
+              <span>{ASSET_CLASS_LABELS[object.type]}</span>
+              {subcatLabel && <span>· {subcatLabel}</span>}
+              {object.internReferentienummer && (
+                <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded ml-1">
+                  {object.internReferentienummer}
+                </span>
+              )}
+            </p>
           </div>
         </div>
       </div>
