@@ -54,6 +54,7 @@ const leegForm: FormState = {
   tegenpartijMakelaar: undefined,
   afwijzingsreden: undefined,
   notities: undefined,
+  referentieanalyseZichtbaar: true,  // default aan
 };
 
 
@@ -222,6 +223,22 @@ export default function DealFormDialog({
                     </div>
                   </Veld>
                 </div>
+
+                {/* Toggle: referentieanalyse-sectie zichtbaar op deal-detail */}
+                <label className="flex items-start gap-2 p-3 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.referentieanalyseZichtbaar !== false}
+                    onChange={e => set('referentieanalyseZichtbaar', e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input shrink-0 cursor-pointer accent-accent"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">Referentieanalyse tonen</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Toon marktwaarde-indicatie en gekoppelde referentieobjecten op de deal-detail pagina.
+                    </p>
+                  </div>
+                </label>
 
                 {isAfgerond && (
                   <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-md flex items-start gap-2">
