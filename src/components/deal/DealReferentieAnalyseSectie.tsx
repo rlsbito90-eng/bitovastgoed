@@ -334,3 +334,15 @@ export default function DealReferentieAnalyseSectie({ dealId, objectM2 }: Props)
     </section>
   );
 }
+{deal.referentieanalyseZichtbaar !== false && (
+  <DealReferentieAnalyseSectie
+    dealId={deal.id}
+    objectM2={object?.oppervlakte}
+    objectVoorMatching={object ? {
+      type: object.type,
+      plaats: object.plaats,
+      bouwjaar: object.bouwjaar,
+      oppervlakte: object.oppervlakte,
+    } : undefined}
+  />
+)}
