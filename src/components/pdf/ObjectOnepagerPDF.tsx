@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 70,
     left: spacing.page,
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     fontWeight: 500,
     color: colors.accent,
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     bottom: spacing.page - 8,
     left: spacing.page,
     right: spacing.page,
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times-Roman',
     fontSize: 26,
     fontWeight: 700,
     color: colors.white,
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paragraph: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9.5,
     lineHeight: 1.55,
     color: colors.text,
@@ -114,14 +114,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm - 1,
   },
   bulletDot: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9,
     color: colors.accent,
     marginRight: 6,
     lineHeight: 1.5,
   },
   bulletText: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 9.5,
     color: colors.text,
     lineHeight: 1.5,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF6EE',
   },
   marktwaardeLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 8,
     fontWeight: 500,
     color: colors.accent,
@@ -147,14 +147,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   marktwaardeValue: {
-    fontFamily: 'IBM Plex Mono',
+    fontFamily: 'Courier',
     fontSize: 18,
     fontWeight: 600,
     color: colors.primary,
     marginTop: 2,
   },
   marktwaardeNote: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7.5,
     color: colors.textMuted,
     marginTop: 3,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
 
   // === DISCLAIMER ===
   disclaimer: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 7,
     color: colors.textLight,
     marginTop: spacing.lg,
