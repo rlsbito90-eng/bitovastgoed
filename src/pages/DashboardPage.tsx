@@ -26,16 +26,16 @@ function KPICard({
         highlight ? 'accent-rule' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight break-words min-w-0">
           {label}
         </span>
-        <Icon className={`h-4 w-4 shrink-0 ${highlight ? 'text-accent' : 'text-muted-foreground/70'}`} />
+        <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${highlight ? 'text-accent' : 'text-muted-foreground/70'}`} />
       </div>
-      <p className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none truncate min-w-0">
+      <p className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none break-words min-w-0">
         {value}
       </p>
-      {hint && <p className="text-xs text-muted-foreground truncate">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>}
     </div>
   );
 }

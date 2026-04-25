@@ -20,7 +20,7 @@ export default function PageHeader({ title, subtitle, actions }: PageHeaderProps
           {title}
         </h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1.5 truncate">{subtitle}</p>
+          <p className="text-sm text-muted-foreground mt-1.5 break-words sm:truncate">{subtitle}</p>
         )}
       </div>
       {actions && (
