@@ -155,14 +155,17 @@
     `.row-action` (geen krimp, blijft zichtbaar).
   */
 
-  /* Wrap een flex-rij waarin een action-element nooit afgekapt mag worden */
+  /* Wrap een flex-rij waarin een action-element nooit afgekapt mag worden.
+     Op zeer smalle viewports (mobiel) stapelt het action-element onder de
+     content, zodat lange badges (bv. "Onderhandeling") niet uit de card
+     schieten. Vanaf sm: weer naast elkaar. */
   .row-with-action {
-    @apply flex items-start justify-between gap-3 min-w-0;
+    @apply flex flex-col xs:flex-row items-start xs:items-start justify-between gap-2 xs:gap-3 min-w-0;
   }
 
   /* Linker-content (titel etc) — mag inkrimpen, mag wrappen */
   .row-flex {
-    @apply min-w-0 flex-1;
+    @apply min-w-0 w-full xs:flex-1;
   }
 
   /* Rechter-content (badge, link) — krimpt nooit, blijft zichtbaar */
