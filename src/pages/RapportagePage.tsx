@@ -180,20 +180,20 @@ export default function RapportagePage() {
     : null;
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Rapportage</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+    <div className="page-shell">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">Rapportage</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 break-words sm:truncate">
             Commissie, conversie en momentum.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <label className="text-xs text-muted-foreground">Jaar</label>
           <select
             value={jaar}
             onChange={e => setJaar(parseInt(e.target.value))}
-            className="h-9 px-3 text-sm rounded-md border border-input bg-background"
+            className="h-9 px-3 text-sm rounded-md border border-input bg-card"
           >
             {beschikbareJaren.map(j => (
               <option key={j} value={j}>{j}</option>
