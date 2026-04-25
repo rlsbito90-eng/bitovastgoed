@@ -493,13 +493,13 @@ function KPICard({
   accent?: boolean;
 }) {
   return (
-    <div className={`bg-card border ${accent ? 'border-accent/30' : 'border-border'} rounded-lg p-4`}>
-      <div className="flex items-center gap-1.5">
-        <Icon className={`h-3.5 w-3.5 ${accent ? 'text-accent' : 'text-muted-foreground'}`} />
-        <p className="text-xs text-muted-foreground">{label}</p>
+    <div className={`bg-card border ${accent ? 'border-accent/30' : 'border-border'} rounded-lg p-4 min-w-0`}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${accent ? 'text-accent' : 'text-muted-foreground'}`} />
+        <p className="text-[11px] sm:text-xs text-muted-foreground break-words leading-tight">{label}</p>
       </div>
-      <p className="text-2xl font-semibold font-mono-data text-foreground mt-1.5">{value}</p>
-      <p className="text-[11px] text-muted-foreground mt-1 truncate">{subtext}</p>
+      <p className="text-xl sm:text-2xl font-semibold font-mono-data text-foreground mt-1.5 break-words">{value}</p>
+      <p className="text-[11px] text-muted-foreground mt-1 break-words sm:truncate">{subtext}</p>
     </div>
   );
 }
