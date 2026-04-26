@@ -217,13 +217,13 @@ export default function ObjectReferentieAnalyseSectie({ object }: Props) {
           <div className="p-2.5 sm:p-3 bg-muted/40 rounded-md min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Mediaan €/m²</p>
             <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-              {stats.mediaan != null ? formatCurrencyCompact(Math.round(stats.mediaan)) : '—'}
+              {stats.mediaan != null ? formatCurrency(Math.round(stats.mediaan)) : '—'}
             </p>
           </div>
           <div className="p-2.5 sm:p-3 bg-muted/40 rounded-md min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Gemiddeld €/m²</p>
             <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-              {stats.gemiddeld != null ? formatCurrencyCompact(Math.round(stats.gemiddeld)) : '—'}
+              {stats.gemiddeld != null ? formatCurrency(Math.round(stats.gemiddeld)) : '—'}
             </p>
           </div>
         </div>
