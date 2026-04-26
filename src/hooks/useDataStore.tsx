@@ -1270,13 +1270,16 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
 
-    referentieObjecten, dealReferenties,
+    referentieObjecten, dealReferenties, objectReferenties,
     addReferentieObject, updateReferentieObject, deleteReferentieObject,
     koppelReferentieAanDeal, ontkoppelReferentieVanDeal,
     getReferentiesVoorDeal: (dealId) => {
       const ids = new Set(dealReferenties.filter(x => x.dealId === dealId).map(x => x.referentieObjectId));
       return referentieObjecten.filter(r => ids.has(r.id));
     },
+    getReferentiesVoorObject,
+    koppelReferentieAanObject,
+    ontkoppelReferentieVanObject,
 
     genereerRefnummer,
 
