@@ -127,6 +127,7 @@ const leegForm: FormState = {
   documentenBeschikbaar: false,
   interneOpmerkingen: undefined,
   opmerkingen: undefined,
+  referentieanalyseZichtbaar: true,
 };
 
 const ENERGIELABELS: Energielabel[] =
@@ -519,6 +520,23 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     />
                   </Veld>
                 </div>
+              </Sectie>
+
+              <Sectie titel="Weergave">
+                <label className="flex items-start gap-2 p-3 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.referentieanalyseZichtbaar !== false}
+                    onChange={e => set('referentieanalyseZichtbaar', e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input shrink-0 cursor-pointer accent-accent"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">Referentieanalyse tonen</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Toon marktwaarde-indicatie en gekoppelde referentieobjecten op de object-detail pagina.
+                    </p>
+                  </div>
+                </label>
               </Sectie>
             </TabsContent>
 
