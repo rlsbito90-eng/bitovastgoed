@@ -303,7 +303,7 @@ export default function DealDetailPage() {
 
           <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
           <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
-          <DealReferentieAnalyseSectie dealId={deal.id} objectM2={object?.oppervlakte} />
+          {object && <DealMarktwaardeReadOnly object={object} />}
         </div>
 
         {/* SIDEBAR */}
