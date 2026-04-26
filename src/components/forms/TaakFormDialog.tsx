@@ -95,6 +95,21 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
   };
 
+  const handleDelete = async () => {
+    if (!taak || bezig) return;
+    setBezig(true);
+    try {
+      await deleteTaak(taak.id);
+      toast.success('Taak verwijderd');
+      setVerwijderOpen(false);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
+    }
+  };
+
   const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
 
   return (
