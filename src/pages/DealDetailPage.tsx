@@ -143,7 +143,7 @@ export default function DealDetailPage() {
       )}
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
-        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
           {/* DEAL CORE */}
           <section className="section-card p-5 sm:p-6 space-y-5">
             <h2 className="section-title">Dealgegevens</h2>
