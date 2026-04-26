@@ -368,7 +368,7 @@ Deno.serve(async (req: Request) => {
         summary,
         description,
         location: locatie,
-        url: `${APP_BASE_URL}/taken`,
+        url: dealUrl ?? `${APP_BASE_URL}/taken`,
       };
 
       if (t.deadline_tijd) {
