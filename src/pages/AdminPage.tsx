@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { formatCurrency } from '@/data/mock-data';
 import type { JaarDoel } from '@/data/mock-data';
+import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
 
 type Rol = 'admin' | 'medewerker';
 
@@ -99,6 +100,9 @@ export default function AdminPage() {
 
       {/* ---- JAAR-DOELEN ---- */}
       <JaarDoelenSectie />
+
+      {/* ---- AGENDA-FEED ---- */}
+      <FeedTokensSectie />
 
       {/* ---- GEBRUIKERS ---- */}
       <div className="space-y-4">

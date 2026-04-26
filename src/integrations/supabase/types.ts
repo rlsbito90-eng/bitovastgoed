@@ -152,6 +152,7 @@ export type Database = {
           afwijzingsreden: string | null
           bank: string | null
           bezichtiging_gepland: string | null
+          bezichtiging_tijd: string | null
           commissie_bedrag: number | null
           commissie_pct: number | null
           created_at: string
@@ -160,6 +161,7 @@ export type Database = {
           dd_status: Database["public"]["Enums"]["dd_status"] | null
           fase: Database["public"]["Enums"]["deal_fase"]
           fee_structuur: string | null
+          follow_up_tijd: string | null
           id: string
           indicatief_bod: number | null
           interessegraad: number | null
@@ -177,6 +179,7 @@ export type Database = {
           afwijzingsreden?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
+          bezichtiging_tijd?: string | null
           commissie_bedrag?: number | null
           commissie_pct?: number | null
           created_at?: string
@@ -185,6 +188,7 @@ export type Database = {
           dd_status?: Database["public"]["Enums"]["dd_status"] | null
           fase?: Database["public"]["Enums"]["deal_fase"]
           fee_structuur?: string | null
+          follow_up_tijd?: string | null
           id?: string
           indicatief_bod?: number | null
           interessegraad?: number | null
@@ -202,6 +206,7 @@ export type Database = {
           afwijzingsreden?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
+          bezichtiging_tijd?: string | null
           commissie_bedrag?: number | null
           commissie_pct?: number | null
           created_at?: string
@@ -210,6 +215,7 @@ export type Database = {
           dd_status?: Database["public"]["Enums"]["dd_status"] | null
           fase?: Database["public"]["Enums"]["deal_fase"]
           fee_structuur?: string | null
+          follow_up_tijd?: string | null
           id?: string
           indicatief_bod?: number | null
           interessegraad?: number | null
@@ -253,6 +259,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      feed_tokens: {
+        Row: {
+          aangemaakt_op: string
+          gebruiker_id: string
+          id: string
+          ingetrokken_op: string | null
+          laatst_gebruikt: string | null
+          naam: string
+          token: string
+        }
+        Insert: {
+          aangemaakt_op?: string
+          gebruiker_id: string
+          id?: string
+          ingetrokken_op?: string | null
+          laatst_gebruikt?: string | null
+          naam?: string
+          token: string
+        }
+        Update: {
+          aangemaakt_op?: string
+          gebruiker_id?: string
+          id?: string
+          ingetrokken_op?: string | null
+          laatst_gebruikt?: string | null
+          naam?: string
+          token?: string
+        }
+        Relationships: []
       }
       jaar_doelen: {
         Row: {
