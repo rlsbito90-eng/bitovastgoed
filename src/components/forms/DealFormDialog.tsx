@@ -42,7 +42,9 @@ const leegForm: FormState = {
   interessegraad: 3,
   datumEersteContact: new Date().toISOString().split('T')[0],
   datumFollowUp: undefined,
+  followUpTijd: undefined,
   bezichtigingGepland: undefined,
+  bezichtigingTijd: undefined,
   indicatiefBod: undefined,
   verwachteClosingdatum: undefined,
   commissiePct: undefined,
@@ -267,12 +269,24 @@ export default function DealFormDialog({
                       onChange={e => set('datumEersteContact', e.target.value)} />
                   </Veld>
                   <Veld label="Follow-up datum">
-                    <Input type="date" value={form.datumFollowUp ?? ''}
-                      onChange={e => set('datumFollowUp', e.target.value || undefined)} />
+                    <div className="flex gap-2">
+                      <Input type="date" value={form.datumFollowUp ?? ''}
+                        onChange={e => set('datumFollowUp', e.target.value || undefined)}
+                        className="flex-1" />
+                      <Input type="time" value={form.followUpTijd ?? ''}
+                        onChange={e => set('followUpTijd', e.target.value || undefined)}
+                        className="w-28" placeholder="--:--" />
+                    </div>
                   </Veld>
                   <Veld label="Bezichtiging gepland">
-                    <Input type="date" value={form.bezichtigingGepland ?? ''}
-                      onChange={e => set('bezichtigingGepland', e.target.value || undefined)} />
+                    <div className="flex gap-2">
+                      <Input type="date" value={form.bezichtigingGepland ?? ''}
+                        onChange={e => set('bezichtigingGepland', e.target.value || undefined)}
+                        className="flex-1" />
+                      <Input type="time" value={form.bezichtigingTijd ?? ''}
+                        onChange={e => set('bezichtigingTijd', e.target.value || undefined)}
+                        className="w-28" placeholder="--:--" />
+                    </div>
                   </Veld>
                   <Veld label="Verwachte closingdatum">
                     <Input type="date" value={form.verwachteClosingdatum ?? ''}

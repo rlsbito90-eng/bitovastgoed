@@ -344,7 +344,9 @@ export interface Deal {
   interessegraad: number;
   datumEersteContact: string;
   datumFollowUp?: string;
+  followUpTijd?: string;
   bezichtigingGepland?: string;
+  bezichtigingTijd?: string;
   indicatiefBod?: number;
   verwachteClosingdatum?: string;
   commissiePct?: number;
