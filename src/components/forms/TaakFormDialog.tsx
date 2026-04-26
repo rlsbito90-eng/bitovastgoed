@@ -182,12 +182,48 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             <Label>Notities</Label>
             <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+          <div className="flex justify-between items-center gap-2 pt-2">
+            <div>
+              {isEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setVerwijderOpen(true)}
+                  disabled={bezig}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Verwijderen
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+              <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+            </div>
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={verwijderOpen} onOpenChange={setVerwijderOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je deze taak wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bezig}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={bezig}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bezig ? 'Bezig…' : 'Verwijderen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
