@@ -149,7 +149,7 @@ export default function RelatieDetailPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
-        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
 
           {/* CONTACTPERSONEN */}
           <section className="section-card p-5 sm:p-6 space-y-4">
@@ -164,24 +164,24 @@ export default function RelatieDetailPage() {
             ) : (
               <div className="space-y-2">
                 {contactpersonen.map(c => (
-                  <div key={c.id} className="border border-border rounded-md p-3 bg-card/50">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-foreground">{c.naam}</p>
-                      {c.functie && <span className="text-xs text-muted-foreground">· {c.functie}</span>}
+                  <div key={c.id} className="border border-border rounded-md p-3 bg-card/50 min-w-0">
+                    <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
+                      <p className="font-medium text-foreground break-words min-w-0">{c.naam}</p>
+                      {c.functie && <span className="text-xs text-muted-foreground break-words">· {c.functie}</span>}
                       {c.isPrimair && (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider bg-accent/20 text-accent px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider bg-accent/20 text-accent px-2 py-0.5 rounded-full whitespace-nowrap">
                           <Star className="h-2.5 w-2.5 fill-current" /> Primair
                         </span>
                       )}
                       {c.decisionMaker && (
-                        <span className="text-[10px] uppercase tracking-wider bg-muted px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] uppercase tracking-wider bg-muted px-2 py-0.5 rounded-full whitespace-nowrap">
                           Decision maker
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-                      {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground">{c.email}</a>}
-                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground">{c.telefoon}</a>}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground min-w-0">
+                      {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground break-all">{c.email}</a>}
+                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">{c.telefoon}</a>}
                       {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">LinkedIn</a>}
                       {c.voorkeurKanaal && <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>}
                     </div>
@@ -321,7 +321,7 @@ export default function RelatieDetailPage() {
           )}
         </div>
 
-        <div className="space-y-4 lg:space-y-6">
+        <div className="space-y-4 lg:space-y-6 min-w-0">
           <section className="section-card">
             <header className="section-header">
               <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
