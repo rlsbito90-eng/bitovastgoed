@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -29,9 +34,10 @@ const emptyForm = {
 };
 
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
-  const { addTaak, updateTaak, relaties, deals, getObjectById } = useDataStore();
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
+  const [verwijderOpen, setVerwijderOpen] = useState(false);
   const isEdit = !!taak;
 
   useEffect(() => {
@@ -84,6 +90,21 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setBezig(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!taak || bezig) return;
+    setBezig(true);
+    try {
+      await deleteTaak(taak.id);
+      toast.success('Taak verwijderd');
+      setVerwijderOpen(false);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {
       setBezig(false);
     }
@@ -161,12 +182,48 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             <Label>Notities</Label>
             <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+          <div className="flex justify-between items-center gap-2 pt-2">
+            <div>
+              {isEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setVerwijderOpen(true)}
+                  disabled={bezig}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Verwijderen
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+              <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+            </div>
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={verwijderOpen} onOpenChange={setVerwijderOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je deze taak wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bezig}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={bezig}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bezig ? 'Bezig…' : 'Verwijderen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
