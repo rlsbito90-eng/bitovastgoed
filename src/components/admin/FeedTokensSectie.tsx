@@ -29,9 +29,9 @@ function genereerToken(): string {
   return Array.from(bytes)
     .map(b => b.toString(36).padStart(2, '0'))
     .join('')
-    .replaceAll('=', '')
-    .replaceAll('+', '')
-    .replaceAll('/', '')
+    .replace(/=/g, '')
+    .replace(/\+/g, '')
+    .replace(/\//g, '')
     .substring(0, 32);
 }
 
