@@ -249,6 +249,11 @@ export interface ObjectVastgoed {
   opmerkingen?: string;
   datumToegevoegd: string;
   updatedAt?: string;
+  /**
+   * Toggle om de referentieanalyse-sectie op object-detail te tonen.
+   * Default true.
+   */
+  referentieanalyseZichtbaar?: boolean;
   softDeletedAt?: string;
 }
 
@@ -416,6 +421,15 @@ export interface DealReferentie {
   dealId: string;
   referentieObjectId: string;
   notities?: string;
+}
+
+export interface ObjectReferentie {
+  id: string;
+  objectId: string;
+  referentieObjectId: string;
+  notities?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 

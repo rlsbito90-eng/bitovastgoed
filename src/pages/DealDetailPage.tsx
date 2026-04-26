@@ -19,7 +19,7 @@ import DealFormDialog from '@/components/forms/DealFormDialog';
 import DealPdfButton from '@/components/pdf/DealPdfButton';
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
-import DealReferentieAnalyseSectie from '@/components/deal/DealReferentieAnalyseSectie';
+import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -303,7 +303,7 @@ export default function DealDetailPage() {
 
           <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
           <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
-          <DealReferentieAnalyseSectie dealId={deal.id} objectM2={object?.oppervlakte} />
+          {object && <DealMarktwaardeReadOnly object={object} />}
         </div>
 
         {/* SIDEBAR */}

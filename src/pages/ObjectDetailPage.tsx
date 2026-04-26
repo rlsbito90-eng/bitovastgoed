@@ -23,6 +23,7 @@ import {
   FileText, Download, Building2, Phone, Mail,
 } from 'lucide-react';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
+import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -524,6 +525,10 @@ export default function ObjectDetailPage() {
                 })}
               </div>
             </section>
+          )}
+
+          {object.referentieanalyseZichtbaar !== false && (
+            <ObjectReferentieAnalyseSectie object={object} />
           )}
         </div>
 

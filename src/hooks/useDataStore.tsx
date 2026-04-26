@@ -26,6 +26,7 @@ import type {
   JaarDoel,
   ReferentieObject,
   DealReferentie,
+  ObjectReferentie,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
@@ -264,6 +265,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   datumToegevoegd: o.created_at?.split('T')[0] ?? '',
   updatedAt: o.updated_at ?? undefined,
   softDeletedAt: o.soft_deleted_at ?? undefined,
+  referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
@@ -337,6 +339,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   documentatie_beschikbaar: o.documentenBeschikbaar,
   interne_opmerkingen: o.interneOpmerkingen !== undefined ? (o.interneOpmerkingen || null) : undefined,
   opmerkingen: o.opmerkingen !== undefined ? (o.opmerkingen || null) : undefined,
+  referentieanalyse_zichtbaar: o.referentieanalyseZichtbaar,
 });
 
 
@@ -617,6 +620,15 @@ const dealReferentieFromDb = (r: any): DealReferentie => ({
   notities: r.notities ?? undefined,
 });
 
+const objectReferentieFromDb = (r: any): ObjectReferentie => ({
+  id: r.id,
+  objectId: r.object_id,
+  referentieObjectId: r.referentie_object_id,
+  notities: r.notities ?? undefined,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at ?? undefined,
+});
+
 
 // =====================================================================
 // CONTEXT
@@ -710,12 +722,16 @@ interface DataStore {
   // Referentie-objecten
   referentieObjecten: ReferentieObject[];
   dealReferenties: DealReferentie[];
+  objectReferenties: ObjectReferentie[];
   addReferentieObject: (r: Omit<ReferentieObject, 'id' | 'prijsPerM2'>) => Promise<ReferentieObject | null>;
   updateReferentieObject: (id: string, r: Partial<ReferentieObject>) => Promise<void>;
   deleteReferentieObject: (id: string) => Promise<void>;
   koppelReferentieAanDeal: (dealId: string, referentieObjectId: string) => Promise<void>;
   ontkoppelReferentieVanDeal: (koppelingId: string) => Promise<void>;
   getReferentiesVoorDeal: (dealId: string) => ReferentieObject[];
+  getReferentiesVoorObject: (objectId: string) => ReferentieObject[];
+  koppelReferentieAanObject: (objectId: string, referentieObjectId: string) => Promise<void>;
+  ontkoppelReferentieVanObject: (koppelingId: string) => Promise<void>;
 
   // RPC
   genereerRefnummer: () => Promise<string>;
@@ -756,6 +772,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
+  const [objectReferenties, setObjectReferenties] = useState<ObjectReferentie[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -764,7 +781,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
-        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes,
+        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -781,6 +798,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('jaar_doelen' as any).select('*').order('jaar', { ascending: false }),
         supabase.from('referentie_objecten' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('deal_referenties' as any).select('*'),
+        supabase.from('object_referenties' as any).select('*'),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
@@ -805,6 +823,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (jdRes.data) setJaarDoelen((jdRes.data as any[]).map(jaarDoelFromDb));
       if (refRes.data) setReferentieObjecten((refRes.data as any[]).map(referentieObjectFromDb));
       if (drefRes.data) setDealReferenties((drefRes.data as any[]).map(dealReferentieFromDb));
+      if (objRefRes.data) setObjectReferenties((objRefRes.data as any[]).map(objectReferentieFromDb));
     } finally {
       setLoading(false);
     }
@@ -1183,6 +1202,29 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setDealReferenties(prev => prev.filter(x => x.id !== koppelingId));
   }, []);
 
+  // -------- OBJECT-REFERENTIES --------
+  const getReferentiesVoorObject = useCallback((objectId: string): ReferentieObject[] => {
+    const refIds = objectReferenties
+      .filter(or => or.objectId === objectId)
+      .map(or => or.referentieObjectId);
+    return referentieObjecten.filter(r => refIds.includes(r.id));
+  }, [objectReferenties, referentieObjecten]);
+
+  const koppelReferentieAanObject = useCallback(async (objectId: string, referentieObjectId: string) => {
+    const { data, error } = await supabase.from('object_referenties' as any)
+      .insert({ object_id: objectId, referentie_object_id: referentieObjectId } as any)
+      .select().single();
+    throwIfError(error);
+    if (!data) throw new Error('Koppeling niet aangemaakt');
+    setObjectReferenties(prev => [...prev, objectReferentieFromDb(data)]);
+  }, []);
+
+  const ontkoppelReferentieVanObject = useCallback(async (koppelingId: string) => {
+    const { error } = await supabase.from('object_referenties' as any).delete().eq('id', koppelingId);
+    throwIfError(error);
+    setObjectReferenties(prev => prev.filter(x => x.id !== koppelingId));
+  }, []);
+
   // -------- RPC: refnummer generator --------
   const genereerRefnummer = useCallback(async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_refnummer' as any);
@@ -1228,13 +1270,16 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
 
-    referentieObjecten, dealReferenties,
+    referentieObjecten, dealReferenties, objectReferenties,
     addReferentieObject, updateReferentieObject, deleteReferentieObject,
     koppelReferentieAanDeal, ontkoppelReferentieVanDeal,
     getReferentiesVoorDeal: (dealId) => {
       const ids = new Set(dealReferenties.filter(x => x.dealId === dealId).map(x => x.referentieObjectId));
       return referentieObjecten.filter(r => ids.has(r.id));
     },
+    getReferentiesVoorObject,
+    koppelReferentieAanObject,
+    ontkoppelReferentieVanObject,
 
     genereerRefnummer,
 
