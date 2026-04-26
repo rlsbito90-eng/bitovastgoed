@@ -168,6 +168,7 @@ export type Database = {
           notaris: string | null
           notities: string | null
           object_id: string
+          referentieanalyse_zichtbaar: boolean
           relatie_id: string
           soft_deleted_at: string | null
           tegenpartij_makelaar: string | null
@@ -195,6 +196,7 @@ export type Database = {
           notaris?: string | null
           notities?: string | null
           object_id: string
+          referentieanalyse_zichtbaar?: boolean
           relatie_id: string
           soft_deleted_at?: string | null
           tegenpartij_makelaar?: string | null
@@ -222,6 +224,7 @@ export type Database = {
           notaris?: string | null
           notities?: string | null
           object_id?: string
+          referentieanalyse_zichtbaar?: boolean
           relatie_id?: string
           soft_deleted_at?: string | null
           tegenpartij_makelaar?: string | null
