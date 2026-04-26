@@ -26,6 +26,7 @@ import type {
   JaarDoel,
   ReferentieObject,
   DealReferentie,
+  ObjectReferentie,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
@@ -264,6 +265,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   datumToegevoegd: o.created_at?.split('T')[0] ?? '',
   updatedAt: o.updated_at ?? undefined,
   softDeletedAt: o.soft_deleted_at ?? undefined,
+  referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
@@ -337,6 +339,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   documentatie_beschikbaar: o.documentenBeschikbaar,
   interne_opmerkingen: o.interneOpmerkingen !== undefined ? (o.interneOpmerkingen || null) : undefined,
   opmerkingen: o.opmerkingen !== undefined ? (o.opmerkingen || null) : undefined,
+  referentieanalyse_zichtbaar: o.referentieanalyseZichtbaar,
 });
 
 
@@ -617,6 +620,15 @@ const dealReferentieFromDb = (r: any): DealReferentie => ({
   notities: r.notities ?? undefined,
 });
 
+const objectReferentieFromDb = (r: any): ObjectReferentie => ({
+  id: r.id,
+  objectId: r.object_id,
+  referentieObjectId: r.referentie_object_id,
+  notities: r.notities ?? undefined,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at ?? undefined,
+});
+
 
 // =====================================================================
 // CONTEXT
@@ -710,12 +722,16 @@ interface DataStore {
   // Referentie-objecten
   referentieObjecten: ReferentieObject[];
   dealReferenties: DealReferentie[];
+  objectReferenties: ObjectReferentie[];
   addReferentieObject: (r: Omit<ReferentieObject, 'id' | 'prijsPerM2'>) => Promise<ReferentieObject | null>;
   updateReferentieObject: (id: string, r: Partial<ReferentieObject>) => Promise<void>;
   deleteReferentieObject: (id: string) => Promise<void>;
   koppelReferentieAanDeal: (dealId: string, referentieObjectId: string) => Promise<void>;
   ontkoppelReferentieVanDeal: (koppelingId: string) => Promise<void>;
   getReferentiesVoorDeal: (dealId: string) => ReferentieObject[];
+  getReferentiesVoorObject: (objectId: string) => ReferentieObject[];
+  koppelReferentieAanObject: (objectId: string, referentieObjectId: string) => Promise<void>;
+  ontkoppelReferentieVanObject: (koppelingId: string) => Promise<void>;
 
   // RPC
   genereerRefnummer: () => Promise<string>;
@@ -756,6 +772,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
+  const [objectReferenties, setObjectReferenties] = useState<ObjectReferentie[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
