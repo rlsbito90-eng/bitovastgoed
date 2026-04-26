@@ -101,6 +101,9 @@ export default function AdminPage() {
       {/* ---- JAAR-DOELEN ---- */}
       <JaarDoelenSectie />
 
+      {/* ---- AGENDA-FEED ---- */}
+      <FeedTokensSectie />
+
       {/* ---- GEBRUIKERS ---- */}
       <div className="space-y-4">
         <div>
