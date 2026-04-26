@@ -267,13 +267,13 @@ export default function ObjectReferentieAnalyseSectie({ object }: Props) {
               <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Ondergrens</p>
                 <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-                  {formatCurrencyCompact(Math.round(marktwaarde.onder))}
+                  {formatCurrency(Math.round(marktwaarde.onder))}
                 </p>
               </div>
               <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bovengrens</p>
                 <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-                  {formatCurrencyCompact(Math.round(marktwaarde.boven))}
+                  {formatCurrency(Math.round(marktwaarde.boven))}
                 </p>
               </div>
             </div>

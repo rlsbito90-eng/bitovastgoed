@@ -84,13 +84,13 @@ export default function DealMarktwaardeReadOnly({ object }: Props) {
         <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Ondergrens</p>
           <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-            {formatCurrencyCompact(Math.round(marktwaarde.ondergrens))}
+            {formatCurrency(Math.round(marktwaarde.ondergrens))}
           </p>
         </div>
         <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bovengrens</p>
           <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
-            {formatCurrencyCompact(Math.round(marktwaarde.bovengrens))}
+            {formatCurrency(Math.round(marktwaarde.bovengrens))}
           </p>
         </div>
       </div>
