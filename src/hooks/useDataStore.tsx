@@ -1202,6 +1202,29 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setDealReferenties(prev => prev.filter(x => x.id !== koppelingId));
   }, []);
 
+  // -------- OBJECT-REFERENTIES --------
+  const getReferentiesVoorObject = useCallback((objectId: string): ReferentieObject[] => {
+    const refIds = objectReferenties
+      .filter(or => or.objectId === objectId)
+      .map(or => or.referentieObjectId);
+    return referentieObjecten.filter(r => refIds.includes(r.id));
+  }, [objectReferenties, referentieObjecten]);
+
+  const koppelReferentieAanObject = useCallback(async (objectId: string, referentieObjectId: string) => {
+    const { data, error } = await supabase.from('object_referenties' as any)
+      .insert({ object_id: objectId, referentie_object_id: referentieObjectId } as any)
+      .select().single();
+    throwIfError(error);
+    if (!data) throw new Error('Koppeling niet aangemaakt');
+    setObjectReferenties(prev => [...prev, objectReferentieFromDb(data)]);
+  }, []);
+
+  const ontkoppelReferentieVanObject = useCallback(async (koppelingId: string) => {
+    const { error } = await supabase.from('object_referenties' as any).delete().eq('id', koppelingId);
+    throwIfError(error);
+    setObjectReferenties(prev => prev.filter(x => x.id !== koppelingId));
+  }, []);
+
   // -------- RPC: refnummer generator --------
   const genereerRefnummer = useCallback(async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_refnummer' as any);
