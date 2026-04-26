@@ -586,6 +586,30 @@ export type Database = {
           },
         ]
       }
+      object_referenties: {
+        Row: {
+          created_at: string
+          id: string
+          notities: string | null
+          object_id: string
+          referentie_object_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notities?: string | null
+          object_id: string
+          referentie_object_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notities?: string | null
+          object_id?: string
+          referentie_object_id?: string
+        }
+        Relationships: []
+      }
       object_subcategorieen: {
         Row: {
           actief: boolean
@@ -681,6 +705,7 @@ export type Database = {
           publieke_naam: string | null
           publieke_regio: string | null
           recente_investeringen: string | null
+          referentieanalyse_zichtbaar: boolean
           risicos: string | null
           samenvatting: string | null
           servicekosten_jaar: number | null
@@ -764,6 +789,7 @@ export type Database = {
           publieke_naam?: string | null
           publieke_regio?: string | null
           recente_investeringen?: string | null
+          referentieanalyse_zichtbaar?: boolean
           risicos?: string | null
           samenvatting?: string | null
           servicekosten_jaar?: number | null
@@ -847,6 +873,7 @@ export type Database = {
           publieke_naam?: string | null
           publieke_regio?: string | null
           recente_investeringen?: string | null
+          referentieanalyse_zichtbaar?: boolean
           risicos?: string | null
           samenvatting?: string | null
           servicekosten_jaar?: number | null
