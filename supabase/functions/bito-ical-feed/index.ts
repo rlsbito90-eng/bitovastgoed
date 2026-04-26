@@ -328,22 +328,35 @@ Deno.serve(async (req: Request) => {
       }, dtstamp));
     }
 
+    // Build deal lookup map (voor taken die aan een deal gekoppeld zijn)
+    const dealMap = new Map<string, any>();
+    for (const d of deals ?? []) dealMap.set(d.id, d);
+
     // === TAKEN ===
     for (const t of taken ?? []) {
       if (!t.deadline) continue;
       const rel = t.relatie_id ? relatieMap.get(t.relatie_id) : null;
-      const obj = t.object_id ? objectMap.get(t.object_id) : null;
+      let obj = t.object_id ? objectMap.get(t.object_id) : null;
+      const deal = t.deal_id ? dealMap.get(t.deal_id) : null;
+
+      // Als taak aan deal gekoppeld is en geen eigen object/relatie heeft, gebruik die van de deal
+      if (deal && !obj && deal.object_id) obj = objectMap.get(deal.object_id);
+      const dealRel = deal && !rel && deal.relatie_id ? relatieMap.get(deal.relatie_id) : rel;
 
       const prefix = t.prioriteit === 'urgent' ? '🔴'
         : t.prioriteit === 'hoog' ? '🟠'
         : '⏰';
 
       const summary = `${prefix} ${t.titel}`;
+      const dealUrl = deal ? `${APP_BASE_URL}/deals/${deal.id}` : null;
+      const dealTitel = deal ? objNaam(obj) : null;
+
       const description = [
-        rel?.bedrijfsnaam ? `Relatie: ${rel.bedrijfsnaam}` : null,
+        dealRel?.bedrijfsnaam ? `Relatie: ${dealRel.bedrijfsnaam}` : null,
         obj ? `Object: ${objNaam(obj)}` : null,
-        t.notities ? `\n${t.notities}` : null,
-        `\n${APP_BASE_URL}/taken`,
+        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${deal.fase})` : ''}` : null,
+        t.notities ? `\nNotities:\n${t.notities}` : null,
+        dealUrl ? `\n${dealUrl}` : `\n${APP_BASE_URL}/taken`,
       ].filter(Boolean).join('\n');
 
       const locatie = obj
