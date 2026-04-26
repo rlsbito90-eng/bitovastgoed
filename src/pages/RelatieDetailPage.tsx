@@ -321,7 +321,7 @@ export default function RelatieDetailPage() {
           )}
         </div>
 
-        <div className="space-y-4 lg:space-y-6">
+        <div className="space-y-4 lg:space-y-6 min-w-0">
           <section className="section-card">
             <header className="section-header">
               <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
