@@ -27,6 +27,7 @@ import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieA
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
+import ObjectPipelineFaseSectie from '@/components/pipeline/ObjectPipelineFaseSectie';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -546,6 +547,7 @@ export default function ObjectDetailPage() {
             <ObjectReferentieAnalyseSectie object={object} />
           )}
 
+          <ObjectPipelineFaseSectie object={object} />
           <ObjectPipelineSectie objectId={object.id} />
         </div>
 
