@@ -467,19 +467,32 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                   <Veld label={<>Type vastgoed<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.type}
-                      onChange={e => setType(e.target.value as AssetClass)}
+                      value={form.propertyTypeId ?? ''}
+                      onChange={e => setPropertyType(e.target.value || undefined)}
                     >
-                      {Object.entries(ASSET_CLASS_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
+                      <option value="">— Kies type vastgoed —</option>
+                      {propertyTypes.map(pt => (
+                        <option key={pt.id} value={pt.id}>{pt.name}</option>
                       ))}
                     </select>
                   </Veld>
-                  <Veld label="Subcategorie">
-                    <SubcategorieSelect
-                      assetClass={form.type}
-                      value={form.subcategorieId}
-                      onChange={id => set('subcategorieId', id)}
+                  <Veld label="Subcategorieën (optioneel, meerdere mogelijk)" span={2}>
+                    {form.propertyTypeId ? (
+                      <MultiSelectChips
+                        options={subtypesForType(form.propertyTypeId).map(s => ({ value: s.id, label: s.name }))}
+                        value={form.propertySubtypeIds ?? []}
+                        onChange={v => set('propertySubtypeIds', v)}
+                        emptyLabel="Geen subcategorieën beschikbaar voor dit type"
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Kies eerst een type vastgoed.</p>
+                    )}
+                  </Veld>
+                  <Veld label="Dealtype / Propositie (meerdere mogelijk)" span={2}>
+                    <MultiSelectChips
+                      options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
+                      value={form.dealTypeIds ?? []}
+                      onChange={v => set('dealTypeIds', v)}
                     />
                   </Veld>
                   <Veld label="Beschikbaar vanaf">
