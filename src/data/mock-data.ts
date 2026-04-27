@@ -457,6 +457,44 @@ export interface DealKandidaat {
   notities?: string;
 }
 
+export interface PipelineKandidaat {
+  id: string;
+  objectId: string;
+  relatieId: string;
+  zoekprofielId?: string;
+
+  pipelineFase: PipelineFase;
+  interesseNiveau: InteresseNiveau;
+  matchscore?: number;
+
+  teaserVerstuurd: boolean;
+  teaserVerstuurdOp?: string;
+  ndaVerstuurd: boolean;
+  ndaVerstuurdOp?: string;
+  ndaGetekend: boolean;
+  ndaGetekendOp?: string;
+  informatieGedeeld: boolean;
+  informatieGedeeldOp?: string;
+
+  bezichtigingDatum?: string;
+  biedingBedrag?: number;
+  biedingVoorwaarden?: string;
+  financieringsvoorbehoud?: boolean;
+  gewensteLevering?: string;
+  feeAkkoord: boolean;
+
+  laatsteContactdatum?: string;
+  volgendeActie?: VolgendeActieType;
+  volgendeActieOmschrijving?: string;
+  volgendeActieDatum?: string;
+
+  notities?: string;
+  redenAfgevallen?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Taak {
   id: string;
   titel: string;
