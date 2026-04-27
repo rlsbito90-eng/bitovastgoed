@@ -3,6 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, ShieldAlert, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// TIJDELIJK: auth-check uitgeschakeld zodat iedereen direct in de CRM komt.
+// Zet AUTH_DISABLED terug op false om login weer te activeren.
+const AUTH_DISABLED = true;
+
 export default function ProtectedRoute({
   children,
   vereistAdmin = false,
@@ -12,6 +16,10 @@ export default function ProtectedRoute({
 }) {
   const { user, loading, heeftToegang, isAdmin, signOut } = useAuth();
   const location = useLocation();
+
+  if (AUTH_DISABLED) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
