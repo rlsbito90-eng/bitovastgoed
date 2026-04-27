@@ -85,6 +85,7 @@ export default function ZoekprofielFormDialog({
 }: Props) {
   const { addZoekprofiel, updateZoekprofiel, relaties } = useDataStore();
   const { forAssetClass } = useSubcategorieen();
+  const { propertyTypes, subtypesForTypes, dealTypes } = usePropertyTaxonomie();
   const isEdit = !!zoekprofiel;
 
   const [form, setForm] = useState<FormState>(leegForm);
