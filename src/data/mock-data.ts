@@ -416,6 +416,7 @@ export interface ReferentieObject {
   bron?: string;
   notities?: string;
   softDeletedAt?: string;
+  createdAt?: string;
 }
 
 export interface DealReferentie {
