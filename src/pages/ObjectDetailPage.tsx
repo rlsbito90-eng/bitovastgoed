@@ -551,7 +551,7 @@ export default function ObjectDetailPage() {
           <ObjectPipelineSectie objectId={object.id} />
         </div>
 
-        <div>
+        <div className="min-w-0 max-w-full">
           <section className="section-card">
             <header className="section-header"><h2 className="section-title">Top kandidaten ({matches.length})</h2></header>
             <div className="divide-y divide-border/70">
