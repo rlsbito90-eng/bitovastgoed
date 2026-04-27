@@ -111,6 +111,7 @@ export interface Relatie {
   assetClasses: AssetClass[];        // legacy
   propertyTypeIds?: string[];        // nieuwe taxonomie
   propertySubtypeIds?: string[];     // nieuwe taxonomie
+  dealTypeIds?: string[];            // nieuwe taxonomie
   budgetMin?: number;
   budgetMax?: number;
   rendementseis?: number;
