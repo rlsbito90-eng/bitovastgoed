@@ -30,7 +30,8 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
-import { Users, Info } from 'lucide-react';
+import { Users, Info, Building2 } from 'lucide-react';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 
 interface Props {
   open: boolean;
@@ -63,6 +64,9 @@ const leegForm: FormState = {
   vestigingsland: 'NL',
   regio: [],
   assetClasses: [],
+  propertyTypeIds: [],
+  propertySubtypeIds: [],
+  dealTypeIds: [],
   budgetMin: undefined,
   budgetMax: undefined,
   rendementseis: undefined,
