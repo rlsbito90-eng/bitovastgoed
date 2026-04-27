@@ -18,7 +18,8 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Search, Pencil, Trash2, Link2, ExternalLink, ArrowUpDown, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Link2, ExternalLink, ArrowUpDown, X, ArrowUp, ArrowDown, Plus as PlusIcon } from 'lucide-react';
+import { CheckboxDropdown } from '@/components/ui/checkbox-dropdown';
 import PageHeader from '@/components/PageHeader';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 import {
