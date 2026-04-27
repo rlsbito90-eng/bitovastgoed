@@ -45,7 +45,9 @@ import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
-import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
+import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
+import type { DocumentType } from '@/data/mock-data';
 
 interface Props {
   open: boolean;
@@ -134,7 +136,42 @@ const leegForm: FormState = {
   interneOpmerkingen: undefined,
   opmerkingen: undefined,
   referentieanalyseZichtbaar: true,
+  // IM-content
+  propositie: undefined,
+  objectomschrijving: undefined,
+  locatieOmschrijving: undefined,
+  technischeStaatOmschrijving: undefined,
+  procesVoorwaarden: undefined,
+  dataroomUrl: undefined,
+  marktwaardeIndicatie: undefined,
+  marktwaardeBron: undefined,
+  contactNaam: undefined,
+  contactFunctie: undefined,
+  contactTelefoon: undefined,
+  contactEmail: undefined,
+  oppervlaktenPerVerdieping: [],
+  financieleScenarios: {},
+  documentatieStatus: {},
+  imSectiesZichtbaar: {},
 };
+
+// IM-secties die de gebruiker per stuk aan/uit kan zetten in het document
+const IM_SECTIES: { key: string; label: string }[] = [
+  { key: 'propositie',     label: 'Propositie' },
+  { key: 'object',         label: 'Objectomschrijving' },
+  { key: 'locatie',        label: 'Locatie' },
+  { key: 'oppervlakten',   label: 'Oppervlakten per verdieping' },
+  { key: 'huur',           label: 'Huurinformatie' },
+  { key: 'financieel',     label: 'Financiële scenario\'s' },
+  { key: 'marktwaarde',    label: 'Marktwaarde-indicatie' },
+  { key: 'technisch',      label: 'Technische staat' },
+  { key: 'juridisch',      label: 'Juridisch & kadaster' },
+  { key: 'duurzaamheid',   label: 'Duurzaamheid / energielabel' },
+  { key: 'risicos',        label: 'Risico\'s' },
+  { key: 'documentatie',   label: 'Documentatie-overzicht' },
+  { key: 'proces',         label: 'Proces & voorwaarden' },
+  { key: 'contact',        label: 'Contact' },
+];
 
 const ENERGIELABELS: Energielabel[] =
   ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
@@ -361,6 +398,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <TabsTrigger value="juridisch">Juridisch</TabsTrigger>
               <TabsTrigger value="verkoper">Verkoper</TabsTrigger>
               <TabsTrigger value="thesis">Thesis</TabsTrigger>
+              <TabsTrigger value="im">IM &amp; document</TabsTrigger>
               <TabsTrigger value="media" disabled={!objectId}>
                 <span className="hidden sm:inline">Media</span>
                 <Image className="h-4 w-4 sm:hidden" />
@@ -904,7 +942,154 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               </Sectie>
             </TabsContent>
 
-            {/* TAB 8: MEDIA */}
+            {/* TAB 8: IM & DOCUMENT */}
+            <TabsContent value="im" className="space-y-5 mt-0">
+              <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2">
+                <FileSignature className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Inhoud voor het Investment Memorandum (IM) en de 1-pager. Lege velden worden automatisch verborgen — er verschijnen geen placeholders.
+                </p>
+              </div>
+
+              <Sectie titel="Propositie & omschrijvingen">
+                <Veld label="Propositie (kernboodschap)">
+                  <Textarea rows={3} value={form.propositie ?? ''}
+                    onChange={e => set('propositie', e.target.value || undefined)}
+                    placeholder="Eén-alinea kernboodschap voor de cover van IM en 1-pager" />
+                </Veld>
+                <Veld label="Objectomschrijving">
+                  <Textarea rows={4} value={form.objectomschrijving ?? ''}
+                    onChange={e => set('objectomschrijving', e.target.value || undefined)}
+                    placeholder="Inhoudelijke beschrijving van het pand, indeling, gebruik" />
+                </Veld>
+                <Veld label="Locatie-omschrijving">
+                  <Textarea rows={3} value={form.locatieOmschrijving ?? ''}
+                    onChange={e => set('locatieOmschrijving', e.target.value || undefined)}
+                    placeholder="Bereikbaarheid, omgeving, voorzieningen, demografie" />
+                </Veld>
+                <Veld label="Technische staat (toelichting)">
+                  <Textarea rows={3} value={form.technischeStaatOmschrijving ?? ''}
+                    onChange={e => set('technischeStaatOmschrijving', e.target.value || undefined)}
+                    placeholder="Aanvulling op onderhoudsstaat-niveau, MJOP, recente ingrepen" />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Oppervlakten per verdieping">
+                <OppervlaktenEditor
+                  rijen={form.oppervlaktenPerVerdieping ?? []}
+                  onChange={v => set('oppervlaktenPerVerdieping', v)}
+                />
+              </Sectie>
+
+              <Sectie titel="Financiële scenario's">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Optioneel. Lege scenario's verschijnen niet in het IM.
+                </p>
+                <ScenarioBlok
+                  titel="Huidige situatie"
+                  scenario={form.financieleScenarios?.huidig}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), huidig: s })}
+                />
+                <ScenarioBlok
+                  titel="Marktconform"
+                  scenario={form.financieleScenarios?.marktconform}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), marktconform: s })}
+                />
+                <ScenarioBlok
+                  titel="Na renovatie / herontwikkeling"
+                  scenario={form.financieleScenarios?.naRenovatie}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), naRenovatie: s })}
+                />
+              </Sectie>
+
+              <Sectie titel="Marktwaarde-indicatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Marktwaarde-indicatie (€)">
+                    <Input type="number" value={form.marktwaardeIndicatie ?? ''}
+                      onChange={e => set('marktwaardeIndicatie', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Bron / toelichting">
+                    <Input value={form.marktwaardeBron ?? ''}
+                      onChange={e => set('marktwaardeBron', e.target.value || undefined)}
+                      placeholder="bv. eigen analyse, mediaan referenties" />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Proces & dataroom">
+                <Veld label="Proces & voorwaarden">
+                  <Textarea rows={3} value={form.procesVoorwaarden ?? ''}
+                    onChange={e => set('procesVoorwaarden', e.target.value || undefined)}
+                    placeholder="bv. gesloten biedprocedure, deadline, NDA verplicht" />
+                </Veld>
+                <Veld label="Dataroom-URL">
+                  <Input type="url" value={form.dataroomUrl ?? ''}
+                    onChange={e => set('dataroomUrl', e.target.value || undefined)}
+                    placeholder="https://..." />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Contactgegevens (op IM/1-pager)">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Indien leeg vallen we terug op de verkoper-info. Lege velden verschijnen niet.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Naam">
+                    <Input value={form.contactNaam ?? ''}
+                      onChange={e => set('contactNaam', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Functie">
+                    <Input value={form.contactFunctie ?? ''}
+                      onChange={e => set('contactFunctie', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Telefoon">
+                    <Input value={form.contactTelefoon ?? ''}
+                      onChange={e => set('contactTelefoon', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="E-mail">
+                    <Input type="email" value={form.contactEmail ?? ''}
+                      onChange={e => set('contactEmail', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Documentatie-overzicht (in IM)">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Per documenttype kun je de status kiezen. Alleen typen met een gekozen status verschijnen in de documentatietabel van het IM.
+                </p>
+                <DocumentatieStatusEditor
+                  status={form.documentatieStatus ?? {}}
+                  onChange={v => set('documentatieStatus', v)}
+                />
+              </Sectie>
+
+              <Sectie titel="IM-secties zichtbaar">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Default: een sectie verschijnt automatisch als er content voor is. Hier kun je individuele secties expliciet uitzetten.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {IM_SECTIES.map(s => {
+                    const huidig = form.imSectiesZichtbaar?.[s.key];
+                    const aan = huidig !== false; // default aan
+                    return (
+                      <label key={s.key} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border hover:bg-muted/30">
+                        <span className="text-sm">{s.label}</span>
+                        <Switch
+                          checked={aan}
+                          onCheckedChange={(v) => {
+                            const next = { ...(form.imSectiesZichtbaar ?? {}) };
+                            if (v) delete next[s.key]; else next[s.key] = false;
+                            set('imSectiesZichtbaar', next);
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 9: MEDIA */}
             <TabsContent value="media" className="space-y-6 mt-0">
               {objectId ? (
                 <>
@@ -991,6 +1176,143 @@ function PlaceholderEerstOpslaan({
     <div className="border border-dashed border-border rounded-md p-8 text-center">
       <div className="text-muted-foreground inline-flex">{icon}</div>
       <p className="text-sm text-muted-foreground mt-2">{boodschap}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// IM-tab editors
+// ---------------------------------------------------------------------
+
+type OppRij = { verdieping: string; vvo?: number; bvo?: number; bestemming?: string };
+
+function OppervlaktenEditor({
+  rijen, onChange,
+}: { rijen: OppRij[]; onChange: (v: OppRij[]) => void }) {
+  const updateRij = (i: number, patch: Partial<OppRij>) => {
+    const next = rijen.map((r, idx) => idx === i ? { ...r, ...patch } : r);
+    onChange(next);
+  };
+  const verwijder = (i: number) => onChange(rijen.filter((_, idx) => idx !== i));
+  const toevoegen = () => onChange([...rijen, { verdieping: '' }]);
+
+  return (
+    <div className="space-y-2">
+      {rijen.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Nog geen verdiepingen toegevoegd.
+        </p>
+      )}
+      {rijen.map((r, i) => (
+        <div key={i} className="grid grid-cols-12 gap-2 items-end">
+          <div className="col-span-12 sm:col-span-3">
+            <Label className="text-xs">Verdieping</Label>
+            <Input value={r.verdieping}
+              onChange={e => updateRij(i, { verdieping: e.target.value })}
+              placeholder="bv. BG, 1e" />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Label className="text-xs">VVO m²</Label>
+            <Input type="number" value={r.vvo ?? ''}
+              onChange={e => updateRij(i, { vvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Label className="text-xs">BVO m²</Label>
+            <Input type="number" value={r.bvo ?? ''}
+              onChange={e => updateRij(i, { bvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+          <div className="col-span-4 sm:col-span-4">
+            <Label className="text-xs">Bestemming / gebruik</Label>
+            <Input value={r.bestemming ?? ''}
+              onChange={e => updateRij(i, { bestemming: e.target.value || undefined })}
+              placeholder="bv. retail, kantoor" />
+          </div>
+          <div className="col-span-12 sm:col-span-1 flex justify-end">
+            <Button type="button" variant="ghost" size="icon" onClick={() => verwijder(i)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={toevoegen}>
+        <Plus className="h-3.5 w-3.5 mr-1" /> Verdieping toevoegen
+      </Button>
+    </div>
+  );
+}
+
+type ScenarioWaarde = { jaarhuur?: number; bar?: number; noi?: number; opmerking?: string };
+
+function ScenarioBlok({
+  titel, scenario, onChange,
+}: { titel: string; scenario?: ScenarioWaarde; onChange: (v: ScenarioWaarde | undefined) => void }) {
+  const s = scenario ?? {};
+  const update = (patch: Partial<ScenarioWaarde>) => {
+    const next = { ...s, ...patch };
+    // Als alle velden leeg zijn → undefined zodat sectie weg blijft uit IM
+    const leeg = !next.jaarhuur && !next.bar && !next.noi && !next.opmerking?.trim();
+    onChange(leeg ? undefined : next);
+  };
+  return (
+    <div className="border border-border rounded-md p-3 space-y-2 bg-muted/20">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{titel}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div>
+          <Label className="text-xs">Jaarhuur (€)</Label>
+          <Input type="number" value={s.jaarhuur ?? ''}
+            onChange={e => update({ jaarhuur: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+        <div>
+          <Label className="text-xs">BAR (%)</Label>
+          <Input type="number" step="0.01" value={s.bar ?? ''}
+            onChange={e => update({ bar: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+        <div>
+          <Label className="text-xs">NOI (€/jr)</Label>
+          <Input type="number" value={s.noi ?? ''}
+            onChange={e => update({ noi: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs">Toelichting</Label>
+        <Input value={s.opmerking ?? ''}
+          onChange={e => update({ opmerking: e.target.value || undefined })}
+          placeholder="optionele toelichting" />
+      </div>
+    </div>
+  );
+}
+
+type DocStatus = 'beschikbaar' | 'op_aanvraag' | 'na_nda';
+
+function DocumentatieStatusEditor({
+  status, onChange,
+}: { status: Record<string, DocStatus>; onChange: (v: Record<string, DocStatus>) => void }) {
+  const setStatus = (type: DocumentType, val: '' | DocStatus) => {
+    const next = { ...status };
+    if (val === '') delete next[type]; else next[type] = val;
+    onChange(next);
+  };
+  return (
+    <div className="space-y-1">
+      {Object.entries(DOCUMENT_TYPE_LABELS).map(([key, label]) => {
+        const huidig = status[key] ?? '';
+        return (
+          <div key={key} className="flex items-center justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
+            <span className="text-sm">{label}</span>
+            <select
+              value={huidig}
+              onChange={e => setStatus(key as DocumentType, e.target.value as '' | DocStatus)}
+              className="h-9 px-2 text-xs rounded-md border border-input bg-background min-w-[160px]"
+            >
+              <option value="">— Niet tonen —</option>
+              <option value="beschikbaar">Beschikbaar</option>
+              <option value="op_aanvraag">Op aanvraag</option>
+              <option value="na_nda">Na NDA</option>
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 }
