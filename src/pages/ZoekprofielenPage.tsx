@@ -65,9 +65,38 @@ export default function ZoekprofielenPage() {
         }
       />
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Zoek op profiel of relatie..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+        <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Zoek op profiel of relatie..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={typeFilter}
+            onChange={e => { setTypeFilter(e.target.value); setSubtypeFilter(''); }}
+          >
+            <option value="">Alle typen vastgoed</option>
+            {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={subtypeFilter}
+            onChange={e => setSubtypeFilter(e.target.value)}
+            disabled={beschikbareSubs.length === 0}
+          >
+            <option value="">Alle subcategorieën</option>
+            {beschikbareSubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={dealtypeFilter}
+            onChange={e => setDealtypeFilter(e.target.value)}
+          >
+            <option value="">Alle dealtypes</option>
+            {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {filtered.length === 0 && (
