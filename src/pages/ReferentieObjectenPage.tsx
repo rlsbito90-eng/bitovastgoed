@@ -18,7 +18,7 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Search, Pencil, Trash2, Link2, ExternalLink } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Link2, ExternalLink, ArrowUpDown, X } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
 import {
@@ -60,6 +60,26 @@ export default function ReferentieObjectenPage() {
   const [plaatsFilter, setPlaatsFilter] = useState('');
   const [postcodeFilter, setPostcodeFilter] = useState('');
   const [kwaliteitFilter, setKwaliteitFilter] = useState<'' | 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak'>('');
+  const [bouwjaarMin, setBouwjaarMin] = useState('');
+  const [bouwjaarMax, setBouwjaarMax] = useState('');
+  const [m2Min, setM2Min] = useState('');
+  const [m2Max, setM2Max] = useState('');
+  const [prijsMin, setPrijsMin] = useState('');
+  const [prijsMax, setPrijsMax] = useState('');
+  const [energielabelFilter, setEnergielabelFilter] = useState('');
+  const [huurstatusFilter, setHuurstatusFilter] = useState('');
+  type SortKey =
+    | 'recent' | 'oudst'
+    | 'adres_az' | 'adres_za'
+    | 'plaats_az' | 'plaats_za'
+    | 'postcode_az' | 'postcode_za'
+    | 'm2_asc' | 'm2_desc'
+    | 'vraagprijs_asc' | 'vraagprijs_desc'
+    | 'prijs_per_m2_asc' | 'prijs_per_m2_desc'
+    | 'huur_asc' | 'huur_desc'
+    | 'bouwjaar_asc' | 'bouwjaar_desc'
+    | 'kwaliteit_desc' | 'kwaliteit_asc';
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
 
@@ -80,10 +100,25 @@ export default function ReferentieObjectenPage() {
 
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
-    return store.referentieObjecten.filter(r => {
+    const bjMin = bouwjaarMin ? parseInt(bouwjaarMin, 10) : undefined;
+    const bjMax = bouwjaarMax ? parseInt(bouwjaarMax, 10) : undefined;
+    const m2MinN = m2Min ? parseInt(m2Min, 10) : undefined;
+    const m2MaxN = m2Max ? parseInt(m2Max, 10) : undefined;
+    const prMin = prijsMin ? parseInt(prijsMin, 10) : undefined;
+    const prMax = prijsMax ? parseInt(prijsMax, 10) : undefined;
+
+    const list = store.referentieObjecten.filter(r => {
       if (assetFilter && r.assetClass !== assetFilter) return false;
       if (plaatsFilter && !r.plaats.toLowerCase().includes(plaatsFilter.toLowerCase())) return false;
       if (postcodeFilter && !r.postcode.toLowerCase().includes(postcodeFilter.toLowerCase())) return false;
+      if (energielabelFilter && r.energielabel !== energielabelFilter) return false;
+      if (huurstatusFilter && r.huurstatus !== huurstatusFilter) return false;
+      if (bjMin != null && r.bouwjaar < bjMin) return false;
+      if (bjMax != null && r.bouwjaar > bjMax) return false;
+      if (m2MinN != null && r.m2 < m2MinN) return false;
+      if (m2MaxN != null && r.m2 > m2MaxN) return false;
+      if (prMin != null && r.vraagprijs < prMin) return false;
+      if (prMax != null && r.vraagprijs > prMax) return false;
       if (kwaliteitFilter) {
         const k = berekenReferentieKwaliteit(r);
         if (k.kwaliteit !== kwaliteitFilter) return false;
@@ -94,7 +129,61 @@ export default function ReferentieObjectenPage() {
       }
       return true;
     });
-  }, [store.referentieObjecten, zoek, assetFilter, plaatsFilter, postcodeFilter, kwaliteitFilter]);
+
+    const numAsc = (a?: number, b?: number) => {
+      const av = a == null ? Number.POSITIVE_INFINITY : a;
+      const bv = b == null ? Number.POSITIVE_INFINITY : b;
+      return av - bv;
+    };
+    const numDesc = (a?: number, b?: number) => {
+      const av = a == null ? Number.NEGATIVE_INFINITY : a;
+      const bv = b == null ? Number.NEGATIVE_INFINITY : b;
+      return bv - av;
+    };
+    const strAsc = (a: string, b: string) => a.localeCompare(b, 'nl', { sensitivity: 'base' });
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case 'recent': return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+        case 'oudst': return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+        case 'adres_az': return strAsc(a.adres, b.adres);
+        case 'adres_za': return strAsc(b.adres, a.adres);
+        case 'plaats_az': return strAsc(a.plaats, b.plaats);
+        case 'plaats_za': return strAsc(b.plaats, a.plaats);
+        case 'postcode_az': return strAsc(a.postcode, b.postcode);
+        case 'postcode_za': return strAsc(b.postcode, a.postcode);
+        case 'm2_asc': return numAsc(a.m2, b.m2);
+        case 'm2_desc': return numDesc(a.m2, b.m2);
+        case 'vraagprijs_asc': return numAsc(a.vraagprijs, b.vraagprijs);
+        case 'vraagprijs_desc': return numDesc(a.vraagprijs, b.vraagprijs);
+        case 'prijs_per_m2_asc': return numAsc(a.prijsPerM2, b.prijsPerM2);
+        case 'prijs_per_m2_desc': return numDesc(a.prijsPerM2, b.prijsPerM2);
+        case 'huur_asc': return numAsc(a.huurprijsPerJaar, b.huurprijsPerJaar);
+        case 'huur_desc': return numDesc(a.huurprijsPerJaar, b.huurprijsPerJaar);
+        case 'bouwjaar_asc': return numAsc(a.bouwjaar, b.bouwjaar);
+        case 'bouwjaar_desc': return numDesc(a.bouwjaar, b.bouwjaar);
+        case 'kwaliteit_desc': return numDesc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
+        case 'kwaliteit_asc': return numAsc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
+        default: return 0;
+      }
+    });
+    return sorted;
+  }, [
+    store.referentieObjecten, zoek, assetFilter, plaatsFilter, postcodeFilter, kwaliteitFilter,
+    energielabelFilter, huurstatusFilter, bouwjaarMin, bouwjaarMax, m2Min, m2Max, prijsMin, prijsMax, sortKey,
+  ]);
+
+  const filtersActief =
+    !!zoek || !!assetFilter || !!plaatsFilter || !!postcodeFilter || !!kwaliteitFilter ||
+    !!energielabelFilter || !!huurstatusFilter || !!bouwjaarMin || !!bouwjaarMax ||
+    !!m2Min || !!m2Max || !!prijsMin || !!prijsMax;
+
+  const resetFilters = () => {
+    setZoek(''); setAssetFilter(''); setPlaatsFilter(''); setPostcodeFilter('');
+    setKwaliteitFilter(''); setEnergielabelFilter(''); setHuurstatusFilter('');
+    setBouwjaarMin(''); setBouwjaarMax(''); setM2Min(''); setM2Max(''); setPrijsMin(''); setPrijsMax('');
+  };
 
   const handleNieuw = () => {
     setEditObj(undefined);
@@ -127,50 +216,138 @@ export default function ReferentieObjectenPage() {
         }
       />
 
-      {/* FILTERS */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
-        <div className="relative flex-1 min-w-[220px] sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* FILTERS + SORTERING */}
+      <div className="space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+          <div className="relative flex-1 min-w-[220px] sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Zoek op adres, plaats of postcode..."
+              className="pl-9 h-10"
+              value={zoek}
+              onChange={e => setZoek(e.target.value)}
+            />
+          </div>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={assetFilter}
+            onChange={e => setAssetFilter(e.target.value as AssetClass | '')}
+          >
+            <option value="">Alle asset classes</option>
+            {(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => (
+              <option key={ac} value={ac}>{ASSET_CLASS_LABELS[ac]}</option>
+            ))}
+          </select>
           <Input
-            placeholder="Zoek op adres, plaats of postcode..."
-            className="pl-9 h-10"
-            value={zoek}
-            onChange={e => setZoek(e.target.value)}
+            placeholder="Plaats"
+            className="h-10 w-full sm:w-40"
+            value={plaatsFilter}
+            onChange={e => setPlaatsFilter(e.target.value)}
           />
+          <Input
+            placeholder="Postcode"
+            className="h-10 w-full sm:w-32"
+            value={postcodeFilter}
+            onChange={e => setPostcodeFilter(e.target.value)}
+          />
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={kwaliteitFilter}
+            onChange={e => setKwaliteitFilter(e.target.value as any)}
+          >
+            <option value="">Alle kwaliteiten</option>
+            <option value="zeer_sterk">Zeer sterk (90+)</option>
+            <option value="goed">Goed (75–89)</option>
+            <option value="bruikbaar">Bruikbaar (60–74)</option>
+            <option value="zwak">Zwak (&lt;60)</option>
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={energielabelFilter}
+            onChange={e => setEnergielabelFilter(e.target.value)}
+          >
+            <option value="">Alle energielabels</option>
+            {['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'].map(l => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={huurstatusFilter}
+            onChange={e => setHuurstatusFilter(e.target.value)}
+          >
+            <option value="">Alle huurstatussen</option>
+            <option value="verhuurd">Verhuurd</option>
+            <option value="leeg">Leeg</option>
+            <option value="gedeeltelijk">Gedeeltelijk</option>
+          </select>
         </div>
-        <select
-          className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-          value={assetFilter}
-          onChange={e => setAssetFilter(e.target.value as AssetClass | '')}
-        >
-          <option value="">Alle asset classes</option>
-          {(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => (
-            <option key={ac} value={ac}>{ASSET_CLASS_LABELS[ac]}</option>
-          ))}
-        </select>
-        <Input
-          placeholder="Plaats"
-          className="h-10 w-full sm:w-40"
-          value={plaatsFilter}
-          onChange={e => setPlaatsFilter(e.target.value)}
-        />
-        <Input
-          placeholder="Postcode"
-          className="h-10 w-full sm:w-32"
-          value={postcodeFilter}
-          onChange={e => setPostcodeFilter(e.target.value)}
-        />
-        <select
-          className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-          value={kwaliteitFilter}
-          onChange={e => setKwaliteitFilter(e.target.value as any)}
-        >
-          <option value="">Alle kwaliteiten</option>
-          <option value="zeer_sterk">Zeer sterk (90+)</option>
-          <option value="goed">Goed (75–89)</option>
-          <option value="bruikbaar">Bruikbaar (60–74)</option>
-          <option value="zwak">Zwak (&lt;60)</option>
-        </select>
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Bouwjaar</span>
+            <Input type="number" placeholder="van" className="h-10 w-24" value={bouwjaarMin} onChange={e => setBouwjaarMin(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-24" value={bouwjaarMax} onChange={e => setBouwjaarMax(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">m²</span>
+            <Input type="number" placeholder="van" className="h-10 w-24" value={m2Min} onChange={e => setM2Min(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-24" value={m2Max} onChange={e => setM2Max(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Vraagprijs €</span>
+            <Input type="number" placeholder="van" className="h-10 w-32" value={prijsMin} onChange={e => setPrijsMin(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-32" value={prijsMax} onChange={e => setPrijsMax(e.target.value)} />
+          </div>
+
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <select
+              className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value as any)}
+              aria-label="Sorteren"
+            >
+              <optgroup label="Datum">
+                <option value="recent">Laatst toegevoegd</option>
+                <option value="oudst">Eerst toegevoegd</option>
+              </optgroup>
+              <optgroup label="Adres / locatie">
+                <option value="adres_az">Adres (A–Z)</option>
+                <option value="adres_za">Adres (Z–A)</option>
+                <option value="plaats_az">Plaats (A–Z)</option>
+                <option value="plaats_za">Plaats (Z–A)</option>
+                <option value="postcode_az">Postcode (oplopend)</option>
+                <option value="postcode_za">Postcode (aflopend)</option>
+              </optgroup>
+              <optgroup label="Oppervlakte / prijs">
+                <option value="m2_desc">m² (hoog → laag)</option>
+                <option value="m2_asc">m² (laag → hoog)</option>
+                <option value="vraagprijs_desc">Vraagprijs (hoog → laag)</option>
+                <option value="vraagprijs_asc">Vraagprijs (laag → hoog)</option>
+                <option value="prijs_per_m2_desc">€/m² (hoog → laag)</option>
+                <option value="prijs_per_m2_asc">€/m² (laag → hoog)</option>
+                <option value="huur_desc">Huur/jaar (hoog → laag)</option>
+                <option value="huur_asc">Huur/jaar (laag → hoog)</option>
+              </optgroup>
+              <optgroup label="Overig">
+                <option value="bouwjaar_desc">Bouwjaar (nieuw → oud)</option>
+                <option value="bouwjaar_asc">Bouwjaar (oud → nieuw)</option>
+                <option value="kwaliteit_desc">Kwaliteit (hoog → laag)</option>
+                <option value="kwaliteit_asc">Kwaliteit (laag → hoog)</option>
+              </optgroup>
+            </select>
+            {filtersActief && (
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5" onClick={resetFilters}>
+                <X className="h-4 w-4" /> Wis filters
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} van {store.referentieObjecten.length} referentieobjecten
+        </p>
       </div>
 
       {filtered.length === 0 ? (
