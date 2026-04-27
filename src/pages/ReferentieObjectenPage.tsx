@@ -145,8 +145,8 @@ export default function ReferentieObjectenPage() {
     const sorted = [...list];
     sorted.sort((a, b) => {
       switch (sortKey) {
-        case 'recent': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oudst': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'recent': return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+        case 'oudst': return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
         case 'adres_az': return strAsc(a.adres, b.adres);
         case 'adres_za': return strAsc(b.adres, a.adres);
         case 'plaats_az': return strAsc(a.plaats, b.plaats);
