@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
 export default function ZoekprofielenPage() {
   const { zoekprofielen, getRelatieById, deleteZoekprofiel } = useDataStore();
