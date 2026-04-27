@@ -185,14 +185,25 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     return () => { cancelled = true; };
   }, [open, object, gemaaktId, form.internReferentienummer, genereerRefnummer]);
 
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
-    setForm(prev => ({ ...prev, [k]: v }));
+  const { propertyTypes, subtypesForType, dealTypes, propertyTypeById } = usePropertyTaxonomie();
 
   const num = (v: string): number | undefined => v === '' ? undefined : Number(v);
 
-  // Wijzig type -> reset subcategorieId (is afhankelijk van type)
-  const setType = (nieuwType: AssetClass) => {
-    setForm(prev => ({ ...prev, type: nieuwType, subcategorieId: undefined }));
+  // Wijzig property_type -> reset subtypes + sync legacy AssetClass enum
+  const setPropertyType = (newId: string | undefined) => {
+    setForm(prev => {
+      const pt = newId ? propertyTypes.find(p => p.id === newId) : undefined;
+      const newAssetClass = pt ? propertyTypeSlugNaarAssetClass(pt.slug) : prev.type;
+      return {
+        ...prev,
+        propertyTypeId: newId,
+        propertySubtypeIds: [],
+        // Houd legacy `type` (AssetClass) gesynchroniseerd zodat bestaande
+        // filters/matching/badges blijven werken zonder breuk.
+        type: newAssetClass,
+        subcategorieId: undefined,
+      };
+    });
   };
 
   const handleSave = async () => {
