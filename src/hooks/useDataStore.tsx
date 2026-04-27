@@ -1301,8 +1301,45 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .update(pipelineToDb(patch) as any).eq('id', id).select().single();
     throwIfError(error);
     if (!data) return;
-    setPipelineKandidaten(prev => prev.map(x => x.id === id ? pipelineFromDb(data) : x));
-  }, []);
+    const updated = pipelineFromDb(data);
+    setPipelineKandidaten(prev => prev.map(x => x.id === id ? updated : x));
+
+    // -- AUTOMATION: lichtgewicht voortgang van objectfase --
+    // Alleen vooruit verplaatsen, en alleen als object niet handmatig gelockt is.
+    if (patch.pipelineFase) {
+      try {
+        const { KANDIDAAT_NAAR_OBJECT_STAGE } = await import('@/data/mock-data');
+        const targetSlug = KANDIDAAT_NAAR_OBJECT_STAGE[updated.pipelineFase];
+        const obj = objecten.find(o => o.id === updated.objectId);
+        if (targetSlug && obj && !obj.pipelineStageLocked) {
+          const targetStage = pipelineStages.find(s => s.slug === targetSlug && s.pipelineId === (obj.pipelineId ?? targetStage_pipelineFallback(pipelines)));
+          const huidig = pipelineStages.find(s => s.id === obj.pipelineStageId);
+          // Vooruit als (a) nog geen stage, of (b) target.sortOrder > huidig.sortOrder
+          if (targetStage && (!huidig || targetStage.sortOrder > huidig.sortOrder)) {
+            const { error: e2 } = await supabase.from('objecten').update({
+              pipeline_stage_id: targetStage.id,
+              pipeline_id: targetStage.pipelineId,
+              pipeline_updated_at: new Date().toISOString(),
+            }).eq('id', obj.id);
+            if (!e2) {
+              setObjecten(prev => prev.map(x => x.id === obj.id
+                ? { ...x, pipelineStageId: targetStage.id, pipelineId: targetStage.pipelineId, pipelineUpdatedAt: new Date().toISOString() }
+                : x));
+            }
+          }
+        }
+      } catch (e) {
+        // Automation faalt nooit hard
+        console.warn('Object pipeline-automation overgeslagen:', e);
+      }
+    }
+  }, [objecten, pipelineStages, /* pipelines via fallback helper */]);
+
+  // Helper: fallback default object-pipeline-id zodat we ook werken zonder per-object pipeline_id
+  function targetStage_pipelineFallback(allPipelines: Pipeline[]) {
+    return allPipelines.find(p => p.entityType === 'object' && p.isDefault)?.id;
+  }
+
 
   const removePipelineKandidaat = useCallback(async (id: string) => {
     const { error } = await supabase.from('object_pipeline' as any)
