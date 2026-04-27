@@ -652,6 +652,114 @@ export type Database = {
           },
         ]
       }
+      object_pipeline: {
+        Row: {
+          aangemaakt_door: string | null
+          bezichtiging_datum: string | null
+          bieding_bedrag: number | null
+          bieding_voorwaarden: string | null
+          created_at: string
+          fee_akkoord: boolean
+          financieringsvoorbehoud: boolean | null
+          gewenste_levering: string | null
+          id: string
+          informatie_gedeeld: boolean
+          informatie_gedeeld_op: string | null
+          interesse_niveau: Database["public"]["Enums"]["interesse_niveau"]
+          laatste_contactdatum: string | null
+          matchscore: number | null
+          nda_getekend: boolean
+          nda_getekend_op: string | null
+          nda_verstuurd: boolean
+          nda_verstuurd_op: string | null
+          notities: string | null
+          object_id: string
+          pipeline_fase: Database["public"]["Enums"]["pipeline_fase"]
+          reden_afgevallen: string | null
+          relatie_id: string
+          soft_deleted_at: string | null
+          teaser_verstuurd: boolean
+          teaser_verstuurd_op: string | null
+          updated_at: string
+          volgende_actie:
+            | Database["public"]["Enums"]["volgende_actie_type"]
+            | null
+          volgende_actie_datum: string | null
+          volgende_actie_omschrijving: string | null
+          zoekprofiel_id: string | null
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          bezichtiging_datum?: string | null
+          bieding_bedrag?: number | null
+          bieding_voorwaarden?: string | null
+          created_at?: string
+          fee_akkoord?: boolean
+          financieringsvoorbehoud?: boolean | null
+          gewenste_levering?: string | null
+          id?: string
+          informatie_gedeeld?: boolean
+          informatie_gedeeld_op?: string | null
+          interesse_niveau?: Database["public"]["Enums"]["interesse_niveau"]
+          laatste_contactdatum?: string | null
+          matchscore?: number | null
+          nda_getekend?: boolean
+          nda_getekend_op?: string | null
+          nda_verstuurd?: boolean
+          nda_verstuurd_op?: string | null
+          notities?: string | null
+          object_id: string
+          pipeline_fase?: Database["public"]["Enums"]["pipeline_fase"]
+          reden_afgevallen?: string | null
+          relatie_id: string
+          soft_deleted_at?: string | null
+          teaser_verstuurd?: boolean
+          teaser_verstuurd_op?: string | null
+          updated_at?: string
+          volgende_actie?:
+            | Database["public"]["Enums"]["volgende_actie_type"]
+            | null
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+          zoekprofiel_id?: string | null
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          bezichtiging_datum?: string | null
+          bieding_bedrag?: number | null
+          bieding_voorwaarden?: string | null
+          created_at?: string
+          fee_akkoord?: boolean
+          financieringsvoorbehoud?: boolean | null
+          gewenste_levering?: string | null
+          id?: string
+          informatie_gedeeld?: boolean
+          informatie_gedeeld_op?: string | null
+          interesse_niveau?: Database["public"]["Enums"]["interesse_niveau"]
+          laatste_contactdatum?: string | null
+          matchscore?: number | null
+          nda_getekend?: boolean
+          nda_getekend_op?: string | null
+          nda_verstuurd?: boolean
+          nda_verstuurd_op?: string | null
+          notities?: string | null
+          object_id?: string
+          pipeline_fase?: Database["public"]["Enums"]["pipeline_fase"]
+          reden_afgevallen?: string | null
+          relatie_id?: string
+          soft_deleted_at?: string | null
+          teaser_verstuurd?: boolean
+          teaser_verstuurd_op?: string | null
+          updated_at?: string
+          volgende_actie?:
+            | Database["public"]["Enums"]["volgende_actie_type"]
+            | null
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+          zoekprofiel_id?: string | null
+        }
+        Relationships: []
+      }
       object_referenties: {
         Row: {
           created_at: string
@@ -1783,6 +1891,7 @@ export type Database = {
         | "onbekend"
       exclusiviteit_voorkeur: "alleen_off_market" | "beide" | "geen_voorkeur"
       indexatie_basis: "CPI" | "vast_pct" | "geen" | "custom"
+      interesse_niveau: "koud" | "lauw" | "warm" | "zeer_warm"
       investeerder_subtype:
         | "private_belegger"
         | "hnwi"
@@ -1817,6 +1926,24 @@ export type Database = {
         | "redelijk"
         | "matig"
         | "slecht"
+      pipeline_fase:
+        | "match_gevonden"
+        | "teaser_verstuurd"
+        | "interesse_ontvangen"
+        | "nda_verstuurd"
+        | "nda_getekend"
+        | "informatie_gedeeld"
+        | "bezichtiging_gepland"
+        | "bezichtiging_geweest"
+        | "indicatieve_bieding"
+        | "onderhandeling"
+        | "loi_ontvangen"
+        | "due_diligence"
+        | "koopovereenkomst_concept"
+        | "koopovereenkomst_getekend"
+        | "transport_closing"
+        | "afgerond"
+        | "afgevallen"
       relatie_type:
         | "belegger"
         | "ontwikkelaar"
@@ -1840,6 +1967,16 @@ export type Database = {
         | "via_adviseur"
         | "via_netwerk"
         | "onbekend"
+      volgende_actie_type:
+        | "bellen"
+        | "mailen"
+        | "whatsapp"
+        | "nda_sturen"
+        | "stukken_delen"
+        | "bezichtiging_plannen"
+        | "bieding_opvolgen"
+        | "onderhandelen"
+        | "overig"
       zoekprofiel_status: "actief" | "gepauzeerd" | "gearchiveerd" | "pauze"
     }
     CompositeTypes: {
@@ -2038,6 +2175,7 @@ export const Constants = {
       ],
       exclusiviteit_voorkeur: ["alleen_off_market", "beide", "geen_voorkeur"],
       indexatie_basis: ["CPI", "vast_pct", "geen", "custom"],
+      interesse_niveau: ["koud", "lauw", "warm", "zeer_warm"],
       investeerder_subtype: [
         "private_belegger",
         "hnwi",
@@ -2077,6 +2215,25 @@ export const Constants = {
         "matig",
         "slecht",
       ],
+      pipeline_fase: [
+        "match_gevonden",
+        "teaser_verstuurd",
+        "interesse_ontvangen",
+        "nda_verstuurd",
+        "nda_getekend",
+        "informatie_gedeeld",
+        "bezichtiging_gepland",
+        "bezichtiging_geweest",
+        "indicatieve_bieding",
+        "onderhandeling",
+        "loi_ontvangen",
+        "due_diligence",
+        "koopovereenkomst_concept",
+        "koopovereenkomst_getekend",
+        "transport_closing",
+        "afgerond",
+        "afgevallen",
+      ],
       relatie_type: [
         "belegger",
         "ontwikkelaar",
@@ -2102,6 +2259,17 @@ export const Constants = {
         "via_adviseur",
         "via_netwerk",
         "onbekend",
+      ],
+      volgende_actie_type: [
+        "bellen",
+        "mailen",
+        "whatsapp",
+        "nda_sturen",
+        "stukken_delen",
+        "bezichtiging_plannen",
+        "bieding_opvolgen",
+        "onderhandelen",
+        "overig",
       ],
       zoekprofiel_status: ["actief", "gepauzeerd", "gearchiveerd", "pauze"],
     },
