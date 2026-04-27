@@ -174,6 +174,24 @@ Deno.serve(async (req: Request) => {
 
     if (takenErr) console.error('Taken query error:', takenErr);
 
+    // Pipeline-kandidaten — bezichtigingen + volgende acties + gewenste leveringen
+    const { data: pipeline, error: pipelineErr } = await supabase
+      .from('object_pipeline')
+      .select('id, object_id, relatie_id, pipeline_fase, interesse_niveau, bezichtiging_datum, volgende_actie, volgende_actie_datum, volgende_actie_omschrijving, gewenste_levering, notities')
+      .is('soft_deleted_at', null);
+
+    if (pipelineErr) console.error('Pipeline query error:', pipelineErr);
+
+    // Relaties met NDA-datum
+    const { data: ndaRelaties, error: ndaErr } = await supabase
+      .from('relaties')
+      .select('id, bedrijfsnaam, nda_datum')
+      .is('soft_deleted_at', null)
+      .not('nda_datum', 'is', null)
+      .gte('nda_datum', vanafDate);
+
+    if (ndaErr) console.error('NDA-relaties query error:', ndaErr);
+
     // Verzamel alle benodigde object_ids en relatie_ids
     const objectIds = new Set<string>();
     const relatieIds = new Set<string>();
