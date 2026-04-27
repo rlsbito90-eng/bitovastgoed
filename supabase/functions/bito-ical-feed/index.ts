@@ -413,7 +413,134 @@ Deno.serve(async (req: Request) => {
       events.push(buildVEvent(event, dtstamp));
     }
 
-    // 5. Bouw VCALENDAR
+    // === PIPELINE-KANDIDATEN ===
+    // Per pipeline-record kunnen meerdere agenda-events ontstaan:
+    //  - bezichtiging_datum
+    //  - volgende_actie_datum
+    //  - gewenste_levering
+    const FASE_LABEL: Record<string, string> = {
+      match_gevonden: 'Match gevonden',
+      benaderd: 'Benaderd',
+      teaser_verstuurd: 'Teaser verstuurd',
+      nda_verstuurd: 'NDA verstuurd',
+      nda_getekend: 'NDA getekend',
+      informatie_gedeeld: 'Informatie gedeeld',
+      bezichtiging_gepland: 'Bezichtiging gepland',
+      bezichtiging_gehouden: 'Bezichtiging gehouden',
+      indicatieve_bieding: 'Indicatieve bieding',
+      onderhandeling: 'Onderhandeling',
+      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      due_diligence: 'Due diligence',
+      transport_closing: 'Transport / Closing',
+      afgehaakt: 'Afgehaakt',
+      afgewezen_door_ons: 'Afgewezen door ons',
+      on_hold: 'On hold',
+      gewonnen: 'Gewonnen',
+    };
+
+    const ACTIE_LABEL: Record<string, string> = {
+      bellen: 'Bellen',
+      mailen: 'Mailen',
+      teaser_sturen: 'Teaser sturen',
+      nda_sturen: 'NDA sturen',
+      nda_opvolgen: 'NDA opvolgen',
+      info_delen: 'Info delen',
+      bezichtiging_inplannen: 'Bezichtiging inplannen',
+      bezichtiging: 'Bezichtiging',
+      bod_opvolgen: 'Bod opvolgen',
+      onderhandelen: 'Onderhandelen',
+      contract_opstellen: 'Contract opstellen',
+      dd_opvolgen: 'DD opvolgen',
+      transport_voorbereiden: 'Transport voorbereiden',
+      anders: 'Actie',
+    };
+
+    for (const p of pipeline ?? []) {
+      const obj = p.object_id ? objectMap.get(p.object_id) : null;
+      const rel = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
+      const titel = objNaam(obj);
+      const relatie = rel?.bedrijfsnaam ?? '';
+      const locatie = obj
+        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
+        : undefined;
+      const objectUrl = obj ? `${APP_BASE_URL}/objecten/${obj.id}` : `${APP_BASE_URL}/pipeline`;
+      const faseLabel = p.pipeline_fase ? (FASE_LABEL[p.pipeline_fase] ?? p.pipeline_fase) : '';
+
+      const baseDescription = (extra?: string) => [
+        relatie ? `Kandidaat: ${relatie}` : null,
+        obj ? `Object: ${titel}` : null,
+        faseLabel ? `Fase: ${faseLabel}` : null,
+        extra,
+        p.notities ? `\nNotities:\n${p.notities}` : null,
+        `\n${objectUrl}`,
+      ].filter(Boolean).join('\n');
+
+      // Bezichtiging vanuit kandidaat-pipeline (all-day, want geen tijdveld)
+      if (p.bezichtiging_datum) {
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-bezichtiging', p.id),
+          summary: `🤝 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription(),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.bezichtiging_datum,
+          endDate: addOneDay(p.bezichtiging_datum),
+          status: 'CONFIRMED',
+        }, dtstamp));
+      }
+
+      // Volgende actie
+      if (p.volgende_actie_datum) {
+        const actieLabel = p.volgende_actie
+          ? (ACTIE_LABEL[p.volgende_actie] ?? p.volgende_actie)
+          : 'Volgende actie';
+        const omschrijving = p.volgende_actie_omschrijving?.trim();
+        const summarySuffix = omschrijving ? `: ${omschrijving}` : '';
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-actie', p.id),
+          summary: `✅ ${actieLabel}${summarySuffix} — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription(omschrijving ? `Actie: ${actieLabel} — ${omschrijving}` : `Actie: ${actieLabel}`),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.volgende_actie_datum,
+          endDate: addOneDay(p.volgende_actie_datum),
+        }, dtstamp));
+      }
+
+      // Gewenste levering / closing-wens vanuit kandidaat
+      if (p.gewenste_levering) {
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-levering', p.id),
+          summary: `📦 Gewenste levering — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.gewenste_levering,
+          endDate: addOneDay(p.gewenste_levering),
+          status: 'TENTATIVE',
+        }, dtstamp));
+      }
+    }
+
+    // === NDA-DATA RELATIES ===
+    for (const r of ndaRelaties ?? []) {
+      if (!r.nda_datum) continue;
+      const relatieUrl = `${APP_BASE_URL}/relaties/${r.id}`;
+      events.push(buildVEvent({
+        uid: makeUid('nda-relatie', r.id),
+        summary: `🖋 NDA — ${r.bedrijfsnaam ?? 'Relatie'}`,
+        description: [
+          `Relatie: ${r.bedrijfsnaam ?? ''}`,
+          `NDA-datum vastgelegd op het relatieprofiel.`,
+          `\n${relatieUrl}`,
+        ].join('\n'),
+        url: relatieUrl,
+        startDate: r.nda_datum,
+        endDate: addOneDay(r.nda_datum),
+      }, dtstamp));
+    }
+
+
     const ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
