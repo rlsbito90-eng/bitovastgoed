@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
   ASSET_CLASS_LABELS,
   EXCLUSIVITEIT_LABELS,
@@ -52,6 +53,9 @@ const leegForm: FormState = {
   relatieId: '',
   typeVastgoed: [],
   subcategorieIds: [],
+  propertyTypeIds: [],
+  propertySubtypeIds: [],
+  dealTypeIds: [],
   regio: [],
   stad: undefined,
   steden: [],
@@ -81,6 +85,7 @@ export default function ZoekprofielFormDialog({
 }: Props) {
   const { addZoekprofiel, updateZoekprofiel, relaties } = useDataStore();
   const { forAssetClass } = useSubcategorieen();
+  const { propertyTypes, subtypesForTypes, dealTypes } = usePropertyTaxonomie();
   const isEdit = !!zoekprofiel;
 
   const [form, setForm] = useState<FormState>(leegForm);
@@ -244,28 +249,33 @@ export default function ZoekprofielFormDialog({
 
             {/* WAT */}
             <TabsContent value="wat" className="space-y-5 mt-0">
-              <Sectie titel="Type vastgoed *">
+              <Sectie titel="Type vastgoed (nieuwe taxonomie, meerdere mogelijk)">
                 <MultiSelectChips
-                  options={assetOptions}
-                  value={form.typeVastgoed}
-                  onChange={v => setTypeVastgoed(v as AssetClass[])}
+                  options={propertyTypes.map(pt => ({ value: pt.id, label: pt.name }))}
+                  value={form.propertyTypeIds ?? []}
+                  onChange={v => {
+                    // Filter subtypes die niet meer bij gekozen types horen
+                    const geldigeSubs = subtypesForTypes(v).map(s => s.id);
+                    setForm(prev => ({
+                      ...prev,
+                      propertyTypeIds: v,
+                      propertySubtypeIds: (prev.propertySubtypeIds ?? []).filter(id => geldigeSubs.includes(id)),
+                    }));
+                  }}
                 />
               </Sectie>
 
-              <Sectie titel="Subcategorieën (optioneel)">
-                {form.typeVastgoed.length === 0 ? (
+              <Sectie titel="Subcategorieën (optioneel, meerdere mogelijk)">
+                {(form.propertyTypeIds ?? []).length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
-                    Kies eerst een type vastgoed om subcategorieën te zien.
-                  </p>
-                ) : subcatOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    Geen subcategorieën beschikbaar voor de gekozen types.
+                    Kies eerst één of meer types vastgoed om subcategorieën te zien.
                   </p>
                 ) : (
                   <MultiSelectChips
-                    options={subcatOptions}
-                    value={form.subcategorieIds ?? []}
-                    onChange={v => set('subcategorieIds', v)}
+                    options={subtypesForTypes(form.propertyTypeIds ?? []).map(s => ({ value: s.id, label: s.name }))}
+                    value={form.propertySubtypeIds ?? []}
+                    onChange={v => set('propertySubtypeIds', v)}
+                    emptyLabel="Geen subcategorieën beschikbaar voor de gekozen types"
                   />
                 )}
               </Sectie>
@@ -373,6 +383,14 @@ export default function ZoekprofielFormDialog({
 
             {/* VOORKEUREN */}
             <TabsContent value="voorkeuren" className="space-y-5 mt-0">
+              <Sectie titel="Dealtype / Propositie (meerdere mogelijk)">
+                <MultiSelectChips
+                  options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
+                  value={form.dealTypeIds ?? []}
+                  onChange={v => set('dealTypeIds', v)}
+                />
+              </Sectie>
+
               <Sectie titel="Transactietype">
                 <MultiSelectChips
                   options={transactietypeOptions}

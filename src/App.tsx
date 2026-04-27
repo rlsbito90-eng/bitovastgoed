@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DataStoreProvider } from "@/hooks/useDataStore";
 import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
+import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
@@ -33,6 +34,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <SubcategorieProvider>
+            <PropertyTaxonomieProvider>
             <DataStoreProvider>
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
@@ -69,6 +71,7 @@ const App = () => (
                 />
               </Routes>
             </DataStoreProvider>
+            </PropertyTaxonomieProvider>
           </SubcategorieProvider>
         </AuthProvider>
       </BrowserRouter>

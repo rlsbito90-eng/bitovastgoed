@@ -147,6 +147,33 @@ export type Database = {
           },
         ]
       }
+      deal_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       deals: {
         Row: {
           afwijzingsreden: string | null
@@ -701,6 +728,7 @@ export type Database = {
           bron: string | null
           bruto_aanvangsrendement: number | null
           created_at: string
+          deal_type_ids: string[]
           documentatie_beschikbaar: boolean | null
           eigenaar_relatie_id: string | null
           eigendomssituatie: string | null
@@ -740,6 +768,8 @@ export type Database = {
           plaats: string | null
           postcode: string | null
           prijsindicatie: string | null
+          property_subtype_ids: string[]
+          property_type_id: string | null
           provincie: string | null
           publieke_naam: string | null
           publieke_regio: string | null
@@ -783,6 +813,7 @@ export type Database = {
           bron?: string | null
           bruto_aanvangsrendement?: number | null
           created_at?: string
+          deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
           eigenaar_relatie_id?: string | null
           eigendomssituatie?: string | null
@@ -824,6 +855,8 @@ export type Database = {
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
+          property_subtype_ids?: string[]
+          property_type_id?: string | null
           provincie?: string | null
           publieke_naam?: string | null
           publieke_regio?: string | null
@@ -867,6 +900,7 @@ export type Database = {
           bron?: string | null
           bruto_aanvangsrendement?: number | null
           created_at?: string
+          deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
           eigenaar_relatie_id?: string | null
           eigendomssituatie?: string | null
@@ -908,6 +942,8 @@ export type Database = {
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
+          property_subtype_ids?: string[]
+          property_type_id?: string | null
           provincie?: string | null
           publieke_naam?: string | null
           publieke_regio?: string | null
@@ -951,6 +987,13 @@ export type Database = {
             referencedRelation: "relaties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "objecten_property_type_id_fkey"
+            columns: ["property_type_id"]
+            isOneToOne: false
+            referencedRelation: "property_types"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -980,6 +1023,110 @@ export type Database = {
           telefoon?: string | null
           updated_at?: string
           volledige_naam?: string | null
+        }
+        Relationships: []
+      }
+      property_subtypes: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          property_type_id: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          property_type_id: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          property_type_id?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_subtypes_property_type_id_fkey"
+            columns: ["property_type_id"]
+            isOneToOne: false
+            referencedRelation: "property_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_type_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          id: string
+          mapped_property_subtype_id: string | null
+          mapped_property_type_id: string | null
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          id?: string
+          mapped_property_subtype_id?: string | null
+          mapped_property_type_id?: string | null
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          id?: string
+          mapped_property_subtype_id?: string | null
+          mapped_property_type_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_type_aliases_mapped_property_subtype_id_fkey"
+            columns: ["mapped_property_subtype_id"]
+            isOneToOne: false
+            referencedRelation: "property_subtypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_type_aliases_mapped_property_type_id_fkey"
+            columns: ["mapped_property_type_id"]
+            isOneToOne: false
+            referencedRelation: "property_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -1149,6 +1296,8 @@ export type Database = {
           nda_datum: string | null
           nda_getekend: boolean
           notities: string | null
+          property_subtype_ids: string[]
+          property_type_ids: string[]
           regio: string[] | null
           rendementseis: number | null
           soft_deleted_at: string | null
@@ -1197,6 +1346,8 @@ export type Database = {
           nda_datum?: string | null
           nda_getekend?: boolean
           notities?: string | null
+          property_subtype_ids?: string[]
+          property_type_ids?: string[]
           regio?: string[] | null
           rendementseis?: number | null
           soft_deleted_at?: string | null
@@ -1245,6 +1396,8 @@ export type Database = {
           nda_datum?: string | null
           nda_getekend?: boolean
           notities?: string | null
+          property_subtype_ids?: string[]
+          property_type_ids?: string[]
           regio?: string[] | null
           rendementseis?: number | null
           soft_deleted_at?: string | null
@@ -1411,6 +1564,7 @@ export type Database = {
           bouwjaar_max: number | null
           bouwjaar_min: number | null
           created_at: string
+          deal_type_ids: string[]
           energielabel_min:
             | Database["public"]["Enums"]["energielabel_v2"]
             | null
@@ -1427,6 +1581,8 @@ export type Database = {
           prijs_min: number | null
           prioriteit: number
           profielnaam: string
+          property_subtype_ids_v2: string[]
+          property_type_ids: string[]
           regio: string[] | null
           relatie_id: string
           rendementseis: number | null
@@ -1447,6 +1603,7 @@ export type Database = {
           bouwjaar_max?: number | null
           bouwjaar_min?: number | null
           created_at?: string
+          deal_type_ids?: string[]
           energielabel_min?:
             | Database["public"]["Enums"]["energielabel_v2"]
             | null
@@ -1463,6 +1620,8 @@ export type Database = {
           prijs_min?: number | null
           prioriteit?: number
           profielnaam: string
+          property_subtype_ids_v2?: string[]
+          property_type_ids?: string[]
           regio?: string[] | null
           relatie_id: string
           rendementseis?: number | null
@@ -1485,6 +1644,7 @@ export type Database = {
           bouwjaar_max?: number | null
           bouwjaar_min?: number | null
           created_at?: string
+          deal_type_ids?: string[]
           energielabel_min?:
             | Database["public"]["Enums"]["energielabel_v2"]
             | null
@@ -1501,6 +1661,8 @@ export type Database = {
           prijs_min?: number | null
           prioriteit?: number
           profielnaam?: string
+          property_subtype_ids_v2?: string[]
+          property_type_ids?: string[]
           regio?: string[] | null
           relatie_id?: string
           rendementseis?: number | null
