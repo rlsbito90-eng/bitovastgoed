@@ -81,11 +81,10 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
     }
   };
 
-  // Op desktop strekken we de sectie uit voorbij de smalle pagina-container via negatieve marges.
-  // De main-content heeft `overflow-x-hidden`, dus we steken nooit onder de sidebar — de kaart wordt
-  // netjes geclipped op de rand van het content-gebied.
+  // Op desktop mag deze kaart de rechterkolomruimte benutten, maar nooit naar links
+  // onder het vaste menu schuiven. Daarom vergroten we uitsluitend naar rechts.
   return (
-    <section className="section-card p-5 sm:p-6 space-y-4 lg:-mx-20 xl:-mx-32">
+    <section className="section-card p-5 sm:p-6 space-y-4 lg:-mr-[calc(50%+0.75rem)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="section-title">Kandidaten / dealtraject</h2>
