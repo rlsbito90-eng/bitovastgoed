@@ -5,23 +5,34 @@ import { formatCurrency } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight } from 'lucide-react';
-import type { AssetClass, ObjectStatus } from '@/data/mock-data';
+import type { ObjectStatus } from '@/data/mock-data';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import PageHeader from '@/components/PageHeader';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
 export default function ObjectenPage() {
   const { objecten } = useDataStore();
+  const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
-  const [typeFilter, setTypeFilter] = useState<AssetClass | ''>('');
+  const [typeFilter, setTypeFilter] = useState<string>(''); // property_type_id
+  const [subtypeFilter, setSubtypeFilter] = useState<string>('');
+  const [dealtypeFilter, setDealtypeFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>('');
   const [formOpen, setFormOpen] = useState(false);
 
   const filtered = objecten.filter(o => {
-    const matchZoek = !zoek || o.titel.toLowerCase().includes(zoek.toLowerCase()) || o.plaats.toLowerCase().includes(zoek.toLowerCase());
-    const matchType = !typeFilter || o.type === typeFilter;
+    const matchZoek = !zoek
+      || o.titel.toLowerCase().includes(zoek.toLowerCase())
+      || o.plaats.toLowerCase().includes(zoek.toLowerCase());
+    const matchType = !typeFilter || o.propertyTypeId === typeFilter;
+    const matchSub = !subtypeFilter || (o.propertySubtypeIds ?? []).includes(subtypeFilter);
+    const matchDeal = !dealtypeFilter || (o.dealTypeIds ?? []).includes(dealtypeFilter);
     const matchStatus = !statusFilter || o.status === statusFilter;
-    return matchZoek && matchType && matchStatus;
+    return matchZoek && matchType && matchSub && matchDeal && matchStatus;
   });
+
+  const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
   return (
     <div className="page-shell">
@@ -40,18 +51,33 @@ export default function ObjectenPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Zoek op naam of plaats..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
         </div>
-        <div className="flex gap-2.5">
-          <select className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={typeFilter} onChange={e => setTypeFilter(e.target.value as AssetClass | '')}>
-            <option value="">Alle typen</option>
-            <option value="wonen">Wonen</option>
-            <option value="winkels">Winkels</option>
-            <option value="kantoren">Kantoren</option>
-            <option value="logistiek">Logistiek</option>
-            <option value="bedrijfshallen">Bedrijfshallen</option>
-            <option value="industrieel">Industrieel</option>
-            <option value="hotels">Hotels</option>
+        <div className="flex flex-wrap gap-2.5">
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={typeFilter}
+            onChange={e => { setTypeFilter(e.target.value); setSubtypeFilter(''); }}
+          >
+            <option value="">Alle typen vastgoed</option>
+            {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          <select className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as ObjectStatus | '')}>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={subtypeFilter}
+            onChange={e => setSubtypeFilter(e.target.value)}
+            disabled={beschikbareSubs.length === 0}
+          >
+            <option value="">Alle subcategorieën</option>
+            {beschikbareSubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={dealtypeFilter}
+            onChange={e => setDealtypeFilter(e.target.value)}
+          >
+            <option value="">Alle dealtypes</option>
+            {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as ObjectStatus | '')}>
             <option value="">Alle statussen</option>
             <option value="off-market">Off-market</option>
             <option value="in_onderzoek">In onderzoek</option>
@@ -78,7 +104,12 @@ export default function ObjectenPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground truncate">{obj.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj.plaats}, {obj.provincie} · <span className="capitalize">{obj.type}</span></p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj.plaats}, {obj.provincie}</p>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
+                        <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
+                        <DealtypeBadges ids={obj.dealTypeIds} max={2} variant="compact" showEmpty={false} />
+                      </div>
                       <p className="text-xs mt-1 truncate">
                         <span className="text-foreground font-mono-data">{formatCurrency(obj.vraagprijs)}</span>
                         {rendement && <span className="text-success ml-2 font-mono-data">{rendement}%</span>}
@@ -103,7 +134,7 @@ export default function ObjectenPage() {
                     <th className="text-left px-5 py-3 field-label">Object</th>
                     <th className="text-right px-5 py-3 field-label">Prijs</th>
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Rendement</th>
-                    <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Type</th>
+                    <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Classificatie</th>
                     <th className="text-left px-5 py-3 field-label">Status</th>
                   </tr>
                 </thead>
@@ -122,7 +153,13 @@ export default function ObjectenPage() {
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data">
                           {rendement ? <span className="text-success">{rendement}%</span> : <span className="text-muted-foreground">—</span>}
                         </td>
-                        <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground capitalize">{obj.type}</td>
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
+                            <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
+                            <DealtypeBadges ids={obj.dealTypeIds} max={2} variant="compact" showEmpty={false} />
+                          </div>
+                        </td>
                         <td className="px-5 py-3.5"><ObjectStatusBadge status={obj.status} /></td>
                       </tr>
                     );
