@@ -767,6 +767,8 @@ interface DataStore {
   dealObjecten: DealObjectKoppeling[];
   dealKandidaten: DealKandidaat[];
   pipelineKandidaten: PipelineKandidaat[];
+  pipelines: Pipeline[];
+  pipelineStages: PipelineStage[];
   jaarDoelen: JaarDoel[];
   loading: boolean;
   refresh: () => Promise<void>;
@@ -840,6 +842,11 @@ interface DataStore {
   getPipelineVoorObject: (objectId: string) => PipelineKandidaat[];
   getPipelineVoorRelatie: (relatieId: string) => PipelineKandidaat[];
 
+  // Object Pipeline (Pipedrive-stijl)
+  getDefaultObjectPipeline: () => Pipeline | undefined;
+  getStagesVoorPipeline: (pipelineId: string) => PipelineStage[];
+  setObjectPipelineStage: (objectId: string, stageId: string, opts?: { manual?: boolean }) => Promise<void>;
+
   // Jaar-doelen
   upsertJaarDoel: (doel: Omit<JaarDoel, 'id'>) => Promise<JaarDoel | null>;
   deleteJaarDoel: (id: string) => Promise<void>;
@@ -896,6 +903,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [dealObjecten, setDealObjecten] = useState<DealObjectKoppeling[]>([]);
   const [dealKandidaten, setDealKandidaten] = useState<DealKandidaat[]>([]);
   const [pipelineKandidaten, setPipelineKandidaten] = useState<PipelineKandidaat[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
