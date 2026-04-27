@@ -278,6 +278,10 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   updatedAt: o.updated_at ?? undefined,
   softDeletedAt: o.soft_deleted_at ?? undefined,
   referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
+  pipelineId: o.pipeline_id ?? undefined,
+  pipelineStageId: o.pipeline_stage_id ?? undefined,
+  pipelineUpdatedAt: o.pipeline_updated_at ?? undefined,
+  pipelineStageLocked: !!o.pipeline_stage_locked,
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
@@ -355,6 +359,10 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   interne_opmerkingen: o.interneOpmerkingen !== undefined ? (o.interneOpmerkingen || null) : undefined,
   opmerkingen: o.opmerkingen !== undefined ? (o.opmerkingen || null) : undefined,
   referentieanalyse_zichtbaar: o.referentieanalyseZichtbaar,
+  pipeline_id: o.pipelineId !== undefined ? (o.pipelineId || null) : undefined,
+  pipeline_stage_id: o.pipelineStageId !== undefined ? (o.pipelineStageId || null) : undefined,
+  pipeline_updated_at: o.pipelineUpdatedAt !== undefined ? (o.pipelineUpdatedAt || null) : undefined,
+  pipeline_stage_locked: o.pipelineStageLocked,
 });
 
 
