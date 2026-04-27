@@ -82,7 +82,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   };
 
   return (
-    <section className="section-card p-5 sm:p-6 space-y-4">
+    <section className="section-card p-5 sm:p-6 space-y-4 lg:-mx-24 xl:-mx-40">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="section-title">Kandidaten / dealtraject</h2>
