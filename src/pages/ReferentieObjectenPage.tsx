@@ -120,20 +120,20 @@ export default function ReferentieObjectenPage() {
     const prMax = prijsMax ? parseInt(prijsMax, 10) : undefined;
 
     const list = store.referentieObjecten.filter(r => {
-      if (assetFilter && r.assetClass !== assetFilter) return false;
+      if (assetFilter.length > 0 && !assetFilter.includes(r.assetClass)) return false;
       if (plaatsFilter && !r.plaats.toLowerCase().includes(plaatsFilter.toLowerCase())) return false;
       if (postcodeFilter && !r.postcode.toLowerCase().includes(postcodeFilter.toLowerCase())) return false;
-      if (energielabelFilter && r.energielabel !== energielabelFilter) return false;
-      if (huurstatusFilter && r.huurstatus !== huurstatusFilter) return false;
+      if (energielabelFilter.length > 0 && (!r.energielabel || !energielabelFilter.includes(r.energielabel))) return false;
+      if (huurstatusFilter.length > 0 && (!r.huurstatus || !huurstatusFilter.includes(r.huurstatus))) return false;
       if (bjMin != null && r.bouwjaar < bjMin) return false;
       if (bjMax != null && r.bouwjaar > bjMax) return false;
       if (m2MinN != null && r.m2 < m2MinN) return false;
       if (m2MaxN != null && r.m2 > m2MaxN) return false;
       if (prMin != null && r.vraagprijs < prMin) return false;
       if (prMax != null && r.vraagprijs > prMax) return false;
-      if (kwaliteitFilter) {
+      if (kwaliteitFilter.length > 0) {
         const k = berekenReferentieKwaliteit(r);
-        if (k.kwaliteit !== kwaliteitFilter) return false;
+        if (!kwaliteitFilter.includes(k.kwaliteit)) return false;
       }
       if (q) {
         const hay = `${r.adres} ${r.plaats} ${r.postcode}`.toLowerCase();
@@ -142,59 +142,77 @@ export default function ReferentieObjectenPage() {
       return true;
     });
 
-    const numAsc = (a?: number, b?: number) => {
-      const av = a == null ? Number.POSITIVE_INFINITY : a;
-      const bv = b == null ? Number.POSITIVE_INFINITY : b;
-      return av - bv;
+    // Comparator-builders: één per veld, geeft een number-vergelijking met optionele null-handling
+    const cmpNum = (a?: number, b?: number, dir: 'asc' | 'desc' = 'asc') => {
+      const fallback = dir === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      const av = a == null ? fallback : a;
+      const bv = b == null ? fallback : b;
+      return dir === 'asc' ? av - bv : bv - av;
     };
-    const numDesc = (a?: number, b?: number) => {
-      const av = a == null ? Number.NEGATIVE_INFINITY : a;
-      const bv = b == null ? Number.NEGATIVE_INFINITY : b;
-      return bv - av;
+    const cmpStr = (a: string, b: string, dir: 'asc' | 'desc') => {
+      const r = a.localeCompare(b, 'nl', { sensitivity: 'base' });
+      return dir === 'asc' ? r : -r;
     };
-    const strAsc = (a: string, b: string) => a.localeCompare(b, 'nl', { sensitivity: 'base' });
+
+    const compareForLevel = (a: ReferentieObject, b: ReferentieObject, lvl: SortLevel): number => {
+      switch (lvl.field) {
+        case 'recent': {
+          const av = new Date(a.createdAt ?? 0).getTime();
+          const bv = new Date(b.createdAt ?? 0).getTime();
+          return lvl.dir === 'asc' ? av - bv : bv - av;
+        }
+        case 'adres': return cmpStr(a.adres, b.adres, lvl.dir);
+        case 'plaats': return cmpStr(a.plaats, b.plaats, lvl.dir);
+        case 'postcode': return cmpStr(a.postcode, b.postcode, lvl.dir);
+        case 'm2': return cmpNum(a.m2, b.m2, lvl.dir);
+        case 'vraagprijs': return cmpNum(a.vraagprijs, b.vraagprijs, lvl.dir);
+        case 'prijs_per_m2': return cmpNum(a.prijsPerM2, b.prijsPerM2, lvl.dir);
+        case 'huur': return cmpNum(a.huurprijsPerJaar, b.huurprijsPerJaar, lvl.dir);
+        case 'bouwjaar': return cmpNum(a.bouwjaar, b.bouwjaar, lvl.dir);
+        case 'kwaliteit':
+          return cmpNum(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore, lvl.dir);
+        default: return 0;
+      }
+    };
 
     const sorted = [...list];
     sorted.sort((a, b) => {
-      switch (sortKey) {
-        case 'recent': return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
-        case 'oudst': return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
-        case 'adres_az': return strAsc(a.adres, b.adres);
-        case 'adres_za': return strAsc(b.adres, a.adres);
-        case 'plaats_az': return strAsc(a.plaats, b.plaats);
-        case 'plaats_za': return strAsc(b.plaats, a.plaats);
-        case 'postcode_az': return strAsc(a.postcode, b.postcode);
-        case 'postcode_za': return strAsc(b.postcode, a.postcode);
-        case 'm2_asc': return numAsc(a.m2, b.m2);
-        case 'm2_desc': return numDesc(a.m2, b.m2);
-        case 'vraagprijs_asc': return numAsc(a.vraagprijs, b.vraagprijs);
-        case 'vraagprijs_desc': return numDesc(a.vraagprijs, b.vraagprijs);
-        case 'prijs_per_m2_asc': return numAsc(a.prijsPerM2, b.prijsPerM2);
-        case 'prijs_per_m2_desc': return numDesc(a.prijsPerM2, b.prijsPerM2);
-        case 'huur_asc': return numAsc(a.huurprijsPerJaar, b.huurprijsPerJaar);
-        case 'huur_desc': return numDesc(a.huurprijsPerJaar, b.huurprijsPerJaar);
-        case 'bouwjaar_asc': return numAsc(a.bouwjaar, b.bouwjaar);
-        case 'bouwjaar_desc': return numDesc(a.bouwjaar, b.bouwjaar);
-        case 'kwaliteit_desc': return numDesc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
-        case 'kwaliteit_asc': return numAsc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
-        default: return 0;
+      for (const lvl of sortLevels) {
+        const r = compareForLevel(a, b, lvl);
+        if (r !== 0) return r;
       }
+      return 0;
     });
     return sorted;
   }, [
     store.referentieObjecten, zoek, assetFilter, plaatsFilter, postcodeFilter, kwaliteitFilter,
-    energielabelFilter, huurstatusFilter, bouwjaarMin, bouwjaarMax, m2Min, m2Max, prijsMin, prijsMax, sortKey,
+    energielabelFilter, huurstatusFilter, bouwjaarMin, bouwjaarMax, m2Min, m2Max, prijsMin, prijsMax, sortLevels,
   ]);
 
   const filtersActief =
-    !!zoek || !!assetFilter || !!plaatsFilter || !!postcodeFilter || !!kwaliteitFilter ||
-    !!energielabelFilter || !!huurstatusFilter || !!bouwjaarMin || !!bouwjaarMax ||
+    !!zoek || assetFilter.length > 0 || !!plaatsFilter || !!postcodeFilter || kwaliteitFilter.length > 0 ||
+    energielabelFilter.length > 0 || huurstatusFilter.length > 0 || !!bouwjaarMin || !!bouwjaarMax ||
     !!m2Min || !!m2Max || !!prijsMin || !!prijsMax;
 
   const resetFilters = () => {
-    setZoek(''); setAssetFilter(''); setPlaatsFilter(''); setPostcodeFilter('');
-    setKwaliteitFilter(''); setEnergielabelFilter(''); setHuurstatusFilter('');
+    setZoek(''); setAssetFilter([]); setPlaatsFilter(''); setPostcodeFilter('');
+    setKwaliteitFilter([]); setEnergielabelFilter([]); setHuurstatusFilter([]);
     setBouwjaarMin(''); setBouwjaarMax(''); setM2Min(''); setM2Max(''); setPrijsMin(''); setPrijsMax('');
+  };
+
+  // Sort-niveau helpers
+  const updateSortLevel = (idx: number, patch: Partial<SortLevel>) => {
+    setSortLevels(prev => prev.map((lvl, i) => i === idx ? { ...lvl, ...patch } : lvl));
+  };
+  const removeSortLevel = (idx: number) => {
+    setSortLevels(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+  };
+  const addSortLevel = () => {
+    if (sortLevels.length >= 3) return;
+    const used = new Set(sortLevels.map(l => l.field));
+    const next: SortField | undefined = (Object.keys(SORT_FIELD_LABELS) as SortField[]).find(f => !used.has(f));
+    if (!next) return;
+    setSortLevels(prev => [...prev, { field: next, dir: 'asc' }]);
   };
 
   const handleNieuw = () => {
