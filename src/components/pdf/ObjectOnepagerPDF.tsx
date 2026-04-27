@@ -14,7 +14,13 @@ import {
 import { PageHeader, PageFooter, SectionTitle } from '@/components/pdf/PdfShared';
 import { BITO_LOGO_URL } from '@/lib/pdf/logo';
 import type { ObjectVastgoed } from '@/data/mock-data';
-import { ASSET_CLASS_LABELS, VERHUUR_STATUS_LABELS, ONDERHOUDSSTAAT_LABELS } from '@/data/mock-data';
+import { ASSET_CLASS_LABELS, ONDERHOUDSSTAAT_LABELS } from '@/data/mock-data';
+
+const VERHUUR_LABEL: Record<string, string> = {
+  verhuurd: 'Verhuurd',
+  leeg: 'Leegstand',
+  gedeeltelijk: 'Gedeeltelijk verhuurd',
+};
 
 interface Props {
   object: ObjectVastgoed;
