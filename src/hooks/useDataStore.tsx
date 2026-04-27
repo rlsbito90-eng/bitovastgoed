@@ -282,6 +282,23 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   pipelineStageId: o.pipeline_stage_id ?? undefined,
   pipelineUpdatedAt: o.pipeline_updated_at ?? undefined,
   pipelineStageLocked: !!o.pipeline_stage_locked,
+  // IM/1-pager content
+  propositie: o.propositie ?? undefined,
+  objectomschrijving: o.objectomschrijving ?? undefined,
+  locatieOmschrijving: o.locatie_omschrijving ?? undefined,
+  technischeStaatOmschrijving: o.technische_staat_omschrijving ?? undefined,
+  procesVoorwaarden: o.proces_voorwaarden ?? undefined,
+  dataroomUrl: o.dataroom_url ?? undefined,
+  marktwaardeIndicatie: o.marktwaarde_indicatie ?? undefined,
+  marktwaardeBron: o.marktwaarde_bron ?? undefined,
+  contactNaam: o.contact_naam ?? undefined,
+  contactFunctie: o.contact_functie ?? undefined,
+  contactTelefoon: o.contact_telefoon ?? undefined,
+  contactEmail: o.contact_email ?? undefined,
+  oppervlaktenPerVerdieping: Array.isArray(o.oppervlakten_per_verdieping) ? o.oppervlakten_per_verdieping : [],
+  financieleScenarios: o.financiele_scenarios && typeof o.financiele_scenarios === 'object' ? o.financiele_scenarios : {},
+  documentatieStatus: o.documentatie_status && typeof o.documentatie_status === 'object' ? o.documentatie_status : {},
+  imSectiesZichtbaar: o.im_secties_zichtbaar && typeof o.im_secties_zichtbaar === 'object' ? o.im_secties_zichtbaar : {},
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
