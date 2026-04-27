@@ -438,7 +438,6 @@ export default function ReferentieObjectenPage() {
           </span>
         </div>
       </div>
-      </div>
 
       {filtered.length === 0 ? (
         <div className="section-card p-12 text-center">
