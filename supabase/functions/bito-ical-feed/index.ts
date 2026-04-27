@@ -3,10 +3,14 @@
 // Bito Vastgoed — iCal Feed Edge Function
 //
 // Genereert een iCalendar (.ics) feed van alle relevante agenda-items:
-//   - Bezichtigingen      (deals.bezichtiging_gepland)
-//   - Taken-deadlines     (taken.deadline + deadline_tijd)
-//   - Follow-ups          (deals.datum_follow_up + follow_up_tijd)
-//   - Verwachte closings  (deals.verwachte_closingdatum, all-day)
+//   - Bezichtigingen        (deals.bezichtiging_gepland)
+//   - Taken-deadlines       (taken.deadline + deadline_tijd)
+//   - Follow-ups            (deals.datum_follow_up + follow_up_tijd)
+//   - Verwachte closings    (deals.verwachte_closingdatum, all-day)
+//   - Pipeline-bezichtiging (object_pipeline.bezichtiging_datum)
+//   - Pipeline volgende actie (object_pipeline.volgende_actie_datum)
+//   - Gewenste levering     (object_pipeline.gewenste_levering)
+//   - NDA-datum relatie     (relaties.nda_datum)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
