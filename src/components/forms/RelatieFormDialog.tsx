@@ -88,6 +88,7 @@ const leegForm: FormState = {
 
 export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
   const { addRelatie, updateRelatie } = useDataStore();
+  const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
   const isEdit = !!relatie;
   const [gemaaktId, setGemaaktId] = useState<string | undefined>(relatie?.id);
   const relatieId = relatie?.id ?? gemaaktId;
