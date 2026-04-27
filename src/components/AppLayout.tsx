@@ -24,12 +24,12 @@ const navItems = [
   { path: '/rapportage', label: 'Rapportage', icon: BarChart3 },
 ];
 
-function GebruikerMenu() {
+function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
   const { user, isAdmin, signOut } = useAuth();
   if (!user) {
     return (
-      <div className="px-2 py-1.5 text-[10px] text-sidebar-foreground/60">
-        Login tijdelijk uitgeschakeld
+      <div className={`px-2 py-1.5 text-[10px] text-sidebar-foreground/60 ${collapsed ? 'text-center' : ''}`}>
+        {collapsed ? '—' : 'Login tijdelijk uitgeschakeld'}
       </div>
     );
   }
@@ -38,14 +38,19 @@ function GebruikerMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors w-full text-left">
+        <button
+          className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors w-full text-left ${collapsed ? 'justify-center' : ''}`}
+          title={collapsed ? user.email ?? '' : undefined}
+        >
           <div className="h-7 w-7 rounded-full bg-sidebar-primary/20 text-sidebar-primary flex items-center justify-center text-xs font-medium shrink-0">
             {initialen}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-sidebar-foreground truncate font-medium">{user.email}</p>
-            <p className="text-[10px] text-sidebar-foreground/60">{isAdmin ? 'Admin' : 'Medewerker'}</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-sidebar-foreground truncate font-medium">{user.email}</p>
+              <p className="text-[10px] text-sidebar-foreground/60">{isAdmin ? 'Admin' : 'Medewerker'}</p>
+            </div>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
