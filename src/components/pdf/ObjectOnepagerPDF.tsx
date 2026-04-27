@@ -174,13 +174,13 @@ export default function ObjectOnepagerPDF({
   type Stat = { label: string; value: string };
   const stats: Stat[] = [];
   if (object.vraagprijs != null) {
-    stats.push({ label: 'Vraagprijs', value: formatEuro(object.vraagprijs, true) });
+    stats.push({ label: 'Vraagprijs', value: formatEuro(object.vraagprijs) });
   } else if (object.prijsindicatie) {
     stats.push({ label: 'Vraagprijs', value: object.prijsindicatie });
   }
   if (object.oppervlakte != null) stats.push({ label: 'Oppervlakte', value: formatM2(object.oppervlakte) });
   if (bar != null) stats.push({ label: 'BAR', value: formatPercent(bar) });
-  if (object.huurinkomsten != null) stats.push({ label: 'Huur / jr', value: formatEuro(object.huurinkomsten, true) });
+  if (object.huurinkomsten != null) stats.push({ label: 'Huur / jr', value: formatEuro(object.huurinkomsten) });
   else if (object.bouwjaar) stats.push({ label: 'Bouwjaar', value: String(object.bouwjaar) });
 
   const propositie = object.propositie?.trim();
