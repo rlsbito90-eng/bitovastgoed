@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Search, Building2, Handshake, CheckSquare,
-  BarChart3, Menu, X, LogOut, Shield, Library,
+  BarChart3, Menu, X, LogOut, Shield, Library, GitBranch,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -18,6 +18,7 @@ const navItems = [
   { path: '/objecten', label: 'Objecten', icon: Building2 },
   { path: '/referentieobjecten', label: 'Referentieobjecten', icon: Library },
   { path: '/deals', label: 'Deals', icon: Handshake },
+  { path: '/pipeline', label: 'Pipeline', icon: GitBranch },
   { path: '/taken', label: 'Taken', icon: CheckSquare },
   { path: '/rapportage', label: 'Rapportage', icon: BarChart3 },
 ];
