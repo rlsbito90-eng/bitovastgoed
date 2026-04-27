@@ -1405,7 +1405,34 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     return (data as string) ?? `BITO-${new Date().getFullYear()}-001`;
   }, []);
 
-  // -------- STORE --------
+  // -------- OBJECT PIPELINE (Pipedrive-stijl) --------
+  const setObjectPipelineStage = useCallback(async (
+    objectId: string,
+    stageId: string,
+    opts: { manual?: boolean } = {},
+  ) => {
+    const obj = objecten.find(o => o.id === objectId);
+    if (!obj) throw new Error('Object niet gevonden');
+
+    // Automatische voortgang mag handmatige lock niet overschrijven
+    if (!opts.manual && obj.pipelineStageLocked) return;
+
+    const stage = pipelineStages.find(s => s.id === stageId);
+    if (!stage) throw new Error('Pipeline-fase niet gevonden');
+
+    const patch: any = {
+      pipeline_stage_id: stageId,
+      pipeline_id: stage.pipelineId,
+      pipeline_updated_at: new Date().toISOString(),
+    };
+    if (opts.manual) patch.pipeline_stage_locked = true;
+
+    const { data, error } = await supabase.from('objecten')
+      .update(patch).eq('id', objectId).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === objectId ? objectFromDb(data) : x));
+  }, [objecten, pipelineStages]);
+
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
     deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
