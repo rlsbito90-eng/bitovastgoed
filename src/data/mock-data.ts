@@ -163,10 +163,15 @@ export interface ObjectVastgoed {
   plaats: string;
   provincie: string;
 
-  // Classificatie
+  // Classificatie (legacy)
   type: AssetClass;
   subcategorie?: string;          // legacy free-text
-  subcategorieId?: string;        // FK naar object_subcategorieen
+  subcategorieId?: string;        // FK naar object_subcategorieen (legacy)
+  // Nieuwe taxonomie
+  propertyTypeId?: string;        // FK property_types
+  propertySubtypeIds?: string[];  // FK[] property_subtypes
+  dealTypeIds?: string[];         // FK[] deal_types
+
   status: ObjectStatus;
   beschikbaarVanaf?: string;
   bron?: string;
@@ -310,8 +315,12 @@ export interface Zoekprofiel {
   id: string;
   naam: string;
   relatieId: string;
-  typeVastgoed: AssetClass[];
-  subcategorieIds?: string[];
+  typeVastgoed: AssetClass[];        // legacy
+  subcategorieIds?: string[];        // legacy
+  // Nieuwe taxonomie
+  propertyTypeIds?: string[];
+  propertySubtypeIds?: string[];
+  dealTypeIds?: string[];
   regio: string[];
   stad?: string;
   steden?: string[];
