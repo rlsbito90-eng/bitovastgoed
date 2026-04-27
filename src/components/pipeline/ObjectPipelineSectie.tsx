@@ -44,7 +44,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
     let zpId: string | undefined;
     if (zp) {
       try {
-        const res = berekenMatchScore(object as any, zp as any, relatie as any);
+        const res = berekenMatchScore(object as any, zp as any);
         score = res?.score;
         zpId = zp.id;
       } catch {/* fallback: geen score */}
