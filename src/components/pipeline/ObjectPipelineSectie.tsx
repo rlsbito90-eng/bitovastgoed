@@ -144,7 +144,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
           </p>
         </div>
         {!adding && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={beschikbareRelaties.length === 0}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={alleBeschikbaar.length === 0}>
             <Plus className="h-4 w-4 mr-1" /> Kandidaat toevoegen
           </Button>
         )}
