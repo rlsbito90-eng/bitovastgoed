@@ -313,6 +313,41 @@ export interface ObjectVastgoed {
   isPortefeuille: boolean;
   parentObjectId?: string;
 
+  // IM-content (uitgebreid voor 18-sectie IM)
+  propositie?: string;
+  objectomschrijving?: string;
+  locatieOmschrijving?: string;
+  technischeStaatOmschrijving?: string;
+  procesVoorwaarden?: string;
+  dataroomUrl?: string;
+
+  // Marktwaarde-indicatie (handmatig, los van referentie-mediaan)
+  marktwaardeIndicatie?: number;
+  marktwaardeBron?: string;
+
+  // Document-contactgegevens (los van verantwoordelijke profiel)
+  contactNaam?: string;
+  contactFunctie?: string;
+  contactTelefoon?: string;
+  contactEmail?: string;
+
+  // Gestructureerde IM-velden
+  oppervlaktenPerVerdieping?: Array<{
+    verdieping: string;
+    vvo?: number;
+    bvo?: number;
+    bestemming?: string;
+  }>;
+  financieleScenarios?: {
+    huidig?: { jaarhuur?: number; bar?: number; noi?: number; opmerking?: string };
+    marktconform?: { jaarhuur?: number; bar?: number; noi?: number; opmerking?: string };
+    naRenovatie?: { jaarhuur?: number; bar?: number; noi?: number; opmerking?: string };
+  };
+  /** Status per documenttype: 'beschikbaar' | 'op_aanvraag' | 'na_nda'. Alleen tonen in IM als sectie-toggle aan staat. */
+  documentatieStatus?: Record<string, 'beschikbaar' | 'op_aanvraag' | 'na_nda'>;
+  /** Per IM-sectie zichtbaar maken in document. Default: undefined = laat code beslissen op basis van content. */
+  imSectiesZichtbaar?: Record<string, boolean>;
+
   // Overig
   documentenBeschikbaar: boolean;
   interneOpmerkingen?: string;
