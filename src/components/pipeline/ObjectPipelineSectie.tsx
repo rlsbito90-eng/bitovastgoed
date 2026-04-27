@@ -26,51 +26,100 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   const object = getObjectById(objectId);
   const kandidaten = getPipelineVoorObject(objectId);
   const [adding, setAdding] = useState(false);
-  const [keuze, setKeuze] = useState('');
+  const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
+  const [zoek, setZoek] = useState('');
+  const [bezig, setBezig] = useState(false);
   const [bewerken, setBewerken] = useState<PipelineKandidaat | null>(null);
 
   const beschikbareRelaties = useMemo(() => {
     const gebruikte = new Set(kandidaten.map(k => k.relatieId));
-    return relaties.filter(r => !gebruikte.has(r.id));
-  }, [relaties, kandidaten]);
+    const lijst = relaties.filter(r => !gebruikte.has(r.id));
 
-  const handleAdd = async () => {
-    if (!keuze || !object) return;
-    const relatie = relaties.find(r => r.id === keuze);
-    if (!relatie) return;
+    // Verrijk met matchscore tegen actief zoekprofiel (best effort)
+    const verrijkt = lijst.map(r => {
+      const zps = getZoekprofielenByRelatie(r.id);
+      const zp = zps.find(z => z.status === 'actief') ?? zps[0];
+      let score: number | undefined;
+      let zpId: string | undefined;
+      if (zp && object) {
+        try {
+          const res = berekenMatchScore(object as any, zp as any);
+          score = res?.score;
+          zpId = zp.id;
+        } catch {/* geen score */}
+      }
+      return { relatie: r, score, zoekprofielId: zpId };
+    });
 
-    // Bereken matchscore tegen het eerste actieve zoekprofiel van deze relatie (best effort)
-    const zps = getZoekprofielenByRelatie(keuze);
-    const zp = zps.find(z => z.status === 'actief') ?? zps[0];
-    let score: number | undefined;
-    let zpId: string | undefined;
-    if (zp) {
+    const q = zoek.trim().toLowerCase();
+    const gefilterd = q
+      ? verrijkt.filter(({ relatie: r }) =>
+          (r.bedrijfsnaam || '').toLowerCase().includes(q) ||
+          (r.contactpersoon || '').toLowerCase().includes(q) ||
+          (r.email || '').toLowerCase().includes(q),
+        )
+      : verrijkt;
+
+    // Sorteer op matchscore desc, dan op naam
+    return gefilterd.sort((a, b) => {
+      const sa = a.score ?? -1;
+      const sb = b.score ?? -1;
+      if (sb !== sa) return sb - sa;
+      return (a.relatie.bedrijfsnaam || '').localeCompare(b.relatie.bedrijfsnaam || '');
+    });
+  }, [relaties, kandidaten, zoek, object, getZoekprofielenByRelatie]);
+
+  const toggleSelectie = (id: string) => {
+    setGeselecteerd(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAlles = () => {
+    if (geselecteerd.size === beschikbareRelaties.length) {
+      setGeselecteerd(new Set());
+    } else {
+      setGeselecteerd(new Set(beschikbareRelaties.map(r => r.relatie.id)));
+    }
+  };
+
+  const sluitToevoegen = () => {
+    setAdding(false);
+    setGeselecteerd(new Set());
+    setZoek('');
+  };
+
+  const handleAddBulk = async () => {
+    if (geselecteerd.size === 0 || !object) return;
+    setBezig(true);
+    let ok = 0, fout = 0;
+    for (const relatieId of geselecteerd) {
+      const item = beschikbareRelaties.find(b => b.relatie.id === relatieId);
       try {
-        const res = berekenMatchScore(object as any, zp as any);
-        score = res?.score;
-        zpId = zp.id;
-      } catch {/* fallback: geen score */}
+        await addPipelineKandidaat({
+          objectId,
+          relatieId,
+          zoekprofielId: item?.zoekprofielId,
+          pipelineFase: 'match_gevonden',
+          interesseNiveau: 'lauw',
+          matchscore: item?.score,
+          teaserVerstuurd: false,
+          ndaVerstuurd: false,
+          ndaGetekend: false,
+          informatieGedeeld: false,
+          feeAkkoord: false,
+        });
+        ok++;
+      } catch {
+        fout++;
+      }
     }
-
-    try {
-      await addPipelineKandidaat({
-        objectId,
-        relatieId: keuze,
-        zoekprofielId: zpId,
-        pipelineFase: 'match_gevonden',
-        interesseNiveau: 'lauw',
-        matchscore: score,
-        teaserVerstuurd: false,
-        ndaVerstuurd: false,
-        ndaGetekend: false,
-        informatieGedeeld: false,
-        feeAkkoord: false,
-      });
-      toast.success('Kandidaat toegevoegd aan pipeline');
-      setKeuze(''); setAdding(false);
-    } catch (err: any) {
-      toast.error(`Toevoegen mislukt: ${err.message ?? 'onbekende fout'}`);
-    }
+    setBezig(false);
+    if (ok > 0) toast.success(`${ok} kandida${ok === 1 ? 'at' : 'ten'} toegevoegd`);
+    if (fout > 0) toast.error(`${fout} kandida${fout === 1 ? 'at' : 'ten'} niet toegevoegd`);
+    sluitToevoegen();
   };
 
   const handleRemove = async (id: string) => {
