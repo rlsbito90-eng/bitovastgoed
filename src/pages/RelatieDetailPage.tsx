@@ -381,15 +381,28 @@ export default function RelatieDetailPage() {
                 {matches.slice(0, 5).map((m, i) => {
                   const obj = store.getObjectById(m.objectId);
                   return (
-                    <Link key={i} to={`/objecten/${m.objectId}`} className="block px-5 py-3.5 hover:bg-muted/40 transition-colors">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm text-foreground truncate">{obj?.titel}</p>
-                          <p className="text-xs text-muted-foreground truncate">{obj?.plaats}</p>
+                    <details key={i} className="group">
+                      <summary className="block px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer list-none">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Link
+                              to={`/objecten/${m.objectId}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm text-foreground truncate hover:text-accent block"
+                            >
+                              {obj?.titel}
+                            </Link>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {obj?.plaats} · {m.redenen.slice(0, 2).join(' · ')}
+                            </p>
+                          </div>
+                          <MatchScoreBadge score={m.score} />
                         </div>
-                        <MatchScoreBadge score={m.score} />
+                      </summary>
+                      <div className="px-5 pb-4">
+                        <MatchUitleg match={m} object={obj ?? undefined} compact />
                       </div>
-                    </Link>
+                    </details>
                   );
                 })}
               </div>
