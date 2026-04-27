@@ -254,7 +254,7 @@ export default function ObjectDetailPage() {
           {/* OBJECTGEGEVENS */}
           <section className="section-card p-5 sm:p-6 space-y-5">
             <h2 className="section-title">Objectgegevens</h2>
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-4">
               {object.huurinkomsten != null && (
                 <Field label="Huurinkomsten">
                   <span className="font-mono-data">{formatCurrency(object.huurinkomsten)}</span> /jr
@@ -466,7 +466,7 @@ export default function ObjectDetailPage() {
           {(object.eigendomssituatie || object.erfpachtinformatie || object.bestemmingsinformatie || object.kadastraalNummer) && (
             <section className="section-card p-5 sm:p-6 space-y-4">
               <h2 className="section-title">Juridisch & kadastraal</h2>
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+              <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-4">
                 {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
                 {(object.kadastraleGemeente || object.kadastraalNummer) && (
                   <Field label="Kadaster">
@@ -487,7 +487,7 @@ export default function ObjectDetailPage() {
           {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
             <section className="section-card p-5 sm:p-6 space-y-4">
               <h2 className="section-title">Verkoper</h2>
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+              <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-4">
                 {object.verkoperNaam && (
                   <Field label="Naam">
                     {object.verkoperNaam}
