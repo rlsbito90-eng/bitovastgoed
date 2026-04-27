@@ -142,8 +142,8 @@ export default function ObjectDetailPage() {
         )}
         <div className="flex flex-col gap-3 min-w-0">
           <div className="flex flex-wrap justify-end gap-2">
-            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
-              <Pencil className="h-4 w-4" /> Bewerken
+            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+              <Pencil className="h-4 w-4" /> <span className="hidden sm:inline">Bewerken</span>
             </button>
             <ObjectPdfButton object={object} />
             <AlertDialog>
