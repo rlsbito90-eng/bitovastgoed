@@ -28,6 +28,8 @@ import type {
   DealReferentie,
   ObjectReferentie,
   PipelineKandidaat,
+  Pipeline,
+  PipelineStage,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
