@@ -82,7 +82,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   };
 
   return (
-    <section className="section-card p-5 sm:p-6 space-y-4">
+    <section className="section-card p-5 sm:p-6 space-y-4 lg:-mx-24 xl:-mx-40">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="section-title">Kandidaten / dealtraject</h2>
@@ -117,18 +117,18 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       )}
 
       {kandidaten.length > 0 && (
-        <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-          <table className="w-full text-sm min-w-[680px]">
-            <thead className="text-[11px] text-muted-foreground border-b border-border">
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted-foreground border-b border-border">
               <tr>
-                <th className="text-left font-medium py-2 pr-2">Relatie</th>
+                <th className="text-left font-medium py-2 px-2">Relatie</th>
                 <th className="text-left font-medium py-2 px-2">Fase</th>
-                <th className="text-left font-medium py-2 px-2 hidden md:table-cell">Interesse</th>
+                <th className="text-left font-medium py-2 px-2">Interesse</th>
                 <th className="text-right font-medium py-2 px-2">Match</th>
                 <th className="text-right font-medium py-2 px-2">Bieding</th>
                 <th className="text-left font-medium py-2 px-2">Volgende actie</th>
-                <th className="text-left font-medium py-2 px-2 hidden lg:table-cell">Laatste contact</th>
-                <th className="text-right font-medium py-2 pl-2 w-[1%]"></th>
+                <th className="text-left font-medium py-2 px-2">Laatste contact</th>
+                <th className="text-right font-medium py-2 px-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/70">
@@ -136,36 +136,28 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                 const rel = relaties.find(r => r.id === k.relatieId);
                 return (
                   <tr key={k.id} className="hover:bg-muted/30">
-                    <td className="py-2 pr-2 max-w-[200px]">
-                      <Link
-                        to={`/relaties/${k.relatieId}`}
-                        className="font-medium hover:text-primary inline-flex items-center gap-1 group"
-                        title={rel?.bedrijfsnaam ?? '(verwijderd)'}
-                      >
-                        <span className="truncate">{rel?.bedrijfsnaam ?? '(verwijderd)'}</span>
-                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 shrink-0" />
+                    <td className="py-2 px-2">
+                      <Link to={`/relaties/${k.relatieId}`} className="font-medium hover:text-primary inline-flex items-center gap-1">
+                        {rel?.bedrijfsnaam ?? '(verwijderd)'}
+                        <ExternalLink className="h-3 w-3 opacity-60" />
                       </Link>
-                      {/* Interesse onder relatie tonen op kleine schermen, om kolom te besparen */}
-                      <div className="md:hidden mt-0.5">
-                        <InteresseNiveauBadge niveau={k.interesseNiveau} />
-                      </div>
                     </td>
                     <td className="py-2 px-2"><PipelineFaseBadge fase={k.pipelineFase} /></td>
-                    <td className="py-2 px-2 hidden md:table-cell"><InteresseNiveauBadge niveau={k.interesseNiveau} /></td>
-                    <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">
+                    <td className="py-2 px-2"><InteresseNiveauBadge niveau={k.interesseNiveau} /></td>
+                    <td className="py-2 px-2 text-right font-mono-data text-xs">
                       {k.matchscore != null ? `${k.matchscore}%` : '—'}
                     </td>
-                    <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBedrag(k.biedingBedrag)}</td>
+                    <td className="py-2 px-2 text-right font-mono-data text-xs">{fmtBedrag(k.biedingBedrag)}</td>
                     <td className="py-2 px-2 text-xs">
                       {k.volgendeActie ? (
-                        <div className="flex flex-col">
+                        <span>
                           <span className="font-medium">{VOLGENDE_ACTIE_LABELS[k.volgendeActie]}</span>
-                          {k.volgendeActieDatum && <span className="text-muted-foreground text-[11px]">{fmtDatum(k.volgendeActieDatum)}</span>}
-                        </div>
+                          {k.volgendeActieDatum && <span className="text-muted-foreground"> · {fmtDatum(k.volgendeActieDatum)}</span>}
+                        </span>
                       ) : '—'}
                     </td>
-                    <td className="py-2 px-2 text-xs text-muted-foreground hidden lg:table-cell whitespace-nowrap">{fmtDatum(k.laatsteContactdatum)}</td>
-                    <td className="py-2 pl-2 text-right whitespace-nowrap">
+                    <td className="py-2 px-2 text-xs text-muted-foreground">{fmtDatum(k.laatsteContactdatum)}</td>
+                    <td className="py-2 px-2 text-right">
                       <Button variant="ghost" size="sm" onClick={() => setBewerken(k)} className="h-8 w-8 p-0">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
