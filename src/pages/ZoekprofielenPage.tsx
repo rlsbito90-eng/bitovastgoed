@@ -146,17 +146,16 @@ export default function ZoekprofielenPage() {
                 </div>
               </div>
 
-              {/* Asset class chips - met leesbare labels */}
-              <div className="flex flex-wrap gap-1.5">
-                {zp.typeVastgoed.map(t => (
-                  <Badge
-                    key={t}
-                    variant="secondary"
-                    className="text-[11px] bg-secondary/15 text-foreground border border-secondary/25 hover:bg-secondary/15"
-                  >
-                    {ASSET_CLASS_LABELS[t]}
-                  </Badge>
-                ))}
+              {/* Nieuwe taxonomie: type + subcategorie + dealtype */}
+              <div className="space-y-1.5">
+                <PropertyTypeBadges
+                  ids={(zp as any).propertyTypeIds}
+                  fallbackAssetClasses={zp.typeVastgoed}
+                  max={3}
+                  showEmpty={false}
+                />
+                <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={3} showEmpty={false} />
+                <DealtypeBadges ids={(zp as any).dealTypeIds} max={3} showEmpty={false} />
               </div>
 
               {/* Details */}
