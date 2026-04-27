@@ -306,6 +306,7 @@ export default function ReferentieObjectenPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Adres</TableHead>
+                    <TableHead>Postcode</TableHead>
                     <TableHead>Plaats</TableHead>
                     <TableHead>Asset class</TableHead>
                     <TableHead className="text-right">m²</TableHead>
