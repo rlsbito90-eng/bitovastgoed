@@ -54,33 +54,44 @@ function KwaliteitChip({ obj }: { obj: ReferentieObject }) {
   );
 }
 
+type SortField =
+  | 'recent' | 'adres' | 'plaats' | 'postcode'
+  | 'm2' | 'vraagprijs' | 'prijs_per_m2' | 'huur' | 'bouwjaar' | 'kwaliteit';
+
+const SORT_FIELD_LABELS: Record<SortField, string> = {
+  recent: 'Datum toegevoegd',
+  adres: 'Adres',
+  plaats: 'Plaats',
+  postcode: 'Postcode',
+  m2: 'Oppervlakte (m²)',
+  vraagprijs: 'Vraagprijs',
+  prijs_per_m2: '€ per m²',
+  huur: 'Huur per jaar',
+  bouwjaar: 'Bouwjaar',
+  kwaliteit: 'Kwaliteit',
+};
+
+interface SortLevel {
+  field: SortField;
+  dir: 'asc' | 'desc';
+}
+
 export default function ReferentieObjectenPage() {
   const store = useDataStore();
   const [zoek, setZoek] = useState('');
-  const [assetFilter, setAssetFilter] = useState<AssetClass | ''>('');
+  const [assetFilter, setAssetFilter] = useState<AssetClass[]>([]);
   const [plaatsFilter, setPlaatsFilter] = useState('');
   const [postcodeFilter, setPostcodeFilter] = useState('');
-  const [kwaliteitFilter, setKwaliteitFilter] = useState<'' | 'zeer_sterk' | 'goed' | 'bruikbaar' | 'zwak'>('');
+  const [kwaliteitFilter, setKwaliteitFilter] = useState<string[]>([]);
   const [bouwjaarMin, setBouwjaarMin] = useState('');
   const [bouwjaarMax, setBouwjaarMax] = useState('');
   const [m2Min, setM2Min] = useState('');
   const [m2Max, setM2Max] = useState('');
   const [prijsMin, setPrijsMin] = useState('');
   const [prijsMax, setPrijsMax] = useState('');
-  const [energielabelFilter, setEnergielabelFilter] = useState('');
-  const [huurstatusFilter, setHuurstatusFilter] = useState('');
-  type SortKey =
-    | 'recent' | 'oudst'
-    | 'adres_az' | 'adres_za'
-    | 'plaats_az' | 'plaats_za'
-    | 'postcode_az' | 'postcode_za'
-    | 'm2_asc' | 'm2_desc'
-    | 'vraagprijs_asc' | 'vraagprijs_desc'
-    | 'prijs_per_m2_asc' | 'prijs_per_m2_desc'
-    | 'huur_asc' | 'huur_desc'
-    | 'bouwjaar_asc' | 'bouwjaar_desc'
-    | 'kwaliteit_desc' | 'kwaliteit_asc';
-  const [sortKey, setSortKey] = useState<SortKey>('recent');
+  const [energielabelFilter, setEnergielabelFilter] = useState<string[]>([]);
+  const [huurstatusFilter, setHuurstatusFilter] = useState<string[]>([]);
+  const [sortLevels, setSortLevels] = useState<SortLevel[]>([{ field: 'recent', dir: 'desc' }]);
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
 
