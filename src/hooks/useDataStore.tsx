@@ -599,6 +599,7 @@ const referentieObjectFromDb = (r: any): ReferentieObject => ({
   bron: r.bron ?? undefined,
   notities: r.notities ?? undefined,
   softDeletedAt: r.soft_deleted_at ?? undefined,
+  createdAt: r.created_at ?? undefined,
 });
 
 const referentieObjectToDb = (r: Partial<ReferentieObject>) => cleanPayload({
