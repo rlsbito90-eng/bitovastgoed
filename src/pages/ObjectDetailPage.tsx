@@ -240,7 +240,7 @@ export default function ObjectDetailPage() {
         <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
 
           {/* CLASSIFICATIE — nieuwe vastgoedtaxonomie */}
-          <section className="section-card p-5 sm:p-6 space-y-4">
+          <section className="section-card p-4 sm:p-6 space-y-4">
             <h2 className="section-title">Classificatie</h2>
             <ClassificatieRij
               propertyTypeId={object.propertyTypeId}
@@ -252,7 +252,7 @@ export default function ObjectDetailPage() {
           </section>
 
           {/* OBJECTGEGEVENS */}
-          <section className="section-card p-5 sm:p-6 space-y-5">
+          <section className="section-card p-4 sm:p-6 space-y-5">
             <h2 className="section-title">Objectgegevens</h2>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
               {object.huurinkomsten != null && (
@@ -383,7 +383,7 @@ export default function ObjectDetailPage() {
 
           {/* HUURDERS */}
           {huurders.length > 0 && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
+            <section className="section-card p-4 sm:p-6 space-y-4">
               <h2 className="section-title">Huurders ({huurders.length})</h2>
               <div className="space-y-2">
                 {huurders.map(h => (
@@ -413,7 +413,7 @@ export default function ObjectDetailPage() {
 
           {/* DOCUMENTEN */}
           {documenten.length > 0 && (
-            <section className="section-card p-5 sm:p-6 space-y-3">
+            <section className="section-card p-4 sm:p-6 space-y-3">
               <h2 className="section-title">Documenten ({documenten.length})</h2>
               <div className="space-y-2">
                 {documenten.map(doc => (
@@ -441,7 +441,7 @@ export default function ObjectDetailPage() {
 
           {/* FOTO GRID */}
           {fotos.length > 1 && (
-            <section className="section-card p-5 sm:p-6 space-y-3">
+            <section className="section-card p-4 sm:p-6 space-y-3">
               <h2 className="section-title">Foto's ({fotos.length})</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {fotos.map(foto => (
@@ -464,7 +464,7 @@ export default function ObjectDetailPage() {
 
           {/* JURIDISCH / KADASTRAAL */}
           {(object.eigendomssituatie || object.erfpachtinformatie || object.bestemmingsinformatie || object.kadastraalNummer) && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
+            <section className="section-card p-4 sm:p-6 space-y-4">
               <h2 className="section-title">Juridisch & kadastraal</h2>
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
                 {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
@@ -485,7 +485,7 @@ export default function ObjectDetailPage() {
 
           {/* VERKOPER */}
           {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
+            <section className="section-card p-4 sm:p-6 space-y-4">
               <h2 className="section-title">Verkoper</h2>
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
                 {object.verkoperNaam && (
