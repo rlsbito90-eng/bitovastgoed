@@ -81,8 +81,13 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
     }
   };
 
+  // Op desktop laten we de sectie breder zijn dan de smalle pagina-container (max-w-5xl ≈ 1024px),
+  // zodat de tabel z'n natuurlijke breedte krijgt zonder horizontale scroll. We breken hiervoor uit
+  // de container door de breedte aan de viewport te koppelen en relatief te centreren.
   return (
-    <section className="section-card p-5 sm:p-6 space-y-4 lg:-mx-24 xl:-mx-40">
+    <section
+      className="section-card p-5 sm:p-6 space-y-4 lg:relative lg:left-1/2 lg:-translate-x-1/2 lg:w-[min(100vw-3rem,1400px)] xl:w-[min(100vw-4rem,1600px)]"
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="section-title">Kandidaten / dealtraject</h2>
