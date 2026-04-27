@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
+import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
