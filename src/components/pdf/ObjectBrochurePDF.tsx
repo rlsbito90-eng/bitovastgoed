@@ -535,7 +535,7 @@ export default function ObjectBrochurePDF({
                       <View style={{ flex: 1 }}><InfoRow label="Aantal huurders" value={String(huurders.length)} isData last /></View>
                     )}
                     {totaleJaarhuur != null && (
-                      <View style={{ flex: 1 }}><InfoRow label="Totale jaarhuur" value={formatEuro(totaleJaarhuur, true)} isData last /></View>
+                      <View style={{ flex: 1 }}><InfoRow label="Totale jaarhuur" value={formatEuro(totaleJaarhuur)} isData last /></View>
                     )}
                     {walt != null && (
                       <View style={{ flex: 1 }}><InfoRow label="WALT" value={`${walt} jr`} isData last /></View>
