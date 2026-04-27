@@ -108,7 +108,9 @@ export interface Relatie {
   vestigingsland?: string;
 
   regio: string[];
-  assetClasses: AssetClass[];
+  assetClasses: AssetClass[];        // legacy
+  propertyTypeIds?: string[];        // nieuwe taxonomie
+  propertySubtypeIds?: string[];     // nieuwe taxonomie
   budgetMin?: number;
   budgetMax?: number;
   rendementseis?: number;
