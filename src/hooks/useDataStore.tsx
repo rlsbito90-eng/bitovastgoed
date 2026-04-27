@@ -1389,6 +1389,11 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addDealKandidaat, updateDealKandidaat, removeDealKandidaat,
     getKandidatenVoorDeal: (dealId) => dealKandidaten.filter(x => x.dealId === dealId),
 
+    pipelineKandidaten,
+    addPipelineKandidaat, updatePipelineKandidaat, removePipelineKandidaat,
+    getPipelineVoorObject: (objectId) => pipelineKandidaten.filter(x => x.objectId === objectId),
+    getPipelineVoorRelatie: (relatieId) => pipelineKandidaten.filter(x => x.relatieId === relatieId),
+
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
 
