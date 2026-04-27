@@ -1,8 +1,11 @@
 // src/components/pdf/ObjectOnepagerPDF.tsx
 //
-// Eén-pagina PDF voor cold outreach naar investeerders. Strak, grafisch,
-// kerninfo. Anonimiteits-modus wordt gerespecteerd: bij anoniem object
-// tonen we alleen publieke naam/regio en NIET het echte adres.
+// Eén-pagina PDF voor cold outreach. Batch 8b: visueel rijker.
+//   - Groter hero-blok met betere typografie
+//   - Stats-band met dunne accentlijnen (geen losse tegels meer)
+//   - Investeringsthese met meer ademruimte
+//   - Decoratieve gouden hairlines tussen secties
+//   - Marktwaarde-indicatie default zichtbaar (uit object-niveau referenties)
 
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import {
@@ -10,7 +13,7 @@ import {
   formatEuro, formatM2, formatPercent, formatDate,
 } from '@/lib/pdf/theme';
 import {
-  PageHeader, PageFooter, SectionTitle, StatTile,
+  PageHeader, PageFooter, SectionTitle, CenterDivider,
 } from '@/components/pdf/PdfShared';
 import { BITO_LOGO_URL } from '@/lib/pdf/logo';
 import type { ObjectVastgoed } from '@/data/mock-data';
@@ -18,21 +21,22 @@ import { ASSET_CLASS_LABELS } from '@/data/mock-data';
 
 interface Props {
   object: ObjectVastgoed;
-  hoofdfotoUrl?: string;        // signed URL voor hoofdfoto
-  marktwaardeMediaan?: number;  // optioneel — als gebruiker dit wil tonen
+  hoofdfotoUrl?: string;
+  marktwaardeMediaan?: number;
+  subcategorieLabel?: string;
 }
 
 const styles = StyleSheet.create({
-  // === HERO BLOK met foto + titel ===
+  // === HERO ===
   hero: {
-    height: 280,
+    height: 320,
     backgroundColor: colors.primary,
     position: 'relative',
     overflow: 'hidden',
   },
   heroImage: {
     width: '100%',
-    height: 280,
+    height: 320,
     objectFit: 'cover',
   },
   heroOverlay: {
@@ -44,47 +48,77 @@ const styles = StyleSheet.create({
     position: 'absolute',
     inset: 0,
     backgroundColor: colors.primary,
-    flexDirection: 'column',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
+  },
+  // Sub-pattern voor extra texture op de overlay
+  heroPattern: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
+    backgroundColor: 'rgba(7, 36, 56, 0.35)',
   },
   heroAccentRule: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 110,
     left: spacing.page,
-    width: 32,
-    height: 1.5,
+    width: 40,
+    height: 2,
     backgroundColor: colors.accent,
   },
   heroLabel: {
     position: 'absolute',
-    bottom: 70,
+    bottom: 80,
     left: spacing.page,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 8,
-    fontWeight: 500,
+    fontWeight: 600,
     color: colors.accent,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 2,
   },
   heroTitle: {
     position: 'absolute',
-    bottom: spacing.page - 8,
+    bottom: spacing.page,
     left: spacing.page,
     right: spacing.page,
-    fontFamily: 'Times-Roman',
-    fontSize: 26,
+    fontFamily: 'Playfair Display',
+    fontSize: 32,
     fontWeight: 700,
     color: colors.white,
-    letterSpacing: -0.5,
-    lineHeight: 1.15,
+    letterSpacing: -0.7,
+    lineHeight: 1.1,
+  },
+  heroLocatie: {
+    position: 'absolute',
+    bottom: 22,
+    left: spacing.page,
+    fontFamily: 'Inter',
+    fontSize: 11,
+    color: colors.accentLight,
+    letterSpacing: 0.5,
   },
 
-  // === STAT GRID ===
-  statGrid: {
+  // === STATS BAND (geen tegels — doorlopende band met lijntjes) ===
+  statsBand: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.section,
+    backgroundColor: colors.white,
+    borderTopWidth: 2,
+    borderTopColor: colors.accent,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+  },
+  statsBandItem: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg + 2,
+    borderRightWidth: 0.5,
+    borderRightColor: colors.borderSubtle,
+  },
+  statsBandItemLast: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg + 2,
   },
 
   // === BODY ===
@@ -95,86 +129,90 @@ const styles = StyleSheet.create({
   },
   twoColumn: {
     flexDirection: 'row',
-    gap: spacing.section,
-    marginTop: spacing.md,
+    gap: spacing.section + 4,
   },
   column: {
     flex: 1,
   },
   paragraph: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9.5,
-    lineHeight: 1.55,
+    lineHeight: 1.6,
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   bullet: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm - 1,
+    marginBottom: spacing.sm + 1,
   },
   bulletDot: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9,
     color: colors.accent,
-    marginRight: 6,
-    lineHeight: 1.5,
+    marginRight: 7,
+    lineHeight: 1.6,
   },
   bulletText: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9.5,
     color: colors.text,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
     flex: 1,
   },
 
   // === MARKTWAARDE ACCENT BLOK ===
   marktwaardeBlok: {
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg + 4,
+    paddingVertical: spacing.lg + 2,
     borderWidth: 1,
     borderColor: colors.accent,
-    borderRadius: 4,
-    backgroundColor: '#FAF6EE',
+    borderRadius: 2,
+    backgroundColor: colors.accentSoft,
+    marginTop: spacing.lg,
   },
-  marktwaardeLabel: {
-    fontFamily: 'Helvetica',
-    fontSize: 8,
-    fontWeight: 500,
-    color: colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  marktwaardeValue: {
-    fontFamily: 'Courier',
-    fontSize: 18,
-    fontWeight: 600,
-    color: colors.primary,
-    marginTop: 2,
+  marktwaardeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
   marktwaardeNote: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 7.5,
     color: colors.textMuted,
-    marginTop: 3,
+    marginTop: 6,
     fontStyle: 'italic',
+    lineHeight: 1.4,
+  },
+
+  // === RISICO CHIPS ===
+  risicoChip: {
+    fontFamily: 'Inter',
+    fontSize: 8.5,
+    color: colors.text,
+    backgroundColor: colors.dragerSubtle,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 2,
+    borderLeftWidth: 1.5,
+    borderLeftColor: colors.warning,
   },
 
   // === DISCLAIMER ===
   disclaimer: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 7,
     color: colors.textLight,
     marginTop: spacing.lg,
     fontStyle: 'italic',
-    lineHeight: 1.4,
+    lineHeight: 1.5,
   },
 });
 
 
-export default function ObjectOnepagerPDF({ object, hoofdfotoUrl, marktwaardeMediaan }: Props) {
-  // Locatie: respecteer anonimiteit
+export default function ObjectOnepagerPDF({
+  object, hoofdfotoUrl, marktwaardeMediaan, subcategorieLabel,
+}: Props) {
+  // Locatie respecteert anonimiteit
   const locatieDisplay = object.anoniem
     ? (object.publiekeRegio ?? object.provincie ?? '—')
     : `${object.plaats}${object.provincie ? ', ' + object.provincie : ''}`;
@@ -183,7 +221,6 @@ export default function ObjectOnepagerPDF({ object, hoofdfotoUrl, marktwaardeMed
     ? object.publiekeNaam
     : object.titel;
 
-  // Bereken huur per m²
   const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
   const huurPerM2 = object.huurPerM2 ?? (
     object.huurinkomsten && m2VoorBerekening
@@ -191,14 +228,12 @@ export default function ObjectOnepagerPDF({ object, hoofdfotoUrl, marktwaardeMed
       : null
   );
 
-  // BAR: gebruik gegeven of bereken uit huurinkomsten/vraagprijs
   const bar = object.brutoAanvangsrendement ?? (
     object.huurinkomsten && object.vraagprijs
       ? (object.huurinkomsten / object.vraagprijs) * 100
       : null
   );
 
-  // Investeringsthese als bullets (één regel per bullet)
   const theseBullets = (object.investeringsthese ?? '')
     .split('\n')
     .map(l => l.replace(/^[-•·*]\s*/, '').trim())
@@ -210,6 +245,10 @@ export default function ObjectOnepagerPDF({ object, hoofdfotoUrl, marktwaardeMed
     .filter(Boolean);
 
   const datum = formatDate(new Date().toISOString());
+  const assetLabel = ASSET_CLASS_LABELS[object.type];
+  const fullAssetLabel = subcategorieLabel
+    ? `${assetLabel} · ${subcategorieLabel}`
+    : assetLabel;
 
   return (
     <Document
@@ -220,123 +259,110 @@ export default function ObjectOnepagerPDF({ object, hoofdfotoUrl, marktwaardeMed
       <Page size="A4" style={pageStyles.page}>
         <PageHeader refNummer={object.internReferentienummer} datum={datum} logoUri={BITO_LOGO_URL} />
 
-        {/* === HERO BLOK === */}
+        {/* === HERO === */}
         <View style={styles.hero}>
           {hoofdfotoUrl ? (
             <>
               <Image src={hoofdfotoUrl} style={styles.heroImage} />
               <View style={styles.heroOverlay} />
+              <View style={styles.heroPattern} />
             </>
           ) : (
             <View style={styles.heroNoImage} />
           )}
           <View style={styles.heroAccentRule} />
           <Text style={styles.heroLabel}>
-            {ASSET_CLASS_LABELS[object.type]}{object.exclusief ? '   ·   Exclusief' : ''}
+            {fullAssetLabel}{object.exclusief ? '   ·   Exclusief Aanbod' : ''}
           </Text>
           <Text style={styles.heroTitle}>{titelDisplay}</Text>
+          <Text style={styles.heroLocatie}>{locatieDisplay}</Text>
+        </View>
+
+        {/* === STATS BAND === */}
+        <View style={styles.statsBand}>
+          <View style={styles.statsBandItem}>
+            <Text style={typography.label}>Vraagprijs</Text>
+            <Text style={[typography.dataLarge, { marginTop: 4, color: colors.accent }]}>
+              {object.vraagprijs ? formatEuro(object.vraagprijs, true) : (object.prijsindicatie ?? 'Op aanvraag')}
+            </Text>
+          </View>
+          <View style={styles.statsBandItem}>
+            <Text style={typography.label}>Oppervlakte</Text>
+            <Text style={[typography.dataLarge, { marginTop: 4 }]}>
+              {object.oppervlakte ? formatM2(object.oppervlakte) : '—'}
+            </Text>
+          </View>
+          <View style={styles.statsBandItem}>
+            <Text style={typography.label}>BAR</Text>
+            <Text style={[typography.dataLarge, { marginTop: 4 }]}>
+              {bar != null ? formatPercent(bar) : '—'}
+            </Text>
+          </View>
+          <View style={styles.statsBandItemLast}>
+            <Text style={typography.label}>Bouwjaar</Text>
+            <Text style={[typography.dataLarge, { marginTop: 4 }]}>
+              {object.bouwjaar ?? '—'}
+            </Text>
+          </View>
         </View>
 
         {/* === BODY === */}
         <View style={styles.body}>
-          {/* LOCATIE als aparte regel net onder hero */}
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginBottom: spacing.section,
-            alignItems: 'flex-end',
-          }}>
-            <View>
-              <Text style={typography.label}>Locatie</Text>
-              <Text style={[typography.body, { fontSize: 11, marginTop: 2 }]}>{locatieDisplay}</Text>
+          {/* Samenvatting */}
+          {object.samenvatting && (
+            <View style={{ marginBottom: spacing.lg }}>
+              <SectionTitle>Samenvatting</SectionTitle>
+              <Text style={styles.paragraph}>{object.samenvatting}</Text>
             </View>
-            {object.bouwjaar && (
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={typography.label}>Bouwjaar</Text>
-                <Text style={[typography.data, { fontSize: 11, marginTop: 2 }]}>{object.bouwjaar}</Text>
+          )}
+
+          {/* Twee-koloms: thesis + extra info */}
+          <View style={styles.twoColumn}>
+            {theseBullets.length > 0 && (
+              <View style={styles.column}>
+                <SectionTitle>Investeringsthese</SectionTitle>
+                {theseBullets.slice(0, 5).map((b, i) => (
+                  <View key={i} style={styles.bullet}>
+                    <Text style={styles.bulletDot}>▸</Text>
+                    <Text style={styles.bulletText}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {risicoBullets.length > 0 && (
+              <View style={styles.column}>
+                <SectionTitle>Aandachtspunten</SectionTitle>
+                <View style={{ flexDirection: 'column', gap: 6 }}>
+                  {risicoBullets.slice(0, 4).map((r, i) => (
+                    <Text key={i} style={styles.risicoChip}>{r}</Text>
+                  ))}
+                </View>
               </View>
             )}
           </View>
 
-          {/* === STATS GRID === */}
-          <View style={styles.statGrid}>
-            <StatTile
-              label="Vraagprijs"
-              value={object.vraagprijs ? formatEuro(object.vraagprijs, true) : (object.prijsindicatie ?? 'Op aanvraag')}
-              accent
-            />
-            <StatTile
-              label="Oppervlakte"
-              value={object.oppervlakte ? formatM2(object.oppervlakte) : '—'}
-            />
-            <StatTile
-              label="BAR"
-              value={bar != null ? formatPercent(bar) : '—'}
-            />
-            <StatTile
-              label="Huur / m² / jr"
-              value={huurPerM2 ? `€ ${huurPerM2.toLocaleString('nl-NL')}` : '—'}
-            />
-          </View>
-
-          {/* === SAMENVATTING + THESIS naast elkaar === */}
-          {(object.samenvatting || theseBullets.length > 0) && (
-            <View style={styles.twoColumn}>
-              {object.samenvatting && (
-                <View style={styles.column}>
-                  <SectionTitle>Samenvatting</SectionTitle>
-                  <Text style={styles.paragraph}>{object.samenvatting}</Text>
-                </View>
-              )}
-              {theseBullets.length > 0 && (
-                <View style={styles.column}>
-                  <SectionTitle>Investeringsthese</SectionTitle>
-                  {theseBullets.slice(0, 5).map((b, i) => (
-                    <View key={i} style={styles.bullet}>
-                      <Text style={styles.bulletDot}>▸</Text>
-                      <Text style={styles.bulletText}>{b}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* === RISICO'S (compact) === */}
-          {risicoBullets.length > 0 && (
-            <View style={{ marginTop: spacing.lg }}>
-              <SectionTitle>Aandachtspunten</SectionTitle>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                {risicoBullets.slice(0, 4).map((r, i) => (
-                  <Text key={i} style={[
-                    styles.paragraph,
-                    {
-                      fontSize: 8.5,
-                      backgroundColor: colors.dragerSubtle,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 3,
-                    },
-                  ]}>
-                    {r}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* === MARKTWAARDE BLOK (optioneel) === */}
+          {/* Marktwaarde-blok (optioneel) */}
           {marktwaardeMediaan != null && (
             <View style={styles.marktwaardeBlok}>
-              <Text style={styles.marktwaardeLabel}>Indicatieve marktwaarde</Text>
-              <Text style={styles.marktwaardeValue}>{formatEuro(marktwaardeMediaan)}</Text>
+              <View style={styles.marktwaardeRow}>
+                <View>
+                  <Text style={typography.labelAccent}>Indicatieve marktwaarde</Text>
+                  <Text style={[typography.dataXL, { marginTop: 4 }]}>
+                    {formatEuro(marktwaardeMediaan)}
+                  </Text>
+                </View>
+              </View>
               <Text style={styles.marktwaardeNote}>
-                Gebaseerd op vergelijkbare referentieobjecten in de markt — geen vervanging voor een formele taxatie.
+                Mediaanwaarde op basis van vergelijkbare referentieobjecten — geen vervanging voor een formele taxatie.
               </Text>
             </View>
           )}
 
-          {/* === DISCLAIMER === */}
+          {/* Decoratieve scheiding */}
+          <CenterDivider />
+
+          {/* Disclaimer */}
           <Text style={styles.disclaimer}>
             Deze samenvatting is opgesteld door Bito Vastgoed op basis van beschikbare informatie en is uitsluitend bedoeld
             ter oriëntatie. Aan de inhoud kunnen geen rechten worden ontleend. Voor aankoopadvies en due diligence verwijzen
