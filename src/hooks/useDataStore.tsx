@@ -657,6 +657,28 @@ const pipelineToDb = (p: Partial<PipelineKandidaat>) => cleanPayload({
   reden_afgevallen: p.redenAfgevallen !== undefined ? (p.redenAfgevallen || null) : undefined,
 });
 
+// MAPPERS — PIPELINE-DEFINITIES (object pipeline)
+const pipelineDefFromDb = (r: any): Pipeline => ({
+  id: r.id,
+  name: r.name ?? '',
+  entityType: r.entity_type ?? 'object',
+  isActive: r.is_active !== false,
+  isDefault: !!r.is_default,
+});
+
+const pipelineStageFromDb = (r: any): PipelineStage => ({
+  id: r.id,
+  pipelineId: r.pipeline_id,
+  name: r.name ?? '',
+  slug: r.slug ?? '',
+  sortOrder: r.sort_order ?? 0,
+  color: r.color ?? undefined,
+  probability: r.probability ?? undefined,
+  isWon: !!r.is_won,
+  isLost: !!r.is_lost,
+  isActive: r.is_active !== false,
+});
+
 const jaarDoelFromDb = (j: any): JaarDoel => ({
   id: j.id,
   jaar: j.jaar,
