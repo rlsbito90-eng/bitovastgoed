@@ -734,6 +734,7 @@ interface DataStore {
   zoekprofielen: Zoekprofiel[];
   dealObjecten: DealObjectKoppeling[];
   dealKandidaten: DealKandidaat[];
+  pipelineKandidaten: PipelineKandidaat[];
   jaarDoelen: JaarDoel[];
   loading: boolean;
   refresh: () => Promise<void>;
@@ -799,6 +800,13 @@ interface DataStore {
   updateDealKandidaat: (id: string, patch: { status?: KandidaatStatus; notities?: string }) => Promise<void>;
   removeDealKandidaat: (id: string) => Promise<void>;
   getKandidatenVoorDeal: (dealId: string) => DealKandidaat[];
+
+  // Pipeline (object × relatie)
+  addPipelineKandidaat: (input: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>) => Promise<PipelineKandidaat | null>;
+  updatePipelineKandidaat: (id: string, patch: Partial<PipelineKandidaat>) => Promise<void>;
+  removePipelineKandidaat: (id: string) => Promise<void>;
+  getPipelineVoorObject: (objectId: string) => PipelineKandidaat[];
+  getPipelineVoorRelatie: (relatieId: string) => PipelineKandidaat[];
 
   // Jaar-doelen
   upsertJaarDoel: (doel: Omit<JaarDoel, 'id'>) => Promise<JaarDoel | null>;
