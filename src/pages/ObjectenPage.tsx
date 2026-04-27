@@ -47,13 +47,13 @@ export default function ObjectenPage() {
       />
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
-        <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Zoek op naam of plaats..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
         </div>
-        <div className="flex flex-wrap gap-2.5">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
           <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            className="flex-1 sm:flex-none min-w-0 h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
             value={typeFilter}
             onChange={e => { setTypeFilter(e.target.value); setSubtypeFilter(''); }}
           >
@@ -61,7 +61,7 @@ export default function ObjectenPage() {
             {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            className="flex-1 sm:flex-none min-w-0 h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
             value={subtypeFilter}
             onChange={e => setSubtypeFilter(e.target.value)}
             disabled={beschikbareSubs.length === 0}
@@ -70,14 +70,14 @@ export default function ObjectenPage() {
             {beschikbareSubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            className="flex-1 sm:flex-none min-w-0 h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
             value={dealtypeFilter}
             onChange={e => setDealtypeFilter(e.target.value)}
           >
             <option value="">Alle dealtypes</option>
             {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
-          <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as ObjectStatus | '')}>
+          <select className="flex-1 sm:flex-none min-w-0 h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as ObjectStatus | '')}>
             <option value="">Alle statussen</option>
             <option value="off-market">Off-market</option>
             <option value="in_onderzoek">In onderzoek</option>
