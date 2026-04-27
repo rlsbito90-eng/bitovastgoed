@@ -130,7 +130,8 @@ export default function FeedTokensSectie() {
         </h2>
         <p className="text-xs text-muted-foreground mt-1.5">
           Genereer een feed-URL die je in je agenda-app kunt koppelen. De feed bevat alle
-          bezichtigingen, taken-deadlines, follow-ups en verwachte closings — automatisch up-to-date.
+          bezichtigingen, taken-deadlines, follow-ups, verwachte closings, kandidaat-acties uit
+          de pipeline (volgende actie, bezichtiging, gewenste levering) en NDA-data — automatisch up-to-date.
         </p>
       </div>
 
