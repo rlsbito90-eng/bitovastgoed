@@ -45,7 +45,9 @@ import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
-import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
+import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
+import type { DocumentType } from '@/data/mock-data';
 
 interface Props {
   open: boolean;
@@ -134,7 +136,42 @@ const leegForm: FormState = {
   interneOpmerkingen: undefined,
   opmerkingen: undefined,
   referentieanalyseZichtbaar: true,
+  // IM-content
+  propositie: undefined,
+  objectomschrijving: undefined,
+  locatieOmschrijving: undefined,
+  technischeStaatOmschrijving: undefined,
+  procesVoorwaarden: undefined,
+  dataroomUrl: undefined,
+  marktwaardeIndicatie: undefined,
+  marktwaardeBron: undefined,
+  contactNaam: undefined,
+  contactFunctie: undefined,
+  contactTelefoon: undefined,
+  contactEmail: undefined,
+  oppervlaktenPerVerdieping: [],
+  financieleScenarios: {},
+  documentatieStatus: {},
+  imSectiesZichtbaar: {},
 };
+
+// IM-secties die de gebruiker per stuk aan/uit kan zetten in het document
+const IM_SECTIES: { key: string; label: string }[] = [
+  { key: 'propositie',     label: 'Propositie' },
+  { key: 'object',         label: 'Objectomschrijving' },
+  { key: 'locatie',        label: 'Locatie' },
+  { key: 'oppervlakten',   label: 'Oppervlakten per verdieping' },
+  { key: 'huur',           label: 'Huurinformatie' },
+  { key: 'financieel',     label: 'Financiële scenario\'s' },
+  { key: 'marktwaarde',    label: 'Marktwaarde-indicatie' },
+  { key: 'technisch',      label: 'Technische staat' },
+  { key: 'juridisch',      label: 'Juridisch & kadaster' },
+  { key: 'duurzaamheid',   label: 'Duurzaamheid / energielabel' },
+  { key: 'risicos',        label: 'Risico\'s' },
+  { key: 'documentatie',   label: 'Documentatie-overzicht' },
+  { key: 'proces',         label: 'Proces & voorwaarden' },
+  { key: 'contact',        label: 'Contact' },
+];
 
 const ENERGIELABELS: Energielabel[] =
   ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
