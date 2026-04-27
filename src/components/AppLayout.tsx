@@ -75,21 +75,46 @@ function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('bito.sidebar.collapsed') === '1';
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('bito.sidebar.collapsed', desktopCollapsed ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, [desktopCollapsed]);
 
   return (
     // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
     <div className="flex h-screen bg-background overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0">
+      <aside
+        className={`hidden lg:flex lg:flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
+          desktopCollapsed ? 'lg:w-14' : 'lg:w-60'
+        }`}
+      >
         <Link
           to="/"
-          className="h-16 flex items-center px-5 border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors"
+          className={`h-16 flex items-center border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors ${
+            desktopCollapsed ? 'justify-center px-0' : 'px-5'
+          }`}
+          title={desktopCollapsed ? 'Bito Vastgoed' : undefined}
         >
-          <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
-          <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
-          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
+          {desktopCollapsed ? (
+            <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">B</span>
+          ) : (
+            <>
+              <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
+              <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
+              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
+            </>
+          )}
         </Link>
-        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <nav className={`flex-1 py-4 space-y-0.5 overflow-y-auto ${desktopCollapsed ? 'px-2' : 'px-3'}`}>
           {navItems.map((item) => {
             const isActive = item.path === '/'
               ? location.pathname === '/'
@@ -98,7 +123,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                title={desktopCollapsed ? item.label : undefined}
+                className={`relative flex items-center rounded-md text-sm transition-colors ${
+                  desktopCollapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-3 py-2'
+                } ${
                   isActive
                     ? 'bg-sidebar-accent text-sidebar-foreground font-medium'
                     : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
@@ -106,13 +134,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               >
                 {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />}
                 <item.icon className={`h-4 w-4 ${isActive ? 'text-accent' : ''}`} />
-                {item.label}
+                {!desktopCollapsed && item.label}
               </Link>
             );
           })}
         </nav>
         <div className="p-2 border-t border-sidebar-border">
-          <GebruikerMenu />
+          <GebruikerMenu collapsed={desktopCollapsed} />
         </div>
       </aside>
 
@@ -136,8 +164,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Desktop topbar — toont alleen match-badge; sidebar verzorgt navigatie */}
-        <header className="hidden lg:flex items-center justify-end h-12 px-6 border-b border-border bg-card">
+        {/* Desktop topbar — collapse-knop links, match-badge rechts */}
+        <header className="hidden lg:flex items-center justify-between h-12 px-6 border-b border-border bg-card">
+          <button
+            onClick={() => setDesktopCollapsed(v => !v)}
+            className="p-1.5 -ml-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={desktopCollapsed ? 'Menu uitklappen' : 'Menu inklappen'}
+            title={desktopCollapsed ? 'Menu uitklappen' : 'Menu inklappen'}
+          >
+            {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
           <MatchAlertBadge />
         </header>
 
