@@ -863,6 +863,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [zoekprofielen, setZoekprofielen] = useState<Zoekprofiel[]>([]);
   const [dealObjecten, setDealObjecten] = useState<DealObjectKoppeling[]>([]);
   const [dealKandidaten, setDealKandidaten] = useState<DealKandidaat[]>([]);
+  const [pipelineKandidaten, setPipelineKandidaten] = useState<PipelineKandidaat[]>([]);
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
@@ -875,7 +876,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
-        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes,
+        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -893,6 +894,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('referentie_objecten' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('deal_referenties' as any).select('*'),
         supabase.from('object_referenties' as any).select('*'),
+        supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
@@ -918,6 +920,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (refRes.data) setReferentieObjecten((refRes.data as any[]).map(referentieObjectFromDb));
       if (drefRes.data) setDealReferenties((drefRes.data as any[]).map(dealReferentieFromDb));
       if (objRefRes.data) setObjectReferenties((objRefRes.data as any[]).map(objectReferentieFromDb));
+      if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
     } finally {
       setLoading(false);
     }
