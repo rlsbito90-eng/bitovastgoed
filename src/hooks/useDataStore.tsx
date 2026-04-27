@@ -918,6 +918,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
         dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
+        pipeDefRes, pipeStageRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -936,6 +937,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('deal_referenties' as any).select('*'),
         supabase.from('object_referenties' as any).select('*'),
         supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
+        supabase.from('pipelines' as any).select('*').eq('is_active', true).order('created_at', { ascending: true }),
+        supabase.from('pipeline_stages' as any).select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
