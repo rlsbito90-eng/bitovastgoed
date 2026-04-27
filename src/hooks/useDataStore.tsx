@@ -1467,6 +1467,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     getPipelineVoorObject: (objectId) => pipelineKandidaten.filter(x => x.objectId === objectId),
     getPipelineVoorRelatie: (relatieId) => pipelineKandidaten.filter(x => x.relatieId === relatieId),
 
+    pipelines, pipelineStages,
+    getDefaultObjectPipeline: () => pipelines.find(p => p.entityType === 'object' && p.isDefault) ?? pipelines.find(p => p.entityType === 'object'),
+    getStagesVoorPipeline: (pipelineId: string) =>
+      pipelineStages.filter(s => s.pipelineId === pipelineId).sort((a, b) => a.sortOrder - b.sortOrder),
+    setObjectPipelineStage,
+
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),
 
