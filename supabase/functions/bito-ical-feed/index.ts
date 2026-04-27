@@ -3,10 +3,14 @@
 // Bito Vastgoed — iCal Feed Edge Function
 //
 // Genereert een iCalendar (.ics) feed van alle relevante agenda-items:
-//   - Bezichtigingen      (deals.bezichtiging_gepland)
-//   - Taken-deadlines     (taken.deadline + deadline_tijd)
-//   - Follow-ups          (deals.datum_follow_up + follow_up_tijd)
-//   - Verwachte closings  (deals.verwachte_closingdatum, all-day)
+//   - Bezichtigingen        (deals.bezichtiging_gepland)
+//   - Taken-deadlines       (taken.deadline + deadline_tijd)
+//   - Follow-ups            (deals.datum_follow_up + follow_up_tijd)
+//   - Verwachte closings    (deals.verwachte_closingdatum, all-day)
+//   - Pipeline-bezichtiging (object_pipeline.bezichtiging_datum)
+//   - Pipeline volgende actie (object_pipeline.volgende_actie_datum)
+//   - Gewenste levering     (object_pipeline.gewenste_levering)
+//   - NDA-datum relatie     (relaties.nda_datum)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -170,6 +174,24 @@ Deno.serve(async (req: Request) => {
 
     if (takenErr) console.error('Taken query error:', takenErr);
 
+    // Pipeline-kandidaten — bezichtigingen + volgende acties + gewenste leveringen
+    const { data: pipeline, error: pipelineErr } = await supabase
+      .from('object_pipeline')
+      .select('id, object_id, relatie_id, pipeline_fase, interesse_niveau, bezichtiging_datum, volgende_actie, volgende_actie_datum, volgende_actie_omschrijving, gewenste_levering, notities')
+      .is('soft_deleted_at', null);
+
+    if (pipelineErr) console.error('Pipeline query error:', pipelineErr);
+
+    // Relaties met NDA-datum
+    const { data: ndaRelaties, error: ndaErr } = await supabase
+      .from('relaties')
+      .select('id, bedrijfsnaam, nda_datum')
+      .is('soft_deleted_at', null)
+      .not('nda_datum', 'is', null)
+      .gte('nda_datum', vanafDate);
+
+    if (ndaErr) console.error('NDA-relaties query error:', ndaErr);
+
     // Verzamel alle benodigde object_ids en relatie_ids
     const objectIds = new Set<string>();
     const relatieIds = new Set<string>();
@@ -180,6 +202,13 @@ Deno.serve(async (req: Request) => {
     for (const t of taken ?? []) {
       if (t.object_id) objectIds.add(t.object_id);
       if (t.relatie_id) relatieIds.add(t.relatie_id);
+    }
+    for (const p of pipeline ?? []) {
+      if (p.object_id) objectIds.add(p.object_id);
+      if (p.relatie_id) relatieIds.add(p.relatie_id);
+    }
+    for (const r of ndaRelaties ?? []) {
+      relatieIds.add(r.id);
     }
 
     // Lookups (objectnaam ipv titel!)
@@ -384,14 +413,141 @@ Deno.serve(async (req: Request) => {
       events.push(buildVEvent(event, dtstamp));
     }
 
-    // 5. Bouw VCALENDAR
+    // === PIPELINE-KANDIDATEN ===
+    // Per pipeline-record kunnen meerdere agenda-events ontstaan:
+    //  - bezichtiging_datum
+    //  - volgende_actie_datum
+    //  - gewenste_levering
+    const FASE_LABEL: Record<string, string> = {
+      match_gevonden: 'Match gevonden',
+      benaderd: 'Benaderd',
+      teaser_verstuurd: 'Teaser verstuurd',
+      nda_verstuurd: 'NDA verstuurd',
+      nda_getekend: 'NDA getekend',
+      informatie_gedeeld: 'Informatie gedeeld',
+      bezichtiging_gepland: 'Bezichtiging gepland',
+      bezichtiging_gehouden: 'Bezichtiging gehouden',
+      indicatieve_bieding: 'Indicatieve bieding',
+      onderhandeling: 'Onderhandeling',
+      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      due_diligence: 'Due diligence',
+      transport_closing: 'Transport / Closing',
+      afgehaakt: 'Afgehaakt',
+      afgewezen_door_ons: 'Afgewezen door ons',
+      on_hold: 'On hold',
+      gewonnen: 'Gewonnen',
+    };
+
+    const ACTIE_LABEL: Record<string, string> = {
+      bellen: 'Bellen',
+      mailen: 'Mailen',
+      teaser_sturen: 'Teaser sturen',
+      nda_sturen: 'NDA sturen',
+      nda_opvolgen: 'NDA opvolgen',
+      info_delen: 'Info delen',
+      bezichtiging_inplannen: 'Bezichtiging inplannen',
+      bezichtiging: 'Bezichtiging',
+      bod_opvolgen: 'Bod opvolgen',
+      onderhandelen: 'Onderhandelen',
+      contract_opstellen: 'Contract opstellen',
+      dd_opvolgen: 'DD opvolgen',
+      transport_voorbereiden: 'Transport voorbereiden',
+      anders: 'Actie',
+    };
+
+    for (const p of pipeline ?? []) {
+      const obj = p.object_id ? objectMap.get(p.object_id) : null;
+      const rel = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
+      const titel = objNaam(obj);
+      const relatie = rel?.bedrijfsnaam ?? '';
+      const locatie = obj
+        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
+        : undefined;
+      const objectUrl = obj ? `${APP_BASE_URL}/objecten/${obj.id}` : `${APP_BASE_URL}/pipeline`;
+      const faseLabel = p.pipeline_fase ? (FASE_LABEL[p.pipeline_fase] ?? p.pipeline_fase) : '';
+
+      const baseDescription = (extra?: string) => [
+        relatie ? `Kandidaat: ${relatie}` : null,
+        obj ? `Object: ${titel}` : null,
+        faseLabel ? `Fase: ${faseLabel}` : null,
+        extra,
+        p.notities ? `\nNotities:\n${p.notities}` : null,
+        `\n${objectUrl}`,
+      ].filter(Boolean).join('\n');
+
+      // Bezichtiging vanuit kandidaat-pipeline (all-day, want geen tijdveld)
+      if (p.bezichtiging_datum) {
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-bezichtiging', p.id),
+          summary: `🤝 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription(),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.bezichtiging_datum,
+          endDate: addOneDay(p.bezichtiging_datum),
+          status: 'CONFIRMED',
+        }, dtstamp));
+      }
+
+      // Volgende actie
+      if (p.volgende_actie_datum) {
+        const actieLabel = p.volgende_actie
+          ? (ACTIE_LABEL[p.volgende_actie] ?? p.volgende_actie)
+          : 'Volgende actie';
+        const omschrijving = p.volgende_actie_omschrijving?.trim();
+        const summarySuffix = omschrijving ? `: ${omschrijving}` : '';
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-actie', p.id),
+          summary: `✅ ${actieLabel}${summarySuffix} — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription(omschrijving ? `Actie: ${actieLabel} — ${omschrijving}` : `Actie: ${actieLabel}`),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.volgende_actie_datum,
+          endDate: addOneDay(p.volgende_actie_datum),
+        }, dtstamp));
+      }
+
+      // Gewenste levering / closing-wens vanuit kandidaat
+      if (p.gewenste_levering) {
+        events.push(buildVEvent({
+          uid: makeUid('pipeline-levering', p.id),
+          summary: `📦 Gewenste levering — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'),
+          location: locatie,
+          url: objectUrl,
+          startDate: p.gewenste_levering,
+          endDate: addOneDay(p.gewenste_levering),
+          status: 'TENTATIVE',
+        }, dtstamp));
+      }
+    }
+
+    // === NDA-DATA RELATIES ===
+    for (const r of ndaRelaties ?? []) {
+      if (!r.nda_datum) continue;
+      const relatieUrl = `${APP_BASE_URL}/relaties/${r.id}`;
+      events.push(buildVEvent({
+        uid: makeUid('nda-relatie', r.id),
+        summary: `🖋 NDA — ${r.bedrijfsnaam ?? 'Relatie'}`,
+        description: [
+          `Relatie: ${r.bedrijfsnaam ?? ''}`,
+          `NDA-datum vastgelegd op het relatieprofiel.`,
+          `\n${relatieUrl}`,
+        ].join('\n'),
+        url: relatieUrl,
+        startDate: r.nda_datum,
+        endDate: addOneDay(r.nda_datum),
+      }, dtstamp));
+    }
+
+
     const ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//Bito Vastgoed//Agenda Feed//NL',
       'METHOD:PUBLISH',
       'X-WR-CALNAME:Bito Vastgoed',
-      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups en closings',
+      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups, closings, kandidaat-acties, leveringen en NDA-data',
       'X-WR-TIMEZONE:Europe/Amsterdam',
       'CALSCALE:GREGORIAN',
       ...events,
