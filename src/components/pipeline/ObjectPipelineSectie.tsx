@@ -31,12 +31,11 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   const [bezig, setBezig] = useState(false);
   const [bewerken, setBewerken] = useState<PipelineKandidaat | null>(null);
 
-  const beschikbareRelaties = useMemo(() => {
+  const alleBeschikbaar = useMemo(() => {
     const gebruikte = new Set(kandidaten.map(k => k.relatieId));
     const lijst = relaties.filter(r => !gebruikte.has(r.id));
 
-    // Verrijk met matchscore tegen actief zoekprofiel (best effort)
-    const verrijkt = lijst.map(r => {
+    return lijst.map(r => {
       const zps = getZoekprofielenByRelatie(r.id);
       const zp = zps.find(z => z.status === 'actief') ?? zps[0];
       let score: number | undefined;
@@ -50,24 +49,25 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       }
       return { relatie: r, score, zoekprofielId: zpId };
     });
+  }, [relaties, kandidaten, object, getZoekprofielenByRelatie]);
 
+  const beschikbareRelaties = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     const gefilterd = q
-      ? verrijkt.filter(({ relatie: r }) =>
+      ? alleBeschikbaar.filter(({ relatie: r }) =>
           (r.bedrijfsnaam || '').toLowerCase().includes(q) ||
           (r.contactpersoon || '').toLowerCase().includes(q) ||
           (r.email || '').toLowerCase().includes(q),
         )
-      : verrijkt;
+      : alleBeschikbaar;
 
-    // Sorteer op matchscore desc, dan op naam
-    return gefilterd.sort((a, b) => {
+    return [...gefilterd].sort((a, b) => {
       const sa = a.score ?? -1;
       const sb = b.score ?? -1;
       if (sb !== sa) return sb - sa;
       return (a.relatie.bedrijfsnaam || '').localeCompare(b.relatie.bedrijfsnaam || '');
     });
-  }, [relaties, kandidaten, zoek, object, getZoekprofielenByRelatie]);
+  }, [alleBeschikbaar, zoek]);
 
   const toggleSelectie = (id: string) => {
     setGeselecteerd(prev => {
@@ -144,7 +144,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
           </p>
         </div>
         {!adding && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={beschikbareRelaties.length === 0}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={alleBeschikbaar.length === 0}>
             <Plus className="h-4 w-4 mr-1" /> Kandidaat toevoegen
           </Button>
         )}
