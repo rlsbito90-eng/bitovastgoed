@@ -4,7 +4,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Building2, Calendar, GitBranch } from 'lucide-react';
+import { Building2, Calendar } from 'lucide-react';
 import {
   PIPELINE_FASES, INTERESSE_LABELS, VOLGENDE_ACTIE_LABELS,
   type PipelineFase, type InteresseNiveau, type VolgendeActieType, type PipelineKandidaat,
