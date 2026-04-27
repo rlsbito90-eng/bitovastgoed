@@ -199,7 +199,7 @@ export default function ReferentieObjectenPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground break-words leading-snug">{r.adres}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 break-words">
-                        {r.plaats} · {ASSET_CLASS_LABELS[r.assetClass]}
+                        {r.postcode} {r.plaats} · {ASSET_CLASS_LABELS[r.assetClass]}
                       </p>
                     </div>
                     <div className="shrink-0"><KwaliteitChip obj={r} /></div>
@@ -306,6 +306,7 @@ export default function ReferentieObjectenPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Adres</TableHead>
+                    <TableHead>Postcode</TableHead>
                     <TableHead>Plaats</TableHead>
                     <TableHead>Asset class</TableHead>
                     <TableHead className="text-right">m²</TableHead>
@@ -329,6 +330,7 @@ export default function ReferentieObjectenPage() {
                     return (
                     <TableRow key={r.id} className="cursor-pointer" onClick={() => handleEdit(r)}>
                       <TableCell className="font-medium text-foreground">{r.adres}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono-data">{r.postcode}</TableCell>
                       <TableCell className="text-muted-foreground">{r.plaats}</TableCell>
                       <TableCell className="text-muted-foreground">{ASSET_CLASS_LABELS[r.assetClass]}</TableCell>
                       <TableCell className="text-right font-mono-data">{r.m2.toLocaleString('nl-NL')}</TableCell>
