@@ -330,6 +330,7 @@ export default function ReferentieObjectenPage() {
                     return (
                     <TableRow key={r.id} className="cursor-pointer" onClick={() => handleEdit(r)}>
                       <TableCell className="font-medium text-foreground">{r.adres}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono-data">{r.postcode}</TableCell>
                       <TableCell className="text-muted-foreground">{r.plaats}</TableCell>
                       <TableCell className="text-muted-foreground">{ASSET_CLASS_LABELS[r.assetClass]}</TableCell>
                       <TableCell className="text-right font-mono-data">{r.m2.toLocaleString('nl-NL')}</TableCell>
