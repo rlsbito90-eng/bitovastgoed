@@ -31,7 +31,7 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
                   <Link to={`/objecten/${k.objectId}`} className="flex-1 min-w-0 group">
                     <div className="flex items-center gap-2 text-sm font-medium group-hover:text-primary truncate">
                       <Building2 className="h-4 w-4 opacity-60 shrink-0" />
-                      {obj?.objectnaam ?? '(verwijderd object)'}
+                      {obj?.naam ?? '(verwijderd object)'}
                     </div>
                     {obj?.plaats && <p className="text-xs text-muted-foreground ml-6 truncate">{obj.plaats}</p>}
                   </Link>
