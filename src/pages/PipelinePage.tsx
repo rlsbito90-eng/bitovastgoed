@@ -101,9 +101,8 @@ export default function PipelinePage() {
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-5 max-w-[1600px]">
       <PageHeader
-        icon={GitBranch}
         title="Pipeline"
-        description={`${filtered.length} van ${pipelineKandidaten.length} kandidaten`}
+        subtitle={`${filtered.length} van ${pipelineKandidaten.length} kandidaten`}
       />
 
       {/* FILTERS */}
