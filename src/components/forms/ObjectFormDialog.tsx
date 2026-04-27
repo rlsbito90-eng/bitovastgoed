@@ -185,6 +185,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     return () => { cancelled = true; };
   }, [open, object, gemaaktId, form.internReferentienummer, genereerRefnummer]);
 
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setForm(prev => ({ ...prev, [k]: v }));
+
   const { propertyTypes, subtypesForType, dealTypes, propertyTypeById } = usePropertyTaxonomie();
 
   const num = (v: string): number | undefined => v === '' ? undefined : Number(v);
