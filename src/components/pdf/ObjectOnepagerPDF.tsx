@@ -239,7 +239,7 @@ export default function ObjectOnepagerPDF({
             {stats.map((s, i) => (
               <View key={i} style={i === stats.length - 1 ? styles.statItemLast : styles.statItem}>
                 <Text style={typography.label}>{s.label}</Text>
-                <Text style={[typography.dataLarge, { marginTop: 4, color: i === 0 ? colors.accent : colors.primary }]}>
+                <Text style={[typography.dataLarge, { marginTop: 4, fontSize: 14, color: i === 0 ? colors.accent : colors.primary }]}>
                   {s.value}
                 </Text>
               </View>
