@@ -171,6 +171,10 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
               <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
+              <TabsTrigger value="vastgoed">
+                <span className="hidden sm:inline">Vastgoed</span>
+                <Building2 className="h-4 w-4 sm:hidden" />
+              </TabsTrigger>
               <TabsTrigger value="investeerder">Investeerder</TabsTrigger>
               <TabsTrigger value="contact" disabled={!relatieId}>
                 <span className="hidden sm:inline">Contact</span>
