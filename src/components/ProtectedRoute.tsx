@@ -3,9 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, ShieldAlert, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// TIJDELIJK: auth-check uitgeschakeld zodat iedereen direct in de CRM komt.
-// Zet AUTH_DISABLED terug op false om login weer te activeren.
-const AUTH_DISABLED = true;
+const AUTH_DISABLED = false;
 
 export default function ProtectedRoute({
   children,
