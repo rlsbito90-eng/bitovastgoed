@@ -18,16 +18,29 @@ import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/
 
 export default function ZoekprofielenPage() {
   const { zoekprofielen, getRelatieById, deleteZoekprofiel } = useDataStore();
+  const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [subtypeFilter, setSubtypeFilter] = useState<string>('');
+  const [dealtypeFilter, setDealtypeFilter] = useState<string>('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Zoekprofiel | null>(null);
 
   const filtered = zoekprofielen.filter(z => {
     const rel = getRelatieById(z.relatieId);
-    return !zoek
+    const matchZoek = !zoek
       || z.naam.toLowerCase().includes(zoek.toLowerCase())
       || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
+    const ptIds = (z as any).propertyTypeIds as string[] | undefined ?? [];
+    const psIds = (z as any).propertySubtypeIds as string[] | undefined ?? [];
+    const dtIds = (z as any).dealTypeIds as string[] | undefined ?? [];
+    const matchType = !typeFilter || ptIds.includes(typeFilter);
+    const matchSub  = !subtypeFilter || psIds.includes(subtypeFilter);
+    const matchDeal = !dealtypeFilter || dtIds.includes(dealtypeFilter);
+    return matchZoek && matchType && matchSub && matchDeal;
   });
+
+  const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
   const openNieuw = () => { setEditing(null); setFormOpen(true); };
   const openBewerk = (z: Zoekprofiel) => { setEditing(z); setFormOpen(true); };
