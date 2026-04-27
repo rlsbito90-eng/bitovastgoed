@@ -342,19 +342,29 @@ export default function RelatieDetailPage() {
                 <p className="px-5 py-6 text-xs text-muted-foreground">Nog geen zoekprofielen.</p>
               )}
               {zoekprofielen.map(zp => (
-                <div key={zp.id} className="px-5 py-3.5">
+                <div key={zp.id} className="px-5 py-3.5 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-foreground truncate flex-1">{zp.naam}</p>
                     <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
                       P{zp.prioriteit}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 capitalize truncate">
-                    {zp.typeVastgoed.map(t => ASSET_CLASS_LABELS[t]).join(', ')}
-                    {zp.regio.length > 0 && ` · ${zp.regio.join(', ')}`}
-                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    <PropertyTypeBadges
+                      ids={(zp as any).propertyTypeIds}
+                      fallbackAssetClasses={zp.typeVastgoed}
+                      max={2}
+                      variant="compact"
+                      showEmpty={false}
+                    />
+                    <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
+                    <DealtypeBadges ids={(zp as any).dealTypeIds} max={2} variant="compact" showEmpty={false} />
+                  </div>
+                  {zp.regio.length > 0 && (
+                    <p className="text-xs text-muted-foreground truncate">{zp.regio.join(', ')}</p>
+                  )}
                   {zp.prijsMax && (
-                    <p className="text-xs text-muted-foreground font-mono-data mt-0.5">
+                    <p className="text-xs text-muted-foreground font-mono-data">
                       {formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}
                     </p>
                   )}
