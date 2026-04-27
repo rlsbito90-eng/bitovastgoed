@@ -450,6 +450,7 @@ export interface ObjectFoto {
   storagePath: string;
   bijschrift?: string;
   isHoofdfoto: boolean;
+  isPlattegrond?: boolean;
   volgorde: number;
   bestandsgrootteBytes?: number;
 }
