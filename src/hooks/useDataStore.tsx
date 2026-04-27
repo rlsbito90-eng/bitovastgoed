@@ -455,6 +455,7 @@ const fotoFromDb = (f: any): ObjectFoto => ({
   storagePath: f.storage_path ?? '',
   bijschrift: f.bijschrift ?? undefined,
   isHoofdfoto: !!f.is_hoofdfoto,
+  isPlattegrond: !!f.is_plattegrond,
   volgorde: f.volgorde ?? 0,
   bestandsgrootteBytes: f.bestandsgrootte_bytes ?? undefined,
 });
