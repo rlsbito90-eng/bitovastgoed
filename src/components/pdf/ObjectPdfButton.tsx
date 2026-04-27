@@ -115,13 +115,13 @@ export default function ObjectPdfButton({ object }: Props) {
 
       if (includeFotos && fotos.length > 0) {
         const hoofd = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
-        if (hoofd?.bestandspad) {
-          hoofdfotoUrl = await downloadFotoUrl(hoofd.bestandspad);
+        if (hoofd?.storagePath) {
+          hoofdfotoUrl = await getSignedUrl(hoofd.storagePath);
         }
         if (type === 'brochure') {
           const extras = fotos.filter(f => f.id !== hoofd?.id).slice(0, 4);
           extraFotoUrls = await Promise.all(
-            extras.map(f => downloadFotoUrl(f.bestandspad)),
+            extras.map(f => getSignedUrl(f.storagePath)),
           );
         }
       }
