@@ -253,9 +253,9 @@ export default function ObjectReferentieAnalyseSectie({ object }: Props) {
           </div>
         ) : (
           <>
-            <div className="p-4 rounded-md border-2 border-accent/40 bg-accent/[0.06]">
+            <div className="p-4 rounded-md border-2 border-accent/40 bg-accent/[0.06] min-w-0">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Indicatieve marktwaarde (mediaan)</p>
-              <p className="text-2xl sm:text-3xl font-semibold font-mono-data text-accent mt-1 break-all">
+              <p className="text-xl sm:text-3xl font-semibold font-mono-data text-accent mt-1 break-words">
                 {formatCurrency(Math.round(marktwaarde.mediaan))}
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
