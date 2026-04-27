@@ -135,8 +135,8 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   // Op desktop mag deze kaart de rechterkolomruimte benutten, maar nooit naar links
   // onder het vaste menu schuiven. Daarom vergroten we uitsluitend naar rechts.
   return (
-    <section className="section-card relative z-10 p-5 sm:p-6 space-y-4 lg:-mr-[calc(50%+0.75rem)]">
-      <div className="flex items-center justify-between gap-3">
+    <section className="section-card relative z-10 p-5 sm:p-6 space-y-4 min-w-0 max-w-full overflow-hidden">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="section-title">Kandidaten / dealtraject</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
