@@ -398,6 +398,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <TabsTrigger value="juridisch">Juridisch</TabsTrigger>
               <TabsTrigger value="verkoper">Verkoper</TabsTrigger>
               <TabsTrigger value="thesis">Thesis</TabsTrigger>
+              <TabsTrigger value="im">IM &amp; document</TabsTrigger>
               <TabsTrigger value="media" disabled={!objectId}>
                 <span className="hidden sm:inline">Media</span>
                 <Image className="h-4 w-4 sm:hidden" />
