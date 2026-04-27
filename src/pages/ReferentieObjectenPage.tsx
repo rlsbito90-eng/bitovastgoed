@@ -258,16 +258,15 @@ export default function ReferentieObjectenPage() {
               onChange={e => setZoek(e.target.value)}
             />
           </div>
-          <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-            value={assetFilter}
-            onChange={e => setAssetFilter(e.target.value as AssetClass | '')}
-          >
-            <option value="">Alle asset classes</option>
-            {(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => (
-              <option key={ac} value={ac}>{ASSET_CLASS_LABELS[ac]}</option>
-            ))}
-          </select>
+          <CheckboxDropdown
+            label="Asset class"
+            options={(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => ({
+              value: ac,
+              label: ASSET_CLASS_LABELS[ac],
+            }))}
+            selected={assetFilter}
+            onChange={(next) => setAssetFilter(next as AssetClass[])}
+          />
           <Input
             placeholder="Plaats"
             className="h-10 w-full sm:w-40"
@@ -280,37 +279,35 @@ export default function ReferentieObjectenPage() {
             value={postcodeFilter}
             onChange={e => setPostcodeFilter(e.target.value)}
           />
-          <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-            value={kwaliteitFilter}
-            onChange={e => setKwaliteitFilter(e.target.value as any)}
-          >
-            <option value="">Alle kwaliteiten</option>
-            <option value="zeer_sterk">Zeer sterk (90+)</option>
-            <option value="goed">Goed (75–89)</option>
-            <option value="bruikbaar">Bruikbaar (60–74)</option>
-            <option value="zwak">Zwak (&lt;60)</option>
-          </select>
-          <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-            value={energielabelFilter}
-            onChange={e => setEnergielabelFilter(e.target.value)}
-          >
-            <option value="">Alle energielabels</option>
-            {['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'].map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-          <select
-            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-            value={huurstatusFilter}
-            onChange={e => setHuurstatusFilter(e.target.value)}
-          >
-            <option value="">Alle huurstatussen</option>
-            <option value="verhuurd">Verhuurd</option>
-            <option value="leeg">Leeg</option>
-            <option value="gedeeltelijk">Gedeeltelijk</option>
-          </select>
+          <CheckboxDropdown
+            label="Kwaliteit"
+            options={[
+              { value: 'zeer_sterk', label: 'Zeer sterk (90+)' },
+              { value: 'goed', label: 'Goed (75–89)' },
+              { value: 'bruikbaar', label: 'Bruikbaar (60–74)' },
+              { value: 'zwak', label: 'Zwak (<60)' },
+            ]}
+            selected={kwaliteitFilter}
+            onChange={setKwaliteitFilter}
+          />
+          <CheckboxDropdown
+            label="Energielabel"
+            options={['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'].map(l => ({ value: l, label: l }))}
+            selected={energielabelFilter}
+            onChange={setEnergielabelFilter}
+            triggerWidth="sm:w-44"
+          />
+          <CheckboxDropdown
+            label="Huurstatus"
+            options={[
+              { value: 'verhuurd', label: 'Verhuurd' },
+              { value: 'leeg', label: 'Leeg' },
+              { value: 'gedeeltelijk', label: 'Gedeeltelijk' },
+            ]}
+            selected={huurstatusFilter}
+            onChange={setHuurstatusFilter}
+            triggerWidth="sm:w-44"
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
@@ -330,54 +327,117 @@ export default function ReferentieObjectenPage() {
             <Input type="number" placeholder="tot" className="h-10 w-32" value={prijsMax} onChange={e => setPrijsMax(e.target.value)} />
           </div>
 
-          <div className="flex items-center gap-2 sm:ml-auto">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <select
-              className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-              value={sortKey}
-              onChange={e => setSortKey(e.target.value as any)}
-              aria-label="Sorteren"
-            >
-              <optgroup label="Datum">
-                <option value="recent">Laatst toegevoegd</option>
-                <option value="oudst">Eerst toegevoegd</option>
-              </optgroup>
-              <optgroup label="Adres / locatie">
-                <option value="adres_az">Adres (A–Z)</option>
-                <option value="adres_za">Adres (Z–A)</option>
-                <option value="plaats_az">Plaats (A–Z)</option>
-                <option value="plaats_za">Plaats (Z–A)</option>
-                <option value="postcode_az">Postcode (oplopend)</option>
-                <option value="postcode_za">Postcode (aflopend)</option>
-              </optgroup>
-              <optgroup label="Oppervlakte / prijs">
-                <option value="m2_desc">m² (hoog → laag)</option>
-                <option value="m2_asc">m² (laag → hoog)</option>
-                <option value="vraagprijs_desc">Vraagprijs (hoog → laag)</option>
-                <option value="vraagprijs_asc">Vraagprijs (laag → hoog)</option>
-                <option value="prijs_per_m2_desc">€/m² (hoog → laag)</option>
-                <option value="prijs_per_m2_asc">€/m² (laag → hoog)</option>
-                <option value="huur_desc">Huur/jaar (hoog → laag)</option>
-                <option value="huur_asc">Huur/jaar (laag → hoog)</option>
-              </optgroup>
-              <optgroup label="Overig">
-                <option value="bouwjaar_desc">Bouwjaar (nieuw → oud)</option>
-                <option value="bouwjaar_asc">Bouwjaar (oud → nieuw)</option>
-                <option value="kwaliteit_desc">Kwaliteit (hoog → laag)</option>
-                <option value="kwaliteit_asc">Kwaliteit (laag → hoog)</option>
-              </optgroup>
-            </select>
+          <div className="sm:ml-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-10 gap-1.5 bg-card hover:bg-card font-normal">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  Sorteren
+                  {sortLevels.length > 1 && (
+                    <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary/15 text-primary text-[11px] font-medium">
+                      {sortLevels.length}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[340px] p-3 space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Sorteer-niveaus (boven = primair)
+                </p>
+                {sortLevels.map((lvl, idx) => {
+                  const usedElsewhere = new Set(
+                    sortLevels.filter((_, i) => i !== idx).map(l => l.field),
+                  );
+                  return (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-mono-data text-muted-foreground w-4 text-center">
+                        {idx + 1}
+                      </span>
+                      <select
+                        className="h-9 px-2 flex-1 rounded-md border border-input bg-card text-sm text-foreground"
+                        value={lvl.field}
+                        onChange={e => updateSortLevel(idx, { field: e.target.value as SortField })}
+                      >
+                        {(Object.keys(SORT_FIELD_LABELS) as SortField[]).map(f => (
+                          <option key={f} value={f} disabled={usedElsewhere.has(f)}>
+                            {SORT_FIELD_LABELS[f]}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 shrink-0"
+                        onClick={() => updateSortLevel(idx, { dir: lvl.dir === 'asc' ? 'desc' : 'asc' })}
+                        aria-label={lvl.dir === 'asc' ? 'Oplopend' : 'Aflopend'}
+                        title={lvl.dir === 'asc' ? 'Oplopend (A→Z, laag→hoog)' : 'Aflopend (Z→A, hoog→laag)'}
+                      >
+                        {lvl.dir === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                        disabled={sortLevels.length === 1}
+                        onClick={() => removeSortLevel(idx)}
+                        aria-label="Verwijder sorteer-niveau"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center justify-between pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={sortLevels.length >= 3}
+                    onClick={addSortLevel}
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" /> Niveau toevoegen
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-muted-foreground"
+                    onClick={() => setSortLevels([{ field: 'recent', dir: 'desc' }])}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             {filtersActief && (
-              <Button variant="ghost" size="sm" className="h-10 gap-1.5" onClick={resetFilters}>
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5 ml-1" onClick={resetFilters}>
                 <X className="h-4 w-4" /> Wis filters
               </Button>
             )}
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {filtered.length} van {store.referentieObjecten.length} referentieobjecten
-        </p>
+        {/* Actieve sortering samenvatting */}
+        <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+          <span>Sortering:</span>
+          {sortLevels.map((lvl, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border bg-muted/40 text-foreground"
+            >
+              <span className="font-mono-data text-[10px] text-muted-foreground">{i + 1}</span>
+              {SORT_FIELD_LABELS[lvl.field]}
+              {lvl.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+            </span>
+          ))}
+          <span className="ml-auto">
+            {filtered.length} van {store.referentieObjecten.length} referentieobjecten
+          </span>
+        </div>
+      </div>
       </div>
 
       {filtered.length === 0 ? (
