@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
+import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
