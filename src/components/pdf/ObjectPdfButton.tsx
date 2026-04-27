@@ -88,9 +88,8 @@ export default function ObjectPdfButton({ object }: Props) {
       const huurJaren = h.einddatum
         ? Math.max(0, (new Date(h.einddatum).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 365))
         : null;
-      const breakJaren = h.breakOptieDatum
-        ? Math.max(0, (new Date(h.breakOptieDatum).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 365))
-        : huurJaren;
+      // Geen aparte break-optie datum in datamodel — WALB == WALT als fallback
+      const breakJaren = huurJaren;
       const gewicht = h.jaarhuur ?? 0;
       if (huurJaren != null && gewicht > 0) {
         waltSum += huurJaren * gewicht;
