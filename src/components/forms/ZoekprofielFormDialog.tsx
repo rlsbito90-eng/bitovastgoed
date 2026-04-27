@@ -383,6 +383,14 @@ export default function ZoekprofielFormDialog({
 
             {/* VOORKEUREN */}
             <TabsContent value="voorkeuren" className="space-y-5 mt-0">
+              <Sectie titel="Dealtype / Propositie (meerdere mogelijk)">
+                <MultiSelectChips
+                  options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
+                  value={form.dealTypeIds ?? []}
+                  onChange={v => set('dealTypeIds', v)}
+                />
+              </Sectie>
+
               <Sectie titel="Transactietype">
                 <MultiSelectChips
                   options={transactietypeOptions}
