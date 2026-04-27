@@ -380,6 +380,23 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   pipeline_stage_id: o.pipelineStageId !== undefined ? (o.pipelineStageId || null) : undefined,
   pipeline_updated_at: o.pipelineUpdatedAt !== undefined ? (o.pipelineUpdatedAt || null) : undefined,
   pipeline_stage_locked: o.pipelineStageLocked,
+  // IM/1-pager content
+  propositie: o.propositie !== undefined ? (o.propositie || null) : undefined,
+  objectomschrijving: o.objectomschrijving !== undefined ? (o.objectomschrijving || null) : undefined,
+  locatie_omschrijving: o.locatieOmschrijving !== undefined ? (o.locatieOmschrijving || null) : undefined,
+  technische_staat_omschrijving: o.technischeStaatOmschrijving !== undefined ? (o.technischeStaatOmschrijving || null) : undefined,
+  proces_voorwaarden: o.procesVoorwaarden !== undefined ? (o.procesVoorwaarden || null) : undefined,
+  dataroom_url: o.dataroomUrl !== undefined ? (o.dataroomUrl || null) : undefined,
+  marktwaarde_indicatie: o.marktwaardeIndicatie ?? null,
+  marktwaarde_bron: o.marktwaardeBron !== undefined ? (o.marktwaardeBron || null) : undefined,
+  contact_naam: o.contactNaam !== undefined ? (o.contactNaam || null) : undefined,
+  contact_functie: o.contactFunctie !== undefined ? (o.contactFunctie || null) : undefined,
+  contact_telefoon: o.contactTelefoon !== undefined ? (o.contactTelefoon || null) : undefined,
+  contact_email: o.contactEmail !== undefined ? (o.contactEmail || null) : undefined,
+  oppervlakten_per_verdieping: o.oppervlaktenPerVerdieping !== undefined ? (o.oppervlaktenPerVerdieping ?? []) : undefined,
+  financiele_scenarios: o.financieleScenarios !== undefined ? (o.financieleScenarios ?? {}) : undefined,
+  documentatie_status: o.documentatieStatus !== undefined ? (o.documentatieStatus ?? {}) : undefined,
+  im_secties_zichtbaar: o.imSectiesZichtbaar !== undefined ? (o.imSectiesZichtbaar ?? {}) : undefined,
 });
 
 
