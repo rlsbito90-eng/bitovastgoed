@@ -199,7 +199,7 @@ export default function ReferentieObjectenPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground break-words leading-snug">{r.adres}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 break-words">
-                        {r.plaats} · {ASSET_CLASS_LABELS[r.assetClass]}
+                        {r.postcode} {r.plaats} · {ASSET_CLASS_LABELS[r.assetClass]}
                       </p>
                     </div>
                     <div className="shrink-0"><KwaliteitChip obj={r} /></div>
