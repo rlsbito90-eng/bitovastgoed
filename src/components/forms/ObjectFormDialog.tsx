@@ -942,7 +942,154 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               </Sectie>
             </TabsContent>
 
-            {/* TAB 8: MEDIA */}
+            {/* TAB 8: IM & DOCUMENT */}
+            <TabsContent value="im" className="space-y-5 mt-0">
+              <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2">
+                <FileSignature className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Inhoud voor het Investment Memorandum (IM) en de 1-pager. Lege velden worden automatisch verborgen — er verschijnen geen placeholders.
+                </p>
+              </div>
+
+              <Sectie titel="Propositie & omschrijvingen">
+                <Veld label="Propositie (kernboodschap)">
+                  <Textarea rows={3} value={form.propositie ?? ''}
+                    onChange={e => set('propositie', e.target.value || undefined)}
+                    placeholder="Eén-alinea kernboodschap voor de cover van IM en 1-pager" />
+                </Veld>
+                <Veld label="Objectomschrijving">
+                  <Textarea rows={4} value={form.objectomschrijving ?? ''}
+                    onChange={e => set('objectomschrijving', e.target.value || undefined)}
+                    placeholder="Inhoudelijke beschrijving van het pand, indeling, gebruik" />
+                </Veld>
+                <Veld label="Locatie-omschrijving">
+                  <Textarea rows={3} value={form.locatieOmschrijving ?? ''}
+                    onChange={e => set('locatieOmschrijving', e.target.value || undefined)}
+                    placeholder="Bereikbaarheid, omgeving, voorzieningen, demografie" />
+                </Veld>
+                <Veld label="Technische staat (toelichting)">
+                  <Textarea rows={3} value={form.technischeStaatOmschrijving ?? ''}
+                    onChange={e => set('technischeStaatOmschrijving', e.target.value || undefined)}
+                    placeholder="Aanvulling op onderhoudsstaat-niveau, MJOP, recente ingrepen" />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Oppervlakten per verdieping">
+                <OppervlaktenEditor
+                  rijen={form.oppervlaktenPerVerdieping ?? []}
+                  onChange={v => set('oppervlaktenPerVerdieping', v)}
+                />
+              </Sectie>
+
+              <Sectie titel="Financiële scenario's">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Optioneel. Lege scenario's verschijnen niet in het IM.
+                </p>
+                <ScenarioBlok
+                  titel="Huidige situatie"
+                  scenario={form.financieleScenarios?.huidig}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), huidig: s })}
+                />
+                <ScenarioBlok
+                  titel="Marktconform"
+                  scenario={form.financieleScenarios?.marktconform}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), marktconform: s })}
+                />
+                <ScenarioBlok
+                  titel="Na renovatie / herontwikkeling"
+                  scenario={form.financieleScenarios?.naRenovatie}
+                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), naRenovatie: s })}
+                />
+              </Sectie>
+
+              <Sectie titel="Marktwaarde-indicatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Marktwaarde-indicatie (€)">
+                    <Input type="number" value={form.marktwaardeIndicatie ?? ''}
+                      onChange={e => set('marktwaardeIndicatie', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Bron / toelichting">
+                    <Input value={form.marktwaardeBron ?? ''}
+                      onChange={e => set('marktwaardeBron', e.target.value || undefined)}
+                      placeholder="bv. eigen analyse, mediaan referenties" />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Proces & dataroom">
+                <Veld label="Proces & voorwaarden">
+                  <Textarea rows={3} value={form.procesVoorwaarden ?? ''}
+                    onChange={e => set('procesVoorwaarden', e.target.value || undefined)}
+                    placeholder="bv. gesloten biedprocedure, deadline, NDA verplicht" />
+                </Veld>
+                <Veld label="Dataroom-URL">
+                  <Input type="url" value={form.dataroomUrl ?? ''}
+                    onChange={e => set('dataroomUrl', e.target.value || undefined)}
+                    placeholder="https://..." />
+                </Veld>
+              </Sectie>
+
+              <Sectie titel="Contactgegevens (op IM/1-pager)">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Indien leeg vallen we terug op de verkoper-info. Lege velden verschijnen niet.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Naam">
+                    <Input value={form.contactNaam ?? ''}
+                      onChange={e => set('contactNaam', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Functie">
+                    <Input value={form.contactFunctie ?? ''}
+                      onChange={e => set('contactFunctie', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Telefoon">
+                    <Input value={form.contactTelefoon ?? ''}
+                      onChange={e => set('contactTelefoon', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="E-mail">
+                    <Input type="email" value={form.contactEmail ?? ''}
+                      onChange={e => set('contactEmail', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Documentatie-overzicht (in IM)">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Per documenttype kun je de status kiezen. Alleen typen met een gekozen status verschijnen in de documentatietabel van het IM.
+                </p>
+                <DocumentatieStatusEditor
+                  status={form.documentatieStatus ?? {}}
+                  onChange={v => set('documentatieStatus', v)}
+                />
+              </Sectie>
+
+              <Sectie titel="IM-secties zichtbaar">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Default: een sectie verschijnt automatisch als er content voor is. Hier kun je individuele secties expliciet uitzetten.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {IM_SECTIES.map(s => {
+                    const huidig = form.imSectiesZichtbaar?.[s.key];
+                    const aan = huidig !== false; // default aan
+                    return (
+                      <label key={s.key} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border hover:bg-muted/30">
+                        <span className="text-sm">{s.label}</span>
+                        <Switch
+                          checked={aan}
+                          onCheckedChange={(v) => {
+                            const next = { ...(form.imSectiesZichtbaar ?? {}) };
+                            if (v) delete next[s.key]; else next[s.key] = false;
+                            set('imSectiesZichtbaar', next);
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </Sectie>
+            </TabsContent>
+
+            {/* TAB 9: MEDIA */}
             <TabsContent value="media" className="space-y-6 mt-0">
               {objectId ? (
                 <>
