@@ -203,6 +203,13 @@ Deno.serve(async (req: Request) => {
       if (t.object_id) objectIds.add(t.object_id);
       if (t.relatie_id) relatieIds.add(t.relatie_id);
     }
+    for (const p of pipeline ?? []) {
+      if (p.object_id) objectIds.add(p.object_id);
+      if (p.relatie_id) relatieIds.add(p.relatie_id);
+    }
+    for (const r of ndaRelaties ?? []) {
+      relatieIds.add(r.id);
+    }
 
     // Lookups (objectnaam ipv titel!)
     const objectMap = new Map<string, any>();
