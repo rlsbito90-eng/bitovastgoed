@@ -965,6 +965,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (drefRes.data) setDealReferenties((drefRes.data as any[]).map(dealReferentieFromDb));
       if (objRefRes.data) setObjectReferenties((objRefRes.data as any[]).map(objectReferentieFromDb));
       if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
+      if (pipeDefRes.data) setPipelines((pipeDefRes.data as any[]).map(pipelineDefFromDb));
+      if (pipeStageRes.data) setPipelineStages((pipeStageRes.data as any[]).map(pipelineStageFromDb));
     } finally {
       setLoading(false);
     }
