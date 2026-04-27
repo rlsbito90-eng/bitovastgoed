@@ -1239,7 +1239,32 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setDealKandidaten(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  // -------- JAAR-DOELEN --------
+  // -------- PIPELINE (object × relatie) --------
+  const addPipelineKandidaat = useCallback(async (input: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { data, error } = await supabase.from('object_pipeline' as any)
+      .insert(pipelineToDb(input) as any).select().single();
+    throwIfError(error);
+    if (!data) return null;
+    const nieuw = pipelineFromDb(data);
+    setPipelineKandidaten(prev => [nieuw, ...prev]);
+    return nieuw;
+  }, []);
+
+  const updatePipelineKandidaat = useCallback(async (id: string, patch: Partial<PipelineKandidaat>) => {
+    const { data, error } = await supabase.from('object_pipeline' as any)
+      .update(pipelineToDb(patch) as any).eq('id', id).select().single();
+    throwIfError(error);
+    if (!data) return;
+    setPipelineKandidaten(prev => prev.map(x => x.id === id ? pipelineFromDb(data) : x));
+  }, []);
+
+  const removePipelineKandidaat = useCallback(async (id: string) => {
+    const { error } = await supabase.from('object_pipeline' as any)
+      .update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
+    throwIfError(error);
+    setPipelineKandidaten(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   const upsertJaarDoel = useCallback(async (doel: Omit<JaarDoel, 'id'>) => {
     const { data, error } = await supabase
       .from('jaar_doelen' as any)
