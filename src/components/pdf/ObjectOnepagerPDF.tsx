@@ -188,7 +188,7 @@ export default function ObjectOnepagerPDF({
 
   // Mini "facts" rechts naast highlights — alleen tonen wat er is
   const facts: Stat[] = [];
-  if (object.verhuurStatus) facts.push({ label: 'Verhuursituatie', value: VERHUUR_STATUS_LABELS[object.verhuurStatus] ?? String(object.verhuurStatus) });
+  if (object.verhuurStatus) facts.push({ label: 'Verhuursituatie', value: VERHUUR_LABEL[object.verhuurStatus] ?? String(object.verhuurStatus) });
   if (object.onderhoudsstaatNiveau) facts.push({ label: 'Onderhoudsstaat', value: ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau] });
   if (object.eigendomssituatie) facts.push({ label: 'Eigendom', value: object.eigendomssituatie });
   if (object.energielabelV2) facts.push({ label: 'Energielabel', value: object.energielabelV2 });
