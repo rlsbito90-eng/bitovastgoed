@@ -192,15 +192,22 @@ export default function RelatieDetailPage() {
             )}
           </section>
 
+          {/* VASTGOEDVOORKEUREN — nieuwe taxonomie */}
+          <section className="section-card p-5 sm:p-6 space-y-4">
+            <h2 className="section-title">Vastgoedvoorkeuren</h2>
+            <ClassificatieRij
+              propertyTypeIds={(relatie as any).propertyTypeIds}
+              fallbackAssetClasses={relatie.assetClasses}
+              subtypeIds={(relatie as any).propertySubtypeIds}
+              dealTypeIds={(relatie as any).dealTypeIds}
+              mode="multi"
+            />
+          </section>
+
           {/* PROFIEL & VOORKEUREN */}
           <section className="section-card p-5 sm:p-6 space-y-5">
             <h2 className="section-title">Investeerdersprofiel</h2>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Asset classes">
-                {relatie.assetClasses.length
-                  ? relatie.assetClasses.map(ac => ASSET_CLASS_LABELS[ac]).join(', ')
-                  : '—'}
-              </Field>
               <Field label="Regio's">
                 {relatie.regio.length ? relatie.regio.join(', ') : '—'}
               </Field>
