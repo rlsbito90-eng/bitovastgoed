@@ -100,10 +100,25 @@ export default function ReferentieObjectenPage() {
 
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
-    return store.referentieObjecten.filter(r => {
+    const bjMin = bouwjaarMin ? parseInt(bouwjaarMin, 10) : undefined;
+    const bjMax = bouwjaarMax ? parseInt(bouwjaarMax, 10) : undefined;
+    const m2MinN = m2Min ? parseInt(m2Min, 10) : undefined;
+    const m2MaxN = m2Max ? parseInt(m2Max, 10) : undefined;
+    const prMin = prijsMin ? parseInt(prijsMin, 10) : undefined;
+    const prMax = prijsMax ? parseInt(prijsMax, 10) : undefined;
+
+    const list = store.referentieObjecten.filter(r => {
       if (assetFilter && r.assetClass !== assetFilter) return false;
       if (plaatsFilter && !r.plaats.toLowerCase().includes(plaatsFilter.toLowerCase())) return false;
       if (postcodeFilter && !r.postcode.toLowerCase().includes(postcodeFilter.toLowerCase())) return false;
+      if (energielabelFilter && r.energielabel !== energielabelFilter) return false;
+      if (huurstatusFilter && r.huurstatus !== huurstatusFilter) return false;
+      if (bjMin != null && r.bouwjaar < bjMin) return false;
+      if (bjMax != null && r.bouwjaar > bjMax) return false;
+      if (m2MinN != null && r.m2 < m2MinN) return false;
+      if (m2MaxN != null && r.m2 > m2MaxN) return false;
+      if (prMin != null && r.vraagprijs < prMin) return false;
+      if (prMax != null && r.vraagprijs > prMax) return false;
       if (kwaliteitFilter) {
         const k = berekenReferentieKwaliteit(r);
         if (k.kwaliteit !== kwaliteitFilter) return false;
@@ -114,7 +129,61 @@ export default function ReferentieObjectenPage() {
       }
       return true;
     });
-  }, [store.referentieObjecten, zoek, assetFilter, plaatsFilter, postcodeFilter, kwaliteitFilter]);
+
+    const numAsc = (a?: number, b?: number) => {
+      const av = a == null ? Number.POSITIVE_INFINITY : a;
+      const bv = b == null ? Number.POSITIVE_INFINITY : b;
+      return av - bv;
+    };
+    const numDesc = (a?: number, b?: number) => {
+      const av = a == null ? Number.NEGATIVE_INFINITY : a;
+      const bv = b == null ? Number.NEGATIVE_INFINITY : b;
+      return bv - av;
+    };
+    const strAsc = (a: string, b: string) => a.localeCompare(b, 'nl', { sensitivity: 'base' });
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case 'recent': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oudst': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'adres_az': return strAsc(a.adres, b.adres);
+        case 'adres_za': return strAsc(b.adres, a.adres);
+        case 'plaats_az': return strAsc(a.plaats, b.plaats);
+        case 'plaats_za': return strAsc(b.plaats, a.plaats);
+        case 'postcode_az': return strAsc(a.postcode, b.postcode);
+        case 'postcode_za': return strAsc(b.postcode, a.postcode);
+        case 'm2_asc': return numAsc(a.m2, b.m2);
+        case 'm2_desc': return numDesc(a.m2, b.m2);
+        case 'vraagprijs_asc': return numAsc(a.vraagprijs, b.vraagprijs);
+        case 'vraagprijs_desc': return numDesc(a.vraagprijs, b.vraagprijs);
+        case 'prijs_per_m2_asc': return numAsc(a.prijsPerM2, b.prijsPerM2);
+        case 'prijs_per_m2_desc': return numDesc(a.prijsPerM2, b.prijsPerM2);
+        case 'huur_asc': return numAsc(a.huurprijsPerJaar, b.huurprijsPerJaar);
+        case 'huur_desc': return numDesc(a.huurprijsPerJaar, b.huurprijsPerJaar);
+        case 'bouwjaar_asc': return numAsc(a.bouwjaar, b.bouwjaar);
+        case 'bouwjaar_desc': return numDesc(a.bouwjaar, b.bouwjaar);
+        case 'kwaliteit_desc': return numDesc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
+        case 'kwaliteit_asc': return numAsc(berekenReferentieKwaliteit(a).qualityScore, berekenReferentieKwaliteit(b).qualityScore);
+        default: return 0;
+      }
+    });
+    return sorted;
+  }, [
+    store.referentieObjecten, zoek, assetFilter, plaatsFilter, postcodeFilter, kwaliteitFilter,
+    energielabelFilter, huurstatusFilter, bouwjaarMin, bouwjaarMax, m2Min, m2Max, prijsMin, prijsMax, sortKey,
+  ]);
+
+  const filtersActief =
+    !!zoek || !!assetFilter || !!plaatsFilter || !!postcodeFilter || !!kwaliteitFilter ||
+    !!energielabelFilter || !!huurstatusFilter || !!bouwjaarMin || !!bouwjaarMax ||
+    !!m2Min || !!m2Max || !!prijsMin || !!prijsMax;
+
+  const resetFilters = () => {
+    setZoek(''); setAssetFilter(''); setPlaatsFilter(''); setPostcodeFilter('');
+    setKwaliteitFilter(''); setEnergielabelFilter(''); setHuurstatusFilter('');
+    setBouwjaarMin(''); setBouwjaarMax(''); setM2Min(''); setM2Max(''); setPrijsMin(''); setPrijsMax('');
+  };
 
   const handleNieuw = () => {
     setEditObj(undefined);
