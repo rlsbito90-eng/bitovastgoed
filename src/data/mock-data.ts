@@ -633,12 +633,61 @@ export const eurPerM2 = (eur?: number, m2?: number): number | null => {
 // MATCHING ENGINE
 // =====================================================================
 
+/**
+ * Categorie-key voor een matchcomponent. Wordt gebruikt door de UI om
+ * positieve, ontbrekende en mismatch-factoren te groeperen onder
+ * "Waarom deze match?".
+ */
+export type MatchCategorie =
+  | 'type'
+  | 'subcategorie'
+  | 'dealtype'
+  | 'regio'
+  | 'budget'
+  | 'oppervlakte'
+  | 'bouwjaar'
+  | 'leegstand'
+  | 'verhuurstatus'
+  | 'rendement'
+  | 'walt'
+  | 'energielabel'
+  | 'potentie'
+  | 'overig';
+
+/** Aard van een matchcomponent. */
+export type MatchAard = 'positief' | 'ontbrekend' | 'mismatch' | 'fallback';
+
+export interface MatchFactor {
+  categorie: MatchCategorie;
+  aard: MatchAard;
+  /** Korte, voor de gebruiker leesbare beschrijving. */
+  label: string;
+  /** Optioneel toegekend aantal punten (positief of negatief). */
+  punten?: number;
+  /** Optioneel maximaal aantal punten voor deze categorie. */
+  max?: number;
+}
+
+export type MatchBetrouwbaarheid = 'hoog' | 'middel' | 'laag';
+
 export interface MatchResult {
   zoekprofielId: string;
   relatieId: string;
   objectId: string;
+  /** 0-100, gecapt. */
   score: number;
+  /** Korte one-liners voor compacte weergaven. */
   redenen: string[];
+  /** Volledige uitleg per criterium (voor "Waarom deze match?"). */
+  factoren: MatchFactor[];
+  /** Categorieën die niet beoordeeld konden worden door ontbrekende data. */
+  ontbrekendeData: MatchCategorie[];
+  /** Categorieën die actief negatief uitvallen. */
+  mismatches: MatchCategorie[];
+  /** Vlag dat ergens legacy assetClass/asset_classes als fallback is gebruikt. */
+  gebruikteFallback: boolean;
+  /** Globale kwaliteitsindicatie (los van ruwe score). */
+  betrouwbaarheid: MatchBetrouwbaarheid;
   hardeCriteriaOk: boolean;
 }
 
@@ -661,87 +710,282 @@ function regioMatcht(profiel: Zoekprofiel, object: ObjectVastgoed): boolean {
 const ENERGIELABEL_VOLGORDE: Energielabel[] =
   ['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'];
 
+// Maxima per nieuwe taxonomie-categorie (zie spec van de uitbreiding).
+const MAX_TYPE = 25;
+const MAX_SUBCAT = 20;
+const MAX_DEAL = 20;
+
+function hasOverlap<T>(a: T[] | undefined, b: T[] | undefined): T[] {
+  if (!a || !b || a.length === 0 || b.length === 0) return [];
+  const set = new Set(b);
+  return a.filter(x => set.has(x));
+}
+
 export function berekenMatchScore(
   object: ObjectVastgoed,
   profiel: Zoekprofiel,
 ): MatchResult | null {
   const redenen: string[] = [];
+  const factoren: MatchFactor[] = [];
+  const ontbrekendeData: MatchCategorie[] = [];
+  const mismatches: MatchCategorie[] = [];
+  let gebruikteFallback = false;
   let score = 0;
 
-  // HARDE CRITERIA
-  if (!profiel.typeVastgoed || profiel.typeVastgoed.length === 0) return null;
-  if (!profiel.typeVastgoed.includes(object.type)) return null;
-  score += 25;
-  redenen.push(`Type matcht (${ASSET_CLASS_LABELS[object.type]})`);
+  // ----------------------------------------------------------------
+  // 1. TYPE VASTGOED — nieuwe taxonomie met legacy fallback (max 25)
+  // ----------------------------------------------------------------
+  const objectHeeftNieuwType = !!object.propertyTypeId;
+  const profielHeeftNieuwType = !!(profiel.propertyTypeIds && profiel.propertyTypeIds.length > 0);
 
-  if (profiel.subcategorieIds && profiel.subcategorieIds.length > 0) {
-    if (!object.subcategorieId || !profiel.subcategorieIds.includes(object.subcategorieId)) {
+  if (objectHeeftNieuwType && profielHeeftNieuwType) {
+    if (profiel.propertyTypeIds!.includes(object.propertyTypeId!)) {
+      score += MAX_TYPE;
+      const label = `Type vastgoed matcht (${ASSET_CLASS_LABELS[object.type]})`;
+      redenen.push(label);
+      factoren.push({ categorie: 'type', aard: 'positief', label, punten: MAX_TYPE, max: MAX_TYPE });
+    } else {
+      // Geen overlap op nieuwe taxonomie — harde knock-out.
       return null;
     }
-    score += 10;
-    redenen.push('Subcategorie matcht');
+  } else {
+    // Legacy fallback op assetClass / typeVastgoed[].
+    if (!profiel.typeVastgoed || profiel.typeVastgoed.length === 0) {
+      // Profiel heeft geen typevoorkeur ingevuld — niet beoordeelbaar.
+      ontbrekendeData.push('type');
+      factoren.push({
+        categorie: 'type', aard: 'ontbrekend',
+        label: 'Geen type vastgoed in zoekprofiel opgegeven',
+      });
+    } else if (!profiel.typeVastgoed.includes(object.type)) {
+      return null;
+    } else {
+      score += MAX_TYPE;
+      gebruikteFallback = true;
+      const label = `Type vastgoed matcht (${ASSET_CLASS_LABELS[object.type]}) — via legacy classificatie`;
+      redenen.push(`Type matcht (${ASSET_CLASS_LABELS[object.type]})`);
+      factoren.push({ categorie: 'type', aard: 'fallback', label, punten: MAX_TYPE, max: MAX_TYPE });
+    }
   }
 
+  // ----------------------------------------------------------------
+  // 2. SUBCATEGORIE — nieuwe taxonomie met legacy fallback (max 20)
+  // ----------------------------------------------------------------
+  const objectSubs = object.propertySubtypeIds ?? [];
+  const profielSubs = profiel.propertySubtypeIds ?? [];
+
+  if (profielSubs.length > 0 && objectSubs.length > 0) {
+    const overlap = hasOverlap(objectSubs, profielSubs);
+    if (overlap.length > 0) {
+      // 12 punten voor minstens 1 overlap, +4 per extra (cap 20)
+      const punten = Math.min(MAX_SUBCAT, 12 + (overlap.length - 1) * 4);
+      score += punten;
+      const label = `Subcategorie matcht (${overlap.length} overlap${overlap.length === 1 ? '' : 'pen'})`;
+      redenen.push(label);
+      factoren.push({ categorie: 'subcategorie', aard: 'positief', label, punten, max: MAX_SUBCAT });
+    } else {
+      // Profiel én object hebben subcategorieën, maar geen overlap. Geen knock-out,
+      // wel een mismatch en lager vertrouwen.
+      mismatches.push('subcategorie');
+      factoren.push({
+        categorie: 'subcategorie', aard: 'mismatch',
+        label: 'Subcategorieën komen niet overeen', punten: 0, max: MAX_SUBCAT,
+      });
+    }
+  } else if (profielSubs.length > 0 && objectSubs.length === 0) {
+    // Object niet geclassificeerd op subniveau — beperkte score (8/20)
+    score += 8;
+    ontbrekendeData.push('subcategorie');
+    factoren.push({
+      categorie: 'subcategorie', aard: 'ontbrekend',
+      label: 'Object heeft geen subcategorie ingevuld', punten: 8, max: MAX_SUBCAT,
+    });
+  } else if (profielSubs.length === 0 && objectSubs.length > 0) {
+    // Koper heeft geen subvoorkeur, dus alle subs passen → halve score
+    score += 10;
+    factoren.push({
+      categorie: 'subcategorie', aard: 'positief',
+      label: 'Koper heeft geen subvoorkeur — geen beperking',
+      punten: 10, max: MAX_SUBCAT,
+    });
+  } else if (profiel.subcategorieIds && profiel.subcategorieIds.length > 0) {
+    // Legacy fallback op oude subcategorie_id
+    if (!object.subcategorieId || !profiel.subcategorieIds.includes(object.subcategorieId)) {
+      mismatches.push('subcategorie');
+      factoren.push({
+        categorie: 'subcategorie', aard: 'mismatch',
+        label: 'Legacy subcategorie matcht niet', punten: 0, max: MAX_SUBCAT,
+      });
+    } else {
+      score += 12;
+      gebruikteFallback = true;
+      factoren.push({
+        categorie: 'subcategorie', aard: 'fallback',
+        label: 'Subcategorie matcht via legacy veld', punten: 12, max: MAX_SUBCAT,
+      });
+    }
+  } else {
+    ontbrekendeData.push('subcategorie');
+  }
+
+  // ----------------------------------------------------------------
+  // 3. DEALTYPE / PROPOSITIE — alleen nieuwe taxonomie (max 20)
+  // ----------------------------------------------------------------
+  const objectDeals = object.dealTypeIds ?? [];
+  const profielDeals = profiel.dealTypeIds ?? [];
+
+  if (profielDeals.length > 0 && objectDeals.length > 0) {
+    const overlap = hasOverlap(objectDeals, profielDeals);
+    if (overlap.length > 0) {
+      const punten = Math.min(MAX_DEAL, 12 + (overlap.length - 1) * 4);
+      score += punten;
+      const label = `Dealtype matcht (${overlap.length} overlap${overlap.length === 1 ? '' : 'pen'})`;
+      redenen.push(label);
+      factoren.push({
+        categorie: 'dealtype', aard: 'positief', label, punten, max: MAX_DEAL,
+      });
+    } else {
+      mismatches.push('dealtype');
+      factoren.push({
+        categorie: 'dealtype', aard: 'mismatch',
+        label: 'Dealtypes komen niet overeen', punten: 0, max: MAX_DEAL,
+      });
+    }
+  } else if (profielDeals.length > 0 && objectDeals.length === 0) {
+    score += 6;
+    ontbrekendeData.push('dealtype');
+    factoren.push({
+      categorie: 'dealtype', aard: 'ontbrekend',
+      label: 'Object heeft geen dealtype ingevuld', punten: 6, max: MAX_DEAL,
+    });
+  } else if (profielDeals.length === 0) {
+    ontbrekendeData.push('dealtype');
+    factoren.push({
+      categorie: 'dealtype', aard: 'ontbrekend',
+      label: 'Geen dealtype geselecteerd in zoekprofiel',
+    });
+  }
+
+  // ----------------------------------------------------------------
+  // 4. REGIO (bestaande logica, max 20)
+  // ----------------------------------------------------------------
   if (profiel.regio && profiel.regio.length > 0) {
     if (!regioMatcht(profiel, object)) return null;
     score += 20;
-    redenen.push(`Regio matcht (${object.plaats || object.provincie})`);
+    const label = `Regio matcht (${object.plaats || object.provincie})`;
+    redenen.push(label);
+    factoren.push({ categorie: 'regio', aard: 'positief', label, punten: 20, max: 20 });
   } else {
     score += 5;
+    factoren.push({
+      categorie: 'regio', aard: 'ontbrekend',
+      label: 'Geen regio-voorkeur opgegeven', punten: 5, max: 20,
+    });
   }
 
+  // ----------------------------------------------------------------
+  // 5. BUDGET / PRIJSRANGE (bestaand, max 25)
+  // ----------------------------------------------------------------
   if (typeof object.vraagprijs === 'number') {
     if (typeof profiel.prijsMin === 'number' && object.vraagprijs < profiel.prijsMin) return null;
     if (typeof profiel.prijsMax === 'number' && object.vraagprijs > profiel.prijsMax) return null;
     if (typeof profiel.prijsMin === 'number' || typeof profiel.prijsMax === 'number') {
       score += 25;
       redenen.push('Prijs binnen budget');
+      factoren.push({
+        categorie: 'budget', aard: 'positief',
+        label: 'Vraagprijs valt binnen budget', punten: 25, max: 25,
+      });
     } else {
       score += 5;
+      factoren.push({
+        categorie: 'budget', aard: 'ontbrekend',
+        label: 'Geen budget opgegeven in zoekprofiel', punten: 5, max: 25,
+      });
     }
   } else if (typeof profiel.prijsMin === 'number' || typeof profiel.prijsMax === 'number') {
     redenen.push('Vraagprijs onbekend');
+    ontbrekendeData.push('budget');
+    factoren.push({
+      categorie: 'budget', aard: 'ontbrekend',
+      label: 'Vraagprijs object onbekend', max: 25,
+    });
   }
 
+  // ----------------------------------------------------------------
+  // 6. OPPERVLAKTE (bestaand, max 10)
+  // ----------------------------------------------------------------
   if (typeof object.oppervlakte === 'number') {
     if (typeof profiel.oppervlakteMin === 'number' && object.oppervlakte < profiel.oppervlakteMin) return null;
     if (typeof profiel.oppervlakteMax === 'number' && object.oppervlakte > profiel.oppervlakteMax) return null;
     if (typeof profiel.oppervlakteMin === 'number' || typeof profiel.oppervlakteMax === 'number') {
       score += 10;
       redenen.push('Oppervlakte binnen range');
+      factoren.push({
+        categorie: 'oppervlakte', aard: 'positief',
+        label: 'Oppervlakte binnen range', punten: 10, max: 10,
+      });
     }
   }
 
-  // Bouwjaar
+  // ----------------------------------------------------------------
+  // 7. BOUWJAAR
+  // ----------------------------------------------------------------
   if (typeof object.bouwjaar === 'number') {
     if (typeof profiel.bouwjaarMin === 'number' && object.bouwjaar < profiel.bouwjaarMin) return null;
     if (typeof profiel.bouwjaarMax === 'number' && object.bouwjaar > profiel.bouwjaarMax) return null;
   }
 
-  // Leegstand
+  // ----------------------------------------------------------------
+  // 8. LEEGSTAND
+  // ----------------------------------------------------------------
   if (typeof profiel.leegstandMaxPct === 'number' && typeof object.leegstandPct === 'number') {
     if (object.leegstandPct > profiel.leegstandMaxPct) return null;
     score += 5;
     redenen.push('Leegstand binnen grens');
+    factoren.push({
+      categorie: 'leegstand', aard: 'positief',
+      label: 'Leegstand binnen grens', punten: 5, max: 5,
+    });
   }
 
-  // ZACHTE CRITERIA
+  // ----------------------------------------------------------------
+  // 9. ZACHTE CRITERIA
+  // ----------------------------------------------------------------
   if (profiel.verhuurStatus) {
     if (object.verhuurStatus === profiel.verhuurStatus) {
       score += 10;
       redenen.push(`Verhuurstatus matcht (${object.verhuurStatus})`);
+      factoren.push({
+        categorie: 'verhuurstatus', aard: 'positief',
+        label: `Verhuurstatus matcht (${object.verhuurStatus})`, punten: 10, max: 10,
+      });
     } else {
       score -= 5;
+      mismatches.push('verhuurstatus');
+      factoren.push({
+        categorie: 'verhuurstatus', aard: 'mismatch',
+        label: `Verhuurstatus wijkt af (${object.verhuurStatus ?? 'onbekend'})`,
+        punten: -5, max: 10,
+      });
     }
   }
 
   if (profiel.ontwikkelPotentie && object.ontwikkelPotentie) {
     score += 5;
     redenen.push('Ontwikkelpotentie aanwezig');
+    factoren.push({
+      categorie: 'potentie', aard: 'positief',
+      label: 'Ontwikkelpotentie aanwezig', punten: 5, max: 5,
+    });
   }
   if (profiel.transformatiePotentie && object.transformatiePotentie) {
     score += 5;
     redenen.push('Transformatiepotentie aanwezig');
+    factoren.push({
+      categorie: 'potentie', aard: 'positief',
+      label: 'Transformatiepotentie aanwezig', punten: 5, max: 5,
+    });
   }
 
   if (profiel.energielabelMin && object.energielabelV2) {
@@ -749,11 +993,46 @@ export function berekenMatchScore(
         <= ENERGIELABEL_VOLGORDE.indexOf(profiel.energielabelMin)) {
       score += 5;
       redenen.push('Energielabel voldoet');
+      factoren.push({
+        categorie: 'energielabel', aard: 'positief',
+        label: `Energielabel ${object.energielabelV2} voldoet aan ≥ ${profiel.energielabelMin}`,
+        punten: 5, max: 5,
+      });
+    } else {
+      mismatches.push('energielabel');
+      factoren.push({
+        categorie: 'energielabel', aard: 'mismatch',
+        label: `Energielabel ${object.energielabelV2} voldoet niet aan ≥ ${profiel.energielabelMin}`,
+        max: 5,
+      });
     }
   }
 
   score = Math.max(0, Math.min(100, score));
   if (score < 25) return null;
+
+  // ----------------------------------------------------------------
+  // BETROUWBAARHEID
+  // Score + hoeveel kernvelden ingevuld waren bepalen het etiket.
+  // Kernvelden: type, subcategorie, dealtype, regio, budget.
+  // ----------------------------------------------------------------
+  const kernIngevuld = [
+    objectHeeftNieuwType && profielHeeftNieuwType,
+    objectSubs.length > 0 && profielSubs.length > 0,
+    objectDeals.length > 0 && profielDeals.length > 0,
+    !!(profiel.regio && profiel.regio.length > 0),
+    typeof object.vraagprijs === 'number'
+      && (typeof profiel.prijsMin === 'number' || typeof profiel.prijsMax === 'number'),
+  ].filter(Boolean).length;
+
+  let betrouwbaarheid: MatchBetrouwbaarheid;
+  if (score >= 70 && kernIngevuld >= 3 && mismatches.length === 0) {
+    betrouwbaarheid = 'hoog';
+  } else if (score >= 45 && kernIngevuld >= 2) {
+    betrouwbaarheid = 'middel';
+  } else {
+    betrouwbaarheid = 'laag';
+  }
 
   return {
     zoekprofielId: profiel.id,
@@ -761,6 +1040,11 @@ export function berekenMatchScore(
     objectId: object.id,
     score,
     redenen,
+    factoren,
+    ontbrekendeData,
+    mismatches,
+    gebruikteFallback,
+    betrouwbaarheid,
     hardeCriteriaOk: true,
   };
 }

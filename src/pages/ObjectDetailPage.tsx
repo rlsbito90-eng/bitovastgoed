@@ -25,6 +25,7 @@ import {
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
+import MatchUitleg from '@/components/MatchUitleg';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -554,14 +555,28 @@ export default function ObjectDetailPage() {
               )}
               {matches.slice(0, 10).map((m, i) => {
                 const rel = store.getRelatieById(m.relatieId);
+                const zp = store.zoekprofielen.find(z => z.id === m.zoekprofielId);
                 return (
-                  <Link key={i} to={`/relaties/${m.relatieId}`} className="block px-5 py-3.5 hover:bg-muted/40 transition-colors">
-                    <div className="flex items-center justify-between gap-3 mb-1">
-                      <p className="text-sm font-medium text-foreground truncate">{rel?.bedrijfsnaam}</p>
-                      <MatchScoreBadge score={m.score} />
+                  <details key={i} className="group">
+                    <summary className="block px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer list-none">
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <Link
+                          to={`/relaties/${m.relatieId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-sm font-medium text-foreground truncate hover:text-accent"
+                        >
+                          {rel?.bedrijfsnaam}
+                        </Link>
+                        <MatchScoreBadge score={m.score} />
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {zp?.naam ?? 'Zoekprofiel'} · {m.redenen.slice(0, 2).join(' · ')}
+                      </p>
+                    </summary>
+                    <div className="px-5 pb-4">
+                      <MatchUitleg match={m} object={object} compact />
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{m.redenen.slice(0, 2).join(' · ')}</p>
-                  </Link>
+                  </details>
                 );
               })}
             </div>
