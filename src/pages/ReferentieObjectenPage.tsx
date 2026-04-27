@@ -216,50 +216,138 @@ export default function ReferentieObjectenPage() {
         }
       />
 
-      {/* FILTERS */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
-        <div className="relative flex-1 min-w-[220px] sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* FILTERS + SORTERING */}
+      <div className="space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+          <div className="relative flex-1 min-w-[220px] sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Zoek op adres, plaats of postcode..."
+              className="pl-9 h-10"
+              value={zoek}
+              onChange={e => setZoek(e.target.value)}
+            />
+          </div>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={assetFilter}
+            onChange={e => setAssetFilter(e.target.value as AssetClass | '')}
+          >
+            <option value="">Alle asset classes</option>
+            {(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => (
+              <option key={ac} value={ac}>{ASSET_CLASS_LABELS[ac]}</option>
+            ))}
+          </select>
           <Input
-            placeholder="Zoek op adres, plaats of postcode..."
-            className="pl-9 h-10"
-            value={zoek}
-            onChange={e => setZoek(e.target.value)}
+            placeholder="Plaats"
+            className="h-10 w-full sm:w-40"
+            value={plaatsFilter}
+            onChange={e => setPlaatsFilter(e.target.value)}
           />
+          <Input
+            placeholder="Postcode"
+            className="h-10 w-full sm:w-32"
+            value={postcodeFilter}
+            onChange={e => setPostcodeFilter(e.target.value)}
+          />
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={kwaliteitFilter}
+            onChange={e => setKwaliteitFilter(e.target.value as any)}
+          >
+            <option value="">Alle kwaliteiten</option>
+            <option value="zeer_sterk">Zeer sterk (90+)</option>
+            <option value="goed">Goed (75–89)</option>
+            <option value="bruikbaar">Bruikbaar (60–74)</option>
+            <option value="zwak">Zwak (&lt;60)</option>
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={energielabelFilter}
+            onChange={e => setEnergielabelFilter(e.target.value)}
+          >
+            <option value="">Alle energielabels</option>
+            {['A++++','A+++','A++','A+','A','B','C','D','E','F','G','onbekend'].map(l => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={huurstatusFilter}
+            onChange={e => setHuurstatusFilter(e.target.value)}
+          >
+            <option value="">Alle huurstatussen</option>
+            <option value="verhuurd">Verhuurd</option>
+            <option value="leeg">Leeg</option>
+            <option value="gedeeltelijk">Gedeeltelijk</option>
+          </select>
         </div>
-        <select
-          className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-          value={assetFilter}
-          onChange={e => setAssetFilter(e.target.value as AssetClass | '')}
-        >
-          <option value="">Alle asset classes</option>
-          {(Object.keys(ASSET_CLASS_LABELS) as AssetClass[]).map(ac => (
-            <option key={ac} value={ac}>{ASSET_CLASS_LABELS[ac]}</option>
-          ))}
-        </select>
-        <Input
-          placeholder="Plaats"
-          className="h-10 w-full sm:w-40"
-          value={plaatsFilter}
-          onChange={e => setPlaatsFilter(e.target.value)}
-        />
-        <Input
-          placeholder="Postcode"
-          className="h-10 w-full sm:w-32"
-          value={postcodeFilter}
-          onChange={e => setPostcodeFilter(e.target.value)}
-        />
-        <select
-          className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
-          value={kwaliteitFilter}
-          onChange={e => setKwaliteitFilter(e.target.value as any)}
-        >
-          <option value="">Alle kwaliteiten</option>
-          <option value="zeer_sterk">Zeer sterk (90+)</option>
-          <option value="goed">Goed (75–89)</option>
-          <option value="bruikbaar">Bruikbaar (60–74)</option>
-          <option value="zwak">Zwak (&lt;60)</option>
-        </select>
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Bouwjaar</span>
+            <Input type="number" placeholder="van" className="h-10 w-24" value={bouwjaarMin} onChange={e => setBouwjaarMin(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-24" value={bouwjaarMax} onChange={e => setBouwjaarMax(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">m²</span>
+            <Input type="number" placeholder="van" className="h-10 w-24" value={m2Min} onChange={e => setM2Min(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-24" value={m2Max} onChange={e => setM2Max(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Vraagprijs €</span>
+            <Input type="number" placeholder="van" className="h-10 w-32" value={prijsMin} onChange={e => setPrijsMin(e.target.value)} />
+            <Input type="number" placeholder="tot" className="h-10 w-32" value={prijsMax} onChange={e => setPrijsMax(e.target.value)} />
+          </div>
+
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <select
+              className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value as any)}
+              aria-label="Sorteren"
+            >
+              <optgroup label="Datum">
+                <option value="recent">Laatst toegevoegd</option>
+                <option value="oudst">Eerst toegevoegd</option>
+              </optgroup>
+              <optgroup label="Adres / locatie">
+                <option value="adres_az">Adres (A–Z)</option>
+                <option value="adres_za">Adres (Z–A)</option>
+                <option value="plaats_az">Plaats (A–Z)</option>
+                <option value="plaats_za">Plaats (Z–A)</option>
+                <option value="postcode_az">Postcode (oplopend)</option>
+                <option value="postcode_za">Postcode (aflopend)</option>
+              </optgroup>
+              <optgroup label="Oppervlakte / prijs">
+                <option value="m2_desc">m² (hoog → laag)</option>
+                <option value="m2_asc">m² (laag → hoog)</option>
+                <option value="vraagprijs_desc">Vraagprijs (hoog → laag)</option>
+                <option value="vraagprijs_asc">Vraagprijs (laag → hoog)</option>
+                <option value="prijs_per_m2_desc">€/m² (hoog → laag)</option>
+                <option value="prijs_per_m2_asc">€/m² (laag → hoog)</option>
+                <option value="huur_desc">Huur/jaar (hoog → laag)</option>
+                <option value="huur_asc">Huur/jaar (laag → hoog)</option>
+              </optgroup>
+              <optgroup label="Overig">
+                <option value="bouwjaar_desc">Bouwjaar (nieuw → oud)</option>
+                <option value="bouwjaar_asc">Bouwjaar (oud → nieuw)</option>
+                <option value="kwaliteit_desc">Kwaliteit (hoog → laag)</option>
+                <option value="kwaliteit_asc">Kwaliteit (laag → hoog)</option>
+              </optgroup>
+            </select>
+            {filtersActief && (
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5" onClick={resetFilters}>
+                <X className="h-4 w-4" /> Wis filters
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} van {store.referentieObjecten.length} referentieobjecten
+        </p>
       </div>
 
       {filtered.length === 0 ? (
