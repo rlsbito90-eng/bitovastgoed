@@ -52,12 +52,11 @@ export default function ObjectPdfButton({ object }: Props) {
     () => store.getFotosVoorObject(object.id).sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0)),
     [store, object.id],
   );
-  const subcategorieen = store.subcategorieen;
+  const { byId: getSubById } = useSubcategorieen();
   const subcategorieLabel = useMemo(() => {
-    if (!object.subcategorie) return undefined;
-    const sub = subcategorieen.find(s => s.value === object.subcategorie);
-    return sub?.label;
-  }, [object.subcategorie, subcategorieen]);
+    if (!object.subcategorieId) return undefined;
+    return getSubById(object.subcategorieId)?.label;
+  }, [object.subcategorieId, getSubById]);
 
   // Marktwaarde-indicatie uit object-niveau referenties (post-8a)
   const marktwaardeMediaan = useMemo(() => {
