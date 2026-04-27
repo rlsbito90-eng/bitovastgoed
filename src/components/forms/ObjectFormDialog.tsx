@@ -42,6 +42,9 @@ import SubcategorieSelect from '@/components/object/SubcategorieSelect';
 import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
+import MultiSelectChips from '@/components/object/MultiSelectChips';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
 import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked } from 'lucide-react';
 
 interface Props {
