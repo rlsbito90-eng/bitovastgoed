@@ -111,17 +111,34 @@ export default function ObjectPdfButton({ object }: Props) {
     setBezig(true);
     try {
       let hoofdfotoUrl: string | undefined;
-      let extraFotoUrls: string[] = [];
+      let extraFotoRefs: { url: string; bijschrift?: string }[] = [];
+      let plattegrondRefs: { url: string; bijschrift?: string }[] = [];
 
       if (includeFotos && fotos.length > 0) {
-        const hoofd = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
+        // Hoofdfoto: expliciet gemarkeerd, anders eerste niet-plattegrond, anders eerste
+        const niet_plattegronden = fotos.filter(f => !f.isPlattegrond);
+        const hoofd = fotos.find(f => f.isHoofdfoto && !f.isPlattegrond)
+          ?? niet_plattegronden[0]
+          ?? fotos[0];
         if (hoofd?.storagePath) {
           hoofdfotoUrl = await getSignedUrl(hoofd.storagePath);
         }
         if (type === 'brochure') {
-          const extras = fotos.filter(f => f.id !== hoofd?.id).slice(0, 4);
-          extraFotoUrls = await Promise.all(
-            extras.map(f => getSignedUrl(f.storagePath)),
+          // Beeldmateriaal: niet-plattegronden, exclusief hoofdfoto
+          const extras = niet_plattegronden.filter(f => f.id !== hoofd?.id).slice(0, 8);
+          extraFotoRefs = await Promise.all(
+            extras.map(async f => ({
+              url: await getSignedUrl(f.storagePath),
+              bijschrift: f.bijschrift,
+            })),
+          );
+          // Plattegronden: aparte sectie
+          const platte = fotos.filter(f => f.isPlattegrond).slice(0, 6);
+          plattegrondRefs = await Promise.all(
+            platte.map(async f => ({
+              url: await getSignedUrl(f.storagePath),
+              bijschrift: f.bijschrift,
+            })),
           );
         }
       }
@@ -138,7 +155,8 @@ export default function ObjectPdfButton({ object }: Props) {
         : <ObjectBrochurePDF
             object={object}
             hoofdfotoUrl={hoofdfotoUrl}
-            fotoUrls={extraFotoUrls}
+            fotoUrls={extraFotoRefs}
+            plattegrondUrls={plattegrondRefs}
             huurders={huurders}
             walt={huurMetrics.walt}
             walb={huurMetrics.walb}

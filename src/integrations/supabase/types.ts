@@ -535,6 +535,7 @@ export type Database = {
           created_at: string
           id: string
           is_hoofdfoto: boolean
+          is_plattegrond: boolean
           object_id: string
           storage_path: string
           updated_at: string
@@ -546,6 +547,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_hoofdfoto?: boolean
+          is_plattegrond?: boolean
           object_id: string
           storage_path: string
           updated_at?: string
@@ -557,6 +559,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_hoofdfoto?: boolean
+          is_plattegrond?: boolean
           object_id?: string
           storage_path?: string
           updated_at?: string
@@ -835,19 +838,27 @@ export type Database = {
           bouwjaar: number | null
           bron: string | null
           bruto_aanvangsrendement: number | null
+          contact_email: string | null
+          contact_functie: string | null
+          contact_naam: string | null
+          contact_telefoon: string | null
           created_at: string
+          dataroom_url: string | null
           deal_type_ids: string[]
           documentatie_beschikbaar: boolean | null
+          documentatie_status: Json
           eigenaar_relatie_id: string | null
           eigendomssituatie: string | null
           energielabel: string | null
           energielabel_v2: Database["public"]["Enums"]["energielabel_v2"] | null
           erfpachtinformatie: string | null
           exclusief: boolean | null
+          financiele_scenarios: Json
           huidig_gebruik: string | null
           huur_per_m2: number | null
           huurinkomsten: number | null
           id: string
+          im_secties_zichtbaar: Json
           intern_referentienummer: string | null
           intern_vertrouwelijk: boolean | null
           interne_opmerkingen: string | null
@@ -857,9 +868,13 @@ export type Database = {
           kadastrale_gemeente: string | null
           kadastrale_sectie: string | null
           leegstand_pct: number | null
+          locatie_omschrijving: string | null
+          marktwaarde_bron: string | null
+          marktwaarde_indicatie: number | null
           netto_aanvangsrendement: number | null
           noi: number | null
           objectnaam: string
+          objectomschrijving: string | null
           onderhoudsstaat: string | null
           onderhoudsstaat_niveau:
             | Database["public"]["Enums"]["onderhoudsstaat_niveau"]
@@ -871,6 +886,7 @@ export type Database = {
           oppervlakte_bvo: number | null
           oppervlakte_gbo: number | null
           oppervlakte_vvo: number | null
+          oppervlakten_per_verdieping: Json
           parent_object_id: string | null
           perceel_oppervlakte: number | null
           pipeline_id: string | null
@@ -880,8 +896,10 @@ export type Database = {
           plaats: string | null
           postcode: string | null
           prijsindicatie: string | null
+          proces_voorwaarden: string | null
           property_subtype_ids: string[]
           property_type_id: string | null
+          propositie: string | null
           provincie: string | null
           publieke_naam: string | null
           publieke_regio: string | null
@@ -896,6 +914,7 @@ export type Database = {
           subcategorie_id: string | null
           taxatiedatum: string | null
           taxatiewaarde: number | null
+          technische_staat_omschrijving: string | null
           transformatiepotentie: boolean | null
           type_vastgoed: Database["public"]["Enums"]["asset_class"]
           updated_at: string
@@ -924,9 +943,15 @@ export type Database = {
           bouwjaar?: number | null
           bron?: string | null
           bruto_aanvangsrendement?: number | null
+          contact_email?: string | null
+          contact_functie?: string | null
+          contact_naam?: string | null
+          contact_telefoon?: string | null
           created_at?: string
+          dataroom_url?: string | null
           deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
+          documentatie_status?: Json
           eigenaar_relatie_id?: string | null
           eigendomssituatie?: string | null
           energielabel?: string | null
@@ -935,10 +960,12 @@ export type Database = {
             | null
           erfpachtinformatie?: string | null
           exclusief?: boolean | null
+          financiele_scenarios?: Json
           huidig_gebruik?: string | null
           huur_per_m2?: number | null
           huurinkomsten?: number | null
           id?: string
+          im_secties_zichtbaar?: Json
           intern_referentienummer?: string | null
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
@@ -948,9 +975,13 @@ export type Database = {
           kadastrale_gemeente?: string | null
           kadastrale_sectie?: string | null
           leegstand_pct?: number | null
+          locatie_omschrijving?: string | null
+          marktwaarde_bron?: string | null
+          marktwaarde_indicatie?: number | null
           netto_aanvangsrendement?: number | null
           noi?: number | null
           objectnaam: string
+          objectomschrijving?: string | null
           onderhoudsstaat?: string | null
           onderhoudsstaat_niveau?:
             | Database["public"]["Enums"]["onderhoudsstaat_niveau"]
@@ -962,6 +993,7 @@ export type Database = {
           oppervlakte_bvo?: number | null
           oppervlakte_gbo?: number | null
           oppervlakte_vvo?: number | null
+          oppervlakten_per_verdieping?: Json
           parent_object_id?: string | null
           perceel_oppervlakte?: number | null
           pipeline_id?: string | null
@@ -971,8 +1003,10 @@ export type Database = {
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
+          proces_voorwaarden?: string | null
           property_subtype_ids?: string[]
           property_type_id?: string | null
+          propositie?: string | null
           provincie?: string | null
           publieke_naam?: string | null
           publieke_regio?: string | null
@@ -987,6 +1021,7 @@ export type Database = {
           subcategorie_id?: string | null
           taxatiedatum?: string | null
           taxatiewaarde?: number | null
+          technische_staat_omschrijving?: string | null
           transformatiepotentie?: boolean | null
           type_vastgoed: Database["public"]["Enums"]["asset_class"]
           updated_at?: string
@@ -1015,9 +1050,15 @@ export type Database = {
           bouwjaar?: number | null
           bron?: string | null
           bruto_aanvangsrendement?: number | null
+          contact_email?: string | null
+          contact_functie?: string | null
+          contact_naam?: string | null
+          contact_telefoon?: string | null
           created_at?: string
+          dataroom_url?: string | null
           deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
+          documentatie_status?: Json
           eigenaar_relatie_id?: string | null
           eigendomssituatie?: string | null
           energielabel?: string | null
@@ -1026,10 +1067,12 @@ export type Database = {
             | null
           erfpachtinformatie?: string | null
           exclusief?: boolean | null
+          financiele_scenarios?: Json
           huidig_gebruik?: string | null
           huur_per_m2?: number | null
           huurinkomsten?: number | null
           id?: string
+          im_secties_zichtbaar?: Json
           intern_referentienummer?: string | null
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
@@ -1039,9 +1082,13 @@ export type Database = {
           kadastrale_gemeente?: string | null
           kadastrale_sectie?: string | null
           leegstand_pct?: number | null
+          locatie_omschrijving?: string | null
+          marktwaarde_bron?: string | null
+          marktwaarde_indicatie?: number | null
           netto_aanvangsrendement?: number | null
           noi?: number | null
           objectnaam?: string
+          objectomschrijving?: string | null
           onderhoudsstaat?: string | null
           onderhoudsstaat_niveau?:
             | Database["public"]["Enums"]["onderhoudsstaat_niveau"]
@@ -1053,6 +1100,7 @@ export type Database = {
           oppervlakte_bvo?: number | null
           oppervlakte_gbo?: number | null
           oppervlakte_vvo?: number | null
+          oppervlakten_per_verdieping?: Json
           parent_object_id?: string | null
           perceel_oppervlakte?: number | null
           pipeline_id?: string | null
@@ -1062,8 +1110,10 @@ export type Database = {
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
+          proces_voorwaarden?: string | null
           property_subtype_ids?: string[]
           property_type_id?: string | null
+          propositie?: string | null
           provincie?: string | null
           publieke_naam?: string | null
           publieke_regio?: string | null
@@ -1078,6 +1128,7 @@ export type Database = {
           subcategorie_id?: string | null
           taxatiedatum?: string | null
           taxatiewaarde?: number | null
+          technische_staat_omschrijving?: string | null
           transformatiepotentie?: boolean | null
           type_vastgoed?: Database["public"]["Enums"]["asset_class"]
           updated_at?: string

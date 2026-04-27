@@ -282,6 +282,23 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   pipelineStageId: o.pipeline_stage_id ?? undefined,
   pipelineUpdatedAt: o.pipeline_updated_at ?? undefined,
   pipelineStageLocked: !!o.pipeline_stage_locked,
+  // IM/1-pager content
+  propositie: o.propositie ?? undefined,
+  objectomschrijving: o.objectomschrijving ?? undefined,
+  locatieOmschrijving: o.locatie_omschrijving ?? undefined,
+  technischeStaatOmschrijving: o.technische_staat_omschrijving ?? undefined,
+  procesVoorwaarden: o.proces_voorwaarden ?? undefined,
+  dataroomUrl: o.dataroom_url ?? undefined,
+  marktwaardeIndicatie: o.marktwaarde_indicatie ?? undefined,
+  marktwaardeBron: o.marktwaarde_bron ?? undefined,
+  contactNaam: o.contact_naam ?? undefined,
+  contactFunctie: o.contact_functie ?? undefined,
+  contactTelefoon: o.contact_telefoon ?? undefined,
+  contactEmail: o.contact_email ?? undefined,
+  oppervlaktenPerVerdieping: Array.isArray(o.oppervlakten_per_verdieping) ? o.oppervlakten_per_verdieping : [],
+  financieleScenarios: o.financiele_scenarios && typeof o.financiele_scenarios === 'object' ? o.financiele_scenarios : {},
+  documentatieStatus: o.documentatie_status && typeof o.documentatie_status === 'object' ? o.documentatie_status : {},
+  imSectiesZichtbaar: o.im_secties_zichtbaar && typeof o.im_secties_zichtbaar === 'object' ? o.im_secties_zichtbaar : {},
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
@@ -363,6 +380,23 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   pipeline_stage_id: o.pipelineStageId !== undefined ? (o.pipelineStageId || null) : undefined,
   pipeline_updated_at: o.pipelineUpdatedAt !== undefined ? (o.pipelineUpdatedAt || null) : undefined,
   pipeline_stage_locked: o.pipelineStageLocked,
+  // IM/1-pager content
+  propositie: o.propositie !== undefined ? (o.propositie || null) : undefined,
+  objectomschrijving: o.objectomschrijving !== undefined ? (o.objectomschrijving || null) : undefined,
+  locatie_omschrijving: o.locatieOmschrijving !== undefined ? (o.locatieOmschrijving || null) : undefined,
+  technische_staat_omschrijving: o.technischeStaatOmschrijving !== undefined ? (o.technischeStaatOmschrijving || null) : undefined,
+  proces_voorwaarden: o.procesVoorwaarden !== undefined ? (o.procesVoorwaarden || null) : undefined,
+  dataroom_url: o.dataroomUrl !== undefined ? (o.dataroomUrl || null) : undefined,
+  marktwaarde_indicatie: o.marktwaardeIndicatie ?? null,
+  marktwaarde_bron: o.marktwaardeBron !== undefined ? (o.marktwaardeBron || null) : undefined,
+  contact_naam: o.contactNaam !== undefined ? (o.contactNaam || null) : undefined,
+  contact_functie: o.contactFunctie !== undefined ? (o.contactFunctie || null) : undefined,
+  contact_telefoon: o.contactTelefoon !== undefined ? (o.contactTelefoon || null) : undefined,
+  contact_email: o.contactEmail !== undefined ? (o.contactEmail || null) : undefined,
+  oppervlakten_per_verdieping: o.oppervlaktenPerVerdieping !== undefined ? (o.oppervlaktenPerVerdieping ?? []) : undefined,
+  financiele_scenarios: o.financieleScenarios !== undefined ? (o.financieleScenarios ?? {}) : undefined,
+  documentatie_status: o.documentatieStatus !== undefined ? (o.documentatieStatus ?? {}) : undefined,
+  im_secties_zichtbaar: o.imSectiesZichtbaar !== undefined ? (o.imSectiesZichtbaar ?? {}) : undefined,
 });
 
 
@@ -421,6 +455,7 @@ const fotoFromDb = (f: any): ObjectFoto => ({
   storagePath: f.storage_path ?? '',
   bijschrift: f.bijschrift ?? undefined,
   isHoofdfoto: !!f.is_hoofdfoto,
+  isPlattegrond: !!f.is_plattegrond,
   volgorde: f.volgorde ?? 0,
   bestandsgrootteBytes: f.bestandsgrootte_bytes ?? undefined,
 });
