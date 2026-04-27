@@ -1179,3 +1179,140 @@ function PlaceholderEerstOpslaan({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------
+// IM-tab editors
+// ---------------------------------------------------------------------
+
+type OppRij = { verdieping: string; vvo?: number; bvo?: number; bestemming?: string };
+
+function OppervlaktenEditor({
+  rijen, onChange,
+}: { rijen: OppRij[]; onChange: (v: OppRij[]) => void }) {
+  const updateRij = (i: number, patch: Partial<OppRij>) => {
+    const next = rijen.map((r, idx) => idx === i ? { ...r, ...patch } : r);
+    onChange(next);
+  };
+  const verwijder = (i: number) => onChange(rijen.filter((_, idx) => idx !== i));
+  const toevoegen = () => onChange([...rijen, { verdieping: '' }]);
+
+  return (
+    <div className="space-y-2">
+      {rijen.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Nog geen verdiepingen toegevoegd.
+        </p>
+      )}
+      {rijen.map((r, i) => (
+        <div key={i} className="grid grid-cols-12 gap-2 items-end">
+          <div className="col-span-12 sm:col-span-3">
+            <Label className="text-xs">Verdieping</Label>
+            <Input value={r.verdieping}
+              onChange={e => updateRij(i, { verdieping: e.target.value })}
+              placeholder="bv. BG, 1e" />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Label className="text-xs">VVO m²</Label>
+            <Input type="number" value={r.vvo ?? ''}
+              onChange={e => updateRij(i, { vvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Label className="text-xs">BVO m²</Label>
+            <Input type="number" value={r.bvo ?? ''}
+              onChange={e => updateRij(i, { bvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+          <div className="col-span-4 sm:col-span-4">
+            <Label className="text-xs">Bestemming / gebruik</Label>
+            <Input value={r.bestemming ?? ''}
+              onChange={e => updateRij(i, { bestemming: e.target.value || undefined })}
+              placeholder="bv. retail, kantoor" />
+          </div>
+          <div className="col-span-12 sm:col-span-1 flex justify-end">
+            <Button type="button" variant="ghost" size="icon" onClick={() => verwijder(i)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={toevoegen}>
+        <Plus className="h-3.5 w-3.5 mr-1" /> Verdieping toevoegen
+      </Button>
+    </div>
+  );
+}
+
+type ScenarioWaarde = { jaarhuur?: number; bar?: number; noi?: number; opmerking?: string };
+
+function ScenarioBlok({
+  titel, scenario, onChange,
+}: { titel: string; scenario?: ScenarioWaarde; onChange: (v: ScenarioWaarde | undefined) => void }) {
+  const s = scenario ?? {};
+  const update = (patch: Partial<ScenarioWaarde>) => {
+    const next = { ...s, ...patch };
+    // Als alle velden leeg zijn → undefined zodat sectie weg blijft uit IM
+    const leeg = !next.jaarhuur && !next.bar && !next.noi && !next.opmerking?.trim();
+    onChange(leeg ? undefined : next);
+  };
+  return (
+    <div className="border border-border rounded-md p-3 space-y-2 bg-muted/20">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{titel}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div>
+          <Label className="text-xs">Jaarhuur (€)</Label>
+          <Input type="number" value={s.jaarhuur ?? ''}
+            onChange={e => update({ jaarhuur: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+        <div>
+          <Label className="text-xs">BAR (%)</Label>
+          <Input type="number" step="0.01" value={s.bar ?? ''}
+            onChange={e => update({ bar: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+        <div>
+          <Label className="text-xs">NOI (€/jr)</Label>
+          <Input type="number" value={s.noi ?? ''}
+            onChange={e => update({ noi: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs">Toelichting</Label>
+        <Input value={s.opmerking ?? ''}
+          onChange={e => update({ opmerking: e.target.value || undefined })}
+          placeholder="optionele toelichting" />
+      </div>
+    </div>
+  );
+}
+
+type DocStatus = 'beschikbaar' | 'op_aanvraag' | 'na_nda';
+
+function DocumentatieStatusEditor({
+  status, onChange,
+}: { status: Record<string, DocStatus>; onChange: (v: Record<string, DocStatus>) => void }) {
+  const setStatus = (type: DocumentType, val: '' | DocStatus) => {
+    const next = { ...status };
+    if (val === '') delete next[type]; else next[type] = val;
+    onChange(next);
+  };
+  return (
+    <div className="space-y-1">
+      {Object.entries(DOCUMENT_TYPE_LABELS).map(([key, label]) => {
+        const huidig = status[key] ?? '';
+        return (
+          <div key={key} className="flex items-center justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
+            <span className="text-sm">{label}</span>
+            <select
+              value={huidig}
+              onChange={e => setStatus(key as DocumentType, e.target.value as '' | DocStatus)}
+              className="h-9 px-2 text-xs rounded-md border border-input bg-background min-w-[160px]"
+            >
+              <option value="">— Niet tonen —</option>
+              <option value="beschikbaar">Beschikbaar</option>
+              <option value="op_aanvraag">Op aanvraag</option>
+              <option value="na_nda">Na NDA</option>
+            </select>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
