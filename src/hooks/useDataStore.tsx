@@ -28,6 +28,8 @@ import type {
   DealReferentie,
   ObjectReferentie,
   PipelineKandidaat,
+  Pipeline,
+  PipelineStage,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
@@ -276,6 +278,10 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   updatedAt: o.updated_at ?? undefined,
   softDeletedAt: o.soft_deleted_at ?? undefined,
   referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
+  pipelineId: o.pipeline_id ?? undefined,
+  pipelineStageId: o.pipeline_stage_id ?? undefined,
+  pipelineUpdatedAt: o.pipeline_updated_at ?? undefined,
+  pipelineStageLocked: !!o.pipeline_stage_locked,
 });
 
 const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
@@ -353,6 +359,10 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   interne_opmerkingen: o.interneOpmerkingen !== undefined ? (o.interneOpmerkingen || null) : undefined,
   opmerkingen: o.opmerkingen !== undefined ? (o.opmerkingen || null) : undefined,
   referentieanalyse_zichtbaar: o.referentieanalyseZichtbaar,
+  pipeline_id: o.pipelineId !== undefined ? (o.pipelineId || null) : undefined,
+  pipeline_stage_id: o.pipelineStageId !== undefined ? (o.pipelineStageId || null) : undefined,
+  pipeline_updated_at: o.pipelineUpdatedAt !== undefined ? (o.pipelineUpdatedAt || null) : undefined,
+  pipeline_stage_locked: o.pipelineStageLocked,
 });
 
 
@@ -647,6 +657,28 @@ const pipelineToDb = (p: Partial<PipelineKandidaat>) => cleanPayload({
   reden_afgevallen: p.redenAfgevallen !== undefined ? (p.redenAfgevallen || null) : undefined,
 });
 
+// MAPPERS — PIPELINE-DEFINITIES (object pipeline)
+const pipelineDefFromDb = (r: any): Pipeline => ({
+  id: r.id,
+  name: r.name ?? '',
+  entityType: r.entity_type ?? 'object',
+  isActive: r.is_active !== false,
+  isDefault: !!r.is_default,
+});
+
+const pipelineStageFromDb = (r: any): PipelineStage => ({
+  id: r.id,
+  pipelineId: r.pipeline_id,
+  name: r.name ?? '',
+  slug: r.slug ?? '',
+  sortOrder: r.sort_order ?? 0,
+  color: r.color ?? undefined,
+  probability: r.probability ?? undefined,
+  isWon: !!r.is_won,
+  isLost: !!r.is_lost,
+  isActive: r.is_active !== false,
+});
+
 const jaarDoelFromDb = (j: any): JaarDoel => ({
   id: j.id,
   jaar: j.jaar,
@@ -735,6 +767,8 @@ interface DataStore {
   dealObjecten: DealObjectKoppeling[];
   dealKandidaten: DealKandidaat[];
   pipelineKandidaten: PipelineKandidaat[];
+  pipelines: Pipeline[];
+  pipelineStages: PipelineStage[];
   jaarDoelen: JaarDoel[];
   loading: boolean;
   refresh: () => Promise<void>;
@@ -808,6 +842,11 @@ interface DataStore {
   getPipelineVoorObject: (objectId: string) => PipelineKandidaat[];
   getPipelineVoorRelatie: (relatieId: string) => PipelineKandidaat[];
 
+  // Object Pipeline (Pipedrive-stijl)
+  getDefaultObjectPipeline: () => Pipeline | undefined;
+  getStagesVoorPipeline: (pipelineId: string) => PipelineStage[];
+  setObjectPipelineStage: (objectId: string, stageId: string, opts?: { manual?: boolean }) => Promise<void>;
+
   // Jaar-doelen
   upsertJaarDoel: (doel: Omit<JaarDoel, 'id'>) => Promise<JaarDoel | null>;
   deleteJaarDoel: (id: string) => Promise<void>;
@@ -864,6 +903,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [dealObjecten, setDealObjecten] = useState<DealObjectKoppeling[]>([]);
   const [dealKandidaten, setDealKandidaten] = useState<DealKandidaat[]>([]);
   const [pipelineKandidaten, setPipelineKandidaten] = useState<PipelineKandidaat[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
@@ -877,6 +918,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
         dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
+        pipeDefRes, pipeStageRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -895,6 +937,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('deal_referenties' as any).select('*'),
         supabase.from('object_referenties' as any).select('*'),
         supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
+        supabase.from('pipelines' as any).select('*').eq('is_active', true).order('created_at', { ascending: true }),
+        supabase.from('pipeline_stages' as any).select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
@@ -921,6 +965,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (drefRes.data) setDealReferenties((drefRes.data as any[]).map(dealReferentieFromDb));
       if (objRefRes.data) setObjectReferenties((objRefRes.data as any[]).map(objectReferentieFromDb));
       if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
+      if (pipeDefRes.data) setPipelines((pipeDefRes.data as any[]).map(pipelineDefFromDb));
+      if (pipeStageRes.data) setPipelineStages((pipeStageRes.data as any[]).map(pipelineStageFromDb));
     } finally {
       setLoading(false);
     }
@@ -1255,8 +1301,42 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       .update(pipelineToDb(patch) as any).eq('id', id).select().single();
     throwIfError(error);
     if (!data) return;
-    setPipelineKandidaten(prev => prev.map(x => x.id === id ? pipelineFromDb(data) : x));
-  }, []);
+    const updated = pipelineFromDb(data);
+    setPipelineKandidaten(prev => prev.map(x => x.id === id ? updated : x));
+
+    // -- AUTOMATION: lichte vooruitgang van objectfase wanneer kandidaat verschuift --
+    if (patch.pipelineFase) {
+      try {
+        const { KANDIDAAT_NAAR_OBJECT_STAGE } = await import('@/data/mock-data');
+        const targetSlug = KANDIDAAT_NAAR_OBJECT_STAGE[updated.pipelineFase];
+        const obj = objecten.find(o => o.id === updated.objectId);
+        if (!targetSlug || !obj || obj.pipelineStageLocked) return;
+
+        const defaultPipeline = pipelines.find(p => p.entityType === 'object' && p.isDefault) ?? pipelines.find(p => p.entityType === 'object');
+        const pipelineIdForLookup = obj.pipelineId ?? defaultPipeline?.id;
+        if (!pipelineIdForLookup) return;
+
+        const targetStage = pipelineStages.find(s => s.slug === targetSlug && s.pipelineId === pipelineIdForLookup);
+        const huidig = pipelineStages.find(s => s.id === obj.pipelineStageId);
+        if (!targetStage) return;
+        if (huidig && targetStage.sortOrder <= huidig.sortOrder) return;
+
+        const { error: e2 } = await supabase.from('objecten').update({
+          pipeline_stage_id: targetStage.id,
+          pipeline_id: targetStage.pipelineId,
+          pipeline_updated_at: new Date().toISOString(),
+        }).eq('id', obj.id);
+        if (!e2) {
+          setObjecten(prev => prev.map(x => x.id === obj.id
+            ? { ...x, pipelineStageId: targetStage.id, pipelineId: targetStage.pipelineId, pipelineUpdatedAt: new Date().toISOString() }
+            : x));
+        }
+      } catch (e) {
+        console.warn('Object pipeline-automation overgeslagen:', e);
+      }
+    }
+  }, [objecten, pipelineStages, pipelines]);
+
 
   const removePipelineKandidaat = useCallback(async (id: string) => {
     const { error } = await supabase.from('object_pipeline' as any)
@@ -1359,7 +1439,34 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     return (data as string) ?? `BITO-${new Date().getFullYear()}-001`;
   }, []);
 
-  // -------- STORE --------
+  // -------- OBJECT PIPELINE (Pipedrive-stijl) --------
+  const setObjectPipelineStage = useCallback(async (
+    objectId: string,
+    stageId: string,
+    opts: { manual?: boolean } = {},
+  ) => {
+    const obj = objecten.find(o => o.id === objectId);
+    if (!obj) throw new Error('Object niet gevonden');
+
+    // Automatische voortgang mag handmatige lock niet overschrijven
+    if (!opts.manual && obj.pipelineStageLocked) return;
+
+    const stage = pipelineStages.find(s => s.id === stageId);
+    if (!stage) throw new Error('Pipeline-fase niet gevonden');
+
+    const patch: any = {
+      pipeline_stage_id: stageId,
+      pipeline_id: stage.pipelineId,
+      pipeline_updated_at: new Date().toISOString(),
+    };
+    if (opts.manual) patch.pipeline_stage_locked = true;
+
+    const { data, error } = await supabase.from('objecten')
+      .update(patch).eq('id', objectId).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === objectId ? objectFromDb(data) : x));
+  }, [objecten, pipelineStages]);
+
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
     deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
@@ -1393,6 +1500,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addPipelineKandidaat, updatePipelineKandidaat, removePipelineKandidaat,
     getPipelineVoorObject: (objectId) => pipelineKandidaten.filter(x => x.objectId === objectId),
     getPipelineVoorRelatie: (relatieId) => pipelineKandidaten.filter(x => x.relatieId === relatieId),
+
+    pipelines, pipelineStages,
+    getDefaultObjectPipeline: () => pipelines.find(p => p.entityType === 'object' && p.isDefault) ?? pipelines.find(p => p.entityType === 'object'),
+    getStagesVoorPipeline: (pipelineId: string) =>
+      pipelineStages.filter(s => s.pipelineId === pipelineId).sort((a, b) => a.sortOrder - b.sortOrder),
+    setObjectPipelineStage,
 
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),

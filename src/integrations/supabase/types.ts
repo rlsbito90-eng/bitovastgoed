@@ -873,6 +873,10 @@ export type Database = {
           oppervlakte_vvo: number | null
           parent_object_id: string | null
           perceel_oppervlakte: number | null
+          pipeline_id: string | null
+          pipeline_stage_id: string | null
+          pipeline_stage_locked: boolean
+          pipeline_updated_at: string | null
           plaats: string | null
           postcode: string | null
           prijsindicatie: string | null
@@ -960,6 +964,10 @@ export type Database = {
           oppervlakte_vvo?: number | null
           parent_object_id?: string | null
           perceel_oppervlakte?: number | null
+          pipeline_id?: string | null
+          pipeline_stage_id?: string | null
+          pipeline_stage_locked?: boolean
+          pipeline_updated_at?: string | null
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
@@ -1047,6 +1055,10 @@ export type Database = {
           oppervlakte_vvo?: number | null
           parent_object_id?: string | null
           perceel_oppervlakte?: number | null
+          pipeline_id?: string | null
+          pipeline_stage_id?: string | null
+          pipeline_stage_locked?: boolean
+          pipeline_updated_at?: string | null
           plaats?: string | null
           postcode?: string | null
           prijsindicatie?: string | null
@@ -1096,6 +1108,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "objecten_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objecten_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "objecten_property_type_id_fkey"
             columns: ["property_type_id"]
             isOneToOne: false
@@ -1103,6 +1129,89 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pipeline_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_lost: boolean
+          is_won: boolean
+          name: string
+          pipeline_id: string
+          probability: number | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          name: string
+          pipeline_id: string
+          probability?: number | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          name?: string
+          pipeline_id?: string
+          probability?: number | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          created_at: string
+          entity_type: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

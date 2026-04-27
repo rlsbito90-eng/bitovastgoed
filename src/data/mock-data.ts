@@ -325,7 +325,59 @@ export interface ObjectVastgoed {
    */
   referentieanalyseZichtbaar?: boolean;
   softDeletedAt?: string;
+
+  // Object Pipeline (Pipedrive-stijl) — los van object_pipeline (kandidaat)
+  pipelineId?: string;
+  pipelineStageId?: string;
+  pipelineUpdatedAt?: string;
+  pipelineStageLocked?: boolean;
 }
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  entityType: string;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export interface PipelineStage {
+  id: string;
+  pipelineId: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  color?: string;
+  probability?: number;
+  isWon: boolean;
+  isLost: boolean;
+  isActive: boolean;
+}
+
+/**
+ * Mapping van kandidaat-pipelinefase (object_pipeline) naar object-pipeline stage-slug.
+ * Wordt gebruikt voor lichte automatische voortgang van het object zelf wanneer
+ * een kandidaat verder schuift. Alleen vooruit, nooit terugzetten.
+ */
+export const KANDIDAAT_NAAR_OBJECT_STAGE: Partial<Record<PipelineFase, string>> = {
+  match_gevonden: 'in_verkoop',
+  teaser_verstuurd: 'kandidaten_benaderd',
+  interesse_ontvangen: 'kandidaten_benaderd',
+  nda_verstuurd: 'nda_dataroom',
+  nda_getekend: 'nda_dataroom',
+  informatie_gedeeld: 'nda_dataroom',
+  bezichtiging_gepland: 'bezichtigingen',
+  bezichtiging_geweest: 'bezichtigingen',
+  indicatieve_bieding: 'biedingen_ontvangen',
+  onderhandeling: 'onderhandeling',
+  loi_ontvangen: 'loi',
+  due_diligence: 'due_diligence',
+  koopovereenkomst_concept: 'koopovereenkomst',
+  koopovereenkomst_getekend: 'koopovereenkomst',
+  transport_closing: 'closing',
+  afgerond: 'afgerond',
+  afgevallen: 'afgevallen',
+};
 
 export interface ObjectHuurder {
   id: string;

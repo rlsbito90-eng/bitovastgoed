@@ -4,6 +4,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Building2, Calendar } from 'lucide-react';
 import {
   PIPELINE_FASES, INTERESSE_LABELS, VOLGENDE_ACTIE_LABELS,
@@ -11,7 +12,9 @@ import {
 } from '@/data/mock-data';
 import { PipelineFaseBadge, InteresseNiveauBadge } from '@/components/pipeline/PipelineBadges';
 import PipelineKandidaatDialog from '@/components/pipeline/PipelineKandidaatDialog';
+import ObjectPipelineKanban from '@/components/pipeline/ObjectPipelineKanban';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 
