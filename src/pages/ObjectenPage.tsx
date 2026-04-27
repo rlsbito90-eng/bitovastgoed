@@ -100,25 +100,33 @@ export default function ObjectenPage() {
             {filtered.map(obj => {
               const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
               return (
-                <Link key={obj.id} to={`/objecten/${obj.id}`} className="section-card block p-4 active:bg-muted/40 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground truncate">{obj.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj.plaats}, {obj.provincie}</p>
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
-                        <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
-                        <DealtypeBadges ids={obj.dealTypeIds} max={2} variant="compact" showEmpty={false} />
-                      </div>
-                      <p className="text-xs mt-1 truncate">
-                        <span className="text-foreground font-mono-data">{formatCurrency(obj.vraagprijs)}</span>
-                        {rendement && <span className="text-success ml-2 font-mono-data">{rendement}%</span>}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                <Link key={obj.id} to={`/objecten/${obj.id}`} className="section-card block p-3.5 active:bg-muted/40 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-foreground text-sm leading-snug min-w-0 flex-1 break-words">
+                      {obj.titel}
+                    </p>
+                    <div className="flex items-center gap-1 shrink-0">
                       <ObjectStatusBadge status={obj.status} />
                       <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                     </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
+                    {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
+                    <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
+                    <DealtypeBadges ids={obj.dealTypeIds} max={1} variant="compact" showEmpty={false} />
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 mt-2 pt-2 border-t border-border/60">
+                    <span className="text-sm text-foreground font-mono-data truncate">
+                      {formatCurrency(obj.vraagprijs)}
+                    </span>
+                    {rendement && (
+                      <span className="text-xs text-success font-mono-data shrink-0">
+                        {rendement}%
+                      </span>
+                    )}
                   </div>
                 </Link>
               );
