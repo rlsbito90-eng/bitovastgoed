@@ -13,19 +13,34 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
 export default function ZoekprofielenPage() {
   const { zoekprofielen, getRelatieById, deleteZoekprofiel } = useDataStore();
+  const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [subtypeFilter, setSubtypeFilter] = useState<string>('');
+  const [dealtypeFilter, setDealtypeFilter] = useState<string>('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Zoekprofiel | null>(null);
 
   const filtered = zoekprofielen.filter(z => {
     const rel = getRelatieById(z.relatieId);
-    return !zoek
+    const matchZoek = !zoek
       || z.naam.toLowerCase().includes(zoek.toLowerCase())
       || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
+    const ptIds = (z as any).propertyTypeIds as string[] | undefined ?? [];
+    const psIds = (z as any).propertySubtypeIds as string[] | undefined ?? [];
+    const dtIds = (z as any).dealTypeIds as string[] | undefined ?? [];
+    const matchType = !typeFilter || ptIds.includes(typeFilter);
+    const matchSub  = !subtypeFilter || psIds.includes(subtypeFilter);
+    const matchDeal = !dealtypeFilter || dtIds.includes(dealtypeFilter);
+    return matchZoek && matchType && matchSub && matchDeal;
   });
+
+  const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
   const openNieuw = () => { setEditing(null); setFormOpen(true); };
   const openBewerk = (z: Zoekprofiel) => { setEditing(z); setFormOpen(true); };
@@ -50,9 +65,38 @@ export default function ZoekprofielenPage() {
         }
       />
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Zoek op profiel of relatie..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+        <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Zoek op profiel of relatie..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={typeFilter}
+            onChange={e => { setTypeFilter(e.target.value); setSubtypeFilter(''); }}
+          >
+            <option value="">Alle typen vastgoed</option>
+            {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={subtypeFilter}
+            onChange={e => setSubtypeFilter(e.target.value)}
+            disabled={beschikbareSubs.length === 0}
+          >
+            <option value="">Alle subcategorieën</option>
+            {beschikbareSubs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select
+            className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={dealtypeFilter}
+            onChange={e => setDealtypeFilter(e.target.value)}
+          >
+            <option value="">Alle dealtypes</option>
+            {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {filtered.length === 0 && (
@@ -102,17 +146,16 @@ export default function ZoekprofielenPage() {
                 </div>
               </div>
 
-              {/* Asset class chips - met leesbare labels */}
-              <div className="flex flex-wrap gap-1.5">
-                {zp.typeVastgoed.map(t => (
-                  <Badge
-                    key={t}
-                    variant="secondary"
-                    className="text-[11px] bg-secondary/15 text-foreground border border-secondary/25 hover:bg-secondary/15"
-                  >
-                    {ASSET_CLASS_LABELS[t]}
-                  </Badge>
-                ))}
+              {/* Nieuwe taxonomie: type + subcategorie + dealtype */}
+              <div className="space-y-1.5">
+                <PropertyTypeBadges
+                  ids={(zp as any).propertyTypeIds}
+                  fallbackAssetClasses={zp.typeVastgoed}
+                  max={3}
+                  showEmpty={false}
+                />
+                <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={3} showEmpty={false} />
+                <DealtypeBadges ids={(zp as any).dealTypeIds} max={3} showEmpty={false} />
               </div>
 
               {/* Details */}

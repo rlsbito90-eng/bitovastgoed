@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
+import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -234,6 +235,18 @@ export default function ObjectDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
+
+          {/* CLASSIFICATIE — nieuwe vastgoedtaxonomie */}
+          <section className="section-card p-5 sm:p-6 space-y-4">
+            <h2 className="section-title">Classificatie</h2>
+            <ClassificatieRij
+              propertyTypeId={object.propertyTypeId}
+              fallbackAssetClass={object.type}
+              subtypeIds={object.propertySubtypeIds}
+              dealTypeIds={object.dealTypeIds}
+              mode="single"
+            />
+          </section>
 
           {/* OBJECTGEGEVENS */}
           <section className="section-card p-5 sm:p-6 space-y-5">

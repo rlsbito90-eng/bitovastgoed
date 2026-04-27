@@ -9,6 +9,7 @@ import type { LeadStatus, PartijType } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import PageHeader from '@/components/PageHeader';
+import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
 export default function RelatiesPage() {
   const { relaties } = useDataStore();
@@ -80,6 +81,17 @@ export default function RelatiesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground truncate">{r.bedrijfsnaam || '(geen naam)'}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.contactpersoon || '—'} · <span className="capitalize">{r.type}</span></p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      <PropertyTypeBadges
+                        ids={r.propertyTypeIds}
+                        fallbackAssetClasses={r.assetClasses}
+                        max={2}
+                        variant="compact"
+                        showEmpty={false}
+                      />
+                      <SubtypeBadges ids={r.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
+                      <DealtypeBadges ids={r.dealTypeIds} max={2} variant="compact" showEmpty={false} />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
                       {r.regio.length > 0 ? r.regio.join(', ') : '—'} · laatst {formatDate(r.laatsteContact)}
                     </p>
@@ -101,7 +113,7 @@ export default function RelatiesPage() {
                   <tr className="border-b border-border bg-muted/40">
                     <th className="text-left px-5 py-3 field-label">Bedrijf</th>
                     <th className="text-left px-5 py-3 field-label">Type</th>
-                    <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Regio</th>
+                    <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Vastgoedvoorkeur</th>
                     <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Laatste contact</th>
                     <th className="text-left px-5 py-3 field-label">Status</th>
                   </tr>
@@ -116,7 +128,19 @@ export default function RelatiesPage() {
                         </Link>
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground truncate max-w-[200px]">{r.regio.join(', ') || '—'}</td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <div className="flex flex-wrap gap-1 max-w-[260px]">
+                          <PropertyTypeBadges
+                            ids={r.propertyTypeIds}
+                            fallbackAssetClasses={r.assetClasses}
+                            max={2}
+                            variant="compact"
+                            showEmpty={false}
+                          />
+                          <SubtypeBadges ids={r.propertySubtypeIds} max={1} variant="compact" showEmpty={false} />
+                          <DealtypeBadges ids={r.dealTypeIds} max={1} variant="compact" showEmpty={false} />
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground tabular-nums">{formatDate(r.laatsteContact)}</td>
                       <td className="px-5 py-3.5"><LeadStatusBadge status={r.leadStatus} /></td>
                     </tr>

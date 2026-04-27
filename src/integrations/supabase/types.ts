@@ -1280,6 +1280,7 @@ export type Database = {
           budget_min: number | null
           contactpersoon: string | null
           created_at: string
+          deal_type_ids: string[]
           eigen_vermogen_pct: number | null
           email: string | null
           id: string
@@ -1330,6 +1331,7 @@ export type Database = {
           budget_min?: number | null
           contactpersoon?: string | null
           created_at?: string
+          deal_type_ids?: string[]
           eigen_vermogen_pct?: number | null
           email?: string | null
           id?: string
@@ -1380,6 +1382,7 @@ export type Database = {
           budget_min?: number | null
           contactpersoon?: string | null
           created_at?: string
+          deal_type_ids?: string[]
           eigen_vermogen_pct?: number | null
           email?: string | null
           id?: string

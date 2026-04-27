@@ -30,7 +30,8 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
-import { Users, Info } from 'lucide-react';
+import { Users, Info, Building2 } from 'lucide-react';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 
 interface Props {
   open: boolean;
@@ -63,6 +64,9 @@ const leegForm: FormState = {
   vestigingsland: 'NL',
   regio: [],
   assetClasses: [],
+  propertyTypeIds: [],
+  propertySubtypeIds: [],
+  dealTypeIds: [],
   budgetMin: undefined,
   budgetMax: undefined,
   rendementseis: undefined,
@@ -84,6 +88,7 @@ const leegForm: FormState = {
 
 export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
   const { addRelatie, updateRelatie } = useDataStore();
+  const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
   const isEdit = !!relatie;
   const [gemaaktId, setGemaaktId] = useState<string | undefined>(relatie?.id);
   const relatieId = relatie?.id ?? gemaaktId;
@@ -166,6 +171,10 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
               <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
+              <TabsTrigger value="vastgoed">
+                <span className="hidden sm:inline">Vastgoed</span>
+                <Building2 className="h-4 w-4 sm:hidden" />
+              </TabsTrigger>
               <TabsTrigger value="investeerder">Investeerder</TabsTrigger>
               <TabsTrigger value="contact" disabled={!relatieId}>
                 <span className="hidden sm:inline">Contact</span>
@@ -275,9 +284,52 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
               </Sectie>
             </TabsContent>
 
+            {/* VASTGOED — nieuwe taxonomie */}
+            <TabsContent value="vastgoed" className="space-y-5 mt-0">
+              <Sectie titel="Type vastgoed (multi-select)">
+                <MultiSelectChips
+                  options={propertyTypes.map(t => ({ value: t.id, label: t.name }))}
+                  value={form.propertyTypeIds ?? []}
+                  onChange={v => {
+                    const geldigeSubs = subtypesForTypes(v).map(s => s.id);
+                    setForm(prev => ({
+                      ...prev,
+                      propertyTypeIds: v,
+                      propertySubtypeIds: (prev.propertySubtypeIds ?? []).filter(id => geldigeSubs.includes(id)),
+                    }));
+                  }}
+                  emptyLabel="Geen typen geconfigureerd"
+                />
+              </Sectie>
+
+              <Sectie titel="Subcategorieën">
+                {(form.propertyTypeIds ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">
+                    Kies eerst één of meer typen vastgoed.
+                  </p>
+                ) : (
+                  <MultiSelectChips
+                    options={subtypesForTypes(form.propertyTypeIds ?? []).map(s => ({ value: s.id, label: s.name }))}
+                    value={form.propertySubtypeIds ?? []}
+                    onChange={v => set('propertySubtypeIds', v)}
+                    emptyLabel="Geen subcategorieën beschikbaar voor de gekozen typen"
+                  />
+                )}
+              </Sectie>
+
+              <Sectie titel="Dealtype / Propositie">
+                <MultiSelectChips
+                  options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
+                  value={form.dealTypeIds ?? []}
+                  onChange={v => set('dealTypeIds', v)}
+                  emptyLabel="Geen dealtypes geconfigureerd"
+                />
+              </Sectie>
+            </TabsContent>
+
             {/* INVESTEERDER */}
             <TabsContent value="investeerder" className="space-y-5 mt-0">
-              <Sectie titel="Asset classes van interesse">
+              <Sectie titel="Asset classes van interesse (legacy)">
                 <MultiSelectChips
                   options={assetOptions}
                   value={form.assetClasses}
