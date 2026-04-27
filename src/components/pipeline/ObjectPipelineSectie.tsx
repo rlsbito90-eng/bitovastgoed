@@ -151,20 +151,64 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       </div>
 
       {adding && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select
-            className="flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm"
-            value={keuze}
-            onChange={e => setKeuze(e.target.value)}
-          >
-            <option value="">— Kies relatie —</option>
-            {beschikbareRelaties.map(r => (
-              <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <Button type="button" onClick={handleAdd} disabled={!keuze}>Toevoegen</Button>
-            <Button type="button" variant="outline" onClick={() => { setAdding(false); setKeuze(''); }}>Annuleer</Button>
+        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Zoek op bedrijfsnaam, contact of e-mail…"
+                value={zoek}
+                onChange={e => setZoek(e.target.value)}
+                className="pl-8 h-9"
+              />
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <button
+                type="button"
+                onClick={toggleAlles}
+                className="hover:text-foreground underline-offset-2 hover:underline"
+                disabled={beschikbareRelaties.length === 0}
+              >
+                {geselecteerd.size === beschikbareRelaties.length && beschikbareRelaties.length > 0 ? 'Deselecteer alles' : 'Selecteer alles'}
+              </button>
+              <span>{geselecteerd.size} geselecteerd</span>
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-md border border-border bg-background divide-y divide-border/60">
+            {beschikbareRelaties.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground text-center">
+                {zoek ? 'Geen resultaten.' : 'Geen beschikbare relaties.'}
+              </div>
+            ) : beschikbareRelaties.map(({ relatie: r, score }) => {
+              const checked = geselecteerd.has(r.id);
+              return (
+                <label
+                  key={r.id}
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/40"
+                >
+                  <Checkbox checked={checked} onCheckedChange={() => toggleSelectie(r.id)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{r.bedrijfsnaam || '(geen naam)'}</div>
+                    {(r.contactpersoon || r.email) && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        {[r.contactpersoon, r.email].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs font-mono-data text-muted-foreground w-12 text-right">
+                    {score != null ? `${score}%` : '—'}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={sluitToevoegen} disabled={bezig}>Annuleer</Button>
+            <Button type="button" onClick={handleAddBulk} disabled={geselecteerd.size === 0 || bezig}>
+              {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
+            </Button>
           </div>
         </div>
       )}
