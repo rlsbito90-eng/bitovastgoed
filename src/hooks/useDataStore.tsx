@@ -27,6 +27,7 @@ import type {
   ReferentieObject,
   DealReferentie,
   ObjectReferentie,
+  PipelineKandidaat,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
