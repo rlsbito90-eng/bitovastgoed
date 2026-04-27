@@ -1,10 +1,10 @@
 // src/components/pdf/ObjectPdfButton.tsx
 //
-// PDF-download knop voor object-detail pagina. Opent een dialog met:
-// - Keuze: 1-pager (cold outreach) of Brochure/IM (volledig 4-6 pagina's)
-// - Optie: marktwaarde-indicatie meenemen (alleen tonen indien beschikbaar)
-// - Optie: hoofdfoto en extra foto's meenemen (default aan)
-// - Genereer-knop die de PDF download
+// PDF-download knop voor object-detail. Batch 8b:
+// - Marktwaarde-indicatie wordt nu opgehaald van object-niveau referenties
+//   (na batch 8a verhuisd vanuit deal-niveau)
+// - Marktwaarde default AAN in dialog
+// - Subcategorie-label wordt automatisch meegegeven aan PDFs
 
 import { useState, useMemo } from 'react';
 import { pdf } from '@react-pdf/renderer';
@@ -23,19 +23,24 @@ import ObjectBrochurePDF from '@/components/pdf/ObjectBrochurePDF';
 
 interface Props {
   object: ObjectVastgoed;
-  // Optioneel: marktwaarde-indicatie uit deal-context (als knop vanuit deal aangeroepen)
-  marktwaardeMediaan?: number;
 }
 
 type PdfTypeKeuze = 'onepager' | 'brochure';
 
-export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
+function mediaan(getallen: number[]): number | undefined {
+  if (getallen.length === 0) return undefined;
+  const sorted = [...getallen].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+export default function ObjectPdfButton({ object }: Props) {
   const store = useDataStore();
   const [open, setOpen] = useState(false);
   const [bezig, setBezig] = useState(false);
 
   const [type, setType] = useState<PdfTypeKeuze>('onepager');
-  const [includeMarktwaarde, setIncludeMarktwaarde] = useState(false);
+  const [includeMarktwaarde, setIncludeMarktwaarde] = useState(true); // default AAN
   const [includeFotos, setIncludeFotos] = useState(true);
 
   // Beschikbare data
@@ -47,18 +52,34 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
     () => store.getFotosVoorObject(object.id).sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0)),
     [store, object.id],
   );
-  const { labelFor } = useSubcategorieen();
+  const { byId: getSubById } = useSubcategorieen();
   const subcategorieLabel = useMemo(() => {
-    if (!object.subcategorie) return undefined;
-    return labelFor(object.subcategorie);
-  }, [object.subcategorie, labelFor]);
+    if (!object.subcategorieId) return undefined;
+    return getSubById(object.subcategorieId)?.label;
+  }, [object.subcategorieId, getSubById]);
+
+  // Marktwaarde-indicatie uit object-niveau referenties (post-8a)
+  const marktwaardeMediaan = useMemo(() => {
+    const refs = store.getReferentiesVoorObject?.(object.id) ?? [];
+    if (refs.length < 2) return undefined;
+    const m2 = object.oppervlakteVvo ?? object.oppervlakte;
+    if (!m2 || m2 <= 0) return undefined;
+
+    const perM2 = refs
+      .map(r => r.prijsPerM2)
+      .filter((v): v is number => v != null && !Number.isNaN(v));
+    if (perM2.length < 2) return undefined;
+
+    const med = mediaan(perM2);
+    if (med == null) return undefined;
+    return Math.round(med * m2);
+  }, [store, object]);
 
   // WALT/WALB/jaarhuur uit huurders
   const huurMetrics = useMemo(() => {
     if (huurders.length === 0) return { walt: null, walb: null, totaleJaarhuur: null };
     const nu = new Date();
     const totaleJaarhuur = huurders.reduce((s, h) => s + (h.jaarhuur ?? 0), 0);
-    const m2Totaal = huurders.reduce((s, h) => s + (h.oppervlakteM2 ?? 0), 0);
     let waltSum = 0;
     let walbSum = 0;
     let waltGewicht = 0;
@@ -67,6 +88,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
       const huurJaren = h.einddatum
         ? Math.max(0, (new Date(h.einddatum).getTime() - nu.getTime()) / (1000 * 60 * 60 * 24 * 365))
         : null;
+      // Geen aparte break-optie datum in datamodel — WALB == WALT als fallback
       const breakJaren = huurJaren;
       const gewicht = h.jaarhuur ?? 0;
       if (huurJaren != null && gewicht > 0) {
@@ -88,33 +110,30 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
   const handleGenereer = async () => {
     setBezig(true);
     try {
-      // Foto's resolven naar signed URLs (alleen als gebruiker dit wil)
       let hoofdfotoUrl: string | undefined;
       let extraFotoUrls: string[] = [];
 
       if (includeFotos && fotos.length > 0) {
-        // Hoofdfoto = eerste foto (laagste volgorde) of expliciet als hoofdfoto gemarkeerd
         const hoofd = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
         if (hoofd?.storagePath) {
-          hoofdfotoUrl = await getSignedUrl(hoofd.storagePath, 60 * 30);
+          hoofdfotoUrl = await getSignedUrl(hoofd.storagePath);
         }
-        // Extra foto's (max 4) — alleen voor brochure
         if (type === 'brochure') {
           const extras = fotos.filter(f => f.id !== hoofd?.id).slice(0, 4);
-          extraFotoUrls = (await Promise.all(
-            extras.map(f => getSignedUrl(f.storagePath, 60 * 30)),
-          )).filter((u): u is string => !!u);
+          extraFotoUrls = await Promise.all(
+            extras.map(f => getSignedUrl(f.storagePath)),
+          );
         }
       }
 
       const marktwaardeArg = includeMarktwaarde ? marktwaardeMediaan : undefined;
 
-      // Genereer juiste PDF
       const doc = type === 'onepager'
         ? <ObjectOnepagerPDF
             object={object}
             hoofdfotoUrl={hoofdfotoUrl}
             marktwaardeMediaan={marktwaardeArg}
+            subcategorieLabel={subcategorieLabel}
           />
         : <ObjectBrochurePDF
             object={object}
@@ -130,7 +149,6 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
 
       const blob = await pdf(doc).toBlob();
 
-      // Bestandsnaam
       const titelClean = (object.anoniem && object.publiekeNaam ? object.publiekeNaam : object.titel)
         .replace(/[^a-zA-Z0-9 \-_]/g, '')
         .trim()
@@ -140,7 +158,6 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
       const suffix = type === 'onepager' ? '1-pager' : 'IM';
       const filename = `Bito-${suffix}-${titelClean}-${datum}.pdf`;
 
-      // Download triggeren
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -199,7 +216,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">1-pager</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Eén pagina, kerninformatie. Voor cold outreach naar investeerders.
+                      Eén pagina met kerninformatie. Voor cold outreach naar investeerders.
                     </p>
                   </div>
                 </div>
@@ -229,6 +246,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
           {/* OPTIES */}
           <div className="space-y-2 pt-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Opties</p>
+
             <label className="flex items-start gap-2 p-2.5 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors">
               <input
                 type="checkbox"
@@ -252,7 +270,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
             }`}>
               <input
                 type="checkbox"
-                checked={includeMarktwaarde}
+                checked={includeMarktwaarde && marktwaardeMediaan != null}
                 onChange={e => setIncludeMarktwaarde(e.target.checked)}
                 disabled={marktwaardeMediaan == null}
                 className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent"
@@ -262,7 +280,7 @@ export default function ObjectPdfButton({ object, marktwaardeMediaan }: Props) {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {marktwaardeMediaan != null
                     ? 'Op basis van gekoppelde referentieobjecten'
-                    : 'Geen marktwaarde-indicatie beschikbaar (alleen vanuit deal-context)'}
+                    : 'Niet beschikbaar — koppel min. 2 referenties met €/m² op object-detail'}
                 </p>
               </div>
             </label>

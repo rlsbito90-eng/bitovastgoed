@@ -1,14 +1,15 @@
 // src/components/pdf/ObjectBrochurePDF.tsx
 //
-// Volledige investeringsmemorandum / brochure. 4-6 pagina's:
-//   1. Cover (donkerblauw, foto, titel groot)
-//   2. Samenvatting + investeringsthese
-//   3. Pand & oppervlakten + financieel detail
-//   4. Verhuur (huurders, WALT) — alleen indien data
-//   5. Juridisch & kadaster — alleen indien data
-//   6. Disclaimer & contact
+// Volledig Investment Memorandum voor serieuze investeerders.
+// Batch 8b: visueel rijker, geen deal-context (puur object).
 //
-// Voor serieuze investeerders die DD doen.
+// Pagina-structuur:
+//   1. Cover (donkerblauw, foto + titel groot, decoratieve elementen)
+//   2. Kerngegevens (samenvatting + thesis + risico's + marktwaarde)
+//   3. Pand & Financieel (twee kolommen detail + foto-galerij)
+//   4. Verhuur — alleen indien huurders (huurders-tabel + WALT/WALB)
+//   5. Juridisch — alleen indien data
+//   6. Disclaimer & Contact
 
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import {
@@ -16,21 +17,18 @@ import {
   formatEuro, formatM2, formatPercent, formatDate, formatDateShort,
 } from '@/lib/pdf/theme';
 import {
-  PageHeader, PageFooter, SectionTitle, StatTile, InfoRow, Divider,
+  PageHeader, PageFooter, SectionTitle, StatTile, InfoRow, CenterDivider,
 } from '@/components/pdf/PdfShared';
 import { BITO_LOGO_URL } from '@/lib/pdf/logo';
-import type {
-  ObjectVastgoed, ObjectHuurder, ObjectFoto,
-} from '@/data/mock-data';
+import type { ObjectVastgoed, ObjectHuurder } from '@/data/mock-data';
 import {
-  ASSET_CLASS_LABELS, ONDERHOUDSSTAAT_LABELS, VERKOPER_VIA_LABELS,
-  INDEXATIE_BASIS_LABELS,
+  ASSET_CLASS_LABELS, ONDERHOUDSSTAAT_LABELS,
 } from '@/data/mock-data';
 
 interface Props {
   object: ObjectVastgoed;
   hoofdfotoUrl?: string;
-  fotoUrls?: string[];           // extra foto's (max 4 in galerij)
+  fotoUrls?: string[];
   huurders?: ObjectHuurder[];
   marktwaardeMediaan?: number;
   walt?: number | null;
@@ -58,17 +56,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '60%',
-    backgroundColor: 'rgba(7, 36, 56, 0.4)',
+    backgroundColor: 'rgba(7, 36, 56, 0.45)',
   },
   coverImagePlaceholder: {
     width: '100%',
     height: '60%',
     backgroundColor: colors.primaryDark,
   },
+  // Onderste 40% met titel
   coverContent: {
     flex: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.section,
+    paddingTop: spacing.section + 4,
     paddingBottom: spacing.page,
     justifyContent: 'space-between',
   },
@@ -76,42 +75,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.page,
     left: spacing.page,
-    width: 110,
+    width: 130,
     height: 'auto',
   },
   coverDocLabel: {
     position: 'absolute',
-    top: spacing.page + 4,
+    top: spacing.page + 6,
     right: spacing.page,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 8,
-    fontWeight: 500,
-    color: colors.accentLight,
+    fontWeight: 600,
+    color: colors.accent,
     textTransform: 'uppercase',
-    letterSpacing: 2,
+    letterSpacing: 2.5,
+  },
+  // Decoratieve gouden hoek-streep linksboven van titel
+  coverAccentRule: {
+    width: 40,
+    height: 2.5,
+    backgroundColor: colors.accent,
+    marginBottom: spacing.lg + 2,
   },
   coverTitle: {
-    fontFamily: 'Times-Roman',
-    fontSize: 36,
+    fontFamily: 'Playfair Display',
+    fontSize: 42,
     fontWeight: 700,
     color: colors.white,
-    letterSpacing: -1,
-    lineHeight: 1.1,
-    maxWidth: '80%',
+    letterSpacing: -1.2,
+    lineHeight: 1.05,
+    maxWidth: '85%',
   },
   coverLocation: {
-    fontFamily: 'Helvetica',
-    fontSize: 12,
+    fontFamily: 'Inter',
+    fontSize: 13,
     color: colors.accentLight,
-    marginTop: spacing.md,
+    marginTop: spacing.md + 2,
     letterSpacing: 0.5,
-  },
-  coverAccentRule: {
-    width: 32,
-    height: 2,
-    backgroundColor: colors.accent,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
   },
   coverFooter: {
     flexDirection: 'row',
@@ -129,33 +128,33 @@ const styles = StyleSheet.create({
     paddingBottom: 64,
   },
   paragraph: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9.5,
-    lineHeight: 1.6,
+    lineHeight: 1.65,
     color: colors.text,
     marginBottom: spacing.md,
   },
   bullet: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm + 1,
   },
   bulletDot: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9,
     color: colors.accent,
-    marginRight: 6,
-    lineHeight: 1.55,
+    marginRight: 7,
+    lineHeight: 1.65,
   },
   bulletText: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9.5,
     color: colors.text,
-    lineHeight: 1.55,
+    lineHeight: 1.6,
     flex: 1,
   },
 
-  // === STATS GRID (4 columns) ===
+  // === STATS GRID ===
   statGrid: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -165,47 +164,48 @@ const styles = StyleSheet.create({
   // === TWO COLUMN ===
   twoColumn: {
     flexDirection: 'row',
-    gap: spacing.section,
+    gap: spacing.section + 4,
     marginBottom: spacing.section,
   },
   column: {
     flex: 1,
   },
 
-  // === HUURDER ROW ===
+  // === HUURDER TABLE ===
   huurderRow: {
     flexDirection: 'row',
-    paddingVertical: spacing.md - 2,
+    paddingVertical: spacing.md - 1,
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
-  huurderCellNaam: { flex: 2.5, fontFamily: 'Helvetica', fontSize: 9, color: colors.text },
-  huurderCellM2: { flex: 1, fontFamily: 'Courier', fontSize: 8.5, color: colors.text, textAlign: 'right' },
-  huurderCellHuur: { flex: 1.5, fontFamily: 'Courier', fontSize: 8.5, color: colors.text, textAlign: 'right' },
-  huurderCellEinde: { flex: 1.2, fontFamily: 'Helvetica', fontSize: 8.5, color: colors.textMuted, textAlign: 'right' },
+  huurderCellNaam: { flex: 2.5, fontFamily: 'Inter', fontSize: 9, color: colors.text },
+  huurderCellM2: { flex: 1, fontFamily: 'IBM Plex Mono', fontSize: 8.5, color: colors.text, textAlign: 'right' },
+  huurderCellHuur: { flex: 1.5, fontFamily: 'IBM Plex Mono', fontSize: 8.5, color: colors.text, textAlign: 'right' },
+  huurderCellEinde: { flex: 1.2, fontFamily: 'Inter', fontSize: 8.5, color: colors.textMuted, textAlign: 'right' },
   huurderHeader: {
     flexDirection: 'row',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 1,
     borderBottomWidth: 1,
     borderBottomColor: colors.primary,
+    marginBottom: spacing.xs,
   },
   huurderHeaderCell: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 7.5,
     fontWeight: 600,
     color: colors.primary,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
   },
 
   // === MARKTWAARDE BANNER ===
   marktwaardeBanner: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg + 4,
+    paddingVertical: spacing.lg + 2,
     borderWidth: 1,
     borderColor: colors.accent,
-    backgroundColor: '#FAF6EE',
-    borderRadius: 4,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 2,
     marginBottom: spacing.section,
   },
 
@@ -220,23 +220,34 @@ const styles = StyleSheet.create({
     width: '48%',
     height: 130,
     objectFit: 'cover',
-    borderRadius: 3,
+    borderRadius: 2,
   },
 
-  // === FINAL DISCLAIMER ===
+  // === DISCLAIMER BOX ===
   disclaimerBox: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg + 4,
+    paddingVertical: spacing.lg + 2,
     backgroundColor: colors.dragerSubtle,
-    borderRadius: 4,
-    borderLeftWidth: 2,
+    borderRadius: 2,
+    borderLeftWidth: 2.5,
     borderLeftColor: colors.accent,
   },
   disclaimerText: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 8,
     color: colors.textMuted,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
+  },
+
+  // === CONTACT BLOK ===
+  contactBlok: {
+    paddingHorizontal: spacing.lg + 4,
+    paddingVertical: spacing.lg + 2,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
 
@@ -293,7 +304,6 @@ export default function ObjectBrochurePDF({
       {/* ============================== */}
       <Page size="A4" style={pageStyles.pageDark}>
         <View style={styles.cover}>
-          {/* Foto bovenste 60% */}
           {hoofdfotoUrl ? (
             <>
               <Image src={hoofdfotoUrl} style={styles.coverImage} />
@@ -303,11 +313,9 @@ export default function ObjectBrochurePDF({
             <View style={styles.coverImagePlaceholder} />
           )}
 
-          {/* Logo linksboven (op foto) */}
           <Image src={BITO_LOGO_URL} style={styles.coverLogo} />
           <Text style={styles.coverDocLabel}>Investment Memorandum</Text>
 
-          {/* Onderste 40% — donker blok met titel */}
           <View style={styles.coverContent}>
             <View>
               <View style={styles.coverAccentRule} />
@@ -317,20 +325,20 @@ export default function ObjectBrochurePDF({
 
             <View style={styles.coverFooter}>
               <View style={styles.coverFooterCol}>
-                <Text style={[typography.label, { color: colors.accentLight }]}>Asset class</Text>
-                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 2 }]}>
+                <Text style={typography.labelOnDark}>Asset class</Text>
+                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 3 }]}>
                   {ASSET_CLASS_LABELS[object.type]}
                   {subcategorieLabel ? ` · ${subcategorieLabel}` : ''}
                 </Text>
               </View>
               <View style={[styles.coverFooterCol, { alignItems: 'flex-end' }]}>
-                <Text style={[typography.label, { color: colors.accentLight }]}>Datum</Text>
-                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 2, fontFamily: 'Courier' }]}>
+                <Text style={typography.labelOnDark}>Datum</Text>
+                <Text style={[typography.body, { color: colors.white, fontSize: 11, marginTop: 3, fontFamily: 'IBM Plex Mono' }]}>
                   {datum}
                 </Text>
                 {object.internReferentienummer && (
-                  <Text style={[typography.body, { color: colors.accentLight, fontSize: 9, marginTop: 4, fontFamily: 'Courier' }]}>
-                    {object.internReferentienummer}
+                  <Text style={[typography.body, { color: colors.accentLight, fontSize: 9, marginTop: 6, fontFamily: 'IBM Plex Mono' }]}>
+                    Ref. {object.internReferentienummer}
                   </Text>
                 )}
               </View>
@@ -347,7 +355,7 @@ export default function ObjectBrochurePDF({
         <PageHeader refNummer={object.internReferentienummer} datum={datum} logoUri={BITO_LOGO_URL} />
 
         <View style={styles.body}>
-          {/* Stats top */}
+          {/* Stats grid */}
           <View style={styles.statGrid}>
             <StatTile
               label="Vraagprijs"
@@ -368,12 +376,12 @@ export default function ObjectBrochurePDF({
             />
           </View>
 
-          {/* Marktwaarde-banner indien aangevraagd */}
+          {/* Marktwaarde-banner */}
           {marktwaardeMediaan != null && (
             <View style={styles.marktwaardeBanner}>
-              <Text style={[typography.label, { color: colors.accent }]}>Indicatieve marktwaarde</Text>
+              <Text style={typography.labelAccent}>Indicatieve marktwaarde</Text>
               <Text style={[typography.dataXL, { marginTop: 4 }]}>{formatEuro(marktwaardeMediaan)}</Text>
-              <Text style={[typography.bodySmall, { marginTop: 4, fontStyle: 'italic' }]}>
+              <Text style={[typography.bodySmall, { marginTop: 6, fontStyle: 'italic' }]}>
                 Mediaanwaarde op basis van vergelijkbare referentieobjecten — geen vervanging voor een formele taxatie.
               </Text>
             </View>
@@ -381,15 +389,15 @@ export default function ObjectBrochurePDF({
 
           {/* Samenvatting */}
           {object.samenvatting && (
-            <>
+            <View style={{ marginBottom: spacing.lg }}>
               <SectionTitle>Samenvatting</SectionTitle>
               <Text style={styles.paragraph}>{object.samenvatting}</Text>
-            </>
+            </View>
           )}
 
           {/* Investeringsthese */}
           {theseBullets.length > 0 && (
-            <View style={{ marginTop: spacing.lg }}>
+            <View style={{ marginTop: spacing.md }}>
               <SectionTitle>Investeringsthese</SectionTitle>
               {theseBullets.map((b, i) => (
                 <View key={i} style={styles.bullet}>
@@ -426,7 +434,6 @@ export default function ObjectBrochurePDF({
 
         <View style={styles.body}>
           <View style={styles.twoColumn}>
-            {/* Pand */}
             <View style={styles.column}>
               <SectionTitle>Pand</SectionTitle>
               {object.bouwjaar && <InfoRow label="Bouwjaar" value={String(object.bouwjaar)} isData />}
@@ -441,7 +448,6 @@ export default function ObjectBrochurePDF({
               {object.onderhoudsstaatNiveau && <InfoRow label="Onderhoudsstaat" value={ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]} last />}
             </View>
 
-            {/* Financieel */}
             <View style={styles.column}>
               <SectionTitle>Financieel</SectionTitle>
               {object.vraagprijs != null && <InfoRow label="Vraagprijs" value={formatEuro(object.vraagprijs)} isData />}
@@ -456,7 +462,7 @@ export default function ObjectBrochurePDF({
             </View>
           </View>
 
-          {/* Foto-galerij indien aanwezig */}
+          {/* Foto-galerij */}
           {fotoUrls.length > 0 && (
             <View style={{ marginTop: spacing.section }}>
               <SectionTitle>Beeldmateriaal</SectionTitle>
@@ -483,7 +489,6 @@ export default function ObjectBrochurePDF({
           <View style={styles.body}>
             <SectionTitle>Verhuursituatie</SectionTitle>
 
-            {/* WALT/WALB stats indien beschikbaar */}
             {(walt != null || walb != null || totaleJaarhuur != null) && (
               <View style={styles.statGrid}>
                 <StatTile label="Aantal huurders" value={huurders.length > 0 ? String(huurders.length) : '—'} />
@@ -493,7 +498,6 @@ export default function ObjectBrochurePDF({
               </View>
             )}
 
-            {/* Huurders tabel */}
             {huurders.length > 0 && (
               <View style={{ marginTop: spacing.lg }}>
                 <View style={styles.huurderHeader}>
@@ -541,21 +545,21 @@ export default function ObjectBrochurePDF({
             <SectionTitle>Juridische status</SectionTitle>
 
             {object.eigendomssituatie && (
-              <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ marginBottom: spacing.lg + 2 }}>
                 <Text style={typography.label}>Eigendomssituatie</Text>
                 <Text style={[typography.body, { marginTop: 4 }]}>{object.eigendomssituatie}</Text>
               </View>
             )}
 
             {object.erfpachtinformatie && (
-              <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ marginBottom: spacing.lg + 2 }}>
                 <Text style={typography.label}>Erfpacht</Text>
                 <Text style={[typography.body, { marginTop: 4 }]}>{object.erfpachtinformatie}</Text>
               </View>
             )}
 
             {object.bestemmingsinformatie && (
-              <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ marginBottom: spacing.lg + 2 }}>
                 <Text style={typography.label}>Bestemmingsplan</Text>
                 <Text style={[typography.body, { marginTop: 4 }]}>{object.bestemmingsinformatie}</Text>
               </View>
@@ -579,7 +583,7 @@ export default function ObjectBrochurePDF({
             )}
 
             {object.asbestinventarisatieAanwezig && (
-              <View style={{ marginTop: spacing.section }}>
+              <View style={{ marginTop: spacing.lg }}>
                 <Text style={[typography.bodySmall, { fontStyle: 'italic' }]}>
                   ✓ Asbestinventarisatie beschikbaar bij Bito Vastgoed
                 </Text>
@@ -606,33 +610,41 @@ export default function ObjectBrochurePDF({
             uitsluitend voor serieuze partijen.
           </Text>
 
-          <View style={{ marginTop: spacing.section }}>
-            <SectionTitle>Contact</SectionTitle>
-            <View style={{ marginTop: spacing.md }}>
-              <Text style={[typography.body, { fontSize: 11, fontWeight: 600 }]}>Bito Vastgoed</Text>
-              <Text style={[typography.bodySmall, { marginTop: 4 }]}>info@bitovastgoed.nl</Text>
-              <Text style={typography.bodySmall}>bitovastgoed.nl</Text>
+          {/* Contact-blok in donkerblauw — visueel sterker */}
+          <View style={[styles.contactBlok, { marginTop: spacing.lg }]}>
+            <View>
+              <Text style={[typography.labelOnDark]}>Contact</Text>
+              <Text style={[typography.body, { color: colors.white, fontSize: 13, fontWeight: 600, marginTop: 4, fontFamily: 'Playfair Display' }]}>
+                Bito Vastgoed
+              </Text>
+              <Text style={[typography.body, { color: colors.accentLight, fontSize: 9, marginTop: 4 }]}>
+                info@bitovastgoed.nl
+              </Text>
+              <Text style={[typography.body, { color: colors.accentLight, fontSize: 9 }]}>
+                bitovastgoed.nl
+              </Text>
             </View>
+            <Image src={BITO_LOGO_URL} style={{ width: 60, height: 'auto', opacity: 0.85 }} />
           </View>
 
-          <View style={{ marginTop: spacing.section * 2 }}>
-            <View style={styles.disclaimerBox}>
-              <Text style={[typography.label, { color: colors.primary, marginBottom: 6 }]}>Disclaimer</Text>
-              <Text style={styles.disclaimerText}>
-                Dit Investment Memorandum is opgesteld door Bito Vastgoed op basis van informatie ontvangen van de
-                verkopende partij en uit publieke bronnen. Hoewel wij de informatie met zorgvuldigheid hebben samengesteld,
-                kunnen wij niet instaan voor de volledigheid of juistheid van de gegevens. Aan de inhoud kunnen geen rechten
-                worden ontleend.
-              </Text>
-              <Text style={[styles.disclaimerText, { marginTop: 6 }]}>
-                Dit document is uitsluitend bedoeld voor de geadresseerde en is strikt vertrouwelijk. Verspreiding,
-                kopiëring of openbaarmaking zonder schriftelijke toestemming van Bito Vastgoed is niet toegestaan.
-              </Text>
-              <Text style={[styles.disclaimerText, { marginTop: 6 }]}>
-                Voor aankoopadvies en due diligence verwijzen wij u naar een formele taxatie en juridisch onderzoek.
-                Genoemde rendementen zijn indicatief en gebaseerd op aangenomen huur- en kostenparameters.
-              </Text>
-            </View>
+          <CenterDivider />
+
+          <View style={styles.disclaimerBox}>
+            <Text style={[typography.label, { color: colors.primary, marginBottom: 6 }]}>Disclaimer</Text>
+            <Text style={styles.disclaimerText}>
+              Dit Investment Memorandum is opgesteld door Bito Vastgoed op basis van informatie ontvangen van de
+              verkopende partij en uit publieke bronnen. Hoewel wij de informatie met zorgvuldigheid hebben samengesteld,
+              kunnen wij niet instaan voor de volledigheid of juistheid van de gegevens. Aan de inhoud kunnen geen rechten
+              worden ontleend.
+            </Text>
+            <Text style={[styles.disclaimerText, { marginTop: 6 }]}>
+              Dit document is uitsluitend bedoeld voor de geadresseerde en is strikt vertrouwelijk. Verspreiding,
+              kopiëring of openbaarmaking zonder schriftelijke toestemming van Bito Vastgoed is niet toegestaan.
+            </Text>
+            <Text style={[styles.disclaimerText, { marginTop: 6 }]}>
+              Voor aankoopadvies en due diligence verwijzen wij u naar een formele taxatie en juridisch onderzoek.
+              Genoemde rendementen zijn indicatief en gebaseerd op aangenomen huur- en kostenparameters.
+            </Text>
           </View>
         </View>
 

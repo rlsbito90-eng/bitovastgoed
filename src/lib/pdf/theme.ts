@@ -1,45 +1,69 @@
 // src/lib/pdf/theme.ts
 //
 // Centrale plek voor alle Bito-huisstijl waarden gebruikt in PDFs.
-// Eén bestand om aan te passen — wijzigingen propageren naar alle docs.
+// Batch 8b: visueel rijker — meer gouden accenten, betere typografie,
+// decoratieve elementen.
 
-import { StyleSheet } from '@react-pdf/renderer';
-
-// =====================================================================
-// FONTS — uitsluitend ingebouwde PDF-fonts
-// =====================================================================
-// Geen externe font-URLs: client-side PDF-rendering mag niet afhankelijk zijn
-// van Google Fonts/CORS/cache. React-PDF heeft deze fonts standaard ingebouwd.
-
-export const pdfFonts = {
-  heading: 'Times-Roman',
-  body: 'Helvetica',
-  mono: 'Courier',
-} as const;
+import { Font, StyleSheet } from '@react-pdf/renderer';
 
 // =====================================================================
-// COLORS — exact uit Bito huisstijl-board
+// FONTS — Playfair Display (headlines) + Inter (body)
+// =====================================================================
+
+Font.register({
+  family: 'Playfair Display',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvkDQ.ttf', fontWeight: 600 },
+    { src: 'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvMDQ.ttf', fontWeight: 700 },
+  ],
+});
+
+Font.register({
+  family: 'Inter',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50ojIw2boKoduKmMEVuLyfMZg.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50ojIw2boKoduKmMEVuI6fMZg.ttf', fontWeight: 500 },
+    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50ojIw2boKoduKmMEVuGKYMZg.ttf', fontWeight: 600 },
+    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50ojIw2boKoduKmMEVuFuYMZg.ttf', fontWeight: 700 },
+  ],
+});
+
+Font.register({
+  family: 'IBM Plex Mono',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n5igg1l9kn-s.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/ibmplexmono/v19/-F6sfjptAgt5VM-kVkqdyU8n3uwS6Wcr3PqdrA.ttf', fontWeight: 500 },
+    { src: 'https://fonts.gstatic.com/s/ibmplexmono/v19/-F6sfjptAgt5VM-kVkqdyU8n3vAP6Wcr3PqdrA.ttf', fontWeight: 600 },
+  ],
+});
+
+// =====================================================================
+// COLORS — Bito huisstijl
 // =====================================================================
 
 export const colors = {
-  primary: '#072438',      // navigatie, headers, hoofdtekst
-  primaryDark: '#051a2a',  // iets donkerder voor cover gradients
-  secondary: '#C89C69',    // subtiele accenten, borders
-  accent: '#D4A24C',       // CTA's, highlights
-  accentLight: '#E8C893',  // licht accent voor borders/hairlines
-  drager: '#F5F1EC',       // pagina-achtergrond
-  dragerSubtle: '#FAF8F5', // iets lichter voor zebra-rijen
-  text: '#1F2933',         // body tekst
-  textMuted: '#5C6773',    // muted/secundaire tekst
-  textLight: '#9BA4B0',    // labels, footnotes
+  primary: '#072438',
+  primaryDark: '#051a2a',
+  primarySoft: '#0E3551',     // iets lichter primary voor subtiele blokken
+  secondary: '#C89C69',
+  accent: '#D4A24C',
+  accentLight: '#E8C893',
+  accentSoft: '#F5E5C8',      // heel lichte accent voor backgrounds
+  drager: '#F5F1EC',
+  dragerSubtle: '#FAF8F5',
+  text: '#1F2933',
+  textMuted: '#5C6773',
+  textLight: '#9BA4B0',
   white: '#FFFFFF',
-  border: '#E5DFD5',       // rules, dividers
-  success: '#2D7A52',      // positieve hightlights (rendement etc)
-  warning: '#B8860B',      // attention zonder alarm
+  border: '#E5DFD5',
+  borderSubtle: '#EFE9DD',
+  success: '#2D7A52',
+  warning: '#B8860B',
 };
 
 // =====================================================================
-// SPACING — schaal in PDF "points" (1 pt ≈ 0.35 mm)
+// SPACING
 // =====================================================================
 
 export const spacing = {
@@ -50,132 +74,178 @@ export const spacing = {
   xl: 16,
   xxl: 24,
   xxxl: 32,
-  page: 40,         // page padding
-  section: 20,      // tussen secties
+  page: 40,
+  section: 20,
 };
 
 // =====================================================================
-// TYPOGRAPHY — vooraf gedefinieerde tekst-stijlen
+// TYPOGRAPHY
 // =====================================================================
 
 export const typography = StyleSheet.create({
+  // Display / hero
+  hero: {
+    fontFamily: 'Playfair Display',
+    fontSize: 36,
+    fontWeight: 700,
+    letterSpacing: -1,
+    color: colors.primary,
+    lineHeight: 1.1,
+  },
+  heroOnDark: {
+    fontFamily: 'Playfair Display',
+    fontSize: 42,
+    fontWeight: 700,
+    letterSpacing: -1.2,
+    color: colors.white,
+    lineHeight: 1.05,
+  },
+  // Page-level headers
   h1: {
-    fontFamily: 'Times-Roman',
+    fontFamily: 'Playfair Display',
     fontSize: 28,
     fontWeight: 700,
     letterSpacing: -0.5,
     color: colors.primary,
     lineHeight: 1.2,
   },
-  h1OnDark: {
-    fontFamily: 'Times-Roman',
-    fontSize: 32,
-    fontWeight: 700,
-    letterSpacing: -0.5,
-    color: colors.white,
-    lineHeight: 1.2,
-  },
+  // Section headers
   h2: {
-    fontFamily: 'Times-Roman',
+    fontFamily: 'Playfair Display',
     fontSize: 18,
     fontWeight: 600,
     color: colors.primary,
     letterSpacing: -0.3,
   },
+  // Sub-section / label headers (small caps style)
   h3: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 11,
     fontWeight: 600,
     color: colors.primary,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
   },
+  // Body text
   body: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 10,
     fontWeight: 400,
     color: colors.text,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
+  },
+  bodyLarge: {
+    fontFamily: 'Inter',
+    fontSize: 11,
+    fontWeight: 400,
+    color: colors.text,
+    lineHeight: 1.6,
   },
   bodySmall: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9,
     color: colors.textMuted,
-    lineHeight: 1.4,
+    lineHeight: 1.5,
   },
+  // Quote / italic accent (boutique feel)
+  quote: {
+    fontFamily: 'Playfair Display',
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: colors.textMuted,
+    lineHeight: 1.5,
+    letterSpacing: 0.2,
+  },
+  // Labels
   label: {
-    fontFamily: 'Helvetica',
-    fontSize: 8,
-    fontWeight: 500,
+    fontFamily: 'Inter',
+    fontSize: 7.5,
+    fontWeight: 600,
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
+  labelOnDark: {
+    fontFamily: 'Inter',
+    fontSize: 7.5,
+    fontWeight: 600,
+    color: colors.accentLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  labelAccent: {
+    fontFamily: 'Inter',
+    fontSize: 7.5,
+    fontWeight: 600,
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  // Data
   data: {
-    fontFamily: 'Courier',
+    fontFamily: 'IBM Plex Mono',
     fontSize: 11,
     fontWeight: 500,
     color: colors.text,
   },
   dataLarge: {
-    fontFamily: 'Courier',
-    fontSize: 16,
+    fontFamily: 'IBM Plex Mono',
+    fontSize: 18,
     fontWeight: 600,
     color: colors.primary,
+    letterSpacing: -0.3,
   },
   dataXL: {
-    fontFamily: 'Courier',
-    fontSize: 22,
+    fontFamily: 'IBM Plex Mono',
+    fontSize: 24,
     fontWeight: 600,
     color: colors.primary,
+    letterSpacing: -0.5,
   },
+  // Caption / footnote
   caption: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 7,
     color: colors.textLight,
     letterSpacing: 0.4,
   },
-  taglineDark: {
-    fontFamily: 'Times-Roman',
-    fontSize: 12,
-    fontWeight: 400,
-    fontStyle: 'italic',
-    color: colors.accentLight,
-    letterSpacing: 1.5,
-  },
 });
 
 // =====================================================================
-// PAGE STYLES — gedeelde layout
+// PAGE STYLES
 // =====================================================================
 
 export const pageStyles = StyleSheet.create({
-  // Standaard A4 pagina met witte achtergrond
   page: {
     backgroundColor: colors.white,
     padding: 0,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 10,
     color: colors.text,
   },
-  // Cover-pagina: donkerblauwe achtergrond voor brochure cover
   pageDark: {
     backgroundColor: colors.primary,
     padding: 0,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 10,
     color: colors.white,
   },
-  // Inhoud-padding (gebruikt door alle content-secties)
+  pageDrager: {
+    backgroundColor: colors.dragerSubtle,
+    padding: 0,
+    fontFamily: 'Inter',
+    fontSize: 10,
+    color: colors.text,
+  },
   content: {
     paddingHorizontal: spacing.page,
     paddingTop: spacing.page - 8,
-    paddingBottom: 64, // ruimte voor footer
+    paddingBottom: 64,
   },
 });
 
 // =====================================================================
-// HELPERS — voor formatteren in PDF context
+// FORMATTERS
 // =====================================================================
 
 export function formatEuro(amount: number | null | undefined, compact = false): string {

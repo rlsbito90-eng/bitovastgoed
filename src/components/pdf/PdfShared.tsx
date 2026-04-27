@@ -1,13 +1,7 @@
 // src/components/pdf/PdfShared.tsx
 //
-// Gedeelde React-PDF componenten voor Bito documents:
-// - PageHeader: dunne lijn bovenin met logo + ref-nummer + datum
-// - PageFooter: contactgegevens + paginanummer + disclaimer
-// - SectionTitle: H2 met gouden accent-streep
-// - StatTile: kleine tegel voor cijfers (vraagprijs, m², BAR)
-// - InfoRow: label + waarde rij voor key-value lijsten
-// - Divider: subtiele scheidslijn
-// - LogoBlock: logo links/midden/rechts variant
+// Gedeelde React-PDF componenten voor Bito documents.
+// Batch 8b: rijker, meer karakter.
 
 import { View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import { colors, typography, spacing } from '@/lib/pdf/theme';
@@ -19,25 +13,17 @@ const sharedStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.page,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
-    marginBottom: 0,
   },
   headerLogoText: {
-    fontFamily: 'Times-Roman',
+    fontFamily: 'Playfair Display',
     fontSize: 11,
     fontWeight: 600,
     color: colors.primary,
     letterSpacing: 1,
-  },
-  headerLogoTagline: {
-    fontFamily: 'Helvetica',
-    fontSize: 7,
-    color: colors.textMuted,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginTop: 1,
   },
   headerLogoImg: {
     width: 90,
@@ -47,51 +33,62 @@ const sharedStyles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   headerMetaLabel: {
-    fontFamily: 'Helvetica',
-    fontSize: 7,
+    fontFamily: 'Inter',
+    fontSize: 6.5,
     color: colors.textLight,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 1,
   },
   headerMetaValue: {
-    fontFamily: 'Courier',
-    fontSize: 10,
+    fontFamily: 'IBM Plex Mono',
+    fontSize: 9,
     color: colors.primary,
-    marginTop: 1,
+    marginTop: 2,
   },
 
-  // === PAGE FOOTER (absolute, bottom) ===
+  // === PAGE FOOTER ===
   pageFooter: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: spacing.page,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     borderTopWidth: 0.5,
     borderTopColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // Decoratieve gouden lijn onder de top-border
+  pageFooterAccent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 2,
+    width: 32,
+    backgroundColor: colors.accent,
+    marginLeft: spacing.page,
+  },
   footerLeft: {
     flexDirection: 'column',
   },
   footerCompany: {
-    fontFamily: 'Helvetica',
-    fontSize: 7,
+    fontFamily: 'Playfair Display',
+    fontSize: 8,
     fontWeight: 600,
     color: colors.primary,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   footerContact: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 7,
     color: colors.textMuted,
-    marginTop: 1,
+    marginTop: 2,
   },
   footerPage: {
-    fontFamily: 'Courier',
+    fontFamily: 'IBM Plex Mono',
     fontSize: 7,
     color: colors.textLight,
   },
@@ -100,79 +97,108 @@ const sharedStyles = StyleSheet.create({
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.md + 2,
   },
   sectionTitleAccent: {
-    width: 16,
-    height: 1.5,
+    width: 20,
+    height: 2,
     backgroundColor: colors.accent,
-    marginRight: spacing.md,
+    marginRight: spacing.md + 2,
   },
 
-  // === STAT TILE (key-cijfer in cards) ===
+  // === STAT TILE ===
   statTile: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.md + 2,
+    paddingBottom: spacing.md + 2,
     backgroundColor: colors.dragerSubtle,
-    borderRadius: 4,
-    minHeight: 60,
+    borderTopWidth: 1.5,
+    borderTopColor: colors.accent,
+    minHeight: 64,
   },
   statTileAccent: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.md + 2,
+    paddingBottom: spacing.md + 2,
     backgroundColor: colors.primary,
-    borderRadius: 4,
-    minHeight: 60,
+    borderTopWidth: 1.5,
+    borderTopColor: colors.accent,
+    minHeight: 64,
+  },
+  statTileWide: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md + 2,
+    paddingBottom: spacing.md + 2,
+    backgroundColor: colors.dragerSubtle,
+    borderTopWidth: 1.5,
+    borderTopColor: colors.accent,
   },
 
-  // === INFO ROW (label : value) ===
+  // === INFO ROW ===
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: spacing.md - 2,
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSubtle,
   },
   infoRowLabel: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9,
     color: colors.textMuted,
     flex: 1,
   },
   infoRowValue: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter',
     fontSize: 9,
     fontWeight: 500,
     color: colors.text,
     textAlign: 'right',
   },
   infoRowValueData: {
-    fontFamily: 'Courier',
+    fontFamily: 'IBM Plex Mono',
     fontSize: 9,
     fontWeight: 500,
     color: colors.text,
     textAlign: 'right',
   },
 
-  // === DIVIDER ===
+  // === DIVIDERS ===
   divider: {
     height: 0.5,
     backgroundColor: colors.border,
     marginVertical: spacing.lg,
   },
   dividerAccent: {
-    height: 1,
+    height: 1.5,
     backgroundColor: colors.accent,
     marginVertical: spacing.lg,
     width: '20%',
+  },
+  dividerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerCenterLine: {
+    flex: 1,
+    height: 0.5,
+    backgroundColor: colors.border,
+  },
+  dividerCenterDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+    marginHorizontal: spacing.md,
   },
 });
 
 
 // =====================================================================
-// PageHeader — bovenaan elke content-pagina
+// PageHeader
 // =====================================================================
 
 export function PageHeader({
@@ -189,10 +215,7 @@ export function PageHeader({
       {logoUri ? (
         <Image src={logoUri} style={sharedStyles.headerLogoImg} />
       ) : (
-        <View>
-          <Text style={sharedStyles.headerLogoText}>BITO VASTGOED</Text>
-          <Text style={sharedStyles.headerLogoTagline}>Dealmakers in vastgoed</Text>
-        </View>
+        <Text style={sharedStyles.headerLogoText}>BITO VASTGOED</Text>
       )}
       {(refNummer || datum) && (
         <View style={sharedStyles.headerMeta}>
@@ -202,9 +225,9 @@ export function PageHeader({
               <Text style={sharedStyles.headerMetaValue}>{refNummer}</Text>
             </>
           )}
-          {datum && !refNummer && (
+          {datum && (
             <>
-              <Text style={sharedStyles.headerMetaLabel}>Datum</Text>
+              <Text style={[sharedStyles.headerMetaLabel, { marginTop: refNummer ? 4 : 0 }]}>Datum</Text>
               <Text style={sharedStyles.headerMetaValue}>{datum}</Text>
             </>
           )}
@@ -216,17 +239,25 @@ export function PageHeader({
 
 
 // =====================================================================
-// PageFooter — onderaan elke pagina (paginanr + contact)
+// PageFooter — verfijnd: contact + paginanummer + decoratieve accent-streep
 // =====================================================================
 
-export function PageFooter({
-  contact = 'info@bitovastgoed.nl  ·  bitovastgoed.nl',
-}: { contact?: string }) {
+export function PageFooter() {
   return (
     <View style={sharedStyles.pageFooter} fixed>
+      {/* Decoratieve gouden hoek-streep */}
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: spacing.page,
+        height: 2,
+        width: 32,
+        backgroundColor: colors.accent,
+      }} />
+
       <View style={sharedStyles.footerLeft}>
         <Text style={sharedStyles.footerCompany}>BITO VASTGOED</Text>
-        <Text style={sharedStyles.footerContact}>{contact}</Text>
+        <Text style={sharedStyles.footerContact}>info@bitovastgoed.nl  ·  bitovastgoed.nl</Text>
       </View>
       <Text
         style={sharedStyles.footerPage}
@@ -238,7 +269,7 @@ export function PageFooter({
 
 
 // =====================================================================
-// SectionTitle — H2 met gouden accent-streep
+// SectionTitle
 // =====================================================================
 
 export function SectionTitle({ children }: { children: string }) {
@@ -252,7 +283,7 @@ export function SectionTitle({ children }: { children: string }) {
 
 
 // =====================================================================
-// StatTile — voor key-cijfers
+// StatTile
 // =====================================================================
 
 export function StatTile({
@@ -281,7 +312,7 @@ export function StatTile({
 
 
 // =====================================================================
-// InfoRow — label + waarde
+// InfoRow
 // =====================================================================
 
 export function InfoRow({
@@ -310,9 +341,27 @@ export function InfoRow({
 
 
 // =====================================================================
-// Divider — subtiele lijn
+// Dividers — drie smaken
 // =====================================================================
 
-export function Divider({ accent = false }: { accent?: boolean }) {
-  return <View style={accent ? sharedStyles.dividerAccent : sharedStyles.divider} />;
+export function Divider() {
+  return <View style={sharedStyles.divider} />;
+}
+
+export function AccentDivider() {
+  return <View style={sharedStyles.dividerAccent} />;
+}
+
+/**
+ * Decoratieve "gouden punt tussen lijnen" — voor elegante sectiescheidingen
+ * tussen body-blokken in een brochure.
+ */
+export function CenterDivider() {
+  return (
+    <View style={sharedStyles.dividerCenter}>
+      <View style={sharedStyles.dividerCenterLine} />
+      <View style={sharedStyles.dividerCenterDot} />
+      <View style={sharedStyles.dividerCenterLine} />
+    </View>
+  );
 }
