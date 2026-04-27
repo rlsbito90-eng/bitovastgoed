@@ -547,7 +547,7 @@ Deno.serve(async (req: Request) => {
       'PRODID:-//Bito Vastgoed//Agenda Feed//NL',
       'METHOD:PUBLISH',
       'X-WR-CALNAME:Bito Vastgoed',
-      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups en closings',
+      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups, closings, kandidaat-acties, leveringen en NDA-data',
       'X-WR-TIMEZONE:Europe/Amsterdam',
       'CALSCALE:GREGORIAN',
       ...events,
