@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
   ASSET_CLASS_LABELS,
   EXCLUSIVITEIT_LABELS,
