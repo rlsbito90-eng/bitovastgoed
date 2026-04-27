@@ -39,6 +39,68 @@ export type ZoekprofielStatus = 'actief' | 'pauze' | 'gearchiveerd';
 export type KandidaatStatus =
   | 'geinteresseerd' | 'bezichtiging' | 'bod' | 'afgevallen' | 'gewonnen';
 
+// ---- PIPELINE ----
+export type PipelineFase =
+  | 'match_gevonden'
+  | 'teaser_verstuurd'
+  | 'interesse_ontvangen'
+  | 'nda_verstuurd'
+  | 'nda_getekend'
+  | 'informatie_gedeeld'
+  | 'bezichtiging_gepland'
+  | 'bezichtiging_geweest'
+  | 'indicatieve_bieding'
+  | 'onderhandeling'
+  | 'loi_ontvangen'
+  | 'due_diligence'
+  | 'koopovereenkomst_concept'
+  | 'koopovereenkomst_getekend'
+  | 'transport_closing'
+  | 'afgerond'
+  | 'afgevallen';
+
+export type InteresseNiveau = 'koud' | 'lauw' | 'warm' | 'zeer_warm';
+
+export type VolgendeActieType =
+  | 'bellen' | 'mailen' | 'whatsapp' | 'nda_sturen' | 'stukken_delen'
+  | 'bezichtiging_plannen' | 'bieding_opvolgen' | 'onderhandelen' | 'overig';
+
+export const PIPELINE_FASES: { key: PipelineFase; label: string }[] = [
+  { key: 'match_gevonden',          label: 'Match gevonden' },
+  { key: 'teaser_verstuurd',        label: 'Teaser verstuurd' },
+  { key: 'interesse_ontvangen',     label: 'Interesse ontvangen' },
+  { key: 'nda_verstuurd',           label: 'NDA verstuurd' },
+  { key: 'nda_getekend',            label: 'NDA getekend' },
+  { key: 'informatie_gedeeld',      label: 'Informatie gedeeld' },
+  { key: 'bezichtiging_gepland',    label: 'Bezichtiging gepland' },
+  { key: 'bezichtiging_geweest',    label: 'Bezichtiging geweest' },
+  { key: 'indicatieve_bieding',     label: 'Indicatieve bieding' },
+  { key: 'onderhandeling',          label: 'Onderhandeling' },
+  { key: 'loi_ontvangen',           label: 'LOI ontvangen' },
+  { key: 'due_diligence',           label: 'Due diligence' },
+  { key: 'koopovereenkomst_concept',label: 'KO concept' },
+  { key: 'koopovereenkomst_getekend',label: 'KO getekend' },
+  { key: 'transport_closing',       label: 'Transport / closing' },
+  { key: 'afgerond',                label: 'Afgerond' },
+  { key: 'afgevallen',              label: 'Afgevallen' },
+];
+
+export const INTERESSE_LABELS: Record<InteresseNiveau, string> = {
+  koud: 'Koud', lauw: 'Lauw', warm: 'Warm', zeer_warm: 'Zeer warm',
+};
+
+export const VOLGENDE_ACTIE_LABELS: Record<VolgendeActieType, string> = {
+  bellen: 'Bellen',
+  mailen: 'Mailen',
+  whatsapp: 'WhatsApp',
+  nda_sturen: 'NDA sturen',
+  stukken_delen: 'Stukken delen',
+  bezichtiging_plannen: 'Bezichtiging plannen',
+  bieding_opvolgen: 'Bieding opvolgen',
+  onderhandelen: 'Onderhandelen',
+  overig: 'Overig',
+};
+
 export type OnderhoudsstaatNiveau =
   'uitstekend' | 'goed' | 'redelijk' | 'matig' | 'slecht';
 
@@ -393,6 +455,44 @@ export interface DealKandidaat {
   relatieId: string;
   status: KandidaatStatus;
   notities?: string;
+}
+
+export interface PipelineKandidaat {
+  id: string;
+  objectId: string;
+  relatieId: string;
+  zoekprofielId?: string;
+
+  pipelineFase: PipelineFase;
+  interesseNiveau: InteresseNiveau;
+  matchscore?: number;
+
+  teaserVerstuurd: boolean;
+  teaserVerstuurdOp?: string;
+  ndaVerstuurd: boolean;
+  ndaVerstuurdOp?: string;
+  ndaGetekend: boolean;
+  ndaGetekendOp?: string;
+  informatieGedeeld: boolean;
+  informatieGedeeldOp?: string;
+
+  bezichtigingDatum?: string;
+  biedingBedrag?: number;
+  biedingVoorwaarden?: string;
+  financieringsvoorbehoud?: boolean;
+  gewensteLevering?: string;
+  feeAkkoord: boolean;
+
+  laatsteContactdatum?: string;
+  volgendeActie?: VolgendeActieType;
+  volgendeActieOmschrijving?: string;
+  volgendeActieDatum?: string;
+
+  notities?: string;
+  redenAfgevallen?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Taak {

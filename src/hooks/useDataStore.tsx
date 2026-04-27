@@ -27,6 +27,7 @@ import type {
   ReferentieObject,
   DealReferentie,
   ObjectReferentie,
+  PipelineKandidaat,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 
@@ -584,6 +585,68 @@ const dealKandidaatFromDb = (r: any): DealKandidaat => ({
   notities: r.notities ?? undefined,
 });
 
+// MAPPERS — PIPELINE
+const pipelineFromDb = (r: any): PipelineKandidaat => ({
+  id: r.id,
+  objectId: r.object_id,
+  relatieId: r.relatie_id,
+  zoekprofielId: r.zoekprofiel_id ?? undefined,
+  pipelineFase: r.pipeline_fase,
+  interesseNiveau: r.interesse_niveau,
+  matchscore: r.matchscore ?? undefined,
+  teaserVerstuurd: !!r.teaser_verstuurd,
+  teaserVerstuurdOp: r.teaser_verstuurd_op ?? undefined,
+  ndaVerstuurd: !!r.nda_verstuurd,
+  ndaVerstuurdOp: r.nda_verstuurd_op ?? undefined,
+  ndaGetekend: !!r.nda_getekend,
+  ndaGetekendOp: r.nda_getekend_op ?? undefined,
+  informatieGedeeld: !!r.informatie_gedeeld,
+  informatieGedeeldOp: r.informatie_gedeeld_op ?? undefined,
+  bezichtigingDatum: r.bezichtiging_datum ?? undefined,
+  biedingBedrag: r.bieding_bedrag != null ? Number(r.bieding_bedrag) : undefined,
+  biedingVoorwaarden: r.bieding_voorwaarden ?? undefined,
+  financieringsvoorbehoud: r.financieringsvoorbehoud ?? undefined,
+  gewensteLevering: r.gewenste_levering ?? undefined,
+  feeAkkoord: !!r.fee_akkoord,
+  laatsteContactdatum: r.laatste_contactdatum ?? undefined,
+  volgendeActie: r.volgende_actie ?? undefined,
+  volgendeActieOmschrijving: r.volgende_actie_omschrijving ?? undefined,
+  volgendeActieDatum: r.volgende_actie_datum ?? undefined,
+  notities: r.notities ?? undefined,
+  redenAfgevallen: r.reden_afgevallen ?? undefined,
+  createdAt: r.created_at ?? undefined,
+  updatedAt: r.updated_at ?? undefined,
+});
+
+const pipelineToDb = (p: Partial<PipelineKandidaat>) => cleanPayload({
+  object_id: p.objectId,
+  relatie_id: p.relatieId,
+  zoekprofiel_id: p.zoekprofielId !== undefined ? (p.zoekprofielId || null) : undefined,
+  pipeline_fase: p.pipelineFase,
+  interesse_niveau: p.interesseNiveau,
+  matchscore: p.matchscore ?? null,
+  teaser_verstuurd: p.teaserVerstuurd,
+  teaser_verstuurd_op: p.teaserVerstuurdOp !== undefined ? (p.teaserVerstuurdOp || null) : undefined,
+  nda_verstuurd: p.ndaVerstuurd,
+  nda_verstuurd_op: p.ndaVerstuurdOp !== undefined ? (p.ndaVerstuurdOp || null) : undefined,
+  nda_getekend: p.ndaGetekend,
+  nda_getekend_op: p.ndaGetekendOp !== undefined ? (p.ndaGetekendOp || null) : undefined,
+  informatie_gedeeld: p.informatieGedeeld,
+  informatie_gedeeld_op: p.informatieGedeeldOp !== undefined ? (p.informatieGedeeldOp || null) : undefined,
+  bezichtiging_datum: p.bezichtigingDatum !== undefined ? (p.bezichtigingDatum || null) : undefined,
+  bieding_bedrag: p.biedingBedrag !== undefined ? (p.biedingBedrag ?? null) : undefined,
+  bieding_voorwaarden: p.biedingVoorwaarden !== undefined ? (p.biedingVoorwaarden || null) : undefined,
+  financieringsvoorbehoud: p.financieringsvoorbehoud ?? null,
+  gewenste_levering: p.gewensteLevering !== undefined ? (p.gewensteLevering || null) : undefined,
+  fee_akkoord: p.feeAkkoord,
+  laatste_contactdatum: p.laatsteContactdatum !== undefined ? (p.laatsteContactdatum || null) : undefined,
+  volgende_actie: p.volgendeActie !== undefined ? (p.volgendeActie || null) : undefined,
+  volgende_actie_omschrijving: p.volgendeActieOmschrijving !== undefined ? (p.volgendeActieOmschrijving || null) : undefined,
+  volgende_actie_datum: p.volgendeActieDatum !== undefined ? (p.volgendeActieDatum || null) : undefined,
+  notities: p.notities !== undefined ? (p.notities || null) : undefined,
+  reden_afgevallen: p.redenAfgevallen !== undefined ? (p.redenAfgevallen || null) : undefined,
+});
+
 const jaarDoelFromDb = (j: any): JaarDoel => ({
   id: j.id,
   jaar: j.jaar,
@@ -671,6 +734,7 @@ interface DataStore {
   zoekprofielen: Zoekprofiel[];
   dealObjecten: DealObjectKoppeling[];
   dealKandidaten: DealKandidaat[];
+  pipelineKandidaten: PipelineKandidaat[];
   jaarDoelen: JaarDoel[];
   loading: boolean;
   refresh: () => Promise<void>;
@@ -737,6 +801,13 @@ interface DataStore {
   removeDealKandidaat: (id: string) => Promise<void>;
   getKandidatenVoorDeal: (dealId: string) => DealKandidaat[];
 
+  // Pipeline (object × relatie)
+  addPipelineKandidaat: (input: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>) => Promise<PipelineKandidaat | null>;
+  updatePipelineKandidaat: (id: string, patch: Partial<PipelineKandidaat>) => Promise<void>;
+  removePipelineKandidaat: (id: string) => Promise<void>;
+  getPipelineVoorObject: (objectId: string) => PipelineKandidaat[];
+  getPipelineVoorRelatie: (relatieId: string) => PipelineKandidaat[];
+
   // Jaar-doelen
   upsertJaarDoel: (doel: Omit<JaarDoel, 'id'>) => Promise<JaarDoel | null>;
   deleteJaarDoel: (id: string) => Promise<void>;
@@ -792,6 +863,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [zoekprofielen, setZoekprofielen] = useState<Zoekprofiel[]>([]);
   const [dealObjecten, setDealObjecten] = useState<DealObjectKoppeling[]>([]);
   const [dealKandidaten, setDealKandidaten] = useState<DealKandidaat[]>([]);
+  const [pipelineKandidaten, setPipelineKandidaten] = useState<PipelineKandidaat[]>([]);
   const [jaarDoelen, setJaarDoelen] = useState<JaarDoel[]>([]);
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
@@ -804,7 +876,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
-        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes,
+        dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -822,6 +894,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('referentie_objecten' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('deal_referenties' as any).select('*'),
         supabase.from('object_referenties' as any).select('*'),
+        supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
@@ -847,6 +920,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (refRes.data) setReferentieObjecten((refRes.data as any[]).map(referentieObjectFromDb));
       if (drefRes.data) setDealReferenties((drefRes.data as any[]).map(dealReferentieFromDb));
       if (objRefRes.data) setObjectReferenties((objRefRes.data as any[]).map(objectReferentieFromDb));
+      if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
     } finally {
       setLoading(false);
     }
@@ -1165,7 +1239,32 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setDealKandidaten(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  // -------- JAAR-DOELEN --------
+  // -------- PIPELINE (object × relatie) --------
+  const addPipelineKandidaat = useCallback(async (input: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { data, error } = await supabase.from('object_pipeline' as any)
+      .insert(pipelineToDb(input) as any).select().single();
+    throwIfError(error);
+    if (!data) return null;
+    const nieuw = pipelineFromDb(data);
+    setPipelineKandidaten(prev => [nieuw, ...prev]);
+    return nieuw;
+  }, []);
+
+  const updatePipelineKandidaat = useCallback(async (id: string, patch: Partial<PipelineKandidaat>) => {
+    const { data, error } = await supabase.from('object_pipeline' as any)
+      .update(pipelineToDb(patch) as any).eq('id', id).select().single();
+    throwIfError(error);
+    if (!data) return;
+    setPipelineKandidaten(prev => prev.map(x => x.id === id ? pipelineFromDb(data) : x));
+  }, []);
+
+  const removePipelineKandidaat = useCallback(async (id: string) => {
+    const { error } = await supabase.from('object_pipeline' as any)
+      .update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
+    throwIfError(error);
+    setPipelineKandidaten(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   const upsertJaarDoel = useCallback(async (doel: Omit<JaarDoel, 'id'>) => {
     const { data, error } = await supabase
       .from('jaar_doelen' as any)
@@ -1289,6 +1388,11 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
 
     addDealKandidaat, updateDealKandidaat, removeDealKandidaat,
     getKandidatenVoorDeal: (dealId) => dealKandidaten.filter(x => x.dealId === dealId),
+
+    pipelineKandidaten,
+    addPipelineKandidaat, updatePipelineKandidaat, removePipelineKandidaat,
+    getPipelineVoorObject: (objectId) => pipelineKandidaten.filter(x => x.objectId === objectId),
+    getPipelineVoorRelatie: (relatieId) => pipelineKandidaten.filter(x => x.relatieId === relatieId),
 
     upsertJaarDoel, deleteJaarDoel,
     getJaarDoel: (jaar) => jaarDoelen.find(j => j.jaar === jaar),

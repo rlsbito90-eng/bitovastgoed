@@ -26,6 +26,7 @@ import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
+import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -544,6 +545,8 @@ export default function ObjectDetailPage() {
           {object.referentieanalyseZichtbaar !== false && (
             <ObjectReferentieAnalyseSectie object={object} />
           )}
+
+          <ObjectPipelineSectie objectId={object.id} />
         </div>
 
         <div>
