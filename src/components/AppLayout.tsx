@@ -24,7 +24,13 @@ const navItems = [
 
 function GebruikerMenu() {
   const { user, isAdmin, signOut } = useAuth();
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="px-2 py-1.5 text-[10px] text-sidebar-foreground/60">
+        Login tijdelijk uitgeschakeld
+      </div>
+    );
+  }
   const initialen = (user.email || '?').slice(0, 2).toUpperCase();
 
   return (
