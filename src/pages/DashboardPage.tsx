@@ -6,6 +6,7 @@ import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, Mat
 import PageHeader from '@/components/PageHeader';
 import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 function KPICard({
   label,
@@ -143,7 +144,7 @@ export default function DashboardPage() {
                 <div className="row-flex">
                   <p className="text-sm text-foreground truncate">{taak.titel}</p>
                   <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {relatie?.bedrijfsnaam ? `${relatie.bedrijfsnaam} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
+                    {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
                   </p>
                 </div>
                 <div className="row-action">
@@ -160,21 +161,24 @@ export default function DashboardPage() {
           link={{ to: '/relaties', label: 'Alle relaties' }}
           empty="Geen warme of actieve leads."
         >
-          {warmeRelaties.slice(0, 6).map(rel => (
-            <Link key={rel.id} to={`/relaties/${rel.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-              <div className="row-with-action">
-                <div className="row-flex">
-                  <p className="text-sm text-foreground truncate">{rel.bedrijfsnaam}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {rel.contactpersoon} · {rel.volgendeActie || 'Geen actie gepland'}
-                  </p>
+          {warmeRelaties.slice(0, 6).map(rel => {
+            const namen = getRelatieNaamCompact(rel, store.contactpersonen);
+            return (
+              <Link key={rel.id} to={`/relaties/${rel.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
+                <div className="row-with-action">
+                  <div className="row-flex">
+                    <p className="text-sm text-foreground truncate">{namen}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {rel.volgendeActie || 'Geen actie gepland'}
+                    </p>
+                  </div>
+                  <div className="row-action">
+                    <LeadStatusBadge status={rel.leadStatus} />
+                  </div>
                 </div>
-                <div className="row-action">
-                  <LeadStatusBadge status={rel.leadStatus} />
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
           {warmeRelaties.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Geen warme of actieve leads.</p>}
         </FocusList>
 
@@ -192,7 +196,7 @@ export default function DashboardPage() {
                   <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{object?.titel}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {relatie?.bedrijfsnaam} · <span className="font-mono-data">{object?.vraagprijs ? formatCurrency(object.vraagprijs) : '—'}</span>
+                      {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'} · <span className="font-mono-data">{object?.vraagprijs ? formatCurrency(object.vraagprijs) : '—'}</span>
                     </p>
                   </div>
                   <div className="row-action">
@@ -217,7 +221,7 @@ export default function DashboardPage() {
                 <div className="row-with-action">
                   <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{object?.titel}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">→ {relatie?.bedrijfsnaam}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">→ {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}</p>
                   </div>
                   <div className="row-action">
                     <MatchScoreBadge score={match.score} />
