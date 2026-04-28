@@ -94,13 +94,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside
         className={`hidden lg:flex lg:flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
-          desktopCollapsed ? 'lg:w-14' : 'lg:w-60'
+          desktopCollapsed ? 'lg:w-14' : 'lg:w-64'
         }`}
       >
         <Link
           to="/"
-          className={`h-16 flex items-center border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors ${
-            desktopCollapsed ? 'justify-center px-0' : 'px-5'
+          className={`h-24 flex items-center border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors ${
+            desktopCollapsed ? 'justify-center px-0' : 'px-3'
           }`}
           title={desktopCollapsed ? 'Bito Vastgoed' : undefined}
         >
@@ -111,14 +111,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               className="h-8 w-8 object-contain"
             />
           ) : (
-            <>
-              <img
-                src="/logo-bito-vastgoed.png"
-                alt="Bito Vastgoed"
-                className="h-10 w-auto max-w-[160px] object-fill"
-              />
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
-            </>
+            <img
+              src="/logo-bito-vastgoed.png"
+              alt="Bito Vastgoed"
+              className="h-20 w-auto max-w-full object-contain"
+            />
           )}
         </Link>
         <nav className={`flex-1 py-4 space-y-0.5 overflow-y-auto ${desktopCollapsed ? 'px-2' : 'px-3'}`}>
