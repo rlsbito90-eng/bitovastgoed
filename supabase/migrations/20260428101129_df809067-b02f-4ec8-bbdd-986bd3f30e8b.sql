@@ -1,0 +1,1 @@
+ALTER TABLE public.relatie_contactpersonen ADD COLUMN IF NOT EXISTS telefoon_mobiel text;
