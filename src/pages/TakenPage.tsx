@@ -8,9 +8,10 @@ import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 export default function TakenPage() {
-  const { taken, getRelatieById, getDealById, getObjectById, updateTaak } = useDataStore();
+  const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>('');
   const [formOpen, setFormOpen] = useState(false);
@@ -61,7 +62,7 @@ export default function TakenPage() {
         <div className="min-w-0 flex-1">
           <p className={`text-sm font-medium ${isAfgerond ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{taak.titel}</p>
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-            {rel && <span className="truncate max-w-[180px]">{rel.bedrijfsnaam || '(relatie)'}</span>}
+            {rel && <span className="truncate max-w-[180px]">{getRelatieNaamCompact(rel, contactpersonen)}</span>}
             {obj && <><span aria-hidden>·</span><span className="truncate max-w-[180px]">{obj.titel}</span></>}
             {taak.type && <><span aria-hidden>·</span><span className="capitalize">{taak.type}</span></>}
             {taak.deadline && (
