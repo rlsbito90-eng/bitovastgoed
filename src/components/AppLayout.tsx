@@ -112,7 +112,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside
         className={`hidden lg:flex lg:flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
-          desktopCollapsed ? "lg:w-14" : "lg:w-64"
+          desktopCollapsed ? "lg:w-20" : "lg:w-64"
         }`}
       >
         <Link
@@ -123,7 +123,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           title={desktopCollapsed ? "Bito Vastgoed" : undefined}
         >
           {desktopCollapsed ? (
-            <img src="/apple-touch-icon-v3.png" alt="Bito Vastgoed" className="h-8 w-8 object-contain" />
+            <img src="/apple-touch-icon-v3.png" alt="Bito Vastgoed" className="h-12 w-12 object-contain" />
           ) : (
             <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-24 w-auto max-w-full object-contain" />
           )}
@@ -161,12 +161,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-30">
+        <header className="lg:hidden flex items-center justify-between h-20 px-4 border-b border-border bg-card sticky top-0 z-30">
           <Link to="/" className="flex items-center -ml-1 px-2 py-1 rounded-md hover:bg-muted transition-colors">
             <img
               src="/logo-bito-vastgoed.png"
               alt="Bito Vastgoed"
-              className="h-9 w-auto max-w-[120px] object-contain"
+              className="h-16 w-auto max-w-[200px] object-contain"
             />
           </Link>
           <div className="flex items-center gap-1">
