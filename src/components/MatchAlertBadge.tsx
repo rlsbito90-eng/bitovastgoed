@@ -20,6 +20,7 @@ import {
   formatCurrencyCompact,
   ASSET_CLASS_LABELS,
 } from '@/data/mock-data';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 const DREMPEL = 3;
 const LAATST_GEZIEN_KEY = 'bito-matches-laatst-gezien';
@@ -191,7 +192,7 @@ export default function MatchAlertBadge() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground truncate">{obj.titel}</p>
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          → {rel.bedrijfsnaam}
+                          → {getRelatieNaamCompact(rel, store.contactpersonen)}
                           <span className="text-muted-foreground/60"> · {zp.naam}</span>
                         </p>
                       </div>
