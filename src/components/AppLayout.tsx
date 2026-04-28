@@ -105,11 +105,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           title={desktopCollapsed ? 'Bito Vastgoed' : undefined}
         >
           {desktopCollapsed ? (
-            <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">B</span>
+            <img
+              src="/apple-touch-icon.png"
+              alt="Bito Vastgoed"
+              className="h-8 w-8 object-contain"
+            />
           ) : (
             <>
-              <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">Bito</span>
-              <span className="text-lg font-light tracking-tight text-sidebar-foreground/60 ml-1">Vastgoed</span>
+              <img
+                src="/logo-bito-vastgoed.png"
+                alt="Bito Vastgoed"
+                className="h-10 w-auto max-w-[160px] object-contain"
+              />
               <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
             </>
           )}
@@ -149,8 +156,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Mobile Header */}
         <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-30">
           <Link to="/" className="flex items-center -ml-1 px-2 py-1 rounded-md hover:bg-muted transition-colors">
-            <span className="text-lg font-semibold text-foreground">Bito</span>
-            <span className="text-lg font-light text-muted-foreground ml-1">Vastgoed</span>
+            <img
+              src="/logo-bito-vastgoed.png"
+              alt="Bito Vastgoed"
+              className="h-9 w-auto max-w-[120px] object-contain"
+            />
           </Link>
           <div className="flex items-center gap-1">
             <MatchAlertBadge />
@@ -186,8 +196,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 onClick={() => setMobileOpen(false)}
                 className="mb-6 flex items-center -mx-2 px-2 py-1 rounded-md hover:bg-sidebar-accent"
               >
-                <span className="text-lg font-semibold text-sidebar-foreground">Bito</span>
-                <span className="text-lg font-light text-sidebar-foreground/60 ml-1">Vastgoed</span>
+                <img
+                  src="/logo-bito-vastgoed.png"
+                  alt="Bito Vastgoed"
+                  className="h-10 w-auto max-w-[120px] object-contain"
+                />
               </Link>
               <nav className="space-y-1 flex-1">
                 {navItems.map((item) => {
