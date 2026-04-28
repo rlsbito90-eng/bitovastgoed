@@ -18,10 +18,11 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Search, Pencil, Trash2, Link2, ExternalLink, ArrowUpDown, X, ArrowUp, ArrowDown, Plus as PlusIcon } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Link2, ExternalLink, ArrowUpDown, X, ArrowUp, ArrowDown, Plus as PlusIcon, Upload } from 'lucide-react';
 import { CheckboxDropdown } from '@/components/ui/checkbox-dropdown';
 import PageHeader from '@/components/PageHeader';
 import ReferentieObjectFormDialog from '@/components/forms/ReferentieObjectFormDialog';
+import ReferentieObjectBulkImportDialog from '@/components/forms/ReferentieObjectBulkImportDialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -94,6 +95,7 @@ export default function ReferentieObjectenPage() {
   const [sortLevels, setSortLevels] = useState<SortLevel[]>([{ field: 'recent', dir: 'desc' }]);
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   // Map: referentieObjectId → array van gekoppelde deals (incl. object voor labelen)
   const dealsPerReferentie = useMemo(() => {
@@ -240,9 +242,14 @@ export default function ReferentieObjectenPage() {
         title="Referentieobjecten"
         subtitle={`${store.referentieObjecten.length} referenties beschikbaar`}
         actions={
-          <Button onClick={handleNieuw} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nieuw referentieobject
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-1.5">
+              <Upload className="h-4 w-4" /> Bulk importeren
+            </Button>
+            <Button onClick={handleNieuw} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Nieuw referentieobject
+            </Button>
+          </div>
         }
       />
 
@@ -702,6 +709,10 @@ export default function ReferentieObjectenPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         referentie={editObj}
+      />
+      <ReferentieObjectBulkImportDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
       />
     </div>
   );
