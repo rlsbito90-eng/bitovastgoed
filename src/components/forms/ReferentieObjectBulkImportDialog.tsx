@@ -264,10 +264,10 @@ function verwerkRij(
     }
   }
 
-  // Default bouwjaar (DB vereist NOT NULL) — we vullen 0 als niet aanwezig… nee: maak fout niet, val terug op 1900 met waarschuwing
+  // Bouwjaar is verplicht in DB; bij onbekend slaan we 0 op als sentinel.
   if (data.bouwjaar == null) {
-    // bouwjaar is in DB NOT NULL; gebruik 0 zou misleidend zijn. Markeer als fout zodat gebruiker bewust kiest.
-    fouten.push('Bouwjaar ontbreekt (verplicht in database)');
+    data.bouwjaar = 0;
+    waarschuwingen.push('Bouwjaar onbekend — opgeslagen als "onbekend"');
   }
 
   // Duplicate-detectie
