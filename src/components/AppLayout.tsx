@@ -123,7 +123,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           title={desktopCollapsed ? "Bito Vastgoed" : undefined}
         >
           {desktopCollapsed ? (
-            <img src="/apple-touch-icon.png" alt="Bito Vastgoed" className="h-8 w-8 object-contain" />
+            <img src="/apple-touch-icon-v3.png" alt="Bito Vastgoed" className="h-8 w-8 object-contain" />
           ) : (
             <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-24 w-auto max-w-full object-contain" />
           )}
