@@ -163,6 +163,61 @@ function normaliseerPostcode(raw: string): { ok: boolean; waarde: string } {
   return { ok: false, waarde: raw };
 }
 
+/**
+ * Parseert flexibele bouwjaar-input:
+ * - "1985" → 1985
+ * - "1981-1990" of "1981/1990" → midden (1986), waarschuwing met bereik
+ * - "voor 1906", "<1906", "pre-1906" → 1906 met waarschuwing
+ * - "na 2000", ">2000", "post-2000" → 2000 met waarschuwing
+ * - "onbekend", "?", "n.v.t.", "" → null (caller slaat 0 op als sentinel)
+ * - buiten bereik [1500..huidig+5] → null met waarschuwing
+ */
+function parseBouwjaar(raw: string): { bouwjaar: number | null; waarschuwing?: string } {
+  const s = raw.trim().toLowerCase();
+  if (!s) return { bouwjaar: null };
+  const huidig = new Date().getFullYear();
+  const inBereik = (n: number) => n >= 1500 && n <= huidig + 5;
+
+  if (/^(onbekend|onbek\.?|n\.?v\.?t\.?|nvt|\?|-+)$/i.test(s)) {
+    return { bouwjaar: null, waarschuwing: 'Bouwjaar "onbekend" — opgeslagen als onbekend' };
+  }
+
+  // Range: 1981-1990, 1981/1990, 1981 tot 1990, 1981–1990
+  const range = s.match(/(\d{3,4})\s*(?:[-–\/]|tot|t\/m)\s*(\d{3,4})/);
+  if (range) {
+    const a = parseInt(range[1], 10);
+    const b = parseInt(range[2], 10);
+    if (inBereik(a) && inBereik(b) && a <= b) {
+      const mid = Math.round((a + b) / 2);
+      return { bouwjaar: mid, waarschuwing: `Bouwjaar bereik ${a}-${b} — opgeslagen als ${mid} (midden)` };
+    }
+  }
+
+  // "voor XXXX" / "<XXXX" / "pre XXXX"
+  const voor = s.match(/^(?:voor|pre[-\s]?|<\s*|≤\s*|t\/m\s*)(\d{3,4})$/);
+  if (voor) {
+    const n = parseInt(voor[1], 10);
+    if (inBereik(n)) return { bouwjaar: n, waarschuwing: `Bouwjaar "voor ${n}" — opgeslagen als ${n}` };
+  }
+
+  // "na XXXX" / ">XXXX" / "post XXXX"
+  const na = s.match(/^(?:na|post[-\s]?|>\s*|≥\s*|vanaf\s*)(\d{3,4})$/);
+  if (na) {
+    const n = parseInt(na[1], 10);
+    if (inBereik(n)) return { bouwjaar: n, waarschuwing: `Bouwjaar "na ${n}" — opgeslagen als ${n}` };
+  }
+
+  // Enkel jaartal (ook met ruis)
+  const enkel = s.match(/(\d{3,4})/);
+  if (enkel) {
+    const n = parseInt(enkel[1], 10);
+    if (inBereik(n)) return { bouwjaar: n };
+    return { bouwjaar: null, waarschuwing: `Bouwjaar ${n} buiten bereik — opgeslagen als onbekend` };
+  }
+
+  return { bouwjaar: null, waarschuwing: `Bouwjaar "${raw}" niet leesbaar — opgeslagen als onbekend` };
+}
+
 interface Verwerkt {
   rijIndex: number;
   data: Partial<ReferentieObject>;
@@ -208,11 +263,10 @@ function verwerkRij(
         break;
       }
       case 'bouwjaar': {
-        const n = parseNummer(waarde);
-        const huidig = new Date().getFullYear();
-        if (n == null || !Number.isFinite(n)) waarschuwingen.push(`Bouwjaar "${waarde}" niet leesbaar`);
-        else if (n < 1800 || n > huidig + 5) waarschuwingen.push(`Bouwjaar ${n} buiten bereik`);
-        else data.bouwjaar = Math.round(n);
+        const parsed = parseBouwjaar(waarde);
+        if (parsed.bouwjaar != null) data.bouwjaar = parsed.bouwjaar;
+        else data.bouwjaar = 0; // sentinel voor "onbekend" (DB NOT NULL)
+        if (parsed.waarschuwing) waarschuwingen.push(parsed.waarschuwing);
         break;
       }
       case 'asset_class': {
@@ -265,10 +319,10 @@ function verwerkRij(
     }
   }
 
-  // Default bouwjaar (DB vereist NOT NULL) — we vullen 0 als niet aanwezig… nee: maak fout niet, val terug op 1900 met waarschuwing
+  // Bouwjaar is verplicht in DB; bij onbekend slaan we 0 op als sentinel.
   if (data.bouwjaar == null) {
-    // bouwjaar is in DB NOT NULL; gebruik 0 zou misleidend zijn. Markeer als fout zodat gebruiker bewust kiest.
-    fouten.push('Bouwjaar ontbreekt (verplicht in database)');
+    data.bouwjaar = 0;
+    waarschuwingen.push('Bouwjaar onbekend — opgeslagen als "onbekend"');
   }
 
   // Duplicate-detectie
