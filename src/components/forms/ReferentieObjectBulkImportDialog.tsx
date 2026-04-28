@@ -208,11 +208,10 @@ function verwerkRij(
         break;
       }
       case 'bouwjaar': {
-        const n = parseNummer(waarde);
-        const huidig = new Date().getFullYear();
-        if (n == null || !Number.isFinite(n)) waarschuwingen.push(`Bouwjaar "${waarde}" niet leesbaar`);
-        else if (n < 1800 || n > huidig + 5) waarschuwingen.push(`Bouwjaar ${n} buiten bereik`);
-        else data.bouwjaar = Math.round(n);
+        const parsed = parseBouwjaar(waarde);
+        if (parsed.bouwjaar != null) data.bouwjaar = parsed.bouwjaar;
+        else data.bouwjaar = 0; // sentinel voor "onbekend" (DB NOT NULL)
+        if (parsed.waarschuwing) waarschuwingen.push(parsed.waarschuwing);
         break;
       }
       case 'asset_class': {
