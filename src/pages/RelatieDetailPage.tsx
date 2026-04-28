@@ -184,15 +184,52 @@ export default function RelatieDetailPage() {
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground min-w-0">
                       {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground break-all">{c.email}</a>}
-                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">{c.telefoon}</a>}
+                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">Tel: {c.telefoon}</a>}
+                      {c.telefoonMobiel && <a href={`tel:${c.telefoonMobiel}`} className="hover:text-foreground break-all">Mobiel: {c.telefoonMobiel}</a>}
                       {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">LinkedIn</a>}
                       {c.voorkeurKanaal && <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>}
+                      {c.voorkeurTaal && c.voorkeurTaal !== 'nl' && <span>Taal: {c.voorkeurTaal.toUpperCase()}</span>}
                     </div>
+                    {c.notities && (
+                      <p className="text-xs text-muted-foreground mt-1.5 italic break-words whitespace-pre-wrap">{c.notities}</p>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </section>
+
+          {/* ALGEMENE CONTACTGEGEVENS (relatie-niveau) */}
+          {(relatie.email || relatie.telefoon || relatie.website || relatie.linkedinUrl || relatie.kvkNummer) && (
+            <section className="section-card p-5 sm:p-6 space-y-4">
+              <h2 className="section-title">Contactgegevens</h2>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {relatie.email && (
+                  <Field label="E-mail">
+                    <a href={`mailto:${relatie.email}`} className="text-accent hover:underline break-all">{relatie.email}</a>
+                  </Field>
+                )}
+                {relatie.telefoon && (
+                  <Field label="Telefoon">
+                    <a href={`tel:${relatie.telefoon}`} className="text-accent hover:underline">{relatie.telefoon}</a>
+                  </Field>
+                )}
+                {relatie.website && (
+                  <Field label="Website">
+                    <a href={relatie.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline break-all">{relatie.website}</a>
+                  </Field>
+                )}
+                {relatie.linkedinUrl && (
+                  <Field label="LinkedIn">
+                    <a href={relatie.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline break-all">{relatie.linkedinUrl}</a>
+                  </Field>
+                )}
+                {relatie.kvkNummer && (
+                  <Field label="KVK-nummer">{relatie.kvkNummer}</Field>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* VASTGOEDVOORKEUREN — nieuwe taxonomie */}
           <section className="section-card p-5 sm:p-6 space-y-4">
