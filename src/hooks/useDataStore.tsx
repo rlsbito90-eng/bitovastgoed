@@ -164,6 +164,7 @@ const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
   functie: c.functie !== undefined ? (c.functie || null) : undefined,
   email: c.email !== undefined ? (c.email || null) : undefined,
   telefoon: c.telefoon !== undefined ? (c.telefoon || null) : undefined,
+  telefoon_mobiel: c.telefoonMobiel !== undefined ? (c.telefoonMobiel || null) : undefined,
   linkedin_url: c.linkedinUrl !== undefined ? (c.linkedinUrl || null) : undefined,
   is_primair: c.isPrimair,
   decision_maker: c.decisionMaker,
