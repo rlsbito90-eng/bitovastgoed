@@ -65,10 +65,11 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-baseline">
-            <span className="text-2xl font-semibold tracking-tight text-foreground">Bito</span>
-            <span className="text-2xl font-light tracking-tight text-muted-foreground ml-1.5">Vastgoed</span>
-          </div>
+          <img
+            src="/logo-bito-vastgoed.png"
+            alt="Bito Vastgoed"
+            className="mx-auto h-20 w-auto max-w-[160px] object-contain"
+          />
           <p className="text-sm text-muted-foreground mt-2">Interne dealflow & CRM</p>
         </div>
 
