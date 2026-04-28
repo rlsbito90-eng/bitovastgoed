@@ -1485,6 +1485,7 @@ export type Database = {
           notities: string | null
           relatie_id: string
           telefoon: string | null
+          telefoon_mobiel: string | null
           updated_at: string
           voorkeur_kanaal:
             | Database["public"]["Enums"]["communicatie_kanaal"]
@@ -1503,6 +1504,7 @@ export type Database = {
           notities?: string | null
           relatie_id: string
           telefoon?: string | null
+          telefoon_mobiel?: string | null
           updated_at?: string
           voorkeur_kanaal?:
             | Database["public"]["Enums"]["communicatie_kanaal"]
@@ -1521,6 +1523,7 @@ export type Database = {
           notities?: string | null
           relatie_id?: string
           telefoon?: string | null
+          telefoon_mobiel?: string | null
           updated_at?: string
           voorkeur_kanaal?:
             | Database["public"]["Enums"]["communicatie_kanaal"]

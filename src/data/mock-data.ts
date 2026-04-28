@@ -204,6 +204,7 @@ export interface RelatieContactpersoon {
   functie?: string;
   email?: string;
   telefoon?: string;
+  telefoonMobiel?: string;
   linkedinUrl?: string;
   isPrimair: boolean;
   decisionMaker: boolean;
