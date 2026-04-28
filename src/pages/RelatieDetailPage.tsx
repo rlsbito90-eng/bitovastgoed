@@ -184,10 +184,15 @@ export default function RelatieDetailPage() {
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground min-w-0">
                       {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground break-all">{c.email}</a>}
-                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">{c.telefoon}</a>}
+                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">Tel: {c.telefoon}</a>}
+                      {c.telefoonMobiel && <a href={`tel:${c.telefoonMobiel}`} className="hover:text-foreground break-all">Mobiel: {c.telefoonMobiel}</a>}
                       {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">LinkedIn</a>}
                       {c.voorkeurKanaal && <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>}
+                      {c.voorkeurTaal && c.voorkeurTaal !== 'nl' && <span>Taal: {c.voorkeurTaal.toUpperCase()}</span>}
                     </div>
+                    {c.notities && (
+                      <p className="text-xs text-muted-foreground mt-1.5 italic break-words whitespace-pre-wrap">{c.notities}</p>
+                    )}
                   </div>
                 ))}
               </div>
