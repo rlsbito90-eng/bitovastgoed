@@ -710,6 +710,10 @@ export default function ReferentieObjectenPage() {
         onOpenChange={setFormOpen}
         referentie={editObj}
       />
+      <ReferentieObjectBulkImportDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+      />
     </div>
   );
 }
