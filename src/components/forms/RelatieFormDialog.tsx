@@ -87,7 +87,8 @@ const leegForm: FormState = {
 
 
 export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
-  const { addRelatie, updateRelatie } = useDataStore();
+  const store = useDataStore();
+  const { addRelatie, updateRelatie } = store;
   const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
   const isEdit = !!relatie;
   const [gemaaktId, setGemaaktId] = useState<string | undefined>(relatie?.id);
@@ -120,11 +121,23 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
 
   const handleSave = async () => {
     if (bezig) return;
-    if (!form.bedrijfsnaam.trim()) {
-      toast.error('Bedrijfsnaam is verplicht');
-      setTab('algemeen');
-      return;
+
+    // Bedrijfsnaam is optioneel. Waarschuw als ook contactpersoon en
+    // contactpersonen-tabel leeg zijn — de relatie wordt dan "(naamloos)".
+    const heeftNaam = form.bedrijfsnaam?.trim();
+    if (!heeftNaam) {
+      const heeftContactpersonen = relatieId
+        ? store.contactpersonen?.some(c => c.relatieId === relatieId)
+        : false;
+      if (!heeftContactpersonen) {
+        const bevestig = window.confirm(
+          'Deze relatie heeft geen bedrijfsnaam, contactpersoon of contactpersonen ingevuld. ' +
+          'Hij wordt opgeslagen als "(naamloze relatie)". Toch opslaan?'
+        );
+        if (!bevestig) return;
+      }
     }
+
     setBezig(true);
 
     const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
@@ -189,8 +202,12 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
             <TabsContent value="algemeen" className="space-y-5 mt-0">
               <Sectie titel="Bedrijfsgegevens">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Bedrijfsnaam *" span={2}>
-                    <Input value={form.bedrijfsnaam} onChange={e => set('bedrijfsnaam', e.target.value)} />
+                  <Veld label="Bedrijfsnaam" span={2}>
+                    <Input
+                      value={form.bedrijfsnaam}
+                      onChange={e => set('bedrijfsnaam', e.target.value)}
+                      placeholder="Bijv. GARBE — laat leeg als de relatie geen bedrijf is"
+                    />
                   </Veld>
                   <Veld label="Type partij">
                     <select
