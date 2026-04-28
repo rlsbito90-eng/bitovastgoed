@@ -8,6 +8,7 @@ import { Search, Plus, ChevronRight, Star } from 'lucide-react';
 import type { DealFase } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
@@ -25,7 +26,7 @@ function Sterren({ aantal }: { aantal: number }) {
 }
 
 export default function DealsPage() {
-  const { deals, getRelatieById, getObjectById } = useDataStore();
+  const { deals, getRelatieById, getObjectById, contactpersonen } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
   const [formOpen, setFormOpen] = useState(false);
@@ -33,7 +34,7 @@ export default function DealsPage() {
   const filtered = deals.filter(d => {
     const obj = getObjectById(d.objectId);
     const rel = getRelatieById(d.relatieId);
-    const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
+    const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
     const matchFase = !faseFilter || d.fase === faseFilter;
     return matchZoek && matchFase;
   });
@@ -77,7 +78,7 @@ export default function DealsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground truncate">{obj?.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{rel?.bedrijfsnaam} · {obj?.plaats}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{getRelatieNaamCompact(rel, contactpersonen)} · {obj?.plaats}</p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-xs font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</span>
                         <Sterren aantal={deal.interessegraad} />
@@ -118,7 +119,7 @@ export default function DealsPage() {
                             <p className="text-xs text-muted-foreground mt-0.5">{obj?.plaats}</p>
                           </Link>
                         </td>
-                        <td className="px-5 py-3.5 text-foreground truncate max-w-[200px]">{rel?.bedrijfsnaam}</td>
+                        <td className="px-5 py-3.5 text-foreground truncate max-w-[200px]">{getRelatieNaamCompact(rel, contactpersonen)}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</td>
                         <td className="px-5 py-3.5 text-center hidden lg:table-cell">
                           <Sterren aantal={deal.interessegraad} />

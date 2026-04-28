@@ -24,6 +24,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { Trophy, AlertCircle } from 'lucide-react';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
@@ -63,7 +64,7 @@ const leegForm: FormState = {
 export default function DealFormDialog({
   open, onOpenChange, deal, defaultObjectId, defaultRelatieId,
 }: Props) {
-  const { addDeal, updateDeal, objecten, relaties, getObjectById } = useDataStore();
+  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen } = useDataStore();
   const isEdit = !!deal;
 
   const [form, setForm] = useState<FormState>(leegForm);
@@ -186,7 +187,7 @@ export default function DealFormDialog({
                     >
                       <option value="">— Kies relatie —</option>
                       {relaties.map(r => (
-                        <option key={r.id} value={r.id}>{r.bedrijfsnaam}</option>
+                        <option key={r.id} value={r.id}>{getRelatieNaamCompact(r, contactpersonen)}</option>
                       ))}
                     </select>
                   </Veld>

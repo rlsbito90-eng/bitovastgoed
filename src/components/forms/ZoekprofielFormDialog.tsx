@@ -27,6 +27,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
@@ -83,7 +84,7 @@ const leegForm: FormState = {
 export default function ZoekprofielFormDialog({
   open, onOpenChange, zoekprofiel, defaultRelatieId,
 }: Props) {
-  const { addZoekprofiel, updateZoekprofiel, relaties } = useDataStore();
+  const { addZoekprofiel, updateZoekprofiel, relaties, contactpersonen } = useDataStore();
   const { forAssetClass } = useSubcategorieen();
   const { propertyTypes, subtypesForTypes, dealTypes } = usePropertyTaxonomie();
   const isEdit = !!zoekprofiel;
@@ -203,7 +204,7 @@ export default function ZoekprofielFormDialog({
                     >
                       <option value="">— Kies relatie —</option>
                       {relaties.map(r => (
-                        <option key={r.id} value={r.id}>{r.bedrijfsnaam}</option>
+                        <option key={r.id} value={r.id}>{getRelatieNaamCompact(r, contactpersonen)}</option>
                       ))}
                     </select>
                   </Veld>

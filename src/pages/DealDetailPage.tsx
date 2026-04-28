@@ -16,6 +16,8 @@ import {
   Building2, Landmark, Users as UsersIcon,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
@@ -106,7 +108,7 @@ export default function DealDetailPage() {
             <DealFaseBadge fase={deal.fase} />
           </div>
           <p className="text-sm text-muted-foreground mt-1.5 break-words">
-            {relatie?.bedrijfsnaam} · {object?.plaats}
+            {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'} · {object?.plaats}
           </p>
         </div>
       </div>
@@ -314,9 +316,9 @@ export default function DealDetailPage() {
                 <LeadStatusBadge status={relatie.leadStatus} />
               </div>
               <div>
-                <p className="text-foreground font-medium truncate">{relatie.bedrijfsnaam}</p>
+                <RelatieNaamDisplay relatie={relatie} />
                 {relatie.investeerderSubtype && (
-                  <p className="text-xs text-muted-foreground capitalize">{relatie.investeerderSubtype.replace('_', ' ')}</p>
+                  <p className="text-xs text-muted-foreground capitalize mt-1">{relatie.investeerderSubtype.replace('_', ' ')}</p>
                 )}
               </div>
               <div className="text-sm space-y-1 hairline pt-3">

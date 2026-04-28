@@ -9,6 +9,7 @@ import type { LeadStatus, PartijType } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import PageHeader from '@/components/PageHeader';
+import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
 export default function RelatiesPage() {
@@ -79,8 +80,8 @@ export default function RelatiesPage() {
               <Link key={r.id} to={`/relaties/${r.id}`} className="section-card block p-4 active:bg-muted/40 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground truncate">{r.bedrijfsnaam || '(geen naam)'}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.contactpersoon || '—'} · <span className="capitalize">{r.type}</span></p>
+                    <RelatieNaamDisplay relatie={r} />
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate"><span className="capitalize">{r.type}</span></p>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       <PropertyTypeBadges
                         ids={r.propertyTypeIds}
@@ -123,8 +124,7 @@ export default function RelatiesPage() {
                     <tr key={r.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
                       <td className="px-5 py-3.5">
                         <Link to={`/relaties/${r.id}`} className="block">
-                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{r.bedrijfsnaam || '(geen naam)'}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.contactpersoon || '—'}</p>
+                          <RelatieNaamDisplay relatie={r} />
                         </Link>
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>

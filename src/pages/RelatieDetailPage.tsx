@@ -27,6 +27,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import { getRelatieNamen } from '@/lib/relatieNaam';
 
 const DEALSTRUCTUUR_LABELS: Record<string, string> = {
   direct: 'Direct eigendom',
@@ -122,7 +124,7 @@ export default function RelatieDetailPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Relatie verwijderen?</AlertDialogTitle>
-                <AlertDialogDescription>Weet je zeker dat je {relatie.bedrijfsnaam} wilt verwijderen? De relatie wordt gearchiveerd en is later terug te halen via de database.</AlertDialogDescription>
+                <AlertDialogDescription>Weet je zeker dat je {getRelatieNamen(relatie, store.contactpersonen).primair} wilt verwijderen? De relatie wordt gearchiveerd en is later terug te halen via de database.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
@@ -132,9 +134,7 @@ export default function RelatieDetailPage() {
           </AlertDialog>
         </div>
         <div className="min-w-0">
-          <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">
-            {relatie.bedrijfsnaam}
-          </h1>
+          <RelatieNaamDisplay relatie={relatie} variant="detail" />
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <LeadStatusBadge status={relatie.leadStatus} />
             {relatie.ndaGetekend && (
