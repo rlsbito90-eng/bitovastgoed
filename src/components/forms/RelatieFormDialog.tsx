@@ -304,7 +304,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                     <Input
                       value={contactpersoonInput.naam}
                       onChange={e => setCp('naam', e.target.value)}
-                      placeholder="bv. Léon van den Heuvel"
+                      placeholder="Naam contactpersoon"
                     />
                   </Veld>
                   <Veld label="Functie">
@@ -346,7 +346,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                     <Input
                       value={form.bedrijfsnaam}
                       onChange={e => set('bedrijfsnaam', e.target.value)}
-                      placeholder="Bijv. GARBE — laat leeg als de relatie geen bedrijf is"
+                      placeholder="Bedrijfsnaam"
                     />
                   </Veld>
                   <Veld label="Type partij">
