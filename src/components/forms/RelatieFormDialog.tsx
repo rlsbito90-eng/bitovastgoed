@@ -229,6 +229,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
           telefoon: contactpersoonInput.telefoon?.trim() || undefined,
           telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || undefined,
           isPrimair: true,
+          decisionMaker: false,
         };
 
         if (cpNaam && primaireContactpersoonId) {
