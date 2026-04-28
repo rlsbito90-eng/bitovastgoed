@@ -242,9 +242,14 @@ export default function ReferentieObjectenPage() {
         title="Referentieobjecten"
         subtitle={`${store.referentieObjecten.length} referenties beschikbaar`}
         actions={
-          <Button onClick={handleNieuw} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nieuw referentieobject
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-1.5">
+              <Upload className="h-4 w-4" /> Bulk importeren
+            </Button>
+            <Button onClick={handleNieuw} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Nieuw referentieobject
+            </Button>
+          </div>
         }
       />
 
