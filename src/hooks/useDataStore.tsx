@@ -149,6 +149,7 @@ const contactpersoonFromDb = (c: any): RelatieContactpersoon => ({
   functie: c.functie ?? undefined,
   email: c.email ?? undefined,
   telefoon: c.telefoon ?? undefined,
+  telefoonMobiel: c.telefoon_mobiel ?? undefined,
   linkedinUrl: c.linkedin_url ?? undefined,
   isPrimair: !!c.is_primair,
   decisionMaker: !!c.decision_maker,
