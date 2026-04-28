@@ -95,6 +95,7 @@ export default function ReferentieObjectenPage() {
   const [sortLevels, setSortLevels] = useState<SortLevel[]>([{ field: 'recent', dir: 'desc' }]);
   const [formOpen, setFormOpen] = useState(false);
   const [editObj, setEditObj] = useState<ReferentieObject | undefined>(undefined);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   // Map: referentieObjectId → array van gekoppelde deals (incl. object voor labelen)
   const dealsPerReferentie = useMemo(() => {
