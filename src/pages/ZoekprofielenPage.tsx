@@ -15,9 +15,10 @@ import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 export default function ZoekprofielenPage() {
-  const { zoekprofielen, getRelatieById, deleteZoekprofiel } = useDataStore();
+  const { zoekprofielen, getRelatieById, deleteZoekprofiel, contactpersonen } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -30,7 +31,7 @@ export default function ZoekprofielenPage() {
     const rel = getRelatieById(z.relatieId);
     const matchZoek = !zoek
       || z.naam.toLowerCase().includes(zoek.toLowerCase())
-      || rel?.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase());
+      || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
     const ptIds = (z as any).propertyTypeIds as string[] | undefined ?? [];
     const psIds = (z as any).propertySubtypeIds as string[] | undefined ?? [];
     const dtIds = (z as any).dealTypeIds as string[] | undefined ?? [];
@@ -127,7 +128,7 @@ export default function ZoekprofielenPage() {
                       to={`/relaties/${zp.relatieId}`}
                       className="text-xs text-accent hover:underline break-words inline-block max-w-full mt-0.5"
                     >
-                      {rel.bedrijfsnaam}
+                      {getRelatieNaamCompact(rel, contactpersonen)}
                     </Link>
                   )}
                 </div>
