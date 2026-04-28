@@ -115,7 +115,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <img
                 src="/logo-bito-vastgoed.png"
                 alt="Bito Vastgoed"
-                className="h-10 w-auto max-w-[160px] object-contain"
+                className="h-10 w-auto max-w-[160px] object-fill"
               />
               <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent/80" aria-hidden />
             </>
