@@ -1,10 +1,20 @@
 // src/components/forms/RelatieFormDialog.tsx
-// Complete nieuwe Relatie-form met 4 tabs:
-//   1. Algemeen       — bedrijfsnaam, type, subtype, lead status, KVK
-//   2. Investeerder   — budget, rendementseis, kapitaalsituatie, dealstructuur
-//   3. Contact        — voorkeur kanaal + taal, NDA, contactpersonen
-//   4. Notities       — aankoopcriteria, verkoopintentie, notities
-// Multi-select chips voor regio + asset classes i.p.v. komma-strings.
+//
+// Batch 11: Contact-tab is verwijderd. De inhoud is herverdeeld:
+//   - Eén primaire contactpersoon-invoer komt nu in tab Algemeen, BOVEN
+//     de bedrijfsgegevens. Bij opslaan wordt deze automatisch als primaire
+//     contactpersoon aangemaakt in relatie_contactpersonen.
+//   - Communicatievoorkeuren + NDA verhuizen naar tab Investeerder.
+//   - Voor bestaande relaties met meerdere contactpersonen: gebruik de
+//     detail-pagina (ContactpersonenPanel) — niet meer in deze dialog.
+//   - Oude losse "Directe contactgegevens (fallback)" sectie is alleen
+//     zichtbaar als er al data in zit (legacy data niet kwijtraken).
+//
+// Tabs:
+//   1. Algemeen     — contactpersoon, bedrijfsgegevens, KVK & adres
+//   2. Vastgoed     — propertytypes/subtypes/dealtypes
+//   3. Investeerder — budget, kapitaal, dealstructuur + comm.voorkeur + NDA
+//   4. Notities     — aankoop/verkoop, opvolging
 
 import { useState, useEffect, ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,8 +39,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
-import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
-import { Users, Info, Building2 } from 'lucide-react';
+import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 
 interface Props {
@@ -40,6 +49,23 @@ interface Props {
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
+
+// Velden voor de primaire contactpersoon-input (NIEUW in batch 11)
+interface PrimaireContactpersoonInput {
+  naam: string;
+  functie: string;
+  email: string;
+  telefoon: string;
+  telefoonMobiel: string;
+}
+
+const leegPrimaireContactpersoon: PrimaireContactpersoonInput = {
+  naam: '',
+  functie: '',
+  email: '',
+  telefoon: '',
+  telefoonMobiel: '',
+};
 
 const DEALSTRUCTUUR_LABELS: Record<Dealstructuur, string> = {
   direct: 'Direct eigendom',
@@ -95,19 +121,41 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
   const relatieId = relatie?.id ?? gemaaktId;
 
   const [form, setForm] = useState<FormState>(leegForm);
+  const [contactpersoonInput, setContactpersoonInput] =
+    useState<PrimaireContactpersoonInput>(leegPrimaireContactpersoon);
+  const [primaireContactpersoonId, setPrimaireContactpersoonId] = useState<string | undefined>();
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
 
-  // Hydreer form bij open. Dependency op `relatie?.id` (stabiel) ipv het hele
-  // relatie-object om te voorkomen dat de form geherset wordt bij elke parent
-  // re-render. Dit voorkomt dat in-progress edits verdwijnen.
+  // Hydreer form bij open. Pre-fill ook de primaire contactpersoon-input
+  // vanuit relatie_contactpersonen (waar is_primair = true).
   useEffect(() => {
     if (relatie) {
       const { id, laatsteContact, softDeletedAt, contactpersoon, ...rest } = relatie;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(relatie.id);
+
+      // Zoek de primaire contactpersoon in de store
+      const primair = store.contactpersonen?.find(
+        c => c.relatieId === relatie.id && c.isPrimair,
+      );
+      if (primair) {
+        setContactpersoonInput({
+          naam: primair.naam ?? '',
+          functie: primair.functie ?? '',
+          email: primair.email ?? '',
+          telefoon: primair.telefoon ?? '',
+          telefoonMobiel: (primair as any).telefoonMobiel ?? '',
+        });
+        setPrimaireContactpersoonId(primair.id);
+      } else {
+        setContactpersoonInput(leegPrimaireContactpersoon);
+        setPrimaireContactpersoonId(undefined);
+      }
     } else {
       setForm(leegForm);
+      setContactpersoonInput(leegPrimaireContactpersoon);
+      setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
     }
     setTab('algemeen');
@@ -117,25 +165,36 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
 
+  const setCp = <K extends keyof PrimaireContactpersoonInput>(
+    k: K, v: PrimaireContactpersoonInput[K],
+  ) => setContactpersoonInput(prev => ({ ...prev, [k]: v }));
+
   const num = (v: string) => v === '' ? undefined : Number(v);
+
+  // Detecteer of deze relatie nog "legacy" telefoon/email-velden gebruikt
+  // (oude data zonder contactpersonen-tabel). Alleen dan tonen we het oude
+  // contactgegevens-blok.
+  const heeftLegacyContactdata = !!(
+    form.telefoon?.trim() || form.email?.trim()
+  );
 
   const handleSave = async () => {
     if (bezig) return;
 
-    // Bedrijfsnaam is optioneel. Waarschuw als ook contactpersoon en
-    // contactpersonen-tabel leeg zijn — de relatie wordt dan "(naamloos)".
-    const heeftNaam = form.bedrijfsnaam?.trim();
-    if (!heeftNaam) {
-      const heeftContactpersonen = relatieId
-        ? store.contactpersonen?.some(c => c.relatieId === relatieId)
-        : false;
-      if (!heeftContactpersonen) {
-        const bevestig = window.confirm(
-          'Deze relatie heeft geen bedrijfsnaam, contactpersoon of contactpersonen ingevuld. ' +
-          'Hij wordt opgeslagen als "(naamloze relatie)". Toch opslaan?'
-        );
-        if (!bevestig) return;
-      }
+    const cpNaam = contactpersoonInput.naam?.trim();
+    const heeftBedrijfsnaam = form.bedrijfsnaam?.trim();
+    const heeftCpInForm = !!cpNaam;
+    const heeftAndereContactpersonen = relatieId
+      ? store.contactpersonen?.some(c => c.relatieId === relatieId && c.id !== primaireContactpersoonId)
+      : false;
+
+    // Waarschuwing als helemaal niets is ingevuld
+    if (!heeftBedrijfsnaam && !heeftCpInForm && !heeftAndereContactpersonen) {
+      const bevestig = window.confirm(
+        'Deze relatie heeft geen bedrijfsnaam en geen contactpersoon ingevuld. ' +
+        'Hij wordt opgeslagen als "(naamloze relatie)". Toch opslaan?'
+      );
+      if (!bevestig) return;
     }
 
     setBezig(true);
@@ -143,12 +202,12 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
     const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
 
     try {
+      // 1. Relatie opslaan / updaten
+      let werkRelatieId = relatieId;
       if (isEdit && relatie) {
         await updateRelatie(relatie.id, data);
-        toast.success('Relatie bijgewerkt');
       } else if (gemaaktId) {
         await updateRelatie(gemaaktId, data);
-        toast.success('Relatie bijgewerkt');
       } else {
         const nieuw = await addRelatie({
           ...data,
@@ -156,10 +215,42 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
           contactpersoon: '', // legacy veld; nieuwe structuur via contactpersonen-tabel
         } as Omit<Relatie, 'id'>);
         if (nieuw?.id) {
+          werkRelatieId = nieuw.id;
           setGemaaktId(nieuw.id);
-          toast.success('Relatie aangemaakt — je kunt nu contactpersonen toevoegen');
         }
       }
+
+      // 2. Primaire contactpersoon opslaan / updaten / verwijderen
+      if (werkRelatieId) {
+        const cpData = {
+          naam: cpNaam,
+          functie: contactpersoonInput.functie?.trim() || undefined,
+          email: contactpersoonInput.email?.trim() || undefined,
+          telefoon: contactpersoonInput.telefoon?.trim() || undefined,
+          telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || undefined,
+          isPrimair: true,
+          decisionMaker: false,
+        };
+
+        if (cpNaam && primaireContactpersoonId) {
+          // Update bestaande primaire
+          await store.updateContactpersoon?.(primaireContactpersoonId, cpData);
+        } else if (cpNaam && !primaireContactpersoonId) {
+          // Nieuwe primaire aanmaken
+          const nieuweCp = await store.addContactpersoon?.({
+            relatieId: werkRelatieId,
+            ...cpData,
+          });
+          if (nieuweCp?.id) setPrimaireContactpersoonId(nieuweCp.id);
+        } else if (!cpNaam && primaireContactpersoonId) {
+          // Naam is leeg gemaakt → primaire contactpersoon verwijderen
+          await store.deleteContactpersoon?.(primaireContactpersoonId);
+          setPrimaireContactpersoonId(undefined);
+        }
+      }
+
+      toast.success(isEdit || gemaaktId ? 'Relatie bijgewerkt' : 'Relatie aangemaakt');
+      onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message ?? 'Opslaan mislukt');
     } finally {
@@ -189,17 +280,66 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                 <Building2 className="h-4 w-4 sm:hidden" />
               </TabsTrigger>
               <TabsTrigger value="investeerder">Investeerder</TabsTrigger>
-              <TabsTrigger value="contact" disabled={!relatieId}>
-                <span className="hidden sm:inline">Contact</span>
-                <Users className="h-4 w-4 sm:hidden" />
-              </TabsTrigger>
               <TabsTrigger value="notities">Notities</TabsTrigger>
             </TabsList>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
-            {/* ALGEMEEN */}
+            {/* ALGEMEEN — nieuwe volgorde: Contactpersoon → Bedrijf → KVK */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
+
+              {/* === CONTACTPERSOON (PRIMAIR) === */}
+              <Sectie titel="Contactpersoon" icon={UserCircle2}>
+                <div className="p-3 bg-accent/5 border border-accent/20 rounded-md flex items-start gap-2 mb-3">
+                  <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    De primaire contactpersoon wordt bovenaan getoond in lijsten en details.
+                    {relatieId && (
+                      <> Extra contactpersonen voeg je toe via de detailpagina van deze relatie.</>
+                    )}
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Naam" span={2}>
+                    <Input
+                      value={contactpersoonInput.naam}
+                      onChange={e => setCp('naam', e.target.value)}
+                      placeholder="bv. Léon van den Heuvel"
+                    />
+                  </Veld>
+                  <Veld label="Functie">
+                    <Input
+                      value={contactpersoonInput.functie}
+                      onChange={e => setCp('functie', e.target.value)}
+                      placeholder="bv. Investment Manager"
+                    />
+                  </Veld>
+                  <Veld label="E-mail">
+                    <Input
+                      type="email"
+                      value={contactpersoonInput.email}
+                      onChange={e => setCp('email', e.target.value)}
+                      placeholder="naam@bedrijf.nl"
+                    />
+                  </Veld>
+                  <Veld label="Telefoon (vast)">
+                    <Input
+                      value={contactpersoonInput.telefoon}
+                      onChange={e => setCp('telefoon', e.target.value)}
+                      placeholder="020 1234567"
+                    />
+                  </Veld>
+                  <Veld label="Telefoon (mobiel)">
+                    <Input
+                      value={contactpersoonInput.telefoonMobiel}
+                      onChange={e => setCp('telefoonMobiel', e.target.value)}
+                      placeholder="06 12345678"
+                    />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              {/* === BEDRIJFSGEGEVENS === */}
               <Sectie titel="Bedrijfsgegevens">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Bedrijfsnaam" span={2}>
@@ -254,6 +394,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                 </div>
               </Sectie>
 
+              {/* === KVK & VESTIGINGSADRES === */}
               <Sectie titel="KVK & vestigingsadres">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="KVK-nummer">
@@ -282,26 +423,29 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                 </div>
               </Sectie>
 
-              <Sectie titel="Directe contactgegevens (fallback)">
-                <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2 mb-3">
-                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    Vul hier de hoofdcontactgegevens van het bedrijf in. Individuele contactpersonen
-                    beheer je op de Contact-tab.
-                  </p>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Telefoon (algemeen)">
-                    <Input value={form.telefoon} onChange={e => set('telefoon', e.target.value)} />
-                  </Veld>
-                  <Veld label="E-mail (algemeen)">
-                    <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
-                  </Veld>
-                </div>
-              </Sectie>
+              {/* === LEGACY CONTACTGEGEVENS === alleen tonen als al gevuld */}
+              {heeftLegacyContactdata && (
+                <Sectie titel="Algemene contactgegevens (legacy)">
+                  <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2 mb-3">
+                    <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Deze velden zijn van een eerdere versie. Voor nieuwe relaties gebruik je de
+                      Contactpersoon-sectie hierboven. Maak deze velden leeg om ze te verbergen.
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Veld label="Telefoon (algemeen)">
+                      <Input value={form.telefoon} onChange={e => set('telefoon', e.target.value)} />
+                    </Veld>
+                    <Veld label="E-mail (algemeen)">
+                      <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                    </Veld>
+                  </div>
+                </Sectie>
+              )}
             </TabsContent>
 
-            {/* VASTGOED — nieuwe taxonomie */}
+            {/* VASTGOED — onveranderd */}
             <TabsContent value="vastgoed" className="space-y-5 mt-0">
               <Sectie titel="Type vastgoed (multi-select)">
                 <MultiSelectChips
@@ -344,7 +488,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
               </Sectie>
             </TabsContent>
 
-            {/* INVESTEERDER */}
+            {/* INVESTEERDER — uitgebreid met communicatie + NDA (was Contact-tab) */}
             <TabsContent value="investeerder" className="space-y-5 mt-0">
               <Sectie titel="Asset classes van interesse (legacy)">
                 <MultiSelectChips
@@ -408,10 +552,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                   onChange={v => set('voorkeurDealstructuur', v as Dealstructuur[])}
                 />
               </Sectie>
-            </TabsContent>
 
-            {/* CONTACT */}
-            <TabsContent value="contact" className="space-y-5 mt-0">
+              {/* NIEUW: communicatievoorkeuren (was tab Contact) */}
               <Sectie titel="Communicatievoorkeuren">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Voorkeur kanaal">
@@ -441,6 +583,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                 </div>
               </Sectie>
 
+              {/* NIEUW: NDA-status (was tab Contact) */}
               <Sectie titel="NDA-status">
                 <div className="grid sm:grid-cols-2 gap-4 items-end">
                   <label className="flex items-center gap-2 text-sm">
@@ -457,19 +600,6 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                     </Veld>
                   )}
                 </div>
-              </Sectie>
-
-              <Sectie titel="Contactpersonen">
-                {relatieId ? (
-                  <ContactpersonenPanel relatieId={relatieId} />
-                ) : (
-                  <div className="border border-dashed border-border rounded-md p-6 text-center">
-                    <Users className="h-6 w-6 mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Sla de relatie eerst op om contactpersonen toe te voegen.
-                    </p>
-                  </div>
-                )}
               </Sectie>
             </TabsContent>
 
@@ -518,10 +648,19 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
 }
 
 
-function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
+function Sectie({
+  titel,
+  children,
+  icon: Icon,
+}: {
+  titel: string;
+  children: ReactNode;
+  icon?: typeof Info;
+}) {
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5 flex items-center gap-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5" />}
         {titel}
       </h3>
       <div className="space-y-3">{children}</div>
