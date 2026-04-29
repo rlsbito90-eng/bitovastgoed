@@ -12,6 +12,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
@@ -34,7 +35,7 @@ const emptyForm = {
 };
 
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById } = useDataStore();
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -164,7 +165,9 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               <Label>Relatie</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.relatieId} onChange={e => set('relatieId', e.target.value)}>
                 <option value="">Geen</option>
-                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>)}
+                {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
+                  <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
