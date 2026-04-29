@@ -92,3 +92,65 @@ export function getRelatieNaamCompact(
   if (secundair) return `${primair} · ${secundair}`;
   return primair;
 }
+
+/**
+ * Bouwt een eenduidig label voor een relatie in dropdowns en lijsten.
+ * Voorkomt meerdere identieke "Onbekend"-opties.
+ *
+ * Volgorde:
+ *   1. "Bedrijfsnaam – Contactpersoon" als beide bekend
+ *   2. "Bedrijfsnaam"
+ *   3. "Contactpersoon"
+ *   4. "Onbekende relatie – e-mail/telefoon"
+ *   5. "Onbekende relatie – [korte ID]"
+ */
+export function getRelatieDropdownLabel(
+  relatie: Relatie | null | undefined,
+  contactpersonen?: RelatieContactpersoon[],
+): string {
+  if (!relatie) return 'Onbekende relatie';
+
+  const bedrijfsnaam = relatie.bedrijfsnaam?.trim() || '';
+
+  // Contactpersoon: eerst primaire uit relatie_contactpersonen, anders oud veld
+  const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
+  const contactpersoon =
+    primaireCp?.naam?.trim() ||
+    relatie.contactpersoon?.trim() ||
+    '';
+
+  if (bedrijfsnaam && contactpersoon) return `${bedrijfsnaam} – ${contactpersoon}`;
+  if (bedrijfsnaam) return bedrijfsnaam;
+  if (contactpersoon) return contactpersoon;
+
+  const email =
+    relatie.email?.trim() ||
+    primaireCp?.email?.trim() ||
+    '';
+  if (email) return `Onbekende relatie – ${email}`;
+
+  const telefoon =
+    relatie.telefoon?.trim() ||
+    primaireCp?.telefoon?.trim() ||
+    primaireCp?.telefoonMobiel?.trim() ||
+    '';
+  if (telefoon) return `Onbekende relatie – ${telefoon}`;
+
+  const kortId = relatie.id ? relatie.id.slice(0, 6) : 'zonder ID';
+  return `Onbekende relatie – ${kortId}`;
+}
+
+/**
+ * Sorteert relaties alfabetisch op het dropdown-label (case-insensitive,
+ * Nederlandse locale). Retourneert een nieuwe array.
+ */
+export function sorteerRelatiesVoorDropdown(
+  relaties: Relatie[],
+  contactpersonen?: RelatieContactpersoon[],
+): Relatie[] {
+  return [...relaties].sort((a, b) => {
+    const la = getRelatieDropdownLabel(a, contactpersonen);
+    const lb = getRelatieDropdownLabel(b, contactpersonen);
+    return la.localeCompare(lb, 'nl', { sensitivity: 'base' });
+  });
+}
