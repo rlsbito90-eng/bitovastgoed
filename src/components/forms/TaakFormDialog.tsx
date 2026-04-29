@@ -12,6 +12,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
