@@ -24,7 +24,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { Trophy, AlertCircle } from 'lucide-react';
-import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
