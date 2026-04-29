@@ -203,8 +203,8 @@ export default function ZoekprofielFormDialog({
                       disabled={!!defaultRelatieId && !isEdit}
                     >
                       <option value="">— Kies relatie —</option>
-                      {relaties.map(r => (
-                        <option key={r.id} value={r.id}>{getRelatieNaamCompact(r, contactpersonen)}</option>
+                      {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
+                        <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
                       ))}
                     </select>
                   </Veld>
