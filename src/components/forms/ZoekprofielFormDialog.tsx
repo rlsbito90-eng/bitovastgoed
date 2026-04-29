@@ -27,7 +27,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
-import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
