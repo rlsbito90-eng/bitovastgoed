@@ -35,7 +35,7 @@ const emptyForm = {
 };
 
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById } = useDataStore();
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
