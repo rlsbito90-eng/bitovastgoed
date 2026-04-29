@@ -8,7 +8,7 @@ import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
-import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 
 export default function TakenPage() {
   const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen } = useDataStore();
