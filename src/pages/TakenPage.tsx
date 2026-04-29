@@ -62,7 +62,7 @@ export default function TakenPage() {
         <div className="min-w-0 flex-1">
           <p className={`text-sm font-medium ${isAfgerond ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{taak.titel}</p>
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-            {rel && <span className="truncate max-w-[180px]">{getRelatieNaamCompact(rel, contactpersonen)}</span>}
+            {rel && <span className="truncate max-w-[180px]">{getRelatieDropdownLabel(rel, contactpersonen)}</span>}
             {obj && <><span aria-hidden>·</span><span className="truncate max-w-[180px]">{obj.titel}</span></>}
             {taak.type && <><span aria-hidden>·</span><span className="capitalize">{taak.type}</span></>}
             {taak.deadline && (
