@@ -165,7 +165,9 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               <Label>Relatie</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.relatieId} onChange={e => set('relatieId', e.target.value)}>
                 <option value="">Geen</option>
-                {relaties.map(r => <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>)}
+                {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
+                  <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
