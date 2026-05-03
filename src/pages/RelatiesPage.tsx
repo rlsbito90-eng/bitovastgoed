@@ -36,6 +36,9 @@ export default function RelatiesPage() {
         subtitle={`${relaties.length} contacten`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => setHerstelOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-destructive/40 text-destructive rounded-md hover:bg-destructive/5 transition-colors">
+              Foutieve import herstellen
+            </button>
             <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
               <Upload className="h-4 w-4" /> Bulk importeren
             </button>
