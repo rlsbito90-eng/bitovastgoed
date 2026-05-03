@@ -72,6 +72,11 @@ export default function RelatieDetailPage() {
   const taken = store.getTakenByRelatie(relatie.id);
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
+  const fallbackIds = [...store.relaties]
+    .sort((a, b) => (a.bedrijfsnaam || a.contactpersoon || '').localeCompare(b.bedrijfsnaam || b.contactpersoon || '', 'nl'))
+    .map(r => r.id);
+  const navInfo = getListNavigation('relaties', relatie.id, fallbackIds);
+
   const handleDelete = async () => {
     try {
       await store.deleteRelatie(relatie.id);
