@@ -159,6 +159,7 @@ export default function RelatiesPage() {
 
       <RelatieFormDialog open={formOpen} onOpenChange={setFormOpen} />
       <BulkRelatieImportDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+      <RelatieHerstelImportDialog open={herstelOpen} onOpenChange={setHerstelOpen} />
     </div>
   );
 }
