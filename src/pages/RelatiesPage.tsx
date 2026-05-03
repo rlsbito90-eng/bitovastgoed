@@ -12,6 +12,8 @@ import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportD
 import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+import { useEffect } from 'react';
+import { saveListContext } from '@/lib/listNavigation';
 
 export default function RelatiesPage() {
   const { relaties } = useDataStore();
@@ -28,6 +30,10 @@ export default function RelatiesPage() {
     const matchType = !typeFilter || r.type === typeFilter;
     return matchZoek && matchStatus && matchType;
   });
+
+  useEffect(() => {
+    saveListContext('relaties', filtered.map(r => r.id));
+  }, [filtered]);
 
   return (
     <div className="page-shell">
