@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
@@ -12,6 +12,7 @@ import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportD
 import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+import { saveListContext } from '@/lib/listNavigation';
 
 export default function RelatiesPage() {
   const { relaties } = useDataStore();
@@ -28,6 +29,10 @@ export default function RelatiesPage() {
     const matchType = !typeFilter || r.type === typeFilter;
     return matchZoek && matchStatus && matchType;
   });
+
+  useEffect(() => {
+    saveListContext('relaties', filtered.map(r => r.id));
+  }, [filtered]);
 
   return (
     <div className="page-shell">

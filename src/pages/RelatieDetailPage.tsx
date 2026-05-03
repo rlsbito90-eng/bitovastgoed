@@ -29,6 +29,8 @@ import {
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNamen } from '@/lib/relatieNaam';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 const DEALSTRUCTUUR_LABELS: Record<string, string> = {
   direct: 'Direct eigendom',
@@ -70,6 +72,11 @@ export default function RelatieDetailPage() {
   const taken = store.getTakenByRelatie(relatie.id);
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
+  const fallbackIds = [...store.relaties]
+    .sort((a, b) => (a.bedrijfsnaam || a.contactpersoon || '').localeCompare(b.bedrijfsnaam || b.contactpersoon || '', 'nl'))
+    .map(r => r.id);
+  const navInfo = getListNavigation('relaties', relatie.id, fallbackIds);
+
   const handleDelete = async () => {
     try {
       await store.deleteRelatie(relatie.id);
@@ -86,9 +93,16 @@ export default function RelatieDetailPage() {
 
   return (
     <div className="page-shell-narrow">
-      <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Relaties
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Relaties
+        </Link>
+        <ListNavigator
+          info={navInfo}
+          buildHref={(id) => `/relaties/${id}`}
+          itemLabel="relatie"
+        />
+      </div>
 
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex flex-wrap justify-end gap-2">
