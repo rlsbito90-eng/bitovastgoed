@@ -93,9 +93,16 @@ export default function RelatieDetailPage() {
 
   return (
     <div className="page-shell-narrow">
-      <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Relaties
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Relaties
+        </Link>
+        <ListNavigator
+          info={navInfo}
+          buildHref={(id) => `/relaties/${id}`}
+          itemLabel="relatie"
+        />
+      </div>
 
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex flex-wrap justify-end gap-2">
