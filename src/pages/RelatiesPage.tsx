@@ -8,6 +8,7 @@ import { Search, Plus, ChevronRight, Upload } from 'lucide-react';
 import type { LeadStatus, PartijType } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
+import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportDialog';
 import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
