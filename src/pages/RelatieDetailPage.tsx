@@ -29,6 +29,8 @@ import {
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNamen } from '@/lib/relatieNaam';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 const DEALSTRUCTUUR_LABELS: Record<string, string> = {
   direct: 'Direct eigendom',
