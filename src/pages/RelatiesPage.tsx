@@ -20,6 +20,7 @@ export default function RelatiesPage() {
   const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
   const [formOpen, setFormOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [herstelOpen, setHerstelOpen] = useState(false);
 
   const filtered = relaties.filter(r => {
     const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
