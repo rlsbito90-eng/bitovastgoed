@@ -12,6 +12,7 @@ import {
   type PipelineKandidaat, type PipelineFase, type InteresseNiveau, type VolgendeActieType,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
