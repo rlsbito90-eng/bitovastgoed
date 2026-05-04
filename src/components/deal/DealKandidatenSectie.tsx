@@ -109,8 +109,7 @@ export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Prop
             return (
               <li key={k.id} className="px-2 py-3 flex items-center justify-between gap-3">
                 <Link to={`/relaties/${rel.id}`} className="min-w-0 flex-1 hover:text-primary transition-colors">
-                  <p className="text-sm font-medium text-foreground truncate">{rel.bedrijfsnaam || '(geen naam)'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{rel.contactpersoon || '—'}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{getRelatieDropdownLabel(rel, contactpersonen)}</p>
                 </Link>
                 <div className="flex items-center gap-2 shrink-0">
                   <select
