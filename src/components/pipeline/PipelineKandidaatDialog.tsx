@@ -21,7 +21,7 @@ interface Props {
 }
 
 export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat }: Props) {
-  const { updatePipelineKandidaat, getRelatieById } = useDataStore();
+  const { updatePipelineKandidaat, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState<PipelineKandidaat>(kandidaat);
   const [saving, setSaving] = useState(false);
 
