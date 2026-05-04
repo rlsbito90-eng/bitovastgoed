@@ -107,9 +107,11 @@ export default function KandidatenKanban() {
 
   const relatieOpties = useMemo(() => {
     const ids = Array.from(new Set(pipelineKandidaten.map(k => k.relatieId)));
-    return ids.map(id => ({ id, naam: getRelatieById(id)?.bedrijfsnaam ?? '(onbekend)' }))
-      .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
-  }, [pipelineKandidaten, getRelatieById]);
+    return ids.map(id => {
+      const rel = getRelatieById(id);
+      return { id, naam: rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(onbekend)' };
+    }).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  }, [pipelineKandidaten, getRelatieById, contactpersonen]);
 
   const handleDrop = async (fase: PipelineFase) => {
     const id = dragId;
