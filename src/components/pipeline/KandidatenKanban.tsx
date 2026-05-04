@@ -249,7 +249,7 @@ export default function KandidatenKanban() {
                             onDragStart={e => e.preventDefault()}
                             className="block text-xs text-muted-foreground hover:text-primary truncate mb-2"
                           >
-                            {rel?.bedrijfsnaam ?? '(verwijderde relatie)'}
+                            {rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(verwijderde relatie)'}
                           </Link>
                           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                             <InteresseNiveauBadge niveau={k.interesseNiveau} />
