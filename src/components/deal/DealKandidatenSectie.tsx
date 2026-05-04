@@ -29,13 +29,16 @@ const STATUS_KLEUREN: Record<KandidaatStatus, string> = {
 };
 
 export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Props) {
-  const { relaties, getKandidatenVoorDeal, addDealKandidaat, updateDealKandidaat, removeDealKandidaat, getRelatieById } = useDataStore();
+  const { relaties, contactpersonen, getKandidatenVoorDeal, addDealKandidaat, updateDealKandidaat, removeDealKandidaat, getRelatieById } = useDataStore();
   const [adding, setAdding] = useState(false);
   const [keuze, setKeuze] = useState('');
 
   const kandidaten = getKandidatenVoorDeal(dealId);
   const gebruikteIds = new Set([primaireRelatieId, ...kandidaten.map(k => k.relatieId)]);
-  const beschikbareRelaties = relaties.filter(r => !gebruikteIds.has(r.id));
+  const beschikbareRelaties = sorteerRelatiesVoorDropdown(
+    relaties.filter(r => !gebruikteIds.has(r.id)),
+    contactpersonen,
+  );
 
   const handleAdd = async () => {
     if (!keuze) return;
