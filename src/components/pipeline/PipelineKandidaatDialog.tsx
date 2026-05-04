@@ -48,7 +48,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Pipeline — {relatie?.bedrijfsnaam ?? 'Kandidaat'}</DialogTitle>
+          <DialogTitle>Pipeline — {relatie ? getRelatieDropdownLabel(relatie, contactpersonen) : 'Kandidaat'}</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="status" className="w-full">
