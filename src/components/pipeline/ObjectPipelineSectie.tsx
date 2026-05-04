@@ -69,7 +69,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       return getRelatieDropdownLabel(a.relatie, contactpersonen)
         .localeCompare(getRelatieDropdownLabel(b.relatie, contactpersonen), 'nl', { sensitivity: 'base' });
     });
-  }, [alleBeschikbaar, zoek]);
+  }, [alleBeschikbaar, zoek, contactpersonen]);
 
   const toggleSelectie = (id: string) => {
     setGeselecteerd(prev => {
