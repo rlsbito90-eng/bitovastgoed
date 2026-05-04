@@ -9,6 +9,7 @@ import { PipelineFaseBadge, InteresseNiveauBadge, FASE_LABEL } from './PipelineB
 import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat, berekenMatchScore } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 
