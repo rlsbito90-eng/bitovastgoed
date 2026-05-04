@@ -232,7 +232,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                   <tr key={k.id} className="hover:bg-muted/30">
                     <td className="py-2 px-2">
                       <Link to={`/relaties/${k.relatieId}`} className="font-medium hover:text-primary inline-flex items-center gap-1">
-                        {rel?.bedrijfsnaam ?? '(verwijderd)'}
+                        {rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(verwijderd)'}
                         <ExternalLink className="h-3 w-3 opacity-60" />
                       </Link>
                     </td>
