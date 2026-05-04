@@ -27,7 +27,7 @@ const fmtBedrag = (n?: number) =>
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM', { locale: nl }) : '';
 
 export default function KandidatenKanban() {
-  const { pipelineKandidaten, getObjectById, getRelatieById, updatePipelineKandidaat } = useDataStore();
+  const { pipelineKandidaten, contactpersonen, getObjectById, getRelatieById, updatePipelineKandidaat } = useDataStore();
   const { propertyTypes, dealTypes } = usePropertyTaxonomie();
 
   const [zoek, setZoek] = useState('');
