@@ -89,7 +89,7 @@ export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Prop
           >
             <option value="">— Kies relatie —</option>
             {beschikbareRelaties.map(r => (
-              <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>
+              <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
             ))}
           </select>
           <div className="flex gap-2">
