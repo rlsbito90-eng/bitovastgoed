@@ -119,14 +119,15 @@ export function getRelatieDropdownLabel(
     relatie.contactpersoon?.trim() ||
     '';
 
-  if (bedrijfsnaam && contactpersoon) return `${bedrijfsnaam} – ${contactpersoon}`;
-  if (bedrijfsnaam) return bedrijfsnaam;
-  if (contactpersoon) return contactpersoon;
-
   const email =
     relatie.email?.trim() ||
     primaireCp?.email?.trim() ||
     '';
+
+  if (bedrijfsnaam && contactpersoon) return `${bedrijfsnaam} – ${contactpersoon}`;
+  if (bedrijfsnaam) return bedrijfsnaam;
+  if (contactpersoon && email) return `${contactpersoon} – ${email}`;
+  if (contactpersoon) return contactpersoon;
   if (email) return `Onbekende relatie – ${email}`;
 
   const telefoon =
