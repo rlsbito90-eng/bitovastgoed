@@ -126,7 +126,10 @@ export default function ZoekprofielFormDialog({
       setTab('basis');
       return;
     }
-    if (form.typeVastgoed.length === 0) {
+    const heeftType =
+      (form.propertyTypeIds?.length ?? 0) > 0 ||
+      (form.typeVastgoed?.length ?? 0) > 0;
+    if (!heeftType) {
       toast.error('Kies ten minste één type vastgoed');
       setTab('wat');
       return;
