@@ -66,7 +66,8 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       const sa = a.score ?? -1;
       const sb = b.score ?? -1;
       if (sb !== sa) return sb - sa;
-      return (a.relatie.bedrijfsnaam || '').localeCompare(b.relatie.bedrijfsnaam || '');
+      return getRelatieDropdownLabel(a.relatie, contactpersonen)
+        .localeCompare(getRelatieDropdownLabel(b.relatie, contactpersonen), 'nl', { sensitivity: 'base' });
     });
   }, [alleBeschikbaar, zoek]);
 
