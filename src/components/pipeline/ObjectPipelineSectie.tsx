@@ -191,12 +191,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                 >
                   <Checkbox checked={checked} onCheckedChange={() => toggleSelectie(r.id)} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{r.bedrijfsnaam || '(geen naam)'}</div>
-                    {(r.contactpersoon || r.email) && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {[r.contactpersoon, r.email].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
+                    <div className="text-sm font-medium truncate">{getRelatieDropdownLabel(r, contactpersonen)}</div>
                   </div>
                   <div className="text-xs font-mono-data text-muted-foreground w-12 text-right">
                     {score != null ? `${score}%` : '—'}
