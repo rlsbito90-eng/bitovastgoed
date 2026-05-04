@@ -9,6 +9,7 @@ import { PipelineFaseBadge, InteresseNiveauBadge, FASE_LABEL } from './PipelineB
 import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat, berekenMatchScore } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 
@@ -19,7 +20,7 @@ const fmtBedrag = (n?: number) => n != null ? new Intl.NumberFormat('nl-NL', { s
 
 export default function ObjectPipelineSectie({ objectId }: Props) {
   const {
-    relaties, getObjectById, getPipelineVoorObject,
+    relaties, contactpersonen, getObjectById, getPipelineVoorObject,
     addPipelineKandidaat, removePipelineKandidaat, getZoekprofielenByRelatie,
   } = useDataStore();
 
@@ -65,9 +66,10 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
       const sa = a.score ?? -1;
       const sb = b.score ?? -1;
       if (sb !== sa) return sb - sa;
-      return (a.relatie.bedrijfsnaam || '').localeCompare(b.relatie.bedrijfsnaam || '');
+      return getRelatieDropdownLabel(a.relatie, contactpersonen)
+        .localeCompare(getRelatieDropdownLabel(b.relatie, contactpersonen), 'nl', { sensitivity: 'base' });
     });
-  }, [alleBeschikbaar, zoek]);
+  }, [alleBeschikbaar, zoek, contactpersonen]);
 
   const toggleSelectie = (id: string) => {
     setGeselecteerd(prev => {
@@ -189,12 +191,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                 >
                   <Checkbox checked={checked} onCheckedChange={() => toggleSelectie(r.id)} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{r.bedrijfsnaam || '(geen naam)'}</div>
-                    {(r.contactpersoon || r.email) && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {[r.contactpersoon, r.email].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
+                    <div className="text-sm font-medium truncate">{getRelatieDropdownLabel(r, contactpersonen)}</div>
                   </div>
                   <div className="text-xs font-mono-data text-muted-foreground w-12 text-right">
                     {score != null ? `${score}%` : '—'}
@@ -235,7 +232,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                   <tr key={k.id} className="hover:bg-muted/30">
                     <td className="py-2 px-2">
                       <Link to={`/relaties/${k.relatieId}`} className="font-medium hover:text-primary inline-flex items-center gap-1">
-                        {rel?.bedrijfsnaam ?? '(verwijderd)'}
+                        {rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(verwijderd)'}
                         <ExternalLink className="h-3 w-3 opacity-60" />
                       </Link>
                     </td>

@@ -20,13 +20,14 @@ import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 
 const fmtBedrag = (n?: number) =>
   n != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '';
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM', { locale: nl }) : '';
 
 export default function KandidatenKanban() {
-  const { pipelineKandidaten, getObjectById, getRelatieById, updatePipelineKandidaat } = useDataStore();
+  const { pipelineKandidaten, contactpersonen, getObjectById, getRelatieById, updatePipelineKandidaat } = useDataStore();
   const { propertyTypes, dealTypes } = usePropertyTaxonomie();
 
   const [zoek, setZoek] = useState('');
@@ -106,9 +107,11 @@ export default function KandidatenKanban() {
 
   const relatieOpties = useMemo(() => {
     const ids = Array.from(new Set(pipelineKandidaten.map(k => k.relatieId)));
-    return ids.map(id => ({ id, naam: getRelatieById(id)?.bedrijfsnaam ?? '(onbekend)' }))
-      .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
-  }, [pipelineKandidaten, getRelatieById]);
+    return ids.map(id => {
+      const rel = getRelatieById(id);
+      return { id, naam: rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(onbekend)' };
+    }).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  }, [pipelineKandidaten, getRelatieById, contactpersonen]);
 
   const handleDrop = async (fase: PipelineFase) => {
     const id = dragId;
@@ -246,7 +249,7 @@ export default function KandidatenKanban() {
                             onDragStart={e => e.preventDefault()}
                             className="block text-xs text-muted-foreground hover:text-primary truncate mb-2"
                           >
-                            {rel?.bedrijfsnaam ?? '(verwijderde relatie)'}
+                            {rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(verwijderde relatie)'}
                           </Link>
                           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                             <InteresseNiveauBadge niveau={k.interesseNiveau} />

@@ -12,6 +12,7 @@ import {
   type PipelineKandidaat, type PipelineFase, type InteresseNiveau, type VolgendeActieType,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 
 interface Props {
   open: boolean;
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat }: Props) {
-  const { updatePipelineKandidaat, getRelatieById } = useDataStore();
+  const { updatePipelineKandidaat, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState<PipelineKandidaat>(kandidaat);
   const [saving, setSaving] = useState(false);
 
@@ -47,7 +48,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Pipeline — {relatie?.bedrijfsnaam ?? 'Kandidaat'}</DialogTitle>
+          <DialogTitle>Pipeline — {relatie ? getRelatieDropdownLabel(relatie, contactpersonen) : 'Kandidaat'}</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="status" className="w-full">

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import type { KandidaatStatus } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   dealId: string;
@@ -28,13 +29,16 @@ const STATUS_KLEUREN: Record<KandidaatStatus, string> = {
 };
 
 export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Props) {
-  const { relaties, getKandidatenVoorDeal, addDealKandidaat, updateDealKandidaat, removeDealKandidaat, getRelatieById } = useDataStore();
+  const { relaties, contactpersonen, getKandidatenVoorDeal, addDealKandidaat, updateDealKandidaat, removeDealKandidaat, getRelatieById } = useDataStore();
   const [adding, setAdding] = useState(false);
   const [keuze, setKeuze] = useState('');
 
   const kandidaten = getKandidatenVoorDeal(dealId);
   const gebruikteIds = new Set([primaireRelatieId, ...kandidaten.map(k => k.relatieId)]);
-  const beschikbareRelaties = relaties.filter(r => !gebruikteIds.has(r.id));
+  const beschikbareRelaties = sorteerRelatiesVoorDropdown(
+    relaties.filter(r => !gebruikteIds.has(r.id)),
+    contactpersonen,
+  );
 
   const handleAdd = async () => {
     if (!keuze) return;
@@ -85,7 +89,7 @@ export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Prop
           >
             <option value="">— Kies relatie —</option>
             {beschikbareRelaties.map(r => (
-              <option key={r.id} value={r.id}>{r.bedrijfsnaam || '(geen naam)'}</option>
+              <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
             ))}
           </select>
           <div className="flex gap-2">
@@ -105,8 +109,7 @@ export default function DealKandidatenSectie({ dealId, primaireRelatieId }: Prop
             return (
               <li key={k.id} className="px-2 py-3 flex items-center justify-between gap-3">
                 <Link to={`/relaties/${rel.id}`} className="min-w-0 flex-1 hover:text-primary transition-colors">
-                  <p className="text-sm font-medium text-foreground truncate">{rel.bedrijfsnaam || '(geen naam)'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{rel.contactpersoon || '—'}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{getRelatieDropdownLabel(rel, contactpersonen)}</p>
                 </Link>
                 <div className="flex items-center gap-2 shrink-0">
                   <select
