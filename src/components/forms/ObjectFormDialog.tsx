@@ -267,16 +267,18 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       if (isEdit && object) {
         await updateObject(object.id, data);
         toast.success('Object bijgewerkt');
+        onOpenChange(false);
       } else if (gemaaktId) {
-        // Al eens opgeslagen in deze sessie, nu extra wijzigingen
         await updateObject(gemaaktId, data);
         toast.success('Object bijgewerkt');
+        onOpenChange(false);
       } else {
         const payload = { ...data, datumToegevoegd: new Date().toISOString().split('T')[0] };
         const nieuw = await addObject(payload as any);
         if (nieuw?.id) {
           setGemaaktId(nieuw.id);
           toast.success('Object aangemaakt — je kunt nu huurders, documenten en foto\'s toevoegen');
+          // Niet sluiten: gebruiker kan nu media-tab gebruiken
         }
       }
     } catch (err: any) {
