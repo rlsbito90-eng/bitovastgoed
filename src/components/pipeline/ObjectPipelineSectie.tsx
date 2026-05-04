@@ -20,7 +20,7 @@ const fmtBedrag = (n?: number) => n != null ? new Intl.NumberFormat('nl-NL', { s
 
 export default function ObjectPipelineSectie({ objectId }: Props) {
   const {
-    relaties, getObjectById, getPipelineVoorObject,
+    relaties, contactpersonen, getObjectById, getPipelineVoorObject,
     addPipelineKandidaat, removePipelineKandidaat, getZoekprofielenByRelatie,
   } = useDataStore();
 
