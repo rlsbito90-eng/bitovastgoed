@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import type { KandidaatStatus } from '@/data/mock-data';
 import { toast } from 'sonner';
+import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 
 interface Props {
   dealId: string;
