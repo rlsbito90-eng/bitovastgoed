@@ -1261,10 +1261,39 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
-    const { data, error } = await supabase.from('deals').update(dealToDb(d) as any).eq('id', id).select().single();
+    const payload: Partial<Deal> = { ...d };
+    if (d.fase === 'afgerond' || d.fase === 'afgevallen') {
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = d.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen';
+      }
+    }
+    const { data, error } = await supabase.from('deals').update(dealToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
   }, []);
+
+  const archiveDeal = useCallback(async (id: string, reason?: string) => {
+    const { data, error } = await supabase.from('deals').update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      archived_reason: reason ?? 'Handmatig gearchiveerd',
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
+  }, []);
+
+  const unarchiveDeal = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('deals').update({
+      is_archived: false,
+      archived_at: null,
+      archived_reason: null,
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
+  }, []);
+
 
   const deleteDeal = useCallback(async (id: string) => {
     const { error } = await supabase.from('deals').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
