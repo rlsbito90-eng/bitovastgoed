@@ -507,6 +507,9 @@ const dealFromDb = (d: any): Deal => ({
   // Toggle voor referentieanalyse-sectie. Default true (aan).
   referentieanalyseZichtbaar: d.referentieanalyse_zichtbaar !== false,
   softDeletedAt: d.soft_deleted_at ?? undefined,
+  isArchived: !!d.is_archived,
+  archivedAt: d.archived_at ?? undefined,
+  archivedReason: d.archived_reason ?? undefined,
 });
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
