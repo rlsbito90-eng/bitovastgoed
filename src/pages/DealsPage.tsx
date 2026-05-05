@@ -34,7 +34,19 @@ export default function DealsPage() {
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
   const [formOpen, setFormOpen] = useState(false);
 
+export default function DealsPage() {
+  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal } = useDataStore();
+  const [zoek, setZoek] = useState('');
+  const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
+  const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
+  const [formOpen, setFormOpen] = useState(false);
+
+  const aantalArchief = deals.filter(d => d.isArchived).length;
+  const aantalActief = deals.length - aantalArchief;
+
   const filtered = deals.filter(d => {
+    if (archiefView === 'actief' && d.isArchived) return false;
+    if (archiefView === 'archief' && !d.isArchived) return false;
     const obj = getObjectById(d.objectId);
     const rel = getRelatieById(d.relatieId);
     const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
@@ -42,11 +54,29 @@ export default function DealsPage() {
     return matchZoek && matchFase;
   });
 
+  const handleHerstel = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await unarchiveDeal(id);
+      toast.success('Deal teruggezet naar Actief');
+    } catch (err: any) {
+      toast.error(`Herstellen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const tabs: { key: ArchiefView; label: string; count: number }[] = [
+    { key: 'actief', label: 'Actief', count: aantalActief },
+    { key: 'archief', label: 'Archief', count: aantalArchief },
+    { key: 'alles', label: 'Alles', count: deals.length },
+  ];
+  const isArchiefView = archiefView === 'archief';
+
   return (
     <div className="page-shell">
       <PageHeader
         title="Deals"
-        subtitle={`${deals.length} deals in de pipeline`}
+        subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}
         actions={
           <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
             <Plus className="h-4 w-4" /> Nieuwe deal
@@ -54,6 +84,21 @@ export default function DealsPage() {
         }
       />
 
+      <div className="flex gap-1 border-b border-border">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setArchiefView(t.key)}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              archiefView === t.key
+                ? 'border-accent text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t.label} <span className="text-xs text-muted-foreground">({t.count})</span>
+          </button>
+        ))}
+      </div>
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
