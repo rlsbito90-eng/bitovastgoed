@@ -838,6 +838,8 @@ interface DataStore {
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
   updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
+  archiveObject: (id: string, reason?: string) => Promise<void>;
+  unarchiveObject: (id: string) => Promise<void>;
 
   // Huurders
   addHuurder: (h: Omit<ObjectHuurder, 'id'>) => Promise<ObjectHuurder | null>;
