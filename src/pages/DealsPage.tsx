@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency } from '@/data/mock-data';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { DealFaseBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, Star } from 'lucide-react';
+import { Search, Plus, ChevronRight, Star, Archive, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { DealFase } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+
+type ArchiefView = 'actief' | 'archief' | 'alles';
 
 const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
