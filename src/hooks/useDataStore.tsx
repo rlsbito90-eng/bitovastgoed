@@ -402,6 +402,9 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   financiele_scenarios: o.financieleScenarios !== undefined ? (o.financieleScenarios ?? {}) : undefined,
   documentatie_status: o.documentatieStatus !== undefined ? (o.documentatieStatus ?? {}) : undefined,
   im_secties_zichtbaar: o.imSectiesZichtbaar !== undefined ? (o.imSectiesZichtbaar ?? {}) : undefined,
+  is_archived: o.isArchived,
+  archived_at: o.archivedAt !== undefined ? (o.archivedAt || null) : undefined,
+  archived_reason: o.archivedReason !== undefined ? (o.archivedReason || null) : undefined,
 });
 
 
