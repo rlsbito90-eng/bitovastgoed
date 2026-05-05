@@ -1585,7 +1585,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
     getContactpersonenVoorRelatie: (rid) => contactpersonen.filter(c => c.relatieId === rid),
 
-    addObject, updateObject, deleteObject,
+    addObject, updateObject, deleteObject, archiveObject, unarchiveObject,
     addHuurder, updateHuurder, deleteHuurder,
     getHuurdersVoorObject: (oid) => huurders.filter(h => h.objectId === oid),
     getHuurMetrics: (oid) => huurMetrics[oid],
@@ -1596,7 +1596,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addFoto, updateFoto, deleteFoto, setHoofdfoto,
     getFotosVoorObject: (oid) => fotos.filter(f => f.objectId === oid).sort((a, b) => a.volgorde - b.volgorde),
 
-    addDeal, updateDeal, deleteDeal,
+    addDeal, updateDeal, deleteDeal, archiveDeal, unarchiveDeal,
     addTaak, updateTaak, deleteTaak,
     addZoekprofiel, updateZoekprofiel, deleteZoekprofiel,
 
