@@ -179,6 +179,21 @@ export default function DealsPage() {
                           <Sterren aantal={deal.interessegraad} />
                         </td>
                         <td className="px-5 py-3.5"><DealFaseBadge fase={deal.fase} /></td>
+                        {isArchiefView && (
+                          <td className="px-5 py-3.5 text-xs">
+                            {deal.isArchived ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-muted-foreground">
+                                  {deal.archivedReason ?? '—'}
+                                  {deal.archivedAt && <span className="ml-1">· {formatDate(deal.archivedAt)}</span>}
+                                </span>
+                                <button onClick={(e) => handleHerstel(deal.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                                  <RotateCcw className="h-3 w-3" /> Terugzetten
+                                </button>
+                              </div>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
