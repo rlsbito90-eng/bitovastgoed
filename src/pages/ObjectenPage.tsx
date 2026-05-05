@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency } from '@/data/mock-data';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight } from 'lucide-react';
+import { Search, Plus, ChevronRight, Archive, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ObjectStatus } from '@/data/mock-data';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+
+type ArchiefView = 'actief' | 'archief' | 'alles';
 
 export default function ObjectenPage() {
   const { objecten } = useDataStore();
