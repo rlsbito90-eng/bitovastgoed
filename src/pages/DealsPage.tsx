@@ -125,6 +125,17 @@ export default function DealsPage() {
                         <span className="text-xs font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</span>
                         <Sterren aantal={deal.interessegraad} />
                       </div>
+                      {deal.isArchived && (
+                        <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Archive className="h-3 w-3" /> {deal.archivedReason ?? 'Gearchiveerd'}
+                            {deal.archivedAt && <span>· {formatDate(deal.archivedAt)}</span>}
+                          </span>
+                          <button onClick={(e) => handleHerstel(deal.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                            <RotateCcw className="h-3 w-3" /> Terugzetten
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <DealFaseBadge fase={deal.fase} />
