@@ -533,6 +533,10 @@ export interface Deal {
    */
   referentieanalyseZichtbaar?: boolean;
   softDeletedAt?: string;
+  // Soft archive
+  isArchived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
 }
 
 export interface DealObjectKoppeling {
