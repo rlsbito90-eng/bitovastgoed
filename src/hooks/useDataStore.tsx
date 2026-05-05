@@ -1097,10 +1097,40 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
-    const { data, error } = await supabase.from('objecten').update(objectToDb(o) as any).eq('id', id).select().single();
+    const payload: Partial<ObjectVastgoed> = { ...o };
+    // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
+    if (o.status === 'verkocht' || o.status === 'ingetrokken') {
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = o.status === 'verkocht' ? 'Verkocht' : 'Ingetrokken';
+      }
+    }
+    const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
   }, []);
+
+  const archiveObject = useCallback(async (id: string, reason?: string) => {
+    const { data, error } = await supabase.from('objecten').update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      archived_reason: reason ?? 'Handmatig gearchiveerd',
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
+  }, []);
+
+  const unarchiveObject = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('objecten').update({
+      is_archived: false,
+      archived_at: null,
+      archived_reason: null,
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
+  }, []);
+
 
   const deleteObject = useCallback(async (id: string) => {
     // Verzamel storage-paden zodat we de bestanden ook opruimen
