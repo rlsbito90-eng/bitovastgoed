@@ -362,6 +362,11 @@ export interface ObjectVastgoed {
   referentieanalyseZichtbaar?: boolean;
   softDeletedAt?: string;
 
+  // Soft archive
+  isArchived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
+
   // Object Pipeline (Pipedrive-stijl) — los van object_pipeline (kandidaat)
   pipelineId?: string;
   pipelineStageId?: string;
