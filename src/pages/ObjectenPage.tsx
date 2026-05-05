@@ -157,6 +157,17 @@ export default function ObjectenPage() {
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                   </p>
+                  {obj.isArchived && (
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Archive className="h-3 w-3" /> {obj.archivedReason ?? 'Gearchiveerd'}
+                        {obj.archivedAt && <span>· {formatDate(obj.archivedAt)}</span>}
+                      </span>
+                      <button onClick={(e) => handleHerstel(obj.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                        <RotateCcw className="h-3 w-3" /> Terugzetten
+                      </button>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-1 mt-2">
                     <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
                     <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
