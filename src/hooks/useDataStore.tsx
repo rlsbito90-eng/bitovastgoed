@@ -864,6 +864,8 @@ interface DataStore {
   addDeal: (d: Omit<Deal, 'id'>) => Promise<Deal | null>;
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>;
   deleteDeal: (id: string) => Promise<void>;
+  archiveDeal: (id: string, reason?: string) => Promise<void>;
+  unarchiveDeal: (id: string) => Promise<void>;
 
   // Taken
   addTaak: (t: Omit<Taak, 'id'>) => Promise<Taak | null>;
