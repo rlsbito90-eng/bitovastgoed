@@ -158,6 +158,7 @@ export default function DealsPage() {
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Waarde</th>
                     <th className="text-center px-5 py-3 field-label hidden lg:table-cell">Interesse</th>
                     <th className="text-left px-5 py-3 field-label">Fase</th>
+                    {isArchiefView && <th className="text-left px-5 py-3 field-label">Archief</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
