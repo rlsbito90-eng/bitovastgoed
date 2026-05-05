@@ -177,6 +177,8 @@ export type Database = {
       deals: {
         Row: {
           afwijzingsreden: string | null
+          archived_at: string | null
+          archived_reason: string | null
           bank: string | null
           bezichtiging_gepland: string | null
           bezichtiging_tijd: string | null
@@ -192,6 +194,7 @@ export type Database = {
           id: string
           indicatief_bod: number | null
           interessegraad: number | null
+          is_archived: boolean
           notaris: string | null
           notities: string | null
           object_id: string
@@ -205,6 +208,8 @@ export type Database = {
         }
         Insert: {
           afwijzingsreden?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
           bezichtiging_tijd?: string | null
@@ -220,6 +225,7 @@ export type Database = {
           id?: string
           indicatief_bod?: number | null
           interessegraad?: number | null
+          is_archived?: boolean
           notaris?: string | null
           notities?: string | null
           object_id: string
@@ -233,6 +239,8 @@ export type Database = {
         }
         Update: {
           afwijzingsreden?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
           bezichtiging_tijd?: string | null
@@ -248,6 +256,7 @@ export type Database = {
           id?: string
           indicatief_bod?: number | null
           interessegraad?: number | null
+          is_archived?: boolean
           notaris?: string | null
           notities?: string | null
           object_id?: string
@@ -832,6 +841,8 @@ export type Database = {
           achterstallig_onderhoud: string | null
           adres: string | null
           anoniem: boolean
+          archived_at: string | null
+          archived_reason: string | null
           asbestinventarisatie_aanwezig: boolean | null
           beschikbaar_vanaf: string | null
           bestemmingsinformatie: string | null
@@ -863,6 +874,7 @@ export type Database = {
           intern_vertrouwelijk: boolean | null
           interne_opmerkingen: string | null
           investeringsthese: string | null
+          is_archived: boolean
           is_portefeuille: boolean
           kadastraal_nummer: string | null
           kadastrale_gemeente: string | null
@@ -937,6 +949,8 @@ export type Database = {
           achterstallig_onderhoud?: string | null
           adres?: string | null
           anoniem?: boolean
+          archived_at?: string | null
+          archived_reason?: string | null
           asbestinventarisatie_aanwezig?: boolean | null
           beschikbaar_vanaf?: string | null
           bestemmingsinformatie?: string | null
@@ -970,6 +984,7 @@ export type Database = {
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
           investeringsthese?: string | null
+          is_archived?: boolean
           is_portefeuille?: boolean
           kadastraal_nummer?: string | null
           kadastrale_gemeente?: string | null
@@ -1044,6 +1059,8 @@ export type Database = {
           achterstallig_onderhoud?: string | null
           adres?: string | null
           anoniem?: boolean
+          archived_at?: string | null
+          archived_reason?: string | null
           asbestinventarisatie_aanwezig?: boolean | null
           beschikbaar_vanaf?: string | null
           bestemmingsinformatie?: string | null
@@ -1077,6 +1094,7 @@ export type Database = {
           intern_vertrouwelijk?: boolean | null
           interne_opmerkingen?: string | null
           investeringsthese?: string | null
+          is_archived?: boolean
           is_portefeuille?: boolean
           kadastraal_nummer?: string | null
           kadastrale_gemeente?: string | null

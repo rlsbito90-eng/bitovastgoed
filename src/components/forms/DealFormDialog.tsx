@@ -119,12 +119,14 @@ export default function DealFormDialog({
     setBezig(true);
 
     try {
+      const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
+        && (!deal || !deal.isArchived);
       if (isEdit && deal) {
         await updateDeal(deal.id, form);
-        toast.success('Deal bijgewerkt');
+        toast.success(triggertArchief ? 'Deal gearchiveerd en verplaatst naar Archief.' : 'Deal bijgewerkt');
       } else {
         await addDeal(form);
-        toast.success('Deal aangemaakt');
+        toast.success(triggertArchief ? 'Deal aangemaakt en gearchiveerd.' : 'Deal aangemaakt');
       }
       onOpenChange(false);
     } catch (err: any) {

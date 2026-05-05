@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency } from '@/data/mock-data';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { DealFaseBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, Star } from 'lucide-react';
+import { Search, Plus, ChevronRight, Star, Archive, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { DealFase } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+
+type ArchiefView = 'actief' | 'archief' | 'alles';
 
 const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
@@ -26,12 +29,18 @@ function Sterren({ aantal }: { aantal: number }) {
 }
 
 export default function DealsPage() {
-  const { deals, getRelatieById, getObjectById, contactpersonen } = useDataStore();
+  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
+  const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
   const [formOpen, setFormOpen] = useState(false);
 
+  const aantalArchief = deals.filter(d => d.isArchived).length;
+  const aantalActief = deals.length - aantalArchief;
+
   const filtered = deals.filter(d => {
+    if (archiefView === 'actief' && d.isArchived) return false;
+    if (archiefView === 'archief' && !d.isArchived) return false;
     const obj = getObjectById(d.objectId);
     const rel = getRelatieById(d.relatieId);
     const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
@@ -39,11 +48,29 @@ export default function DealsPage() {
     return matchZoek && matchFase;
   });
 
+  const handleHerstel = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await unarchiveDeal(id);
+      toast.success('Deal teruggezet naar Actief');
+    } catch (err: any) {
+      toast.error(`Herstellen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const tabs: { key: ArchiefView; label: string; count: number }[] = [
+    { key: 'actief', label: 'Actief', count: aantalActief },
+    { key: 'archief', label: 'Archief', count: aantalArchief },
+    { key: 'alles', label: 'Alles', count: deals.length },
+  ];
+  const isArchiefView = archiefView === 'archief';
+
   return (
     <div className="page-shell">
       <PageHeader
         title="Deals"
-        subtitle={`${deals.length} deals in de pipeline`}
+        subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}
         actions={
           <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
             <Plus className="h-4 w-4" /> Nieuwe deal
@@ -51,6 +78,21 @@ export default function DealsPage() {
         }
       />
 
+      <div className="flex gap-1 border-b border-border">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setArchiefView(t.key)}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              archiefView === t.key
+                ? 'border-accent text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t.label} <span className="text-xs text-muted-foreground">({t.count})</span>
+          </button>
+        ))}
+      </div>
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -83,6 +125,17 @@ export default function DealsPage() {
                         <span className="text-xs font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</span>
                         <Sterren aantal={deal.interessegraad} />
                       </div>
+                      {deal.isArchived && (
+                        <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Archive className="h-3 w-3" /> {deal.archivedReason ?? 'Gearchiveerd'}
+                            {deal.archivedAt && <span>· {formatDate(deal.archivedAt)}</span>}
+                          </span>
+                          <button onClick={(e) => handleHerstel(deal.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                            <RotateCcw className="h-3 w-3" /> Terugzetten
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <DealFaseBadge fase={deal.fase} />
@@ -105,6 +158,7 @@ export default function DealsPage() {
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Waarde</th>
                     <th className="text-center px-5 py-3 field-label hidden lg:table-cell">Interesse</th>
                     <th className="text-left px-5 py-3 field-label">Fase</th>
+                    {isArchiefView && <th className="text-left px-5 py-3 field-label">Archief</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
@@ -125,6 +179,21 @@ export default function DealsPage() {
                           <Sterren aantal={deal.interessegraad} />
                         </td>
                         <td className="px-5 py-3.5"><DealFaseBadge fase={deal.fase} /></td>
+                        {isArchiefView && (
+                          <td className="px-5 py-3.5 text-xs">
+                            {deal.isArchived ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-muted-foreground">
+                                  {deal.archivedReason ?? '—'}
+                                  {deal.archivedAt && <span className="ml-1">· {formatDate(deal.archivedAt)}</span>}
+                                </span>
+                                <button onClick={(e) => handleHerstel(deal.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                                  <RotateCcw className="h-3 w-3" /> Terugzetten
+                                </button>
+                              </div>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

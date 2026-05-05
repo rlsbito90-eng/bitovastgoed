@@ -1,27 +1,36 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency } from '@/data/mock-data';
+import { formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight } from 'lucide-react';
+import { Search, Plus, ChevronRight, Archive, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ObjectStatus } from '@/data/mock-data';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 
+type ArchiefView = 'actief' | 'archief' | 'alles';
+
 export default function ObjectenPage() {
-  const { objecten } = useDataStore();
+  const { objecten, unarchiveObject } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>(''); // property_type_id
+  const [typeFilter, setTypeFilter] = useState<string>('');
   const [subtypeFilter, setSubtypeFilter] = useState<string>('');
   const [dealtypeFilter, setDealtypeFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>('');
+  const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
   const [formOpen, setFormOpen] = useState(false);
 
+  const aantalArchief = objecten.filter(o => o.isArchived).length;
+  const aantalActief = objecten.length - aantalArchief;
+
   const filtered = objecten.filter(o => {
+    if (archiefView === 'actief' && o.isArchived) return false;
+    if (archiefView === 'archief' && !o.isArchived) return false;
     const matchZoek = !zoek
       || o.titel.toLowerCase().includes(zoek.toLowerCase())
       || o.plaats.toLowerCase().includes(zoek.toLowerCase());
@@ -34,17 +43,52 @@ export default function ObjectenPage() {
 
   const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
+  const handleHerstel = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await unarchiveObject(id);
+      toast.success('Object teruggezet naar Actief');
+    } catch (err: any) {
+      toast.error(`Herstellen mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const tabs: { key: ArchiefView; label: string; count: number }[] = [
+    { key: 'actief', label: 'Actief', count: aantalActief },
+    { key: 'archief', label: 'Archief', count: aantalArchief },
+    { key: 'alles', label: 'Alles', count: objecten.length },
+  ];
+
+  const isArchiefView = archiefView === 'archief';
+
   return (
     <div className="page-shell">
       <PageHeader
         title="Objecten"
-        subtitle={`${objecten.length} objecten in beheer`}
+        subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}
         actions={
           <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
             <Plus className="h-4 w-4" /> Nieuw object
           </button>
         }
       />
+
+      <div className="flex gap-1 border-b border-border">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setArchiefView(t.key)}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              archiefView === t.key
+                ? 'border-accent text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t.label} <span className="text-xs text-muted-foreground">({t.count})</span>
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
@@ -113,6 +157,17 @@ export default function ObjectenPage() {
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                   </p>
+                  {obj.isArchived && (
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Archive className="h-3 w-3" /> {obj.archivedReason ?? 'Gearchiveerd'}
+                        {obj.archivedAt && <span>· {formatDate(obj.archivedAt)}</span>}
+                      </span>
+                      <button onClick={(e) => handleHerstel(obj.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                        <RotateCcw className="h-3 w-3" /> Terugzetten
+                      </button>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-1 mt-2">
                     <PropertyTypeBadge id={obj.propertyTypeId} fallbackAssetClass={obj.type} variant="compact" showEmpty={false} />
                     <SubtypeBadges ids={obj.propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
@@ -144,6 +199,7 @@ export default function ObjectenPage() {
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Rendement</th>
                     <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Classificatie</th>
                     <th className="text-left px-5 py-3 field-label">Status</th>
+                    {isArchiefView && <th className="text-left px-5 py-3 field-label">Archief</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
@@ -169,6 +225,21 @@ export default function ObjectenPage() {
                           </div>
                         </td>
                         <td className="px-5 py-3.5"><ObjectStatusBadge status={obj.status} /></td>
+                        {isArchiefView && (
+                          <td className="px-5 py-3.5 text-xs">
+                            {obj.isArchived ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-muted-foreground">
+                                  {obj.archivedReason ?? '—'}
+                                  {obj.archivedAt && <span className="ml-1">· {formatDate(obj.archivedAt)}</span>}
+                                </span>
+                                <button onClick={(e) => handleHerstel(obj.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                                  <RotateCcw className="h-3 w-3" /> Terugzetten
+                                </button>
+                              </div>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

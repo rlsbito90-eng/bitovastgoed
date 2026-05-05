@@ -279,6 +279,9 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   datumToegevoegd: o.created_at?.split('T')[0] ?? '',
   updatedAt: o.updated_at ?? undefined,
   softDeletedAt: o.soft_deleted_at ?? undefined,
+  isArchived: !!o.is_archived,
+  archivedAt: o.archived_at ?? undefined,
+  archivedReason: o.archived_reason ?? undefined,
   referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
   pipelineId: o.pipeline_id ?? undefined,
   pipelineStageId: o.pipeline_stage_id ?? undefined,
@@ -399,6 +402,9 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   financiele_scenarios: o.financieleScenarios !== undefined ? (o.financieleScenarios ?? {}) : undefined,
   documentatie_status: o.documentatieStatus !== undefined ? (o.documentatieStatus ?? {}) : undefined,
   im_secties_zichtbaar: o.imSectiesZichtbaar !== undefined ? (o.imSectiesZichtbaar ?? {}) : undefined,
+  is_archived: o.isArchived,
+  archived_at: o.archivedAt !== undefined ? (o.archivedAt || null) : undefined,
+  archived_reason: o.archivedReason !== undefined ? (o.archivedReason || null) : undefined,
 });
 
 
@@ -501,6 +507,9 @@ const dealFromDb = (d: any): Deal => ({
   // Toggle voor referentieanalyse-sectie. Default true (aan).
   referentieanalyseZichtbaar: d.referentieanalyse_zichtbaar !== false,
   softDeletedAt: d.soft_deleted_at ?? undefined,
+  isArchived: !!d.is_archived,
+  archivedAt: d.archived_at ?? undefined,
+  archivedReason: d.archived_reason ?? undefined,
 });
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
@@ -525,6 +534,9 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
   afwijzingsreden: d.afwijzingsreden !== undefined ? (d.afwijzingsreden || null) : undefined,
   notities: d.notities !== undefined ? (d.notities || null) : undefined,
   referentieanalyse_zichtbaar: d.referentieanalyseZichtbaar,
+  is_archived: d.isArchived,
+  archived_at: d.archivedAt !== undefined ? (d.archivedAt || null) : undefined,
+  archived_reason: d.archivedReason !== undefined ? (d.archivedReason || null) : undefined,
 });
 
 const taakFromDb = (t: any): Taak => ({
@@ -826,6 +838,8 @@ interface DataStore {
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
   updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
+  archiveObject: (id: string, reason?: string) => Promise<void>;
+  unarchiveObject: (id: string) => Promise<void>;
 
   // Huurders
   addHuurder: (h: Omit<ObjectHuurder, 'id'>) => Promise<ObjectHuurder | null>;
@@ -850,6 +864,8 @@ interface DataStore {
   addDeal: (d: Omit<Deal, 'id'>) => Promise<Deal | null>;
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>;
   deleteDeal: (id: string) => Promise<void>;
+  archiveDeal: (id: string, reason?: string) => Promise<void>;
+  unarchiveDeal: (id: string) => Promise<void>;
 
   // Taken
   addTaak: (t: Omit<Taak, 'id'>) => Promise<Taak | null>;
@@ -1085,10 +1101,40 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
-    const { data, error } = await supabase.from('objecten').update(objectToDb(o) as any).eq('id', id).select().single();
+    const payload: Partial<ObjectVastgoed> = { ...o };
+    // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
+    if (o.status === 'verkocht' || o.status === 'ingetrokken') {
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = o.status === 'verkocht' ? 'Verkocht' : 'Ingetrokken';
+      }
+    }
+    const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
   }, []);
+
+  const archiveObject = useCallback(async (id: string, reason?: string) => {
+    const { data, error } = await supabase.from('objecten').update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      archived_reason: reason ?? 'Handmatig gearchiveerd',
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
+  }, []);
+
+  const unarchiveObject = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('objecten').update({
+      is_archived: false,
+      archived_at: null,
+      archived_reason: null,
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
+  }, []);
+
 
   const deleteObject = useCallback(async (id: string) => {
     // Verzamel storage-paden zodat we de bestanden ook opruimen
@@ -1219,10 +1265,39 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
-    const { data, error } = await supabase.from('deals').update(dealToDb(d) as any).eq('id', id).select().single();
+    const payload: Partial<Deal> = { ...d };
+    if (d.fase === 'afgerond' || d.fase === 'afgevallen') {
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = d.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen';
+      }
+    }
+    const { data, error } = await supabase.from('deals').update(dealToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
   }, []);
+
+  const archiveDeal = useCallback(async (id: string, reason?: string) => {
+    const { data, error } = await supabase.from('deals').update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      archived_reason: reason ?? 'Handmatig gearchiveerd',
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
+  }, []);
+
+  const unarchiveDeal = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('deals').update({
+      is_archived: false,
+      archived_at: null,
+      archived_reason: null,
+    } as any).eq('id', id).select().single();
+    throwIfError(error);
+    setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
+  }, []);
+
 
   const deleteDeal = useCallback(async (id: string) => {
     const { error } = await supabase.from('deals').update({ soft_deleted_at: new Date().toISOString() } as any).eq('id', id);
@@ -1512,7 +1587,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
     getContactpersonenVoorRelatie: (rid) => contactpersonen.filter(c => c.relatieId === rid),
 
-    addObject, updateObject, deleteObject,
+    addObject, updateObject, deleteObject, archiveObject, unarchiveObject,
     addHuurder, updateHuurder, deleteHuurder,
     getHuurdersVoorObject: (oid) => huurders.filter(h => h.objectId === oid),
     getHuurMetrics: (oid) => huurMetrics[oid],
@@ -1523,7 +1598,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     addFoto, updateFoto, deleteFoto, setHoofdfoto,
     getFotosVoorObject: (oid) => fotos.filter(f => f.objectId === oid).sort((a, b) => a.volgorde - b.volgorde),
 
-    addDeal, updateDeal, deleteDeal,
+    addDeal, updateDeal, deleteDeal, archiveDeal, unarchiveDeal,
     addTaak, updateTaak, deleteTaak,
     addZoekprofiel, updateZoekprofiel, deleteZoekprofiel,
 
