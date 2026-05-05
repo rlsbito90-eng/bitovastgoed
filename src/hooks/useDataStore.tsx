@@ -534,6 +534,9 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
   afwijzingsreden: d.afwijzingsreden !== undefined ? (d.afwijzingsreden || null) : undefined,
   notities: d.notities !== undefined ? (d.notities || null) : undefined,
   referentieanalyse_zichtbaar: d.referentieanalyseZichtbaar,
+  is_archived: d.isArchived,
+  archived_at: d.archivedAt !== undefined ? (d.archivedAt || null) : undefined,
+  archived_reason: d.archivedReason !== undefined ? (d.archivedReason || null) : undefined,
 });
 
 const taakFromDb = (t: any): Taak => ({
