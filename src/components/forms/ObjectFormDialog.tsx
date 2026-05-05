@@ -264,13 +264,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     };
 
     try {
+      const triggertArchief = (data.status === 'verkocht' || data.status === 'ingetrokken')
+        && (!object || !object.isArchived);
       if (isEdit && object) {
         await updateObject(object.id, data);
-        toast.success('Object bijgewerkt');
+        toast.success(triggertArchief ? 'Object gearchiveerd en verplaatst naar Archief.' : 'Object bijgewerkt');
         onOpenChange(false);
       } else if (gemaaktId) {
         await updateObject(gemaaktId, data);
-        toast.success('Object bijgewerkt');
+        toast.success(triggertArchief ? 'Object gearchiveerd en verplaatst naar Archief.' : 'Object bijgewerkt');
         onOpenChange(false);
       } else {
         const payload = { ...data, datumToegevoegd: new Date().toISOString().split('T')[0] };
