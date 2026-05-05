@@ -199,6 +199,7 @@ export default function ObjectenPage() {
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Rendement</th>
                     <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Classificatie</th>
                     <th className="text-left px-5 py-3 field-label">Status</th>
+                    {isArchiefView && <th className="text-left px-5 py-3 field-label">Archief</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
@@ -224,6 +225,21 @@ export default function ObjectenPage() {
                           </div>
                         </td>
                         <td className="px-5 py-3.5"><ObjectStatusBadge status={obj.status} /></td>
+                        {isArchiefView && (
+                          <td className="px-5 py-3.5 text-xs">
+                            {obj.isArchived ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-muted-foreground">
+                                  {obj.archivedReason ?? '—'}
+                                  {obj.archivedAt && <span className="ml-1">· {formatDate(obj.archivedAt)}</span>}
+                                </span>
+                                <button onClick={(e) => handleHerstel(obj.id, e)} className="inline-flex items-center gap-1 text-accent hover:underline">
+                                  <RotateCcw className="h-3 w-3" /> Terugzetten
+                                </button>
+                              </div>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
