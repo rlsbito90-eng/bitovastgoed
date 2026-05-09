@@ -10,6 +10,7 @@ import type { DealFase } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
