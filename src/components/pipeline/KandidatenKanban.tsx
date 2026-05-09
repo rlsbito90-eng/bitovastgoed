@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
+import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 const fmtBedrag = (n?: number) =>
   n != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '';
