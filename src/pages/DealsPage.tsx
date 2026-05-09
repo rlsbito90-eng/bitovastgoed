@@ -122,9 +122,11 @@ export default function DealsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground truncate">{obj?.titel}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{getRelatieNaamCompact(rel, contactpersonen)} · {obj?.plaats}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <span className="text-xs font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</span>
                         <Sterren aantal={deal.interessegraad} />
+                        {!deal.isArchived && !deal.datumFollowUp && <GeenActieBadge />}
+                        {!deal.isArchived && isVerlopen(deal.datumFollowUp) && <GeenActieBadge variant="verlopen" date={deal.datumFollowUp} />}
                       </div>
                       {deal.isArchived && (
                         <div className="mt-2 flex items-center justify-between gap-2 text-xs">
