@@ -4,9 +4,10 @@ import { formatCurrency, formatCurrencyCompact, formatDate, getAllMatchesFromDat
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
-import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight } from 'lucide-react';
+import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import GeenActieBadge from '@/components/GeenActieBadge';
 
 function KPICard({
   label,
