@@ -181,7 +181,13 @@ export default function DealsPage() {
                         <td className="px-5 py-3.5 text-center hidden lg:table-cell">
                           <Sterren aantal={deal.interessegraad} />
                         </td>
-                        <td className="px-5 py-3.5"><DealFaseBadge fase={deal.fase} /></td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <DealFaseBadge fase={deal.fase} />
+                            {!deal.isArchived && !deal.datumFollowUp && <GeenActieBadge />}
+                            {!deal.isArchived && isVerlopen(deal.datumFollowUp) && <GeenActieBadge variant="verlopen" date={deal.datumFollowUp} />}
+                          </div>
+                        </td>
                         {isArchiefView && (
                           <td className="px-5 py-3.5 text-xs">
                             {deal.isArchived ? (
