@@ -18,6 +18,7 @@ import {
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
