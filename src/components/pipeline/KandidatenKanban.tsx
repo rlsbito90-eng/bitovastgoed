@@ -258,14 +258,17 @@ export default function KandidatenKanban() {
                               <span className="text-[11px] font-mono-data text-foreground">{fmtBedrag(k.biedingBedrag)}</span>
                             )}
                           </div>
-                          {k.volgendeActie && (
-                            <div className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                          {k.volgendeActie ? (
+                            <div className={`text-[11px] flex items-center gap-1 truncate ${isVerlopen(k.volgendeActieDatum) ? 'text-destructive' : 'text-muted-foreground'}`}>
                               <Calendar className="h-3 w-3 shrink-0" />
                               <span className="truncate">
                                 {VOLGENDE_ACTIE_LABELS[k.volgendeActie]}
                                 {k.volgendeActieDatum && ` · ${fmtDatum(k.volgendeActieDatum)}`}
+                                {isVerlopen(k.volgendeActieDatum) && ' · te laat'}
                               </span>
                             </div>
+                          ) : (
+                            <GeenActieBadge />
                           )}
                         </div>
                       );
