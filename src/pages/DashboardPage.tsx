@@ -4,9 +4,10 @@ import { formatCurrency, formatCurrencyCompact, formatDate, getAllMatchesFromDat
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
-import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight } from 'lucide-react';
+import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import GeenActieBadge from '@/components/GeenActieBadge';
 
 function KPICard({
   label,
@@ -45,12 +46,12 @@ const pipelineFases: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichti
 
 export default function DashboardPage() {
   const store = useDataStore();
-  const { relaties, objecten, deals, taken } = store;
+  const { relaties, objecten, deals, taken, pipelineKandidaten } = store;
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
-  const actieveObjecten = objecten.filter(o => o.status === 'off-market' || o.status === 'in_onderzoek' || o.status === 'beschikbaar');
+  const actieveObjecten = objecten.filter(o => !o.isArchived && (o.status === 'off-market' || o.status === 'in_onderzoek' || o.status === 'beschikbaar'));
   const openTaken = taken.filter(t => t.status !== 'afgerond');
-  const actieveDeals = deals.filter(d => !['afgerond', 'afgevallen'].includes(d.fase));
+  const actieveDeals = deals.filter(d => !d.isArchived && !['afgerond', 'afgevallen'].includes(d.fase));
   const matches = getAllMatchesFromData(store.zoekprofielen, store.objecten);
 
   const dealWaarde = actieveDeals.reduce((sum, d) => {
@@ -60,15 +61,27 @@ export default function DashboardPage() {
 
   const dealsPerFase = pipelineFases.map(fase => ({
     fase,
-    aantal: deals.filter(d => d.fase === fase).length,
+    aantal: deals.filter(d => !d.isArchived && d.fase === fase).length,
   }));
   const maxAantal = Math.max(1, ...dealsPerFase.map(f => f.aantal));
 
-  const vandaag = new Date();
+  const vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
   const overEenWeek = new Date(); overEenWeek.setDate(vandaag.getDate() + 7);
   const opvolging = openTaken
-    .filter(t => t.deadline && new Date(t.deadline) <= overEenWeek)
+    .filter(t => t.deadline && new Date(t.deadline) <= overEenWeek && new Date(t.deadline) >= vandaag)
     .sort((a, b) => a.deadline.localeCompare(b.deadline));
+
+  const verlopen = openTaken
+    .filter(t => t.deadline && new Date(t.deadline) < vandaag)
+    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+
+  const dealsZonderActie = actieveDeals.filter(d => !d.datumFollowUp);
+  const kandidatenZonderActie = pipelineKandidaten.filter(k => {
+    const obj = store.getObjectById(k.objectId);
+    if (!obj || obj.isArchived) return false;
+    return !k.volgendeActie && !k.volgendeActieDatum;
+  });
+  const totaalZonderActie = dealsZonderActie.length + kandidatenZonderActie.length;
 
   return (
     <div className="page-shell">
@@ -76,10 +89,94 @@ export default function DashboardPage() {
         title="Dashboard"
         subtitle={
           <>
-            {matches.length} actieve matches · {opvolging.length} taken vereisen opvolging deze week
+            {matches.length} actieve matches · {opvolging.length} taken deze week
+            {verlopen.length > 0 && <span className="text-destructive"> · {verlopen.length} verlopen</span>}
           </>
         }
       />
+
+      {verlopen.length > 0 && (
+        <section className="section-card border-destructive/40 bg-destructive/5">
+          <header className="section-header">
+            <h2 className="section-title flex items-center gap-2 text-destructive">
+              <Clock className="h-4 w-4" /> Verlopen acties ({verlopen.length})
+            </h2>
+            <Link to="/taken" className="section-link inline-flex items-center gap-1">
+              Alle taken <ArrowRight className="h-3 w-3" />
+            </Link>
+          </header>
+          <div className="divide-y divide-border/70">
+            {verlopen.slice(0, 5).map(t => {
+              const rel = t.relatieId ? store.getRelatieById(t.relatieId) : null;
+              return (
+                <div key={t.id} className="px-5 py-3 row-with-action">
+                  <div className="row-flex">
+                    <p className="text-sm text-foreground truncate">{t.titel}</p>
+                    <p className="text-xs text-destructive mt-0.5 truncate">
+                      {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{formatDate(t.deadline)} · te laat
+                    </p>
+                  </div>
+                  <div className="row-action">
+                    <PrioriteitBadge prioriteit={t.prioriteit} />
+                  </div>
+                </div>
+              );
+            })}
+            {verlopen.length > 5 && (
+              <p className="px-5 py-2 text-xs text-muted-foreground">+ {verlopen.length - 5} meer…</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {totaalZonderActie > 0 && (
+        <section className="section-card border-warning/40">
+          <header className="section-header">
+            <h2 className="section-title flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-warning" /> Zonder volgende actie ({totaalZonderActie})
+            </h2>
+          </header>
+          <div className="divide-y divide-border/70">
+            {dealsZonderActie.slice(0, 4).map(d => {
+              const obj = store.getObjectById(d.objectId);
+              const rel = store.getRelatieById(d.relatieId);
+              return (
+                <Link key={d.id} to={`/deals/${d.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
+                  <div className="row-with-action">
+                    <div className="row-flex">
+                      <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        Deal · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
+                      </p>
+                    </div>
+                    <div className="row-action"><GeenActieBadge /></div>
+                  </div>
+                </Link>
+              );
+            })}
+            {kandidatenZonderActie.slice(0, 4).map(k => {
+              const obj = store.getObjectById(k.objectId);
+              const rel = store.getRelatieById(k.relatieId);
+              return (
+                <Link key={k.id} to={`/objecten/${k.objectId}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
+                  <div className="row-with-action">
+                    <div className="row-flex">
+                      <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        Kandidaat · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
+                      </p>
+                    </div>
+                    <div className="row-action"><GeenActieBadge /></div>
+                  </div>
+                </Link>
+              );
+            })}
+            {totaalZonderActie > 8 && (
+              <p className="px-5 py-2 text-xs text-muted-foreground">+ {totaalZonderActie - 8} meer…</p>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* KPI rij — op mobiel compacte bedragen, op desktop volledig */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">

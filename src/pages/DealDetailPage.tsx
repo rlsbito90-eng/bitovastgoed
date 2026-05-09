@@ -18,6 +18,7 @@ import {
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
@@ -162,7 +163,14 @@ export default function DealDetailPage() {
                 <span className="tabular-nums">{formatDate(deal.datumEersteContact)}</span>
               </Field>
               <Field label="Follow-up">
-                <span className="tabular-nums">{deal.datumFollowUp ? formatDate(deal.datumFollowUp) : '—'}</span>
+                {deal.datumFollowUp ? (
+                  <span className={`tabular-nums ${isVerlopen(deal.datumFollowUp) ? 'text-destructive' : ''}`}>
+                    {formatDate(deal.datumFollowUp)}
+                    {isVerlopen(deal.datumFollowUp) && <span className="ml-2 text-xs">· verlopen</span>}
+                  </span>
+                ) : (
+                  !isAfgerond && !isAfgevallen ? <GeenActieBadge /> : <span className="text-muted-foreground">—</span>
+                )}
               </Field>
               {deal.bezichtigingGepland && (
                 <Field label="Bezichtiging">
