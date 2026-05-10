@@ -7,6 +7,10 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { DataStoreProvider } from "@/hooks/useDataStore";
 import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
 import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
+import { AcquisitieProvider } from "@/hooks/useAcquisitie";
+import AcquisitiePage from "@/pages/AcquisitiePage";
+import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
+import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
@@ -37,6 +41,7 @@ const App = () => (
           <SubcategorieProvider>
             <PropertyTaxonomieProvider>
             <DataStoreProvider>
+              <AcquisitieProvider>
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
                 <Route
@@ -54,6 +59,9 @@ const App = () => (
                           <Route path="/deals/:id" element={<DealDetailPage />} />
                           <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
                           <Route path="/pipeline" element={<PipelinePage />} />
+                          <Route path="/acquisitie" element={<AcquisitiePage />} />
+                          <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
+                          <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
                           <Route path="/taken" element={<TakenPage />} />
                           <Route path="/rapportage" element={<RapportagePage />} />
@@ -72,6 +80,7 @@ const App = () => (
                   }
                 />
               </Routes>
+              </AcquisitieProvider>
             </DataStoreProvider>
             </PropertyTaxonomieProvider>
           </SubcategorieProvider>
