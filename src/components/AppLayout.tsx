@@ -14,6 +14,7 @@ import {
   Shield,
   Library,
   GitBranch,
+  Target,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const navItems = [
   { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target },
   { path: "/taken", label: "Taken", icon: CheckSquare },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];

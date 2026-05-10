@@ -14,6 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
+      acquisitie_campagnes: {
+        Row: {
+          aangemaakt_door: string | null
+          created_at: string
+          gebied: string | null
+          id: string
+          kanaal: Database["public"]["Enums"]["campagne_kanaal"]
+          naam: string
+          notities: string | null
+          startdatum: string | null
+          status: Database["public"]["Enums"]["campagne_status"]
+          updated_at: string
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          created_at?: string
+          gebied?: string | null
+          id?: string
+          kanaal?: Database["public"]["Enums"]["campagne_kanaal"]
+          naam: string
+          notities?: string | null
+          startdatum?: string | null
+          status?: Database["public"]["Enums"]["campagne_status"]
+          updated_at?: string
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          created_at?: string
+          gebied?: string | null
+          id?: string
+          kanaal?: Database["public"]["Enums"]["campagne_kanaal"]
+          naam?: string
+          notities?: string | null
+          startdatum?: string | null
+          status?: Database["public"]["Enums"]["campagne_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      acquisitie_targets: {
+        Row: {
+          aangemaakt_door: string | null
+          adres: string | null
+          bron: string | null
+          campagne_id: string | null
+          created_at: string
+          eigenaar_bekend: Database["public"]["Enums"]["eigenaar_bekend"]
+          eigenaar_woont_op_adres: Database["public"]["Enums"]["eigenaar_bekend"]
+          id: string
+          laatste_actie_datum: string | null
+          notities: string | null
+          object_id: string | null
+          plaats: string | null
+          postcode: string | null
+          prioriteit: number
+          reden_interessant: string | null
+          relatie_id: string | null
+          status: Database["public"]["Enums"]["acquisitie_status"]
+          type_vastgoed: string | null
+          updated_at: string
+          volgende_actie_datum: string | null
+          volgende_actie_omschrijving: string | null
+          wijk: string | null
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          adres?: string | null
+          bron?: string | null
+          campagne_id?: string | null
+          created_at?: string
+          eigenaar_bekend?: Database["public"]["Enums"]["eigenaar_bekend"]
+          eigenaar_woont_op_adres?: Database["public"]["Enums"]["eigenaar_bekend"]
+          id?: string
+          laatste_actie_datum?: string | null
+          notities?: string | null
+          object_id?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          prioriteit?: number
+          reden_interessant?: string | null
+          relatie_id?: string | null
+          status?: Database["public"]["Enums"]["acquisitie_status"]
+          type_vastgoed?: string | null
+          updated_at?: string
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+          wijk?: string | null
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          adres?: string | null
+          bron?: string | null
+          campagne_id?: string | null
+          created_at?: string
+          eigenaar_bekend?: Database["public"]["Enums"]["eigenaar_bekend"]
+          eigenaar_woont_op_adres?: Database["public"]["Enums"]["eigenaar_bekend"]
+          id?: string
+          laatste_actie_datum?: string | null
+          notities?: string | null
+          object_id?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          prioriteit?: number
+          reden_interessant?: string | null
+          relatie_id?: string | null
+          status?: Database["public"]["Enums"]["acquisitie_status"]
+          type_vastgoed?: string | null
+          updated_at?: string
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+          wijk?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acquisitie_targets_campagne_id_fkey"
+            columns: ["campagne_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitie_campagnes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_kandidaten: {
         Row: {
           created_at: string
@@ -839,6 +961,7 @@ export type Database = {
           aantal_units: number | null
           aantal_verdiepingen: number | null
           achterstallig_onderhoud: string | null
+          acquisitie_target_id: string | null
           adres: string | null
           anoniem: boolean
           archived_at: string | null
@@ -947,6 +1070,7 @@ export type Database = {
           aantal_units?: number | null
           aantal_verdiepingen?: number | null
           achterstallig_onderhoud?: string | null
+          acquisitie_target_id?: string | null
           adres?: string | null
           anoniem?: boolean
           archived_at?: string | null
@@ -1057,6 +1181,7 @@ export type Database = {
           aantal_units?: number | null
           aantal_verdiepingen?: number | null
           achterstallig_onderhoud?: string | null
+          acquisitie_target_id?: string | null
           adres?: string | null
           anoniem?: boolean
           archived_at?: string | null
@@ -2008,6 +2133,16 @@ export type Database = {
       is_intern_gebruiker: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      acquisitie_status:
+        | "target_gevonden"
+        | "eigenaar_achterhalen"
+        | "eerste_benadering"
+        | "follow_up_gepland"
+        | "reactie_ontvangen"
+        | "verkoopbereidheid_peilen"
+        | "potentiele_verkooppositie"
+        | "object_aangemaakt"
+        | "niet_interessant"
       app_role: "admin" | "medewerker"
       asset_class:
         | "wonen"
@@ -2020,6 +2155,14 @@ export type Database = {
         | "zorgvastgoed"
         | "mixed_use"
         | "ontwikkellocatie"
+      campagne_kanaal:
+        | "brief"
+        | "bellen"
+        | "linkedin"
+        | "email"
+        | "netwerk"
+        | "anders"
+      campagne_status: "concept" | "actief" | "gepauzeerd" | "afgerond"
       communicatie_kanaal:
         | "whatsapp"
         | "email"
@@ -2057,6 +2200,7 @@ export type Database = {
         | "fotorapport"
         | "dd_overzicht"
         | "anders"
+      eigenaar_bekend: "ja" | "nee" | "onbekend"
       energielabel_v2:
         | "A++++"
         | "A+++"
@@ -2286,6 +2430,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      acquisitie_status: [
+        "target_gevonden",
+        "eigenaar_achterhalen",
+        "eerste_benadering",
+        "follow_up_gepland",
+        "reactie_ontvangen",
+        "verkoopbereidheid_peilen",
+        "potentiele_verkooppositie",
+        "object_aangemaakt",
+        "niet_interessant",
+      ],
       app_role: ["admin", "medewerker"],
       asset_class: [
         "wonen",
@@ -2299,6 +2454,15 @@ export const Constants = {
         "mixed_use",
         "ontwikkellocatie",
       ],
+      campagne_kanaal: [
+        "brief",
+        "bellen",
+        "linkedin",
+        "email",
+        "netwerk",
+        "anders",
+      ],
+      campagne_status: ["concept", "actief", "gepauzeerd", "afgerond"],
       communicatie_kanaal: [
         "whatsapp",
         "email",
@@ -2340,6 +2504,7 @@ export const Constants = {
         "dd_overzicht",
         "anders",
       ],
+      eigenaar_bekend: ["ja", "nee", "onbekend"],
       energielabel_v2: [
         "A++++",
         "A+++",

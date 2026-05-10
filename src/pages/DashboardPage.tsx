@@ -7,7 +7,9 @@ import PageHeader from '@/components/PageHeader';
 import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
-import GeenActieBadge from '@/components/GeenActieBadge';
+import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
+import { useAcquisitie } from '@/hooks/useAcquisitie';
+import { targetIsActief } from '@/lib/acquisitie';
 
 function KPICard({
   label,
@@ -355,6 +357,67 @@ export default function DashboardPage() {
           </FocusList>
         </div>
       </div>
+
+      <AcquisitieDashboardSectie />
+    </div>
+  );
+}
+
+function AcquisitieDashboardSectie() {
+  const { targets, campagnes } = useAcquisitie();
+  const nu = new Date();
+  const startMaand = new Date(nu.getFullYear(), nu.getMonth(), 1);
+
+  const actief = targets.filter(targetIsActief);
+  const zonderActie = actief.filter(t => !t.volgendeActieDatum);
+  const verlopen = actief.filter(t => datumVerlopen(t.volgendeActieDatum));
+  const reactiesMaand = targets.filter(t => t.status === 'reactie_ontvangen' && new Date(t.updatedAt) >= startMaand);
+  const warm = targets.filter(t => t.status === 'verkoopbereidheid_peilen' || t.status === 'potentiele_verkooppositie');
+  const objectenUitAcq = targets.filter(t => t.status === 'object_aangemaakt');
+
+  const reactiesPerCampagne = new Map<string, number>();
+  targets.filter(t => t.status === 'reactie_ontvangen' && t.campagneId).forEach(t => {
+    reactiesPerCampagne.set(t.campagneId!, (reactiesPerCampagne.get(t.campagneId!) ?? 0) + 1);
+  });
+  let besteCampagne: { naam: string; aantal: number } | null = null;
+  for (const [cid, n] of reactiesPerCampagne) {
+    if (!besteCampagne || n > besteCampagne.aantal) {
+      const c = campagnes.find(x => x.id === cid);
+      if (c) besteCampagne = { naam: c.naam, aantal: n };
+    }
+  }
+
+  return (
+    <section className="section-card">
+      <header className="section-header">
+        <h2 className="section-title">Acquisitie</h2>
+        <Link to="/acquisitie" className="section-link inline-flex items-center gap-1">
+          Naar acquisitie <ArrowRight className="h-3 w-3" />
+        </Link>
+      </header>
+      <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+        <MiniStat label="Actieve targets" value={actief.length} />
+        <MiniStat label="Zonder volgende actie" value={zonderActie.length} tone={zonderActie.length > 0 ? 'warning' : 'normal'} />
+        <MiniStat label="Verlopen acties" value={verlopen.length} tone={verlopen.length > 0 ? 'destructive' : 'normal'} />
+        <MiniStat label="Reacties deze maand" value={reactiesMaand.length} />
+        <MiniStat label="Warme leads" value={warm.length} />
+        <MiniStat label="Objecten uit acq." value={objectenUitAcq.length} />
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Beste campagne</p>
+          <p className="text-sm font-medium text-foreground truncate mt-1">{besteCampagne?.naam ?? '—'}</p>
+          {besteCampagne && <p className="text-xs text-muted-foreground">{besteCampagne.aantal} reacties</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MiniStat({ label, value, tone = 'normal' }: { label: string; value: number; tone?: 'normal' | 'warning' | 'destructive' }) {
+  const cls = tone === 'destructive' ? 'text-destructive' : tone === 'warning' ? 'text-warning' : 'text-foreground';
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`text-2xl font-semibold font-mono-data mt-1 ${cls}`}>{value}</p>
     </div>
   );
 }
