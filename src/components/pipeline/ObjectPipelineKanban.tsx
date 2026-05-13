@@ -20,6 +20,7 @@ const FASE_LABEL_MAP: Record<PipelineFase, string> =
   PIPELINE_FASES.reduce((acc, f) => ({ ...acc, [f.key]: f.label }), {} as Record<PipelineFase, string>);
 
 export default function ObjectPipelineKanban() {
+  const navigate = useNavigate();
   const {
     objecten, pipelineKandidaten, getDefaultObjectPipeline, getStagesVoorPipeline,
     setObjectPipelineStage,
