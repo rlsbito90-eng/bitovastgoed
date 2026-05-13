@@ -132,11 +132,13 @@ export default function RelatiesPage() {
                 </thead>
                 <tbody className="divide-y divide-border/70">
                   {filtered.map(r => (
-                    <tr key={r.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
+                    <tr
+                      key={r.id}
+                      onClick={() => navigate(`/relaties/${r.id}`)}
+                      className="group hover:bg-muted/40 transition-colors cursor-pointer"
+                    >
                       <td className="px-5 py-3.5">
-                        <Link to={`/relaties/${r.id}`} className="block">
-                          <RelatieNaamDisplay relatie={r} />
-                        </Link>
+                        <RelatieNaamDisplay relatie={r} />
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>
                       <td className="px-5 py-3.5 hidden lg:table-cell">
