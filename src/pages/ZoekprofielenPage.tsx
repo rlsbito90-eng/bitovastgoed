@@ -212,7 +212,7 @@ export default function ZoekprofielenPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-1 hairline pt-3 mt-auto">
+              <div className="flex items-center gap-1 hairline pt-3 mt-auto" onClick={e => e.stopPropagation()}>
                 <button onClick={() => openBewerk(zp)} className="inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors">
                   <Pencil className="h-3 w-3" /> Bewerken
                 </button>
