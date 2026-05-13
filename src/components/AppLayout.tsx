@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
+import { useSwipeMenu } from "@/hooks/useSwipeMenu";
 import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
@@ -108,6 +109,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       // ignore
     }
   }, [desktopCollapsed]);
+
+  useSwipeMenu({
+    isOpen: mobileOpen,
+    onOpen: () => setMobileOpen(true),
+    onClose: () => setMobileOpen(false),
+  });
 
   return (
     // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
