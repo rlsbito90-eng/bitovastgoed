@@ -163,25 +163,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between h-20 px-4 border-b border-border bg-card sticky top-0 z-30">
-          <Link to="/" className="flex items-center -ml-1 px-2 py-1 rounded-md hover:bg-muted transition-colors">
+      <header className="lg:hidden flex items-center justify-between h-20 px-4 border-b border-border bg-card sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 -ml-2 rounded-md hover:bg-muted text-foreground"
+            aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted transition-colors">
             <img
               src="/logo-bito-vastgoed.png"
               alt="Bito Vastgoed"
-              className="h-16 w-auto max-w-[200px] object-contain"
+              className="h-16 w-auto max-w-[180px] object-contain"
             />
           </Link>
-          <div className="flex items-center gap-1">
-            <MatchAlertBadge />
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-2 -mr-2 rounded-md hover:bg-muted text-foreground"
-              aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </header>
+        </div>
+        <div className="flex items-center gap-1">
+          <MatchAlertBadge />
+        </div>
+      </header>
 
         {/* Desktop topbar — collapse-knop links, match-badge rechts */}
         <header className="hidden lg:flex items-center justify-between h-12 px-6 border-b border-border bg-card">
