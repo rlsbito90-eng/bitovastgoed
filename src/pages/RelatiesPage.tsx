@@ -15,6 +15,7 @@ import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/
 import { saveListContext } from '@/lib/listNavigation';
 
 export default function RelatiesPage() {
+  const navigate = useNavigate();
   const { relaties } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
