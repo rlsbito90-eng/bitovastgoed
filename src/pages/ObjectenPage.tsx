@@ -15,6 +15,7 @@ import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/T
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
 export default function ObjectenPage() {
+  const navigate = useNavigate();
   const { objecten, unarchiveObject } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
