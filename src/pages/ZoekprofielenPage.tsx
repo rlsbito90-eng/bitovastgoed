@@ -133,6 +133,7 @@ export default function ZoekprofielenPage() {
                   {rel && (
                     <Link
                       to={`/relaties/${zp.relatieId}`}
+                      onClick={e => e.stopPropagation()}
                       className="text-xs text-accent hover:underline break-words inline-block max-w-full mt-0.5"
                     >
                       {getRelatieNaamCompact(rel, contactpersonen)}
