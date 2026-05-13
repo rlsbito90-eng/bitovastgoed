@@ -146,13 +146,17 @@ export default function ObjectPipelineKanban() {
                         draggable
                         onDragStart={() => setDragId(o.id)}
                         onDragEnd={() => { setDragId(null); setOverStage(null); }}
-                        className={`bg-background border border-border rounded-md p-2.5 hover:border-primary/40 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing ${dragId === o.id ? 'opacity-40' : ''}`}
+                        onClick={() => navigate(`/objecten/${o.id}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/objecten/${o.id}`); } }}
+                        className={`bg-background border border-border rounded-md p-2.5 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer active:cursor-grabbing ${dragId === o.id ? 'opacity-40' : ''}`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <Link to={`/objecten/${o.id}`} className="text-sm font-medium hover:text-primary truncate flex items-center gap-1 min-w-0">
+                          <div className="text-sm font-medium hover:text-primary truncate flex items-center gap-1 min-w-0">
                             <Building2 className="h-3.5 w-3.5 shrink-0 opacity-60" />
                             <span className="truncate">{o.titel}</span>
-                          </Link>
+                          </div>
                           {o.pipelineStageLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" aria-label="Handmatig vastgezet" />}
                         </div>
                         {o.plaats && <p className="text-[11px] text-muted-foreground mb-1.5 ml-5 truncate">{o.plaats}</p>}
