@@ -125,8 +125,8 @@ export default function CommissieWidget() {
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 Dealwaarde YTD
               </span>
-              <span className="text-xs font-mono-data text-foreground ml-auto">
-                {formatCurrencyCompact(stats.dealwaardeGerealiseerd)} / {formatCurrencyCompact(jaarDoel.dealwaardeDoelBedrag)}
+              <span className="text-xs font-mono-data text-foreground ml-auto whitespace-nowrap">
+                {formatCurrency(stats.dealwaardeGerealiseerd)} / {formatCurrency(jaarDoel.dealwaardeDoelBedrag)}
               </span>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
