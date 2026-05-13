@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
+import { useSwipeMenu } from "@/hooks/useSwipeMenu";
 import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
