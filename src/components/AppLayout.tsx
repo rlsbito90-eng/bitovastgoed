@@ -110,6 +110,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
   }, [desktopCollapsed]);
 
+  useSwipeMenu({
+    isOpen: mobileOpen,
+    onOpen: () => setMobileOpen(true),
+    onClose: () => setMobileOpen(false),
+  });
+
   return (
     // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
     <div className="flex h-screen bg-background overflow-x-hidden">
