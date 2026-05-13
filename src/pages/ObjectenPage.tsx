@@ -207,12 +207,14 @@ export default function ObjectenPage() {
                   {filtered.map(obj => {
                     const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
                     return (
-                      <tr key={obj.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
+                      <tr
+                        key={obj.id}
+                        onClick={() => navigate(`/objecten/${obj.id}`)}
+                        className="group hover:bg-muted/40 transition-colors cursor-pointer"
+                      >
                         <td className="px-5 py-3.5">
-                          <Link to={`/objecten/${obj.id}`} className="block">
-                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{obj.plaats}, {obj.provincie}</p>
-                          </Link>
+                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{obj.plaats}, {obj.provincie}</p>
                         </td>
                         <td className="px-5 py-3.5 text-right font-mono-data text-foreground">{formatCurrency(obj.vraagprijs)}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data">
