@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
@@ -15,6 +15,7 @@ import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/
 import { saveListContext } from '@/lib/listNavigation';
 
 export default function RelatiesPage() {
+  const navigate = useNavigate();
   const { relaties } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
@@ -131,11 +132,13 @@ export default function RelatiesPage() {
                 </thead>
                 <tbody className="divide-y divide-border/70">
                   {filtered.map(r => (
-                    <tr key={r.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
+                    <tr
+                      key={r.id}
+                      onClick={() => navigate(`/relaties/${r.id}`)}
+                      className="group hover:bg-muted/40 transition-colors cursor-pointer"
+                    >
                       <td className="px-5 py-3.5">
-                        <Link to={`/relaties/${r.id}`} className="block">
-                          <RelatieNaamDisplay relatie={r} />
-                        </Link>
+                        <RelatieNaamDisplay relatie={r} />
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>
                       <td className="px-5 py-3.5 hidden lg:table-cell">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
@@ -15,6 +15,7 @@ import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/T
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
 export default function ObjectenPage() {
+  const navigate = useNavigate();
   const { objecten, unarchiveObject } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
@@ -206,12 +207,14 @@ export default function ObjectenPage() {
                   {filtered.map(obj => {
                     const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
                     return (
-                      <tr key={obj.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
+                      <tr
+                        key={obj.id}
+                        onClick={() => navigate(`/objecten/${obj.id}`)}
+                        className="group hover:bg-muted/40 transition-colors cursor-pointer"
+                      >
                         <td className="px-5 py-3.5">
-                          <Link to={`/objecten/${obj.id}`} className="block">
-                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{obj.plaats}, {obj.provincie}</p>
-                          </Link>
+                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{obj.plaats}, {obj.provincie}</p>
                         </td>
                         <td className="px-5 py-3.5 text-right font-mono-data text-foreground">{formatCurrency(obj.vraagprijs)}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data">

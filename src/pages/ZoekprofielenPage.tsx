@@ -115,7 +115,14 @@ export default function ZoekprofielenPage() {
           const rel = getRelatieById(zp.relatieId);
           const isActief = zp.status === 'actief';
           return (
-            <div key={zp.id} className="section-card p-5 flex flex-col gap-3.5 min-w-0">
+            <div
+              key={zp.id}
+              onClick={() => openBewerk(zp)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); openBewerk(zp); } }}
+              className="section-card p-5 flex flex-col gap-3.5 min-w-0 cursor-pointer hover:border-primary/40 hover:shadow-sm active:bg-muted/30 transition-all"
+            >
               {/* Header: titel mag wrappen, status-badge blijft compact rechts */}
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
@@ -126,6 +133,7 @@ export default function ZoekprofielenPage() {
                   {rel && (
                     <Link
                       to={`/relaties/${zp.relatieId}`}
+                      onClick={e => e.stopPropagation()}
                       className="text-xs text-accent hover:underline break-words inline-block max-w-full mt-0.5"
                     >
                       {getRelatieNaamCompact(rel, contactpersonen)}
@@ -204,7 +212,7 @@ export default function ZoekprofielenPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-1 hairline pt-3 mt-auto">
+              <div className="flex items-center gap-1 hairline pt-3 mt-auto" onClick={e => e.stopPropagation()}>
                 <button onClick={() => openBewerk(zp)} className="inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors">
                   <Pencil className="h-3 w-3" /> Bewerken
                 </button>
