@@ -104,13 +104,12 @@ export default function CommissieWidget() {
                 Pipeline (gewogen)
               </span>
             </div>
-            <p className="text-3xl font-semibold font-mono-data text-foreground">
-              <span className="sm:hidden">{formatCurrencyCompact(stats.pipelineBedragGewogen)}</span>
-              <span className="hidden sm:inline">{formatCurrency(stats.pipelineBedragGewogen)}</span>
+            <p className="text-2xl sm:text-3xl font-semibold font-mono-data text-foreground whitespace-nowrap">
+              {formatCurrency(stats.pipelineBedragTotaal)}
             </p>
             <p className="text-xs text-muted-foreground">
               {stats.pipelineAantalDeals} actieve deal{stats.pipelineAantalDeals === 1 ? '' : 's'} ·
-              potentieel {formatCurrencyCompact(stats.pipelineBedragTotaal)}
+              gewogen {formatCurrency(stats.pipelineBedragGewogen)}
             </p>
             <p className="text-[11px] text-muted-foreground italic">
               Gewogen naar kans per fase
