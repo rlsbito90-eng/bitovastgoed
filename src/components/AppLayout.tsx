@@ -251,6 +251,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Main content area — overflow-x-hidden voorkomt mobiele zijdelingse scroll */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }
