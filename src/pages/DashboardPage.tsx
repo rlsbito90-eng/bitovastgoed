@@ -157,17 +157,19 @@ export default function DashboardPage() {
             const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
             const isOverdue = new Date(taak.deadline) < vandaag;
             return (
-              <div key={taak.id} className="px-5 py-3 row-with-action">
-                <div className="row-flex">
-                  <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                  <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
-                  </p>
+              <Link key={taak.id} to="/taken" className="block px-5 py-3 hover:bg-muted/40 transition-colors">
+                <div className="row-with-action">
+                  <div className="row-flex">
+                    <p className="text-sm text-foreground truncate">{taak.titel}</p>
+                    <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
+                    </p>
+                  </div>
+                  <div className="row-action">
+                    <PrioriteitBadge prioriteit={taak.prioriteit} />
+                  </div>
                 </div>
-                <div className="row-action">
-                  <PrioriteitBadge prioriteit={taak.prioriteit} />
-                </div>
-              </div>
+              </Link>
             );
           })}
           {opvolging.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Geen taken vereisen opvolging deze week.</p>}
