@@ -30,6 +30,7 @@ function Sterren({ aantal }: { aantal: number }) {
 }
 
 export default function DealsPage() {
+  const navigate = useNavigate();
   const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
