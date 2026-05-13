@@ -115,7 +115,14 @@ export default function ZoekprofielenPage() {
           const rel = getRelatieById(zp.relatieId);
           const isActief = zp.status === 'actief';
           return (
-            <div key={zp.id} className="section-card p-5 flex flex-col gap-3.5 min-w-0">
+            <div
+              key={zp.id}
+              onClick={() => openBewerk(zp)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); openBewerk(zp); } }}
+              className="section-card p-5 flex flex-col gap-3.5 min-w-0 cursor-pointer hover:border-primary/40 hover:shadow-sm active:bg-muted/30 transition-all"
+            >
               {/* Header: titel mag wrappen, status-badge blijft compact rechts */}
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
