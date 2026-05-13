@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
