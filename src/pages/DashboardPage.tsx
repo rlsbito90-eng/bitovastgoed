@@ -189,17 +189,19 @@ export default function DashboardPage() {
               {verlopen.slice(0, 5).map(t => {
                 const rel = t.relatieId ? store.getRelatieById(t.relatieId) : null;
                 return (
-                  <div key={t.id} className="px-5 py-3 row-with-action">
-                    <div className="row-flex">
-                      <p className="text-sm text-foreground truncate">{t.titel}</p>
-                      <p className="text-xs text-destructive mt-0.5 truncate">
-                        {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{formatDate(t.deadline)} · te laat
-                      </p>
+                  <Link key={t.id} to="/taken" className="block px-5 py-3 hover:bg-muted/40 transition-colors">
+                    <div className="row-with-action">
+                      <div className="row-flex">
+                        <p className="text-sm text-foreground truncate">{t.titel}</p>
+                        <p className="text-xs text-destructive mt-0.5 truncate">
+                          {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{formatDate(t.deadline)} · te laat
+                        </p>
+                      </div>
+                      <div className="row-action">
+                        <PrioriteitBadge prioriteit={t.prioriteit} />
+                      </div>
                     </div>
-                    <div className="row-action">
-                      <PrioriteitBadge prioriteit={t.prioriteit} />
-                    </div>
-                  </div>
+                  </Link>
                 );
               })}
               {verlopen.length > 5 && (
