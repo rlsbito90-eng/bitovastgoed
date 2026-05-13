@@ -170,12 +170,14 @@ export default function DealsPage() {
                     const obj = getObjectById(deal.objectId);
                     const rel = getRelatieById(deal.relatieId);
                     return (
-                      <tr key={deal.id} className="group hover:bg-muted/40 transition-colors cursor-pointer">
+                      <tr
+                        key={deal.id}
+                        onClick={() => navigate(`/deals/${deal.id}`)}
+                        className="group hover:bg-muted/40 transition-colors cursor-pointer"
+                      >
                         <td className="px-5 py-3.5">
-                          <Link to={`/deals/${deal.id}`} className="block">
-                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj?.titel}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{obj?.plaats}</p>
-                          </Link>
+                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj?.titel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{obj?.plaats}</p>
                         </td>
                         <td className="px-5 py-3.5 text-foreground truncate max-w-[200px]">{getRelatieNaamCompact(rel, contactpersonen)}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</td>
