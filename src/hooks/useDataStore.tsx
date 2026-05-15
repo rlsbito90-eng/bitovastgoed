@@ -216,6 +216,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   propertySubtypeIds: o.property_subtype_ids ?? [],
   dealTypeIds: o.deal_type_ids ?? [],
   status: mapDbObjectStatusNaarApp(o.status),
+  aanbiedingswijze: o.aanbiedingswijze ?? 'off_market',
   beschikbaarVanaf: o.beschikbaar_vanaf ?? undefined,
   bron: o.bron ?? undefined,
   exclusief: !!o.exclusief,
