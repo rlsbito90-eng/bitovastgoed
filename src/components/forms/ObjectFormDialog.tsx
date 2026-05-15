@@ -250,30 +250,31 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     });
   };
 
-  const handleSave = async () => {
-    if (bezig) return;
-    if (!form.titel.trim()) {
-      toast.error('Titel is verplicht');
-      setTab('algemeen');
-      return;
-    }
-    setBezig(true);
+  // Archief-modal state — opent vóór save bij eindstatus
+  const [archiefOpen, setArchiefOpen] = useState(false);
 
+  const finalStatussen: ObjectStatus[] = ['verkocht', 'ingetrokken', 'afgevallen'];
+  const defaultReasonVoorStatus = (s: ObjectStatus): string => {
+    if (s === 'verkocht') return 'Verkocht via Bito Vastgoed';
+    if (s === 'ingetrokken') return 'Ingetrokken door eigenaar';
+    return 'Succesvol afgerond';
+  };
+
+  const persist = async (extra: Partial<ObjectVastgoed> = {}, archiefMelding?: string) => {
+    setBezig(true);
     const data = {
       ...form,
+      ...extra,
       titel: form.titel.trim() || 'Onbekend object',
     };
-
     try {
-      const triggertArchief = (data.status === 'verkocht' || data.status === 'ingetrokken')
-        && (!object || !object.isArchived);
       if (isEdit && object) {
         await updateObject(object.id, data);
-        toast.success(triggertArchief ? 'Object gearchiveerd en verplaatst naar Archief.' : 'Object bijgewerkt');
+        toast.success(archiefMelding ?? 'Object bijgewerkt');
         onOpenChange(false);
       } else if (gemaaktId) {
         await updateObject(gemaaktId, data);
-        toast.success(triggertArchief ? 'Object gearchiveerd en verplaatst naar Archief.' : 'Object bijgewerkt');
+        toast.success(archiefMelding ?? 'Object bijgewerkt');
         onOpenChange(false);
       } else {
         const payload = { ...data, datumToegevoegd: new Date().toISOString().split('T')[0] };
@@ -281,7 +282,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
         if (nieuw?.id) {
           setGemaaktId(nieuw.id);
           toast.success('Object aangemaakt — je kunt nu huurders, documenten en foto\'s toevoegen');
-          // Niet sluiten: gebruiker kan nu media-tab gebruiken
         }
       }
     } catch (err: any) {
@@ -289,6 +289,22 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
     } finally {
       setBezig(false);
     }
+  };
+
+  const handleSave = async () => {
+    if (bezig) return;
+    if (!form.titel.trim()) {
+      toast.error('Titel is verplicht');
+      setTab('algemeen');
+      return;
+    }
+    const triggertArchief = finalStatussen.includes(form.status)
+      && (!object || !object.isArchived);
+    if (triggertArchief) {
+      setArchiefOpen(true);
+      return;
+    }
+    await persist();
   };
 
   const handleClose = () => {
