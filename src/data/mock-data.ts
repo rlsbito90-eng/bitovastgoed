@@ -288,6 +288,7 @@ export interface ObjectVastgoed {
   dealTypeIds?: string[];         // FK[] deal_types
 
   status: ObjectStatus;
+  aanbiedingswijze?: Aanbiedingswijze;
   beschikbaarVanaf?: string;
   bron?: string;
   exclusief: boolean;
