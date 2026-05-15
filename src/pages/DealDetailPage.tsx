@@ -371,6 +371,20 @@ export default function DealDetailPage() {
       </div>
 
       <DealFormDialog open={editOpen} onOpenChange={setEditOpen} deal={deal} />
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="deal"
+        onConfirm={async ({ reason, note }) => {
+          try {
+            await store.archiveDeal(deal.id, reason, note);
+            setArchiefOpen(false);
+            toast.success('Deal gearchiveerd');
+          } catch (err: any) {
+            toast.error(`Archiveren mislukt: ${err.message ?? 'onbekende fout'}`);
+          }
+        }}
+      />
     </div>
   );
 }
