@@ -456,6 +456,26 @@ export default function DealFormDialog({
           </div>
         </Tabs>
       </DialogContent>
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="deal"
+        defaultReason={form.fase === 'afgerond' ? 'Succesvol afgerond' : 'Koper afgehaakt'}
+        showSkip
+        triggerHint={`Fase wijzigt naar "${form.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen'}". Archiveer direct mee, of bewaar alleen de fase.`}
+        onConfirm={async ({ reason, note }) => {
+          setArchiefOpen(false);
+          await persist({
+            isArchived: true,
+            archivedAt: new Date().toISOString(),
+            archivedReason: reason,
+            archivedNote: note,
+          }, 'Deal gearchiveerd en verplaatst naar Archief.');
+        }}
+        onSkip={() => {
+          persist({ isArchived: false, archivedAt: undefined, archivedReason: undefined, archivedNote: undefined });
+        }}
+      />
     </Dialog>
   );
 }
