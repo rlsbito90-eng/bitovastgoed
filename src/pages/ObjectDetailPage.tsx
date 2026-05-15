@@ -616,6 +616,20 @@ export default function ObjectDetailPage() {
       <ObjectPipelineSectie objectId={object.id} />
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="object"
+        onConfirm={async ({ reason, note }) => {
+          try {
+            await store.archiveObject(object.id, reason, note);
+            setArchiefOpen(false);
+            toast.success('Object gearchiveerd');
+          } catch (err: any) {
+            toast.error(`Archiveren mislukt: ${err.message ?? 'onbekende fout'}`);
+          }
+        }}
+      />
     </div>
   );
 }
