@@ -511,6 +511,7 @@ const dealFromDb = (d: any): Deal => ({
   isArchived: !!d.is_archived,
   archivedAt: d.archived_at ?? undefined,
   archivedReason: d.archived_reason ?? undefined,
+  archivedNote: d.archived_note ?? undefined,
 });
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
@@ -538,6 +539,7 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
   is_archived: d.isArchived,
   archived_at: d.archivedAt !== undefined ? (d.archivedAt || null) : undefined,
   archived_reason: d.archivedReason !== undefined ? (d.archivedReason || null) : undefined,
+  archived_note: d.archivedNote !== undefined ? (d.archivedNote || null) : undefined,
 });
 
 const taakFromDb = (t: any): Taak => ({
