@@ -178,27 +178,24 @@ const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
 // MAPPERS — OBJECTEN
 // =====================================================================
 
+// DB en frontend enum zijn nu gelijk; geen mapping meer nodig.
 function mapDbObjectStatusNaarApp(s: string): any {
+  // legacy fallback voor oude waarden die nog ergens kunnen voorkomen
   switch (s) {
-    case 'nieuw': return 'off-market';
-    case 'in_voorbereiding': return 'in_onderzoek';
-    case 'beschikbaar': return 'beschikbaar';
-    case 'in_onderhandeling': return 'onder_optie';
-    case 'verkocht': return 'verkocht';
-    case 'ingetrokken': return 'ingetrokken';
-    default: return 'off-market';
+    case 'nieuw':
+    case 'in_voorbereiding':
+    case 'in_onderzoek':
+      return 'te_beoordelen';
+    case 'in_onderhandeling':
+      return 'onder_optie';
+    case 'off-market':
+      return 'beschikbaar';
+    default:
+      return s;
   }
 }
 function mapAppObjectStatusNaarDb(s: any): string {
-  switch (s) {
-    case 'off-market': return 'nieuw';
-    case 'in_onderzoek': return 'in_voorbereiding';
-    case 'beschikbaar': return 'beschikbaar';
-    case 'onder_optie': return 'in_onderhandeling';
-    case 'verkocht': return 'verkocht';
-    case 'ingetrokken': return 'ingetrokken';
-    default: return 'nieuw';
-  }
+  return s;
 }
 
 const objectFromDb = (o: any): ObjectVastgoed => ({
