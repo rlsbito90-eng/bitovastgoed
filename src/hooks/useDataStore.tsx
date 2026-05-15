@@ -322,6 +322,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   property_subtype_ids: o.propertySubtypeIds !== undefined ? (o.propertySubtypeIds ?? []) : undefined,
   deal_type_ids: o.dealTypeIds !== undefined ? (o.dealTypeIds ?? []) : undefined,
   status: o.status !== undefined ? mapAppObjectStatusNaarDb(o.status) : undefined,
+  aanbiedingswijze: o.aanbiedingswijze !== undefined ? o.aanbiedingswijze : undefined,
   beschikbaar_vanaf: o.beschikbaarVanaf !== undefined ? (o.beschikbaarVanaf || null) : undefined,
   bron: o.bron !== undefined ? (o.bron || null) : undefined,
   exclusief: o.exclusief,
