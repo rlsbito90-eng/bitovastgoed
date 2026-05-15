@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const { relaties, objecten, deals, taken, pipelineKandidaten } = store;
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
-  const actieveObjecten = objecten.filter(o => !o.isArchived && (o.status === 'off-market' || o.status === 'in_onderzoek' || o.status === 'beschikbaar'));
+  const actieveObjecten = objecten.filter(o => !o.isArchived);
   const openTaken = taken.filter(t => t.status !== 'afgerond');
   const actieveDeals = deals.filter(d => !d.isArchived && !['afgerond', 'afgevallen'].includes(d.fase));
   const matches = getAllMatchesFromData(store.zoekprofielen, store.objecten);

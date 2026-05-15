@@ -47,12 +47,13 @@ const dealFaseConfig: Record<DealFase, { label: string; tone: Tone }> = {
 };
 
 const objectStatusConfig: Record<ObjectStatus, { label: string; tone: Tone }> = {
-  'off-market':    { label: 'Off-market',    tone: 'gold' },
-  'in_onderzoek':  { label: 'In onderzoek',  tone: 'sand' },
+  'te_beoordelen': { label: 'Te beoordelen', tone: 'sand' },
   'beschikbaar':   { label: 'Beschikbaar',   tone: 'emerald' },
+  'on_hold':       { label: 'On hold',       tone: 'gold' },
   'onder_optie':   { label: 'Onder optie',   tone: 'amber' },
   'verkocht':      { label: 'Verkocht',      tone: 'neutral' },
   'ingetrokken':   { label: 'Ingetrokken',   tone: 'crimson' },
+  'afgevallen':    { label: 'Afgevallen',    tone: 'crimson' },
 };
 
 const prioriteitConfig: Record<TaakPrioriteit, { label: string; tone: Tone }> = {

@@ -124,12 +124,13 @@ export default function ObjectenPage() {
           </select>
           <select className="flex-1 sm:flex-none min-w-0 h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as ObjectStatus | '')}>
             <option value="">Alle statussen</option>
-            <option value="off-market">Off-market</option>
-            <option value="in_onderzoek">In onderzoek</option>
+            <option value="te_beoordelen">Te beoordelen</option>
             <option value="beschikbaar">Beschikbaar</option>
+            <option value="on_hold">On hold</option>
             <option value="onder_optie">Onder optie</option>
             <option value="verkocht">Verkocht</option>
             <option value="ingetrokken">Ingetrokken</option>
+            <option value="afgevallen">Afgevallen</option>
           </select>
         </div>
       </div>

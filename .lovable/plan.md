@@ -1,85 +1,103 @@
-## Module: Acquisitie
+## Doel
 
-Nieuwe hoofdmodule voor off-market acquisitie vóór een pand Object/Deal wordt. Twee onderdelen: **Targets** en **Campagnes**, plus een Dashboard-widget.
+Status/fase/archief logica volledig herstructureren voor Objecten en Deals, en bug fixen waarbij Verkocht/Ingetrokken objecten in Actief blijven staan.
 
----
+## 1. Database migratie (Supabase)
 
-### 1. Database (veilige migratie, additief)
+**Enum `object_status` aanpassen**
+Nieuwe waarden: `te_beoordelen`, `beschikbaar`, `on_hold`, `onder_optie`, `verkocht`, `ingetrokken`, `afgevallen`.
+- Hernoem oude enum waarden via tijdelijke kolom-migratie (Postgres staat geen veilig enum rename met removal toe in één stap).
+- Map: `off-market` → `beschikbaar`, `in_onderzoek` → `te_beoordelen`, `nieuw` → `te_beoordelen`. Bestaande `beschikbaar`, `onder_optie`, `verkocht`, `ingetrokken` blijven.
 
-Twee nieuwe tabellen + twee enums. Geen wijzigingen aan bestaande tabellen, behalve één **nullable** kolom op `objecten` om herkomst vanuit een target te tracken.
+**Nieuw enum `aanbiedingswijze`**: `off_market`, `stille_verkoop`, `openbaar`, `via_makelaar`. Default: `off_market`.
 
-**Enums**
-- `acquisitie_status`: `target_gevonden`, `eigenaar_achterhalen`, `eerste_benadering`, `follow_up_gepland`, `reactie_ontvangen`, `verkoopbereidheid_peilen`, `potentiele_verkooppositie`, `object_aangemaakt`, `niet_interessant`
-- `campagne_kanaal`: `brief`, `bellen`, `linkedin`, `email`, `netwerk`, `anders`
-- `campagne_status`: `concept`, `actief`, `gepauzeerd`, `afgerond`
+**Nieuwe kolom `objecten.aanbiedingswijze`** (default `off_market`). Bestaande records met oude status `off-market` krijgen `aanbiedingswijze='off_market'`, anderen krijgen default.
 
-**Tabel `acquisitie_campagnes`**
-- naam, kanaal, gebied, startdatum, status, notities, created_at, updated_at, aangemaakt_door
-- RLS: intern lezen/schrijven (zelfde patroon als bestaande tabellen)
+**Archiefvelden uitbreiden**
+- `objecten`: `archived_note text` toevoegen (is_archived/archived_at/archived_reason bestaan al).
+- `deals`: `archived_note text` toevoegen.
 
-**Tabel `acquisitie_targets`**
-- adres, postcode, plaats, wijk, type_vastgoed (text), reden_interessant, bron, campagne_id (nullable FK), eigenaar_bekend (`ja|nee|onbekend`), eigenaar_woont_op_adres (`ja|nee|onbekend`), relatie_id (nullable), status (acquisitie_status), prioriteit (smallint 1-5), laatste_actie_datum, volgende_actie_datum, volgende_actie_omschrijving, notities, object_id (nullable, gezet bij conversie), created_at, updated_at, aangemaakt_door
-- RLS: intern lezen/schrijven
+**Data cleanup**
+- Objecten met status `verkocht` of `ingetrokken` waar `is_archived=false`: zet `is_archived=true`, `archived_at=now()`, `archived_reason` = "Verkocht via Bito Vastgoed" / "Ingetrokken door eigenaar".
 
-**Bestaand `objecten`**: kolom `acquisitie_target_id uuid NULL` toevoegen (puur voor traceerbaarheid; nullable, geen FK om migratie veilig te houden).
+## 2. Frontend types & mock-data
 
----
+`src/data/mock-data.ts`:
+- `ObjectStatus` type aanpassen naar nieuwe waarden.
+- Nieuwe `Aanbiedingswijze` type.
+- Labels en kleur-config bijwerken in `StatusBadges.tsx`.
+- `Object` interface: `aanbiedingswijze`, `archivedNote` toevoegen.
+- `Deal` interface: `archivedNote` toevoegen.
 
-### 2. Frontend
+`useDataStore.tsx`:
+- Mappers `mapObject*` aanpassen — geen status⇄fase translatie meer (status is alleen nog basisstatus).
+- Filters voor "actief" gebruiken `!isArchived` (niet meer status-list).
 
-**Nieuwe routes** (`src/App.tsx`):
-- `/acquisitie` → AcquisitiePage (Tabs: Targets | Campagnes)
-- `/acquisitie/targets/:id` → TargetDetailPage
-- `/acquisitie/campagnes/:id` → CampagneDetailPage
+## 3. UI: ObjectFormDialog
+- Statusdropdown: nieuwe 7 opties met Nederlandse labels.
+- Aanbiedingswijze-dropdown toevoegen onder Algemeen.
+- Bij wijziging naar `verkocht`/`ingetrokken`/`afgevallen` op submit → archiveer-modal openen vóór save.
 
-**Navigatie** (`src/components/AppLayout.tsx`):
-- Item "Acquisitie" met `Target` icon, gepositioneerd tussen Pipeline en Taken.
+## 4. Nieuwe component: ArchiveerDialog
+`src/components/ArchiveerDialog.tsx` — generieke modal:
+- Props: `open`, `kind: 'object'|'deal'`, `triggerStatus`, `defaultReason`, `onArchiveer`, `onSkip`, `onCancel`.
+- Velden: reden-dropdown (lijst per kind), notitie-textarea (verplicht bij "Anders").
+- Knoppen: Annuleren / Niet archiveren / Archiveren.
 
-**Pages**
-- `AcquisitiePage.tsx` — Tabs Targets/Campagnes met respectievelijke lijsten + "Nieuw" knoppen
-- Targets-lijst: filters op status, plaats, campagne, prioriteit, type vastgoed; kolommen incl. `GeenActieBadge` (zonder volgende actie / verlopen)
-- Campagnes-lijst: kolommen naam/kanaal/status/#targets/#reacties/#warme leads/#objecten
+Object-redenen en Deal-redenen zoals in spec.
 
-**Dialogs**
-- `AcquisitieTargetFormDialog.tsx` — alle velden, koppel aan relatie + campagne
-- `AcquisitieCampagneFormDialog.tsx` — campagne CRUD
-- Auto-close op succes (huidige projectstandaard)
+## 5. ObjectDetailPage
+- "Objectfase" hernoemen naar "Trajectfase" in label.
+- Trajectfase wijziging naar `afgerond`/`afgevallen` → archiveer-modal.
+- Knop "Archiveer object" toevoegen + handmatige flow.
+- "Terugzetten naar actief" knop in archief-weergave.
 
-**Detail pages**
-- `TargetDetailPage`: alle velden, knop **"Maak Object"** → opent `ObjectFormDialog` met prefill (adres/postcode/plaats/type), na succes `acquisitie_target_id` zetten op het nieuwe object en target-status → `object_aangemaakt`. Knop **"Koppel relatie"** via bestaande relatie-select.
-- `CampagneDetailPage`: campagne-info + lijst van gekoppelde targets + conversiestatistieken (afgeleid uit targets).
+## 6. ObjectenPage
+- Tabs Actief/Archief/Alles (zoals DealsPage al heeft).
+- Verwijder `off-market` uit filterdropdown, vervang door nieuwe 7 statussen.
+- Statuslabels vertalen.
 
-**Shared**
-- Hergebruik `GeenActieBadge` voor zonder/verlopen volgende actie.
-- Hergebruik bestaand status-chip-patroon (`StatusBadges`-stijl) met nieuw `AcquisitieStatusBadge`.
+## 7. DealsPage / DealDetailPage
+- `DealFormDialog`: bij fase-wijziging naar `afgerond`/`afgevallen` → archiveer-modal.
+- Handmatige archiveer-knop op detailpagina.
+- Archived_note tonen in archief-tab.
 
-**Data store**
-- Nieuwe hook `useAcquisitie.tsx` (apart, raakt `useDataStore` niet) met: list/create/update/delete voor targets en campagnes, plus `convertTargetNaarObject(targetId)`.
+## 8. Bugfix
+- Hoofdoorzaak: `actieveObjecten` filter in DashboardPage en pipeline gebruikten status-lijst i.p.v. `!isArchived`. Vervangen door `!isArchived`.
+- ObjectPipelineKanban statusdropdown updaten.
+- Cache invalidatie verzekeren via `refresh()` na archive-call.
 
----
+## 9. Bestanden (geschat)
 
-### 3. Dashboard widget
+```text
+Migratie:
+  - supabase/migrations (nieuwe migratie via tool)
 
-In `src/pages/DashboardPage.tsx` een compacte sectie "Acquisitie" onderaan met:
-- # actieve targets (status ≠ `object_aangemaakt`/`niet_interessant`)
-- # targets zonder volgende actie
-- # verlopen acquisitie-acties (volgende_actie_datum < vandaag)
-- # reacties deze maand (status `reactie_ontvangen`, updated_at in maand)
-- # warme leads (status in `verkoopbereidheid_peilen`/`potentiele_verkooppositie`)
-- # objecten aangemaakt vanuit acquisitie (status `object_aangemaakt`)
-- Beste campagne (meeste reacties)
+Nieuw:
+  - src/components/ArchiveerDialog.tsx
 
-Geen wijzigingen aan bestaande KPI-logica.
+Edits:
+  - src/data/mock-data.ts
+  - src/components/StatusBadges.tsx
+  - src/hooks/useDataStore.tsx
+  - src/components/forms/ObjectFormDialog.tsx
+  - src/components/forms/DealFormDialog.tsx
+  - src/pages/ObjectenPage.tsx
+  - src/pages/ObjectDetailPage.tsx
+  - src/pages/DealDetailPage.tsx
+  - src/pages/DealsPage.tsx
+  - src/pages/DashboardPage.tsx
+  - src/components/pipeline/ObjectPipelineKanban.tsx
+  - src/components/pipeline/ObjectPipelineFaseSectie.tsx
+```
 
----
+## Volgorde
+1. Migratie + data cleanup (vraagt user-approval)
+2. Types + mock-data + badges
+3. ArchiveerDialog
+4. Forms (Object/Deal)
+5. Detailpagina's + lijsten + dashboard fix
+6. Build verifiëren
 
-### Niet inbegrepen
-
-Geen kaart-UI, geen Kadaster/BAG/externe integraties, geen wijzigingen aan bestaande modules behalve de single nullable kolom op `objecten` en het toegevoegde nav-item + dashboardwidget.
-
----
-
-### Volgorde van uitvoer
-
-1. Migratie indienen ter goedkeuring (enums, twee tabellen, RLS, kolom op `objecten`).
-2. Na approval: hook + dialogs + pages + nav + dashboardwidget + route.
+## Open vraag
+Geen blokkerende open vragen — spec is volledig. Ga ik door met de migratie?

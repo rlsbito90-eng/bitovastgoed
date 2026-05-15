@@ -77,7 +77,8 @@ const leegForm: FormState = {
   propertyTypeId: undefined,
   propertySubtypeIds: [],
   dealTypeIds: [],
-  status: 'off-market',
+  status: 'te_beoordelen',
+  aanbiedingswijze: 'off_market',
   beschikbaarVanaf: undefined,
   bron: undefined,
   exclusief: false,
@@ -429,18 +430,31 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                       placeholder="BITO-YYYY-NNN (wordt automatisch gegenereerd)"
                     />
                   </Veld>
-                  <Veld label="Status">
+                  <Veld label="Objectstatus">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.status}
                       onChange={e => set('status', e.target.value as ObjectStatus)}
                     >
-                      <option value="off-market">Off-market</option>
-                      <option value="in_onderzoek">In onderzoek</option>
+                      <option value="te_beoordelen">Te beoordelen</option>
                       <option value="beschikbaar">Beschikbaar</option>
+                      <option value="on_hold">On hold</option>
                       <option value="onder_optie">Onder optie</option>
                       <option value="verkocht">Verkocht</option>
                       <option value="ingetrokken">Ingetrokken</option>
+                      <option value="afgevallen">Afgevallen</option>
+                    </select>
+                  </Veld>
+                  <Veld label="Aanbiedingswijze">
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.aanbiedingswijze ?? 'off_market'}
+                      onChange={e => set('aanbiedingswijze', e.target.value as any)}
+                    >
+                      <option value="off_market">Off-market</option>
+                      <option value="stille_verkoop">Stille verkoop</option>
+                      <option value="openbaar">Openbaar</option>
+                      <option value="via_makelaar">Via makelaar</option>
                     </select>
                   </Veld>
                 </div>

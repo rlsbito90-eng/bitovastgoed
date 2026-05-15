@@ -300,6 +300,7 @@ export type Database = {
         Row: {
           afwijzingsreden: string | null
           archived_at: string | null
+          archived_note: string | null
           archived_reason: string | null
           bank: string | null
           bezichtiging_gepland: string | null
@@ -331,6 +332,7 @@ export type Database = {
         Insert: {
           afwijzingsreden?: string | null
           archived_at?: string | null
+          archived_note?: string | null
           archived_reason?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
@@ -362,6 +364,7 @@ export type Database = {
         Update: {
           afwijzingsreden?: string | null
           archived_at?: string | null
+          archived_note?: string | null
           archived_reason?: string | null
           bank?: string | null
           bezichtiging_gepland?: string | null
@@ -956,6 +959,7 @@ export type Database = {
       }
       objecten: {
         Row: {
+          aanbiedingswijze: Database["public"]["Enums"]["aanbiedingswijze"]
           aangemaakt_door: string | null
           aantal_huurders: number | null
           aantal_units: number | null
@@ -965,6 +969,7 @@ export type Database = {
           adres: string | null
           anoniem: boolean
           archived_at: string | null
+          archived_note: string | null
           archived_reason: string | null
           asbestinventarisatie_aanwezig: boolean | null
           beschikbaar_vanaf: string | null
@@ -1065,6 +1070,7 @@ export type Database = {
           woz_waarde: number | null
         }
         Insert: {
+          aanbiedingswijze?: Database["public"]["Enums"]["aanbiedingswijze"]
           aangemaakt_door?: string | null
           aantal_huurders?: number | null
           aantal_units?: number | null
@@ -1074,6 +1080,7 @@ export type Database = {
           adres?: string | null
           anoniem?: boolean
           archived_at?: string | null
+          archived_note?: string | null
           archived_reason?: string | null
           asbestinventarisatie_aanwezig?: boolean | null
           beschikbaar_vanaf?: string | null
@@ -1176,6 +1183,7 @@ export type Database = {
           woz_waarde?: number | null
         }
         Update: {
+          aanbiedingswijze?: Database["public"]["Enums"]["aanbiedingswijze"]
           aangemaakt_door?: string | null
           aantal_huurders?: number | null
           aantal_units?: number | null
@@ -1185,6 +1193,7 @@ export type Database = {
           adres?: string | null
           anoniem?: boolean
           archived_at?: string | null
+          archived_note?: string | null
           archived_reason?: string | null
           asbestinventarisatie_aanwezig?: boolean | null
           beschikbaar_vanaf?: string | null
@@ -2133,6 +2142,11 @@ export type Database = {
       is_intern_gebruiker: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      aanbiedingswijze:
+        | "off_market"
+        | "stille_verkoop"
+        | "openbaar"
+        | "via_makelaar"
       acquisitie_status:
         | "target_gevonden"
         | "eigenaar_achterhalen"
@@ -2239,12 +2253,13 @@ export type Database = {
         | "onbekend"
       lead_status: "koud" | "lauw" | "warm" | "actief"
       object_status:
-        | "nieuw"
-        | "in_voorbereiding"
+        | "te_beoordelen"
         | "beschikbaar"
-        | "in_onderhandeling"
+        | "on_hold"
+        | "onder_optie"
         | "verkocht"
         | "ingetrokken"
+        | "afgevallen"
       onderhoudsstaat_niveau:
         | "uitstekend"
         | "goed"
@@ -2430,6 +2445,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      aanbiedingswijze: [
+        "off_market",
+        "stille_verkoop",
+        "openbaar",
+        "via_makelaar",
+      ],
       acquisitie_status: [
         "target_gevonden",
         "eigenaar_achterhalen",
@@ -2547,12 +2568,13 @@ export const Constants = {
       ],
       lead_status: ["koud", "lauw", "warm", "actief"],
       object_status: [
-        "nieuw",
-        "in_voorbereiding",
+        "te_beoordelen",
         "beschikbaar",
-        "in_onderhandeling",
+        "on_hold",
+        "onder_optie",
         "verkocht",
         "ingetrokken",
+        "afgevallen",
       ],
       onderhoudsstaat_niveau: [
         "uitstekend",

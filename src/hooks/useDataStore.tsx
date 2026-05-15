@@ -178,27 +178,24 @@ const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
 // MAPPERS — OBJECTEN
 // =====================================================================
 
+// DB en frontend enum zijn nu gelijk; geen mapping meer nodig.
 function mapDbObjectStatusNaarApp(s: string): any {
+  // legacy fallback voor oude waarden die nog ergens kunnen voorkomen
   switch (s) {
-    case 'nieuw': return 'off-market';
-    case 'in_voorbereiding': return 'in_onderzoek';
-    case 'beschikbaar': return 'beschikbaar';
-    case 'in_onderhandeling': return 'onder_optie';
-    case 'verkocht': return 'verkocht';
-    case 'ingetrokken': return 'ingetrokken';
-    default: return 'off-market';
+    case 'nieuw':
+    case 'in_voorbereiding':
+    case 'in_onderzoek':
+      return 'te_beoordelen';
+    case 'in_onderhandeling':
+      return 'onder_optie';
+    case 'off-market':
+      return 'beschikbaar';
+    default:
+      return s;
   }
 }
 function mapAppObjectStatusNaarDb(s: any): string {
-  switch (s) {
-    case 'off-market': return 'nieuw';
-    case 'in_onderzoek': return 'in_voorbereiding';
-    case 'beschikbaar': return 'beschikbaar';
-    case 'onder_optie': return 'in_onderhandeling';
-    case 'verkocht': return 'verkocht';
-    case 'ingetrokken': return 'ingetrokken';
-    default: return 'nieuw';
-  }
+  return s;
 }
 
 const objectFromDb = (o: any): ObjectVastgoed => ({
@@ -219,6 +216,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   propertySubtypeIds: o.property_subtype_ids ?? [],
   dealTypeIds: o.deal_type_ids ?? [],
   status: mapDbObjectStatusNaarApp(o.status),
+  aanbiedingswijze: o.aanbiedingswijze ?? 'off_market',
   beschikbaarVanaf: o.beschikbaar_vanaf ?? undefined,
   bron: o.bron ?? undefined,
   exclusief: !!o.exclusief,
@@ -282,6 +280,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   isArchived: !!o.is_archived,
   archivedAt: o.archived_at ?? undefined,
   archivedReason: o.archived_reason ?? undefined,
+  archivedNote: o.archived_note ?? undefined,
   referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
   pipelineId: o.pipeline_id ?? undefined,
   pipelineStageId: o.pipeline_stage_id ?? undefined,
@@ -323,6 +322,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   property_subtype_ids: o.propertySubtypeIds !== undefined ? (o.propertySubtypeIds ?? []) : undefined,
   deal_type_ids: o.dealTypeIds !== undefined ? (o.dealTypeIds ?? []) : undefined,
   status: o.status !== undefined ? mapAppObjectStatusNaarDb(o.status) : undefined,
+  aanbiedingswijze: o.aanbiedingswijze !== undefined ? o.aanbiedingswijze : undefined,
   beschikbaar_vanaf: o.beschikbaarVanaf !== undefined ? (o.beschikbaarVanaf || null) : undefined,
   bron: o.bron !== undefined ? (o.bron || null) : undefined,
   exclusief: o.exclusief,
@@ -405,6 +405,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   is_archived: o.isArchived,
   archived_at: o.archivedAt !== undefined ? (o.archivedAt || null) : undefined,
   archived_reason: o.archivedReason !== undefined ? (o.archivedReason || null) : undefined,
+  archived_note: o.archivedNote !== undefined ? (o.archivedNote || null) : undefined,
 });
 
 
@@ -1103,11 +1104,15 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
     const payload: Partial<ObjectVastgoed> = { ...o };
     // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
-    if (o.status === 'verkocht' || o.status === 'ingetrokken') {
+    if (o.status === 'verkocht' || o.status === 'ingetrokken' || o.status === 'afgevallen') {
       if (payload.isArchived === undefined) payload.isArchived = true;
       if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
       if (payload.archivedReason === undefined) {
-        payload.archivedReason = o.status === 'verkocht' ? 'Verkocht' : 'Ingetrokken';
+        payload.archivedReason = o.status === 'verkocht'
+          ? 'Verkocht via Bito Vastgoed'
+          : o.status === 'ingetrokken'
+            ? 'Ingetrokken door eigenaar'
+            : 'Afgevallen';
       }
     }
     const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
