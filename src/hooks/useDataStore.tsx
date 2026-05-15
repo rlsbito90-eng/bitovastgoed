@@ -405,6 +405,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   is_archived: o.isArchived,
   archived_at: o.archivedAt !== undefined ? (o.archivedAt || null) : undefined,
   archived_reason: o.archivedReason !== undefined ? (o.archivedReason || null) : undefined,
+  archived_note: o.archivedNote !== undefined ? (o.archivedNote || null) : undefined,
 });
 
 
