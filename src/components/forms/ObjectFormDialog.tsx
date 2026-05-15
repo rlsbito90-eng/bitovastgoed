@@ -48,6 +48,7 @@ import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
 import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
 import type { DocumentType } from '@/data/mock-data';
+import ArchiveerDialog from '@/components/ArchiveerDialog';
 
 interface Props {
   open: boolean;
