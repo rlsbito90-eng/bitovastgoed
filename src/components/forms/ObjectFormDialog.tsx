@@ -1160,6 +1160,27 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
           </div>
         </Tabs>
       </DialogContent>
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="object"
+        defaultReason={defaultReasonVoorStatus(form.status)}
+        showSkip
+        triggerHint={`Status wijzigt naar "${form.status === 'verkocht' ? 'Verkocht' : form.status === 'ingetrokken' ? 'Ingetrokken' : 'Afgevallen'}". Archiveer direct mee, of bewaar alleen de status.`}
+        onConfirm={async ({ reason, note }) => {
+          setArchiefOpen(false);
+          await persist({
+            isArchived: true,
+            archivedAt: new Date().toISOString(),
+            archivedReason: reason,
+            archivedNote: note,
+          }, 'Object gearchiveerd en verplaatst naar Archief.');
+        }}
+        onSkip={() => {
+          // Save status zonder archiveren — overschrijf auto-archief in store
+          persist({ isArchived: false, archivedAt: undefined, archivedReason: undefined, archivedNote: undefined });
+        }}
+      />
     </Dialog>
   );
 }
