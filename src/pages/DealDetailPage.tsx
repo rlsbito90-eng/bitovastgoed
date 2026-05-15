@@ -13,9 +13,10 @@ import {
 import { DealFaseBadge, LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, Pencil, Trash2, Star, Trophy, AlertCircle,
-  Building2, Landmark, Users as UsersIcon,
+  Building2, Landmark, Users as UsersIcon, Archive, ArchiveRestore,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import ArchiveerDialog from '@/components/ArchiveerDialog';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
@@ -44,6 +45,7 @@ export default function DealDetailPage() {
   const store = useDataStore();
   const deal = store.getDealById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [archiefOpen, setArchiefOpen] = useState(false);
 
   if (!deal) {
     return (
@@ -83,6 +85,28 @@ export default function DealDetailPage() {
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
+          {deal.isArchived ? (
+            <button
+              onClick={async () => {
+                try {
+                  await store.unarchiveDeal(deal.id);
+                  toast.success('Deal teruggezet naar Actief');
+                } catch (err: any) {
+                  toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground"
+            >
+              <ArchiveRestore className="h-4 w-4" /> Terugzetten naar actief
+            </button>
+          ) : (
+            <button
+              onClick={() => setArchiefOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground"
+            >
+              <Archive className="h-4 w-4" /> Archiveer deal
+            </button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
@@ -91,12 +115,12 @@ export default function DealDetailPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Deal archiveren?</AlertDialogTitle>
-                <AlertDialogDescription>Weet je zeker dat je deze deal wilt archiveren?</AlertDialogDescription>
+                <AlertDialogTitle>Deal verwijderen?</AlertDialogTitle>
+                <AlertDialogDescription>Verwijdert deze deal uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Archiveren</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -347,6 +371,20 @@ export default function DealDetailPage() {
       </div>
 
       <DealFormDialog open={editOpen} onOpenChange={setEditOpen} deal={deal} />
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="deal"
+        onConfirm={async ({ reason, note }) => {
+          try {
+            await store.archiveDeal(deal.id, reason, note);
+            setArchiefOpen(false);
+            toast.success('Deal gearchiveerd');
+          } catch (err: any) {
+            toast.error(`Archiveren mislukt: ${err.message ?? 'onbekende fout'}`);
+          }
+        }}
+      />
     </div>
   );
 }

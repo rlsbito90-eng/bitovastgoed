@@ -28,6 +28,8 @@ import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
 import ObjectPipelineFaseSectie from '@/components/pipeline/ObjectPipelineFaseSectie';
+import ArchiveerDialog from '@/components/ArchiveerDialog';
+import { Archive, ArchiveRestore } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -61,6 +63,7 @@ export default function ObjectDetailPage() {
   const { labelFor } = useSubcategorieen();
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [archiefOpen, setArchiefOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
 
   // Fotos signed URLs ophalen
@@ -146,6 +149,28 @@ export default function ObjectDetailPage() {
               <Pencil className="h-4 w-4" /> Bewerken
             </button>
             <ObjectPdfButton object={object} />
+            {object.isArchived ? (
+              <button
+                onClick={async () => {
+                  try {
+                    await store.unarchiveObject(object.id);
+                    toast.success('Object teruggezet naar Actief');
+                  } catch (err: any) {
+                    toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground"
+              >
+                <ArchiveRestore className="h-4 w-4" /> Terugzetten naar actief
+              </button>
+            ) : (
+              <button
+                onClick={() => setArchiefOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground"
+              >
+                <Archive className="h-4 w-4" /> Archiveer object
+              </button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
@@ -154,12 +179,12 @@ export default function ObjectDetailPage() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Object archiveren?</AlertDialogTitle>
-                  <AlertDialogDescription>Weet je zeker dat je {object.titel} wilt archiveren? Het verdwijnt uit de lijsten maar blijft bewaard in de database.</AlertDialogDescription>
+                  <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
+                  <AlertDialogDescription>Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Archiveren</AlertDialogAction>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -591,6 +616,20 @@ export default function ObjectDetailPage() {
       <ObjectPipelineSectie objectId={object.id} />
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+      <ArchiveerDialog
+        open={archiefOpen}
+        onOpenChange={setArchiefOpen}
+        kind="object"
+        onConfirm={async ({ reason, note }) => {
+          try {
+            await store.archiveObject(object.id, reason, note);
+            setArchiefOpen(false);
+            toast.success('Object gearchiveerd');
+          } catch (err: any) {
+            toast.error(`Archiveren mislukt: ${err.message ?? 'onbekende fout'}`);
+          }
+        }}
+      />
     </div>
   );
 }

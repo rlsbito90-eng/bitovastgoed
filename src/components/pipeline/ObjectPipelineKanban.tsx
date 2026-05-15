@@ -103,7 +103,13 @@ export default function ObjectPipelineKanban() {
         </select>
         <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">Elke objectstatus</option>
-          {['off-market','in_onderzoek','beschikbaar','onder_optie','verkocht','ingetrokken'].map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="te_beoordelen">Te beoordelen</option>
+          <option value="beschikbaar">Beschikbaar</option>
+          <option value="on_hold">On hold</option>
+          <option value="onder_optie">Onder optie</option>
+          <option value="verkocht">Verkocht</option>
+          <option value="ingetrokken">Ingetrokken</option>
+          <option value="afgevallen">Afgevallen</option>
         </select>
         <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={kandidaatFilter} onChange={e => setKandidaatFilter(e.target.value as any)}>
           <option value="">Met of zonder kandidaten</option>
