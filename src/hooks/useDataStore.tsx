@@ -280,6 +280,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   isArchived: !!o.is_archived,
   archivedAt: o.archived_at ?? undefined,
   archivedReason: o.archived_reason ?? undefined,
+  archivedNote: o.archived_note ?? undefined,
   referentieanalyseZichtbaar: o.referentieanalyse_zichtbaar !== false,
   pipelineId: o.pipeline_id ?? undefined,
   pipelineStageId: o.pipeline_stage_id ?? undefined,
