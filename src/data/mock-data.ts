@@ -28,8 +28,57 @@ export type DealFase =
   | 'afgerond' | 'afgevallen';
 
 export type ObjectStatus =
-  | 'off-market' | 'in_onderzoek' | 'beschikbaar'
-  | 'onder_optie' | 'verkocht' | 'ingetrokken';
+  | 'te_beoordelen' | 'beschikbaar' | 'on_hold'
+  | 'onder_optie' | 'verkocht' | 'ingetrokken' | 'afgevallen';
+
+export type Aanbiedingswijze =
+  | 'off_market' | 'stille_verkoop' | 'openbaar' | 'via_makelaar';
+
+export const OBJECT_STATUS_LABELS: Record<ObjectStatus, string> = {
+  te_beoordelen: 'Te beoordelen',
+  beschikbaar: 'Beschikbaar',
+  on_hold: 'On hold',
+  onder_optie: 'Onder optie',
+  verkocht: 'Verkocht',
+  ingetrokken: 'Ingetrokken',
+  afgevallen: 'Afgevallen',
+};
+
+export const AANBIEDINGSWIJZE_LABELS: Record<Aanbiedingswijze, string> = {
+  off_market: 'Off-market',
+  stille_verkoop: 'Stille verkoop',
+  openbaar: 'Openbaar',
+  via_makelaar: 'Via makelaar',
+};
+
+export const OBJECT_ARCHIEF_REDENEN: string[] = [
+  'Verkocht via Bito Vastgoed',
+  'Verkocht extern',
+  'Ingetrokken door eigenaar',
+  'Prijs niet marktconform',
+  'Onvoldoende informatie',
+  'Geen passende kandidaten',
+  'Geen reactie verkoper',
+  'Niet binnen focus',
+  'Te risicovol',
+  'Duplicaat',
+  'Tijdelijk gepauzeerd',
+  'Anders',
+];
+
+export const DEAL_ARCHIEF_REDENEN: string[] = [
+  'Succesvol afgerond',
+  'Koper afgehaakt',
+  'Verkoper afgehaakt',
+  'Prijsverschil te groot',
+  'Financiering niet rond',
+  'Due diligence negatief',
+  'Geen reactie kandidaat',
+  'Geen reactie verkoper',
+  'Object verkocht aan ander',
+  'Niet passend zoekprofiel',
+  'Anders',
+];
 
 export type TaakPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
 export type TaakStatus = 'open' | 'in_uitvoering' | 'afgerond';
