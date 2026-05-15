@@ -416,6 +416,7 @@ export interface ObjectVastgoed {
   isArchived?: boolean;
   archivedAt?: string;
   archivedReason?: string;
+  archivedNote?: string;
 
   // Object Pipeline (Pipedrive-stijl) — los van object_pipeline (kandidaat)
   pipelineId?: string;
