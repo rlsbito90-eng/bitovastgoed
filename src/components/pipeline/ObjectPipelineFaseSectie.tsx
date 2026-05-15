@@ -34,7 +34,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     return (
       <section className="section-card p-5 sm:p-6 space-y-3">
         <h2 className="section-title flex items-center gap-2">
-          <GitBranch className="h-4 w-4" /> Objectfase
+          <GitBranch className="h-4 w-4" /> Trajectfase
         </h2>
         <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
       </section>
@@ -49,7 +49,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     setBezig(true);
     try {
       await setObjectPipelineStage(object.id, nieuweStageId, { manual: true });
-      toast.success('Objectfase bijgewerkt en handmatig vastgezet');
+      toast.success('Trajectfase bijgewerkt en handmatig vastgezet');
     } catch (err: any) {
       toast.error(`Bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {
@@ -74,7 +74,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <h2 className="section-title flex items-center gap-2">
-            <GitBranch className="h-4 w-4" /> Objectfase
+            <GitBranch className="h-4 w-4" /> Trajectfase
           </h2>
           <p className="text-xs text-muted-foreground">
             Pipeline: <span className="font-medium text-foreground">{pipeline.name}</span>
