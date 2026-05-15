@@ -1104,11 +1104,15 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
     const payload: Partial<ObjectVastgoed> = { ...o };
     // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
-    if (o.status === 'verkocht' || o.status === 'ingetrokken') {
+    if (o.status === 'verkocht' || o.status === 'ingetrokken' || o.status === 'afgevallen') {
       if (payload.isArchived === undefined) payload.isArchived = true;
       if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
       if (payload.archivedReason === undefined) {
-        payload.archivedReason = o.status === 'verkocht' ? 'Verkocht' : 'Ingetrokken';
+        payload.archivedReason = o.status === 'verkocht'
+          ? 'Verkocht via Bito Vastgoed'
+          : o.status === 'ingetrokken'
+            ? 'Ingetrokken door eigenaar'
+            : 'Afgevallen';
       }
     }
     const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
