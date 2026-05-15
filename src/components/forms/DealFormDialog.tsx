@@ -25,6 +25,7 @@ import type {
 import { toast } from 'sonner';
 import { Trophy, AlertCircle } from 'lucide-react';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import ArchiveerDialog from '@/components/ArchiveerDialog';
 
 interface Props {
   open: boolean;
@@ -104,6 +105,27 @@ export default function DealFormDialog({
     }
   };
 
+  const [archiefOpen, setArchiefOpen] = useState(false);
+
+  const persist = async (extra: Partial<Deal> = {}, archiefMelding?: string) => {
+    setBezig(true);
+    try {
+      const payload = { ...form, ...extra };
+      if (isEdit && deal) {
+        await updateDeal(deal.id, payload);
+        toast.success(archiefMelding ?? 'Deal bijgewerkt');
+      } else {
+        await addDeal(payload);
+        toast.success(archiefMelding ?? 'Deal aangemaakt');
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message ?? 'Opslaan mislukt');
+    } finally {
+      setBezig(false);
+    }
+  };
+
   const handleSave = async () => {
     if (bezig) return;
     if (!form.objectId) {
@@ -116,24 +138,13 @@ export default function DealFormDialog({
       setTab('basis');
       return;
     }
-    setBezig(true);
-
-    try {
-      const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
-        && (!deal || !deal.isArchived);
-      if (isEdit && deal) {
-        await updateDeal(deal.id, form);
-        toast.success(triggertArchief ? 'Deal gearchiveerd en verplaatst naar Archief.' : 'Deal bijgewerkt');
-      } else {
-        await addDeal(form);
-        toast.success(triggertArchief ? 'Deal aangemaakt en gearchiveerd.' : 'Deal aangemaakt');
-      }
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err.message ?? 'Opslaan mislukt');
-    } finally {
-      setBezig(false);
+    const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
+      && (!deal || !deal.isArchived);
+    if (triggertArchief) {
+      setArchiefOpen(true);
+      return;
     }
+    await persist();
   };
 
   const gewogenCommissie = form.commissieBedrag
