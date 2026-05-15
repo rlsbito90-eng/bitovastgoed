@@ -841,7 +841,7 @@ interface DataStore {
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
   updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
-  archiveObject: (id: string, reason?: string) => Promise<void>;
+  archiveObject: (id: string, reason?: string, note?: string) => Promise<void>;
   unarchiveObject: (id: string) => Promise<void>;
 
   // Huurders
@@ -867,7 +867,7 @@ interface DataStore {
   addDeal: (d: Omit<Deal, 'id'>) => Promise<Deal | null>;
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>;
   deleteDeal: (id: string) => Promise<void>;
-  archiveDeal: (id: string, reason?: string) => Promise<void>;
+  archiveDeal: (id: string, reason?: string, note?: string) => Promise<void>;
   unarchiveDeal: (id: string) => Promise<void>;
 
   // Taken
