@@ -588,6 +588,7 @@ export interface Deal {
   isArchived?: boolean;
   archivedAt?: string;
   archivedReason?: string;
+  archivedNote?: string;
 }
 
 export interface DealObjectKoppeling {
