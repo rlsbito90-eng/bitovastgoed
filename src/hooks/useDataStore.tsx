@@ -1122,11 +1122,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
   }, []);
 
-  const archiveObject = useCallback(async (id: string, reason?: string) => {
+  const archiveObject = useCallback(async (id: string, reason?: string, note?: string) => {
     const { data, error } = await supabase.from('objecten').update({
       is_archived: true,
       archived_at: new Date().toISOString(),
       archived_reason: reason ?? 'Handmatig gearchiveerd',
+      archived_note: note ?? null,
     } as any).eq('id', id).select().single();
     throwIfError(error);
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
@@ -1285,11 +1286,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
   }, []);
 
-  const archiveDeal = useCallback(async (id: string, reason?: string) => {
+  const archiveDeal = useCallback(async (id: string, reason?: string, note?: string) => {
     const { data, error } = await supabase.from('deals').update({
       is_archived: true,
       archived_at: new Date().toISOString(),
       archived_reason: reason ?? 'Handmatig gearchiveerd',
+      archived_note: note ?? null,
     } as any).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
