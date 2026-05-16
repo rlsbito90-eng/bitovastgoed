@@ -589,6 +589,8 @@ export interface Deal {
   archivedAt?: string;
   archivedReason?: string;
   archivedNote?: string;
+  /** Tijdstip waarop de deal daadwerkelijk succesvol is afgerond. Bepaalt YTD-cijfers. */
+  closedAt?: string;
 }
 
 export interface DealObjectKoppeling {
