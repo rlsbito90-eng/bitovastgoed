@@ -512,6 +512,7 @@ const dealFromDb = (d: any): Deal => ({
   archivedAt: d.archived_at ?? undefined,
   archivedReason: d.archived_reason ?? undefined,
   archivedNote: d.archived_note ?? undefined,
+  closedAt: d.closed_at ?? undefined,
 });
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
@@ -540,6 +541,7 @@ const dealToDb = (d: Partial<Deal>) => cleanPayload({
   archived_at: d.archivedAt !== undefined ? (d.archivedAt || null) : undefined,
   archived_reason: d.archivedReason !== undefined ? (d.archivedReason || null) : undefined,
   archived_note: d.archivedNote !== undefined ? (d.archivedNote || null) : undefined,
+  closed_at: d.closedAt !== undefined ? (d.closedAt || null) : undefined,
 });
 
 const taakFromDb = (t: any): Taak => ({
@@ -1274,28 +1276,50 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
     const payload: Partial<Deal> = { ...d };
-    if (d.fase === 'afgerond' || d.fase === 'afgevallen') {
+    const huidig = deals.find(x => x.id === id);
+    if (d.fase === 'afgerond') {
+      // Bij succesvol afgerond: zet closedAt indien nog leeg, default archief-reden = "Succesvol afgerond".
+      if (payload.closedAt === undefined && !huidig?.closedAt) {
+        payload.closedAt = new Date().toISOString();
+      }
       if (payload.isArchived === undefined) payload.isArchived = true;
       if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
       if (payload.archivedReason === undefined) {
-        payload.archivedReason = d.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen';
+        payload.archivedReason = 'Succesvol afgerond';
       }
+    } else if (d.fase === 'afgevallen') {
+      // Afgevallen: archief defaults, maar NOOIT closedAt zetten en bestaande wissen.
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = 'Afgevallen';
+      }
+      if (huidig?.closedAt) payload.closedAt = null as any;
+    } else if (d.fase !== undefined && huidig?.closedAt) {
+      // Teruggezet naar actieve fase: closedAt wissen zodat hij niet meer in YTD telt.
+      payload.closedAt = null as any;
     }
     const { data, error } = await supabase.from('deals').update(dealToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
-  }, []);
+  }, [deals]);
 
   const archiveDeal = useCallback(async (id: string, reason?: string, note?: string) => {
-    const { data, error } = await supabase.from('deals').update({
+    const huidig = deals.find(x => x.id === id);
+    const update: any = {
       is_archived: true,
       archived_at: new Date().toISOString(),
       archived_reason: reason ?? 'Handmatig gearchiveerd',
       archived_note: note ?? null,
-    } as any).eq('id', id).select().single();
+    };
+    // Bij archief met reden "Succesvol afgerond": ook closedAt zetten als die nog leeg is.
+    if (reason === 'Succesvol afgerond' && !huidig?.closedAt) {
+      update.closed_at = new Date().toISOString();
+    }
+    const { data, error } = await supabase.from('deals').update(update).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
-  }, []);
+  }, [deals]);
 
   const unarchiveDeal = useCallback(async (id: string) => {
     const { data, error } = await supabase.from('deals').update({

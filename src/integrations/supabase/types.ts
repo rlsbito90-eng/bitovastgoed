@@ -305,6 +305,7 @@ export type Database = {
           bank: string | null
           bezichtiging_gepland: string | null
           bezichtiging_tijd: string | null
+          closed_at: string | null
           commissie_bedrag: number | null
           commissie_pct: number | null
           created_at: string
@@ -337,6 +338,7 @@ export type Database = {
           bank?: string | null
           bezichtiging_gepland?: string | null
           bezichtiging_tijd?: string | null
+          closed_at?: string | null
           commissie_bedrag?: number | null
           commissie_pct?: number | null
           created_at?: string
@@ -369,6 +371,7 @@ export type Database = {
           bank?: string | null
           bezichtiging_gepland?: string | null
           bezichtiging_tijd?: string | null
+          closed_at?: string | null
           commissie_bedrag?: number | null
           commissie_pct?: number | null
           created_at?: string
