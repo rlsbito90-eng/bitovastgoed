@@ -1383,6 +1383,35 @@ export interface CommissieStats {
   dealwaardeGerealiseerd: number;       // sum vraagprijs afgeronde deals (huidig jaar)
 }
 
+/**
+ * Een deal telt als "succesvol gerealiseerd" wanneer:
+ *  - fase = 'afgerond', EN
+ *  - niet gearchiveerd, OF gearchiveerd met reden "Succesvol afgerond".
+ * Afgevallen deals en deals die om een andere reden zijn gearchiveerd tellen NIET mee.
+ */
+export function isDealGerealiseerd(deal: Deal): boolean {
+  if (deal.fase !== 'afgerond') return false;
+  if (deal.isArchived && deal.archivedReason && deal.archivedReason !== 'Succesvol afgerond') {
+    return false;
+  }
+  return true;
+}
+
+/** Datum die bepaalt in welk jaar de realisatie valt. */
+export function getDealRealisatieDatum(deal: Deal): string | undefined {
+  return deal.closedAt ?? deal.archivedAt ?? deal.verwachteClosingdatum;
+}
+
+/**
+ * Een deal hoort bij de actieve pipeline wanneer:
+ *  - niet gearchiveerd, EN
+ *  - fase niet 'afgerond' of 'afgevallen'.
+ */
+export function isDealActief(deal: Deal): boolean {
+  if (deal.isArchived) return false;
+  return deal.fase !== 'afgerond' && deal.fase !== 'afgevallen';
+}
+
 export function berekenCommissieStats(
   deals: Deal[],
   vraagprijsPerObject: (objectId: string) => number | undefined,
@@ -1398,15 +1427,16 @@ export function berekenCommissieStats(
 
   for (const deal of deals) {
     const commissie = deal.commissieBedrag ?? 0;
-    const jaarVanDeal = deal.verwachteClosingdatum
-      ? new Date(deal.verwachteClosingdatum).getFullYear()
-      : (deal.datumEersteContact ? new Date(deal.datumEersteContact).getFullYear() : huidigJaar);
 
-    if (deal.fase === 'afgerond' && jaarVanDeal === huidigJaar) {
-      gerealiseerdBedrag += commissie;
-      gerealiseerdAantalDeals += 1;
-      dealwaardeGerealiseerd += vraagprijsPerObject(deal.objectId) ?? 0;
-    } else if (deal.fase !== 'afgerond' && deal.fase !== 'afgevallen') {
+    if (isDealGerealiseerd(deal)) {
+      const datum = getDealRealisatieDatum(deal);
+      const jaarVanDeal = datum ? new Date(datum).getFullYear() : huidigJaar;
+      if (jaarVanDeal === huidigJaar) {
+        gerealiseerdBedrag += commissie;
+        gerealiseerdAantalDeals += 1;
+        dealwaardeGerealiseerd += vraagprijsPerObject(deal.objectId) ?? 0;
+      }
+    } else if (isDealActief(deal)) {
       pipelineBedragTotaal += commissie;
       pipelineBedragGewogen += commissie * FASE_KANS[deal.fase];
       pipelineAantalDeals += 1;
@@ -1425,10 +1455,10 @@ export function berekenCommissieStats(
 
 export function getRecenteSuccessen(deals: Deal[], limit = 5): Deal[] {
   return deals
-    .filter(d => d.fase === 'afgerond')
+    .filter(isDealGerealiseerd)
     .sort((a, b) => {
-      const dA = a.verwachteClosingdatum ?? a.datumEersteContact ?? '';
-      const dB = b.verwachteClosingdatum ?? b.datumEersteContact ?? '';
+      const dA = getDealRealisatieDatum(a) ?? '';
+      const dB = getDealRealisatieDatum(b) ?? '';
       return dB.localeCompare(dA);
     })
     .slice(0, limit);
