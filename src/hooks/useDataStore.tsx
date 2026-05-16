@@ -1305,15 +1305,21 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, [deals]);
 
   const archiveDeal = useCallback(async (id: string, reason?: string, note?: string) => {
-    const { data, error } = await supabase.from('deals').update({
+    const huidig = deals.find(x => x.id === id);
+    const update: any = {
       is_archived: true,
       archived_at: new Date().toISOString(),
       archived_reason: reason ?? 'Handmatig gearchiveerd',
       archived_note: note ?? null,
-    } as any).eq('id', id).select().single();
+    };
+    // Bij archief met reden "Succesvol afgerond": ook closedAt zetten als die nog leeg is.
+    if (reason === 'Succesvol afgerond' && !huidig?.closedAt) {
+      update.closed_at = new Date().toISOString();
+    }
+    const { data, error } = await supabase.from('deals').update(update).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
-  }, []);
+  }, [deals]);
 
   const unarchiveDeal = useCallback(async (id: string) => {
     const { data, error } = await supabase.from('deals').update({
