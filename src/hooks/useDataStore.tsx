@@ -513,6 +513,7 @@ const dealFromDb = (d: any): Deal => ({
   archivedReason: d.archived_reason ?? undefined,
   archivedNote: d.archived_note ?? undefined,
   closedAt: d.closed_at ?? undefined,
+});
 
 const dealToDb = (d: Partial<Deal>) => cleanPayload({
   object_id: d.objectId,
