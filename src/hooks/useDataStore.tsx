@@ -1276,17 +1276,33 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateDeal = useCallback(async (id: string, d: Partial<Deal>) => {
     const payload: Partial<Deal> = { ...d };
-    if (d.fase === 'afgerond' || d.fase === 'afgevallen') {
+    const huidig = deals.find(x => x.id === id);
+    if (d.fase === 'afgerond') {
+      // Bij succesvol afgerond: zet closedAt indien nog leeg, default archief-reden = "Succesvol afgerond".
+      if (payload.closedAt === undefined && !huidig?.closedAt) {
+        payload.closedAt = new Date().toISOString();
+      }
       if (payload.isArchived === undefined) payload.isArchived = true;
       if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
       if (payload.archivedReason === undefined) {
-        payload.archivedReason = d.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen';
+        payload.archivedReason = 'Succesvol afgerond';
       }
+    } else if (d.fase === 'afgevallen') {
+      // Afgevallen: archief defaults, maar NOOIT closedAt zetten en bestaande wissen.
+      if (payload.isArchived === undefined) payload.isArchived = true;
+      if (payload.archivedAt === undefined) payload.archivedAt = new Date().toISOString();
+      if (payload.archivedReason === undefined) {
+        payload.archivedReason = 'Afgevallen';
+      }
+      if (huidig?.closedAt) payload.closedAt = null as any;
+    } else if (d.fase !== undefined && huidig?.closedAt) {
+      // Teruggezet naar actieve fase: closedAt wissen zodat hij niet meer in YTD telt.
+      payload.closedAt = null as any;
     }
     const { data, error } = await supabase.from('deals').update(dealToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setDeals(prev => prev.map(x => x.id === id ? dealFromDb(data) : x));
-  }, []);
+  }, [deals]);
 
   const archiveDeal = useCallback(async (id: string, reason?: string, note?: string) => {
     const { data, error } = await supabase.from('deals').update({
