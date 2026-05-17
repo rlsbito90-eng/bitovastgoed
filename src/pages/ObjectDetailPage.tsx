@@ -219,9 +219,15 @@ export default function ObjectDetailPage() {
                 </span>
               )}
             </p>
-          </div>
         </div>
       </div>
+
+      {/* HOOFDFOTO als banner — onder header, boven kerncijfers */}
+      {hoofdfoto && fotoUrls[hoofdfoto.storagePath] && (
+        <div className="aspect-[21/9] sm:aspect-[24/7] rounded-md overflow-hidden bg-muted">
+          <img src={fotoUrls[hoofdfoto.storagePath]} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
 
       {/* KEY STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
