@@ -14,6 +14,8 @@ import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 export default function AcquisitieTargetDetailPage() {
   const { id } = useParams<{ id: string }>();
