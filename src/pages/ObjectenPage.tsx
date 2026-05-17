@@ -43,6 +43,10 @@ export default function ObjectenPage() {
     return matchZoek && matchType && matchSub && matchDeal && matchStatus;
   });
 
+  useEffect(() => {
+    saveListContext('objecten', filtered.map(o => o.id));
+  }, [filtered]);
+
   const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
   const handleHerstel = async (id: string, e: React.MouseEvent) => {
