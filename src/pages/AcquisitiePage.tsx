@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { saveListContext } from '@/lib/listNavigation';
 import { Link } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
