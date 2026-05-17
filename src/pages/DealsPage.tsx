@@ -51,6 +51,10 @@ export default function DealsPage() {
     return matchZoek && matchFase;
   });
 
+  useEffect(() => {
+    saveListContext('deals', filtered.map(d => d.id));
+  }, [filtered]);
+
   const handleHerstel = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
