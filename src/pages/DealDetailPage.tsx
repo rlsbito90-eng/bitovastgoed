@@ -29,6 +29,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -76,9 +78,16 @@ export default function DealDetailPage() {
 
   return (
     <div className="page-shell-detail">
-      <Link to="/deals" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Deals
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link to="/deals" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Deals
+        </Link>
+        <ListNavigator
+          info={getListNavigation('deals', deal.id, store.deals.map(d => d.id))}
+          buildHref={(id) => `/deals/${id}`}
+          itemLabel="deal"
+        />
+      </div>
 
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex flex-wrap justify-end gap-2">

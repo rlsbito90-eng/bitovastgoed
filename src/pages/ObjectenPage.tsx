@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
@@ -41,6 +42,10 @@ export default function ObjectenPage() {
     const matchStatus = !statusFilter || o.status === statusFilter;
     return matchZoek && matchType && matchSub && matchDeal && matchStatus;
   });
+
+  useEffect(() => {
+    saveListContext('objecten', filtered.map(o => o.id));
+  }, [filtered]);
 
   const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { saveListContext } from '@/lib/listNavigation';
 import { Link } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
@@ -48,6 +49,13 @@ export default function AcquisitiePage() {
       return true;
     });
   }, [targets, zoek, statusFilter, plaatsFilter, campagneFilter, prioriteitFilter, typeFilter]);
+
+  useEffect(() => {
+    saveListContext('acquisitie-targets', gefilterdeTargets.map(t => t.id));
+  }, [gefilterdeTargets]);
+  useEffect(() => {
+    saveListContext('acquisitie-campagnes', campagnes.map(c => c.id));
+  }, [campagnes]);
 
   const campagneStats = useMemo(() => {
     const m = new Map<string, { total: number; reacties: number; warm: number; objecten: number }>();

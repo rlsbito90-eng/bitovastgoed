@@ -38,6 +38,9 @@ import { toast } from 'sonner';
 import { getSignedUrls, getSignedUrl, formatFileSize } from '@/lib/storage';
 import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
@@ -132,9 +135,16 @@ export default function ObjectDetailPage() {
 
   return (
     <div className="page-shell-detail">
-      <Link to="/objecten" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Objecten
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link to="/objecten" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Objecten
+        </Link>
+        <ListNavigator
+          info={getListNavigation('objecten', object.id, store.objecten.map(o => o.id))}
+          buildHref={(id) => `/objecten/${id}`}
+          itemLabel="object"
+        />
+      </div>
 
       {/* HEADER — zelfde structuur als DealDetailPage */}
       <div className="flex flex-col gap-3 min-w-0">

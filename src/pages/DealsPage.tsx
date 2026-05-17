@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
@@ -49,6 +50,10 @@ export default function DealsPage() {
     const matchFase = !faseFilter || d.fase === faseFilter;
     return matchZoek && matchFase;
   });
+
+  useEffect(() => {
+    saveListContext('deals', filtered.map(d => d.id));
+  }, [filtered]);
 
   const handleHerstel = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
