@@ -38,6 +38,9 @@ import { toast } from 'sonner';
 import { getSignedUrls, getSignedUrl, formatFileSize } from '@/lib/storage';
 import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
