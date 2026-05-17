@@ -64,7 +64,7 @@ export default function AcquisitieTargetDetailPage() {
   };
 
   return (
-    <div className="px-4 sm:px-6 py-6 space-y-5">
+    <div className="page-shell-detail">
       <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
       </Link>

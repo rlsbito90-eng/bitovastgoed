@@ -13,7 +13,7 @@ export default function PipelinePage() {
   const aantalObjectenInPipeline = objecten.filter(o => !!o.pipelineStageId).length;
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-5 max-w-[1600px]">
+    <div className="page-shell-full">
       <PageHeader
         title="Pipeline"
         subtitle="Object Pipeline volgt het object van Lead naar Closing. Kandidaten Pipeline volgt potentiële kopers per object."

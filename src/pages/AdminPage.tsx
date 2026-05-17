@@ -90,7 +90,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-8 fade-in">
+    <div className="page-shell-narrow">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Beheer</h1>
         <p className="text-sm text-muted-foreground mt-1">

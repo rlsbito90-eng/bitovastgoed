@@ -92,7 +92,7 @@ export default function RelatieDetailPage() {
     : null;
 
   return (
-    <div className="page-shell-narrow">
+    <div className="page-shell-detail">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Relaties

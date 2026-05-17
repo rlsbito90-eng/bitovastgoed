@@ -69,7 +69,7 @@ export default function DealsPage() {
   const isArchiefView = archiefView === 'archief';
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Deals"
         subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}
