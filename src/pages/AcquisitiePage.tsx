@@ -50,6 +50,13 @@ export default function AcquisitiePage() {
     });
   }, [targets, zoek, statusFilter, plaatsFilter, campagneFilter, prioriteitFilter, typeFilter]);
 
+  useEffect(() => {
+    saveListContext('acquisitie-targets', gefilterdeTargets.map(t => t.id));
+  }, [gefilterdeTargets]);
+  useEffect(() => {
+    saveListContext('acquisitie-campagnes', campagnes.map(c => c.id));
+  }, [campagnes]);
+
   const campagneStats = useMemo(() => {
     const m = new Map<string, { total: number; reacties: number; warm: number; objecten: number }>();
     campagnes.forEach(c => m.set(c.id, { total: 0, reacties: 0, warm: 0, objecten: 0 }));
