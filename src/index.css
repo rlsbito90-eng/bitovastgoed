@@ -129,12 +129,31 @@
     @apply before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/60 before:to-transparent;
   }
 
-  /* Page-level header pattern */
-  .page-shell {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
-  }
+  /*
+    Page-level container system
+    Centraal systeem voor contentbreedtes per pagina-type. Gebruik dit i.p.v.
+    losse hardcoded max-widths zodat de app consistent desktopruimte gebruikt.
+
+    - page-shell-narrow : 1000px  → smalle formulier-/leespagina's (admin, settings)
+    - page-shell-detail : 1200px  → detailpagina's met werktabellen erin
+    - page-shell        : 1280px  → standaard pagina's
+    - page-shell-wide   : 1440px  → tabel-/lijstpagina's, rapportages, dashboard
+    - page-shell-full   : 1600px  → kanban, pipeline, brede werkschermen
+  */
   .page-shell-narrow {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-5xl mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1000px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+  }
+  .page-shell-detail {
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1200px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+  }
+  .page-shell {
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1280px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+  }
+  .page-shell-wide {
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1440px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+  }
+  .page-shell-full {
+    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1600px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
   }
 
   /* Field label */
