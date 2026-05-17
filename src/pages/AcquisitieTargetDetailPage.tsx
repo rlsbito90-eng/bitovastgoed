@@ -67,9 +67,16 @@ export default function AcquisitieTargetDetailPage() {
 
   return (
     <div className="page-shell-detail">
-      <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
+        </Link>
+        <ListNavigator
+          info={getListNavigation('acquisitie-targets', target.id, targets.map(t => t.id))}
+          buildHref={(id) => `/acquisitie/targets/${id}`}
+          itemLabel="acquisitie"
+        />
+      </div>
 
       <PageHeader
         title={targetTitel(target)}
