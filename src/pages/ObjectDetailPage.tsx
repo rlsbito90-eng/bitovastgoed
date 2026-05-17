@@ -136,15 +136,9 @@ export default function ObjectDetailPage() {
         <ArrowLeft className="h-4 w-4" /> Objecten
       </Link>
 
-      {/* HEADER met optionele hoofdfoto */}
-      <div className="grid lg:grid-cols-[280px_1fr] gap-4 lg:gap-6">
-        {hoofdfoto && fotoUrls[hoofdfoto.storagePath] && (
-          <div className="aspect-[4/3] rounded-md overflow-hidden bg-muted">
-            <img src={fotoUrls[hoofdfoto.storagePath]} alt="" className="w-full h-full object-cover" />
-          </div>
-        )}
-        <div className="flex flex-col gap-3 min-w-0">
-          <div className="flex flex-wrap justify-end gap-2">
+      {/* HEADER — zelfde structuur als DealDetailPage */}
+      <div className="flex flex-col gap-3 min-w-0">
+        <div className="flex flex-wrap justify-end gap-2">
             <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
               <Pencil className="h-4 w-4" /> Bewerken
             </button>
@@ -225,9 +219,15 @@ export default function ObjectDetailPage() {
                 </span>
               )}
             </p>
-          </div>
         </div>
       </div>
+
+      {/* HOOFDFOTO als banner — onder header, boven kerncijfers */}
+      {hoofdfoto && fotoUrls[hoofdfoto.storagePath] && (
+        <div className="aspect-[21/9] sm:aspect-[24/7] rounded-md overflow-hidden bg-muted">
+          <img src={fotoUrls[hoofdfoto.storagePath]} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
 
       {/* KEY STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
@@ -568,11 +568,13 @@ export default function ObjectDetailPage() {
             </section>
           )}
 
+          <ObjectPipelineFaseSectie object={object} />
+
+          <ObjectPipelineSectie objectId={object.id} />
+
           {object.referentieanalyseZichtbaar !== false && (
             <ObjectReferentieAnalyseSectie object={object} />
           )}
-
-          <ObjectPipelineFaseSectie object={object} />
         </div>
 
         <div className="min-w-0 max-w-full">
@@ -612,8 +614,6 @@ export default function ObjectDetailPage() {
           </section>
         </div>
       </div>
-
-      <ObjectPipelineSectie objectId={object.id} />
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
       <ArchiveerDialog
