@@ -15,6 +15,8 @@ import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge
 import AcquisitieCampagneFormDialog from '@/components/forms/AcquisitieCampagneFormDialog';
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import { toast } from 'sonner';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 export default function AcquisitieCampagneDetailPage() {
   const { id } = useParams<{ id: string }>();
