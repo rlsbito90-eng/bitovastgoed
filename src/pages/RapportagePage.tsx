@@ -180,7 +180,7 @@ export default function RapportagePage() {
     : null;
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">Rapportage</h1>

@@ -64,7 +64,7 @@ export default function ObjectenPage() {
   const isArchiefView = archiefView === 'archief';
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Objecten"
         subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}

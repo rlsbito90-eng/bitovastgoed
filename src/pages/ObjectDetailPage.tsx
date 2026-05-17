@@ -131,7 +131,7 @@ export default function ObjectDetailPage() {
   const hoofdfoto = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
 
   return (
-    <div className="page-shell-narrow">
+    <div className="page-shell-detail">
       <Link to="/objecten" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Objecten
       </Link>

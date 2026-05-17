@@ -237,7 +237,7 @@ export default function ReferentieObjectenPage() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Referentieobjecten"
         subtitle={`${store.referentieObjecten.length} referenties beschikbaar`}

@@ -75,7 +75,7 @@ export default function DealDetailPage() {
   };
 
   return (
-    <div className="page-shell-narrow">
+    <div className="page-shell-detail">
       <Link to="/deals" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" /> Deals
       </Link>

@@ -66,7 +66,7 @@ export default function AcquisitiePage() {
   const selectCls = "h-9 rounded-md border border-input bg-background px-2 text-sm";
 
   return (
-    <div className="px-4 sm:px-6 py-6 space-y-5">
+    <div className="page-shell-wide">
       <PageHeader
         title="Acquisitie"
         subtitle="Off-market targets en campagnes — vóór een pand aanbod wordt."

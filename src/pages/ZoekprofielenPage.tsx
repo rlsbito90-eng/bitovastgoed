@@ -55,7 +55,7 @@ export default function ZoekprofielenPage() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Zoekprofielen"
         subtitle={`${zoekprofielen.length} zoekprofielen`}

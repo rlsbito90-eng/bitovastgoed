@@ -36,7 +36,7 @@ export default function RelatiesPage() {
   }, [filtered]);
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Relaties"
         subtitle={`${relaties.length} contacten`}

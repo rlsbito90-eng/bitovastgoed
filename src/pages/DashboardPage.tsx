@@ -86,7 +86,7 @@ export default function DashboardPage() {
   const totaalZonderActie = dealsZonderActie.length + kandidatenZonderActie.length;
 
   return (
-    <div className="page-shell">
+    <div className="page-shell-wide">
       <PageHeader
         title="Dashboard"
         subtitle={
