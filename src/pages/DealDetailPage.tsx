@@ -29,6 +29,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
