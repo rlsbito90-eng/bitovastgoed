@@ -568,11 +568,13 @@ export default function ObjectDetailPage() {
             </section>
           )}
 
+          <ObjectPipelineFaseSectie object={object} />
+
+          <ObjectPipelineSectie objectId={object.id} />
+
           {object.referentieanalyseZichtbaar !== false && (
             <ObjectReferentieAnalyseSectie object={object} />
           )}
-
-          <ObjectPipelineFaseSectie object={object} />
         </div>
 
         <div className="min-w-0 max-w-full">
@@ -612,8 +614,6 @@ export default function ObjectDetailPage() {
           </section>
         </div>
       </div>
-
-      <ObjectPipelineSectie objectId={object.id} />
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
       <ArchiveerDialog
