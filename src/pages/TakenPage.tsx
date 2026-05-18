@@ -132,7 +132,7 @@ export default function TakenPage() {
     }
     return [...list].sort(activeSort.compare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter]);
+  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort]);
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
