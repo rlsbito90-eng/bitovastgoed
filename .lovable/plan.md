@@ -1,103 +1,118 @@
-## Doel
+# Plan — Contactmomenten / Tijdlijn module
 
-Status/fase/archief logica volledig herstructureren voor Objecten en Deals, en bug fixen waarbij Verkocht/Ingetrokken objecten in Actief blijven staan.
+Een centrale tijdlijn waarmee je per Relatie, Object, Deal en Acquisitietarget snel de geschiedenis ziet: gesprekken, statuswijzigingen, taken, biedingen, archivering, kandidaten. Handmatig loggen én automatisch loggen door de app.
 
-## 1. Database migratie (Supabase)
+Gegeven de omvang stel ik een gefaseerde aanpak voor. **Fase 1 + 2** levert de werkende module (handmatig + autolog van belangrijkste acties + tijdlijn op detailpagina's). **Fase 3** voegt verfijningen toe (lijst-kolommen, dashboardsignalen). Standaard ga ik door Fase 1 én 2 uitvoeren in deze ronde.
 
-**Enum `object_status` aanpassen**
-Nieuwe waarden: `te_beoordelen`, `beschikbaar`, `on_hold`, `onder_optie`, `verkocht`, `ingetrokken`, `afgevallen`.
-- Hernoem oude enum waarden via tijdelijke kolom-migratie (Postgres staat geen veilig enum rename met removal toe in één stap).
-- Map: `off-market` → `beschikbaar`, `in_onderzoek` → `te_beoordelen`, `nieuw` → `te_beoordelen`. Bestaande `beschikbaar`, `onder_optie`, `verkocht`, `ingetrokken` blijven.
+---
 
-**Nieuw enum `aanbiedingswijze`**: `off_market`, `stille_verkoop`, `openbaar`, `via_makelaar`. Default: `off_market`.
+## Fase 1 — Datalaag & basis
 
-**Nieuwe kolom `objecten.aanbiedingswijze`** (default `off_market`). Bestaande records met oude status `off-market` krijgen `aanbiedingswijze='off_market'`, anderen krijgen default.
+### 1.1 Database
 
-**Archiefvelden uitbreiden**
-- `objecten`: `archived_note text` toevoegen (is_archived/archived_at/archived_reason bestaan al).
-- `deals`: `archived_note text` toevoegen.
-
-**Data cleanup**
-- Objecten met status `verkocht` of `ingetrokken` waar `is_archived=false`: zet `is_archived=true`, `archived_at=now()`, `archived_reason` = "Verkocht via Bito Vastgoed" / "Ingetrokken door eigenaar".
-
-## 2. Frontend types & mock-data
-
-`src/data/mock-data.ts`:
-- `ObjectStatus` type aanpassen naar nieuwe waarden.
-- Nieuwe `Aanbiedingswijze` type.
-- Labels en kleur-config bijwerken in `StatusBadges.tsx`.
-- `Object` interface: `aanbiedingswijze`, `archivedNote` toevoegen.
-- `Deal` interface: `archivedNote` toevoegen.
-
-`useDataStore.tsx`:
-- Mappers `mapObject*` aanpassen — geen status⇄fase translatie meer (status is alleen nog basisstatus).
-- Filters voor "actief" gebruiken `!isArchived` (niet meer status-list).
-
-## 3. UI: ObjectFormDialog
-- Statusdropdown: nieuwe 7 opties met Nederlandse labels.
-- Aanbiedingswijze-dropdown toevoegen onder Algemeen.
-- Bij wijziging naar `verkocht`/`ingetrokken`/`afgevallen` op submit → archiveer-modal openen vóór save.
-
-## 4. Nieuwe component: ArchiveerDialog
-`src/components/ArchiveerDialog.tsx` — generieke modal:
-- Props: `open`, `kind: 'object'|'deal'`, `triggerStatus`, `defaultReason`, `onArchiveer`, `onSkip`, `onCancel`.
-- Velden: reden-dropdown (lijst per kind), notitie-textarea (verplicht bij "Anders").
-- Knoppen: Annuleren / Niet archiveren / Archiveren.
-
-Object-redenen en Deal-redenen zoals in spec.
-
-## 5. ObjectDetailPage
-- "Objectfase" hernoemen naar "Trajectfase" in label.
-- Trajectfase wijziging naar `afgerond`/`afgevallen` → archiveer-modal.
-- Knop "Archiveer object" toevoegen + handmatige flow.
-- "Terugzetten naar actief" knop in archief-weergave.
-
-## 6. ObjectenPage
-- Tabs Actief/Archief/Alles (zoals DealsPage al heeft).
-- Verwijder `off-market` uit filterdropdown, vervang door nieuwe 7 statussen.
-- Statuslabels vertalen.
-
-## 7. DealsPage / DealDetailPage
-- `DealFormDialog`: bij fase-wijziging naar `afgerond`/`afgevallen` → archiveer-modal.
-- Handmatige archiveer-knop op detailpagina.
-- Archived_note tonen in archief-tab.
-
-## 8. Bugfix
-- Hoofdoorzaak: `actieveObjecten` filter in DashboardPage en pipeline gebruikten status-lijst i.p.v. `!isArchived`. Vervangen door `!isArchived`.
-- ObjectPipelineKanban statusdropdown updaten.
-- Cache invalidatie verzekeren via `refresh()` na archive-call.
-
-## 9. Bestanden (geschat)
+Nieuwe tabel `contact_moments`:
 
 ```text
-Migratie:
-  - supabase/migrations (nieuwe migratie via tool)
-
-Nieuw:
-  - src/components/ArchiveerDialog.tsx
-
-Edits:
-  - src/data/mock-data.ts
-  - src/components/StatusBadges.tsx
-  - src/hooks/useDataStore.tsx
-  - src/components/forms/ObjectFormDialog.tsx
-  - src/components/forms/DealFormDialog.tsx
-  - src/pages/ObjectenPage.tsx
-  - src/pages/ObjectDetailPage.tsx
-  - src/pages/DealDetailPage.tsx
-  - src/pages/DealsPage.tsx
-  - src/pages/DashboardPage.tsx
-  - src/components/pipeline/ObjectPipelineKanban.tsx
-  - src/components/pipeline/ObjectPipelineFaseSectie.tsx
+id              uuid pk
+created_at      timestamptz
+updated_at      timestamptz
+moment_date     date          (verplicht)
+moment_time     time          (optioneel)
+type            enum          (zie hieronder)
+title           text          (verplicht, kort)
+description     text          (optioneel)
+direction       enum          (inkomend | uitgaand | intern | n_v_t)
+outcome         text          (optioneel)
+follow_up_required  boolean   default false
+follow_up_date  date          (optioneel)
+relatie_id      uuid          (optioneel, fk → relaties)
+object_id       uuid          (optioneel, fk → objecten)
+deal_id         uuid          (optioneel, fk → deals)
+acquisitie_target_id uuid     (optioneel, fk → acquisitie_targets)
+taak_id         uuid          (optioneel)
+is_system       boolean       default false   (door auto-log gemaakt)
+system_key      text          (optioneel, dedupe-sleutel voor auto-logs)
+aangemaakt_door uuid          (optioneel)
 ```
 
-## Volgorde
-1. Migratie + data cleanup (vraagt user-approval)
-2. Types + mock-data + badges
-3. ArchiveerDialog
-4. Forms (Object/Deal)
-5. Detailpagina's + lijsten + dashboard fix
-6. Build verifiëren
+Enums:
+- `contact_moment_type`: telefoon, email, whatsapp, linkedin, afspraak, bezichtiging, notitie, document_gedeeld, teaser_verstuurd, nda_verstuurd, nda_ontvangen, informatie_gedeeld, bod_ontvangen, bod_uitgebracht, status_gewijzigd, taak_aangemaakt, taak_afgerond, kandidaat_toegevoegd, archief, algemeen
+- `contact_moment_direction`: inkomend, uitgaand, intern, n_v_t
 
-## Open vraag
-Geen blokkerende open vragen — spec is volledig. Ga ik door met de migratie?
+Indexen op `relatie_id`, `object_id`, `deal_id`, `acquisitie_target_id`, `moment_date desc`. Unique-index op `(system_key)` waar niet null, zodat auto-logs niet dubbel ontstaan.
+
+RLS: zelfde patroon als bestaande tabellen — `is_intern_gebruiker(auth.uid())` voor SELECT/INSERT/UPDATE/DELETE. Systeemitems mogen interne gebruikers wél verwijderen, maar UI zal dit afschermen.
+
+### 1.2 Datastore-integratie
+
+Uitbreiding `useDataStore`:
+- `contactMoments` lijst + `refresh`
+- `getContactMomentsFor({ relatieId?, objectId?, dealId?, acquisitieTargetId? })`
+- `addContactMoment(input)` — handmatig
+- `updateContactMoment(id, patch)`
+- `deleteContactMoment(id)`
+- `logSystemMoment({ type, title, ..., systemKey })` — interne helper, dedupe op `systemKey`
+
+### 1.3 Helpers
+- `src/lib/contactMoments.ts`: label-map types, icon-map (Lucide), kleur-map, format helpers.
+
+---
+
+## Fase 2 — UI & autolog
+
+### 2.1 Herbruikbare componenten
+
+- `Timeline` — verticale tijdlijn met datumgroepering, filterbalk (Alle / Contact / Notities / Systeem / Taken), zoekveld.
+- `TimelineItem` — datum/tijd, type-badge + icoon, titel, omschrijving, gekoppelde entiteiten als subtiele chips, vervolgactie-regel, edit/delete acties (alleen op niet-systeem).
+- `ContactMomentFormDialog` — modal met velden uit specificatie. Hergebruikt `EntityPicker` voor Relatie/Object/Deal/Acquisitie. Auto-koppelt op basis van context. Optie "Vervolgtaak aanmaken" toont inline taakvelden (titel, deadline, tijd, type, prioriteit) en maakt na opslaan een `Taak` via bestaande store, gekoppeld aan dezelfde entiteiten.
+- `LogActionDropdown` — `+ Log` knop met preset types (telefoon, email, whatsapp, linkedin, notitie, …) die de modal openen met type voorgeselecteerd.
+
+### 2.2 Detailpagina-integratie
+
+Op `RelatieDetailPage`, `ObjectDetailPage`, `DealDetailPage` en `AcquisitieTargetDetailPage`:
+- Sectie "Tijdlijn" onder bestaande inhoud, met `LogActionDropdown` rechtsboven.
+- Auto-context: huidige entiteit-id wordt voorgevuld en vergrendeld (wel ontkoppelbaar).
+
+### 2.3 Automatisch loggen
+
+Wrap in `useDataStore` rond bestaande mutaties (geen schema-wijziging aan andere tabellen). Elke autolog gebruikt een `systemKey` als dedupe.
+
+Logs voor:
+- Taak aangemaakt / afgerond (`taak:{id}:created|done`)
+- Object status gewijzigd (`object:{id}:status:{from}->{to}:{ts}`)
+- Object gearchiveerd / hersteld
+- Deal fase gewijzigd
+- Deal gearchiveerd / hersteld
+- Kandidaat toegevoegd aan deal (`deal:{id}:kandidaat:{relId}:added`)
+- Pipeline-fase wijziging (object_pipeline)
+- Bieding toegevoegd/gewijzigd (deal indicatief_bod, object_pipeline bieding_bedrag)
+- Acquisitie-target status gewijzigd
+
+Bij taak-afronden: subtiele toast met "Uitkomst loggen?" → opent modal met type-keuze (Geen gehoor / Gesproken / WhatsApp / Mail / Anders).
+
+### 2.4 Bestaande notities
+
+Niet migreren. Bestaande `notities`-velden blijven werken. Nieuwe notitie-contactmomenten zijn een tweede, complementair kanaal — duidelijk gemarkeerd in tijdlijn.
+
+---
+
+## Fase 3 — Lijst- en dashboard-signalen (later, niet in deze ronde)
+
+- Kolom "Laatste contact" + "Volgende actie" op Relaties-, Objecten-, Dealslijst.
+- Dashboard-widget: warme leads zonder recent contact, deals zonder contact in X dagen.
+
+---
+
+## Acceptatie (Fase 1+2 deliverable)
+
+- Tabel + RLS + types live.
+- Tijdlijn zichtbaar op Relatie/Object/Deal/Acquisitie-detail, nieuwste bovenaan, filterbaar.
+- Handmatig contactmoment toevoegen, auto-koppeling vanuit context, multi-koppelingen mogelijk.
+- Optionele vervolgtaak vanuit modal.
+- Autolog voor taken, status/fase, archivering, kandidaten, biedingen, pipeline.
+- Bewerken/verwijderen alleen voor handmatige items; systeemitems read-only.
+- Mobiel en desktop netjes; TypeScript schoon.
+
+---
+
+Mag ik doorgaan met Fase 1 + 2?

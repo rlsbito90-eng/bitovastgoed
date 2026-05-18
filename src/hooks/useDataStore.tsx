@@ -32,6 +32,14 @@ import type {
   PipelineStage,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
+import {
+  contactMomentFromDb,
+  contactMomentToDb,
+  logSystemContactMoment,
+  type ContactMoment,
+  type ContactMomentType,
+  CONTACT_MOMENT_TYPE_LABELS,
+} from '@/lib/contactMoments';
 
 
 // =====================================================================
@@ -879,6 +887,14 @@ interface DataStore {
   updateTaak: (id: string, t: Partial<Taak>) => Promise<void>;
   deleteTaak: (id: string) => Promise<void>;
 
+  // Contactmomenten / Tijdlijn
+  contactMoments: ContactMoment[];
+  addContactMoment: (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => Promise<ContactMoment | null>;
+  updateContactMoment: (id: string, c: Partial<ContactMoment>) => Promise<void>;
+  deleteContactMoment: (id: string) => Promise<void>;
+  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => ContactMoment[];
+
+
   // Zoekprofielen
   addZoekprofiel: (z: Omit<Zoekprofiel, 'id'>) => Promise<Zoekprofiel | null>;
   updateZoekprofiel: (id: string, z: Partial<Zoekprofiel>) => Promise<void>;
@@ -970,7 +986,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
   const [objectReferenties, setObjectReferenties] = useState<ObjectReferentie[]>([]);
+  const [contactMoments, setContactMoments] = useState<ContactMoment[]>([]);
   const [loading, setLoading] = useState(false);
+
 
   const refresh = useCallback(async () => {
     if (!heeftToegang) return;
@@ -979,7 +997,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
         dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
-        pipeDefRes, pipeStageRes,
+        pipeDefRes, pipeStageRes, cmRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
@@ -1000,6 +1018,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('pipelines' as any).select('*').eq('is_active', true).order('created_at', { ascending: true }),
         supabase.from('pipeline_stages' as any).select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('contact_moments' as any).select('*').order('moment_date', { ascending: false }).order('created_at', { ascending: false }).limit(2000),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
@@ -1028,6 +1047,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
       if (pipeDefRes.data) setPipelines((pipeDefRes.data as any[]).map(pipelineDefFromDb));
       if (pipeStageRes.data) setPipelineStages((pipeStageRes.data as any[]).map(pipelineStageFromDb));
+      if (cmRes.data) setContactMoments((cmRes.data as any[]).map(contactMomentFromDb));
     } finally {
       setLoading(false);
     }
@@ -1615,9 +1635,49 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setObjecten(prev => prev.map(x => x.id === objectId ? objectFromDb(data) : x));
   }, [objecten, pipelineStages]);
 
+  // ============= Contactmomenten =============
+  const addContactMoment = useCallback(async (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => {
+    const { data, error } = await supabase
+      .from('contact_moments' as any)
+      .insert(contactMomentToDb({ ...c, isSystem: false }) as any)
+      .select().single();
+    throwIfError(error);
+    const cm = contactMomentFromDb(data);
+    setContactMoments(prev => [cm, ...prev]);
+    return cm;
+  }, []);
+
+  const updateContactMoment = useCallback(async (id: string, c: Partial<ContactMoment>) => {
+    const { data, error } = await supabase
+      .from('contact_moments' as any)
+      .update(contactMomentToDb(c) as any)
+      .eq('id', id).select().single();
+    throwIfError(error);
+    const cm = contactMomentFromDb(data);
+    setContactMoments(prev => prev.map(x => x.id === id ? cm : x));
+  }, []);
+
+  const deleteContactMoment = useCallback(async (id: string) => {
+    const { error } = await supabase.from('contact_moments' as any).delete().eq('id', id);
+    throwIfError(error);
+    setContactMoments(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => {
+    return contactMoments.filter(cm =>
+      (filter.relatieId && cm.relatieId === filter.relatieId) ||
+      (filter.objectId && cm.objectId === filter.objectId) ||
+      (filter.dealId && cm.dealId === filter.dealId) ||
+      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId)
+    );
+  }, [contactMoments]);
+
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
     deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
+
+    contactMoments, addContactMoment, updateContactMoment, deleteContactMoment, getContactMomentsFor,
+
 
     addRelatie, updateRelatie, deleteRelatie, bulkInsertRelaties,
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
