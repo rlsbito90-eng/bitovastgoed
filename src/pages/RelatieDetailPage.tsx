@@ -496,11 +496,14 @@ export default function RelatieDetailPage() {
               </div>
             </section>
           )}
+
+          <Timeline relatieId={relatie.id} />
         </div>
       </div>
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
       <ZoekprofielFormDialog open={zpOpen} onOpenChange={setZpOpen} defaultRelatieId={relatie.id} />
+      <ContactMomentFormDialog open={logOpen} onOpenChange={setLogOpen} defaultRelatieId={relatie.id} />
     </div>
   );
 }
