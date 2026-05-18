@@ -258,6 +258,14 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Bezig…' : 'Opslaan'}</Button>
         </DialogFooter>
       </DialogContent>
+
+      <ContactMomentFormDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        defaultType="telefoon"
+        defaultRelatieId={kandidaat.relatieId}
+        defaultObjectId={kandidaat.objectId}
+      />
     </Dialog>
   );
 }
