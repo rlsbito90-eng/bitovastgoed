@@ -1,118 +1,94 @@
-# Plan — Contactmomenten / Tijdlijn module
+# App-brede zoek-, filter- en sorteerlogica
 
-Een centrale tijdlijn waarmee je per Relatie, Object, Deal en Acquisitietarget snel de geschiedenis ziet: gesprekken, statuswijzigingen, taken, biedingen, archivering, kandidaten. Handmatig loggen én automatisch loggen door de app.
+## Doel
+Eén consistente UX voor zoeken, filteren en sorteren over alle lijst-pagina's, met module-specifieke "slimme volgorde" en herbruikbare helpers.
 
-Gegeven de omvang stel ik een gefaseerde aanpak voor. **Fase 1 + 2** levert de werkende module (handmatig + autolog van belangrijkste acties + tijdlijn op detailpagina's). **Fase 3** voegt verfijningen toe (lijst-kolommen, dashboardsignalen). Standaard ga ik door Fase 1 én 2 uitvoeren in deze ronde.
+## Aanpak
 
----
+### 1. Centrale infrastructuur (nieuw)
 
-## Fase 1 — Datalaag & basis
+**`src/lib/sorting/types.ts`** — Gedeelde types:
+- `SortOption<T>` = `{ value: string; label: string; compare: (a: T, b: T) => number }`
+- `SortConfig<T>` = `{ moduleKey: string; options: SortOption<T>[]; defaultValue: string }`
 
-### 1.1 Database
+**`src/lib/sorting/comparators.ts`** — Null-safe basisvergelijkers:
+- `byString(getter)`, `byNumber(getter, dir)`, `byDate(getter, dir)`
+- `combine(...comparators)` voor multi-key sortering
+- Nulls altijd achteraan, ongeacht richting.
 
-Nieuwe tabel `contact_moments`:
+**`src/lib/sorting/urgency.ts`** — Domeinhelpers (hergebruiken van bestaande `relatieContact.ts`, `taakHelpers.ts`):
+- `getTaakUrgencyBucket(taak, now)` → 0=telaat, 1=vandaag, 2=morgen, 3=dezeWeek, 4=later, 5=zonderDatum, 6=wachten, 7=afgerond
+- `getTaakPrioriteitRank(prio)` → 0=kritiek/hoog, 1=normaal, 2=laag
+- `getRelatieSmartBucket(relatie, contactMoments, taken)` → 0=openActie, 1=warm/actief, 2=recentContact, 3=geenContact, 4=overig, 5=archief
+- `getObjectSmartBucket(obj, ...)`, `getDealSmartBucket(deal, ...)`, etc.
 
-```text
-id              uuid pk
-created_at      timestamptz
-updated_at      timestamptz
-moment_date     date          (verplicht)
-moment_time     time          (optioneel)
-type            enum          (zie hieronder)
-title           text          (verplicht, kort)
-description     text          (optioneel)
-direction       enum          (inkomend | uitgaand | intern | n_v_t)
-outcome         text          (optioneel)
-follow_up_required  boolean   default false
-follow_up_date  date          (optioneel)
-relatie_id      uuid          (optioneel, fk → relaties)
-object_id       uuid          (optioneel, fk → objecten)
-deal_id         uuid          (optioneel, fk → deals)
-acquisitie_target_id uuid     (optioneel, fk → acquisitie_targets)
-taak_id         uuid          (optioneel)
-is_system       boolean       default false   (door auto-log gemaakt)
-system_key      text          (optioneel, dedupe-sleutel voor auto-logs)
-aangemaakt_door uuid          (optioneel)
-```
+**`src/hooks/useSortPreference.tsx`** — Persisteert keuze per module in `localStorage` (`sort-pref:<moduleKey>`).
 
-Enums:
-- `contact_moment_type`: telefoon, email, whatsapp, linkedin, afspraak, bezichtiging, notitie, document_gedeeld, teaser_verstuurd, nda_verstuurd, nda_ontvangen, informatie_gedeeld, bod_ontvangen, bod_uitgebracht, status_gewijzigd, taak_aangemaakt, taak_afgerond, kandidaat_toegevoegd, archief, algemeen
-- `contact_moment_direction`: inkomend, uitgaand, intern, n_v_t
+**`src/components/SortDropdown.tsx`** — UI-component:
+- Mobiel: compacte trigger-knop met label "Sorteer: {huidige}" + dropdown (gebruikt shadcn `DropdownMenu`).
+- Desktop: zelfde, iets ruimer (h-10).
+- Props: `value`, `onChange`, `options`.
 
-Indexen op `relatie_id`, `object_id`, `deal_id`, `acquisitie_target_id`, `moment_date desc`. Unique-index op `(system_key)` waar niet null, zodat auto-logs niet dubbel ontstaan.
+### 2. Module-implementaties
 
-RLS: zelfde patroon als bestaande tabellen — `is_intern_gebruiker(auth.uid())` voor SELECT/INSERT/UPDATE/DELETE. Systeemitems mogen interne gebruikers wél verwijderen, maar UI zal dit afschermen.
+Per pagina:
+1. Definieer `sortOptions` (met `compare` functies die centrale helpers gebruiken).
+2. Vervang/plug `<SortDropdown>` naast bestaande zoek/filter-controls.
+3. Pas `filtered` aan: `filtered.slice().sort(activeOption.compare)`.
+4. Gebruik `useSortPreference("<moduleKey>", defaultValue)`.
 
-### 1.2 Datastore-integratie
+Te updaten pagina's en hun standaard slimme volgorde:
 
-Uitbreiding `useDataStore`:
-- `contactMoments` lijst + `refresh`
-- `getContactMomentsFor({ relatieId?, objectId?, dealId?, acquisitieTargetId? })`
-- `addContactMoment(input)` — handmatig
-- `updateContactMoment(id, patch)`
-- `deleteContactMoment(id)`
-- `logSystemMoment({ type, title, ..., systemKey })` — interne helper, dedupe op `systemKey`
+| Module | Pagina | Default | Belangrijkste opties |
+|---|---|---|---|
+| Taken | `TakenPage.tsx` | Slim (urgency bucket + prio + tijd) | Deadline ↑↓, Prioriteit, Status, Type, Relatie A-Z, Laatst gewijzigd, Nieuwste |
+| Relaties | `RelatiesPage.tsx` | Slim (open actie → warm → recent contact → geen → archief) | Bedrijf/Contact A-Z, Laatste contact ↑↓, Volgende actie, Nieuwste, Laatst gewijzigd, Warmste, Geen recent contact |
+| Objecten | `ObjectenPage.tsx` | Slim (actief → volg.actie/kandidaten → recent bijgewerkt → nieuwste) | Nieuwste, Laatst gewijzigd, Vraagprijs ↑↓, Plaats A-Z, Status, Fase, Type, # kandidaten |
+| Deals | `DealsPage.tsx` | Slim (actief+open actie → urgentie → gewogen commissie → bijgewerkt) | Volg. actie, Laatste contact, Dealwaarde, Commissie, Gewogen commissie, Fase, Status, Laatst gewijzigd, Nieuwste |
+| Zoekprofielen | `ZoekprofielenPage.tsx` | Slim (actief → recent → prioriteit → nieuwste) | Nieuwste, Laatst gewijzigd, Budget ↑↓, Regio, Type, Relatie A-Z |
+| Acquisitie | `AcquisitiePage.tsx` | Slim (volg. actie → warm → laatste contact → nieuwste) | Volg. actie, Warmste, Laatste contact, Status, Campagne, Bedrijf A-Z, Nieuwste, Laatst gewijzigd |
+| Referentieobjecten | `ReferentieObjectenPage.tsx` | Laatst gewijzigd | Nieuwste, Plaats A-Z, Prijs ↑↓, Prijs/m² ↑↓, Type, Bouwjaar, Oppervlakte |
+| Pipeline | `PipelinePage.tsx` + kanban componenten | Fase blijft hoofdstructuur; binnen fase: Volg. actie | Laatste activiteit, Interessegraad, Matchscore, Bieding, Laatst gewijzigd |
 
-### 1.3 Helpers
-- `src/lib/contactMoments.ts`: label-map types, icon-map (Lucide), kleur-map, format helpers.
+### 3. UX-details
 
----
+- Sorteer-dropdown altijd rechts van de filter-rij, op één lijn op desktop, eronder/inline op mobiel.
+- Trigger toont "Sorteer: {label}".
+- Sortering wordt toegepast **na** zoeken en filteren (op `filtered`-array).
+- Null-safe: ontbrekende velden (datum, prijs, contact) altijd onderaan.
+- Geen horizontale overflow op mobiel (393px viewport).
+- Pipeline: dropdown per fase-kolom of één globale "binnen fase"-keuze (één globale, simpeler).
 
-## Fase 2 — UI & autolog
+### 4. Niet in scope
 
-### 2.1 Herbruikbare componenten
+- Rapportage: alleen waar lijst-achtige tabellen staan; geen wijziging aan grafieken/aggregaties.
+- Geen database/backend wijzigingen — puur frontend sortering op reeds geladen data.
+- Geen wijzigingen aan "Laatste contact"-definitie (blijft echte contactmomenten, conform eerdere rondes).
 
-- `Timeline` — verticale tijdlijn met datumgroepering, filterbalk (Alle / Contact / Notities / Systeem / Taken), zoekveld.
-- `TimelineItem` — datum/tijd, type-badge + icoon, titel, omschrijving, gekoppelde entiteiten als subtiele chips, vervolgactie-regel, edit/delete acties (alleen op niet-systeem).
-- `ContactMomentFormDialog` — modal met velden uit specificatie. Hergebruikt `EntityPicker` voor Relatie/Object/Deal/Acquisitie. Auto-koppelt op basis van context. Optie "Vervolgtaak aanmaken" toont inline taakvelden (titel, deadline, tijd, type, prioriteit) en maakt na opslaan een `Taak` via bestaande store, gekoppeld aan dezelfde entiteiten.
-- `LogActionDropdown` — `+ Log` knop met preset types (telefoon, email, whatsapp, linkedin, notitie, …) die de modal openen met type voorgeselecteerd.
+## Technische details
 
-### 2.2 Detailpagina-integratie
+- `localStorage`-key: `sort-pref:<moduleKey>` met fallback naar `defaultValue` als ongeldig.
+- Comparators puur (geen side-effects), getypeerd per entiteit (`Taak`, `Relatie`, `ObjectVastgoed`, `Deal`, …).
+- "Slimme volgorde" = `combine(byBucket, byPrioriteit/urgency, byTijd/datum)`.
+- Taken-tijdlogica: `isTelaat(taak, now)` checkt zowel datum als optioneel tijd (`HH:MM`) — vandaag 16:00 is pas te laat ná 16:00.
+- Hergebruik `getLaatsteContactDatum`, `getVolgendeOpenTaak` uit `relatieContact.ts`.
+- Bestaande filter/zoek-UI blijft; alleen `SortDropdown` wordt toegevoegd.
 
-Op `RelatieDetailPage`, `ObjectDetailPage`, `DealDetailPage` en `AcquisitieTargetDetailPage`:
-- Sectie "Tijdlijn" onder bestaande inhoud, met `LogActionDropdown` rechtsboven.
-- Auto-context: huidige entiteit-id wordt voorgevuld en vergrendeld (wel ontkoppelbaar).
+## Bestanden
 
-### 2.3 Automatisch loggen
+**Nieuw:**
+- `src/lib/sorting/comparators.ts`
+- `src/lib/sorting/urgency.ts`
+- `src/lib/sorting/types.ts`
+- `src/hooks/useSortPreference.tsx`
+- `src/components/SortDropdown.tsx`
 
-Wrap in `useDataStore` rond bestaande mutaties (geen schema-wijziging aan andere tabellen). Elke autolog gebruikt een `systemKey` als dedupe.
-
-Logs voor:
-- Taak aangemaakt / afgerond (`taak:{id}:created|done`)
-- Object status gewijzigd (`object:{id}:status:{from}->{to}:{ts}`)
-- Object gearchiveerd / hersteld
-- Deal fase gewijzigd
-- Deal gearchiveerd / hersteld
-- Kandidaat toegevoegd aan deal (`deal:{id}:kandidaat:{relId}:added`)
-- Pipeline-fase wijziging (object_pipeline)
-- Bieding toegevoegd/gewijzigd (deal indicatief_bod, object_pipeline bieding_bedrag)
-- Acquisitie-target status gewijzigd
-
-Bij taak-afronden: subtiele toast met "Uitkomst loggen?" → opent modal met type-keuze (Geen gehoor / Gesproken / WhatsApp / Mail / Anders).
-
-### 2.4 Bestaande notities
-
-Niet migreren. Bestaande `notities`-velden blijven werken. Nieuwe notitie-contactmomenten zijn een tweede, complementair kanaal — duidelijk gemarkeerd in tijdlijn.
-
----
-
-## Fase 3 — Lijst- en dashboard-signalen (later, niet in deze ronde)
-
-- Kolom "Laatste contact" + "Volgende actie" op Relaties-, Objecten-, Dealslijst.
-- Dashboard-widget: warme leads zonder recent contact, deals zonder contact in X dagen.
-
----
-
-## Acceptatie (Fase 1+2 deliverable)
-
-- Tabel + RLS + types live.
-- Tijdlijn zichtbaar op Relatie/Object/Deal/Acquisitie-detail, nieuwste bovenaan, filterbaar.
-- Handmatig contactmoment toevoegen, auto-koppeling vanuit context, multi-koppelingen mogelijk.
-- Optionele vervolgtaak vanuit modal.
-- Autolog voor taken, status/fase, archivering, kandidaten, biedingen, pipeline.
-- Bewerken/verwijderen alleen voor handmatige items; systeemitems read-only.
-- Mobiel en desktop netjes; TypeScript schoon.
-
----
-
-Mag ik doorgaan met Fase 1 + 2?
+**Aangepast:**
+- `src/pages/TakenPage.tsx`
+- `src/pages/RelatiesPage.tsx`
+- `src/pages/ObjectenPage.tsx`
+- `src/pages/DealsPage.tsx`
+- `src/pages/ZoekprofielenPage.tsx`
+- `src/pages/AcquisitiePage.tsx`
+- `src/pages/ReferentieObjectenPage.tsx`
+- `src/pages/PipelinePage.tsx` (+ evt. `ObjectPipelineKanban.tsx` / `KandidatenKanban.tsx` voor binnen-fase sortering)
