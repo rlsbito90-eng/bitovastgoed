@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
