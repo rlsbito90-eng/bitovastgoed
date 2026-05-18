@@ -31,16 +31,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
 
-const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
+  { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
+  { path: "/taken", label: "Taken", icon: CheckSquare, groupEnd: true },
   { path: "/relaties", label: "Relaties", icon: Users },
-  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search },
+  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search, groupEnd: true },
   { path: "/objecten", label: "Objecten", icon: Building2 },
-  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
+  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library, groupEnd: true },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
-  { path: "/pipeline", label: "Pipeline", icon: GitBranch },
-  { path: "/acquisitie", label: "Acquisitie", icon: Target },
-  { path: "/taken", label: "Taken", icon: CheckSquare },
+  { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
