@@ -32,6 +32,14 @@ import type {
   PipelineStage,
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
+import {
+  contactMomentFromDb,
+  contactMomentToDb,
+  logSystemContactMoment,
+  type ContactMoment,
+  type ContactMomentType,
+  CONTACT_MOMENT_TYPE_LABELS,
+} from '@/lib/contactMoments';
 
 
 // =====================================================================
