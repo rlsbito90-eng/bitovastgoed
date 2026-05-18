@@ -1635,9 +1635,49 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setObjecten(prev => prev.map(x => x.id === objectId ? objectFromDb(data) : x));
   }, [objecten, pipelineStages]);
 
+  // ============= Contactmomenten =============
+  const addContactMoment = useCallback(async (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => {
+    const { data, error } = await supabase
+      .from('contact_moments' as any)
+      .insert(contactMomentToDb({ ...c, isSystem: false }) as any)
+      .select().single();
+    throwIfError(error);
+    const cm = contactMomentFromDb(data);
+    setContactMoments(prev => [cm, ...prev]);
+    return cm;
+  }, []);
+
+  const updateContactMoment = useCallback(async (id: string, c: Partial<ContactMoment>) => {
+    const { data, error } = await supabase
+      .from('contact_moments' as any)
+      .update(contactMomentToDb(c) as any)
+      .eq('id', id).select().single();
+    throwIfError(error);
+    const cm = contactMomentFromDb(data);
+    setContactMoments(prev => prev.map(x => x.id === id ? cm : x));
+  }, []);
+
+  const deleteContactMoment = useCallback(async (id: string) => {
+    const { error } = await supabase.from('contact_moments' as any).delete().eq('id', id);
+    throwIfError(error);
+    setContactMoments(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => {
+    return contactMoments.filter(cm =>
+      (filter.relatieId && cm.relatieId === filter.relatieId) ||
+      (filter.objectId && cm.objectId === filter.objectId) ||
+      (filter.dealId && cm.dealId === filter.dealId) ||
+      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId)
+    );
+  }, [contactMoments]);
+
   const store: DataStore = {
     relaties, contactpersonen, objecten, huurders, documenten, fotos, huurMetrics,
     deals, taken, zoekprofielen, dealObjecten, dealKandidaten, jaarDoelen, loading, refresh,
+
+    contactMoments, addContactMoment, updateContactMoment, deleteContactMoment, getContactMomentsFor,
+
 
     addRelatie, updateRelatie, deleteRelatie, bulkInsertRelaties,
     addContactpersoon, updateContactpersoon, deleteContactpersoon,
