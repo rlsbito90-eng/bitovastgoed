@@ -13,6 +13,7 @@ import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import { saveListContext } from '@/lib/listNavigation';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
