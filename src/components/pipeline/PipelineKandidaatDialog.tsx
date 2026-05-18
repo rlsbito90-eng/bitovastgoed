@@ -26,11 +26,14 @@ interface Props {
 }
 
 export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat }: Props) {
-  const { updatePipelineKandidaat, getRelatieById, contactpersonen } = useDataStore();
+  const { updatePipelineKandidaat, getRelatieById, contactpersonen, contactMoments } = useDataStore();
   const [form, setForm] = useState<PipelineKandidaat>(kandidaat);
   const [saving, setSaving] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => { if (open) setForm(kandidaat); }, [open, kandidaat]);
+
+  const laatsteContact = getLaatsteContactDatum(kandidaat.relatieId, contactMoments);
 
   const relatie = getRelatieById(kandidaat.relatieId);
   const set = <K extends keyof PipelineKandidaat>(k: K, v: PipelineKandidaat[K]) =>
