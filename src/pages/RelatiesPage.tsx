@@ -156,7 +156,7 @@ export default function RelatiesPage() {
                           <DealtypeBadges ids={r.dealTypeIds} max={1} variant="compact" showEmpty={false} />
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground tabular-nums">{formatDate(r.laatsteContact)}</td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground tabular-nums">{(() => { const d = getLaatsteContactDatum(r.id, contactMoments); return d ? formatDate(d) : <span className="italic text-muted-foreground/70">geen</span>; })()}</td>
                       <td className="px-5 py-3.5"><LeadStatusBadge status={r.leadStatus} /></td>
                     </tr>
                   ))}
