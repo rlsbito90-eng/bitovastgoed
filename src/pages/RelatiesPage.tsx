@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Upload } from 'lucide-react';
-import type { LeadStatus, PartijType } from '@/data/mock-data';
+import type { LeadStatus, PartijType, Relatie } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportDialog';
@@ -13,7 +13,12 @@ import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import { saveListContext } from '@/lib/listNavigation';
-import { getLaatsteContactDatum } from '@/lib/relatieContact';
+import { getLaatsteContactDatum, getVolgendeOpenTaak } from '@/lib/relatieContact';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byString, combine } from '@/lib/sorting/comparators';
+import { smartRelatieCompare, getLeadWarmteRank } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
