@@ -377,6 +377,11 @@ export default function TakenPage() {
       )}
 
       <TaakFormDialog open={formOpen} onOpenChange={setFormOpen} taak={editTaak} />
+      <TaakAfrondenDialog
+        open={!!afrondenTaak}
+        onOpenChange={(v) => { if (!v) setAfrondenTaak(null); }}
+        taak={afrondenTaak}
+      />
     </div>
   );
 }
