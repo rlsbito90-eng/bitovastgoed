@@ -14,13 +14,19 @@ import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import {
-  isTaakTeLaat, isTaakVandaag, isTaakDezeWeek, deadlineLabel, sorteerTaken,
+  isTaakTeLaat, isTaakVandaag, isTaakDezeWeek, deadlineLabel,
   TAAK_TYPES,
 } from '@/lib/taakHelpers';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartTaakCompare, getTaakDeadlineMs, getTaakPrioriteitRank } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
+import { useMemo as useMemoReact } from 'react';
 
 type Tab = 'focus' | 'vandaag' | 'te_laat' | 'deze_week' | 'wachten' | 'alles' | 'afgerond';
 
