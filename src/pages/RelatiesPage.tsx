@@ -17,7 +17,7 @@ import { getLaatsteContactDatum } from '@/lib/relatieContact';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
-  const { relaties } = useDataStore();
+  const { relaties, contactMoments } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
