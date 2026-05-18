@@ -105,6 +105,9 @@ export default function RelatiesPage() {
             <option value="partner">Partner</option>
           </select>
         </div>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (
