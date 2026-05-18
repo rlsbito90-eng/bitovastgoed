@@ -294,7 +294,29 @@ export default function RelatieDetailPage() {
                 </Field>
               )}
               <Field label="Laatste contact">
-                <span className="tabular-nums">{formatDate(relatie.laatsteContact)}</span>
+                {laatsteContactDatum
+                  ? <span className="tabular-nums">{formatDate(laatsteContactDatum)}</span>
+                  : <span className="text-muted-foreground">Nog geen contactmoment gelogd</span>}
+              </Field>
+              <Field label="Laatste activiteit">
+                {laatsteActiviteitDatum
+                  ? <span className="tabular-nums">{formatDate(laatsteActiviteitDatum)}</span>
+                  : <span className="text-muted-foreground">—</span>}
+              </Field>
+              <Field label="Volgende actie">
+                {volgendeOpenTaak
+                  ? (
+                    <span>
+                      <span className="tabular-nums">{formatDate(volgendeOpenTaak.deadline)}</span>
+                      <span className="text-muted-foreground"> · {volgendeOpenTaak.titel}</span>
+                    </span>
+                  )
+                  : <span className="text-muted-foreground">Geen openstaande taak</span>}
+              </Field>
+              <Field label="Aangemaakt op">
+                {relatie.createdAt
+                  ? <span className="tabular-nums">{formatDate(relatie.createdAt.slice(0, 10))}</span>
+                  : <span className="text-muted-foreground">—</span>}
               </Field>
               {relatie.bronRelatie && (
                 <Field label="Bron relatie">{relatie.bronRelatie}</Field>
