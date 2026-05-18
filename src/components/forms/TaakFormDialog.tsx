@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -12,8 +12,9 @@ import { useDataStore } from '@/hooks/useDataStore';
 import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { getRelatieNamen } from '@/lib/relatieNaam';
 import { TAAK_TYPES, TAAK_STATUSES } from '@/lib/taakHelpers';
+import EntityPicker, { type EntityPickerItem } from './EntityPicker';
 
 interface Props {
   open: boolean;
@@ -37,8 +38,27 @@ const emptyForm = {
   notities: '',
 };
 
+const RECENT_KEY = 'taak-picker-recent';
+const readRecent = (kind: string): string[] => {
+  try {
+    const raw = localStorage.getItem(`${RECENT_KEY}:${kind}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+const pushRecent = (kind: string, id: string) => {
+  if (!id) return;
+  try {
+    const cur = readRecent(kind).filter(x => x !== id);
+    cur.unshift(id);
+    localStorage.setItem(`${RECENT_KEY}:${kind}`, JSON.stringify(cur.slice(0, 8)));
+  } catch { /* noop */ }
+};
+
+const norm = (s: string | undefined | null) =>
+  (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, contactpersonen } = useDataStore();
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -68,13 +88,120 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
   }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId]);
 
+  // ---- Picker items ----
+  const relatieItems = useMemo<EntityPickerItem[]>(() => {
+    return relaties.map(r => {
+      const { primair, secundair } = getRelatieNamen(r, contactpersonen);
+      const cps = contactpersonen.filter(c => c.relatieId === r.id);
+      const haystack = norm([
+        primair, secundair, r.bedrijfsnaam, r.contactpersoon, r.email, r.telefoon,
+        r.vestigingsplaats, r.type, r.notities,
+        ...cps.flatMap(c => [c.naam, c.email, c.telefoon, c.functie]),
+        ...(r.regio || []),
+      ].filter(Boolean).join(' '));
+      return { id: r.id, primair, secundair, searchHaystack: haystack };
+    });
+  }, [relaties, contactpersonen]);
+
+  const { objectItemsActief, objectItemsArchief } = useMemo(() => {
+    const map = (o: typeof objecten[number]): EntityPickerItem => {
+      const primair = o.titel || o.adres || '(naamloos object)';
+      const sec = [o.plaats, o.status].filter(Boolean).join(' · ');
+      const haystack = norm([
+        o.titel, o.adres, o.plaats, o.provincie, o.internReferentienummer,
+        o.type, o.status, o.notities,
+      ].filter(Boolean).join(' '));
+      return { id: o.id, primair, secundair: sec || null, searchHaystack: haystack };
+    };
+    return {
+      objectItemsActief: objecten.filter(o => !o.isArchived).map(map),
+      objectItemsArchief: objecten.filter(o => o.isArchived).map(map),
+    };
+  }, [objecten]);
+
+  const { dealItemsActief, dealItemsArchief } = useMemo(() => {
+    const map = (d: typeof deals[number]): EntityPickerItem => {
+      const obj = getObjectById(d.objectId);
+      const rel = getRelatieById(d.relatieId);
+      const { primair: relNaam, secundair: relBedrijf } = getRelatieNamen(rel, contactpersonen);
+      const primair = obj?.titel || obj?.adres || 'Deal';
+      const sec = [relNaam, d.fase].filter(Boolean).join(' · ');
+      const haystack = norm([
+        obj?.titel, obj?.adres, obj?.plaats,
+        relNaam, relBedrijf, rel?.bedrijfsnaam, rel?.contactpersoon,
+        d.fase, d.notities,
+      ].filter(Boolean).join(' '));
+      return { id: d.id, primair, secundair: sec || null, searchHaystack: haystack };
+    };
+    return {
+      dealItemsActief: deals.filter(d => !d.isArchived).map(map),
+      dealItemsArchief: deals.filter(d => d.isArchived).map(map),
+    };
+  }, [deals, getObjectById, getRelatieById, contactpersonen]);
+
+  // ---- Relevantie-logica tussen velden ----
+  const relevantDealIds = useMemo(() => {
+    const ids = new Set<string>();
+    deals.forEach(d => {
+      if ((form.relatieId && d.relatieId === form.relatieId) ||
+          (form.objectId && d.objectId === form.objectId)) {
+        ids.add(d.id);
+      }
+    });
+    return Array.from(ids);
+  }, [deals, form.relatieId, form.objectId]);
+
+  const relevantObjectIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (form.dealId) {
+      const d = deals.find(x => x.id === form.dealId);
+      if (d) ids.add(d.objectId);
+    }
+    if (form.relatieId) {
+      deals.forEach(d => { if (d.relatieId === form.relatieId) ids.add(d.objectId); });
+    }
+    return Array.from(ids);
+  }, [deals, form.dealId, form.relatieId]);
+
+  const relevantRelatieIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (form.dealId) {
+      const d = deals.find(x => x.id === form.dealId);
+      if (d) ids.add(d.relatieId);
+    }
+    if (form.objectId) {
+      deals.forEach(d => { if (d.objectId === form.objectId) ids.add(d.relatieId); });
+    }
+    return Array.from(ids);
+  }, [deals, form.dealId, form.objectId]);
+
+  // ---- Handlers ----
+  const handleDealChange = (id: string) => {
+    setForm(prev => {
+      const next = { ...prev, dealId: id };
+      if (id) {
+        const d = deals.find(x => x.id === id);
+        if (d) {
+          // auto-vul relatie/object indien leeg
+          if (!prev.relatieId) next.relatieId = d.relatieId;
+          if (!prev.objectId) next.objectId = d.objectId;
+        }
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (bezig) return;
+    if (!form.titel.trim()) {
+      toast.error('Titel is verplicht');
+      return;
+    }
     setBezig(true);
 
     const data: Omit<Taak, 'id'> = {
-      titel: form.titel.trim() || 'Naamloze taak',
+      titel: form.titel.trim(),
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
       objectId: form.objectId || undefined,
@@ -94,6 +221,9 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         await addTaak(data);
         toast.success('Taak aangemaakt');
       }
+      pushRecent('relatie', form.relatieId);
+      pushRecent('object', form.objectId);
+      pushRecent('deal', form.dealId);
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
@@ -121,79 +251,111 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Titel</Label>
-            <Input value={form.titel} onChange={e => set('titel', e.target.value)} />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ---------- BLOK 1: BASIS ---------- */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
             <div className="space-y-1.5">
-              <Label>Type taak</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
-                {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <Label>Titel *</Label>
+              <Input value={form.titel} onChange={e => set('titel', e.target.value)} placeholder="Wat moet er gedaan worden?" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Prioriteit</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
-                <option value="laag">Laag</option>
-                <option value="normaal">Normaal</option>
-                <option value="hoog">Hoog</option>
-                <option value="urgent">Urgent</option>
-              </select>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
+                  {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Prioriteit</Label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
+                  <option value="laag">Laag</option>
+                  <option value="normaal">Normaal</option>
+                  <option value="hoog">Hoog</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
+                  {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Deadline (datum)</Label>
-              <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+          </section>
+
+          {/* ---------- BLOK 2: PLANNING ---------- */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Deadline</Label>
+                <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tijd (optioneel)</Label>
+                <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Tijd (optioneel)</Label>
-              <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} />
+          </section>
+
+          {/* ---------- BLOK 3: KOPPELINGEN ---------- */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
+            <div className="space-y-3">
+              <EntityPicker
+                label="Relatie"
+                pickerTitle="Kies relatie"
+                searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+                emptyLabel="Geen gekoppelde relatie"
+                value={form.relatieId}
+                onChange={(id) => set('relatieId', id)}
+                items={relatieItems}
+                relevantIds={relevantRelatieIds}
+                relevantLabel="Relevant voor selectie"
+                recentIds={readRecent('relatie')}
+              />
+              <EntityPicker
+                label="Object"
+                pickerTitle="Kies object"
+                searchPlaceholder="Zoek op adres, plaats, type…"
+                emptyLabel="Geen gekoppeld object"
+                value={form.objectId}
+                onChange={(id) => set('objectId', id)}
+                items={objectItemsActief}
+                archivedItems={objectItemsArchief}
+                relevantIds={relevantObjectIds}
+                relevantLabel="Relevant voor selectie"
+                recentIds={readRecent('object')}
+              />
+              <EntityPicker
+                label="Deal"
+                pickerTitle="Kies deal"
+                searchPlaceholder="Zoek op object, relatie, fase…"
+                emptyLabel="Geen gekoppelde deal"
+                value={form.dealId}
+                onChange={handleDealChange}
+                items={dealItemsActief}
+                archivedItems={dealItemsArchief}
+                relevantIds={relevantDealIds}
+                relevantLabel="Relevant voor selectie"
+                recentIds={readRecent('deal')}
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
-                {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Relatie</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.relatieId} onChange={e => set('relatieId', e.target.value)}>
-                <option value="">Geen</option>
-                {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
-                  <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Object</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.objectId} onChange={e => set('objectId', e.target.value)}>
-                <option value="">Geen</option>
-                {objecten.filter(o => !o.isArchived).map(o => (
-                  <option key={o.id} value={o.id}>{o.titel}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Deal</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.dealId} onChange={e => set('dealId', e.target.value)}>
-                <option value="">Geen</option>
-                {deals.map(d => {
-                  const obj = getObjectById(d.objectId);
-                  return <option key={d.id} value={d.id}>{obj?.titel || d.id}</option>;
-                })}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Notities</Label>
-            <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} />
-          </div>
-          <div className="flex justify-between items-center gap-2 pt-2">
+          </section>
+
+          {/* ---------- BLOK 4: NOTITIES ---------- */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
+            <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
+          </section>
+
+          {/* ---------- ACTIES ---------- */}
+          <div className="flex justify-between items-center gap-2 pt-2 border-t border-border">
             <div>
               {isEdit && (
                 <Button
