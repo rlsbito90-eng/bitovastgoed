@@ -31,16 +31,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
 
-const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
+  { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
+  { path: "/taken", label: "Taken", icon: CheckSquare, groupEnd: true },
   { path: "/relaties", label: "Relaties", icon: Users },
-  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search },
+  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search, groupEnd: true },
   { path: "/objecten", label: "Objecten", icon: Building2 },
-  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
+  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library, groupEnd: true },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
-  { path: "/pipeline", label: "Pipeline", icon: GitBranch },
-  { path: "/acquisitie", label: "Acquisitie", icon: Target },
-  { path: "/taken", label: "Taken", icon: CheckSquare },
+  { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
@@ -142,24 +142,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {navItems.map((item) => {
             const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={desktopCollapsed ? item.label : undefined}
-                className={`relative flex items-center rounded-md text-sm transition-colors ${
-                  desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
-                } ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                    : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+              <div key={item.path}>
+                <Link
+                  to={item.path}
+                  title={desktopCollapsed ? item.label : undefined}
+                  className={`relative flex items-center rounded-md text-sm transition-colors ${
+                    desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
+                  } ${
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                      : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+                  )}
+                  <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
+                  {!desktopCollapsed && item.label}
+                </Link>
+                {item.groupEnd && (
+                  <div className={`my-1.5 border-t border-sidebar-border/60 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
                 )}
-                <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                {!desktopCollapsed && item.label}
-              </Link>
+              </div>
             );
           })}
         </nav>
@@ -232,19 +236,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   const isActive =
                     item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
                   return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMobileOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm transition-colors ${
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                      }`}
-                    >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                      {item.label}
-                    </Link>
+                    <div key={item.path}>
+                      <Link
+                        to={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm transition-colors ${
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                        }`}
+                      >
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
+                        {item.label}
+                      </Link>
+                      {item.groupEnd && (
+                        <div className="my-1.5 mx-1 border-t border-sidebar-border/60" aria-hidden />
+                      )}
+                    </div>
                   );
                 })}
               </nav>
