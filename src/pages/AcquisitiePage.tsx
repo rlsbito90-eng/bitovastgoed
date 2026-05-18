@@ -41,12 +41,12 @@ export default function AcquisitiePage() {
 
   const sortOptions = useMemo<SortOption<AcquisitieTarget>[]>(() => [
     { value: 'slim', label: 'Slimme volgorde', compare: smartAcquisitieCompare() },
-    { value: 'volgende_actie', label: 'Volgende actie eerst', compare: byDate<AcquisitieTarget>(t => t.volgendeActieOp, 'asc') },
-    { value: 'laatste_actie', label: 'Laatste actie eerst', compare: byDate<AcquisitieTarget>(t => t.laatsteActieOp, 'desc') },
+    { value: 'volgende_actie', label: 'Volgende actie eerst', compare: byDate<AcquisitieTarget>(t => t.volgendeActieDatum, 'asc') },
+    { value: 'laatste_actie', label: 'Laatste actie eerst', compare: byDate<AcquisitieTarget>(t => t.laatsteActieDatum, 'desc') },
     { value: 'status', label: 'Status', compare: combine(byString<AcquisitieTarget>(t => t.status), byString<AcquisitieTarget>(t => targetTitel(t))) },
     { value: 'plaats', label: 'Plaats A-Z', compare: byString<AcquisitieTarget>(t => t.plaats ?? '') },
-    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<AcquisitieTarget>(t => (t as any).updatedAt ?? t.laatsteActieOp, 'desc') },
-    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<AcquisitieTarget>(t => (t as any).createdAt ?? t.laatsteActieOp, 'desc') },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<AcquisitieTarget>(t => t.updatedAt, 'desc') },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<AcquisitieTarget>(t => t.createdAt, 'desc') },
   ], []);
   const [sortValue, setSortValue] = useSortPreference('acquisitie-targets', 'slim', sortOptions.map(o => o.value));
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
