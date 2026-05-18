@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -7,11 +7,16 @@ import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ObjectStatus } from '@/data/mock-data';
+import type { ObjectStatus, ObjectVastgoed } from '@/data/mock-data';
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartObjectCompare } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
