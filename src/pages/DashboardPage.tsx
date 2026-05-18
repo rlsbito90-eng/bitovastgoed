@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
   const actieveObjecten = objecten.filter(o => !o.isArchived);
-  const openTaken = taken.filter(t => t.status !== 'afgerond');
+  const openTaken = taken.filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const actieveDeals = deals.filter(d => !d.isArchived && !['afgerond', 'afgevallen'].includes(d.fase));
   const matches = getAllMatchesFromData(store.zoekprofielen, store.objecten);
 
@@ -68,15 +68,17 @@ export default function DashboardPage() {
   }));
   const maxAantal = Math.max(1, ...dealsPerFase.map(f => f.aantal));
 
-  const vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
-  const overEenWeek = new Date(); overEenWeek.setDate(vandaag.getDate() + 7);
-  const opvolging = openTaken
-    .filter(t => t.deadline && new Date(t.deadline) <= overEenWeek && new Date(t.deadline) >= vandaag)
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const nu = new Date();
+  // Deze week = vandaag + 7 dagen, exclusief te late (die staan al apart)
+  const opvolging = sorteerTaken(
+    openTaken.filter(t => t.deadline && isTaakDezeWeek(t, nu) && !isTaakTeLaat(t, nu)),
+    nu,
+  );
 
-  const verlopen = openTaken
-    .filter(t => t.deadline && new Date(t.deadline) < vandaag)
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const verlopen = sorteerTaken(
+    openTaken.filter(t => isTaakTeLaat(t, nu)),
+    nu,
+  );
 
   const dealsZonderActie = actieveDeals.filter(d => !d.datumFollowUp);
   const kandidatenZonderActie = pipelineKandidaten.filter(k => {
