@@ -134,6 +134,9 @@ export default function RelatieDetailPage() {
               <Linkedin className="h-4 w-4" />
             </a>
           )}
+          <button onClick={() => setLogOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <MessageSquarePlus className="h-4 w-4" /> Log contact
+          </button>
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
