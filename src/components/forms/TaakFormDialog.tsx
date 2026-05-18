@@ -21,13 +21,15 @@ interface Props {
   taak?: Taak | null;
   defaultRelatieId?: string;
   defaultDealId?: string;
+  defaultObjectId?: string;
 }
 
 const emptyForm = {
   titel: '',
   relatieId: '',
   dealId: '',
-  type: 'Opvolging',
+  objectId: '',
+  type: 'Algemeen',
   deadline: new Date().toISOString().split('T')[0],
   deadlineTijd: '',
   prioriteit: 'normaal' as TaakPrioriteit,
@@ -35,8 +37,8 @@ const emptyForm = {
   notities: '',
 };
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById, contactpersonen } = useDataStore();
+export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId }: Props) {
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -48,6 +50,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         titel: taak.titel,
         relatieId: taak.relatieId || '',
         dealId: taak.dealId || '',
+        objectId: taak.objectId || '',
         type: taak.type,
         deadline: taak.deadline,
         deadlineTijd: taak.deadlineTijd ? taak.deadlineTijd.slice(0, 5) : '',
@@ -60,9 +63,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         ...emptyForm,
         relatieId: defaultRelatieId || '',
         dealId: defaultDealId || '',
+        objectId: defaultObjectId || '',
       });
     }
-  }, [taak, open, defaultRelatieId, defaultDealId]);
+  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +77,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       titel: form.titel.trim() || 'Naamloze taak',
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
+      objectId: form.objectId || undefined,
       type: form.type,
       deadline: form.deadline || '',
       deadlineTijd: form.deadlineTijd || undefined,
