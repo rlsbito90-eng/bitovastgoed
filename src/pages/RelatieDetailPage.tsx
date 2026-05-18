@@ -72,6 +72,9 @@ export default function RelatieDetailPage() {
   const deals = store.getDealsByRelatie(relatie.id);
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
+  const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
+  const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
+  const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
 
   const fallbackIds = [...store.relaties]
     .sort((a, b) => (a.bedrijfsnaam || a.contactpersoon || '').localeCompare(b.bedrijfsnaam || b.contactpersoon || '', 'nl'))
