@@ -196,7 +196,7 @@ export default function DashboardPage() {
                       <div className="row-flex">
                         <p className="text-sm text-foreground truncate">{t.titel}</p>
                         <p className="text-xs text-destructive mt-0.5 truncate">
-                          {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{formatDate(t.deadline)} · te laat
+                          {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{deadlineLabel(t, nu)} · te laat
                         </p>
                       </div>
                       <div className="row-action">
