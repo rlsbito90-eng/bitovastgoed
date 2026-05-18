@@ -375,7 +375,7 @@ export default function RelatieDetailPage() {
                   <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{formatDate(taak.deadline)}</p>
+                      <p className={`text-xs mt-0.5 tabular-nums ${isTaakTeLaat(taak) ? 'text-destructive' : 'text-muted-foreground'}`}>{deadlineLabel(taak)}{isTaakTeLaat(taak) ? ' · te laat' : ''}</p>
                     </div>
                     <PrioriteitBadge prioriteit={taak.prioriteit} />
                   </div>
