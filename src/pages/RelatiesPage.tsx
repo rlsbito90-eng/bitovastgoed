@@ -106,7 +106,8 @@ export default function RelatiesPage() {
                       <DealtypeBadges ids={r.dealTypeIds} max={2} variant="compact" showEmpty={false} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
-                      {r.regio.length > 0 ? r.regio.join(', ') : '—'} · laatst {formatDate(r.laatsteContact)}
+                      {r.regio.length > 0 ? r.regio.join(', ') : '—'}
+                      {(() => { const d = getLaatsteContactDatum(r.id, contactMoments); return d ? ` · laatst ${formatDate(d)}` : ''; })()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
