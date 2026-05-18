@@ -937,6 +937,7 @@ interface DataStore {
   getDealsByObject: (objectId: string) => Deal[];
   getTakenByRelatie: (relatieId: string) => Taak[];
   getTakenByDeal: (dealId: string) => Taak[];
+  getTakenByObject: (objectId: string) => Taak[];
   getZoekprofielenByRelatie: (relatieId: string) => Zoekprofiel[];
 }
 
