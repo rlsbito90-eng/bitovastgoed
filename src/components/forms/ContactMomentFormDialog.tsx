@@ -313,8 +313,8 @@ export default function ContactMomentFormDialog({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Titel *</Label>
-              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Korte omschrijving" />
+              <Label>Titel (optioneel)</Label>
+              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Korte omschrijving — laat leeg voor automatisch" />
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
