@@ -1018,6 +1018,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from('object_pipeline' as any).select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('pipelines' as any).select('*').eq('is_active', true).order('created_at', { ascending: true }),
         supabase.from('pipeline_stages' as any).select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('contact_moments' as any).select('*').order('moment_date', { ascending: false }).order('created_at', { ascending: false }).limit(2000),
       ]);
 
       if (relRes.data) setRelaties(relRes.data.map(relatieFromDb));
