@@ -22,7 +22,7 @@ type ArchiefView = 'actief' | 'archief' | 'alles';
 
 export default function ObjectenPage() {
   const navigate = useNavigate();
-  const { objecten, unarchiveObject } = useDataStore();
+  const { objecten, unarchiveObject, pipelineKandidaten } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
   const [zoek, setZoek] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -35,18 +35,42 @@ export default function ObjectenPage() {
   const aantalArchief = objecten.filter(o => o.isArchived).length;
   const aantalActief = objecten.length - aantalArchief;
 
-  const filtered = objecten.filter(o => {
-    if (archiefView === 'actief' && o.isArchived) return false;
-    if (archiefView === 'archief' && !o.isArchived) return false;
-    const matchZoek = !zoek
-      || o.titel.toLowerCase().includes(zoek.toLowerCase())
-      || o.plaats.toLowerCase().includes(zoek.toLowerCase());
-    const matchType = !typeFilter || o.propertyTypeId === typeFilter;
-    const matchSub = !subtypeFilter || (o.propertySubtypeIds ?? []).includes(subtypeFilter);
-    const matchDeal = !dealtypeFilter || (o.dealTypeIds ?? []).includes(dealtypeFilter);
-    const matchStatus = !statusFilter || o.status === statusFilter;
-    return matchZoek && matchType && matchSub && matchDeal && matchStatus;
-  });
+  const kandidatenPerObject = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const k of pipelineKandidaten) m.set(k.objectId, (m.get(k.objectId) ?? 0) + 1);
+    return m;
+  }, [pipelineKandidaten]);
+
+  const sortOptions = useMemo<SortOption<ObjectVastgoed>[]>(() => [
+    { value: 'slim', label: 'Slimme volgorde', compare: smartObjectCompare(kandidatenPerObject) },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<ObjectVastgoed>(o => o.datumToegevoegd, 'desc') },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<ObjectVastgoed>(o => (o as any).updatedAt ?? o.datumToegevoegd, 'desc') },
+    { value: 'prijs_hl', label: 'Vraagprijs hoog-laag', compare: byNumber<ObjectVastgoed>(o => o.vraagprijs, 'desc') },
+    { value: 'prijs_lh', label: 'Vraagprijs laag-hoog', compare: byNumber<ObjectVastgoed>(o => o.vraagprijs, 'asc') },
+    { value: 'plaats', label: 'Plaats A-Z', compare: byString<ObjectVastgoed>(o => o.plaats) },
+    { value: 'status', label: 'Status', compare: combine(byString<ObjectVastgoed>(o => o.status), byString<ObjectVastgoed>(o => o.titel)) },
+    { value: 'type', label: 'Type vastgoed', compare: combine(byString<ObjectVastgoed>(o => propertyTypes.find(p => p.id === o.propertyTypeId)?.name ?? o.type ?? ''), byString<ObjectVastgoed>(o => o.titel)) },
+    { value: 'kandidaten', label: 'Aantal kandidaten', compare: byNumber<ObjectVastgoed>(o => kandidatenPerObject.get(o.id) ?? 0, 'desc') },
+  ], [kandidatenPerObject, propertyTypes]);
+
+  const [sortValue, setSortValue] = useSortPreference('objecten', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
+  const filtered = useMemo(() => {
+    const list = objecten.filter(o => {
+      if (archiefView === 'actief' && o.isArchived) return false;
+      if (archiefView === 'archief' && !o.isArchived) return false;
+      const matchZoek = !zoek
+        || o.titel.toLowerCase().includes(zoek.toLowerCase())
+        || o.plaats.toLowerCase().includes(zoek.toLowerCase());
+      const matchType = !typeFilter || o.propertyTypeId === typeFilter;
+      const matchSub = !subtypeFilter || (o.propertySubtypeIds ?? []).includes(subtypeFilter);
+      const matchDeal = !dealtypeFilter || (o.dealTypeIds ?? []).includes(dealtypeFilter);
+      const matchStatus = !statusFilter || o.status === statusFilter;
+      return matchZoek && matchType && matchSub && matchDeal && matchStatus;
+    });
+    return [...list].sort(activeSort.compare);
+  }, [objecten, zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView, activeSort]);
 
   useEffect(() => {
     saveListContext('objecten', filtered.map(o => o.id));
