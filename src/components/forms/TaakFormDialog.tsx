@@ -109,7 +109,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       const sec = [o.plaats, o.status].filter(Boolean).join(' · ');
       const haystack = norm([
         o.titel, o.adres, o.plaats, o.provincie, o.internReferentienummer,
-        o.type, o.status, o.notities,
+        o.type, o.status,
       ].filter(Boolean).join(' '));
       return { id: o.id, primair, secundair: sec || null, searchHaystack: haystack };
     };
