@@ -376,6 +376,9 @@ export default function TakenPage() {
           <option value="afgerond">Afgerond</option>
           <option value="geannuleerd">Geannuleerd</option>
         </select>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {zichtbaar.length === 0 ? (
