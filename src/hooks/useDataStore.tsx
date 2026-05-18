@@ -887,6 +887,14 @@ interface DataStore {
   updateTaak: (id: string, t: Partial<Taak>) => Promise<void>;
   deleteTaak: (id: string) => Promise<void>;
 
+  // Contactmomenten / Tijdlijn
+  contactMoments: ContactMoment[];
+  addContactMoment: (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => Promise<ContactMoment | null>;
+  updateContactMoment: (id: string, c: Partial<ContactMoment>) => Promise<void>;
+  deleteContactMoment: (id: string) => Promise<void>;
+  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => ContactMoment[];
+
+
   // Zoekprofielen
   addZoekprofiel: (z: Omit<Zoekprofiel, 'id'>) => Promise<Zoekprofiel | null>;
   updateZoekprofiel: (id: string, z: Partial<Zoekprofiel>) => Promise<void>;
