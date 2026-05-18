@@ -240,10 +240,12 @@ export interface Relatie {
 
   bronRelatie?: string;
   leadStatus: LeadStatus;
+  /** @deprecated Gebruik contactmomenten als bron van waarheid (zie src/lib/relatieContact.ts). */
   laatsteContact: string;
   volgendeActie?: string;
   notities?: string;
   softDeletedAt?: string;
+  createdAt?: string;
 }
 
 export interface RelatieContactpersoon {

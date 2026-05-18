@@ -211,7 +211,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
       } else {
         const nieuw = await addRelatie({
           ...data,
-          laatsteContact: new Date().toISOString().split('T')[0],
+          laatsteContact: '', // niet meer automatisch vullen; tijdlijn is bron van waarheid
           contactpersoon: '', // legacy veld; nieuwe structuur via contactpersonen-tabel
         } as Omit<Relatie, 'id'>);
         if (nieuw?.id) {

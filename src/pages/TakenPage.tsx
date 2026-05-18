@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
@@ -43,6 +44,7 @@ export default function TakenPage() {
   const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>('');
   const [formOpen, setFormOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
+  const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<Tab>('focus');
 
   const now = new Date();
@@ -113,13 +115,17 @@ export default function TakenPage() {
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
-    const nieuweStatus: TaakStatus = taak.status === 'afgerond' ? 'open' : 'afgerond';
-    try {
-      await updateTaak(taak.id, { status: nieuweStatus });
-      toast.success(nieuweStatus === 'afgerond' ? 'Taak afgerond' : 'Taak heropend');
-    } catch (err: any) {
-      toast.error(`Bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    if (taak.status === 'afgerond') {
+      try {
+        await updateTaak(taak.id, { status: 'open' });
+        toast.success('Taak heropend');
+      } catch (err: any) {
+        toast.error(`Bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+      }
+      return;
     }
+    // Bij afronden: vraag of er een contactmoment gelogd moet worden.
+    setAfrondenTaak(taak);
   };
 
   const snooze = async (e: React.MouseEvent, taak: Taak, dagen: number) => {
@@ -371,6 +377,11 @@ export default function TakenPage() {
       )}
 
       <TaakFormDialog open={formOpen} onOpenChange={setFormOpen} taak={editTaak} />
+      <TaakAfrondenDialog
+        open={!!afrondenTaak}
+        onOpenChange={(v) => { if (!v) setAfrondenTaak(null); }}
+        taak={afrondenTaak}
+      />
     </div>
   );
 }

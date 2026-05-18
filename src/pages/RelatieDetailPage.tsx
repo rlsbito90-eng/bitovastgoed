@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import { getLaatsteContactDatum, getLaatsteActiviteitDatum, getVolgendeOpenTaak } from '@/lib/relatieContact';
 import { isTaakTeLaat, deadlineLabel } from '@/lib/taakHelpers';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import ListNavigator from '@/components/ListNavigator';
@@ -72,6 +73,9 @@ export default function RelatieDetailPage() {
   const deals = store.getDealsByRelatie(relatie.id);
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
+  const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
+  const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
+  const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
 
   const fallbackIds = [...store.relaties]
     .sort((a, b) => (a.bedrijfsnaam || a.contactpersoon || '').localeCompare(b.bedrijfsnaam || b.contactpersoon || '', 'nl'))
@@ -294,7 +298,29 @@ export default function RelatieDetailPage() {
                 </Field>
               )}
               <Field label="Laatste contact">
-                <span className="tabular-nums">{formatDate(relatie.laatsteContact)}</span>
+                {laatsteContactDatum
+                  ? <span className="tabular-nums">{formatDate(laatsteContactDatum)}</span>
+                  : <span className="text-muted-foreground">Nog geen contactmoment gelogd</span>}
+              </Field>
+              <Field label="Laatste activiteit">
+                {laatsteActiviteitDatum
+                  ? <span className="tabular-nums">{formatDate(laatsteActiviteitDatum)}</span>
+                  : <span className="text-muted-foreground">—</span>}
+              </Field>
+              <Field label="Volgende actie">
+                {volgendeOpenTaak
+                  ? (
+                    <span>
+                      <span className="tabular-nums">{formatDate(volgendeOpenTaak.deadline)}</span>
+                      <span className="text-muted-foreground"> · {volgendeOpenTaak.titel}</span>
+                    </span>
+                  )
+                  : <span className="text-muted-foreground">Geen openstaande taak</span>}
+              </Field>
+              <Field label="Aangemaakt op">
+                {relatie.createdAt
+                  ? <span className="tabular-nums">{formatDate(relatie.createdAt.slice(0, 10))}</span>
+                  : <span className="text-muted-foreground">—</span>}
               </Field>
               {relatie.bronRelatie && (
                 <Field label="Bron relatie">{relatie.bronRelatie}</Field>

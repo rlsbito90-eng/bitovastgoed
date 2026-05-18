@@ -238,7 +238,6 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
       budgetMin,
       budgetMax,
       leadStatus: st.status,
-      laatsteContact: new Date().toISOString().split('T')[0],
       // type_koper info bewaren in notities (geen apart DB-veld voor dit label)
       notities: typeKoperRaw ? `Type koper: ${tk.label}` : undefined,
     };

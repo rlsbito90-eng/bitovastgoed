@@ -105,6 +105,7 @@ const relatieFromDb = (r: any): Relatie => ({
   volgendeActie: r.volgende_actie ?? undefined,
   notities: r.notities ?? undefined,
   softDeletedAt: r.soft_deleted_at ?? undefined,
+  createdAt: r.created_at ?? undefined,
 });
 
 const relatieToDb = (r: Partial<Relatie>) => cleanPayload({

@@ -13,10 +13,11 @@ import PageHeader from '@/components/PageHeader';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import { saveListContext } from '@/lib/listNavigation';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
-  const { relaties } = useDataStore();
+  const { relaties, contactMoments } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
@@ -105,7 +106,8 @@ export default function RelatiesPage() {
                       <DealtypeBadges ids={r.dealTypeIds} max={2} variant="compact" showEmpty={false} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
-                      {r.regio.length > 0 ? r.regio.join(', ') : '—'} · laatst {formatDate(r.laatsteContact)}
+                      {r.regio.length > 0 ? r.regio.join(', ') : '—'}
+                      {(() => { const d = getLaatsteContactDatum(r.id, contactMoments); return d ? ` · laatst ${formatDate(d)}` : ''; })()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -154,7 +156,7 @@ export default function RelatiesPage() {
                           <DealtypeBadges ids={r.dealTypeIds} max={1} variant="compact" showEmpty={false} />
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground tabular-nums">{formatDate(r.laatsteContact)}</td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell text-muted-foreground tabular-nums">{(() => { const d = getLaatsteContactDatum(r.id, contactMoments); return d ? formatDate(d) : <span className="italic text-muted-foreground/70">geen</span>; })()}</td>
                       <td className="px-5 py-3.5"><LeadStatusBadge status={r.leadStatus} /></td>
                     </tr>
                   ))}
