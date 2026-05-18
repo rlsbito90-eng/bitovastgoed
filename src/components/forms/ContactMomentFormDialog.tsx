@@ -208,17 +208,22 @@ export default function ContactMomentFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (bezig) return;
-    if (!form.title.trim()) {
-      toast.error('Titel is verplicht');
-      return;
-    }
     setBezig(true);
     try {
+      // Auto-titel als gebruiker niets invult
+      let titel = form.title.trim();
+      if (!titel) {
+        const typeLabel = CONTACT_MOMENT_TYPE_LABELS[form.type];
+        const rel = form.relatieId ? store.getRelatieById(form.relatieId) : null;
+        const relNaam = rel ? getRelatieNamen(rel, store.contactpersonen).primair : '';
+        titel = relNaam ? `${typeLabel} – ${relNaam}` : typeLabel;
+      }
+
       const payload: Partial<ContactMoment> = {
         type: form.type,
         momentDate: form.momentDate,
         momentTime: form.momentTime || undefined,
-        title: form.title.trim(),
+        title: titel,
         description: form.description.trim() || undefined,
         outcome: form.outcome.trim() || undefined,
         direction: form.direction,
@@ -226,8 +231,8 @@ export default function ContactMomentFormDialog({
         objectId: form.objectId || undefined,
         dealId: form.dealId || undefined,
         acquisitieTargetId: form.acquisitieTargetId || undefined,
-        followUpRequired: form.followUpRequired,
-        followUpDate: form.followUpRequired ? (form.followUpDate || undefined) : undefined,
+        followUpRequired: form.makeTaak,
+        followUpDate: form.makeTaak ? (form.taakDeadline || undefined) : undefined,
       };
 
       if (isEdit && contactMoment) {
