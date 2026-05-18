@@ -130,7 +130,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                   <th className="text-right font-medium py-2 px-2">Match</th>
                   <th className="text-right font-medium py-2 px-2">Bieding</th>
                   <th className="text-left font-medium py-2 px-2">Volgende actie</th>
-                  <th className="text-left font-medium py-2 px-2">Laatste contact</th>
+                  <th className="text-left font-medium py-2 px-2">Laatste pipeline-activiteit</th>
                   <th className="text-right font-medium py-2 px-2"></th>
                 </tr>
               </thead>
