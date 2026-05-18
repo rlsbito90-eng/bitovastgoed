@@ -14,13 +14,19 @@ import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import {
-  isTaakTeLaat, isTaakVandaag, isTaakDezeWeek, deadlineLabel, sorteerTaken,
+  isTaakTeLaat, isTaakVandaag, isTaakDezeWeek, deadlineLabel,
   TAAK_TYPES,
 } from '@/lib/taakHelpers';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartTaakCompare, getTaakDeadlineMs, getTaakPrioriteitRank } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
+import { useMemo as useMemoReact } from 'react';
 
 type Tab = 'focus' | 'vandaag' | 'te_laat' | 'deze_week' | 'wachten' | 'alles' | 'afgerond';
 
@@ -48,6 +54,21 @@ export default function TakenPage() {
   const [tab, setTab] = useState<Tab>('focus');
 
   const now = new Date();
+
+  const sortOptions = useMemoReact<SortOption<Taak>[]>(() => [
+    { value: 'slim', label: 'Slimme volgorde', compare: smartTaakCompare(now) },
+    { value: 'deadline_asc', label: 'Deadline oplopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc'), byString<Taak>(t => t.titel)) },
+    { value: 'deadline_desc', label: 'Deadline aflopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'desc'), byString<Taak>(t => t.titel)) },
+    { value: 'prioriteit', label: 'Prioriteit', compare: combine((a, b) => getTaakPrioriteitRank(a.prioriteit) - getTaakPrioriteitRank(b.prioriteit), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'status', label: 'Status', compare: combine(byString<Taak>(t => t.status), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'type', label: 'Type taak', compare: combine(byString<Taak>(t => t.type), byString<Taak>(t => t.titel)) },
+    { value: 'relatie', label: 'Relatie/bedrijf A-Z', compare: combine(byString<Taak>(t => t.relatieId ? (getRelatieById(t.relatieId)?.bedrijfsnaam ?? '') : ''), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Taak>(t => (t as any).updatedAt ?? (t as any).createdAt, 'desc') },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Taak>(t => (t as any).createdAt, 'desc') },
+  ], [now, getRelatieById]);
+
+  const [sortValue, setSortValue] = useSortPreference('taken', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
   // Search context-aware
   const filterFn = (t: Taak) => {
@@ -109,9 +130,9 @@ export default function TakenPage() {
         list = list.filter(t => t.status === 'afgerond');
         break;
     }
-    return sorteerTaken(list, now);
+    return [...list].sort(activeSort.compare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter]);
+  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort]);
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
@@ -355,6 +376,9 @@ export default function TakenPage() {
           <option value="afgerond">Afgerond</option>
           <option value="geannuleerd">Geannuleerd</option>
         </select>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {zichtbaar.length === 0 ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -7,11 +7,17 @@ import { DealFaseBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Star, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DealFase } from '@/data/mock-data';
+import type { DealFase, Deal } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartDealCompare, getDealGewogenCommissie } from '@/lib/sorting/urgency';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
+import type { SortOption } from '@/lib/sorting/types';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
@@ -32,7 +38,7 @@ function Sterren({ aantal }: { aantal: number }) {
 
 export default function DealsPage() {
   const navigate = useNavigate();
-  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal } = useDataStore();
+  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal, contactMoments } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
   const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
@@ -41,15 +47,38 @@ export default function DealsPage() {
   const aantalArchief = deals.filter(d => d.isArchived).length;
   const aantalActief = deals.length - aantalArchief;
 
-  const filtered = deals.filter(d => {
-    if (archiefView === 'actief' && d.isArchived) return false;
-    if (archiefView === 'archief' && !d.isArchived) return false;
-    const obj = getObjectById(d.objectId);
-    const rel = getRelatieById(d.relatieId);
-    const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
-    const matchFase = !faseFilter || d.fase === faseFilter;
-    return matchZoek && matchFase;
-  });
+  const sortOptions = useMemo<SortOption<Deal>[]>(() => {
+    const lc = (d: Deal) => getLaatsteContactDatum(d.relatieId, contactMoments);
+    const obj = (d: Deal) => getObjectById(d.objectId);
+    return [
+      { value: 'slim', label: 'Slimme volgorde', compare: smartDealCompare() },
+      { value: 'volgende_actie', label: 'Volgende actie eerst', compare: combine(byDate<Deal>(d => d.datumFollowUp, 'asc'), byString<Deal>(d => obj(d)?.titel ?? '')) },
+      { value: 'lc', label: 'Laatste contact eerst', compare: byDate<Deal>(lc, 'desc') },
+      { value: 'dealwaarde', label: 'Dealwaarde hoog-laag', compare: byNumber<Deal>(d => obj(d)?.vraagprijs, 'desc') },
+      { value: 'commissie', label: 'Commissie hoog-laag', compare: byNumber<Deal>(d => d.commissieBedrag, 'desc') },
+      { value: 'gewogen', label: 'Gewogen commissie hoog-laag', compare: byNumber<Deal>(d => getDealGewogenCommissie(d), 'desc') },
+      { value: 'fase', label: 'Fase', compare: combine(byString<Deal>(d => d.fase), byDate<Deal>(d => d.datumFollowUp, 'asc')) },
+      { value: 'status', label: 'Status', compare: combine((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived), byString<Deal>(d => d.fase)) },
+      { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Deal>(d => (d as any).updatedAt ?? d.datumFollowUp ?? d.datumEersteContact, 'desc') },
+      { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Deal>(d => d.datumEersteContact, 'desc') },
+    ];
+  }, [contactMoments, getObjectById]);
+
+  const [sortValue, setSortValue] = useSortPreference('deals', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
+  const filtered = useMemo(() => {
+    const list = deals.filter(d => {
+      if (archiefView === 'actief' && d.isArchived) return false;
+      if (archiefView === 'archief' && !d.isArchived) return false;
+      const obj = getObjectById(d.objectId);
+      const rel = getRelatieById(d.relatieId);
+      const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
+      const matchFase = !faseFilter || d.fase === faseFilter;
+      return matchZoek && matchFase;
+    });
+    return [...list].sort(activeSort.compare);
+  }, [deals, archiefView, zoek, faseFilter, contactpersonen, getObjectById, getRelatieById, activeSort]);
 
   useEffect(() => {
     saveListContext('deals', filtered.map(d => d.id));
@@ -109,6 +138,9 @@ export default function DealsPage() {
           <option value="">Alle fases</option>
           {faseOptions.map(f => <option key={f} value={f} className="capitalize">{f.charAt(0).toUpperCase() + f.slice(1)}</option>)}
         </select>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (

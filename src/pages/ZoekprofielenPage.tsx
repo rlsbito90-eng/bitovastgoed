@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, ASSET_CLASS_LABELS } from '@/data/mock-data';
@@ -16,6 +16,11 @@ import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartZoekprofielCompare } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 export default function ZoekprofielenPage() {
   const { zoekprofielen, getRelatieById, deleteZoekprofiel, contactpersonen } = useDataStore();
@@ -27,19 +32,36 @@ export default function ZoekprofielenPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Zoekprofiel | null>(null);
 
-  const filtered = zoekprofielen.filter(z => {
-    const rel = getRelatieById(z.relatieId);
-    const matchZoek = !zoek
-      || z.naam.toLowerCase().includes(zoek.toLowerCase())
-      || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
-    const ptIds = (z as any).propertyTypeIds as string[] | undefined ?? [];
-    const psIds = (z as any).propertySubtypeIds as string[] | undefined ?? [];
-    const dtIds = (z as any).dealTypeIds as string[] | undefined ?? [];
-    const matchType = !typeFilter || ptIds.includes(typeFilter);
-    const matchSub  = !subtypeFilter || psIds.includes(subtypeFilter);
-    const matchDeal = !dealtypeFilter || dtIds.includes(dealtypeFilter);
-    return matchZoek && matchType && matchSub && matchDeal;
-  });
+  const sortOptions = useMemo<SortOption<Zoekprofiel>[]>(() => [
+    { value: 'slim', label: 'Slimme volgorde', compare: smartZoekprofielCompare() },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Zoekprofiel>(z => (z as any).createdAt ?? z.updatedAt, 'desc') },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Zoekprofiel>(z => z.updatedAt, 'desc') },
+    { value: 'budget_hl', label: 'Budget hoog-laag', compare: byNumber<Zoekprofiel>(z => z.prijsMax, 'desc') },
+    { value: 'budget_lh', label: 'Budget laag-hoog', compare: byNumber<Zoekprofiel>(z => z.prijsMax, 'asc') },
+    { value: 'regio', label: 'Regio', compare: byString<Zoekprofiel>(z => z.regio?.[0] ?? '') },
+    { value: 'type', label: 'Type vastgoed', compare: combine(byString<Zoekprofiel>(z => (z.propertyTypeIds?.[0] ? (propertyTypes.find(p => p.id === z.propertyTypeIds![0])?.name ?? '') : (z.typeVastgoed?.[0] ?? ''))), byString<Zoekprofiel>(z => z.naam)) },
+    { value: 'relatie', label: 'Relatie A-Z', compare: byString<Zoekprofiel>(z => getRelatieById(z.relatieId)?.bedrijfsnaam ?? '') },
+  ], [propertyTypes, getRelatieById]);
+
+  const [sortValue, setSortValue] = useSortPreference('zoekprofielen', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
+  const filtered = useMemo(() => {
+    const list = zoekprofielen.filter(z => {
+      const rel = getRelatieById(z.relatieId);
+      const matchZoek = !zoek
+        || z.naam.toLowerCase().includes(zoek.toLowerCase())
+        || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
+      const ptIds = (z as any).propertyTypeIds as string[] | undefined ?? [];
+      const psIds = (z as any).propertySubtypeIds as string[] | undefined ?? [];
+      const dtIds = (z as any).dealTypeIds as string[] | undefined ?? [];
+      const matchType = !typeFilter || ptIds.includes(typeFilter);
+      const matchSub  = !subtypeFilter || psIds.includes(subtypeFilter);
+      const matchDeal = !dealtypeFilter || dtIds.includes(dealtypeFilter);
+      return matchZoek && matchType && matchSub && matchDeal;
+    });
+    return [...list].sort(activeSort.compare);
+  }, [zoekprofielen, zoek, typeFilter, subtypeFilter, dealtypeFilter, contactpersonen, getRelatieById, activeSort]);
 
   const beschikbareSubs = typeFilter ? subtypesForType(typeFilter) : propertySubtypes;
 
@@ -97,6 +119,9 @@ export default function ZoekprofielenPage() {
             <option value="">Alle dealtypes</option>
             {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+        </div>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
         </div>
       </div>
 

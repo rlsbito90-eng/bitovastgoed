@@ -18,6 +18,11 @@ import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenAc
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import AcquisitieCampagneFormDialog from '@/components/forms/AcquisitieCampagneFormDialog';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byString, combine } from '@/lib/sorting/comparators';
+import { smartAcquisitieCompare } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 type Tab = 'targets' | 'campagnes';
 
@@ -34,8 +39,20 @@ export default function AcquisitiePage() {
   const [targetForm, setTargetForm] = useState<{ open: boolean; target: AcquisitieTarget | null }>({ open: false, target: null });
   const [campagneForm, setCampagneForm] = useState<{ open: boolean; campagne: any }>({ open: false, campagne: null });
 
+  const sortOptions = useMemo<SortOption<AcquisitieTarget>[]>(() => [
+    { value: 'slim', label: 'Slimme volgorde', compare: smartAcquisitieCompare() },
+    { value: 'volgende_actie', label: 'Volgende actie eerst', compare: byDate<AcquisitieTarget>(t => t.volgendeActieDatum, 'asc') },
+    { value: 'laatste_actie', label: 'Laatste actie eerst', compare: byDate<AcquisitieTarget>(t => t.laatsteActieDatum, 'desc') },
+    { value: 'status', label: 'Status', compare: combine(byString<AcquisitieTarget>(t => t.status), byString<AcquisitieTarget>(t => targetTitel(t))) },
+    { value: 'plaats', label: 'Plaats A-Z', compare: byString<AcquisitieTarget>(t => t.plaats ?? '') },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<AcquisitieTarget>(t => t.updatedAt, 'desc') },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<AcquisitieTarget>(t => t.createdAt, 'desc') },
+  ], []);
+  const [sortValue, setSortValue] = useSortPreference('acquisitie-targets', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
   const gefilterdeTargets = useMemo(() => {
-    return targets.filter(t => {
+    const list = targets.filter(t => {
       if (statusFilter && t.status !== statusFilter) return false;
       if (plaatsFilter && !(t.plaats ?? '').toLowerCase().includes(plaatsFilter.toLowerCase())) return false;
       if (campagneFilter && t.campagneId !== campagneFilter) return false;
@@ -48,7 +65,8 @@ export default function AcquisitiePage() {
       }
       return true;
     });
-  }, [targets, zoek, statusFilter, plaatsFilter, campagneFilter, prioriteitFilter, typeFilter]);
+    return [...list].sort(activeSort.compare);
+  }, [targets, zoek, statusFilter, plaatsFilter, campagneFilter, prioriteitFilter, typeFilter, activeSort]);
 
   useEffect(() => {
     saveListContext('acquisitie-targets', gefilterdeTargets.map(t => t.id));
@@ -124,6 +142,9 @@ export default function AcquisitiePage() {
                 {[1,2,3,4,5].map(p => <option key={p} value={p}>P{p}</option>)}
               </select>
               <Input className="flex-1" placeholder="Type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} />
+            </div>
+            <div className="flex justify-end">
+              <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
             </div>
           </div>
 
