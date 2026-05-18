@@ -30,6 +30,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
+import PullToRefresh from "@/components/PullToRefresh";
+import RefreshButton from "@/components/RefreshButton";
+import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
@@ -116,6 +119,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     onClose: () => setMobileOpen(false),
   });
 
+  // Automatisch verversen bij terugkeer naar de app/tab
+  useAutoRefreshOnFocus();
+
   return (
     // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
     <div className="flex h-screen bg-background overflow-x-hidden">
@@ -193,6 +199,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <div className="flex items-center gap-1">
+          <RefreshButton />
           <MatchAlertBadge />
         </div>
       </header>
@@ -207,7 +214,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           >
             {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
-          <MatchAlertBadge />
+          <div className="flex items-center gap-1">
+            <RefreshButton />
+            <MatchAlertBadge />
+          </div>
         </header>
 
         {/* Mobile Nav Overlay */}
@@ -264,7 +274,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         )}
 
         {/* Main content area — overflow-x-hidden voorkomt mobiele zijdelingse scroll */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+          <PullToRefresh>{children}</PullToRefresh>
+        </main>
       </div>
       <ScrollToTopButton />
     </div>
