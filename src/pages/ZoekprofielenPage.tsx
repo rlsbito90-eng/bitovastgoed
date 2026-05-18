@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, ASSET_CLASS_LABELS } from '@/data/mock-data';
@@ -16,6 +16,11 @@ import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartZoekprofielCompare } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 export default function ZoekprofielenPage() {
   const { zoekprofielen, getRelatieById, deleteZoekprofiel, contactpersonen } = useDataStore();
