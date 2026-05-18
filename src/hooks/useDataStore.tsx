@@ -1047,6 +1047,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       if (pipeRes.data) setPipelineKandidaten((pipeRes.data as any[]).map(pipelineFromDb));
       if (pipeDefRes.data) setPipelines((pipeDefRes.data as any[]).map(pipelineDefFromDb));
       if (pipeStageRes.data) setPipelineStages((pipeStageRes.data as any[]).map(pipelineStageFromDb));
+      if (cmRes.data) setContactMoments((cmRes.data as any[]).map(contactMomentFromDb));
     } finally {
       setLoading(false);
     }
