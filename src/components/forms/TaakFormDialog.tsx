@@ -13,6 +13,7 @@ import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { TAAK_TYPES, TAAK_STATUSES } from '@/lib/taakHelpers';
 
 interface Props {
   open: boolean;
