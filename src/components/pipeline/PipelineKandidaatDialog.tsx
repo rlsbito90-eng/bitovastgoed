@@ -13,6 +13,11 @@ import {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
+import { MessageSquarePlus } from 'lucide-react';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
 
 interface Props {
   open: boolean;
