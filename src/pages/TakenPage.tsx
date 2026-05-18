@@ -55,6 +55,21 @@ export default function TakenPage() {
 
   const now = new Date();
 
+  const sortOptions = useMemoReact<SortOption<Taak>[]>(() => [
+    { value: 'slim', label: 'Slimme volgorde', compare: smartTaakCompare(now) },
+    { value: 'deadline_asc', label: 'Deadline oplopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc'), byString<Taak>(t => t.titel)) },
+    { value: 'deadline_desc', label: 'Deadline aflopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'desc'), byString<Taak>(t => t.titel)) },
+    { value: 'prioriteit', label: 'Prioriteit', compare: combine((a, b) => getTaakPrioriteitRank(a.prioriteit) - getTaakPrioriteitRank(b.prioriteit), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'status', label: 'Status', compare: combine(byString<Taak>(t => t.status), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'type', label: 'Type taak', compare: combine(byString<Taak>(t => t.type), byString<Taak>(t => t.titel)) },
+    { value: 'relatie', label: 'Relatie/bedrijf A-Z', compare: combine(byString<Taak>(t => t.relatieId ? (getRelatieById(t.relatieId)?.bedrijfsnaam ?? '') : ''), byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc')) },
+    { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Taak>(t => (t as any).updatedAt ?? (t as any).createdAt, 'desc') },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Taak>(t => (t as any).createdAt, 'desc') },
+  ], [now, getRelatieById]);
+
+  const [sortValue, setSortValue] = useSortPreference('taken', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
   // Search context-aware
   const filterFn = (t: Taak) => {
     const q = zoek.trim().toLowerCase();
