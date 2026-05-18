@@ -2295,7 +2295,12 @@ export type Database = {
         | "partner"
         | "overig"
       taak_prioriteit: "laag" | "normaal" | "hoog" | "urgent"
-      taak_status: "open" | "in_uitvoering" | "afgerond"
+      taak_status:
+        | "open"
+        | "in_uitvoering"
+        | "afgerond"
+        | "wacht_op_reactie"
+        | "geannuleerd"
       transactietype:
         | "losse_aankoop"
         | "portefeuille"
@@ -2614,7 +2619,13 @@ export const Constants = {
         "overig",
       ],
       taak_prioriteit: ["laag", "normaal", "hoog", "urgent"],
-      taak_status: ["open", "in_uitvoering", "afgerond"],
+      taak_status: [
+        "open",
+        "in_uitvoering",
+        "afgerond",
+        "wacht_op_reactie",
+        "geannuleerd",
+      ],
       transactietype: [
         "losse_aankoop",
         "portefeuille",
