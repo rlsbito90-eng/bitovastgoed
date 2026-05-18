@@ -142,24 +142,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {navItems.map((item) => {
             const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={desktopCollapsed ? item.label : undefined}
-                className={`relative flex items-center rounded-md text-sm transition-colors ${
-                  desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
-                } ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                    : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+              <div key={item.path}>
+                <Link
+                  to={item.path}
+                  title={desktopCollapsed ? item.label : undefined}
+                  className={`relative flex items-center rounded-md text-sm transition-colors ${
+                    desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
+                  } ${
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                      : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+                  )}
+                  <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
+                  {!desktopCollapsed && item.label}
+                </Link>
+                {item.groupEnd && (
+                  <div className={`my-1.5 border-t border-sidebar-border/60 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
                 )}
-                <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                {!desktopCollapsed && item.label}
-              </Link>
+              </div>
             );
           })}
         </nav>
