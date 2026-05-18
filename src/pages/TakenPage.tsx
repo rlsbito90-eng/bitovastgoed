@@ -44,6 +44,7 @@ export default function TakenPage() {
   const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>('');
   const [formOpen, setFormOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
+  const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<Tab>('focus');
 
   const now = new Date();
