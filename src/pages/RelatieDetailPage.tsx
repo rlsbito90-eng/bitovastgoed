@@ -15,8 +15,10 @@ import {
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
-  ShieldCheck, Linkedin, Globe, Star, Building2, Users,
+  ShieldCheck, Linkedin, Globe, Star, Building2, Users, MessageSquarePlus,
 } from 'lucide-react';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
@@ -58,6 +60,7 @@ export default function RelatieDetailPage() {
   const relatie = store.getRelatieById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [zpOpen, setZpOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   if (!relatie) {
     return (
@@ -131,6 +134,9 @@ export default function RelatieDetailPage() {
               <Linkedin className="h-4 w-4" />
             </a>
           )}
+          <button onClick={() => setLogOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
+            <MessageSquarePlus className="h-4 w-4" /> Log contact
+          </button>
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Bewerken
           </button>
@@ -490,11 +496,14 @@ export default function RelatieDetailPage() {
               </div>
             </section>
           )}
+
+          <Timeline relatieId={relatie.id} />
         </div>
       </div>
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
       <ZoekprofielFormDialog open={zpOpen} onOpenChange={setZpOpen} defaultRelatieId={relatie.id} />
+      <ContactMomentFormDialog open={logOpen} onOpenChange={setLogOpen} defaultRelatieId={relatie.id} />
     </div>
   );
 }

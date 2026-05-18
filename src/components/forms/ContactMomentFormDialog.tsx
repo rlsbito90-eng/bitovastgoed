@@ -208,17 +208,22 @@ export default function ContactMomentFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (bezig) return;
-    if (!form.title.trim()) {
-      toast.error('Titel is verplicht');
-      return;
-    }
     setBezig(true);
     try {
+      // Auto-titel als gebruiker niets invult
+      let titel = form.title.trim();
+      if (!titel) {
+        const typeLabel = CONTACT_MOMENT_TYPE_LABELS[form.type];
+        const rel = form.relatieId ? store.getRelatieById(form.relatieId) : null;
+        const relNaam = rel ? getRelatieNamen(rel, store.contactpersonen).primair : '';
+        titel = relNaam ? `${typeLabel} – ${relNaam}` : typeLabel;
+      }
+
       const payload: Partial<ContactMoment> = {
         type: form.type,
         momentDate: form.momentDate,
         momentTime: form.momentTime || undefined,
-        title: form.title.trim(),
+        title: titel,
         description: form.description.trim() || undefined,
         outcome: form.outcome.trim() || undefined,
         direction: form.direction,
@@ -226,8 +231,8 @@ export default function ContactMomentFormDialog({
         objectId: form.objectId || undefined,
         dealId: form.dealId || undefined,
         acquisitieTargetId: form.acquisitieTargetId || undefined,
-        followUpRequired: form.followUpRequired,
-        followUpDate: form.followUpRequired ? (form.followUpDate || undefined) : undefined,
+        followUpRequired: isEdit ? form.followUpRequired : form.makeTaak,
+        followUpDate: isEdit ? (form.followUpDate || undefined) : (form.makeTaak ? (form.taakDeadline || undefined) : undefined),
       };
 
       if (isEdit && contactMoment) {
@@ -241,10 +246,13 @@ export default function ContactMomentFormDialog({
       // Optioneel: vervolgtaak aanmaken
       if (!isEdit && form.makeTaak) {
         try {
+          const rel = form.relatieId ? store.getRelatieById(form.relatieId) : null;
+          const relNaam = rel ? getRelatieNamen(rel, store.contactpersonen).primair : '';
+          const fallbackTaakTitel = relNaam ? `Opvolgen: ${relNaam}` : (titel || 'Vervolgtaak');
           await store.addTaak({
-            titel: form.taakTitel.trim() || form.title.trim(),
+            titel: form.taakTitel.trim() || fallbackTaakTitel,
             type: form.taakType,
-            deadline: form.taakDeadline || form.followUpDate || form.momentDate,
+            deadline: form.taakDeadline || form.momentDate,
             deadlineTijd: form.taakTijd || undefined,
             prioriteit: form.taakPrioriteit,
             status: 'open',
@@ -305,8 +313,8 @@ export default function ContactMomentFormDialog({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Titel *</Label>
-              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Korte omschrijving" />
+              <Label>Titel (optioneel)</Label>
+              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Korte omschrijving — laat leeg voor automatisch" />
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -362,64 +370,54 @@ export default function ContactMomentFormDialog({
             />
           </section>
 
-          {/* VERVOLGACTIE */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vervolg</h3>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={form.followUpRequired} onCheckedChange={(v) => set('followUpRequired', !!v)} />
-              Vervolgactie nodig
-            </label>
-            {form.followUpRequired && (
-              <div className="space-y-1.5">
-                <Label>Vervolgdatum</Label>
-                <Input type="date" value={form.followUpDate} onChange={e => set('followUpDate', e.target.value)} />
-              </div>
-            )}
-
-            {!isEdit && (
-              <>
-                <label className="flex items-center gap-2 text-sm pt-1">
-                  <Checkbox checked={form.makeTaak} onCheckedChange={(v) => set('makeTaak', !!v)} />
-                  Direct vervolgtaak aanmaken
-                </label>
-                {form.makeTaak && (
-                  <div className="space-y-3 pl-6 border-l-2 border-border">
+          {/* VERVOLGTAAK */}
+          {!isEdit && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vervolg</h3>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={form.makeTaak} onCheckedChange={(v) => set('makeTaak', !!v)} />
+                Vervolgtaak aanmaken
+              </label>
+              {form.makeTaak && (
+                <div className="space-y-3 pl-6 border-l-2 border-border">
+                  <div className="space-y-1.5">
+                    <Label>Taaktitel (optioneel)</Label>
+                    <Input value={form.taakTitel} onChange={e => set('taakTitel', e.target.value)} placeholder="Bijv. Opvolgen: [relatie]" />
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label>Taaktitel</Label>
-                      <Input value={form.taakTitel} onChange={e => set('taakTitel', e.target.value)} placeholder={form.title || 'Bijv. terugbellen'} />
+                      <Label>Deadline (optioneel)</Label>
+                      <Input type="date" value={form.taakDeadline} onChange={e => set('taakDeadline', e.target.value)} />
+                      {!form.taakDeadline && (
+                        <p className="text-[11px] text-muted-foreground">Zonder deadline staat de taak op vandaag.</p>
+                      )}
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Deadline</Label>
-                        <Input type="date" value={form.taakDeadline} onChange={e => set('taakDeadline', e.target.value)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Tijd (optioneel)</Label>
-                        <Input type="time" value={form.taakTijd} onChange={e => set('taakTijd', e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Type</Label>
-                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.taakType} onChange={e => set('taakType', e.target.value)}>
-                          {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Prioriteit</Label>
-                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.taakPrioriteit} onChange={e => set('taakPrioriteit', e.target.value as TaakPrioriteit)}>
-                          <option value="laag">Laag</option>
-                          <option value="normaal">Normaal</option>
-                          <option value="hoog">Hoog</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
+                    <div className="space-y-1.5">
+                      <Label>Tijd (optioneel)</Label>
+                      <Input type="time" value={form.taakTijd} onChange={e => set('taakTijd', e.target.value)} />
                     </div>
                   </div>
-                )}
-              </>
-            )}
-          </section>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Type</Label>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.taakType} onChange={e => set('taakType', e.target.value)}>
+                        {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Prioriteit</Label>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.taakPrioriteit} onChange={e => set('taakPrioriteit', e.target.value as TaakPrioriteit)}>
+                        <option value="laag">Laag</option>
+                        <option value="normaal">Normaal</option>
+                        <option value="hoog">Hoog</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
