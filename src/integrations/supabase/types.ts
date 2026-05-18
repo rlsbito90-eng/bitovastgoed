@@ -136,6 +136,75 @@ export type Database = {
           },
         ]
       }
+      contact_moments: {
+        Row: {
+          aangemaakt_door: string | null
+          acquisitie_target_id: string | null
+          created_at: string
+          deal_id: string | null
+          description: string | null
+          direction: Database["public"]["Enums"]["contact_moment_direction"]
+          follow_up_date: string | null
+          follow_up_required: boolean
+          id: string
+          is_system: boolean
+          moment_date: string
+          moment_time: string | null
+          object_id: string | null
+          outcome: string | null
+          relatie_id: string | null
+          system_key: string | null
+          taak_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["contact_moment_type"]
+          updated_at: string
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          acquisitie_target_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          direction?: Database["public"]["Enums"]["contact_moment_direction"]
+          follow_up_date?: string | null
+          follow_up_required?: boolean
+          id?: string
+          is_system?: boolean
+          moment_date?: string
+          moment_time?: string | null
+          object_id?: string | null
+          outcome?: string | null
+          relatie_id?: string | null
+          system_key?: string | null
+          taak_id?: string | null
+          title: string
+          type?: Database["public"]["Enums"]["contact_moment_type"]
+          updated_at?: string
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          acquisitie_target_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          direction?: Database["public"]["Enums"]["contact_moment_direction"]
+          follow_up_date?: string | null
+          follow_up_required?: boolean
+          id?: string
+          is_system?: boolean
+          moment_date?: string
+          moment_time?: string | null
+          object_id?: string | null
+          outcome?: string | null
+          relatie_id?: string | null
+          system_key?: string | null
+          taak_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["contact_moment_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deal_kandidaten: {
         Row: {
           created_at: string
@@ -2186,6 +2255,28 @@ export type Database = {
         | "telefoon"
         | "signal"
         | "linkedin"
+      contact_moment_direction: "inkomend" | "uitgaand" | "intern" | "n_v_t"
+      contact_moment_type:
+        | "telefoon"
+        | "email"
+        | "whatsapp"
+        | "linkedin"
+        | "afspraak"
+        | "bezichtiging"
+        | "notitie"
+        | "document_gedeeld"
+        | "teaser_verstuurd"
+        | "nda_verstuurd"
+        | "nda_ontvangen"
+        | "informatie_gedeeld"
+        | "bod_ontvangen"
+        | "bod_uitgebracht"
+        | "status_gewijzigd"
+        | "taak_aangemaakt"
+        | "taak_afgerond"
+        | "kandidaat_toegevoegd"
+        | "archief"
+        | "algemeen"
       dd_status:
         | "niet_gestart"
         | "in_uitvoering"
@@ -2498,6 +2589,29 @@ export const Constants = {
         "telefoon",
         "signal",
         "linkedin",
+      ],
+      contact_moment_direction: ["inkomend", "uitgaand", "intern", "n_v_t"],
+      contact_moment_type: [
+        "telefoon",
+        "email",
+        "whatsapp",
+        "linkedin",
+        "afspraak",
+        "bezichtiging",
+        "notitie",
+        "document_gedeeld",
+        "teaser_verstuurd",
+        "nda_verstuurd",
+        "nda_ontvangen",
+        "informatie_gedeeld",
+        "bod_ontvangen",
+        "bod_uitgebracht",
+        "status_gewijzigd",
+        "taak_aangemaakt",
+        "taak_afgerond",
+        "kandidaat_toegevoegd",
+        "archief",
+        "algemeen",
       ],
       dd_status: [
         "niet_gestart",
