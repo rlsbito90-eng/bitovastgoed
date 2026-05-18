@@ -138,6 +138,9 @@ export default function DealsPage() {
           <option value="">Alle fases</option>
           {faseOptions.map(f => <option key={f} value={f} className="capitalize">{f.charAt(0).toUpperCase() + f.slice(1)}</option>)}
         </select>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (
