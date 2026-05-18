@@ -60,6 +60,7 @@ export default function RelatieDetailPage() {
   const relatie = store.getRelatieById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [zpOpen, setZpOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   if (!relatie) {
     return (
