@@ -22,7 +22,7 @@ import type { SortOption } from '@/lib/sorting/types';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
-  const { relaties, contactMoments } = useDataStore();
+  const { relaties, contactMoments, taken } = useDataStore();
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
@@ -30,12 +30,34 @@ export default function RelatiesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [herstelOpen, setHerstelOpen] = useState(false);
 
-  const filtered = relaties.filter(r => {
-    const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
-    const matchStatus = !statusFilter || r.leadStatus === statusFilter;
-    const matchType = !typeFilter || r.type === typeFilter;
-    return matchZoek && matchStatus && matchType;
-  });
+  const sortOptions = useMemo<SortOption<Relatie>[]>(() => {
+    const lc = (r: Relatie) => getLaatsteContactDatum(r.id, contactMoments);
+    const va = (r: Relatie) => getVolgendeOpenTaak(r.id, taken)?.deadline ?? undefined;
+    return [
+      { value: 'slim', label: 'Slimme volgorde', compare: smartRelatieCompare(contactMoments, taken) },
+      { value: 'bedrijf_az', label: 'Bedrijfsnaam A-Z', compare: byString<Relatie>(r => r.bedrijfsnaam, 'asc') },
+      { value: 'contact_az', label: 'Contactpersoon A-Z', compare: byString<Relatie>(r => r.contactpersoon, 'asc') },
+      { value: 'lc_nieuw', label: 'Laatste contact nieuwste eerst', compare: byDate<Relatie>(lc, 'desc') },
+      { value: 'lc_oud', label: 'Laatste contact oudste eerst', compare: byDate<Relatie>(lc, 'asc') },
+      { value: 'volgende_actie', label: 'Volgende actie eerst', compare: combine(byDate<Relatie>(va, 'asc'), byString<Relatie>(r => r.bedrijfsnaam)) },
+      { value: 'nieuwste', label: 'Nieuwste relaties eerst', compare: byDate<Relatie>(r => r.createdAt, 'desc') },
+      { value: 'warmste', label: 'Warmste relaties eerst', compare: combine((a, b) => getLeadWarmteRank(a.leadStatus) - getLeadWarmteRank(b.leadStatus), byString<Relatie>(r => r.bedrijfsnaam)) },
+      { value: 'geen_contact', label: 'Geen recent contact eerst', compare: combine(byDate<Relatie>(lc, 'asc'), byString<Relatie>(r => r.bedrijfsnaam)) },
+    ];
+  }, [contactMoments, taken]);
+
+  const [sortValue, setSortValue] = useSortPreference('relaties', 'slim', sortOptions.map(o => o.value));
+  const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
+
+  const filtered = useMemo(() => {
+    const list = relaties.filter(r => {
+      const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
+      const matchStatus = !statusFilter || r.leadStatus === statusFilter;
+      const matchType = !typeFilter || r.type === typeFilter;
+      return matchZoek && matchStatus && matchType;
+    });
+    return [...list].sort(activeSort.compare);
+  }, [relaties, zoek, statusFilter, typeFilter, activeSort]);
 
   useEffect(() => {
     saveListContext('relaties', filtered.map(r => r.id));
