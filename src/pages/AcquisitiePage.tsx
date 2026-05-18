@@ -18,6 +18,11 @@ import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenAc
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import AcquisitieCampagneFormDialog from '@/components/forms/AcquisitieCampagneFormDialog';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byString, combine } from '@/lib/sorting/comparators';
+import { smartAcquisitieCompare } from '@/lib/sorting/urgency';
+import type { SortOption } from '@/lib/sorting/types';
 
 type Tab = 'targets' | 'campagnes';
 
