@@ -1686,6 +1686,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     },
     getTakenByRelatie: (rid) => taken.filter(t => t.relatieId === rid),
     getTakenByDeal: (did) => taken.filter(t => t.dealId === did),
+    getTakenByObject: (oid) => taken.filter(t => t.objectId === oid),
     getZoekprofielenByRelatie: (rid) => zoekprofielen.filter(z => z.relatieId === rid),
   };
 
