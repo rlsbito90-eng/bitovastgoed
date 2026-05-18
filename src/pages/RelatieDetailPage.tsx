@@ -69,7 +69,7 @@ export default function RelatieDetailPage() {
   const contactpersonen = store.getContactpersonenVoorRelatie(relatie.id);
   const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
   const deals = store.getDealsByRelatie(relatie.id);
-  const taken = store.getTakenByRelatie(relatie.id);
+  const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
   const fallbackIds = [...store.relaties]
