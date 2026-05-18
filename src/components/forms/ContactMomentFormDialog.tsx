@@ -246,10 +246,13 @@ export default function ContactMomentFormDialog({
       // Optioneel: vervolgtaak aanmaken
       if (!isEdit && form.makeTaak) {
         try {
+          const rel = form.relatieId ? store.getRelatieById(form.relatieId) : null;
+          const relNaam = rel ? getRelatieNamen(rel, store.contactpersonen).primair : '';
+          const fallbackTaakTitel = relNaam ? `Opvolgen: ${relNaam}` : (titel || 'Vervolgtaak');
           await store.addTaak({
-            titel: form.taakTitel.trim() || form.title.trim(),
+            titel: form.taakTitel.trim() || fallbackTaakTitel,
             type: form.taakType,
-            deadline: form.taakDeadline || form.followUpDate || form.momentDate,
+            deadline: form.taakDeadline || form.momentDate,
             deadlineTijd: form.taakTijd || undefined,
             prioriteit: form.taakPrioriteit,
             status: 'open',
