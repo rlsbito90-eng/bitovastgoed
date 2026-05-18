@@ -49,7 +49,7 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
                       </span>
                     )}
                     {k.laatsteContactdatum && (
-                      <span><strong className="text-foreground/80">Laatste contact:</strong> {fmtDatum(k.laatsteContactdatum)}</span>
+                      <span><strong className="text-foreground/80">Laatste pipeline-activiteit:</strong> {fmtDatum(k.laatsteContactdatum)}</span>
                     )}
                   </div>
                 )}

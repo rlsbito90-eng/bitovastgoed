@@ -13,6 +13,11 @@ import {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
+import { MessageSquarePlus } from 'lucide-react';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
 
 interface Props {
   open: boolean;
@@ -21,11 +26,14 @@ interface Props {
 }
 
 export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat }: Props) {
-  const { updatePipelineKandidaat, getRelatieById, contactpersonen } = useDataStore();
+  const { updatePipelineKandidaat, getRelatieById, contactpersonen, contactMoments } = useDataStore();
   const [form, setForm] = useState<PipelineKandidaat>(kandidaat);
   const [saving, setSaving] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => { if (open) setForm(kandidaat); }, [open, kandidaat]);
+
+  const laatsteContact = getLaatsteContactDatum(kandidaat.relatieId, contactMoments);
 
   const relatie = getRelatieById(kandidaat.relatieId);
   const set = <K extends keyof PipelineKandidaat>(k: K, v: PipelineKandidaat[K]) =>
@@ -182,15 +190,36 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
             </div>
           </TabsContent>
 
-          <TabsContent value="opvolging" className="space-y-3 pt-4">
+          <TabsContent value="opvolging" className="space-y-4 pt-4">
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Laatste contact (relatie)</div>
+                  <div className="text-sm mt-0.5">
+                    {laatsteContact
+                      ? format(new Date(laatsteContact), 'd MMMM yyyy', { locale: nl })
+                      : <span className="text-muted-foreground">Nog geen contactmoment gelogd</span>}
+                  </div>
+                </div>
+                <Button type="button" size="sm" variant="default" onClick={() => setLogOpen(true)} className="shrink-0">
+                  <MessageSquarePlus className="h-4 w-4 mr-1.5" />
+                  Contactmoment loggen
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Echte communicatie (telefoon, e-mail, WhatsApp, afspraak…) wordt zo automatisch zichtbaar op de relatie en in de tijdlijn.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Laatste contact</Label>
+                <Label>Laatste pipeline-activiteit</Label>
                 <Input
                   type="date"
                   value={form.laatsteContactdatum ?? ''}
                   onChange={e => set('laatsteContactdatum', e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">Alleen intern voor deze pipeline-regel.</p>
               </div>
               <div>
                 <Label>Volgende actie type</Label>
@@ -229,6 +258,14 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Bezig…' : 'Opslaan'}</Button>
         </DialogFooter>
       </DialogContent>
+
+      <ContactMomentFormDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        defaultType="telefoon"
+        defaultRelatieId={kandidaat.relatieId}
+        defaultObjectId={kandidaat.objectId}
+      />
     </Dialog>
   );
 }
