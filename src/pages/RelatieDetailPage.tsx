@@ -15,8 +15,10 @@ import {
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
-  ShieldCheck, Linkedin, Globe, Star, Building2, Users,
+  ShieldCheck, Linkedin, Globe, Star, Building2, Users, MessageSquarePlus,
 } from 'lucide-react';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
