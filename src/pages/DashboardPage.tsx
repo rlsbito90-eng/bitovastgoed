@@ -158,14 +158,13 @@ export default function DashboardPage() {
         >
           {opvolging.slice(0, 6).map(taak => {
             const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
-            const isOverdue = new Date(taak.deadline) < vandaag;
             return (
               <Link key={taak.id} to="/taken" className="block px-5 py-3 hover:bg-muted/40 transition-colors">
                 <div className="row-with-action">
                   <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                    <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
+                    <p className="text-xs mt-0.5 truncate text-muted-foreground">
+                      {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{deadlineLabel(taak, nu)}
                     </p>
                   </div>
                   <div className="row-action">
