@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -7,11 +7,17 @@ import { DealFaseBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Star, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DealFase } from '@/data/mock-data';
+import type { DealFase, Deal } from '@/data/mock-data';
 import DealFormDialog from '@/components/forms/DealFormDialog';
 import PageHeader from '@/components/PageHeader';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
+import SortDropdown from '@/components/SortDropdown';
+import { useSortPreference } from '@/hooks/useSortPreference';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
+import { smartDealCompare, getDealGewogenCommissie } from '@/lib/sorting/urgency';
+import { getLaatsteContactDatum } from '@/lib/relatieContact';
+import type { SortOption } from '@/lib/sorting/types';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
