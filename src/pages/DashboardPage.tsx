@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency, formatCurrencyCompact, formatDate, getAllMatchesFromData } from '@/data/mock-data';
+import { formatCurrency, formatCurrencyCompact, getAllMatchesFromData } from '@/data/mock-data';
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
@@ -10,6 +10,7 @@ import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { targetIsActief } from '@/lib/acquisitie';
+import { isTaakTeLaat, isTaakDezeWeek, deadlineLabel, sorteerTaken } from '@/lib/taakHelpers';
 
 function KPICard({
   label,
