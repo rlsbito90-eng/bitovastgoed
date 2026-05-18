@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import { getLaatsteContactDatum, getLaatsteActiviteitDatum, getVolgendeOpenTaak } from '@/lib/relatieContact';
 import { isTaakTeLaat, deadlineLabel } from '@/lib/taakHelpers';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import ListNavigator from '@/components/ListNavigator';
