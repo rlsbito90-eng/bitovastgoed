@@ -652,6 +652,7 @@ export interface Taak {
   titel: string;
   relatieId?: string;
   dealId?: string;
+  objectId?: string;
   type: string;
   deadline: string;
   deadlineTijd?: string;
