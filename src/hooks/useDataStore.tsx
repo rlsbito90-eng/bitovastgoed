@@ -997,7 +997,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const [
         relRes, cpRes, objRes, huurRes, docRes, fotoRes, metricsRes,
         dealRes, taakRes, zpRes, doRes, dkRes, jdRes, refRes, drefRes, objRefRes, pipeRes,
-        pipeDefRes, pipeStageRes,
+        pipeDefRes, pipeStageRes, cmRes,
       ] = await Promise.all([
         supabase.from('relaties').select('*').is('soft_deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('relatie_contactpersonen' as any).select('*').order('is_primair', { ascending: false }),
