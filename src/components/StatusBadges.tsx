@@ -64,9 +64,11 @@ const prioriteitConfig: Record<TaakPrioriteit, { label: string; tone: Tone }> = 
 };
 
 const taakStatusConfig: Record<TaakStatus, { label: string; tone: Tone }> = {
-  open:          { label: 'Open',          tone: 'gold' },
-  in_uitvoering: { label: 'In uitvoering', tone: 'amber' },
-  afgerond:      { label: 'Afgerond',      tone: 'emerald' },
+  open:             { label: 'Open',               tone: 'gold' },
+  in_uitvoering:    { label: 'In uitvoering',      tone: 'amber' },
+  wacht_op_reactie: { label: 'Wachten op reactie', tone: 'sand' },
+  afgerond:         { label: 'Afgerond',           tone: 'emerald' },
+  geannuleerd:      { label: 'Geannuleerd',        tone: 'neutral' },
 };
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {

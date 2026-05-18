@@ -13,6 +13,7 @@ import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { TAAK_TYPES, TAAK_STATUSES } from '@/lib/taakHelpers';
 
 interface Props {
   open: boolean;
@@ -20,13 +21,15 @@ interface Props {
   taak?: Taak | null;
   defaultRelatieId?: string;
   defaultDealId?: string;
+  defaultObjectId?: string;
 }
 
 const emptyForm = {
   titel: '',
   relatieId: '',
   dealId: '',
-  type: 'Opvolging',
+  objectId: '',
+  type: 'Algemeen',
   deadline: new Date().toISOString().split('T')[0],
   deadlineTijd: '',
   prioriteit: 'normaal' as TaakPrioriteit,
@@ -34,8 +37,8 @@ const emptyForm = {
   notities: '',
 };
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, getObjectById, contactpersonen } = useDataStore();
+export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId }: Props) {
+  const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -47,6 +50,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         titel: taak.titel,
         relatieId: taak.relatieId || '',
         dealId: taak.dealId || '',
+        objectId: taak.objectId || '',
         type: taak.type,
         deadline: taak.deadline,
         deadlineTijd: taak.deadlineTijd ? taak.deadlineTijd.slice(0, 5) : '',
@@ -59,9 +63,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         ...emptyForm,
         relatieId: defaultRelatieId || '',
         dealId: defaultDealId || '',
+        objectId: defaultObjectId || '',
       });
     }
-  }, [taak, open, defaultRelatieId, defaultDealId]);
+  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +77,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       titel: form.titel.trim() || 'Naamloze taak',
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
+      objectId: form.objectId || undefined,
       type: form.type,
       deadline: form.deadline || '',
       deadlineTijd: form.deadlineTijd || undefined,
@@ -128,12 +134,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             <div className="space-y-1.5">
               <Label>Type taak</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
-                <option value="Bellen">Bellen</option>
-                <option value="Opvolging">Opvolging</option>
-                <option value="Document">Document</option>
-                <option value="Planning">Planning</option>
-                <option value="Relatiebeheer">Relatiebeheer</option>
-                <option value="Overig">Overig</option>
+                {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -156,9 +157,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             <div className="space-y-1.5">
               <Label>Status</Label>
               <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
-                <option value="open">Open</option>
-                <option value="in_uitvoering">In uitvoering</option>
-                <option value="afgerond">Afgerond</option>
+                {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -167,6 +166,15 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                 <option value="">Geen</option>
                 {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
                   <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Object</Label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.objectId} onChange={e => set('objectId', e.target.value)}>
+                <option value="">Geen</option>
+                {objecten.filter(o => !o.isArchived).map(o => (
+                  <option key={o.id} value={o.id}>{o.titel}</option>
                 ))}
               </select>
             </div>

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import { isTaakTeLaat, deadlineLabel } from '@/lib/taakHelpers';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
@@ -69,7 +70,7 @@ export default function RelatieDetailPage() {
   const contactpersonen = store.getContactpersonenVoorRelatie(relatie.id);
   const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
   const deals = store.getDealsByRelatie(relatie.id);
-  const taken = store.getTakenByRelatie(relatie.id);
+  const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
 
   const fallbackIds = [...store.relaties]
@@ -375,7 +376,7 @@ export default function RelatieDetailPage() {
                   <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{formatDate(taak.deadline)}</p>
+                      <p className={`text-xs mt-0.5 tabular-nums ${isTaakTeLaat(taak) ? 'text-destructive' : 'text-muted-foreground'}`}>{deadlineLabel(taak)}{isTaakTeLaat(taak) ? ' · te laat' : ''}</p>
                     </div>
                     <PrioriteitBadge prioriteit={taak.prioriteit} />
                   </div>

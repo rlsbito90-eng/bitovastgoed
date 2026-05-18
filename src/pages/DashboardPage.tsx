@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { formatCurrency, formatCurrencyCompact, formatDate, getAllMatchesFromData } from '@/data/mock-data';
+import { formatCurrency, formatCurrencyCompact, getAllMatchesFromData } from '@/data/mock-data';
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
@@ -10,6 +10,7 @@ import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { targetIsActief } from '@/lib/acquisitie';
+import { isTaakTeLaat, isTaakDezeWeek, deadlineLabel, sorteerTaken } from '@/lib/taakHelpers';
 
 function KPICard({
   label,
@@ -52,7 +53,7 @@ export default function DashboardPage() {
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
   const actieveObjecten = objecten.filter(o => !o.isArchived);
-  const openTaken = taken.filter(t => t.status !== 'afgerond');
+  const openTaken = taken.filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const actieveDeals = deals.filter(d => !d.isArchived && !['afgerond', 'afgevallen'].includes(d.fase));
   const matches = getAllMatchesFromData(store.zoekprofielen, store.objecten);
 
@@ -67,15 +68,17 @@ export default function DashboardPage() {
   }));
   const maxAantal = Math.max(1, ...dealsPerFase.map(f => f.aantal));
 
-  const vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
-  const overEenWeek = new Date(); overEenWeek.setDate(vandaag.getDate() + 7);
-  const opvolging = openTaken
-    .filter(t => t.deadline && new Date(t.deadline) <= overEenWeek && new Date(t.deadline) >= vandaag)
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const nu = new Date();
+  // Deze week = vandaag + 7 dagen, exclusief te late (die staan al apart)
+  const opvolging = sorteerTaken(
+    openTaken.filter(t => t.deadline && isTaakDezeWeek(t, nu) && !isTaakTeLaat(t, nu)),
+    nu,
+  );
 
-  const verlopen = openTaken
-    .filter(t => t.deadline && new Date(t.deadline) < vandaag)
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const verlopen = sorteerTaken(
+    openTaken.filter(t => isTaakTeLaat(t, nu)),
+    nu,
+  );
 
   const dealsZonderActie = actieveDeals.filter(d => !d.datumFollowUp);
   const kandidatenZonderActie = pipelineKandidaten.filter(k => {
@@ -155,14 +158,13 @@ export default function DashboardPage() {
         >
           {opvolging.slice(0, 6).map(taak => {
             const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
-            const isOverdue = new Date(taak.deadline) < vandaag;
             return (
               <Link key={taak.id} to="/taken" className="block px-5 py-3 hover:bg-muted/40 transition-colors">
                 <div className="row-with-action">
                   <div className="row-flex">
                     <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                    <p className={`text-xs mt-0.5 truncate ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{formatDate(taak.deadline)}{isOverdue ? ' · te laat' : ''}
+                    <p className="text-xs mt-0.5 truncate text-muted-foreground">
+                      {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}{deadlineLabel(taak, nu)}
                     </p>
                   </div>
                   <div className="row-action">
@@ -194,7 +196,7 @@ export default function DashboardPage() {
                       <div className="row-flex">
                         <p className="text-sm text-foreground truncate">{t.titel}</p>
                         <p className="text-xs text-destructive mt-0.5 truncate">
-                          {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{formatDate(t.deadline)} · te laat
+                          {rel ? `${getRelatieNaamCompact(rel, store.contactpersonen)} · ` : ''}{deadlineLabel(t, nu)} · te laat
                         </p>
                       </div>
                       <div className="row-action">

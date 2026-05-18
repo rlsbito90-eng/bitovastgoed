@@ -81,7 +81,7 @@ export const DEAL_ARCHIEF_REDENEN: string[] = [
 ];
 
 export type TaakPrioriteit = 'laag' | 'normaal' | 'hoog' | 'urgent';
-export type TaakStatus = 'open' | 'in_uitvoering' | 'afgerond';
+export type TaakStatus = 'open' | 'in_uitvoering' | 'wacht_op_reactie' | 'afgerond' | 'geannuleerd';
 
 export type ZoekprofielStatus = 'actief' | 'pauze' | 'gearchiveerd';
 
@@ -652,6 +652,7 @@ export interface Taak {
   titel: string;
   relatieId?: string;
   dealId?: string;
+  objectId?: string;
   type: string;
   deadline: string;
   deadlineTijd?: string;
