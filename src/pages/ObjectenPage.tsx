@@ -167,6 +167,9 @@ export default function ObjectenPage() {
             <option value="afgevallen">Afgevallen</option>
           </select>
         </div>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (
