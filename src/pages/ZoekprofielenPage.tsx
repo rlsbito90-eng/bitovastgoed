@@ -120,6 +120,9 @@ export default function ZoekprofielenPage() {
             {dealTypes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
+        <div className="sm:ml-auto">
+          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+        </div>
       </div>
 
       {filtered.length === 0 && (
