@@ -143,6 +143,9 @@ export default function AcquisitiePage() {
               </select>
               <Input className="flex-1" placeholder="Type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} />
             </div>
+            <div className="flex justify-end">
+              <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+            </div>
           </div>
 
           <section className="section-card overflow-hidden">
