@@ -130,7 +130,7 @@ export default function TakenPage() {
         list = list.filter(t => t.status === 'afgerond');
         break;
     }
-    return sorteerTaken(list, now);
+    return [...list].sort(activeSort.compare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter]);
 
