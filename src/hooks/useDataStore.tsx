@@ -986,7 +986,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [referentieObjecten, setReferentieObjecten] = useState<ReferentieObject[]>([]);
   const [dealReferenties, setDealReferenties] = useState<DealReferentie[]>([]);
   const [objectReferenties, setObjectReferenties] = useState<ObjectReferentie[]>([]);
+  const [contactMoments, setContactMoments] = useState<ContactMoment[]>([]);
   const [loading, setLoading] = useState(false);
+
 
   const refresh = useCallback(async () => {
     if (!heeftToegang) return;
