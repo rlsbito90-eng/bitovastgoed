@@ -115,13 +115,17 @@ export default function TakenPage() {
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
-    const nieuweStatus: TaakStatus = taak.status === 'afgerond' ? 'open' : 'afgerond';
-    try {
-      await updateTaak(taak.id, { status: nieuweStatus });
-      toast.success(nieuweStatus === 'afgerond' ? 'Taak afgerond' : 'Taak heropend');
-    } catch (err: any) {
-      toast.error(`Bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    if (taak.status === 'afgerond') {
+      try {
+        await updateTaak(taak.id, { status: 'open' });
+        toast.success('Taak heropend');
+      } catch (err: any) {
+        toast.error(`Bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+      }
+      return;
     }
+    // Bij afronden: vraag of er een contactmoment gelogd moet worden.
+    setAfrondenTaak(taak);
   };
 
   const snooze = async (e: React.MouseEvent, taak: Taak, dagen: number) => {
