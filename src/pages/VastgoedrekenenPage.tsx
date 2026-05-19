@@ -22,7 +22,7 @@ export default function VastgoedrekenenPage() {
         .limit(200);
       const list = (data ?? []).map((c) => {
         const obj = store.getObjectById(c.object_id);
-        return { ...c, object_naam: obj?.objectnaam ?? '—' };
+        return { ...c, object_naam: obj?.titel ?? '—' };
       });
       setItems(list);
       setLoading(false);
