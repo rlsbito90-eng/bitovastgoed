@@ -625,6 +625,17 @@ export default function ObjectDetailPage() {
         </div>
       </div>
 
+      <section id="vastgoedrekenen" className="section-card p-5">
+        <VastgoedrekenenTab
+          objectId={object.id}
+          objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
+          objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
+          objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
+          objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+        />
+      </section>
+
+
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
       <ArchiveerDialog
         open={archiefOpen}
