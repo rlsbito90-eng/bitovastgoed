@@ -33,7 +33,7 @@ function wozPunten(woz: number | null | undefined, m2: number | null | undefined
   return Math.round(baseWoz + wozPerM2);
 }
 
-export function computeWwsPoints(u: WwsUnit, euroPerPoint = VR_DEFAULTS.wwsEuroPerPoint): WwsResult {
+export function computeWwsPoints(u: WwsUnit, euroPerPoint: number = VR_DEFAULTS.wwsEuroPerPoint): WwsResult {
   const woon = Number(u.living_area_m2 ?? 0);
   const overig = Number(u.other_indoor_space_m2 ?? 0);
   const buiten = Number(u.outdoor_space_m2 ?? 0);
