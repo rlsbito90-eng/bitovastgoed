@@ -145,7 +145,7 @@ export default function ScenarioEditor(props: Props) {
     let extra: Partial<WwsUnit> = {};
     if (unit) {
       const merged = { ...unit, ...p } as WwsUnit;
-      const res = computeWwsPoints(merged, Number(taxSettings?.wws_euro_per_point ?? 6));
+      const res = computeWwsPoints(merged, Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6));
       extra = {
         wws_points: res.punten,
         wws_max_monthly_rent: res.maxMonthlyRent,
