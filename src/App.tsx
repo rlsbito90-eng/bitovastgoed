@@ -28,6 +28,7 @@ import TakenPage from "@/pages/TakenPage";
 import RapportagePage from "@/pages/RapportagePage";
 import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
+import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => (
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
                           <Route path="/taken" element={<TakenPage />} />
+                          <Route path="/vastgoedrekenen" element={<VastgoedrekenenPage />} />
                           <Route path="/rapportage" element={<RapportagePage />} />
                           <Route
                             path="/admin"

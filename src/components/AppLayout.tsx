@@ -17,6 +17,7 @@ import {
   Target,
   PanelLeftClose,
   PanelLeftOpen,
+  Calculator,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
@@ -40,7 +41,8 @@ const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[]
   { path: "/relaties", label: "Relaties", icon: Users },
   { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search, groupEnd: true },
   { path: "/objecten", label: "Objecten", icon: Building2 },
-  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library, groupEnd: true },
+  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
+  { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, groupEnd: true },
   { path: "/acquisitie", label: "Acquisitie", icon: Target, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },

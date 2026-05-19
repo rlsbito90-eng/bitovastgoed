@@ -136,6 +136,387 @@ export type Database = {
           },
         ]
       }
+      calculation_components: {
+        Row: {
+          allocated_component_value: number | null
+          component_name: string
+          component_type: Database["public"]["Enums"]["vr_component_type"]
+          contract_end_date: string | null
+          contract_start_date: string | null
+          created_at: string
+          current_annual_rent: number | null
+          current_monthly_rent: number | null
+          expected_sale_value_rented: number | null
+          expected_sale_value_vacant: number | null
+          floor_or_location: string | null
+          has_contract: boolean | null
+          id: string
+          market_annual_rent: number | null
+          market_monthly_rent: number | null
+          notes: string | null
+          rent_per_m2: number | null
+          sale_per_unit_possible: boolean | null
+          scenario_id: string
+          surface_bvo: number | null
+          surface_gbo: number | null
+          surface_vvo: number | null
+          tenant_name: string | null
+          transfer_tax_allocation_method:
+            | Database["public"]["Enums"]["vr_ovb_allocation_method"]
+            | null
+          transfer_tax_amount: number | null
+          transfer_tax_classification:
+            | Database["public"]["Enums"]["vr_ovb_classification"]
+            | null
+          transfer_tax_manual_override: boolean | null
+          transfer_tax_percentage: number | null
+          uitpond_relevant: boolean | null
+          updated_at: string
+          vacant: boolean | null
+          wws_relevant: boolean | null
+        }
+        Insert: {
+          allocated_component_value?: number | null
+          component_name: string
+          component_type?: Database["public"]["Enums"]["vr_component_type"]
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string
+          current_annual_rent?: number | null
+          current_monthly_rent?: number | null
+          expected_sale_value_rented?: number | null
+          expected_sale_value_vacant?: number | null
+          floor_or_location?: string | null
+          has_contract?: boolean | null
+          id?: string
+          market_annual_rent?: number | null
+          market_monthly_rent?: number | null
+          notes?: string | null
+          rent_per_m2?: number | null
+          sale_per_unit_possible?: boolean | null
+          scenario_id: string
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          tenant_name?: string | null
+          transfer_tax_allocation_method?:
+            | Database["public"]["Enums"]["vr_ovb_allocation_method"]
+            | null
+          transfer_tax_amount?: number | null
+          transfer_tax_classification?:
+            | Database["public"]["Enums"]["vr_ovb_classification"]
+            | null
+          transfer_tax_manual_override?: boolean | null
+          transfer_tax_percentage?: number | null
+          uitpond_relevant?: boolean | null
+          updated_at?: string
+          vacant?: boolean | null
+          wws_relevant?: boolean | null
+        }
+        Update: {
+          allocated_component_value?: number | null
+          component_name?: string
+          component_type?: Database["public"]["Enums"]["vr_component_type"]
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string
+          current_annual_rent?: number | null
+          current_monthly_rent?: number | null
+          expected_sale_value_rented?: number | null
+          expected_sale_value_vacant?: number | null
+          floor_or_location?: string | null
+          has_contract?: boolean | null
+          id?: string
+          market_annual_rent?: number | null
+          market_monthly_rent?: number | null
+          notes?: string | null
+          rent_per_m2?: number | null
+          sale_per_unit_possible?: boolean | null
+          scenario_id?: string
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          tenant_name?: string | null
+          transfer_tax_allocation_method?:
+            | Database["public"]["Enums"]["vr_ovb_allocation_method"]
+            | null
+          transfer_tax_amount?: number | null
+          transfer_tax_classification?:
+            | Database["public"]["Enums"]["vr_ovb_classification"]
+            | null
+          transfer_tax_manual_override?: boolean | null
+          transfer_tax_percentage?: number | null
+          uitpond_relevant?: boolean | null
+          updated_at?: string
+          vacant?: boolean | null
+          wws_relevant?: boolean | null
+        }
+        Relationships: []
+      }
+      calculation_outputs: {
+        Row: {
+          aggressive_bid: number | null
+          bar_purchase_price: number | null
+          bar_total_investment: number | null
+          complexity_score:
+            | Database["public"]["Enums"]["vr_complexity_level"]
+            | null
+          conclusion: string | null
+          conservative_bid: number | null
+          corrected_annual_rent: number | null
+          created_at: string
+          current_annual_rent: number | null
+          deal_score: Database["public"]["Enums"]["vr_deal_score"] | null
+          difference_with_asking_price: number | null
+          exit_value: number | null
+          factor_purchase_price: number | null
+          factor_total_investment: number | null
+          id: string
+          input_reliability:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          market_annual_rent: number | null
+          maximum_all_in_value: number | null
+          maximum_bid: number | null
+          noi: number | null
+          not_interesting_above: number | null
+          price_per_m2_bvo: number | null
+          price_per_m2_gbo: number | null
+          price_per_m2_vvo: number | null
+          profit: number | null
+          profit_margin: number | null
+          realistic_bid: number | null
+          recommended_next_step: string | null
+          required_discount: number | null
+          risk_score: Database["public"]["Enums"]["vr_risk_level"] | null
+          scenario_id: string
+          total_acquisition_costs: number | null
+          total_costs: number | null
+          total_investment: number | null
+          total_transfer_tax: number | null
+          updated_at: string
+          warnings: Json | null
+          wws_corrected_annual_rent: number | null
+        }
+        Insert: {
+          aggressive_bid?: number | null
+          bar_purchase_price?: number | null
+          bar_total_investment?: number | null
+          complexity_score?:
+            | Database["public"]["Enums"]["vr_complexity_level"]
+            | null
+          conclusion?: string | null
+          conservative_bid?: number | null
+          corrected_annual_rent?: number | null
+          created_at?: string
+          current_annual_rent?: number | null
+          deal_score?: Database["public"]["Enums"]["vr_deal_score"] | null
+          difference_with_asking_price?: number | null
+          exit_value?: number | null
+          factor_purchase_price?: number | null
+          factor_total_investment?: number | null
+          id?: string
+          input_reliability?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          market_annual_rent?: number | null
+          maximum_all_in_value?: number | null
+          maximum_bid?: number | null
+          noi?: number | null
+          not_interesting_above?: number | null
+          price_per_m2_bvo?: number | null
+          price_per_m2_gbo?: number | null
+          price_per_m2_vvo?: number | null
+          profit?: number | null
+          profit_margin?: number | null
+          realistic_bid?: number | null
+          recommended_next_step?: string | null
+          required_discount?: number | null
+          risk_score?: Database["public"]["Enums"]["vr_risk_level"] | null
+          scenario_id: string
+          total_acquisition_costs?: number | null
+          total_costs?: number | null
+          total_investment?: number | null
+          total_transfer_tax?: number | null
+          updated_at?: string
+          warnings?: Json | null
+          wws_corrected_annual_rent?: number | null
+        }
+        Update: {
+          aggressive_bid?: number | null
+          bar_purchase_price?: number | null
+          bar_total_investment?: number | null
+          complexity_score?:
+            | Database["public"]["Enums"]["vr_complexity_level"]
+            | null
+          conclusion?: string | null
+          conservative_bid?: number | null
+          corrected_annual_rent?: number | null
+          created_at?: string
+          current_annual_rent?: number | null
+          deal_score?: Database["public"]["Enums"]["vr_deal_score"] | null
+          difference_with_asking_price?: number | null
+          exit_value?: number | null
+          factor_purchase_price?: number | null
+          factor_total_investment?: number | null
+          id?: string
+          input_reliability?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          market_annual_rent?: number | null
+          maximum_all_in_value?: number | null
+          maximum_bid?: number | null
+          noi?: number | null
+          not_interesting_above?: number | null
+          price_per_m2_bvo?: number | null
+          price_per_m2_gbo?: number | null
+          price_per_m2_vvo?: number | null
+          profit?: number | null
+          profit_margin?: number | null
+          realistic_bid?: number | null
+          recommended_next_step?: string | null
+          required_discount?: number | null
+          risk_score?: Database["public"]["Enums"]["vr_risk_level"] | null
+          scenario_id?: string
+          total_acquisition_costs?: number | null
+          total_costs?: number | null
+          total_investment?: number | null
+          total_transfer_tax?: number | null
+          updated_at?: string
+          warnings?: Json | null
+          wws_corrected_annual_rent?: number | null
+        }
+        Relationships: []
+      }
+      calculation_scenarios: {
+        Row: {
+          advisory_costs: number | null
+          asking_price: number | null
+          buyer_fee_amount: number | null
+          buyer_fee_percentage: number | null
+          buyer_fee_vat_percentage: number | null
+          calculation_id: string
+          created_at: string
+          current_monthly_rent: number | null
+          description: string | null
+          due_diligence_costs: number | null
+          financing_costs: number | null
+          id: string
+          maintenance_reserve_percentage: number | null
+          management_cost_percentage: number | null
+          manual_corrected_monthly_rent: number | null
+          market_monthly_rent: number | null
+          notary_costs: number | null
+          notes: string | null
+          object_id: string
+          operating_cost_percentage: number | null
+          other_acquisition_costs: number | null
+          other_annual_costs: number | null
+          ovb_classification: Database["public"]["Enums"]["vr_ovb_classification"]
+          ovb_mode: Database["public"]["Enums"]["vr_ovb_mode"]
+          purchase_price: number | null
+          rent_choice:
+            | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
+            | null
+          safety_margin: number | null
+          scenario_name: string
+          status: Database["public"]["Enums"]["vr_calc_status"]
+          strategy_type: Database["public"]["Enums"]["vr_strategy_type"]
+          target_bar: number | null
+          target_factor: number | null
+          target_margin: number | null
+          transfer_tax_amount: number | null
+          transfer_tax_percentage: number | null
+          unforeseen_percentage: number | null
+          updated_at: string
+          vacancy_percentage: number | null
+        }
+        Insert: {
+          advisory_costs?: number | null
+          asking_price?: number | null
+          buyer_fee_amount?: number | null
+          buyer_fee_percentage?: number | null
+          buyer_fee_vat_percentage?: number | null
+          calculation_id: string
+          created_at?: string
+          current_monthly_rent?: number | null
+          description?: string | null
+          due_diligence_costs?: number | null
+          financing_costs?: number | null
+          id?: string
+          maintenance_reserve_percentage?: number | null
+          management_cost_percentage?: number | null
+          manual_corrected_monthly_rent?: number | null
+          market_monthly_rent?: number | null
+          notary_costs?: number | null
+          notes?: string | null
+          object_id: string
+          operating_cost_percentage?: number | null
+          other_acquisition_costs?: number | null
+          other_annual_costs?: number | null
+          ovb_classification?: Database["public"]["Enums"]["vr_ovb_classification"]
+          ovb_mode?: Database["public"]["Enums"]["vr_ovb_mode"]
+          purchase_price?: number | null
+          rent_choice?:
+            | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
+            | null
+          safety_margin?: number | null
+          scenario_name: string
+          status?: Database["public"]["Enums"]["vr_calc_status"]
+          strategy_type?: Database["public"]["Enums"]["vr_strategy_type"]
+          target_bar?: number | null
+          target_factor?: number | null
+          target_margin?: number | null
+          transfer_tax_amount?: number | null
+          transfer_tax_percentage?: number | null
+          unforeseen_percentage?: number | null
+          updated_at?: string
+          vacancy_percentage?: number | null
+        }
+        Update: {
+          advisory_costs?: number | null
+          asking_price?: number | null
+          buyer_fee_amount?: number | null
+          buyer_fee_percentage?: number | null
+          buyer_fee_vat_percentage?: number | null
+          calculation_id?: string
+          created_at?: string
+          current_monthly_rent?: number | null
+          description?: string | null
+          due_diligence_costs?: number | null
+          financing_costs?: number | null
+          id?: string
+          maintenance_reserve_percentage?: number | null
+          management_cost_percentage?: number | null
+          manual_corrected_monthly_rent?: number | null
+          market_monthly_rent?: number | null
+          notary_costs?: number | null
+          notes?: string | null
+          object_id?: string
+          operating_cost_percentage?: number | null
+          other_acquisition_costs?: number | null
+          other_annual_costs?: number | null
+          ovb_classification?: Database["public"]["Enums"]["vr_ovb_classification"]
+          ovb_mode?: Database["public"]["Enums"]["vr_ovb_mode"]
+          purchase_price?: number | null
+          rent_choice?:
+            | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
+            | null
+          safety_margin?: number | null
+          scenario_name?: string
+          status?: Database["public"]["Enums"]["vr_calc_status"]
+          strategy_type?: Database["public"]["Enums"]["vr_strategy_type"]
+          target_bar?: number | null
+          target_factor?: number | null
+          target_margin?: number | null
+          transfer_tax_amount?: number | null
+          transfer_tax_percentage?: number | null
+          unforeseen_percentage?: number | null
+          updated_at?: string
+          vacancy_percentage?: number | null
+        }
+        Relationships: []
+      }
       contact_moments: {
         Row: {
           aangemaakt_door: string | null
@@ -495,6 +876,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      exit_assumptions: {
+        Row: {
+          created_at: string
+          exit_factor: number | null
+          exit_type: string | null
+          exit_year: number | null
+          exit_yield: number | null
+          expected_rent_at_exit: number | null
+          expected_sale_value: number | null
+          id: string
+          net_exit_value: number | null
+          profit: number | null
+          profit_margin: number | null
+          scenario_id: string
+          selling_cost_amount: number | null
+          selling_cost_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exit_factor?: number | null
+          exit_type?: string | null
+          exit_year?: number | null
+          exit_yield?: number | null
+          expected_rent_at_exit?: number | null
+          expected_sale_value?: number | null
+          id?: string
+          net_exit_value?: number | null
+          profit?: number | null
+          profit_margin?: number | null
+          scenario_id: string
+          selling_cost_amount?: number | null
+          selling_cost_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exit_factor?: number | null
+          exit_type?: string | null
+          exit_year?: number | null
+          exit_yield?: number | null
+          expected_rent_at_exit?: number | null
+          expected_sale_value?: number | null
+          id?: string
+          net_exit_value?: number | null
+          profit?: number | null
+          profit_margin?: number | null
+          scenario_id?: string
+          selling_cost_amount?: number | null
+          selling_cost_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       feed_tokens: {
         Row: {
@@ -1622,6 +2057,48 @@ export type Database = {
         }
         Relationships: []
       }
+      real_estate_calculations: {
+        Row: {
+          calculation_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          input_reliability: Database["public"]["Enums"]["vr_input_reliability"]
+          main_strategy: Database["public"]["Enums"]["vr_strategy_type"]
+          notes: string | null
+          object_id: string
+          object_type: Database["public"]["Enums"]["vr_object_type"]
+          status: Database["public"]["Enums"]["vr_calc_status"]
+          updated_at: string
+        }
+        Insert: {
+          calculation_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_reliability?: Database["public"]["Enums"]["vr_input_reliability"]
+          main_strategy?: Database["public"]["Enums"]["vr_strategy_type"]
+          notes?: string | null
+          object_id: string
+          object_type?: Database["public"]["Enums"]["vr_object_type"]
+          status?: Database["public"]["Enums"]["vr_calc_status"]
+          updated_at?: string
+        }
+        Update: {
+          calculation_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_reliability?: Database["public"]["Enums"]["vr_input_reliability"]
+          main_strategy?: Database["public"]["Enums"]["vr_strategy_type"]
+          notes?: string | null
+          object_id?: string
+          object_type?: Database["public"]["Enums"]["vr_object_type"]
+          status?: Database["public"]["Enums"]["vr_calc_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referentie_objecten: {
         Row: {
           aangemaakt_door: string | null
@@ -1935,6 +2412,324 @@ export type Database = {
           },
         ]
       }
+      residential_wws_units: {
+        Row: {
+          bathroom_quality:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          component_id: string | null
+          contract_start_date: string | null
+          cooling: boolean | null
+          corrected_annual_rent: number | null
+          corrected_monthly_rent: number | null
+          created_at: string
+          current_monthly_rent: number | null
+          energy_label: string | null
+          energy_label_date: string | null
+          floor: string | null
+          heating_type: string | null
+          id: string
+          independent_unit: boolean | null
+          kitchen_quality:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          living_area_m2: number | null
+          monument_status: boolean | null
+          notes: string | null
+          other_indoor_space_m2: number | null
+          outdoor_space_m2: number | null
+          parking: boolean | null
+          protected_cityscape: boolean | null
+          reliability_status:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          rent_segment: Database["public"]["Enums"]["vr_rent_segment"] | null
+          report_available: boolean | null
+          report_date: string | null
+          report_source: string | null
+          rooms: number | null
+          scenario_id: string
+          service_costs: number | null
+          storage: boolean | null
+          unit_name: string
+          updated_at: string
+          vacant: boolean | null
+          woz_reference_date: string | null
+          woz_value: number | null
+          wws_max_annual_rent: number | null
+          wws_max_monthly_rent: number | null
+          wws_points: number | null
+        }
+        Insert: {
+          bathroom_quality?:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          component_id?: string | null
+          contract_start_date?: string | null
+          cooling?: boolean | null
+          corrected_annual_rent?: number | null
+          corrected_monthly_rent?: number | null
+          created_at?: string
+          current_monthly_rent?: number | null
+          energy_label?: string | null
+          energy_label_date?: string | null
+          floor?: string | null
+          heating_type?: string | null
+          id?: string
+          independent_unit?: boolean | null
+          kitchen_quality?:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          living_area_m2?: number | null
+          monument_status?: boolean | null
+          notes?: string | null
+          other_indoor_space_m2?: number | null
+          outdoor_space_m2?: number | null
+          parking?: boolean | null
+          protected_cityscape?: boolean | null
+          reliability_status?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          rent_segment?: Database["public"]["Enums"]["vr_rent_segment"] | null
+          report_available?: boolean | null
+          report_date?: string | null
+          report_source?: string | null
+          rooms?: number | null
+          scenario_id: string
+          service_costs?: number | null
+          storage?: boolean | null
+          unit_name: string
+          updated_at?: string
+          vacant?: boolean | null
+          woz_reference_date?: string | null
+          woz_value?: number | null
+          wws_max_annual_rent?: number | null
+          wws_max_monthly_rent?: number | null
+          wws_points?: number | null
+        }
+        Update: {
+          bathroom_quality?:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          component_id?: string | null
+          contract_start_date?: string | null
+          cooling?: boolean | null
+          corrected_annual_rent?: number | null
+          corrected_monthly_rent?: number | null
+          created_at?: string
+          current_monthly_rent?: number | null
+          energy_label?: string | null
+          energy_label_date?: string | null
+          floor?: string | null
+          heating_type?: string | null
+          id?: string
+          independent_unit?: boolean | null
+          kitchen_quality?:
+            | Database["public"]["Enums"]["vr_quality_level"]
+            | null
+          living_area_m2?: number | null
+          monument_status?: boolean | null
+          notes?: string | null
+          other_indoor_space_m2?: number | null
+          outdoor_space_m2?: number | null
+          parking?: boolean | null
+          protected_cityscape?: boolean | null
+          reliability_status?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          rent_segment?: Database["public"]["Enums"]["vr_rent_segment"] | null
+          report_available?: boolean | null
+          report_date?: string | null
+          report_source?: string | null
+          rooms?: number | null
+          scenario_id?: string
+          service_costs?: number | null
+          storage?: boolean | null
+          unit_name?: string
+          updated_at?: string
+          vacant?: boolean | null
+          woz_reference_date?: string | null
+          woz_value?: number | null
+          wws_max_annual_rent?: number | null
+          wws_max_monthly_rent?: number | null
+          wws_points?: number | null
+        }
+        Relationships: []
+      }
+      risk_analysis: {
+        Row: {
+          action_required: boolean | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          responsible_person: string | null
+          risk_category: string
+          risk_level: Database["public"]["Enums"]["vr_risk_level"]
+          scenario_id: string
+          updated_at: string
+        }
+        Insert: {
+          action_required?: boolean | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          responsible_person?: string | null
+          risk_category: string
+          risk_level?: Database["public"]["Enums"]["vr_risk_level"]
+          scenario_id: string
+          updated_at?: string
+        }
+        Update: {
+          action_required?: boolean | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          responsible_person?: string | null
+          risk_category?: string
+          risk_level?: Database["public"]["Enums"]["vr_risk_level"]
+          scenario_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scenario_costs: {
+        Row: {
+          amount: number
+          cost_category: string
+          created_at: string
+          description: string | null
+          id: string
+          notes: string | null
+          reliability_status:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          scenario_id: string
+          updated_at: string
+          vat_applicable: boolean | null
+        }
+        Insert: {
+          amount?: number
+          cost_category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          reliability_status?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          scenario_id: string
+          updated_at?: string
+          vat_applicable?: boolean | null
+        }
+        Update: {
+          amount?: number
+          cost_category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          reliability_status?:
+            | Database["public"]["Enums"]["vr_input_reliability"]
+            | null
+          scenario_id?: string
+          updated_at?: string
+          vat_applicable?: boolean | null
+        }
+        Relationships: []
+      }
+      sell_off_units: {
+        Row: {
+          component_id: string | null
+          created_at: string
+          current_rent: number | null
+          expected_sale_period_months: number | null
+          expected_sale_value_rented: number | null
+          expected_sale_value_vacant: number | null
+          id: string
+          lease_term: string | null
+          legal_costs: number | null
+          net_sale_proceeds: number | null
+          notes: string | null
+          renovation_costs: number | null
+          risk_level: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_value_per_m2: number | null
+          scenario_id: string
+          selling_cost_amount: number | null
+          selling_cost_percentage: number | null
+          splitting_costs: number | null
+          surface_bvo: number | null
+          surface_gbo: number | null
+          surface_vvo: number | null
+          unit_name: string
+          unit_type: Database["public"]["Enums"]["vr_component_type"] | null
+          updated_at: string
+          vacant_or_rented: boolean | null
+          wws_points: number | null
+          wws_segment: Database["public"]["Enums"]["vr_rent_segment"] | null
+        }
+        Insert: {
+          component_id?: string | null
+          created_at?: string
+          current_rent?: number | null
+          expected_sale_period_months?: number | null
+          expected_sale_value_rented?: number | null
+          expected_sale_value_vacant?: number | null
+          id?: string
+          lease_term?: string | null
+          legal_costs?: number | null
+          net_sale_proceeds?: number | null
+          notes?: string | null
+          renovation_costs?: number | null
+          risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_value_per_m2?: number | null
+          scenario_id: string
+          selling_cost_amount?: number | null
+          selling_cost_percentage?: number | null
+          splitting_costs?: number | null
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          unit_name: string
+          unit_type?: Database["public"]["Enums"]["vr_component_type"] | null
+          updated_at?: string
+          vacant_or_rented?: boolean | null
+          wws_points?: number | null
+          wws_segment?: Database["public"]["Enums"]["vr_rent_segment"] | null
+        }
+        Update: {
+          component_id?: string | null
+          created_at?: string
+          current_rent?: number | null
+          expected_sale_period_months?: number | null
+          expected_sale_value_rented?: number | null
+          expected_sale_value_vacant?: number | null
+          id?: string
+          lease_term?: string | null
+          legal_costs?: number | null
+          net_sale_proceeds?: number | null
+          notes?: string | null
+          renovation_costs?: number | null
+          risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_value_per_m2?: number | null
+          scenario_id?: string
+          selling_cost_amount?: number | null
+          selling_cost_percentage?: number | null
+          splitting_costs?: number | null
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          unit_name?: string
+          unit_type?: Database["public"]["Enums"]["vr_component_type"] | null
+          updated_at?: string
+          vacant_or_rented?: boolean | null
+          wws_points?: number | null
+          wws_segment?: Database["public"]["Enums"]["vr_rent_segment"] | null
+        }
+        Relationships: []
+      }
       taken: {
         Row: {
           aangemaakt_door: string | null
@@ -2035,6 +2830,42 @@ export type Database = {
           },
         ]
       }
+      user_calculation_preferences: {
+        Row: {
+          created_at: string
+          default_buyer_fee_percentage: number | null
+          default_operating_cost_percentage: number | null
+          default_target_bar: number | null
+          default_vacancy_percentage: number | null
+          id: string
+          updated_at: string
+          user_id: string
+          vastgoedrekenen_view_mode: Database["public"]["Enums"]["vr_view_mode"]
+        }
+        Insert: {
+          created_at?: string
+          default_buyer_fee_percentage?: number | null
+          default_operating_cost_percentage?: number | null
+          default_target_bar?: number | null
+          default_vacancy_percentage?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          vastgoedrekenen_view_mode?: Database["public"]["Enums"]["vr_view_mode"]
+        }
+        Update: {
+          created_at?: string
+          default_buyer_fee_percentage?: number | null
+          default_operating_cost_percentage?: number | null
+          default_target_bar?: number | null
+          default_vacancy_percentage?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          vastgoedrekenen_view_mode?: Database["public"]["Enums"]["vr_view_mode"]
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2053,6 +2884,48 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vastgoedrekenen_tax_settings: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          notes: string | null
+          setting_name: string
+          transfer_tax_non_residential_percentage: number
+          transfer_tax_primary_residence_percentage: number
+          transfer_tax_residential_investment_percentage: number
+          updated_at: string
+          wws_euro_per_point: number
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          setting_name?: string
+          transfer_tax_non_residential_percentage?: number
+          transfer_tax_primary_residence_percentage?: number
+          transfer_tax_residential_investment_percentage?: number
+          updated_at?: string
+          wws_euro_per_point?: number
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          setting_name?: string
+          transfer_tax_non_residential_percentage?: number
+          transfer_tax_primary_residence_percentage?: number
+          transfer_tax_residential_investment_percentage?: number
+          updated_at?: string
+          wws_euro_per_point?: number
         }
         Relationships: []
       }
@@ -2416,6 +3289,65 @@ export type Database = {
         | "bieding_opvolgen"
         | "onderhandelen"
         | "overig"
+      vr_calc_status:
+        | "concept"
+        | "indicatief"
+        | "gecontroleerd"
+        | "voor_bieding"
+        | "afgewezen"
+        | "afgerond"
+      vr_complexity_level: "laag" | "middel" | "hoog" | "zeer_hoog"
+      vr_component_type:
+        | "woning"
+        | "appartement"
+        | "winkelruimte"
+        | "kantoorruimte"
+        | "bedrijfsruimte"
+        | "bedrijfsunit"
+        | "opslagruimte"
+        | "kelder"
+        | "parkeerplaats"
+        | "garagebox"
+        | "berging"
+        | "horeca"
+        | "maatschappelijk"
+        | "ontwikkelgrond"
+        | "overig"
+      vr_deal_score: "A" | "B" | "C" | "reject"
+      vr_huurtype_voor_bieding: "huidig" | "markt" | "wws" | "handmatig"
+      vr_input_reliability: "laag" | "middel" | "hoog"
+      vr_object_type: "enkelvoudig" | "mixed_use"
+      vr_ovb_allocation_method: "value" | "m2" | "manual" | "extern"
+      vr_ovb_classification:
+        | "eigen_woning"
+        | "woning_belegging"
+        | "niet_woning"
+        | "mixed_use"
+        | "vrijgesteld"
+        | "handmatig"
+      vr_ovb_mode: "auto" | "manual" | "per_component"
+      vr_quality_level: "eenvoudig" | "standaard" | "luxe" | "maatwerk"
+      vr_rent_segment: "sociaal" | "middenhuur" | "vrije_sector" | "onbekend"
+      vr_risk_level: "laag" | "middel" | "hoog"
+      vr_strategy_type:
+        | "belegging"
+        | "huur_optimaliseren"
+        | "renoveren_verhuren"
+        | "transformeren"
+        | "splitsen"
+        | "uitponden"
+        | "verkopen_geheel"
+        | "verkoop_per_unit"
+        | "bedrijfsunits_los"
+        | "buy_fix_hold"
+        | "buy_fix_sell"
+        | "buy_split_sell"
+        | "buy_transform_hold"
+        | "buy_transform_sell"
+        | "sale_leaseback"
+        | "herontwikkeling"
+        | "overig"
+      vr_view_mode: "begeleid" | "compact" | "expert"
       zoekprofiel_status: "actief" | "gepauzeerd" | "gearchiveerd" | "pauze"
     }
     CompositeTypes: {
@@ -2767,6 +3699,69 @@ export const Constants = {
         "onderhandelen",
         "overig",
       ],
+      vr_calc_status: [
+        "concept",
+        "indicatief",
+        "gecontroleerd",
+        "voor_bieding",
+        "afgewezen",
+        "afgerond",
+      ],
+      vr_complexity_level: ["laag", "middel", "hoog", "zeer_hoog"],
+      vr_component_type: [
+        "woning",
+        "appartement",
+        "winkelruimte",
+        "kantoorruimte",
+        "bedrijfsruimte",
+        "bedrijfsunit",
+        "opslagruimte",
+        "kelder",
+        "parkeerplaats",
+        "garagebox",
+        "berging",
+        "horeca",
+        "maatschappelijk",
+        "ontwikkelgrond",
+        "overig",
+      ],
+      vr_deal_score: ["A", "B", "C", "reject"],
+      vr_huurtype_voor_bieding: ["huidig", "markt", "wws", "handmatig"],
+      vr_input_reliability: ["laag", "middel", "hoog"],
+      vr_object_type: ["enkelvoudig", "mixed_use"],
+      vr_ovb_allocation_method: ["value", "m2", "manual", "extern"],
+      vr_ovb_classification: [
+        "eigen_woning",
+        "woning_belegging",
+        "niet_woning",
+        "mixed_use",
+        "vrijgesteld",
+        "handmatig",
+      ],
+      vr_ovb_mode: ["auto", "manual", "per_component"],
+      vr_quality_level: ["eenvoudig", "standaard", "luxe", "maatwerk"],
+      vr_rent_segment: ["sociaal", "middenhuur", "vrije_sector", "onbekend"],
+      vr_risk_level: ["laag", "middel", "hoog"],
+      vr_strategy_type: [
+        "belegging",
+        "huur_optimaliseren",
+        "renoveren_verhuren",
+        "transformeren",
+        "splitsen",
+        "uitponden",
+        "verkopen_geheel",
+        "verkoop_per_unit",
+        "bedrijfsunits_los",
+        "buy_fix_hold",
+        "buy_fix_sell",
+        "buy_split_sell",
+        "buy_transform_hold",
+        "buy_transform_sell",
+        "sale_leaseback",
+        "herontwikkeling",
+        "overig",
+      ],
+      vr_view_mode: ["begeleid", "compact", "expert"],
       zoekprofiel_status: ["actief", "gepauzeerd", "gearchiveerd", "pauze"],
     },
   },
