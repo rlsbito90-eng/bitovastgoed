@@ -28,6 +28,7 @@ import TakenPage from "@/pages/TakenPage";
 import RapportagePage from "@/pages/RapportagePage";
 import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
+import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
