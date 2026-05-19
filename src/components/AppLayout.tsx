@@ -17,6 +17,7 @@ import {
   Target,
   PanelLeftClose,
   PanelLeftOpen,
+  Calculator,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
