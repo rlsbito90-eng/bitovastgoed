@@ -225,14 +225,22 @@ export default function DealFormDialog({
       setTab('basis');
       return;
     }
+    if (duplicaatDeal && !dupAcknowledged) {
+      toast.error('Er bestaat al een deal voor deze relatie en dit object. Bevestig hieronder om toch door te gaan.');
+      setTab('basis');
+      return;
+    }
     const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
       && (!deal || !deal.isArchived);
     if (triggertArchief) {
       setArchiefOpen(true);
       return;
     }
+    pushRecent('object', form.objectId);
+    pushRecent('relatie', form.relatieId);
     await persist();
   };
+
 
   const gewogenCommissie = form.commissieBedrag
     ? form.commissieBedrag * (FASE_KANS[form.fase] ?? 0)
