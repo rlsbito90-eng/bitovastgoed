@@ -5,7 +5,8 @@
 //   3. Proces     — DD status, notaris, bank, tegenpartij makelaar
 //   4. Notities   — afwijzingsreden, algemene notities
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,9 +24,29 @@ import type {
   Deal, DealFase, DDStatus,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
-import { Trophy, AlertCircle } from 'lucide-react';
-import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { Trophy, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react';
+import { getRelatieNamen } from '@/lib/relatieNaam';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
+import EntityPicker, { type EntityPickerItem } from './EntityPicker';
+
+const RECENT_KEY = 'deal-picker-recent';
+const readRecent = (kind: string): string[] => {
+  try {
+    const raw = localStorage.getItem(`${RECENT_KEY}:${kind}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+const pushRecent = (kind: string, id: string) => {
+  if (!id) return;
+  try {
+    const cur = readRecent(kind).filter(x => x !== id);
+    cur.unshift(id);
+    localStorage.setItem(`${RECENT_KEY}:${kind}`, JSON.stringify(cur.slice(0, 8)));
+  } catch { /* noop */ }
+};
+const norm = (s: string | undefined | null) =>
+  (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
 
 interface Props {
   open: boolean;
