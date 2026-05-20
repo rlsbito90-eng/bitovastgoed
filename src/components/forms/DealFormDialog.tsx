@@ -5,7 +5,8 @@
 //   3. Proces     — DD status, notaris, bank, tegenpartij makelaar
 //   4. Notities   — afwijzingsreden, algemene notities
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,9 +24,29 @@ import type {
   Deal, DealFase, DDStatus,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
-import { Trophy, AlertCircle } from 'lucide-react';
-import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { Trophy, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react';
+import { getRelatieNamen } from '@/lib/relatieNaam';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
+import EntityPicker, { type EntityPickerItem } from './EntityPicker';
+
+const RECENT_KEY = 'deal-picker-recent';
+const readRecent = (kind: string): string[] => {
+  try {
+    const raw = localStorage.getItem(`${RECENT_KEY}:${kind}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+const pushRecent = (kind: string, id: string) => {
+  if (!id) return;
+  try {
+    const cur = readRecent(kind).filter(x => x !== id);
+    cur.unshift(id);
+    localStorage.setItem(`${RECENT_KEY}:${kind}`, JSON.stringify(cur.slice(0, 8)));
+  } catch { /* noop */ }
+};
+const norm = (s: string | undefined | null) =>
+  (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
 
 interface Props {
   open: boolean;
@@ -65,8 +86,9 @@ const leegForm: FormState = {
 export default function DealFormDialog({
   open, onOpenChange, deal, defaultObjectId, defaultRelatieId,
 }: Props) {
-  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen } = useDataStore();
+  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen, deals, zoekprofielen } = useDataStore();
   const isEdit = !!deal;
+
 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
@@ -106,6 +128,71 @@ export default function DealFormDialog({
   };
 
   const [archiefOpen, setArchiefOpen] = useState(false);
+  const [dupAcknowledged, setDupAcknowledged] = useState(false);
+
+  // ---- Picker items ----
+  const relatieItems = useMemo<EntityPickerItem[]>(() => {
+    return relaties.map(r => {
+      const { primair, secundair } = getRelatieNamen(r, contactpersonen);
+      const cps = contactpersonen.filter(c => c.relatieId === r.id);
+      const haystack = norm([
+        primair, secundair, r.bedrijfsnaam, r.contactpersoon, r.email, r.telefoon,
+        r.vestigingsplaats, r.type, (r as any).status, r.notities,
+        ...cps.flatMap(c => [c.naam, c.email, c.telefoon, c.functie]),
+        ...((r.regio as string[] | undefined) || []),
+      ].filter(Boolean).join(' '));
+      return { id: r.id, primair, secundair, searchHaystack: haystack };
+    });
+  }, [relaties, contactpersonen]);
+
+  const { objectItemsActief, objectItemsArchief } = useMemo(() => {
+    const map = (o: typeof objecten[number]): EntityPickerItem => {
+      const primair = o.titel || o.adres || '(naamloos object)';
+      const sec = [o.plaats, o.status, o.type].filter(Boolean).join(' · ');
+      const haystack = norm([
+        o.titel, o.adres, o.plaats, o.provincie, o.internReferentienummer,
+        o.type, o.status, (o as any).aanbiedingswijze, (o as any).interneOpmerkingen, (o as any).opmerkingen,
+      ].filter(Boolean).join(' '));
+      return { id: o.id, primair, secundair: sec || null, searchHaystack: haystack };
+    };
+    return {
+      objectItemsActief: objecten.filter(o => !o.isArchived).map(map),
+      objectItemsArchief: objecten.filter(o => o.isArchived).map(map),
+    };
+  }, [objecten]);
+
+  // ---- Relevantie tussen object en relatie ----
+  const relevantRelatieIds = useMemo(() => {
+    if (!form.objectId) return [];
+    const ids = new Set<string>();
+    deals.forEach(d => { if (d.objectId === form.objectId) ids.add(d.relatieId); });
+    zoekprofielen.forEach(z => {
+      if ((z as any).status === 'actief' && z.relatieId) ids.add(z.relatieId);
+    });
+    return Array.from(ids);
+  }, [deals, zoekprofielen, form.objectId]);
+
+  const relevantObjectIds = useMemo(() => {
+    if (!form.relatieId) return [];
+    const ids = new Set<string>();
+    deals.forEach(d => { if (d.relatieId === form.relatieId) ids.add(d.objectId); });
+    return Array.from(ids);
+  }, [deals, form.relatieId]);
+
+  // ---- Duplicaatcontrole ----
+  const duplicaatDeal = useMemo(() => {
+    if (!form.objectId || !form.relatieId) return null;
+    return deals.find(d =>
+      d.id !== deal?.id &&
+      !d.isArchived &&
+      d.objectId === form.objectId &&
+      d.relatieId === form.relatieId
+    ) || null;
+  }, [deals, form.objectId, form.relatieId, deal?.id]);
+
+  useEffect(() => { setDupAcknowledged(false); }, [form.objectId, form.relatieId]);
+
+
 
   const persist = async (extra: Partial<Deal> = {}, archiefMelding?: string) => {
     setBezig(true);
@@ -138,14 +225,22 @@ export default function DealFormDialog({
       setTab('basis');
       return;
     }
+    if (duplicaatDeal && !dupAcknowledged) {
+      toast.error('Er bestaat al een deal voor deze relatie en dit object. Bevestig hieronder om toch door te gaan.');
+      setTab('basis');
+      return;
+    }
     const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
       && (!deal || !deal.isArchived);
     if (triggertArchief) {
       setArchiefOpen(true);
       return;
     }
+    pushRecent('object', form.objectId);
+    pushRecent('relatie', form.relatieId);
     await persist();
   };
+
 
   const gewogenCommissie = form.commissieBedrag
     ? form.commissieBedrag * (FASE_KANS[form.fase] ?? 0)
@@ -178,34 +273,64 @@ export default function DealFormDialog({
             <TabsContent value="basis" className="space-y-5 mt-0">
               <Sectie titel="Koppelingen">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Object *">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.objectId}
-                      onChange={e => set('objectId', e.target.value)}
-                      disabled={!!defaultObjectId && !isEdit}
-                    >
-                      <option value="">— Kies object —</option>
-                      {objecten.map(o => (
-                        <option key={o.id} value={o.id}>{o.titel}</option>
-                      ))}
-                    </select>
-                  </Veld>
-                  <Veld label="Primaire relatie *">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.relatieId}
-                      onChange={e => set('relatieId', e.target.value)}
-                      disabled={!!defaultRelatieId && !isEdit}
-                    >
-                      <option value="">— Kies relatie —</option>
-                      {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
-                        <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
-                      ))}
-                    </select>
-                  </Veld>
+                  <EntityPicker
+                    label="Object *"
+                    pickerTitle="Kies object"
+                    searchPlaceholder="Zoek op adres, plaats, type, intern nr…"
+                    emptyLabel="Geen gekoppeld object"
+                    value={form.objectId}
+                    onChange={(id) => set('objectId', id)}
+                    items={objectItemsActief}
+                    archivedItems={objectItemsArchief}
+                    relevantIds={relevantObjectIds}
+                    relevantLabel="Relevant voor deze relatie"
+                    recentIds={readRecent('object')}
+                  />
+                  <EntityPicker
+                    label="Primaire relatie *"
+                    pickerTitle="Kies relatie"
+                    searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+                    emptyLabel="Geen gekoppelde relatie"
+                    value={form.relatieId}
+                    onChange={(id) => set('relatieId', id)}
+                    items={relatieItems}
+                    relevantIds={relevantRelatieIds}
+                    relevantLabel="Relevant voor dit object"
+                    recentIds={readRecent('relatie')}
+                  />
                 </div>
+
+                {duplicaatDeal && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/40 rounded-md flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">Mogelijke dubbele deal.</span>{' '}
+                        Er bestaat al een actieve deal voor deze relatie en dit object.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/deals/${duplicaatDeal.id}`}
+                          onClick={() => onOpenChange(false)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Bestaande deal openen
+                        </Link>
+                        <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={dupAcknowledged}
+                            onChange={(e) => setDupAcknowledged(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-input accent-accent"
+                          />
+                          Toch nieuwe deal aanmaken
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </Sectie>
+
 
               <Sectie titel="Status & fase">
                 <div className="grid sm:grid-cols-2 gap-4">
