@@ -273,34 +273,64 @@ export default function DealFormDialog({
             <TabsContent value="basis" className="space-y-5 mt-0">
               <Sectie titel="Koppelingen">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Object *">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.objectId}
-                      onChange={e => set('objectId', e.target.value)}
-                      disabled={!!defaultObjectId && !isEdit}
-                    >
-                      <option value="">— Kies object —</option>
-                      {objecten.map(o => (
-                        <option key={o.id} value={o.id}>{o.titel}</option>
-                      ))}
-                    </select>
-                  </Veld>
-                  <Veld label="Primaire relatie *">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.relatieId}
-                      onChange={e => set('relatieId', e.target.value)}
-                      disabled={!!defaultRelatieId && !isEdit}
-                    >
-                      <option value="">— Kies relatie —</option>
-                      {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
-                        <option key={r.id} value={r.id}>{getRelatieDropdownLabel(r, contactpersonen)}</option>
-                      ))}
-                    </select>
-                  </Veld>
+                  <EntityPicker
+                    label="Object *"
+                    pickerTitle="Kies object"
+                    searchPlaceholder="Zoek op adres, plaats, type, intern nr…"
+                    emptyLabel="Geen gekoppeld object"
+                    value={form.objectId}
+                    onChange={(id) => set('objectId', id)}
+                    items={objectItemsActief}
+                    archivedItems={objectItemsArchief}
+                    relevantIds={relevantObjectIds}
+                    relevantLabel="Relevant voor deze relatie"
+                    recentIds={readRecent('object')}
+                  />
+                  <EntityPicker
+                    label="Primaire relatie *"
+                    pickerTitle="Kies relatie"
+                    searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+                    emptyLabel="Geen gekoppelde relatie"
+                    value={form.relatieId}
+                    onChange={(id) => set('relatieId', id)}
+                    items={relatieItems}
+                    relevantIds={relevantRelatieIds}
+                    relevantLabel="Relevant voor dit object"
+                    recentIds={readRecent('relatie')}
+                  />
                 </div>
+
+                {duplicaatDeal && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/40 rounded-md flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">Mogelijke dubbele deal.</span>{' '}
+                        Er bestaat al een actieve deal voor deze relatie en dit object.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/deals/${duplicaatDeal.id}`}
+                          onClick={() => onOpenChange(false)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Bestaande deal openen
+                        </Link>
+                        <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={dupAcknowledged}
+                            onChange={(e) => setDupAcknowledged(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-input accent-accent"
+                          />
+                          Toch nieuwe deal aanmaken
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </Sectie>
+
 
               <Sectie titel="Status & fase">
                 <div className="grid sm:grid-cols-2 gap-4">
