@@ -86,8 +86,9 @@ const leegForm: FormState = {
 export default function DealFormDialog({
   open, onOpenChange, deal, defaultObjectId, defaultRelatieId,
 }: Props) {
-  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen } = useDataStore();
+  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen, deals, zoekprofielen } = useDataStore();
   const isEdit = !!deal;
+
 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
