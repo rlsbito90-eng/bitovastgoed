@@ -137,7 +137,7 @@ export default function DealFormDialog({
       const cps = contactpersonen.filter(c => c.relatieId === r.id);
       const haystack = norm([
         primair, secundair, r.bedrijfsnaam, r.contactpersoon, r.email, r.telefoon,
-        r.vestigingsplaats, r.type, r.status, r.notities,
+        r.vestigingsplaats, r.type, (r as any).status, r.notities,
         ...cps.flatMap(c => [c.naam, c.email, c.telefoon, c.functie]),
         ...((r.regio as string[] | undefined) || []),
       ].filter(Boolean).join(' '));
