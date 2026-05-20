@@ -128,6 +128,71 @@ export default function DealFormDialog({
   };
 
   const [archiefOpen, setArchiefOpen] = useState(false);
+  const [dupAcknowledged, setDupAcknowledged] = useState(false);
+
+  // ---- Picker items ----
+  const relatieItems = useMemo<EntityPickerItem[]>(() => {
+    return relaties.map(r => {
+      const { primair, secundair } = getRelatieNamen(r, contactpersonen);
+      const cps = contactpersonen.filter(c => c.relatieId === r.id);
+      const haystack = norm([
+        primair, secundair, r.bedrijfsnaam, r.contactpersoon, r.email, r.telefoon,
+        r.vestigingsplaats, r.type, r.status, r.notities,
+        ...cps.flatMap(c => [c.naam, c.email, c.telefoon, c.functie]),
+        ...((r.regio as string[] | undefined) || []),
+      ].filter(Boolean).join(' '));
+      return { id: r.id, primair, secundair, searchHaystack: haystack };
+    });
+  }, [relaties, contactpersonen]);
+
+  const { objectItemsActief, objectItemsArchief } = useMemo(() => {
+    const map = (o: typeof objecten[number]): EntityPickerItem => {
+      const primair = o.titel || o.adres || '(naamloos object)';
+      const sec = [o.plaats, o.status, o.type].filter(Boolean).join(' · ');
+      const haystack = norm([
+        o.titel, o.adres, o.plaats, o.provincie, o.internReferentienummer,
+        o.type, o.status, (o as any).aanbiedingswijze, (o as any).interneOpmerkingen, (o as any).opmerkingen,
+      ].filter(Boolean).join(' '));
+      return { id: o.id, primair, secundair: sec || null, searchHaystack: haystack };
+    };
+    return {
+      objectItemsActief: objecten.filter(o => !o.isArchived).map(map),
+      objectItemsArchief: objecten.filter(o => o.isArchived).map(map),
+    };
+  }, [objecten]);
+
+  // ---- Relevantie tussen object en relatie ----
+  const relevantRelatieIds = useMemo(() => {
+    if (!form.objectId) return [];
+    const ids = new Set<string>();
+    deals.forEach(d => { if (d.objectId === form.objectId) ids.add(d.relatieId); });
+    zoekprofielen.forEach(z => {
+      if ((z as any).status === 'actief' && z.relatieId) ids.add(z.relatieId);
+    });
+    return Array.from(ids);
+  }, [deals, zoekprofielen, form.objectId]);
+
+  const relevantObjectIds = useMemo(() => {
+    if (!form.relatieId) return [];
+    const ids = new Set<string>();
+    deals.forEach(d => { if (d.relatieId === form.relatieId) ids.add(d.objectId); });
+    return Array.from(ids);
+  }, [deals, form.relatieId]);
+
+  // ---- Duplicaatcontrole ----
+  const duplicaatDeal = useMemo(() => {
+    if (!form.objectId || !form.relatieId) return null;
+    return deals.find(d =>
+      d.id !== deal?.id &&
+      !d.isArchived &&
+      d.objectId === form.objectId &&
+      d.relatieId === form.relatieId
+    ) || null;
+  }, [deals, form.objectId, form.relatieId, deal?.id]);
+
+  useEffect(() => { setDupAcknowledged(false); }, [form.objectId, form.relatieId]);
+
+
 
   const persist = async (extra: Partial<Deal> = {}, archiefMelding?: string) => {
     setBezig(true);
