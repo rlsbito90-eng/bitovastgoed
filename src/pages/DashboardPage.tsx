@@ -278,25 +278,55 @@ export default function DashboardPage() {
         }
       />
 
-      {/* ============== SECTIE 1 — EXECUTIVE SNAPSHOT ============== */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* ============== SECTIE 1 — HERO + SECONDARY KPI ============== */}
+      <Link to="/deals" className="kpi-hero block group">
+        <div className="relative z-[1] flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="kpi-label">Pipeline waarde</p>
+            <p className="kpi-hero-value mt-2.5">{formatCurrencyCompact(pipelineWaardeTotaal)}</p>
+            <p className="text-[12px] text-muted-foreground mt-2.5 tracking-tight">
+              Totale potentiële dealwaarde · {actieveDeals.length} actieve deals
+            </p>
+          </div>
+          <span className="hidden sm:flex h-12 w-12 rounded-2xl bg-primary text-primary-foreground items-center justify-center shrink-0 shadow-md ring-1 ring-primary/20 transition-transform group-hover:scale-105">
+            <Building2 className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+        </div>
+        <div className="relative z-[1] mt-5 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 sm:gap-5">
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Verwachte fee</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none truncate">
+              {formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">In closing</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">
+              {closingDeals.length}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Actieve kopers</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">
+              {warmeRelaties.length}
+            </p>
+          </div>
+        </div>
+      </Link>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4">
         <KPICard
-          label="Pipeline waarde"
-          value={
-            <>
-              <span className="sm:hidden">{formatCurrencyCompact(pipelineWaardeTotaal)}</span>
-              <span className="hidden sm:inline">{formatCurrencyCompact(pipelineWaardeTotaal)}</span>
-            </>
-          }
-          hint={`${actieveDeals.length} actieve deals`}
-          icon={Building2}
+          label="Actieve deals"
+          value={actieveDeals.length}
+          hint={`${formatCurrencyCompact(pipelineWaardeTotaal)} pipeline`}
+          icon={Activity}
           tone="primary"
           href="/deals"
         />
         <KPICard
-          label="Weighted fee"
+          label="Verwachte fee"
           value={formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
-          hint={`${formatCurrencyCompact(commissieStats.pipelineBedragTotaal)} ongewogen`}
+          hint="Op basis van slaagkans"
           icon={Banknote}
           tone="accent"
           href="/rapportage"
@@ -318,9 +348,9 @@ export default function DashboardPage() {
           href="/taken"
         />
         <KPICard
-          label="Nieuwe matches"
-          value={sterkeMatches.length}
-          hint={`${matches.length} totaal · score ≥ 70`}
+          label="Actieve kopers"
+          value={warmeRelaties.length}
+          hint={`${sterkeMatches.length} sterke kansen`}
           icon={Sparkles}
           tone="accent"
         />
