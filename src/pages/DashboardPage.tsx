@@ -636,12 +636,8 @@ function ActionCenter({
   const store = useDataStore();
   const nu = new Date();
 
-  const initial: Bucket =
-    verlopen.length > 0 ? 'verlopen' :
-    vandaag.length > 0 ? 'vandaag' :
-    dezeWeek.length > 0 ? 'week' : 'wacht';
+  const [bucket, setBucket] = useState<Bucket>('vandaag');
 
-  const [bucket, setBucket] = useState<Bucket>(initial);
 
   const tabs: { key: Bucket; label: string; count: number; tone: string }[] = [
     { key: 'verlopen', label: 'Verlopen',  count: verlopen.length, tone: 'text-destructive' },
