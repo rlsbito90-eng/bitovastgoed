@@ -2,7 +2,7 @@
 // Laadt checklist-items, aanbiedingsteksten en aandachtspunten per object.
 // Null-safe: ontbrekende rijen, onbekend object_id of mislukte fetches geven gewoon lege staat.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -24,8 +24,11 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
   const [texts, setTexts] = useState<OfferingTextsRow | null>(null);
   const [attention, setAttention] = useState<AttentionRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Bijhouden via ref zodat het niet aan reload-identity bijdraagt; dat voorkomt
+  // dat tabs/accordions herrenderen alleen omdat hasLoadedOnce flipt.
+  const hasLoadedOnceRef = useRef(false);
 
   const reload = useCallback(async () => {
     if (!objectId) {
@@ -34,7 +37,7 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
     }
     // Alleen bij eerste load een volledige loading-state tonen; bij refresh na een
     // wijziging behouden we de bestaande data zodat tabs/accordions/scroll niet resetten.
-    if (!hasLoadedOnce) setLoading(true);
+    if (!hasLoadedOnceRef.current) setLoading(true);
     setError(null);
     try {
       const [itemsRes, textsRes, attRes] = await Promise.all([
@@ -51,15 +54,17 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
     } catch (e: any) {
       console.error('useObjectDossier:', e);
       setError(e?.message ?? 'Onbekende fout');
-      if (!hasLoadedOnce) { setItems([]); setTexts(null); setAttention([]); }
+      if (!hasLoadedOnceRef.current) { setItems([]); setTexts(null); setAttention([]); }
     } finally {
       setLoading(false);
-      setHasLoadedOnce(true);
+      hasLoadedOnceRef.current = true;
     }
-  }, [objectId, hasLoadedOnce]);
+  }, [objectId]);
 
-  // Reset 'eerste-load'-status alleen wanneer we naar een ander object navigeren.
-  useEffect(() => { setHasLoadedOnce(false); }, [objectId]);
+  // Bij navigatie naar een ander object terug naar 'eerste load'-gedrag.
+  useEffect(() => {
+    hasLoadedOnceRef.current = false;
+  }, [objectId]);
 
   useEffect(() => { void reload(); }, [reload]);
 
