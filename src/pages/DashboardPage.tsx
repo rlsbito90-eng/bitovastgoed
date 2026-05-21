@@ -506,7 +506,7 @@ export default function DashboardPage() {
                 <Link
                   key={i}
                   to={`/objecten/${m.objectId}`}
-                  className="block px-5 py-3 hover:bg-muted/40 transition-colors"
+                  className="row-hover block px-5 py-3"
                 >
                   <div className="row-with-action">
                     <div className="row-flex">
