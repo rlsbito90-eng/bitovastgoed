@@ -139,7 +139,7 @@
   .card-hover:hover { box-shadow: var(--shadow-md); }
 
   .kpi-card {
-    @apply relative overflow-hidden bg-card border border-border/60 rounded-xl p-5 lg:p-6 flex flex-col gap-4 min-w-0 transition-all duration-300 ease-out;
+    @apply relative overflow-hidden bg-card border border-border/60 rounded-xl p-4 lg:p-6 flex flex-col gap-3 lg:gap-4 min-w-0 transition-all duration-300 ease-out;
     box-shadow: var(--shadow-sm);
     background-image:
       radial-gradient(120% 80% at 100% 0%, hsl(var(--accent) / 0.05), transparent 55%),
@@ -150,6 +150,7 @@
     box-shadow: var(--shadow-lg);
     border-color: hsl(var(--accent) / 0.35);
   }
+  .kpi-card:active { transform: translateY(0); transition-duration: .1s; }
   .kpi-card::before {
     content: '';
     position: absolute; inset: 0 0 auto 0; height: 2px;
@@ -162,12 +163,48 @@
     box-shadow: 0 8px 20px -8px hsl(var(--accent) / 0.45), inset 0 0 0 1px hsl(var(--foreground) / 0.06);
   }
 
-  .kpi-label { @apply text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.16em] leading-tight; }
+  .kpi-label { @apply text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.14em] leading-tight; }
   .kpi-value {
-    @apply mt-3 text-[28px] lg:text-[32px] font-semibold text-foreground font-mono-data leading-none break-words;
+    @apply mt-2 lg:mt-3 text-[22px] lg:text-[30px] font-semibold text-foreground font-mono-data leading-none break-words;
     letter-spacing: -0.03em;
   }
   .kpi-hint  { @apply text-[11px] text-muted-foreground break-words sm:truncate; }
+
+  /* Hero KPI — primary metric, premium glass surface */
+  .kpi-hero {
+    @apply relative overflow-hidden rounded-2xl border border-border/60 p-5 lg:p-7 transition-all duration-300;
+    background:
+      radial-gradient(140% 100% at 0% 0%, hsl(var(--accent) / 0.10), transparent 55%),
+      radial-gradient(120% 90% at 100% 100%, hsl(var(--primary) / 0.06), transparent 60%),
+      linear-gradient(180deg, hsl(0 0% 100% / 0.85), hsl(0 0% 100% / 0.55));
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.7) inset,
+      0 18px 50px -24px hsl(var(--primary) / 0.25),
+      0 4px 14px -8px hsl(var(--accent) / 0.18);
+  }
+  .kpi-hero::after {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(120deg, transparent 0%, hsl(0 0% 100% / 0.5) 48%, transparent 60%);
+    mix-blend-mode: overlay; opacity: .35;
+  }
+  .kpi-hero:hover { transform: translateY(-1px); }
+  .kpi-hero-value {
+    @apply font-mono-data font-semibold text-foreground leading-none tracking-tight value-in;
+    font-size: clamp(34px, 9vw, 56px);
+    letter-spacing: -0.035em;
+  }
+
+  /* Premium glass topbar */
+  .glass-topbar {
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.82), hsl(var(--card) / 0.65));
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: 0 1px 0 hsl(var(--border) / 0.6), 0 6px 20px -16px hsl(var(--primary) / 0.18);
+  }
 
   /* Pipeline stage — richer with active emphasis */
   .pipeline-stage {
