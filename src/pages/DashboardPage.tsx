@@ -222,6 +222,8 @@ export default function DashboardPage() {
   }, [actieveDeals, store]);
   const totaalActieveDeals = pipelinePerFase.reduce((s, x) => s + x.aantal, 0) || 1;
   const maxAantal = Math.max(1, ...pipelinePerFase.map(x => x.aantal));
+  const maxGewogen = Math.max(0, ...pipelinePerFase.map(x => x.gewogen));
+
 
   // --- Forecast 30/60/90 (gewogen fee uit verwachteClosingdatum) ---
   const forecast = useMemo(() => {
