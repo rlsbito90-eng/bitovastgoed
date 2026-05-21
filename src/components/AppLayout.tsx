@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +18,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Calculator,
+  Bell,
+  Plus,
+  HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
@@ -37,15 +41,15 @@ import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
-  { path: "/taken", label: "Taken", icon: CheckSquare, groupEnd: true },
-  { path: "/relaties", label: "Relaties", icon: Users },
-  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search, groupEnd: true },
-  { path: "/objecten", label: "Objecten", icon: Building2 },
-  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
+  { path: "/taken", label: "Taken", icon: CheckSquare },
+  { path: "/relaties", label: "Relaties", icon: Users, groupEnd: true },
+  { path: "/objecten", label: "Aanbod", icon: Building2 },
+  { path: "/zoekprofielen", label: "Matching", icon: Search },
+  { path: "/referentieobjecten", label: "Referenties", icon: Library },
   { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, groupEnd: true },
-  { path: "/acquisitie", label: "Acquisitie", icon: Target, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
