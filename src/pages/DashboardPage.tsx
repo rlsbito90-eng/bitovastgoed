@@ -420,26 +420,34 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* Mobiel */}
-          <div className="md:hidden grid grid-cols-2 gap-2.5">
+          {/* Mobiel — focus op dealwaarde en momentum */}
+          <div className="md:hidden grid grid-cols-2 gap-2">
             {pipelinePerFase.map(({ fase, aantal, waarde }) => {
               const pct = Math.round((aantal / totaalActieveDeals) * 100);
+              const intensity = 0.04 + (pipelineFases.indexOf(fase) / Math.max(1, pipelineFases.length - 1)) * 0.14;
               return (
                 <Link
                   key={fase}
                   to={`/deals?fase=${fase}`}
-                  className="rounded-lg border border-border/70 px-3 py-2.5 hover:border-accent/40 transition-colors"
+                  className="relative overflow-hidden rounded-xl border border-border/70 px-3 py-2.5 active:scale-[0.98] transition-all min-w-0"
+                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
                     {DEAL_FASE_LABELS[fase]}
                   </p>
-                  <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-lg font-semibold font-mono-data text-foreground">{aantal}</span>
-                    <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
-                  </div>
-                  <p className="text-[10px] font-mono-data text-muted-foreground mt-0.5">
+                  <p className="font-mono-data text-[15px] font-semibold text-foreground mt-1.5 leading-none truncate">
                     {formatCurrencyCompact(waarde)}
                   </p>
+                  <div className="flex items-baseline gap-1.5 mt-1.5">
+                    <span className="text-[12px] font-mono-data font-semibold text-foreground/80">{aantal}</span>
+                    <span className="text-[10px] text-muted-foreground">deals · {pct}%</span>
+                  </div>
+                  <div className="mt-2 h-0.5 bg-foreground/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent rounded-full bar-fill"
+                      style={{ width: `${Math.max(6, (aantal / maxAantal) * 100)}%` }}
+                    />
+                  </div>
                 </Link>
               );
             })}
