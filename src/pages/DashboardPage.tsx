@@ -241,8 +241,7 @@ export default function DashboardPage() {
   }, [actieveDeals]);
 
   // --- Health strip ---
-  const startMaand = new Date(nu.getFullYear(), nu.getMonth(), 1);
-  const nieuweObjectenMaand = actieveObjecten.filter(o => o.createdAt && new Date(o.createdAt) >= startMaand).length;
+  const beschikbareObjecten = actieveObjecten.filter(o => o.status === 'beschikbaar').length;
   const objectenZonderKandidaten = actieveObjecten.filter(o => !o.isArchived).filter(o => {
     return !deals.some(d => d.objectId === o.id && isDealActief(d));
   }).length;
