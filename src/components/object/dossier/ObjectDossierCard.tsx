@@ -24,6 +24,7 @@ interface Props {
 export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
   const { items, texts, attention, loading, error, reload } = useObjectDossier(objectId);
   const [taakOpen, setTaakOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('checklist');
 
   const storedByKey = useMemo(() => {
     const m: Record<string, { status: any }> = {};
