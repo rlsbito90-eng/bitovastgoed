@@ -117,10 +117,12 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                     objectWoz={objectWoz}
                     objectEnergyLabel={objectEnergyLabel}
                     objectBouwjaar={objectBouwjaar}
+                    objectRawType={objectRawType}
                     viewMode={viewMode}
                     onUpdate={updateScenario}
                     onDelete={deleteScenario}
                   />
+
                 </div>
               )}
             </div>
