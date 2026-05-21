@@ -633,7 +633,9 @@ export default function ObjectDetailPage() {
           objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
           objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
           objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+          objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
         />
+
       </section>
 
 
