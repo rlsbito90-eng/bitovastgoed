@@ -210,19 +210,33 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-        {/* Desktop topbar — collapse-knop links, match-badge rechts */}
-        <header className="hidden lg:flex items-center justify-between h-12 px-6 border-b border-border bg-card">
+        {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
+        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/70 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-20">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
-            className="p-1.5 -ml-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
             title={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
           >
             {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
-          <div className="flex items-center gap-1">
+
+          <GlobalSearch />
+
+          <div className="ml-auto flex items-center gap-1.5">
             <RefreshButton />
             <MatchAlertBadge />
+            <button
+              className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Notificaties"
+              title="Notificaties"
+            >
+              <Bell className="h-[18px] w-[18px]" />
+            </button>
+            <Link to="/taken" className="btn-premium ml-2">
+              <Plus className="h-4 w-4" />
+              <span>Nieuw</span>
+            </Link>
           </div>
         </header>
 
