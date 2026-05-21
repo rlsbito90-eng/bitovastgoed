@@ -78,23 +78,32 @@ function KPICard({
     warning: 'bg-warning/15 text-warning',
     muted:   'bg-muted text-muted-foreground',
   };
+  const toneGlow: Record<KPITone, string> = {
+    primary: 'before:from-primary/40',
+    accent:  'before:from-accent/60',
+    success: 'before:from-success/50',
+    warning: 'before:from-warning/60',
+    muted:   'before:from-muted-foreground/30',
+  };
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="kpi-label">{label}</p>
-          <p className="kpi-value">{value}</p>
+          <p className="kpi-value value-in">{value}</p>
         </div>
         <span className={`kpi-badge ${toneClasses[tone]}`}>
-          <Icon className="h-[18px] w-[18px]" />
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 min-h-[18px]">
         {hint && <p className="kpi-hint">{hint}</p>}
         {trend && (
           <span
-            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ${
-              trend.up === false ? 'text-destructive bg-destructive/10' : 'text-success bg-success/10'
+            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ring-1 ${
+              trend.up === false
+                ? 'text-destructive bg-destructive/8 ring-destructive/15'
+                : 'text-success bg-success/8 ring-success/15'
             }`}
           >
             {trend.up === false ? '▾' : '▴'} {trend.value}
@@ -103,15 +112,17 @@ function KPICard({
       </div>
     </>
   );
+  const className = `kpi-card group ${toneGlow[tone]}`;
   if (href) {
     return (
-      <Link to={href} className="kpi-card group">
+      <Link to={href} className={className}>
         {inner}
       </Link>
     );
   }
-  return <div className="kpi-card group">{inner}</div>;
+  return <div className={className}>{inner}</div>;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Pipeline stages (operationele dealflow)                             */
