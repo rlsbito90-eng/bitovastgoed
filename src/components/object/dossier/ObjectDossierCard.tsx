@@ -106,7 +106,7 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
         </p>
       )}
 
-      <Tabs defaultValue="checklist">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
           <TabsTrigger value="teksten">Aanbiedingsteksten</TabsTrigger>
@@ -117,7 +117,7 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
         </TabsList>
 
         <TabsContent value="checklist" className="pt-4">
-          {loading ? (
+          {loading && items.length === 0 ? (
             <p className="text-sm text-muted-foreground">Laden…</p>
           ) : (
             <DossierChecklist
