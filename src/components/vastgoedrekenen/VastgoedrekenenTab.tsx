@@ -17,7 +17,9 @@ type Props = {
   objectWoz?: number | null;
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
+  objectRawType?: string | null;
 };
+
 
 function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode }: {
   calculationId: string;
