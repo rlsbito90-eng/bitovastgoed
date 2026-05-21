@@ -1,30 +1,38 @@
-// Wrapper voor de Objectdossier-sectie op de Objectdetailpagina.
-// Toont readiness-header + tabs voor Checklist / Aanbiedingsteksten / Aandachtspunten / Documenten.
+// Dossier-cockpit voor één object.
+// Tabs: Overzicht (default) · Checklist · Actielijst · Aanbieding · Aandachtspunten · Documenten.
+// Overzicht is de hoofdweergave; checklist blijft beschikbaar voor wie alles wil afwerken.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useObjectDossier } from '@/hooks/useObjectDossier';
 import { buildEffectiveItems, computeReadiness } from '@/lib/objectDossier/readiness';
-import { CHECKLIST_CATALOG, SALE_READY_KEYS, TEASER_READY_KEYS } from '@/lib/objectDossier/catalog';
-import DossierReadinessBadge from './DossierReadinessBadge';
+import {
+  CHECKLIST_CATALOG, SALE_READY_KEYS, TEASER_READY_KEYS, type DossierCategory,
+} from '@/lib/objectDossier/catalog';
+import DossierOverview from './DossierOverview';
 import DossierChecklist from './DossierChecklist';
+import MissingItemsPanel from './MissingItemsPanel';
 import OfferingTextsSection from './OfferingTextsSection';
 import AttentionPointsSection from './AttentionPointsSection';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   objectId: string;
   objectRecord?: Record<string, unknown> | null;
 }
 
+type DossierTab = 'overzicht' | 'checklist' | 'actielijst' | 'aanbieding' | 'aandacht' | 'documenten';
+
 export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
   const { items, texts, attention, loading, error, reload } = useObjectDossier(objectId);
   const [taakOpen, setTaakOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('checklist');
+  const [taakPreset, setTaakPreset] = useState<{ title?: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<DossierTab>('overzicht');
+  const [openRequest, setOpenRequest] = useState<{ category: DossierCategory; token: number } | null>(null);
+  const tokenRef = useRef(0);
 
   const storedByKey = useMemo(() => {
     const m: Record<string, { status: any }> = {};
@@ -37,6 +45,17 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
     [storedByKey, objectRecord],
   );
   const readiness = useMemo(() => computeReadiness(effective), [effective]);
+
+  function openTaak(preset: { title: string }) {
+    setTaakPreset(preset);
+    setTaakOpen(true);
+  }
+
+  function openCategory(cat: DossierCategory) {
+    tokenRef.current += 1;
+    setOpenRequest({ category: cat, token: tokenRef.current });
+    setActiveTab('checklist');
+  }
 
   async function markKeysAanwezig(keys: string[]) {
     try {
@@ -62,43 +81,23 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
     }
   }
 
+  const openAttentionCount = attention.filter(a => (a.status ?? 'open') === 'open').length;
+  const actionsCount =
+    readiness.missingCritical.length +
+    effective.filter(e => e.status === 'opgevraagd').length +
+    effective.filter(e => e.status === 'te_controleren').length +
+    openAttentionCount;
+
   return (
     <section className="section-card p-5">
       <header className="flex items-start justify-between gap-3 flex-wrap mb-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">Dossier &amp; aanbieding</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Informatiepositie, marketingteksten en interne aandachtspunten voor dit object.
+            Cockpit met informatiepositie, marketingteksten en interne aandachtspunten voor dit object.
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <DossierReadinessBadge label={readiness.label} score={readiness.score} />
-          <button
-            onClick={() => markKeysAanwezig(TEASER_READY_KEYS)}
-            className="text-xs px-2.5 py-1 rounded border border-input hover:bg-muted"
-          >
-            Markeer teaser-gereed
-          </button>
-          <button
-            onClick={() => markKeysAanwezig(SALE_READY_KEYS)}
-            className="text-xs px-2.5 py-1 rounded border border-input hover:bg-muted"
-          >
-            Markeer verkoopklaar
-          </button>
-        </div>
       </header>
-
-      {readiness.missingCritical.length > 0 && (
-        <div className="mb-4 flex items-start gap-2 p-3 rounded-md border border-warning/30 bg-warning/5">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <div className="text-xs text-foreground">
-            <p className="font-medium mb-0.5">Belangrijkste ontbrekende punten</p>
-            <p className="text-muted-foreground">
-              {readiness.missingCritical.map(m => m.catalog.label).join(' · ')}
-            </p>
-          </div>
-        </div>
-      )}
 
       {error && (
         <p className="mb-3 text-xs text-destructive">
@@ -106,15 +105,36 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
         </p>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DossierTab)}>
         <TabsList className="flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
-          <TabsTrigger value="teksten">Aanbiedingsteksten</TabsTrigger>
+          <TabsTrigger value="actielijst">
+            Actielijst {actionsCount > 0 && <span className="ml-1 text-[10px] opacity-70">({actionsCount})</span>}
+          </TabsTrigger>
+          <TabsTrigger value="aanbieding">Aanbieding</TabsTrigger>
           <TabsTrigger value="aandacht">
-            Aandachtspunten {attention.length > 0 && <span className="ml-1 text-[10px] opacity-70">({attention.length})</span>}
+            Aandachtspunten {openAttentionCount > 0 && <span className="ml-1 text-[10px] opacity-70">({openAttentionCount})</span>}
           </TabsTrigger>
           <TabsTrigger value="documenten">Documenten</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overzicht" className="pt-4">
+          {loading && items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Laden…</p>
+          ) : (
+            <DossierOverview
+              readiness={readiness}
+              effective={effective}
+              attention={attention}
+              onOpenCategory={openCategory}
+              onMarkTeaserReady={() => markKeysAanwezig(TEASER_READY_KEYS)}
+              onMarkSaleReady={() => markKeysAanwezig(SALE_READY_KEYS)}
+              onCreateTask={openTaak}
+              onGoToActions={() => setActiveTab('actielijst')}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="checklist" className="pt-4">
           {loading && items.length === 0 ? (
@@ -125,12 +145,23 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
               effective={effective}
               stored={items}
               onChanged={reload}
-              onCreateTask={() => setTaakOpen(true)}
+              onCreateTask={openTaak}
+              openRequest={openRequest}
             />
           )}
         </TabsContent>
 
-        <TabsContent value="teksten" className="pt-4">
+        <TabsContent value="actielijst" className="pt-4">
+          <MissingItemsPanel
+            objectId={objectId}
+            effective={effective}
+            attention={attention}
+            onChanged={reload}
+            onCreateTask={openTaak}
+          />
+        </TabsContent>
+
+        <TabsContent value="aanbieding" className="pt-4">
           <OfferingTextsSection objectId={objectId} initial={texts} onSaved={reload} />
         </TabsContent>
 
@@ -145,7 +176,7 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
 
       <TaakFormDialog
         open={taakOpen}
-        onOpenChange={setTaakOpen}
+        onOpenChange={(o) => { setTaakOpen(o); if (!o) setTaakPreset(null); }}
         defaultObjectId={objectId}
       />
     </section>
