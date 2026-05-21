@@ -58,6 +58,9 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
     }
   }, [objectId, hasLoadedOnce]);
 
+  // Reset 'eerste-load'-status alleen wanneer we naar een ander object navigeren.
+  useEffect(() => { setHasLoadedOnce(false); }, [objectId]);
+
   useEffect(() => { void reload(); }, [reload]);
 
   return { items, texts, attention, loading, error, reload };
