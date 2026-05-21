@@ -21,7 +21,7 @@ type Props = {
 };
 
 
-function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode }: {
+function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType }: {
   calculationId: string;
   taxSettings: ReturnType<typeof useTaxSettings>['settings'];
   objectArea: number | null;
@@ -29,7 +29,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
+  objectRawType?: string | null;
 }) {
+
   const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
