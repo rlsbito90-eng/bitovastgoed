@@ -214,31 +214,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         {/* Mobile Header */}
-      <header className="lg:hidden flex items-center justify-between h-20 px-4 border-b border-border bg-card sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+      <header className="lg:hidden flex items-center justify-between h-14 px-3 border-b border-border/60 glass-topbar sticky top-0 z-30">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 -ml-2 rounded-md hover:bg-muted text-foreground"
+            className="p-2 -ml-1 rounded-md hover:bg-muted text-foreground"
             aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted transition-colors">
+          <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
             <img
               src="/logo-bito-vastgoed.png"
               alt="Bito Vastgoed"
-              className="h-16 w-auto max-w-[180px] object-contain"
+              className="h-9 w-auto max-w-[140px] object-contain"
             />
           </Link>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 shrink-0">
           <RefreshButton />
           <MatchAlertBadge />
         </div>
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
-        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/70 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-20">
+        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-20">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
             className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
