@@ -125,10 +125,35 @@
     @apply before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/60 before:to-transparent;
   }
 
-  /* KPI icon badge — round soft tint like the reference */
+  /* KPI icon badge — soft tint */
   .kpi-badge {
-    @apply h-12 w-12 rounded-full flex items-center justify-center shrink-0;
+    @apply h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300;
   }
+  .card-hover {
+    @apply transition-all duration-300 ease-out hover:-translate-y-0.5;
+  }
+  .card-hover:hover { box-shadow: var(--shadow-md); }
+
+  .kpi-card {
+    @apply relative overflow-hidden section-card p-5 lg:p-6 flex flex-col gap-4 min-w-0 card-hover;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute; inset: 0 0 auto 0; height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--accent) / 0.5), transparent);
+    opacity: 0; transition: opacity .3s ease;
+  }
+  .kpi-card:hover::before { opacity: 1; }
+  .kpi-card:hover .kpi-badge { transform: scale(1.06); }
+
+  .kpi-label { @apply text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.14em] leading-tight; }
+  .kpi-value { @apply mt-3 text-[26px] lg:text-[30px] font-semibold text-foreground font-mono-data leading-none tracking-tight break-words; }
+  .kpi-hint  { @apply text-[11px] text-muted-foreground break-words sm:truncate; }
+
+  .pipeline-stage {
+    @apply relative flex-1 min-w-0 px-4 py-3.5 transition-all duration-300;
+  }
+  .pipeline-stage:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); z-index: 1; }
 
   /* Premium button */
   .btn-premium {
