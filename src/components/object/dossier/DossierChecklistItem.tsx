@@ -63,6 +63,7 @@ export default function DossierChecklistItem({
         .from('object_dossier_items')
         .upsert(payload, { onConflict: 'object_id,item_key' });
       if (error) throw error;
+      toast.success('Opgeslagen', { duration: 1500 });
       onChanged();
     } catch (e: any) {
       toast.error(e?.message ?? 'Opslaan mislukt');
