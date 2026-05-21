@@ -105,7 +105,7 @@
 
   /* Premium section card — translucent glass panel on mobile, layered surface on desktop */
   .section-card {
-    @apply relative bg-card/85 border border-border/55 rounded-2xl lg:rounded-xl transition-all duration-300;
+    @apply relative bg-card/85 border border-border/55 rounded-2xl lg:rounded-xl transition-all duration-300 overflow-hidden min-w-0;
     box-shadow:
       0 1px 0 hsl(0 0% 100% / 0.7) inset,
       0 8px 24px -18px hsl(var(--primary) / 0.22),
