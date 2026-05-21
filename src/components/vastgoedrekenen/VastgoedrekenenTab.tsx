@@ -90,7 +90,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         objectWoz={objectWoz}
         objectEnergyLabel={objectEnergyLabel}
         objectBouwjaar={objectBouwjaar}
+        objectRawType={objectRawType}
       />
+
 
       <div className="space-y-3">
         {scenarios.map((s) => {
