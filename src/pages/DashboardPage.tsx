@@ -314,7 +314,7 @@ export default function DashboardPage() {
         </div>
       </Link>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-4">
         <KPICard
           label="Actieve deals"
           value={actieveDeals.length}
@@ -347,14 +347,8 @@ export default function DashboardPage() {
           tone={urgentCount > 0 ? 'warning' : 'muted'}
           href="/taken"
         />
-        <KPICard
-          label="Actieve kopers"
-          value={warmeRelaties.length}
-          hint={`${sterkeMatches.length} sterke kansen`}
-          icon={Sparkles}
-          tone="accent"
-        />
       </div>
+
 
       {/* ============== SECTIE 2 — PIPELINE MOMENTUM ============== */}
       <section className="section-card">
