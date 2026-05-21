@@ -78,23 +78,32 @@ function KPICard({
     warning: 'bg-warning/15 text-warning',
     muted:   'bg-muted text-muted-foreground',
   };
+  const toneGlow: Record<KPITone, string> = {
+    primary: 'before:from-primary/40',
+    accent:  'before:from-accent/60',
+    success: 'before:from-success/50',
+    warning: 'before:from-warning/60',
+    muted:   'before:from-muted-foreground/30',
+  };
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="kpi-label">{label}</p>
-          <p className="kpi-value">{value}</p>
+          <p className="kpi-value value-in">{value}</p>
         </div>
         <span className={`kpi-badge ${toneClasses[tone]}`}>
-          <Icon className="h-[18px] w-[18px]" />
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 min-h-[18px]">
         {hint && <p className="kpi-hint">{hint}</p>}
         {trend && (
           <span
-            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ${
-              trend.up === false ? 'text-destructive bg-destructive/10' : 'text-success bg-success/10'
+            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ring-1 ${
+              trend.up === false
+                ? 'text-destructive bg-destructive/8 ring-destructive/15'
+                : 'text-success bg-success/8 ring-success/15'
             }`}
           >
             {trend.up === false ? '▾' : '▴'} {trend.value}
@@ -103,15 +112,17 @@ function KPICard({
       </div>
     </>
   );
+  const className = `kpi-card group ${toneGlow[tone]}`;
   if (href) {
     return (
-      <Link to={href} className="kpi-card group">
+      <Link to={href} className={className}>
         {inner}
       </Link>
     );
   }
-  return <div className="kpi-card group">{inner}</div>;
+  return <div className={className}>{inner}</div>;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Pipeline stages (operationele dealflow)                             */
@@ -211,6 +222,8 @@ export default function DashboardPage() {
   }, [actieveDeals, store]);
   const totaalActieveDeals = pipelinePerFase.reduce((s, x) => s + x.aantal, 0) || 1;
   const maxAantal = Math.max(1, ...pipelinePerFase.map(x => x.aantal));
+  const maxGewogen = Math.max(0, ...pipelinePerFase.map(x => x.gewogen));
+
 
   // --- Forecast 30/60/90 (gewogen fee uit verwachteClosingdatum) ---
   const forecast = useMemo(() => {
@@ -334,24 +347,30 @@ export default function DashboardPage() {
             {pipelinePerFase.map(({ fase, aantal, waarde, gewogen }, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === pipelinePerFase.length - 1;
-              const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.24;
+              const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.26;
               const heightPct = (aantal / maxAantal) * 100;
               const pct = Math.round((aantal / totaalActieveDeals) * 100);
+              const isHotspot = gewogen > 0 && gewogen === maxGewogen;
               return (
                 <Link
                   key={fase}
                   to={`/deals?fase=${fase}`}
                   className={`pipeline-stage rounded-sm ${
                     isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
-                  }`}
+                  } ${isHotspot ? 'pipeline-stage--active' : ''}`}
                   style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
-                  title={`${DEAL_FASE_LABELS[fase]}: ${aantal} · ${formatCurrencyCompact(waarde)}`}
+                  title={`${DEAL_FASE_LABELS[fase]}: ${aantal} · ${formatCurrencyCompact(waarde)} · fee ${formatCurrencyCompact(gewogen)}`}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/70 truncate">
-                    {DEAL_FASE_LABELS[fase]}
-                  </p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/70 truncate">
+                      {DEAL_FASE_LABELS[fase]}
+                    </p>
+                    {isHotspot && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.18)]" aria-hidden />
+                    )}
+                  </div>
                   <div className="flex items-baseline gap-1.5 mt-1.5">
-                    <span className="text-xl font-semibold font-mono-data text-foreground leading-none">{aantal}</span>
+                    <span className="text-[22px] font-semibold font-mono-data text-foreground leading-none tracking-tight">{aantal}</span>
                     <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
                   </div>
                   <p className="text-[10px] font-mono-data text-muted-foreground mt-0.5 truncate">
@@ -359,17 +378,18 @@ export default function DashboardPage() {
                   </p>
                   <div className="mt-2 h-1 bg-foreground/5 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                      className="h-full bg-accent rounded-full bar-fill"
                       style={{ width: `${Math.max(4, heightPct)}%` }}
                     />
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1.5 truncate" title="Weighted fee">
-                    fee ~ <span className="font-mono-data text-foreground/70">{formatCurrencyCompact(gewogen)}</span>
+                    fee ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
                   </p>
                 </Link>
               );
             })}
           </div>
+
           {/* Mobiel */}
           <div className="md:hidden grid grid-cols-2 gap-2.5">
             {pipelinePerFase.map(({ fase, aantal, waarde }) => {
@@ -418,7 +438,7 @@ export default function DashboardPage() {
               Alle deals <ArrowRight className="h-3 w-3" />
             </Link>
           </header>
-          <div className="divide-y divide-border/70">
+          <div className="divide-y divide-border/60">
             {topDeals.map(deal => {
               const relatie = store.getRelatieById(deal.relatieId);
               const object  = store.getObjectById(deal.objectId);
@@ -426,26 +446,30 @@ export default function DashboardPage() {
                 <Link
                   key={deal.id}
                   to={`/deals/${deal.id}`}
-                  className="block px-5 py-3.5 hover:bg-muted/40 transition-colors group"
+                  className="row-hover block px-5 py-3.5 group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
+                        <p className="text-[14px] font-semibold text-foreground truncate tracking-tight">
                           {object?.titel ?? '—'}
                         </p>
-                        <ChevronRight className="h-3 w-3 text-muted-foreground/60 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-accent" />
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">
                         {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}
-                        {object?.plaats ? ` · ${object.plaats}` : ''}
+                        {object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}
                       </p>
-                      <div className="flex items-center gap-3 mt-1.5 text-[11px] font-mono-data text-muted-foreground">
+                      <div className="flex items-center gap-2 mt-2">
                         {object?.vraagprijs != null && (
-                          <span>{formatCurrencyCompact(object.vraagprijs)}</span>
+                          <span className="text-[11px] font-mono-data text-muted-foreground">
+                            {formatCurrencyCompact(object.vraagprijs)}
+                          </span>
                         )}
                         {deal.commissieBedrag != null && (
-                          <span className="text-accent">fee {formatCurrencyCompact(deal.commissieBedrag)}</span>
+                          <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">
+                            fee {formatCurrencyCompact(deal.commissieBedrag)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -460,6 +484,7 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
 
       {/* ============== SECTIE 4 — MATCHES + DEALFLOW HEALTH ============== */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
@@ -481,7 +506,7 @@ export default function DashboardPage() {
                 <Link
                   key={i}
                   to={`/objecten/${m.objectId}`}
-                  className="block px-5 py-3 hover:bg-muted/40 transition-colors"
+                  className="row-hover block px-5 py-3"
                 >
                   <div className="row-with-action">
                     <div className="row-flex">
@@ -649,7 +674,7 @@ function ActionCenter({
             <Link
               key={taak.id}
               to="/taken"
-              className="block px-5 py-3 hover:bg-muted/40 transition-colors"
+              className="row-hover block px-5 py-3"
             >
               <div className="row-with-action">
                 <div className="row-flex">
