@@ -17,9 +17,11 @@ type Props = {
   objectWoz?: number | null;
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
+  objectRawType?: string | null;
 };
 
-function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode }: {
+
+function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType }: {
   calculationId: string;
   taxSettings: ReturnType<typeof useTaxSettings>['settings'];
   objectArea: number | null;
@@ -27,7 +29,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
+  objectRawType?: string | null;
 }) {
+
   const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
@@ -86,7 +90,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         objectWoz={objectWoz}
         objectEnergyLabel={objectEnergyLabel}
         objectBouwjaar={objectBouwjaar}
+        objectRawType={objectRawType}
       />
+
 
       <div className="space-y-3">
         {scenarios.map((s) => {
@@ -111,10 +117,12 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                     objectWoz={objectWoz}
                     objectEnergyLabel={objectEnergyLabel}
                     objectBouwjaar={objectBouwjaar}
+                    objectRawType={objectRawType}
                     viewMode={viewMode}
                     onUpdate={updateScenario}
                     onDelete={deleteScenario}
                   />
+
                 </div>
               )}
             </div>
@@ -128,7 +136,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar }: Props) {
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType }: Props) {
   const { calculations, create, remove } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
@@ -176,8 +184,10 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
           objectWoz={objectWoz}
           objectEnergyLabel={objectEnergyLabel}
           objectBouwjaar={objectBouwjaar}
+          objectRawType={objectRawType}
           viewMode={viewMode}
         />
+
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
           Nog geen quickscan aangemaakt. Klik op "Nieuwe quickscan" om te starten.

@@ -27,18 +27,29 @@ export type ComputedOutputs = {
   marketAnnualRent: number;
   wwsCorrectedAnnualRent: number;
   correctedAnnualRent: number;
+  // NOI-opbouw
   noi: number;
+  noiMargin: number | null;
+  totalCorrectionPct: number;
+  vacancyCorrectionEur: number;
+  operatingCostsEur: number;
+  maintenanceCostsEur: number;
+  managementCostsEur: number;
+  otherCostsEur: number;
   pricePerM2Gbo: number | null;
   barPurchasePrice: number | null;
   barTotalInvestment: number | null;
   factorPurchasePrice: number | null;
   factorTotalInvestment: number | null;
+  /** NAR = NOI / totale investering × 100 */
+  narTotalInvestment: number | null;
   maximumAllInValue: number;
   maximumBid: number;
   conservativeBid: number;
   realisticBid: number;
   aggressiveBid: number;
   notInterestingAbove: number;
+  /** maximaleBieding - vraagprijs. Positief = ruimte boven vraagprijs. */
   differenceWithAskingPrice: number;
   requiredDiscount: number;
   dealScore: 'A' | 'B' | 'C' | 'reject';
@@ -49,3 +60,4 @@ export type ComputedOutputs = {
   recommendedNextStep: string;
   warnings: string[];
 };
+

@@ -1,156 +1,131 @@
-# Module "Vastgoedrekenen" — V1 implementatieplan
+## Vastgoedrekenen V1 — Verbeter- en stabilisatieronde
 
-Dit is een grote, modulaire toevoeging aan de bestaande CRM. Niets bestaands wordt aangepast of verwijderd. Hieronder beschrijf ik wat ik in V1 ga bouwen, in welke volgorde, en welke bewuste scope-keuzes ik maak om dit beheersbaar en kwalitatief te houden.
+Doel: V1 consistent, begrijpelijk en praktisch bruikbaar maken. Geen nieuwe grote features (geen WWS V2, PDF/CSV, bouwkostenbibliotheek, IRR/DCF).
 
-## Scope-keuzes voor V1
+---
 
-Het volledige document beschrijft de eindvisie. Voor een werkbare, stabiele V1 stel ik voor om in deze ronde te leveren:
+### 1. Centrale rekenlogica (één bron van waarheid)
 
-**In V1 (deze opdracht):**
-- Datamodel (alle 11 Supabase-tabellen + RLS)
-- Navigatie-item "Vastgoedrekenen" + tabblad op ObjectDetailPage
-- Quickscan + meerdere Scenario's per object
-- Componenten/Units (mixed-use)
-- Aankoopanalyse incl. automatische OVB met classificatie
-- Huuranalyse (basis: huidige/markt/gecorrigeerd, BAR, factor, NOI)
-- Handmatige kosten per scenario
-- Totale investering + kengetallen
-- Biedingsadvies (conservatief/realistisch/agressief)
-- Scenariovergelijking-tabel
-- Deal Snapshot bovenaan elk scenario
-- Risicoanalyse incl. automatische risicoregels
-- Deal score / risicoscore / complexiteitsscore / inputbetrouwbaarheid
-- Automatische conclusie + vervolgstapadvies
-- Weergavemodus (Begeleid/Compact/Expert) in Gebruikersbeheer
-- OVB-tarieven instelbaar onder Gebruikersbeheer → "Vastgoedrekenen instellingen"
-- Helpteksten/tooltips en "Hoe wordt dit berekend?" uitleg
-- Begeleide SOP (12 stappen) in Begeleid-modus
+- `src/lib/vastgoedrekenen/compute.ts` blijft enige engine.
+- `ScenarioVergelijking` gebruikt **exact dezelfde** `computeScenario()` output als `DealSnapshot` — geen aparte fallback-aannames meer.
+- Refactor `useScenarioChildren` aanroepen zodat overzicht en detail één hook delen met dezelfde inputs (rentChoice, OVB-mode, aannameprofiel, kostenstructuur).
+- Uniforme termen overal: **Totale investering**, **BAR op totale investering**, **Factor op totale investering**, **Maximale bieding** (term "Max bod" verwijderen uit alle UI).
 
-**In V1 lichter (minimale variant, uitbreidbaar):**
-- WWS-blok: kernvelden + indicatieve puntenberekening (vereenvoudigde formule op basis van m², WOZ, energielabel, kwaliteit) + segmentclassificatie + WWS-gecorrigeerde huur. Géén officiële WWS-calculator.
-- Uitpond-/splitsanalyse: blok met `sell_off_units` en kernberekeningen (bruto opbrengst, netto, marge), zonder gevoeligheidsanalyse-grafiek.
-- Transformatiescenario: extra velden binnen scenario + outputs (marge, BAR na transformatie). Geen aparte vergunningsworkflow.
-- Hold-vs-Sell-vergelijking: opgenomen in de scenariovergelijkingstabel (geen separate matrix).
-- Bedrijfsunits: ondersteund als component-type met de relevante velden; geen apart bedrijfsverzamel-dashboard.
+### 2. Verschil met vraagprijs
 
-**Expliciet later (niet in V1):**
-- Bouwkostenbibliotheek
-- DCF / IRR / cashflow-projectie meerjarig
-- Officiële WWS-puntencalculator (alle 200+ regels)
-- PDF-export
-- Financieringsmodule
-- Sensitiviteitsgrafieken
-- Portefeuilleanalyse
+- Formule: `verschil = maximaleBieding - vraagprijs`.
+- UI toont één van twee labels met kleur:
+  - `verschil >= 0`: "Biedingsruimte boven vraagprijs" (groen, `+ €…`)
+  - `verschil < 0`: "Benodigde prijsverlaging" (amber, `- €…`)
+- `differenceWithAskingPrice` in `ComputedOutputs` herzien (huidige formule gebruikt `realisticBid`, moet `maximumBid` worden).
 
-Als je liever wilt dat ik iets uit "later" tóch in V1 meeneem, of iets uit V1 juist uitstel, hoor ik dat graag vóór ik begin.
+### 3. OVB-modus volledig werkend
 
-## Architectuur
+- **Automatisch**: scenario.ovb_classification → percentage uit tax_settings; toon `pct` + bedrag.
+- **Per component**: UI in `ScenarioEditor` toont per component OVB-velden (waarde, classification, %, bedrag, methode); m²-fallback met waarschuwing; ontbrekend → blocker-waarschuwing.
+- **Handmatig**: `transfer_tax_percentage` en `transfer_tax_amount` invulbaar; bedrag is leidend; gele waarschuwing zichtbaar.
+- Gekozen modus werkt door in Snapshot, totale investering, BAR, factor, max bieding én vergelijking.
 
-```text
-src/
-├── pages/
-│   └── VastgoedrekenenPage.tsx          (hoofdmenu-pagina: lijst van quickscans)
-├── components/vastgoedrekenen/
-│   ├── VastgoedrekenenTab.tsx           (tabblad op ObjectDetailPage)
-│   ├── QuickscanList.tsx
-│   ├── QuickscanDetail.tsx
-│   ├── ScenarioCard.tsx
-│   ├── ScenarioEditor.tsx
-│   ├── DealSnapshot.tsx
-│   ├── ComponentenSectie.tsx
-│   ├── ComponentEditor.tsx
-│   ├── WwsUnitSectie.tsx
-│   ├── WwsUnitEditor.tsx
-│   ├── AankoopAnalyse.tsx
-│   ├── HuurAnalyse.tsx
-│   ├── KostenBlok.tsx
-│   ├── BiedingsAdvies.tsx
-│   ├── RisicoAnalyse.tsx
-│   ├── SellOffSectie.tsx
-│   ├── ScenarioVergelijking.tsx
-│   ├── AutomatischeConclusie.tsx
-│   ├── SOPStapper.tsx                   (begeleide modus)
-│   ├── HelpTooltip.tsx
-│   └── BerekeningUitleg.tsx
-├── lib/vastgoedrekenen/
-│   ├── types.ts                         (TS-types per tabel)
-│   ├── ovb.ts                           (OVB-classificatie + berekening, mixed-use toerekening)
-│   ├── huur.ts                          (BAR, factor, NOI, gecorrigeerde huur)
-│   ├── wws.ts                           (indicatieve puntenberekening + segment)
-│   ├── investering.ts                   (totale investering, prijs/m²)
-│   ├── bieding.ts                       (max bid, ranges)
-│   ├── scores.ts                        (deal/risico/complexiteit/betrouwbaarheid)
-│   ├── conclusie.ts                     (automatische conclusie + vervolgstap)
-│   ├── waarschuwingen.ts                (automatische warnings)
-│   └── defaults.ts                      (standaardwaarden, ranges)
-└── hooks/
-    ├── useVastgoedrekenen.tsx           (data-hook per object/calculation)
-    └── useVastgoedrekenenPrefs.tsx      (weergavemodus + user defaults)
+### 4. Velden, eenheden, suffixes
+
+- Alle inputs in `ScenarioEditor` krijgen suffix `€`, `%`, `m²` of `maanden` en duidelijke labels + placeholders.
+
+### 5–7. Aannameprofielen per vastgoedtype
+
+- Nieuw bestand `src/lib/vastgoedrekenen/profiles.ts` met profielen (Licht/Normaal/Conservatief/Zwaar/Handmatig) per type: residentieel, mixed-use, retail, kantoor, bedrijfsruimte, logistiek, zorg.
+- Scenario krijgt nieuwe velden (zie §16) opgeslagen in `notes` JSON of als nieuwe kolommen. **Keuze:** nieuwe kolommen via migratie (`assumption_profile`, `assumption_profile_reason`, `cost_structure`, `incentive_reserve`, `mjop_present`, `contract_checked`, `service_costs_checked`, `assumptions_manual`, `assumptions_source`, `assumptions_reliability`, `rent_source`).
+- Default profiel bepaald door objecttype/strategie (transformatie→Zwaar, uitponden→Conservatief, retail/kantoor/mixed-use→Conservatief, residentieel→Normaal).
+- Helptekst boven Huuranalyse, profiel-selector wijzigt de 5 percentages live.
+
+### 8. Bruto → NOI opbouw
+
+- Nieuwe component `NoiOpbouw.tsx`: tabel met bruto jaarhuur → correcties (% én €) → NOI, NOI-marge, BAR bruto, NAR.
+- `NAR = NOI / totalInvestment × 100` toegevoegd aan `ComputedOutputs`.
+
+### 9. Huurbron
+
+- Nieuw veld `rent_source`: `handmatig | componenten | wws_gecorrigeerd | handmatig_gecorrigeerd`.
+- Bij `componenten`: huidige + markthuur opgeteld uit `calculation_components.current_monthly_rent` / `market_monthly_rent`.
+
+### 10. Kostenstructuur
+
+- Veld `cost_structure` met 5 opties; bij triple-net/huurder-draagt: helptekst + handmatige aanpassing toegestaan zonder auto-verlaging; bij onbekend + commercieel: forceer minimaal Conservatief.
+
+### 11. Componenten/units praktischer
+
+- Helptekst boven sectie.
+- Componenten-velden uitklapbaar (Collapsible) met optionele extra's.
+- Doorwerking in huurtotalen via huurbron `componenten`.
+
+### 12. WWS koppelen aan wooncomponenten
+
+- Waarschuwing als type woning/appartement zonder WWS-units.
+- Knop "Maak WWS-units aan uit wooncomponenten" — kopieert naam, GBO, huur, WOZ, label.
+
+### 13. Rekenbasis-balk
+
+- `RekenbasisBar.tsx` boven Snapshot: huurbron, aannameprofiel, huurtype, OVB-modus, kostenstructuur, gewenste BAR, inputbetrouwbaarheid.
+
+### 14–15. Validatie & waarschuwingen
+
+- `validation.ts`: bouwt "Nog te controleren" lijst (WWS ontbreekt, OVB mixed-use, componentwaarden, contracten, label, WOZ, kostenstructuur, MJOP, contractduur).
+- Aannamewaarschuwingen volgens 10 regels in §15.
+
+### 17. Opslagstatus
+
+- `ScenarioEditor` toont "Niet opgeslagen / Laatst opgeslagen: …" en "Berekeningen bijgewerkt" badge. Live compute blijft client-side; vergelijking gebruikt dezelfde live engine.
+
+### 18. Quickscan defaults
+
+- Sectie "Quickscan defaults" inklapbaar in editor toont actieve defaults + uitlegtekst. Aankoopfee default = 2% (consistent met `VR_DEFAULTS`).
+
+### 19. Uitponden / transformatie
+
+- Strategie-afhankelijke banner in Snapshot.
+- Bij `uitponden`: max bieding-alt-berekening (netto uitpondopbrengst − marge) als extra getal naast huur-based; visueel labelen welke leidend is.
+- Bij `transformeren`: waarschuwingen bij ontbrekende transformatiekosten/vergunning/exit.
+
+---
+
+### Database migratie (nieuwe kolommen `calculation_scenarios`)
+
+```
+ALTER TABLE calculation_scenarios ADD COLUMN:
+  assumption_profile text DEFAULT 'conservatief',
+  assumption_profile_reason text,
+  assumptions_manual boolean DEFAULT false,
+  assumptions_source text,
+  assumptions_reliability text DEFAULT 'middel',
+  cost_structure text DEFAULT 'onbekend',
+  incentive_reserve boolean DEFAULT false,
+  mjop_present text DEFAULT 'onbekend',
+  contract_checked boolean DEFAULT false,
+  service_costs_checked boolean DEFAULT false,
+  rent_source text DEFAULT 'handmatig'
 ```
 
-Alle berekeningen zijn pure functions in `src/lib/vastgoedrekenen/`. UI-componenten zijn presentational. Outputs worden zowel client-side berekend (live preview tijdens invoer) als opgeslagen in `calculation_outputs` bij save (zodat scenariovergelijking en lijsten snel zijn zonder herberekening).
+### Bestanden
 
-## Database (Supabase-migratie)
+**Nieuw:**
+- `src/lib/vastgoedrekenen/profiles.ts` — aannameprofielen per type
+- `src/lib/vastgoedrekenen/validation.ts` — "nog te controleren" + waarschuwingen §15
+- `src/components/vastgoedrekenen/RekenbasisBar.tsx`
+- `src/components/vastgoedrekenen/NoiOpbouw.tsx`
+- `src/components/vastgoedrekenen/NogTeControleren.tsx`
+- `src/components/vastgoedrekenen/AannameProfielSelect.tsx`
+- `src/components/vastgoedrekenen/OvbModusSectie.tsx` (per-component + handmatig UI)
+- `src/components/vastgoedrekenen/QuickscanDefaults.tsx`
 
-Eén migratie met de 11 tabellen exact volgens spec, plus:
-- RLS aan, vier policies per tabel via `is_intern_gebruiker(auth.uid())` (zelfde patroon als bestaande tabellen).
-- `user_calculation_preferences` en `feed_tokens`-stijl: select/insert/update/delete eigen rijen (`user_id = auth.uid()`).
-- `vastgoedrekenen_tax_settings`: select voor intern, insert/update/delete alleen admin.
-- Triggers voor `updated_at` via bestaande `update_updated_at_column()`.
-- Geen FK's naar `auth.users`; wel logische FK's tussen calc-tabellen (zachte koppeling via uuid, conform projectstijl).
-- Indexen op alle `*_id` koppel-kolommen en op `object_id`.
-- Seed: 1 rij in `vastgoedrekenen_tax_settings` met defaults (2 / 8 / 10.4).
+**Aanpassen:**
+- `src/lib/vastgoedrekenen/compute.ts` — NAR, differenceWithAskingPrice met maxBid, profiel toegepast, uitpond/transformatie-paden
+- `src/lib/vastgoedrekenen/types.ts` — nieuwe velden + NAR
+- `src/lib/vastgoedrekenen/huur.ts` — huurbron `componenten`
+- `src/lib/vastgoedrekenen/defaults.ts` — terminologie
+- `src/components/vastgoedrekenen/ScenarioEditor.tsx` — eenheden, OVB, huurbron, profiel, kostenstructuur, opslagstatus
+- `src/components/vastgoedrekenen/DealSnapshot.tsx` — Verschil met vraagprijs, NAR, term "Maximale bieding"
+- `src/components/vastgoedrekenen/ScenarioVergelijking.tsx` — zelfde compute, term-uniformiteit
+- `src/components/vastgoedrekenen/VastgoedrekenenTab.tsx` — Rekenbasis + Nog te controleren bovenaan
+- `src/hooks/useVastgoedrekenen.tsx` — nieuwe velden in CRUD
 
-## Belangrijkste rekenlogica
-
-**OVB (`lib/vastgoedrekenen/ovb.ts`):**
-- Per scenario: classificatie → percentage uit settings → bedrag = grondslag × pct.
-- Mixed-use: som per component. Methode `value` (componentwaarde × pct), `m2` (pro rata aankoopprijs op basis van m², dan × pct) of `manual`.
-- Handmatige override per scenario en per component.
-
-**Huur:**
-- `gecorrigeerde_huur`: keuze (huidig / markt / wws / handmatig). Bij wonen + segment ≠ vrije sector standaard min(markt, wws-max).
-- BAR = jaarhuur / grondslag × 100. Factor = grondslag / jaarhuur. NOI = brutohuur − leegstand − exploitatie − onderhoud − beheer − overige.
-
-**WWS (vereenvoudigde V1):**
-- Punten ≈ woonopp×1 + overige inpandig×0.75 + buiten×0.35 + WOZ-component (WOZ/m² → punten via vereenvoudigde staffel) + keuken/badkamer/verwarming/energielabel-bonussen + monument-bonus.
-- Segment: ≤143 sociaal, 144–186 midden, ≥187 vrij. Max huur ≈ punten × tarief uit settings (default €6,00/punt voor V1, instelbaar).
-- Duidelijk gelabeld als "indicatief" met waarschuwing dat officiële WWS-toetsing nodig is.
-
-**Biedingsadvies:**
-- Max all-in = gecorr. jaarhuur / gewenste BAR.
-- Max bod = max all-in − aankoopkosten − kosten − onvoorzien − financieringskosten − veiligheidsmarge.
-- Conservatief/realistisch/agressief via gewenste BAR ± stap (default 0,5%-punt).
-
-**Scores:**
-- Inputbetrouwbaarheid: % ingevulde kernvelden (vraagprijs, opp, huur, WOZ, label, bouwjaar, kosten).
-- Risicoscore: weighted sum van risicoflags; ≥2 hoog → hoog.
-- Complexiteit: regels op strategie/mixed-use/transformatie/splitsen/fundering/monument.
-- Deal score (A/B/C/Reject): BAR-totale-investering, marge, risico, betrouwbaarheid.
-
-## Integratie in bestaande app
-
-- `src/App.tsx`: route `/vastgoedrekenen` toevoegen.
-- `src/components/AppLayout.tsx`: nav-item "Vastgoedrekenen" (Calculator-icoon) — geplaatst tussen Objecten-groep en Acquisitie, met `groupEnd`.
-- `src/pages/ObjectDetailPage.tsx`: extra tab "Vastgoedrekenen" toegevoegd na bestaande tabs. Alle bestaande tabs/secties blijven onveranderd.
-- `src/pages/AdminPage.tsx`: nieuwe sectie "Vastgoedrekenen-instellingen" met OVB-tarieven (admin only) en "Vastgoedrekenen-weergave" per gebruiker.
-
-Geen wijzigingen aan bestaande tabellen, RLS, pipelines, matching, of relatie-/object-velden.
-
-## Huisstijl
-
-Bestaande tokens uit `index.css` worden hergebruikt (de huisstijlkleuren navy/goud/wit zitten daar al). Geen nieuwe kleuren hardcoded; alleen semantische tokens en bestaande badge/card-componenten.
-
-## Volgorde van implementatie
-
-1. Supabase-migratie (11 tabellen + RLS + seed defaults).
-2. Types + pure rekenfuncties in `lib/vastgoedrekenen/` met basistests.
-3. Data-hook + preferences-hook.
-4. UI-bouwstenen: HelpTooltip, BerekeningUitleg, SOPStapper.
-5. Scenario-editor met alle blokken (aankoop, huur, componenten, WWS, kosten, biedingsadvies, risico, conclusie).
-6. Quickscan-detail + scenariovergelijking + Deal Snapshot.
-7. Tabblad op ObjectDetailPage + hoofdmenu-pagina.
-8. AdminPage-uitbreiding (OVB-settings + weergavemodus).
-9. Sanity-pass: build schoon, responsive check mobiel/desktop, waarschuwingen valideren.
-
-Ben je akkoord met deze scope en aanpak? Bij akkoord begin ik bij stap 1 (migratie).
+### Out of scope (later)
+WWS V2, PDF/CSV-export, bouwkostenbibliotheek, IRR/DCF, uitgebreide financiering, marktdata-koppelingen.
