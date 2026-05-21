@@ -23,37 +23,65 @@ import {
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
 const DREMPEL = 3;
-const LAATST_GEZIEN_KEY = 'bito-matches-laatst-gezien';
+const SEEN_KEYS_STORAGE = 'bito-matches-seen-keys-v2';
+const SEEN_INIT_STORAGE = 'bito-matches-seen-initialized-v2';
 
-// Bepaalt of een match "nieuw" is sinds laatst-gezien tijd.
-// Een match telt als nieuw als het object OF het zoekprofiel is bewerkt
-// na het laatst-gezien moment.
-function isMatchNieuw(
-  objectUpdatedAt: string | undefined,
-  zoekprofielUpdatedAt: string | undefined,
-  laatstGezien: number,
-): boolean {
-  const objTime = objectUpdatedAt ? new Date(objectUpdatedAt).getTime() : 0;
-  const zpTime = zoekprofielUpdatedAt ? new Date(zoekprofielUpdatedAt).getTime() : 0;
-  const meestRecent = Math.max(objTime, zpTime);
-  return meestRecent > laatstGezien;
+function matchKey(objectId: string, zoekprofielId: string): string {
+  return `${objectId}::${zoekprofielId}`;
+}
+
+function loadSeen(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SEEN_KEYS_STORAGE);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen(set: Set<string>): void {
+  try {
+    localStorage.setItem(SEEN_KEYS_STORAGE, JSON.stringify([...set]));
+  } catch {
+    // ignore
+  }
 }
 
 export default function MatchAlertBadge() {
   const store = useDataStore();
   const [open, setOpen] = useState(false);
-  const [laatstGezien, setLaatstGezien] = useState<number>(0);
+  const [seenKeys, setSeenKeys] = useState<Set<string>>(() => new Set());
   const ref = useRef<HTMLDivElement>(null);
 
-  // Laad laatst-gezien tijd uit localStorage bij mount
+  // Bereken alle matches met score >= drempel
+  const matches = useMemo(() => {
+    const alle = getAllMatchesFromData(store.zoekprofielen, store.objecten);
+    return alle
+      .filter(m => m.score >= DREMPEL)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const zpA = store.zoekprofielen.find(z => z.id === a.zoekprofielId);
+        const zpB = store.zoekprofielen.find(z => z.id === b.zoekprofielId);
+        return (zpB?.prioriteit ?? 3) - (zpA?.prioriteit ?? 3);
+      });
+  }, [store.zoekprofielen, store.objecten]);
+
+  // Init: bij allereerste mount markeren we alle bestaande matches als gezien,
+  // zodat de gebruiker niet meteen een vol tellertje krijgt door bestaande data.
   useEffect(() => {
-    try {
-      const v = localStorage.getItem(LAATST_GEZIEN_KEY);
-      setLaatstGezien(v ? parseInt(v, 10) : 0);
-    } catch {
-      // localStorage kan geblokkeerd zijn (private browsing) — dan altijd 0
-      setLaatstGezien(0);
+    const stored = loadSeen();
+    const initialized = localStorage.getItem(SEEN_INIT_STORAGE) === '1';
+    if (!initialized) {
+      const all = new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
+      saveSeen(all);
+      try { localStorage.setItem(SEEN_INIT_STORAGE, '1'); } catch { /* ignore */ }
+      setSeenKeys(all);
+    } else {
+      setSeenKeys(stored);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sluit dropdown bij klik buiten
@@ -68,62 +96,27 @@ export default function MatchAlertBadge() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Markeer matches als gezien zodra de bel wordt geopend
+  // Markeer alle huidige matches als gezien
   const markeerAlsGezien = useCallback(() => {
-    const nu = Date.now();
-    try {
-      localStorage.setItem(LAATST_GEZIEN_KEY, String(nu));
-    } catch {
-      // private browsing — geen probleem, in-memory state werkt nog
-    }
-    setLaatstGezien(nu);
-  }, []);
+    const next = new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
+    saveSeen(next);
+    setSeenKeys(next);
+  }, [matches]);
 
   const handleToggle = () => {
-    if (!open) {
-      // Bij openen: direct markeren als gezien (badge verdwijnt)
-      markeerAlsGezien();
-    }
+    if (!open) markeerAlsGezien();
     setOpen(o => !o);
   };
 
-  // Bereken alle matches met score >= drempel.
-  // Gesorteerd: hoogste score eerst, dan op zoekprofiel-prioriteit.
-  const matches = useMemo(() => {
-    const alle = getAllMatchesFromData(store.zoekprofielen, store.objecten);
-    return alle
-      .filter(m => m.score >= DREMPEL)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const zpA = store.zoekprofielen.find(z => z.id === a.zoekprofielId);
-        const zpB = store.zoekprofielen.find(z => z.id === b.zoekprofielId);
-        return (zpB?.prioriteit ?? 3) - (zpA?.prioriteit ?? 3);
-      });
-  }, [store.zoekprofielen, store.objecten]);
-
-  // Bepaal welke matches NIEUW zijn (voor het tellertje)
-  const nieuweMatches = useMemo(() => {
-    if (laatstGezien === 0) {
-      // Eerste keer (geen localStorage waarde): toon alleen matches uit
-      // de laatste 7 dagen om niet bij eerste gebruik direct te beginnen
-      // met "30 nieuwe matches" als de hele history wordt geteld.
-      const zevenDagenGeleden = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      return matches.filter(m => {
-        const obj = store.getObjectById(m.objectId);
-        const zp = store.zoekprofielen.find(z => z.id === m.zoekprofielId);
-        return isMatchNieuw(obj?.updatedAt, zp?.updatedAt, zevenDagenGeleden);
-      });
-    }
-    return matches.filter(m => {
-      const obj = store.getObjectById(m.objectId);
-      const zp = store.zoekprofielen.find(z => z.id === m.zoekprofielId);
-      return isMatchNieuw(obj?.updatedAt, zp?.updatedAt, laatstGezien);
-    });
-  }, [matches, laatstGezien, store]);
+  const nieuweMatches = useMemo(
+    () => matches.filter(m => !seenKeys.has(matchKey(m.objectId, m.zoekprofielId))),
+    [matches, seenKeys],
+  );
 
   const aantalNieuw = nieuweMatches.length;
   const aantalTotaal = matches.length;
   const top = matches.slice(0, 8);
+
 
   return (
     <div className="relative" ref={ref}>

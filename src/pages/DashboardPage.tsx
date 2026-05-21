@@ -278,25 +278,55 @@ export default function DashboardPage() {
         }
       />
 
-      {/* ============== SECTIE 1 — EXECUTIVE SNAPSHOT ============== */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* ============== SECTIE 1 — HERO + SECONDARY KPI ============== */}
+      <Link to="/deals" className="kpi-hero block group">
+        <div className="relative z-[1] flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="kpi-label">Pipeline waarde</p>
+            <p className="kpi-hero-value mt-2.5">{formatCurrencyCompact(pipelineWaardeTotaal)}</p>
+            <p className="text-[12px] text-muted-foreground mt-2.5 tracking-tight">
+              Totale potentiële dealwaarde · {actieveDeals.length} actieve deals
+            </p>
+          </div>
+          <span className="hidden sm:flex h-12 w-12 rounded-2xl bg-primary text-primary-foreground items-center justify-center shrink-0 shadow-md ring-1 ring-primary/20 transition-transform group-hover:scale-105">
+            <Building2 className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+        </div>
+        <div className="relative z-[1] mt-5 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 sm:gap-5">
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Verwachte fee</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none truncate">
+              {formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">In closing</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">
+              {closingDeals.length}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Actieve kopers</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">
+              {warmeRelaties.length}
+            </p>
+          </div>
+        </div>
+      </Link>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4">
         <KPICard
-          label="Pipeline waarde"
-          value={
-            <>
-              <span className="sm:hidden">{formatCurrencyCompact(pipelineWaardeTotaal)}</span>
-              <span className="hidden sm:inline">{formatCurrencyCompact(pipelineWaardeTotaal)}</span>
-            </>
-          }
-          hint={`${actieveDeals.length} actieve deals`}
-          icon={Building2}
+          label="Actieve deals"
+          value={actieveDeals.length}
+          hint={`${formatCurrencyCompact(pipelineWaardeTotaal)} pipeline`}
+          icon={Activity}
           tone="primary"
           href="/deals"
         />
         <KPICard
-          label="Weighted fee"
+          label="Verwachte fee"
           value={formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
-          hint={`${formatCurrencyCompact(commissieStats.pipelineBedragTotaal)} ongewogen`}
+          hint="Op basis van slaagkans"
           icon={Banknote}
           tone="accent"
           href="/rapportage"
@@ -318,9 +348,9 @@ export default function DashboardPage() {
           href="/taken"
         />
         <KPICard
-          label="Nieuwe matches"
-          value={sterkeMatches.length}
-          hint={`${matches.length} totaal · score ≥ 70`}
+          label="Actieve kopers"
+          value={warmeRelaties.length}
+          hint={`${sterkeMatches.length} sterke kansen`}
           icon={Sparkles}
           tone="accent"
         />
@@ -390,26 +420,34 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* Mobiel */}
-          <div className="md:hidden grid grid-cols-2 gap-2.5">
+          {/* Mobiel — focus op dealwaarde en momentum */}
+          <div className="md:hidden grid grid-cols-2 gap-2">
             {pipelinePerFase.map(({ fase, aantal, waarde }) => {
               const pct = Math.round((aantal / totaalActieveDeals) * 100);
+              const intensity = 0.04 + (pipelineFases.indexOf(fase) / Math.max(1, pipelineFases.length - 1)) * 0.14;
               return (
                 <Link
                   key={fase}
                   to={`/deals?fase=${fase}`}
-                  className="rounded-lg border border-border/70 px-3 py-2.5 hover:border-accent/40 transition-colors"
+                  className="relative overflow-hidden rounded-xl border border-border/70 px-3 py-2.5 active:scale-[0.98] transition-all min-w-0"
+                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
                     {DEAL_FASE_LABELS[fase]}
                   </p>
-                  <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-lg font-semibold font-mono-data text-foreground">{aantal}</span>
-                    <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
-                  </div>
-                  <p className="text-[10px] font-mono-data text-muted-foreground mt-0.5">
+                  <p className="font-mono-data text-[15px] font-semibold text-foreground mt-1.5 leading-none truncate">
                     {formatCurrencyCompact(waarde)}
                   </p>
+                  <div className="flex items-baseline gap-1.5 mt-1.5">
+                    <span className="text-[12px] font-mono-data font-semibold text-foreground/80">{aantal}</span>
+                    <span className="text-[10px] text-muted-foreground">deals · {pct}%</span>
+                  </div>
+                  <div className="mt-2 h-0.5 bg-foreground/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent rounded-full bar-fill"
+                      style={{ width: `${Math.max(6, (aantal / maxAantal) * 100)}%` }}
+                    />
+                  </div>
                 </Link>
               );
             })}
@@ -536,7 +574,7 @@ export default function DashboardPage() {
             </Link>
           </header>
           <div className="p-5 grid grid-cols-2 gap-x-5 gap-y-4">
-            <MiniStat label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" />
+            <MiniStat label="Actieve kopers" value={warmeRelaties.length} hint="Warm + actief" />
             <MiniStat label="Actieve objecten" value={actieveObjecten.length} />
             <MiniStat label="Beschikbare objecten" value={beschikbareObjecten} />
             <MiniStat
@@ -550,10 +588,10 @@ export default function DashboardPage() {
               tone={dealsZonderActiviteit > 0 ? 'warning' : 'normal'}
               hint="Deals zonder follow-up"
             />
-            <MiniStat label="Sterke matches" value={sterkeMatches.length} hint="Score ≥ 70" />
+            <MiniStat label="Sterke kansen" value={sterkeMatches.length} hint="Score ≥ 70" />
           </div>
           <div className="px-5 pb-5 pt-1 border-t border-border/60">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Warme relaties</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Top actieve kopers</p>
             <div className="space-y-1.5">
               {warmeRelaties.slice(0, 3).map(rel => (
                 <Link
@@ -568,7 +606,7 @@ export default function DashboardPage() {
                 </Link>
               ))}
               {warmeRelaties.length === 0 && (
-                <p className="text-xs text-muted-foreground">Geen warme leads.</p>
+                <p className="text-xs text-muted-foreground">Geen actieve kopers.</p>
               )}
             </div>
           </div>
@@ -849,7 +887,7 @@ function AcquisitieDashboardSectie() {
         <MiniStat label="Actieve targets" value={actief.length} />
         <MiniStat label="Verlopen acties" value={verlopen.length} tone={verlopen.length > 0 ? 'destructive' : 'normal'} />
         <MiniStat label="Reacties / mnd" value={reactiesMaand.length} />
-        <MiniStat label="Warme leads" value={warm.length} />
+        <MiniStat label="Actieve kopers" value={warm.length} />
         <MiniStat label="Objecten uit acq." value={objectenUit.length} />
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Beste campagne</p>
