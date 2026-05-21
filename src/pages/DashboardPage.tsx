@@ -239,54 +239,8 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {totaalZonderActie > 0 && (
-          <section className="section-card border-warning/40">
-            <header className="section-header">
-              <h2 className="section-title flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-warning" /> Zonder volgende actie ({totaalZonderActie})
-              </h2>
-            </header>
-            <div className="divide-y divide-border/70">
-              {dealsZonderActie.slice(0, 4).map(d => {
-                const obj = store.getObjectById(d.objectId);
-                const rel = store.getRelatieById(d.relatieId);
-                return (
-                  <Link key={d.id} to={`/deals/${d.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                    <div className="row-with-action">
-                      <div className="row-flex">
-                        <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          Deal · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
-                        </p>
-                      </div>
-                      <div className="row-action"><GeenActieBadge /></div>
-                    </div>
-                  </Link>
-                );
-              })}
-              {kandidatenZonderActie.slice(0, 4).map(k => {
-                const obj = store.getObjectById(k.objectId);
-                const rel = store.getRelatieById(k.relatieId);
-                return (
-                  <Link key={k.id} to={`/objecten/${k.objectId}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                    <div className="row-with-action">
-                      <div className="row-flex">
-                        <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          Kandidaat · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
-                        </p>
-                      </div>
-                      <div className="row-action"><GeenActieBadge /></div>
-                    </div>
-                  </Link>
-                );
-              })}
-              {totaalZonderActie > 8 && (
-                <p className="px-5 py-2 text-xs text-muted-foreground">+ {totaalZonderActie - 8} meer…</p>
-              )}
-            </div>
-          </section>
-        )}
+
+
 
         <FocusList
           title="Warme leads"
