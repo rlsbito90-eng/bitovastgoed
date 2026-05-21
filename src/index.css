@@ -128,6 +128,13 @@
   .section-header {
     @apply px-4 lg:px-6 py-3 lg:py-4 border-b border-border/50 flex items-center justify-between gap-3;
   }
+  /* Mobile: tighten inner section body padding so panels feel edge-to-edge */
+  @media (max-width: 640px) {
+    .section-card > .p-5,
+    .section-card > .p-6 { padding: 1rem; }
+    .section-card > .p-5.space-y-5 > * + *,
+    .section-card > .p-5.space-y-4 > * + * { margin-top: 0.875rem; }
+  }
   .section-title {
     @apply text-[13px] font-semibold text-foreground tracking-tight min-w-0;
     letter-spacing: -0.015em;
