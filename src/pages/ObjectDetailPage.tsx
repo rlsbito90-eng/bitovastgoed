@@ -41,6 +41,7 @@ import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
+import ObjectDossierCard from '@/components/object/dossier/ObjectDossierCard';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -626,6 +627,11 @@ export default function ObjectDetailPage() {
         </div>
       </div>
 
+      <ObjectDossierCard
+        objectId={object.id}
+        objectRecord={object as unknown as Record<string, unknown>}
+      />
+
       <section id="vastgoedrekenen" className="section-card p-5">
         <VastgoedrekenenTab
           objectId={object.id}
@@ -637,6 +643,7 @@ export default function ObjectDetailPage() {
         />
 
       </section>
+
 
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
