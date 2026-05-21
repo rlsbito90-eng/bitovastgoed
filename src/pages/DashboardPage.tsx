@@ -121,11 +121,11 @@ export default function DashboardPage() {
           }
           hint={`${actieveDeals.length} lopende deals`}
           icon={TrendingUp}
-          highlight
+          tone="primary"
         />
-        <KPICard label="Nieuwe matches" value={matches.length} hint="Op basis van zoekprofielen" icon={Zap} highlight />
-        <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} />
-        <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} />
+        <KPICard label="Nieuwe matches" value={matches.length} hint="Op basis van zoekprofielen" icon={Zap} tone="accent" />
+        <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} tone="muted" />
+        <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} tone="success" />
       </div>
 
       {/* Commissie & successen */}
