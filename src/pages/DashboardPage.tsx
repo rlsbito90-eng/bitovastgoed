@@ -18,40 +18,46 @@ function KPICard({
   hint,
   icon: Icon,
   tone = 'primary',
+  trend,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon: React.ElementType;
   tone?: 'primary' | 'accent' | 'success' | 'muted';
+  trend?: { value: string; up?: boolean };
 }) {
   const toneClasses: Record<string, string> = {
-    primary: 'bg-primary/95 text-primary-foreground',
+    primary: 'bg-primary text-primary-foreground',
     accent:  'bg-accent/15 text-accent',
     success: 'bg-success/15 text-success',
     muted:   'bg-muted text-muted-foreground',
   };
   return (
-    <div className="relative section-card p-6 flex flex-col gap-4 min-w-0 transition-shadow hover:shadow-md">
+    <div className="kpi-card group">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.08em] leading-tight">
-            {label}
-          </p>
-          <p className="mt-3 text-[28px] lg:text-[32px] font-semibold text-foreground font-mono-data leading-none break-words">
-            {value}
-          </p>
+          <p className="kpi-label">{label}</p>
+          <p className="kpi-value">{value}</p>
         </div>
         <span className={`kpi-badge ${toneClasses[tone]}`}>
-          <Icon className="h-5 w-5" />
+          <Icon className="h-[18px] w-[18px]" />
         </span>
       </div>
-      {hint && (
-        <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>
-      )}
+      <div className="flex items-center justify-between gap-2">
+        {hint && <p className="kpi-hint">{hint}</p>}
+        {trend && (
+          <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ${
+            trend.up === false ? 'text-destructive bg-destructive/10' : 'text-success bg-success/10'
+          }`}>
+            {trend.up === false ? '▾' : '▴'} {trend.value}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
+
 
 const pipelineFases: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing'];
 
