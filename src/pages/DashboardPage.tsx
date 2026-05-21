@@ -566,7 +566,7 @@ export default function DashboardPage() {
             </Link>
           </header>
           <div className="p-5 grid grid-cols-2 gap-x-5 gap-y-4">
-            <MiniStat label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" />
+            <MiniStat label="Actieve kopers" value={warmeRelaties.length} hint="Warm + actief" />
             <MiniStat label="Actieve objecten" value={actieveObjecten.length} />
             <MiniStat label="Beschikbare objecten" value={beschikbareObjecten} />
             <MiniStat
@@ -580,10 +580,10 @@ export default function DashboardPage() {
               tone={dealsZonderActiviteit > 0 ? 'warning' : 'normal'}
               hint="Deals zonder follow-up"
             />
-            <MiniStat label="Sterke matches" value={sterkeMatches.length} hint="Score ≥ 70" />
+            <MiniStat label="Sterke kansen" value={sterkeMatches.length} hint="Score ≥ 70" />
           </div>
           <div className="px-5 pb-5 pt-1 border-t border-border/60">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Warme relaties</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Top actieve kopers</p>
             <div className="space-y-1.5">
               {warmeRelaties.slice(0, 3).map(rel => (
                 <Link
@@ -598,7 +598,7 @@ export default function DashboardPage() {
                 </Link>
               ))}
               {warmeRelaties.length === 0 && (
-                <p className="text-xs text-muted-foreground">Geen warme leads.</p>
+                <p className="text-xs text-muted-foreground">Geen actieve kopers.</p>
               )}
             </div>
           </div>
