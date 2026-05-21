@@ -347,24 +347,30 @@ export default function DashboardPage() {
             {pipelinePerFase.map(({ fase, aantal, waarde, gewogen }, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === pipelinePerFase.length - 1;
-              const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.24;
+              const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.26;
               const heightPct = (aantal / maxAantal) * 100;
               const pct = Math.round((aantal / totaalActieveDeals) * 100);
+              const isHotspot = gewogen > 0 && gewogen === maxGewogen;
               return (
                 <Link
                   key={fase}
                   to={`/deals?fase=${fase}`}
                   className={`pipeline-stage rounded-sm ${
                     isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
-                  }`}
+                  } ${isHotspot ? 'pipeline-stage--active' : ''}`}
                   style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
-                  title={`${DEAL_FASE_LABELS[fase]}: ${aantal} · ${formatCurrencyCompact(waarde)}`}
+                  title={`${DEAL_FASE_LABELS[fase]}: ${aantal} · ${formatCurrencyCompact(waarde)} · fee ${formatCurrencyCompact(gewogen)}`}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/70 truncate">
-                    {DEAL_FASE_LABELS[fase]}
-                  </p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/70 truncate">
+                      {DEAL_FASE_LABELS[fase]}
+                    </p>
+                    {isHotspot && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.18)]" aria-hidden />
+                    )}
+                  </div>
                   <div className="flex items-baseline gap-1.5 mt-1.5">
-                    <span className="text-xl font-semibold font-mono-data text-foreground leading-none">{aantal}</span>
+                    <span className="text-[22px] font-semibold font-mono-data text-foreground leading-none tracking-tight">{aantal}</span>
                     <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
                   </div>
                   <p className="text-[10px] font-mono-data text-muted-foreground mt-0.5 truncate">
@@ -372,17 +378,18 @@ export default function DashboardPage() {
                   </p>
                   <div className="mt-2 h-1 bg-foreground/5 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                      className="h-full bg-accent rounded-full bar-fill"
                       style={{ width: `${Math.max(4, heightPct)}%` }}
                     />
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1.5 truncate" title="Weighted fee">
-                    fee ~ <span className="font-mono-data text-foreground/70">{formatCurrencyCompact(gewogen)}</span>
+                    fee ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
                   </p>
                 </Link>
               );
             })}
           </div>
+
           {/* Mobiel */}
           <div className="md:hidden grid grid-cols-2 gap-2.5">
             {pipelinePerFase.map(({ fase, aantal, waarde }) => {
