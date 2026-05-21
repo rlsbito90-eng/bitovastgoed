@@ -178,7 +178,6 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
         open={taakOpen}
         onOpenChange={(o) => { setTaakOpen(o); if (!o) setTaakPreset(null); }}
         defaultObjectId={objectId}
-        defaultTitel={taakPreset?.title}
       />
     </section>
   );
