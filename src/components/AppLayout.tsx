@@ -102,6 +102,33 @@ function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
     </DropdownMenu>
   );
 }
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const term = q.trim();
+    if (!term) return;
+    // Eenvoudige routing: doorsturen naar relaties met zoekterm in URL
+    navigate(`/relaties?q=${encodeURIComponent(term)}`);
+  }
+  return (
+    <form onSubmit={submit} className="hidden md:flex items-center gap-2 w-full max-w-md">
+      <div className="relative w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Zoek relaties, objecten, deals…"
+          className="w-full h-9 pl-9 pr-16 rounded-lg bg-muted/60 border border-transparent focus:border-border focus:bg-card text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/30 transition-all"
+        />
+        <kbd className="hidden lg:inline-flex absolute right-2 top-1/2 -translate-y-1/2 items-center gap-0.5 rounded border border-border/70 bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+          ⌘K
+        </kbd>
+      </div>
+    </form>
+  );
+}
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
