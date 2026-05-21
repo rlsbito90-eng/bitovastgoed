@@ -17,30 +17,38 @@ function KPICard({
   value,
   hint,
   icon: Icon,
-  highlight = false,
+  tone = 'primary',
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon: React.ElementType;
-  highlight?: boolean;
+  tone?: 'primary' | 'accent' | 'success' | 'muted';
 }) {
+  const toneClasses: Record<string, string> = {
+    primary: 'bg-primary/95 text-primary-foreground',
+    accent:  'bg-accent/15 text-accent',
+    success: 'bg-success/15 text-success',
+    muted:   'bg-muted text-muted-foreground',
+  };
   return (
-    <div
-      className={`relative section-card overflow-hidden p-5 flex flex-col gap-3 min-w-0 ${
-        highlight ? 'accent-rule' : ''
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight break-words min-w-0">
-          {label}
+    <div className="relative section-card p-6 flex flex-col gap-4 min-w-0 transition-shadow hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.08em] leading-tight">
+            {label}
+          </p>
+          <p className="mt-3 text-[28px] lg:text-[32px] font-semibold text-foreground font-mono-data leading-none break-words">
+            {value}
+          </p>
+        </div>
+        <span className={`kpi-badge ${toneClasses[tone]}`}>
+          <Icon className="h-5 w-5" />
         </span>
-        <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${highlight ? 'text-accent' : 'text-muted-foreground/70'}`} />
       </div>
-      <p className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none break-words min-w-0">
-        {value}
-      </p>
-      {hint && <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>}
+      {hint && (
+        <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>
+      )}
     </div>
   );
 }
