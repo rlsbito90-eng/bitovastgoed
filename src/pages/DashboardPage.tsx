@@ -131,29 +131,46 @@ export default function DashboardPage() {
       {/* Commissie & successen */}
       <CommissieWidget />
 
-      {/* Pipeline funnel */}
+      {/* Pipeline funnel — chevron stappen */}
       <section className="section-card">
         <header className="section-header">
-          <h2 className="section-title">Deals per fase</h2>
+          <div>
+            <h2 className="section-title">Pipeline overzicht</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Deals per fase · live</p>
+          </div>
           <Link to="/deals" className="section-link inline-flex items-center gap-1">
             Alle deals <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
-        <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-5">
-          {dealsPerFase.map(({ fase, aantal }) => (
-            <div key={fase} className="space-y-2 min-w-0">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider capitalize truncate">{fase}</span>
-                <span className="text-base font-semibold text-foreground font-mono-data">{aantal}</span>
-              </div>
-              <div className="h-1 bg-muted rounded-full overflow-hidden">
+        <div className="p-5">
+          <div className="hidden md:flex items-stretch gap-1.5">
+            {dealsPerFase.map(({ fase, aantal }, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === dealsPerFase.length - 1;
+              const intensity = 0.05 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.18;
+              return (
                 <div
-                  className="h-full bg-accent transition-all"
-                  style={{ width: `${(aantal / maxAantal) * 100}%` }}
-                />
+                  key={fase}
+                  className={`flex-1 min-w-0 px-5 py-4 ${
+                    isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
+                  }`}
+                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground/70 truncate capitalize">{fase}</p>
+                  <p className="text-base font-semibold font-mono-data text-foreground mt-1">{aantal}</p>
+                </div>
+              );
+            })}
+          </div>
+          {/* Mobiel: simpele grid */}
+          <div className="md:hidden grid grid-cols-2 gap-3">
+            {dealsPerFase.map(({ fase, aantal }) => (
+              <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
+                <p className="text-lg font-semibold font-mono-data text-foreground mt-0.5">{aantal}</p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
