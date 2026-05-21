@@ -392,20 +392,29 @@ export type Database = {
         Row: {
           advisory_costs: number | null
           asking_price: number | null
+          assumption_profile: string | null
+          assumption_profile_reason: string | null
+          assumptions_manual: boolean | null
+          assumptions_reliability: string | null
+          assumptions_source: string | null
           buyer_fee_amount: number | null
           buyer_fee_percentage: number | null
           buyer_fee_vat_percentage: number | null
           calculation_id: string
+          contract_checked: boolean | null
+          cost_structure: string | null
           created_at: string
           current_monthly_rent: number | null
           description: string | null
           due_diligence_costs: number | null
           financing_costs: number | null
           id: string
+          incentive_reserve: boolean | null
           maintenance_reserve_percentage: number | null
           management_cost_percentage: number | null
           manual_corrected_monthly_rent: number | null
           market_monthly_rent: number | null
+          mjop_present: string | null
           notary_costs: number | null
           notes: string | null
           object_id: string
@@ -418,8 +427,10 @@ export type Database = {
           rent_choice:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
+          rent_source: string | null
           safety_margin: number | null
           scenario_name: string
+          service_costs_checked: boolean | null
           status: Database["public"]["Enums"]["vr_calc_status"]
           strategy_type: Database["public"]["Enums"]["vr_strategy_type"]
           target_bar: number | null
@@ -434,20 +445,29 @@ export type Database = {
         Insert: {
           advisory_costs?: number | null
           asking_price?: number | null
+          assumption_profile?: string | null
+          assumption_profile_reason?: string | null
+          assumptions_manual?: boolean | null
+          assumptions_reliability?: string | null
+          assumptions_source?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
           calculation_id: string
+          contract_checked?: boolean | null
+          cost_structure?: string | null
           created_at?: string
           current_monthly_rent?: number | null
           description?: string | null
           due_diligence_costs?: number | null
           financing_costs?: number | null
           id?: string
+          incentive_reserve?: boolean | null
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
           market_monthly_rent?: number | null
+          mjop_present?: string | null
           notary_costs?: number | null
           notes?: string | null
           object_id: string
@@ -460,8 +480,10 @@ export type Database = {
           rent_choice?:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
+          rent_source?: string | null
           safety_margin?: number | null
           scenario_name: string
+          service_costs_checked?: boolean | null
           status?: Database["public"]["Enums"]["vr_calc_status"]
           strategy_type?: Database["public"]["Enums"]["vr_strategy_type"]
           target_bar?: number | null
@@ -476,20 +498,29 @@ export type Database = {
         Update: {
           advisory_costs?: number | null
           asking_price?: number | null
+          assumption_profile?: string | null
+          assumption_profile_reason?: string | null
+          assumptions_manual?: boolean | null
+          assumptions_reliability?: string | null
+          assumptions_source?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
           calculation_id?: string
+          contract_checked?: boolean | null
+          cost_structure?: string | null
           created_at?: string
           current_monthly_rent?: number | null
           description?: string | null
           due_diligence_costs?: number | null
           financing_costs?: number | null
           id?: string
+          incentive_reserve?: boolean | null
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
           market_monthly_rent?: number | null
+          mjop_present?: string | null
           notary_costs?: number | null
           notes?: string | null
           object_id?: string
@@ -502,8 +533,10 @@ export type Database = {
           rent_choice?:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
+          rent_source?: string | null
           safety_margin?: number | null
           scenario_name?: string
+          service_costs_checked?: boolean | null
           status?: Database["public"]["Enums"]["vr_calc_status"]
           strategy_type?: Database["public"]["Enums"]["vr_strategy_type"]
           target_bar?: number | null
