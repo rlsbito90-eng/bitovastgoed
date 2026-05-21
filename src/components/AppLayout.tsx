@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +18,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Calculator,
+  Bell,
+  Plus,
+  HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
@@ -37,15 +41,15 @@ import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
-  { path: "/taken", label: "Taken", icon: CheckSquare, groupEnd: true },
-  { path: "/relaties", label: "Relaties", icon: Users },
-  { path: "/zoekprofielen", label: "Zoekprofielen", icon: Search, groupEnd: true },
-  { path: "/objecten", label: "Objecten", icon: Building2 },
-  { path: "/referentieobjecten", label: "Referentieobjecten", icon: Library },
+  { path: "/taken", label: "Taken", icon: CheckSquare },
+  { path: "/relaties", label: "Relaties", icon: Users, groupEnd: true },
+  { path: "/objecten", label: "Aanbod", icon: Building2 },
+  { path: "/zoekprofielen", label: "Matching", icon: Search },
+  { path: "/referentieobjecten", label: "Referenties", icon: Library },
   { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, groupEnd: true },
-  { path: "/acquisitie", label: "Acquisitie", icon: Target, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
@@ -96,6 +100,33 @@ function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const term = q.trim();
+    if (!term) return;
+    // Eenvoudige routing: doorsturen naar relaties met zoekterm in URL
+    navigate(`/relaties?q=${encodeURIComponent(term)}`);
+  }
+  return (
+    <form onSubmit={submit} className="hidden md:flex items-center gap-2 w-full max-w-md">
+      <div className="relative w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Zoek relaties, objecten, deals…"
+          className="w-full h-9 pl-9 pr-16 rounded-lg bg-muted/60 border border-transparent focus:border-border focus:bg-card text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/30 transition-all"
+        />
+        <kbd className="hidden lg:inline-flex absolute right-2 top-1/2 -translate-y-1/2 items-center gap-0.5 rounded border border-border/70 bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+          ⌘K
+        </kbd>
+      </div>
+    </form>
   );
 }
 
@@ -154,28 +185,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Link
                   to={item.path}
                   title={desktopCollapsed ? item.label : undefined}
-                  className={`relative flex items-center rounded-md text-sm transition-colors ${
-                    desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
+                  className={`relative flex items-center rounded-lg text-sm transition-colors ${
+                    desktopCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
                   } ${
                     isActive
                       ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                      : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   }`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-accent" aria-hidden />
                   )}
-                  <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                  {!desktopCollapsed && item.label}
+                  <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-accent" : ""}`} />
+                  {!desktopCollapsed && <span className="tracking-tight">{item.label}</span>}
                 </Link>
                 {item.groupEnd && (
-                  <div className={`my-1.5 border-t border-sidebar-border/60 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
+                  <div className={`my-2 border-t border-sidebar-border/40 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
                 )}
               </div>
             );
           })}
         </nav>
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border/60">
           <GebruikerMenu collapsed={desktopCollapsed} />
         </div>
       </aside>
@@ -206,19 +237,33 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-        {/* Desktop topbar — collapse-knop links, match-badge rechts */}
-        <header className="hidden lg:flex items-center justify-between h-12 px-6 border-b border-border bg-card">
+        {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
+        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/70 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-20">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
-            className="p-1.5 -ml-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
             title={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
           >
             {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
-          <div className="flex items-center gap-1">
+
+          <GlobalSearch />
+
+          <div className="ml-auto flex items-center gap-1.5">
             <RefreshButton />
             <MatchAlertBadge />
+            <button
+              className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Notificaties"
+              title="Notificaties"
+            >
+              <Bell className="h-[18px] w-[18px]" />
+            </button>
+            <Link to="/taken" className="btn-premium ml-2">
+              <Plus className="h-4 w-4" />
+              <span>Nieuw</span>
+            </Link>
           </div>
         </header>
 

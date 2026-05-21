@@ -17,30 +17,38 @@ function KPICard({
   value,
   hint,
   icon: Icon,
-  highlight = false,
+  tone = 'primary',
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon: React.ElementType;
-  highlight?: boolean;
+  tone?: 'primary' | 'accent' | 'success' | 'muted';
 }) {
+  const toneClasses: Record<string, string> = {
+    primary: 'bg-primary/95 text-primary-foreground',
+    accent:  'bg-accent/15 text-accent',
+    success: 'bg-success/15 text-success',
+    muted:   'bg-muted text-muted-foreground',
+  };
   return (
-    <div
-      className={`relative section-card overflow-hidden p-5 flex flex-col gap-3 min-w-0 ${
-        highlight ? 'accent-rule' : ''
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight break-words min-w-0">
-          {label}
+    <div className="relative section-card p-6 flex flex-col gap-4 min-w-0 transition-shadow hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.08em] leading-tight">
+            {label}
+          </p>
+          <p className="mt-3 text-[28px] lg:text-[32px] font-semibold text-foreground font-mono-data leading-none break-words">
+            {value}
+          </p>
+        </div>
+        <span className={`kpi-badge ${toneClasses[tone]}`}>
+          <Icon className="h-5 w-5" />
         </span>
-        <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${highlight ? 'text-accent' : 'text-muted-foreground/70'}`} />
       </div>
-      <p className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground font-mono-data leading-none break-words min-w-0">
-        {value}
-      </p>
-      {hint && <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>}
+      {hint && (
+        <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>
+      )}
     </div>
   );
 }
@@ -66,7 +74,7 @@ export default function DashboardPage() {
     fase,
     aantal: deals.filter(d => !d.isArchived && d.fase === fase).length,
   }));
-  const maxAantal = Math.max(1, ...dealsPerFase.map(f => f.aantal));
+  // pipeline chevron uses fixed accent intensity per stage, no max needed
 
   const nu = new Date();
   // Deze week = vandaag + 7 dagen, exclusief te late (die staan al apart)
@@ -113,39 +121,56 @@ export default function DashboardPage() {
           }
           hint={`${actieveDeals.length} lopende deals`}
           icon={TrendingUp}
-          highlight
+          tone="primary"
         />
-        <KPICard label="Nieuwe matches" value={matches.length} hint="Op basis van zoekprofielen" icon={Zap} highlight />
-        <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} />
-        <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} />
+        <KPICard label="Nieuwe matches" value={matches.length} hint="Op basis van zoekprofielen" icon={Zap} tone="accent" />
+        <KPICard label="Open taken" value={openTaken.length} hint={`${opvolging.length} deze week`} icon={CheckSquare} tone="muted" />
+        <KPICard label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" icon={Flame} tone="success" />
       </div>
 
       {/* Commissie & successen */}
       <CommissieWidget />
 
-      {/* Pipeline funnel */}
+      {/* Pipeline funnel — chevron stappen */}
       <section className="section-card">
         <header className="section-header">
-          <h2 className="section-title">Deals per fase</h2>
+          <div>
+            <h2 className="section-title">Pipeline overzicht</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Deals per fase · live</p>
+          </div>
           <Link to="/deals" className="section-link inline-flex items-center gap-1">
             Alle deals <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
-        <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-5">
-          {dealsPerFase.map(({ fase, aantal }) => (
-            <div key={fase} className="space-y-2 min-w-0">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider capitalize truncate">{fase}</span>
-                <span className="text-base font-semibold text-foreground font-mono-data">{aantal}</span>
-              </div>
-              <div className="h-1 bg-muted rounded-full overflow-hidden">
+        <div className="p-5">
+          <div className="hidden md:flex items-stretch gap-1.5">
+            {dealsPerFase.map(({ fase, aantal }, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === dealsPerFase.length - 1;
+              const intensity = 0.05 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.18;
+              return (
                 <div
-                  className="h-full bg-accent transition-all"
-                  style={{ width: `${(aantal / maxAantal) * 100}%` }}
-                />
+                  key={fase}
+                  className={`flex-1 min-w-0 px-5 py-4 ${
+                    isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
+                  }`}
+                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground/70 truncate capitalize">{fase}</p>
+                  <p className="text-base font-semibold font-mono-data text-foreground mt-1">{aantal}</p>
+                </div>
+              );
+            })}
+          </div>
+          {/* Mobiel: simpele grid */}
+          <div className="md:hidden grid grid-cols-2 gap-3">
+            {dealsPerFase.map(({ fase, aantal }) => (
+              <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
+                <p className="text-lg font-semibold font-mono-data text-foreground mt-0.5">{aantal}</p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
