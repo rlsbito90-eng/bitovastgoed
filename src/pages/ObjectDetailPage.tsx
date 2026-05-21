@@ -627,6 +627,11 @@ export default function ObjectDetailPage() {
         </div>
       </div>
 
+      <ObjectDossierCard
+        objectId={object.id}
+        objectRecord={object as unknown as Record<string, unknown>}
+      />
+
       <section id="vastgoedrekenen" className="section-card p-5">
         <VastgoedrekenenTab
           objectId={object.id}
@@ -638,6 +643,7 @@ export default function ObjectDetailPage() {
         />
 
       </section>
+
 
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
