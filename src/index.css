@@ -1,28 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
-  Bito Vastgoed huisstijl
-  Primair  #072438  -> hsl(206 79% 12%)   navigatie, headers, hoofdtekst
-  Secundair#C89C69  -> hsl(31 47% 60%)    subtiele accenten, borders, badges
-  Accent   #D4A24C  -> hsl(38 60% 56%)    CTA's, highlights
-  Drager   #F5F1EC  -> hsl(33 33% 94%)    pagina-achtergrond
-  Tekst    #1F2933  -> hsl(212 24% 16%)   lopende tekst
+  Bito Vastgoed — Premium design system v2
+  Primair  #072438 → hsl(206 79% 12%)   sidebar, headlines
+  Goud     #C89C69 → hsl(31 47% 60%)    secundair accent
+  Accent   #D4A24C → hsl(38 60% 56%)    CTA / highlights
+  Drager   #F5F1EC → hsl(33 33% 94%)    page background
+  Card     #FFFFFF                       surfaces
+  Tekst    #111111 / muted #5B6573
 */
 
 @layer base {
   :root {
     --background: 33 33% 94%;
-    --foreground: 212 24% 16%;
+    --foreground: 212 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 212 24% 16%;
+    --card-foreground: 212 30% 12%;
+    --surface: 0 0% 100%;
+    --surface-elevated: 0 0% 100%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 212 24% 16%;
+    --popover-foreground: 212 30% 12%;
 
     --primary: 206 79% 12%;
     --primary-foreground: 33 33% 96%;
@@ -30,61 +33,59 @@
     --secondary: 31 47% 60%;
     --secondary-foreground: 206 79% 12%;
 
-    --muted: 33 25% 90%;
-    --muted-foreground: 212 12% 38%;
+    --muted: 33 20% 92%;
+    --muted-foreground: 215 14% 42%;
 
     --accent: 38 60% 56%;
     --accent-foreground: 206 79% 12%;
+    --accent-soft: 38 60% 94%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 33 33% 96%;
 
-    --border: 31 30% 82%;
-    --input: 31 30% 82%;
+    --border: 31 18% 86%;
+    --input: 31 18% 86%;
     --ring: 38 60% 56%;
 
-    --radius: 0.375rem;
+    --radius: 0.75rem;
 
-    --surface: 0 0% 100%;
     --success: 152 45% 32%;
     --success-foreground: 33 33% 96%;
     --warning: 38 60% 50%;
     --warning-foreground: 206 79% 12%;
 
-    --sidebar-background: 206 79% 12%;
-    --sidebar-foreground: 33 33% 92%;
+    --sidebar-background: 206 79% 10%;
+    --sidebar-foreground: 33 30% 90%;
     --sidebar-primary: 38 60% 56%;
     --sidebar-primary-foreground: 206 79% 12%;
-    --sidebar-accent: 206 60% 18%;
+    --sidebar-accent: 206 60% 16%;
     --sidebar-accent-foreground: 33 33% 96%;
-    --sidebar-border: 206 50% 20%;
+    --sidebar-border: 206 50% 18%;
     --sidebar-ring: 38 60% 56%;
+
+    /* Premium shadows */
+    --shadow-xs: 0 1px 2px 0 hsl(206 79% 12% / 0.04);
+    --shadow-sm: 0 1px 2px 0 hsl(206 79% 12% / 0.04), 0 1px 3px 0 hsl(206 79% 12% / 0.06);
+    --shadow-md: 0 4px 12px -2px hsl(206 79% 12% / 0.06), 0 2px 4px -2px hsl(206 79% 12% / 0.05);
+    --shadow-lg: 0 12px 32px -8px hsl(206 79% 12% / 0.10), 0 4px 12px -4px hsl(206 79% 12% / 0.06);
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.022em;
     font-weight: 600;
   }
 
-  /*
-    GLOBAL OVERFLOW PROTECTION
-    Voorkomt dat body of html zelf horizontaal scrollt door per ongeluk te
-    brede content (lange titels, getallen die out-of-bounds gaan, etc).
-    Werkt samen met overflow-x-hidden op AppLayout root.
-  */
   html, body {
     overflow-x: hidden;
     max-width: 100vw;
@@ -95,27 +96,23 @@
   .font-mono-data {
     font-family: 'IBM Plex Mono', monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
-
   .tabular-nums { font-variant-numeric: tabular-nums; }
 
-  .slide-over-enter { animation: slideOver 250ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .fade-in { animation: fadeIn 200ms ease-out; }
+  .slide-over-enter { animation: slideOver 280ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-in { animation: fadeIn 240ms ease-out; }
 
-  /* Section card – consistent boutique container */
+  /* Premium section card */
   .section-card {
-    @apply bg-card border border-border rounded-lg shadow-[0_1px_0_0_hsl(var(--border)/0.6)];
+    @apply bg-card border border-border/70 rounded-xl;
+    box-shadow: var(--shadow-sm);
   }
-  /*
-    .section-header
-    AANGEPAST voor mobile: title (links) + action-link (rechts) kunnen op
-    mobiel knel komen. We zorgen dat:
-    - de title kan wrappen of inkrimpen (min-w-0 + flex-1)
-    - de action-link niet inkrimpt en zijn ruimte houdt (shrink-0)
-  */
+  .section-card-flat {
+    @apply bg-card border border-border/70 rounded-xl;
+  }
   .section-header {
-    @apply px-5 py-4 border-b border-border flex items-center justify-between gap-3;
+    @apply px-6 py-4 border-b border-border/70 flex items-center justify-between gap-3;
   }
   .section-title {
     @apply text-sm font-semibold text-foreground tracking-tight min-w-0;
@@ -124,101 +121,60 @@
     @apply text-xs font-medium text-accent hover:text-accent/80 transition-colors shrink-0 whitespace-nowrap;
   }
 
-  /* Subtle gold rule used on KPI cards */
   .accent-rule {
     @apply before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/60 before:to-transparent;
   }
 
-  /*
-    Page-level container system
-    Centraal systeem voor contentbreedtes per pagina-type. Gebruik dit i.p.v.
-    losse hardcoded max-widths zodat de app consistent desktopruimte gebruikt.
-
-    - page-shell-narrow : 1000px  → smalle formulier-/leespagina's (admin, settings)
-    - page-shell-detail : 1200px  → detailpagina's met werktabellen erin
-    - page-shell        : 1280px  → standaard pagina's
-    - page-shell-wide   : 1440px  → tabel-/lijstpagina's, rapportages, dashboard
-    - page-shell-full   : 1600px  → kanban, pipeline, brede werkschermen
-  */
-  .page-shell-narrow {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1000px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
-  }
-  .page-shell-detail {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1200px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
-  }
-  .page-shell {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1280px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
-  }
-  .page-shell-wide {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1440px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
-  }
-  .page-shell-full {
-    @apply px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-[1600px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip;
+  /* KPI icon badge — round soft tint like the reference */
+  .kpi-badge {
+    @apply h-12 w-12 rounded-full flex items-center justify-center shrink-0;
   }
 
-  /* Field label */
+  /* Premium button */
+  .btn-premium {
+    @apply inline-flex items-center gap-2 rounded-lg bg-accent text-accent-foreground px-3.5 py-2 text-sm font-medium transition-all hover:bg-accent/90 active:scale-[0.98];
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors;
+  }
+
+  /* Page shells */
+  .page-shell-narrow { @apply px-5 py-6 sm:px-8 lg:px-10 lg:py-10 max-w-[1000px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+  .page-shell-detail { @apply px-5 py-6 sm:px-8 lg:px-10 lg:py-10 max-w-[1240px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+  .page-shell        { @apply px-5 py-6 sm:px-8 lg:px-10 lg:py-10 max-w-[1320px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+  .page-shell-wide   { @apply px-5 py-6 sm:px-8 lg:px-10 lg:py-10 max-w-[1480px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+  .page-shell-full   { @apply px-5 py-6 sm:px-8 lg:px-10 lg:py-10 max-w-[1640px] mx-auto space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+
   .field-label {
     @apply text-[11px] font-medium text-muted-foreground uppercase tracking-wider;
   }
-
-  /* Subtle divider used inside cards */
   .hairline { @apply border-t border-border/70; }
 
-  /*
-    MOBILE OVERFLOW UTILITIES
-    Drie helpers die we toepassen op rij-componenten waar mobiele overflow
-    optreedt (titel + badge, titel + actie-link, etc).
+  .row-with-action { @apply flex flex-col sm:flex-row sm:items-start justify-between gap-1.5 sm:gap-3 min-w-0; }
+  .row-flex        { @apply min-w-0 w-full sm:flex-1; }
+  .row-action      { @apply shrink-0; }
+  .text-clamp-mobile { @apply break-words sm:truncate; }
+  .badge-mobile { @apply text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5; }
 
-    Pattern: een rij heeft `.row-with-action` als wrapper, dan kan de
-    linker-content `.row-flex` (krimp toegestaan) en de rechter-content
-    `.row-action` (geen krimp, blijft zichtbaar).
-  */
-
-  /* Wrap een flex-rij waarin een action-element nooit afgekapt mag worden.
-     Op mobiel stapelt het action-element onder de content, zodat lange
-     badges (bv. "Onderhandeling") niet uit de card schieten. Vanaf sm:
-     weer naast elkaar. */
-  .row-with-action {
-    @apply flex flex-col sm:flex-row sm:items-start justify-between gap-1.5 sm:gap-3 min-w-0;
+  /* Pipeline chevron step */
+  .chevron-step {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
   }
-
-  /* Linker-content (titel etc) — mag inkrimpen, mag wrappen */
-  .row-flex {
-    @apply min-w-0 w-full sm:flex-1;
+  .chevron-step-first {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
   }
-
-  /* Rechter-content (badge, link) — krimpt nooit, blijft zichtbaar */
-  .row-action {
-    @apply shrink-0;
-  }
-
-  /* Zachtere variant van truncate die op mobiel wrapt ipv afkapt */
-  .text-clamp-mobile {
-    @apply break-words sm:truncate;
-  }
-
-  /*
-    Status-badge mobile-friendly variant:
-    iets kleinere text op mobiel + kleinere padding zodat ze altijd passen.
-    Kan toegepast worden op StatusBadges componenten.
-  */
-  .badge-mobile {
-    @apply text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5;
+  .chevron-step-last {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
   }
 }
 
 @keyframes slideOver {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
