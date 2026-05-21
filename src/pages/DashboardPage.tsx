@@ -94,13 +94,8 @@ export default function DashboardPage() {
     nu,
   );
 
-  const dealsZonderActie = actieveDeals.filter(d => !d.datumFollowUp);
-  const kandidatenZonderActie = pipelineKandidaten.filter(k => {
-    const obj = store.getObjectById(k.objectId);
-    if (!obj || obj.isArchived) return false;
-    return !k.volgendeActie && !k.volgendeActieDatum;
-  });
-  const totaalZonderActie = dealsZonderActie.length + kandidatenZonderActie.length;
+  // (Sectie "Zonder volgende actie" verwijderd – focus op actieve dealflow.)
+
 
   return (
     <div className="page-shell-wide">
