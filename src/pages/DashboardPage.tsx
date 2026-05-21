@@ -74,7 +74,7 @@ export default function DashboardPage() {
     fase,
     aantal: deals.filter(d => !d.isArchived && d.fase === fase).length,
   }));
-  const maxAantal = Math.max(1, ...dealsPerFase.map(f => f.aantal));
+  // pipeline chevron uses fixed accent intensity per stage, no max needed
 
   const nu = new Date();
   // Deze week = vandaag + 7 dagen, exclusief te late (die staan al apart)
