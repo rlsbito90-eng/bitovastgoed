@@ -513,7 +513,7 @@ export default function DashboardPage() {
           <div className="p-5 grid grid-cols-2 gap-x-5 gap-y-4">
             <MiniStat label="Warme leads" value={warmeRelaties.length} hint="Warm + actief" />
             <MiniStat label="Actieve objecten" value={actieveObjecten.length} />
-            <MiniStat label="Nieuwe objecten / mnd" value={nieuweObjectenMaand} />
+            <MiniStat label="Beschikbare objecten" value={beschikbareObjecten} />
             <MiniStat
               label="Zonder kandidaten"
               value={objectenZonderKandidaten}
