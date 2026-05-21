@@ -41,6 +41,7 @@ import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
+import ObjectDossierCard from '@/components/object/dossier/ObjectDossierCard';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
