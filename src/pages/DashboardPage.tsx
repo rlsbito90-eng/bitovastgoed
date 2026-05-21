@@ -438,7 +438,7 @@ export default function DashboardPage() {
               Alle deals <ArrowRight className="h-3 w-3" />
             </Link>
           </header>
-          <div className="divide-y divide-border/70">
+          <div className="divide-y divide-border/60">
             {topDeals.map(deal => {
               const relatie = store.getRelatieById(deal.relatieId);
               const object  = store.getObjectById(deal.objectId);
@@ -446,26 +446,30 @@ export default function DashboardPage() {
                 <Link
                   key={deal.id}
                   to={`/deals/${deal.id}`}
-                  className="block px-5 py-3.5 hover:bg-muted/40 transition-colors group"
+                  className="row-hover block px-5 py-3.5 group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
+                        <p className="text-[14px] font-semibold text-foreground truncate tracking-tight">
                           {object?.titel ?? '—'}
                         </p>
-                        <ChevronRight className="h-3 w-3 text-muted-foreground/60 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-accent" />
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">
                         {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}
-                        {object?.plaats ? ` · ${object.plaats}` : ''}
+                        {object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}
                       </p>
-                      <div className="flex items-center gap-3 mt-1.5 text-[11px] font-mono-data text-muted-foreground">
+                      <div className="flex items-center gap-2 mt-2">
                         {object?.vraagprijs != null && (
-                          <span>{formatCurrencyCompact(object.vraagprijs)}</span>
+                          <span className="text-[11px] font-mono-data text-muted-foreground">
+                            {formatCurrencyCompact(object.vraagprijs)}
+                          </span>
                         )}
                         {deal.commissieBedrag != null && (
-                          <span className="text-accent">fee {formatCurrencyCompact(deal.commissieBedrag)}</span>
+                          <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">
+                            fee {formatCurrencyCompact(deal.commissieBedrag)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -480,6 +484,7 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
 
       {/* ============== SECTIE 4 — MATCHES + DEALFLOW HEALTH ============== */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
