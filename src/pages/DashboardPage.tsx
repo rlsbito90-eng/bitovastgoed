@@ -132,48 +132,78 @@ export default function DashboardPage() {
       {/* Commissie & successen */}
       <CommissieWidget />
 
-      {/* Pipeline funnel — chevron stappen */}
+      {/* Pipeline funnel — institutioneel */}
       <section className="section-card">
         <header className="section-header">
-          <div>
-            <h2 className="section-title">Pipeline overzicht</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Deals per fase · live</p>
+          <div className="min-w-0">
+            <h2 className="section-title">Pipeline momentum</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">
+              {actieveDeals.length} actieve deals · {formatCurrencyCompact(dealWaarde)} totale waarde
+            </p>
           </div>
-          <Link to="/deals" className="section-link inline-flex items-center gap-1">
-            Alle deals <ArrowRight className="h-3 w-3" />
+          <Link to="/deals" className="section-link inline-flex items-center gap-1 group">
+            Alle deals <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </header>
-        <div className="p-5">
-          <div className="hidden md:flex items-stretch gap-1.5">
-            {dealsPerFase.map(({ fase, aantal }, idx) => {
-              const isFirst = idx === 0;
-              const isLast = idx === dealsPerFase.length - 1;
-              const intensity = 0.05 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.18;
-              return (
-                <div
-                  key={fase}
-                  className={`flex-1 min-w-0 px-5 py-4 ${
-                    isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
-                  }`}
-                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
-                >
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground/70 truncate capitalize">{fase}</p>
-                  <p className="text-base font-semibold font-mono-data text-foreground mt-1">{aantal}</p>
+        <div className="p-5 lg:p-6">
+          {(() => {
+            const totaal = dealsPerFase.reduce((s, x) => s + x.aantal, 0) || 1;
+            const maxAantal = Math.max(1, ...dealsPerFase.map(d => d.aantal));
+            return (
+              <>
+                <div className="hidden md:flex items-stretch gap-1.5 mb-4">
+                  {dealsPerFase.map(({ fase, aantal }, idx) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === dealsPerFase.length - 1;
+                    const intensity = 0.06 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.22;
+                    const heightPct = (aantal / maxAantal) * 100;
+                    const pct = Math.round((aantal / totaal) * 100);
+                    return (
+                      <Link
+                        key={fase}
+                        to={`/deals?fase=${fase}`}
+                        className={`pipeline-stage rounded-sm ${
+                          isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
+                        }`}
+                        style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
+                        title={`${fase}: ${aantal} deals (${pct}%)`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/70 truncate capitalize">{fase}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1.5">
+                          <span className="text-xl font-semibold font-mono-data text-foreground leading-none">{aantal}</span>
+                          <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
+                        </div>
+                        <div className="mt-2.5 h-1 bg-foreground/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.max(4, heightPct)}%` }}
+                          />
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          {/* Mobiel: simpele grid */}
-          <div className="md:hidden grid grid-cols-2 gap-3">
-            {dealsPerFase.map(({ fase, aantal }) => (
-              <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
-                <p className="text-lg font-semibold font-mono-data text-foreground mt-0.5">{aantal}</p>
-              </div>
-            ))}
-          </div>
+                {/* Mobiel */}
+                <div className="md:hidden grid grid-cols-2 gap-2.5">
+                  {dealsPerFase.map(({ fase, aantal }) => {
+                    const pct = Math.round((aantal / totaal) * 100);
+                    return (
+                      <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <span className="text-lg font-semibold font-mono-data text-foreground">{aantal}</span>
+                          <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
+
 
       {/* Twee belangrijke focus-lijsten */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
