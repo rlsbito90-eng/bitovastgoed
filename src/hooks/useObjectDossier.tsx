@@ -24,6 +24,7 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
   const [texts, setTexts] = useState<OfferingTextsRow | null>(null);
   const [attention, setAttention] = useState<AttentionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -31,7 +32,10 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
       setItems([]); setTexts(null); setAttention([]); setLoading(false);
       return;
     }
-    setLoading(true); setError(null);
+    // Alleen bij eerste load een volledige loading-state tonen; bij refresh na een
+    // wijziging behouden we de bestaande data zodat tabs/accordions/scroll niet resetten.
+    if (!hasLoadedOnce) setLoading(true);
+    setError(null);
     try {
       const [itemsRes, textsRes, attRes] = await Promise.all([
         supabase.from('object_dossier_items').select('*').eq('object_id', objectId),
@@ -47,11 +51,12 @@ export function useObjectDossier(objectId: string | null | undefined): DossierDa
     } catch (e: any) {
       console.error('useObjectDossier:', e);
       setError(e?.message ?? 'Onbekende fout');
-      setItems([]); setTexts(null); setAttention([]);
+      if (!hasLoadedOnce) { setItems([]); setTexts(null); setAttention([]); }
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
-  }, [objectId]);
+  }, [objectId, hasLoadedOnce]);
 
   useEffect(() => { void reload(); }, [reload]);
 
