@@ -63,7 +63,7 @@ const pipelineFases: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichti
 
 export default function DashboardPage() {
   const store = useDataStore();
-  const { relaties, objecten, deals, taken, pipelineKandidaten } = store;
+  const { relaties, objecten, deals, taken } = store;
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
   const actieveObjecten = objecten.filter(o => !o.isArchived);
