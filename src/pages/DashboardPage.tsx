@@ -4,10 +4,10 @@ import { formatCurrency, formatCurrencyCompact, getAllMatchesFromData } from '@/
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
-import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, AlertCircle, Clock } from 'lucide-react';
+import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, Clock } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
-import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
+import { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { targetIsActief } from '@/lib/acquisitie';
 import { isTaakTeLaat, isTaakDezeWeek, deadlineLabel, sorteerTaken } from '@/lib/taakHelpers';
