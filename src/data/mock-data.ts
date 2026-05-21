@@ -835,15 +835,10 @@ export const formatCurrency = (amount?: number): string => {
 };
 
 export const formatCurrencyCompact = (amount?: number): string => {
-  if (amount == null) return '—';
-  if (Math.abs(amount) >= 1_000_000) {
-    return `€${(amount / 1_000_000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln`;
-  }
-  if (Math.abs(amount) >= 1_000) {
-    return `€${Math.round(amount / 1_000).toLocaleString('nl-NL')}k`;
-  }
+  // Volledige bedragen in NL-notatie (punt als duizendscheiding), geen afkortingen.
   return formatCurrency(amount);
 };
+
 
 export const formatDate = (date?: string): string => {
   if (!date) return '—';
