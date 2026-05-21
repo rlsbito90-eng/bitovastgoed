@@ -254,7 +254,7 @@ export default function DashboardPage() {
   return (
     <div className="page-shell-wide">
       <PageHeader
-        title="Command center"
+        title="Dashboard"
         subtitle={
           <>
             {actieveDeals.length} actieve deals · {formatCurrencyCompact(pipelineWaardeTotaal)} pipeline
