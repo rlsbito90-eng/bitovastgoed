@@ -1,131 +1,132 @@
-## Vastgoedrekenen V1 — Verbeter- en stabilisatieronde
+## Doel
 
-Doel: V1 consistent, begrijpelijk en praktisch bruikbaar maken. Geen nieuwe grote features (geen WWS V2, PDF/CSV, bouwkostenbibliotheek, IRR/DCF).
+Een nieuwe sectie **"Dossier & aanbieding"** op de Objectdetailpagina, waarmee je per off-market object overzicht houdt over informatiepositie, klaar-staande teksten, interne aandachtspunten en verkoopgereedheid — zonder ergens te blokkeren als data ontbreekt.
+
+## Scope (V1)
+
+Eén nieuwe tab/sectie op `ObjectDetailPage`, met 5 subtabs:
+
+1. **Checklist** — items per categorie met 6 statussen
+2. **Aanbiedingsteksten** — opgeslagen marketingteksten met kopieerknop
+3. **Aandachtspunten** — interne risico's/openstaande punten
+4. **Documenten** — bestaande `DocumentenPanel` hergebruiken (read-only link)
+5. **Verkoopgereedheid** — samenvatting + dossierscore bovenaan altijd zichtbaar
+
+## Datamodel (Supabase migrations)
+
+Drie nieuwe tabellen, allemaal met dezelfde RLS als andere object-gebonden tabellen (`is_intern_gebruiker(auth.uid())` voor SELECT/INSERT/UPDATE/DELETE).
+
+```text
+object_dossier_items
+  id uuid pk
+  object_id uuid                          -- geen FK; consistent met bestaande tabellen
+  category text                           -- 'basis' | 'financieel' | 'juridisch' | 'technisch' | 'commercieel'
+  item_key text                           -- stabiele key (bv 'huurlijst', 'energielabel')
+  label text                              -- weergavetekst (default uit catalogus, overschrijfbaar)
+  status text                             -- 'aanwezig'|'opgevraagd'|'ontbreekt'|'niet_beschikbaar'|'nvt'|'te_controleren'|null
+  notitie text
+  bron text
+  opgevraagd_op date
+  document_id uuid                        -- optionele koppeling object_documenten.id
+  weight smallint default 1               -- 1=normaal, 2=belangrijk, 3=cruciaal
+  is_custom boolean default false         -- door user toegevoegd item
+  created_at / updated_at
+  unique(object_id, item_key)
+
+object_aanbiedingsteksten              -- 1 rij per object
+  id uuid pk
+  object_id uuid unique
+  korte_teaser text
+  whatsapp_tekst text
+  email_tekst text
+  uitgebreide_omschrijving text
+  highlights text
+  externe_aandachtspunten text
+  fee_tekst text
+  nda_tekst text
+  created_at / updated_at
+
+object_aandachtspunten
+  id uuid pk
+  object_id uuid
+  titel text not null
+  type text                              -- 'juridisch'|'technisch'|'financieel'|'commercieel'|'info_ontbreekt'|'overig'
+  ernst text                             -- 'laag'|'middel'|'hoog'
+  intern_only boolean default true
+  notitie text
+  status text default 'open'             -- 'open'|'opgevolgd'|'opgelost'|'niet_oplosbaar'
+  created_at / updated_at
+```
+
+Bestaande velden op `objecten` worden niet gewijzigd. Checklist-items worden lazy aangemaakt: als er nog geen rij bestaat voor een `item_key`, behandelen we hem als status `null` (= "nog niet ingevuld").
+
+## Checklist-catalogus
+
+Hardcoded TS-bestand `src/lib/objectDossier/catalog.ts` met alle items uit categorieën A–E uit het verzoek, per item: `key`, `label`, `category`, `weight`, optioneel `autoFromObjectField` (bv. `energielabel`, `bouwjaar`, `vraagprijs`) om automatisch status `aanwezig` te tonen als het objectveld al gevuld is. Gebruiker kan dat overschrijven door expliciet een rij op te slaan.
+
+## Verkoopgereedheid-score
+
+Logica in `src/lib/objectDossier/readiness.ts`:
+
+- Score = gewogen percentage van items met status `aanwezig` of `nvt` t.o.v. relevante items (alles behalve `nvt`).
+- `opgevraagd` en `te_controleren` tellen voor 50%.
+- `ontbreekt` / `niet_beschikbaar` / leeg tellen voor 0%.
+- Cruciale items (`weight=3`) die ontbreken worden apart getoond als "Belangrijkste ontbrekende punten".
+
+Label-mapping op basis van score + aanwezigheid cruciale items:
+
+```text
+< 20%                                  → Niet gereed
+20–40%                                 → Summier dossier
+40–60% en korte_teaser aanwezig        → Teaser-gereed
+60–80%                                 → Informatiepakket gedeeltelijk
+≥ 80%                                  → Verkoopklaar
+≥ 90% en alle juridische cruciaal ok   → DD-gereed
+```
+
+## Componenten
+
+```text
+src/components/object/dossier/
+  ObjectDossierCard.tsx          -- wrapper + readiness header + tabs
+  DossierReadinessBadge.tsx      -- gekleurd label + percentage
+  DossierChecklist.tsx           -- accordion per categorie
+  DossierChecklistItem.tsx       -- status-select, notitie, datum, bron, doc, acties
+  OfferingTextsSection.tsx       -- form met textareas + kopieerknop per veld
+  AttentionPointsSection.tsx     -- lijst + add/edit dialog
+```
+
+Hergebruikt: `Accordion`, `Tabs`, `Textarea`, `Input`, `Badge`, `Button`, `Card`, `toast` (sonner).
+
+## Acties
+
+- Per checklist-item dropdown "Acties": **Taak aanmaken** (opent bestaande `TaakFormDialog` met preset object/titel), **Contactmoment loggen** (`ContactMomentFormDialog`), **Document koppelen** (selectie uit `object_documenten`).
+- Per tekstveld: **Kopieer** (clipboard + toast).
+- Bovenin sectie: knop **Markeer als teaser-gereed** / **verkoopklaar** → zet de juiste commerciële checklist-items op `aanwezig`.
+
+## Integratie in `ObjectDetailPage.tsx`
+
+Eén nieuw tabblad / sectie "Dossier & aanbieding" toegevoegd vóór bestaande Vastgoedrekenen-tab. Geen wijziging aan andere tabs. Lazy data-fetch via nieuwe hook `useObjectDossier(objectId)` die de drie tabellen ophaalt; alles null-safe zodat oude objecten zonder rijen probleemloos renderen.
+
+## Null-safety & non-blocking
+
+- Geen NOT NULL constraints op status/notes.
+- Geen verplichte invoer in UI.
+- Als migrations niet hebben gedraaid: hook vangt errors en toont lege staat.
+- Bestaande objecten zonder enige dossierrij tonen "Nog niets ingevuld" + score 0% (Niet gereed), zonder crash.
+
+## Out of scope (V1)
+
+- PDF-export van dossier
+- Automatische teaser-generatie via AI
+- Externe deel-link / publieke teaserpagina
+- Bulk-acties over meerdere objecten
+- Notificaties voor opgevraagde-maar-niet-binnen info
+
+## Acceptatie
+
+Alle 12 acceptatiecriteria uit het verzoek; build draait schoon; mobiel = accordion, desktop = tabs + cards.
 
 ---
 
-### 1. Centrale rekenlogica (één bron van waarheid)
-
-- `src/lib/vastgoedrekenen/compute.ts` blijft enige engine.
-- `ScenarioVergelijking` gebruikt **exact dezelfde** `computeScenario()` output als `DealSnapshot` — geen aparte fallback-aannames meer.
-- Refactor `useScenarioChildren` aanroepen zodat overzicht en detail één hook delen met dezelfde inputs (rentChoice, OVB-mode, aannameprofiel, kostenstructuur).
-- Uniforme termen overal: **Totale investering**, **BAR op totale investering**, **Factor op totale investering**, **Maximale bieding** (term "Max bod" verwijderen uit alle UI).
-
-### 2. Verschil met vraagprijs
-
-- Formule: `verschil = maximaleBieding - vraagprijs`.
-- UI toont één van twee labels met kleur:
-  - `verschil >= 0`: "Biedingsruimte boven vraagprijs" (groen, `+ €…`)
-  - `verschil < 0`: "Benodigde prijsverlaging" (amber, `- €…`)
-- `differenceWithAskingPrice` in `ComputedOutputs` herzien (huidige formule gebruikt `realisticBid`, moet `maximumBid` worden).
-
-### 3. OVB-modus volledig werkend
-
-- **Automatisch**: scenario.ovb_classification → percentage uit tax_settings; toon `pct` + bedrag.
-- **Per component**: UI in `ScenarioEditor` toont per component OVB-velden (waarde, classification, %, bedrag, methode); m²-fallback met waarschuwing; ontbrekend → blocker-waarschuwing.
-- **Handmatig**: `transfer_tax_percentage` en `transfer_tax_amount` invulbaar; bedrag is leidend; gele waarschuwing zichtbaar.
-- Gekozen modus werkt door in Snapshot, totale investering, BAR, factor, max bieding én vergelijking.
-
-### 4. Velden, eenheden, suffixes
-
-- Alle inputs in `ScenarioEditor` krijgen suffix `€`, `%`, `m²` of `maanden` en duidelijke labels + placeholders.
-
-### 5–7. Aannameprofielen per vastgoedtype
-
-- Nieuw bestand `src/lib/vastgoedrekenen/profiles.ts` met profielen (Licht/Normaal/Conservatief/Zwaar/Handmatig) per type: residentieel, mixed-use, retail, kantoor, bedrijfsruimte, logistiek, zorg.
-- Scenario krijgt nieuwe velden (zie §16) opgeslagen in `notes` JSON of als nieuwe kolommen. **Keuze:** nieuwe kolommen via migratie (`assumption_profile`, `assumption_profile_reason`, `cost_structure`, `incentive_reserve`, `mjop_present`, `contract_checked`, `service_costs_checked`, `assumptions_manual`, `assumptions_source`, `assumptions_reliability`, `rent_source`).
-- Default profiel bepaald door objecttype/strategie (transformatie→Zwaar, uitponden→Conservatief, retail/kantoor/mixed-use→Conservatief, residentieel→Normaal).
-- Helptekst boven Huuranalyse, profiel-selector wijzigt de 5 percentages live.
-
-### 8. Bruto → NOI opbouw
-
-- Nieuwe component `NoiOpbouw.tsx`: tabel met bruto jaarhuur → correcties (% én €) → NOI, NOI-marge, BAR bruto, NAR.
-- `NAR = NOI / totalInvestment × 100` toegevoegd aan `ComputedOutputs`.
-
-### 9. Huurbron
-
-- Nieuw veld `rent_source`: `handmatig | componenten | wws_gecorrigeerd | handmatig_gecorrigeerd`.
-- Bij `componenten`: huidige + markthuur opgeteld uit `calculation_components.current_monthly_rent` / `market_monthly_rent`.
-
-### 10. Kostenstructuur
-
-- Veld `cost_structure` met 5 opties; bij triple-net/huurder-draagt: helptekst + handmatige aanpassing toegestaan zonder auto-verlaging; bij onbekend + commercieel: forceer minimaal Conservatief.
-
-### 11. Componenten/units praktischer
-
-- Helptekst boven sectie.
-- Componenten-velden uitklapbaar (Collapsible) met optionele extra's.
-- Doorwerking in huurtotalen via huurbron `componenten`.
-
-### 12. WWS koppelen aan wooncomponenten
-
-- Waarschuwing als type woning/appartement zonder WWS-units.
-- Knop "Maak WWS-units aan uit wooncomponenten" — kopieert naam, GBO, huur, WOZ, label.
-
-### 13. Rekenbasis-balk
-
-- `RekenbasisBar.tsx` boven Snapshot: huurbron, aannameprofiel, huurtype, OVB-modus, kostenstructuur, gewenste BAR, inputbetrouwbaarheid.
-
-### 14–15. Validatie & waarschuwingen
-
-- `validation.ts`: bouwt "Nog te controleren" lijst (WWS ontbreekt, OVB mixed-use, componentwaarden, contracten, label, WOZ, kostenstructuur, MJOP, contractduur).
-- Aannamewaarschuwingen volgens 10 regels in §15.
-
-### 17. Opslagstatus
-
-- `ScenarioEditor` toont "Niet opgeslagen / Laatst opgeslagen: …" en "Berekeningen bijgewerkt" badge. Live compute blijft client-side; vergelijking gebruikt dezelfde live engine.
-
-### 18. Quickscan defaults
-
-- Sectie "Quickscan defaults" inklapbaar in editor toont actieve defaults + uitlegtekst. Aankoopfee default = 2% (consistent met `VR_DEFAULTS`).
-
-### 19. Uitponden / transformatie
-
-- Strategie-afhankelijke banner in Snapshot.
-- Bij `uitponden`: max bieding-alt-berekening (netto uitpondopbrengst − marge) als extra getal naast huur-based; visueel labelen welke leidend is.
-- Bij `transformeren`: waarschuwingen bij ontbrekende transformatiekosten/vergunning/exit.
-
----
-
-### Database migratie (nieuwe kolommen `calculation_scenarios`)
-
-```
-ALTER TABLE calculation_scenarios ADD COLUMN:
-  assumption_profile text DEFAULT 'conservatief',
-  assumption_profile_reason text,
-  assumptions_manual boolean DEFAULT false,
-  assumptions_source text,
-  assumptions_reliability text DEFAULT 'middel',
-  cost_structure text DEFAULT 'onbekend',
-  incentive_reserve boolean DEFAULT false,
-  mjop_present text DEFAULT 'onbekend',
-  contract_checked boolean DEFAULT false,
-  service_costs_checked boolean DEFAULT false,
-  rent_source text DEFAULT 'handmatig'
-```
-
-### Bestanden
-
-**Nieuw:**
-- `src/lib/vastgoedrekenen/profiles.ts` — aannameprofielen per type
-- `src/lib/vastgoedrekenen/validation.ts` — "nog te controleren" + waarschuwingen §15
-- `src/components/vastgoedrekenen/RekenbasisBar.tsx`
-- `src/components/vastgoedrekenen/NoiOpbouw.tsx`
-- `src/components/vastgoedrekenen/NogTeControleren.tsx`
-- `src/components/vastgoedrekenen/AannameProfielSelect.tsx`
-- `src/components/vastgoedrekenen/OvbModusSectie.tsx` (per-component + handmatig UI)
-- `src/components/vastgoedrekenen/QuickscanDefaults.tsx`
-
-**Aanpassen:**
-- `src/lib/vastgoedrekenen/compute.ts` — NAR, differenceWithAskingPrice met maxBid, profiel toegepast, uitpond/transformatie-paden
-- `src/lib/vastgoedrekenen/types.ts` — nieuwe velden + NAR
-- `src/lib/vastgoedrekenen/huur.ts` — huurbron `componenten`
-- `src/lib/vastgoedrekenen/defaults.ts` — terminologie
-- `src/components/vastgoedrekenen/ScenarioEditor.tsx` — eenheden, OVB, huurbron, profiel, kostenstructuur, opslagstatus
-- `src/components/vastgoedrekenen/DealSnapshot.tsx` — Verschil met vraagprijs, NAR, term "Maximale bieding"
-- `src/components/vastgoedrekenen/ScenarioVergelijking.tsx` — zelfde compute, term-uniformiteit
-- `src/components/vastgoedrekenen/VastgoedrekenenTab.tsx` — Rekenbasis + Nog te controleren bovenaan
-- `src/hooks/useVastgoedrekenen.tsx` — nieuwe velden in CRUD
-
-### Out of scope (later)
-WWS V2, PDF/CSV-export, bouwkostenbibliotheek, IRR/DCF, uitgebreide financiering, marktdata-koppelingen.
+Akkoord met dit plan? Dan begin ik met de migration en daarna de componenten.

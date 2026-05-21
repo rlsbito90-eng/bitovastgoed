@@ -1145,6 +1145,90 @@ export type Database = {
           },
         ]
       }
+      object_aanbiedingsteksten: {
+        Row: {
+          created_at: string
+          email_tekst: string | null
+          externe_aandachtspunten: string | null
+          fee_tekst: string | null
+          highlights: string | null
+          id: string
+          korte_teaser: string | null
+          nda_tekst: string | null
+          object_id: string
+          uitgebreide_omschrijving: string | null
+          updated_at: string
+          whatsapp_tekst: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_tekst?: string | null
+          externe_aandachtspunten?: string | null
+          fee_tekst?: string | null
+          highlights?: string | null
+          id?: string
+          korte_teaser?: string | null
+          nda_tekst?: string | null
+          object_id: string
+          uitgebreide_omschrijving?: string | null
+          updated_at?: string
+          whatsapp_tekst?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_tekst?: string | null
+          externe_aandachtspunten?: string | null
+          fee_tekst?: string | null
+          highlights?: string | null
+          id?: string
+          korte_teaser?: string | null
+          nda_tekst?: string | null
+          object_id?: string
+          uitgebreide_omschrijving?: string | null
+          updated_at?: string
+          whatsapp_tekst?: string | null
+        }
+        Relationships: []
+      }
+      object_aandachtspunten: {
+        Row: {
+          created_at: string
+          ernst: string | null
+          id: string
+          intern_only: boolean
+          notitie: string | null
+          object_id: string
+          status: string
+          titel: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ernst?: string | null
+          id?: string
+          intern_only?: boolean
+          notitie?: string | null
+          object_id: string
+          status?: string
+          titel: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ernst?: string | null
+          id?: string
+          intern_only?: boolean
+          notitie?: string | null
+          object_id?: string
+          status?: string
+          titel?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       object_documenten: {
         Row: {
           bestandsgrootte_bytes: number | null
@@ -1201,6 +1285,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      object_dossier_items: {
+        Row: {
+          bron: string | null
+          category: string
+          created_at: string
+          document_id: string | null
+          id: string
+          is_custom: boolean
+          item_key: string
+          label: string | null
+          notitie: string | null
+          object_id: string
+          opgevraagd_op: string | null
+          status: string | null
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          bron?: string | null
+          category: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          is_custom?: boolean
+          item_key: string
+          label?: string | null
+          notitie?: string | null
+          object_id: string
+          opgevraagd_op?: string | null
+          status?: string | null
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          bron?: string | null
+          category?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          is_custom?: boolean
+          item_key?: string
+          label?: string | null
+          notitie?: string | null
+          object_id?: string
+          opgevraagd_op?: string | null
+          status?: string | null
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
       }
       object_fotos: {
         Row: {
