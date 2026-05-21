@@ -4,10 +4,10 @@ import { formatCurrency, formatCurrencyCompact, getAllMatchesFromData } from '@/
 import type { DealFase } from '@/data/mock-data';
 import { LeadStatusBadge, DealFaseBadge, ObjectStatusBadge, PrioriteitBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
-import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, AlertCircle, Clock } from 'lucide-react';
+import { CheckSquare, TrendingUp, Zap, Flame, ArrowRight, Clock } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
-import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
+import { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { targetIsActief } from '@/lib/acquisitie';
 import { isTaakTeLaat, isTaakDezeWeek, deadlineLabel, sorteerTaken } from '@/lib/taakHelpers';
@@ -18,46 +18,52 @@ function KPICard({
   hint,
   icon: Icon,
   tone = 'primary',
+  trend,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon: React.ElementType;
   tone?: 'primary' | 'accent' | 'success' | 'muted';
+  trend?: { value: string; up?: boolean };
 }) {
   const toneClasses: Record<string, string> = {
-    primary: 'bg-primary/95 text-primary-foreground',
+    primary: 'bg-primary text-primary-foreground',
     accent:  'bg-accent/15 text-accent',
     success: 'bg-success/15 text-success',
     muted:   'bg-muted text-muted-foreground',
   };
   return (
-    <div className="relative section-card p-6 flex flex-col gap-4 min-w-0 transition-shadow hover:shadow-md">
+    <div className="kpi-card group">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.08em] leading-tight">
-            {label}
-          </p>
-          <p className="mt-3 text-[28px] lg:text-[32px] font-semibold text-foreground font-mono-data leading-none break-words">
-            {value}
-          </p>
+          <p className="kpi-label">{label}</p>
+          <p className="kpi-value">{value}</p>
         </div>
         <span className={`kpi-badge ${toneClasses[tone]}`}>
-          <Icon className="h-5 w-5" />
+          <Icon className="h-[18px] w-[18px]" />
         </span>
       </div>
-      {hint && (
-        <p className="text-xs text-muted-foreground break-words sm:truncate">{hint}</p>
-      )}
+      <div className="flex items-center justify-between gap-2">
+        {hint && <p className="kpi-hint">{hint}</p>}
+        {trend && (
+          <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold font-mono-data px-1.5 py-0.5 rounded-md ${
+            trend.up === false ? 'text-destructive bg-destructive/10' : 'text-success bg-success/10'
+          }`}>
+            {trend.up === false ? '▾' : '▴'} {trend.value}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
+
 
 const pipelineFases: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing'];
 
 export default function DashboardPage() {
   const store = useDataStore();
-  const { relaties, objecten, deals, taken, pipelineKandidaten } = store;
+  const { relaties, objecten, deals, taken } = store;
 
   const warmeRelaties = relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief');
   const actieveObjecten = objecten.filter(o => !o.isArchived);
@@ -88,13 +94,8 @@ export default function DashboardPage() {
     nu,
   );
 
-  const dealsZonderActie = actieveDeals.filter(d => !d.datumFollowUp);
-  const kandidatenZonderActie = pipelineKandidaten.filter(k => {
-    const obj = store.getObjectById(k.objectId);
-    if (!obj || obj.isArchived) return false;
-    return !k.volgendeActie && !k.volgendeActieDatum;
-  });
-  const totaalZonderActie = dealsZonderActie.length + kandidatenZonderActie.length;
+  // (Sectie "Zonder volgende actie" verwijderd – focus op actieve dealflow.)
+
 
   return (
     <div className="page-shell-wide">
@@ -131,48 +132,78 @@ export default function DashboardPage() {
       {/* Commissie & successen */}
       <CommissieWidget />
 
-      {/* Pipeline funnel — chevron stappen */}
+      {/* Pipeline funnel — institutioneel */}
       <section className="section-card">
         <header className="section-header">
-          <div>
-            <h2 className="section-title">Pipeline overzicht</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Deals per fase · live</p>
+          <div className="min-w-0">
+            <h2 className="section-title">Pipeline momentum</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">
+              {actieveDeals.length} actieve deals · {formatCurrencyCompact(dealWaarde)} totale waarde
+            </p>
           </div>
-          <Link to="/deals" className="section-link inline-flex items-center gap-1">
-            Alle deals <ArrowRight className="h-3 w-3" />
+          <Link to="/deals" className="section-link inline-flex items-center gap-1 group">
+            Alle deals <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </header>
-        <div className="p-5">
-          <div className="hidden md:flex items-stretch gap-1.5">
-            {dealsPerFase.map(({ fase, aantal }, idx) => {
-              const isFirst = idx === 0;
-              const isLast = idx === dealsPerFase.length - 1;
-              const intensity = 0.05 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.18;
-              return (
-                <div
-                  key={fase}
-                  className={`flex-1 min-w-0 px-5 py-4 ${
-                    isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
-                  }`}
-                  style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
-                >
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground/70 truncate capitalize">{fase}</p>
-                  <p className="text-base font-semibold font-mono-data text-foreground mt-1">{aantal}</p>
+        <div className="p-5 lg:p-6">
+          {(() => {
+            const totaal = dealsPerFase.reduce((s, x) => s + x.aantal, 0) || 1;
+            const maxAantal = Math.max(1, ...dealsPerFase.map(d => d.aantal));
+            return (
+              <>
+                <div className="hidden md:flex items-stretch gap-1.5 mb-4">
+                  {dealsPerFase.map(({ fase, aantal }, idx) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === dealsPerFase.length - 1;
+                    const intensity = 0.06 + (idx / Math.max(1, dealsPerFase.length - 1)) * 0.22;
+                    const heightPct = (aantal / maxAantal) * 100;
+                    const pct = Math.round((aantal / totaal) * 100);
+                    return (
+                      <Link
+                        key={fase}
+                        to={`/deals?fase=${fase}`}
+                        className={`pipeline-stage rounded-sm ${
+                          isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'
+                        }`}
+                        style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}
+                        title={`${fase}: ${aantal} deals (${pct}%)`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-foreground/70 truncate capitalize">{fase}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1.5">
+                          <span className="text-xl font-semibold font-mono-data text-foreground leading-none">{aantal}</span>
+                          <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
+                        </div>
+                        <div className="mt-2.5 h-1 bg-foreground/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.max(4, heightPct)}%` }}
+                          />
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          {/* Mobiel: simpele grid */}
-          <div className="md:hidden grid grid-cols-2 gap-3">
-            {dealsPerFase.map(({ fase, aantal }) => (
-              <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
-                <p className="text-lg font-semibold font-mono-data text-foreground mt-0.5">{aantal}</p>
-              </div>
-            ))}
-          </div>
+                {/* Mobiel */}
+                <div className="md:hidden grid grid-cols-2 gap-2.5">
+                  {dealsPerFase.map(({ fase, aantal }) => {
+                    const pct = Math.round((aantal / totaal) * 100);
+                    return (
+                      <div key={fase} className="rounded-lg border border-border/70 px-3 py-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground capitalize truncate">{fase}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <span className="text-lg font-semibold font-mono-data text-foreground">{aantal}</span>
+                          <span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
+
 
       {/* Twee belangrijke focus-lijsten */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
@@ -238,54 +269,8 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {totaalZonderActie > 0 && (
-          <section className="section-card border-warning/40">
-            <header className="section-header">
-              <h2 className="section-title flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-warning" /> Zonder volgende actie ({totaalZonderActie})
-              </h2>
-            </header>
-            <div className="divide-y divide-border/70">
-              {dealsZonderActie.slice(0, 4).map(d => {
-                const obj = store.getObjectById(d.objectId);
-                const rel = store.getRelatieById(d.relatieId);
-                return (
-                  <Link key={d.id} to={`/deals/${d.id}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                    <div className="row-with-action">
-                      <div className="row-flex">
-                        <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          Deal · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
-                        </p>
-                      </div>
-                      <div className="row-action"><GeenActieBadge /></div>
-                    </div>
-                  </Link>
-                );
-              })}
-              {kandidatenZonderActie.slice(0, 4).map(k => {
-                const obj = store.getObjectById(k.objectId);
-                const rel = store.getRelatieById(k.relatieId);
-                return (
-                  <Link key={k.id} to={`/objecten/${k.objectId}`} className="block px-5 py-3 hover:bg-muted/40 transition-colors">
-                    <div className="row-with-action">
-                      <div className="row-flex">
-                        <p className="text-sm text-foreground truncate">{obj?.titel ?? '—'}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          Kandidaat · {rel ? getRelatieNaamCompact(rel, store.contactpersonen) : '—'}
-                        </p>
-                      </div>
-                      <div className="row-action"><GeenActieBadge /></div>
-                    </div>
-                  </Link>
-                );
-              })}
-              {totaalZonderActie > 8 && (
-                <p className="px-5 py-2 text-xs text-muted-foreground">+ {totaalZonderActie - 8} meer…</p>
-              )}
-            </div>
-          </section>
-        )}
+
+
 
         <FocusList
           title="Warme leads"
