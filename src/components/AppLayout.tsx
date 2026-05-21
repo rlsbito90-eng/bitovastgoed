@@ -158,28 +158,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Link
                   to={item.path}
                   title={desktopCollapsed ? item.label : undefined}
-                  className={`relative flex items-center rounded-md text-sm transition-colors ${
-                    desktopCollapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-2"
+                  className={`relative flex items-center rounded-lg text-sm transition-colors ${
+                    desktopCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
                   } ${
                     isActive
                       ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                      : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   }`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" aria-hidden />
+                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-accent" aria-hidden />
                   )}
-                  <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                  {!desktopCollapsed && item.label}
+                  <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-accent" : ""}`} />
+                  {!desktopCollapsed && <span className="tracking-tight">{item.label}</span>}
                 </Link>
                 {item.groupEnd && (
-                  <div className={`my-1.5 border-t border-sidebar-border/60 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
+                  <div className={`my-2 border-t border-sidebar-border/40 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
                 )}
               </div>
             );
           })}
         </nav>
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border/60">
           <GebruikerMenu collapsed={desktopCollapsed} />
         </div>
       </aside>
