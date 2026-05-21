@@ -136,7 +136,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar }: Props) {
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType }: Props) {
   const { calculations, create, remove } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
