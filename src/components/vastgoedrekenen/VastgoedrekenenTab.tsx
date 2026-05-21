@@ -184,8 +184,10 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
           objectWoz={objectWoz}
           objectEnergyLabel={objectEnergyLabel}
           objectBouwjaar={objectBouwjaar}
+          objectRawType={objectRawType}
           viewMode={viewMode}
         />
+
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
           Nog geen quickscan aangemaakt. Klik op "Nieuwe quickscan" om te starten.
