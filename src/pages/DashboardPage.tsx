@@ -879,7 +879,7 @@ function AcquisitieDashboardSectie() {
         <MiniStat label="Actieve targets" value={actief.length} />
         <MiniStat label="Verlopen acties" value={verlopen.length} tone={verlopen.length > 0 ? 'destructive' : 'normal'} />
         <MiniStat label="Reacties / mnd" value={reactiesMaand.length} />
-        <MiniStat label="Warme leads" value={warm.length} />
+        <MiniStat label="Actieve kopers" value={warm.length} />
         <MiniStat label="Objecten uit acq." value={objectenUit.length} />
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Beste campagne</p>
