@@ -130,7 +130,8 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
 
   // Bid-basis: 'verkoop' indien expliciet zo ingesteld én exit-bid bekend; anders 'huur'.
   const bidBasisField = (scenario as Record<string, unknown>).bid_basis as string | null | undefined;
-  const useSaleBasis = bidBasisField === 'verkoop' && exitBasedMaxBidNet != null && exitBasedMaxBidNet > 0;
+  const assessmentType = determineAssessmentType(scenario);
+  const useSaleBasis = assessmentType === 'verkoop' && exitBasedMaxBidNet != null && exitBasedMaxBidNet > 0;
   const effectiveMaxBid = useSaleBasis ? (exitBasedMaxBidNet as number) : bid.maxBid;
   const bidBasisUsed: 'huur' | 'verkoop' = useSaleBasis ? 'verkoop' : 'huur';
 
@@ -151,7 +152,6 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const inputReliability = computeInputReliability(scoreInput);
   const risk = computeRiskScore(scoreInput);
   const complexity = computeComplexity(scoreInput);
-  const assessmentType = determineAssessmentType(scenario);
   const baseDealScore = computeDealScore(scoreInput, risk.level);
   const rec = scenario as Record<string, unknown>;
   const saleScore = assessmentType === 'verkoop'
