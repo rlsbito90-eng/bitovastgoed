@@ -9,6 +9,7 @@ import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS, VR_OVB_CLASSIFICATION_LABELS, VR_COMPONENT_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { SALE_STRATEGY_LABELS, SALE_FOCUSED_STRATEGIES, SALE_FOCUSED_SALE_STRATEGIES } from '@/lib/vastgoedrekenen/verkoop';
 import {
   ASSUMPTION_PROFILE_LABELS, COST_STRUCTURE_LABELS, RENT_SOURCE_LABELS, MJOP_LABELS, RELIABILITY_LABELS,
   mapToAssumptionType, defaultProfileFor, getAssumptionSet,
