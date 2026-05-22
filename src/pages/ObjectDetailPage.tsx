@@ -269,10 +269,31 @@ function SectionNav({ active }: { active: string }) {
             </a>
           );
         })}
+        <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
+        {MOBILE_ONLY_SECTIONS.map((s) => {
+          const isActive = active === s.id;
+          return (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={(e) => handleClick(e, s.id)}
+              ref={(el) => { tabRefs.current[s.id] = el; }}
+              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+              {s.label}
+            </a>
+          );
+        })}
       </div>
     </nav>
   );
 }
+
 
 
 /* ============================================================
