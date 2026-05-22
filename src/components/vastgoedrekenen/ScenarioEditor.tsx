@@ -740,9 +740,18 @@ export default function ScenarioEditor(props: Props) {
                         <p className="font-mono-data font-semibold">{outputs.grossSaleProceeds != null ? fmtEur(outputs.grossSaleProceeds) : 'Onvoldoende gegevens'}</p>
                       </div>
                       <div>
+                        <p className="text-muted-foreground">Verkoopprijs /m²</p>
+                        <p className="font-mono-data font-semibold">{outputs.salePricePerM2 != null ? fmtEurPerM2(outputs.salePricePerM2) : 'Onvoldoende gegevens'}</p>
+                      </div>
+                      <div>
                         <p className="text-muted-foreground">Verkoopkosten</p>
                         <p className="font-mono-data">{outputs.saleCostsTotal != null ? fmtEur(outputs.saleCostsTotal) : '—'}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Netto verkoop /m²</p>
+                        <p className="font-mono-data">{outputs.netSaleProceedsPerM2 != null ? fmtEurPerM2(outputs.netSaleProceedsPerM2) : '—'}</p>
+                      </div>
+
                       <div>
                         <p className="text-muted-foreground">Netto verkoopopbrengst</p>
                         <p className="font-mono-data font-semibold">{outputs.netSaleProceeds != null ? fmtEur(outputs.netSaleProceeds) : 'Onvoldoende gegevens'}</p>
