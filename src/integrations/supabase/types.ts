@@ -508,6 +508,7 @@ export type Database = {
           assumptions_manual: boolean | null
           assumptions_reliability: string | null
           assumptions_source: string | null
+          bid_basis: string | null
           buyer_fee_amount: number | null
           buyer_fee_percentage: number | null
           buyer_fee_vat_percentage: number | null
@@ -540,6 +541,20 @@ export type Database = {
             | null
           rent_source: string | null
           safety_margin: number | null
+          sale_costs_percentage: number | null
+          sale_exit_value_manual: number | null
+          sale_expected_period_months: number | null
+          sale_other_costs: number | null
+          sale_price_per_m2: number | null
+          sale_price_per_unit: number | null
+          sale_price_total: number | null
+          sale_sellable_m2: number | null
+          sale_strategy: string | null
+          sale_target_exit_value: number | null
+          sale_target_margin_amount: number | null
+          sale_target_margin_percentage: number | null
+          sale_target_roi_percentage: number | null
+          sale_units_count: number | null
           scenario_name: string
           service_costs_checked: boolean | null
           status: Database["public"]["Enums"]["vr_calc_status"]
@@ -561,6 +576,7 @@ export type Database = {
           assumptions_manual?: boolean | null
           assumptions_reliability?: string | null
           assumptions_source?: string | null
+          bid_basis?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
@@ -593,6 +609,20 @@ export type Database = {
             | null
           rent_source?: string | null
           safety_margin?: number | null
+          sale_costs_percentage?: number | null
+          sale_exit_value_manual?: number | null
+          sale_expected_period_months?: number | null
+          sale_other_costs?: number | null
+          sale_price_per_m2?: number | null
+          sale_price_per_unit?: number | null
+          sale_price_total?: number | null
+          sale_sellable_m2?: number | null
+          sale_strategy?: string | null
+          sale_target_exit_value?: number | null
+          sale_target_margin_amount?: number | null
+          sale_target_margin_percentage?: number | null
+          sale_target_roi_percentage?: number | null
+          sale_units_count?: number | null
           scenario_name: string
           service_costs_checked?: boolean | null
           status?: Database["public"]["Enums"]["vr_calc_status"]
@@ -614,6 +644,7 @@ export type Database = {
           assumptions_manual?: boolean | null
           assumptions_reliability?: string | null
           assumptions_source?: string | null
+          bid_basis?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
@@ -646,6 +677,20 @@ export type Database = {
             | null
           rent_source?: string | null
           safety_margin?: number | null
+          sale_costs_percentage?: number | null
+          sale_exit_value_manual?: number | null
+          sale_expected_period_months?: number | null
+          sale_other_costs?: number | null
+          sale_price_per_m2?: number | null
+          sale_price_per_unit?: number | null
+          sale_price_total?: number | null
+          sale_sellable_m2?: number | null
+          sale_strategy?: string | null
+          sale_target_exit_value?: number | null
+          sale_target_margin_amount?: number | null
+          sale_target_margin_percentage?: number | null
+          sale_target_roi_percentage?: number | null
+          sale_units_count?: number | null
           scenario_name?: string
           service_costs_checked?: boolean | null
           status?: Database["public"]["Enums"]["vr_calc_status"]
