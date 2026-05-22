@@ -292,7 +292,7 @@ export default function ScenarioEditor(props: Props) {
         <CardHeader className="pb-3">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <Input className="font-semibold text-base w-full" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
+              <TextInput value={s.scenario_name} onDirty={() => setDirty(true)} onChange={(value) => patch({ scenario_name: value ?? '' })} className="font-semibold text-base w-full" />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto min-w-0">
@@ -493,10 +493,10 @@ export default function ScenarioEditor(props: Props) {
             <Label className="cursor-pointer leading-snug whitespace-normal break-words">Incentive-reserve meegenomen</Label>
           </div>
           <MobileFieldGroup label="Bron / onderbouwing aannames" className="md:col-span-2 lg:col-span-3">
-            <Input value={s.assumptions_source ?? ''} onChange={(e) => patch({ assumptions_source: e.target.value || null })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
+            <TextInput value={s.assumptions_source} onDirty={() => setDirty(true)} onChange={(value) => patch({ assumptions_source: value })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
           </MobileFieldGroup>
           <MobileFieldGroup label="Reden profielkeuze" className="md:col-span-2 lg:col-span-3">
-            <Input value={s.assumption_profile_reason ?? ''} onChange={(e) => patch({ assumption_profile_reason: e.target.value || null })} placeholder="Waarom dit profiel?" />
+            <TextInput value={s.assumption_profile_reason} onDirty={() => setDirty(true)} onChange={(value) => patch({ assumption_profile_reason: value })} placeholder="Waarom dit profiel?" />
           </MobileFieldGroup>
         </CardContent>
       </Card>
