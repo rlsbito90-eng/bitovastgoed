@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -485,11 +485,8 @@ export default function ObjectDetailPage() {
   const objectTaken = store.getTakenByObject(object.id);
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
   const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
-  const reedsGekoppeldRelaties = useMemo(
-    () => new Set<string>(kandidatenPipeline.map(k => k.relatieId)),
-    [kandidatenPipeline],
-  );
-  const volgendeTaak = useMemo(() => {
+  const reedsGekoppeldRelaties = new Set<string>(kandidatenPipeline.map(k => k.relatieId));
+  const volgendeTaak = (() => {
     const open = objectTaken
       .filter(t => t.status === 'open')
       .sort((a, b) => {
@@ -499,7 +496,7 @@ export default function ObjectDetailPage() {
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       });
     return open[0] ?? null;
-  }, [objectTaken]);
+  })();
 
   const barEffect = object.brutoAanvangsrendement
     ?? (object.huurinkomsten && object.vraagprijs
@@ -519,14 +516,14 @@ export default function ObjectDetailPage() {
     : '—';
 
   // Lead deal voor cockpit
-  const leadDeal = useMemo(() => {
+  const leadDeal = (() => {
     if (!deals.length) return null;
     const sorted = [...deals].sort((a, b) => {
       const ka = (b.commissieBedrag ?? 0) - (a.commissieBedrag ?? 0);
       return ka;
     });
     return sorted[0];
-  }, [deals]);
+  })();
 
   const handleDelete = async () => {
     try {
