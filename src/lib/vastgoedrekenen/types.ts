@@ -18,6 +18,18 @@ export type TaxSettings = Database['public']['Tables']['vastgoedrekenen_tax_sett
 
 export type ViewMode = 'begeleid' | 'compact' | 'expert';
 
+export type ScenarioAssessmentType = 'exploitatie' | 'verkoop';
+export type ScenarioScoreLabel =
+  | 'Kansrijk'
+  | 'Acceptabel'
+  | 'Onzeker'
+  | 'Te duur'
+  | 'ROI onvoldoende'
+  | 'Marge onvoldoende'
+  | 'Exitdoel niet gehaald'
+  | 'Onvoldoende data'
+  | 'Niet haalbaar';
+
 export type ComputedOutputs = {
   totalTransferTax: number;
   totalAcquisitionCosts: number;
@@ -56,6 +68,11 @@ export type ComputedOutputs = {
   riskScore: 'laag' | 'middel' | 'hoog';
   complexityScore: 'laag' | 'middel' | 'hoog' | 'zeer_hoog';
   inputReliability: 'laag' | 'middel' | 'hoog';
+  assessmentType: ScenarioAssessmentType;
+  scoreLabel: ScenarioScoreLabel;
+  scoreReason: string;
+  scorePositivePoints: string[];
+  scoreAttentionPoints: string[];
   conclusion: string;
   recommendedNextStep: string;
   warnings: string[];
