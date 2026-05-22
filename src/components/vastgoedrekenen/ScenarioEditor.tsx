@@ -560,20 +560,28 @@ export default function ScenarioEditor(props: Props) {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
-            <div key={u.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2 min-w-0">
-              <div><Label className="text-xs">Naam</Label><Input className="h-8" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></div>
-              <div><Label className="text-xs">Woon m²</Label><Input className="h-8" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div><Label className="text-xs">WOZ (€)</Label><Input className="h-8" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div><Label className="text-xs">Energielabel</Label><Input className="h-8" value={u.energy_label ?? ''} onChange={(e) => updateWwsUnit(u.id, { energy_label: e.target.value || null })} /></div>
-              <div><Label className="text-xs">Maandhuur (€)</Label><Input className="h-8" type="number" value={u.current_monthly_rent ?? ''} onChange={(e) => updateWwsUnit(u.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div className="text-xs">
-                <Label className="text-xs">Punten / segment</Label>
-                <div className="h-8 flex items-center font-mono-data">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
+            <div key={u.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Woonunit</p>
+                <Button size="sm" variant="ghost" onClick={() => deleteWwsUnit(u.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Woonunit verwijderen</span>
+                </Button>
               </div>
-              <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteWwsUnit(u.id)}><Trash2 className="h-4 w-4" /></Button></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
+                <MobileFieldGroup label="Naam"><Input className="h-9" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Woon m²"><Input className="h-9" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="WOZ (€)"><Input className="h-9" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Energielabel"><Input className="h-9" value={u.energy_label ?? ''} onChange={(e) => updateWwsUnit(u.id, { energy_label: e.target.value || null })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Maandhuur (€)"><Input className="h-9" type="number" value={u.current_monthly_rent ?? ''} onChange={(e) => updateWwsUnit(u.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <div className="min-w-0 w-full space-y-1.5">
+                  <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
+                  <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
+                </div>
+              </div>
             </div>
           ))}
           {showHelp && (
@@ -589,23 +597,32 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs whitespace-nowrap">Onvoorzien (%)</Label>
-              <Input className="h-9 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
+            <div className="w-full sm:w-32 min-w-0">
+              <MobileFieldGroup label="Onvoorzien (%)">
+                <Input className="h-9" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+              </MobileFieldGroup>
             </div>
             <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
-            <div key={c.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2 min-w-0">
-              <div className="col-span-2"><Label className="text-xs">Categorie</Label><Input className="h-8" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></div>
-              <div className="col-span-2"><Label className="text-xs">Omschrijving</Label><Input className="h-8" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></div>
-              <div><Label className="text-xs">Bedrag (€)</Label><Input className="h-8" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></div>
-              <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteCost(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
+            <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
+                <Button size="sm" variant="ghost" onClick={() => deleteCost(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Kostenpost verwijderen</span>
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
+                <MobileFieldGroup label="Categorie" className="lg:col-span-2"><Input className="h-9" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2"><Input className="h-9" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Bedrag (€)"><Input className="h-9" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></MobileFieldGroup>
+              </div>
             </div>
           ))}
           <p className="text-xs text-muted-foreground pt-1">Totale kosten (incl. {Number(s.unforeseen_percentage ?? 0)}% onvoorzien): {fmtEur(outputs.totalCosts)}</p>
