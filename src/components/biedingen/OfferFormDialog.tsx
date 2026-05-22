@@ -29,7 +29,10 @@ interface Props {
   defaultObjectPipelineId?: string;
   /** Tegenvoorstel-modus: vorig bod */
   counterTo?: Bieding | null;
+  /** Wordt aangeroepen na succesvol opslaan zodat de parent kan refetchen */
+  onSaved?: () => void | Promise<void>;
 }
+
 
 const norm = (s?: string | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
@@ -83,8 +86,9 @@ const emptyForm = (): FormState => ({
 export default function OfferFormDialog({
   open, onOpenChange, bieding,
   defaultObjectId, defaultRelatieId, defaultDealId, defaultObjectPipelineId,
-  counterTo,
+  counterTo, onSaved,
 }: Props) {
+
   const { relaties, contactpersonen, objecten, deals, getObjectById } = useDataStore();
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -208,7 +212,9 @@ export default function OfferFormDialog({
         await create(payload);
         toast.success('Bieding toegevoegd');
       }
+      await onSaved?.();
       onOpenChange(false);
+
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {

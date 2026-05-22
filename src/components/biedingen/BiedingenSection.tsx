@@ -180,7 +180,11 @@ export default function BiedingenSection({
                       const verlopen = isVerlopen(b);
                       const dagen = dagenTotVerval(b);
                       return (
-                        <tr key={b.id} className="border-t border-border/40 hover:bg-muted/30 transition-colors">
+                        <tr
+                          key={b.id}
+                          className="border-t border-border/40 hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handleEdit(b)}
+                        >
                           <td className="px-3 py-2 whitespace-nowrap">
                             <div>{new Date(b.bieddatum).toLocaleDateString('nl-NL')}</div>
                             {b.geldigTot && (
@@ -215,7 +219,7 @@ export default function BiedingenSection({
                           <td className="px-3 py-2 max-w-[200px]">
                             <VoorwaardenSummary b={b} />
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-2 text-right" onClick={e => e.stopPropagation()}>
                             <RowActions
                               b={b}
                               onEdit={() => handleEdit(b)}
@@ -227,6 +231,7 @@ export default function BiedingenSection({
                           </td>
                         </tr>
                       );
+
                     })}
                   </tbody>
                 </table>
@@ -237,20 +242,29 @@ export default function BiedingenSection({
                 {visible.map(b => {
                   const delta = vraagprijs && b.bedrag ? vraagprijsDelta(b.bedrag, vraagprijs) : null;
                   return (
-                    <div key={b.id} className="rounded-md border border-border/60 p-3 space-y-2 bg-card">
+                    <div
+                      key={b.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleEdit(b)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEdit(b); } }}
+                      className="rounded-md border border-border/60 p-3 space-y-2 bg-card cursor-pointer hover:bg-muted/40 active:bg-muted/60 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           {showRelatieCol && <div className="text-sm">{renderRelatieLabel(b.relatieId)}</div>}
                           {showObjectCol && <div className="mt-1 text-xs text-muted-foreground">{renderObjectLabel(b.objectId)}</div>}
                         </div>
-                        <RowActions
-                          b={b}
-                          onEdit={() => handleEdit(b)}
-                          onCounter={() => handleCounter(b)}
-                          onAccept={() => setAcceptTarget(b)}
-                          onReject={() => setRejectTarget(b)}
-                          onDelete={async () => { await remove(b.id); }}
-                        />
+                        <div onClick={e => e.stopPropagation()}>
+                          <RowActions
+                            b={b}
+                            onEdit={() => handleEdit(b)}
+                            onCounter={() => handleCounter(b)}
+                            onAccept={() => setAcceptTarget(b)}
+                            onReject={() => setRejectTarget(b)}
+                            onDelete={async () => { await remove(b.id); }}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-baseline justify-between gap-2 flex-wrap">
                         <div className="text-lg font-semibold">{b.bedrag != null ? fmtEur(b.bedrag) : '—'}</div>
@@ -272,6 +286,7 @@ export default function BiedingenSection({
                       <VoorwaardenSummary b={b} className="text-xs" />
                     </div>
                   );
+
                 })}
               </div>
             </>
@@ -287,7 +302,9 @@ export default function BiedingenSection({
         defaultRelatieId={defaults?.relatieId}
         defaultDealId={defaults?.dealId}
         defaultObjectPipelineId={defaults?.objectPipelineId}
+        onSaved={refresh}
       />
+
       <OfferAcceptDialog open={!!acceptTarget} onOpenChange={o => !o && setAcceptTarget(null)} bieding={acceptTarget} />
       <OfferRejectDialog open={!!rejectTarget} onOpenChange={o => !o && setRejectTarget(null)} bieding={rejectTarget} />
     </TooltipProvider>
