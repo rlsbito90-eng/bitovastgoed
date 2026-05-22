@@ -411,8 +411,20 @@ export default function ObjectDetailPage() {
       const subNavBottom = subNav?.getBoundingClientRect().bottom ?? 60;
       const offsetLine = subNavBottom + 16;
 
-      // Detect near-bottom of scroll container → activate last section
-      const firstEl = document.getElementById(sectionsToObserve[0].id);
+      // Verzamel alle bestaande secties met hun rect
+      const present = sectionsToObserve
+        .map(s => {
+          const el = document.getElementById(s.id);
+          if (!el) return null;
+          const rect = el.getBoundingClientRect();
+          return { id: s.id, top: rect.top, bottom: rect.bottom };
+        })
+        .filter((x): x is { id: string; top: number; bottom: number } => x !== null);
+
+      if (present.length === 0) return;
+
+      // Detect near-bottom → forceer laatste sectie
+      const firstEl = document.getElementById(present[0].id);
       const parent = firstEl ? getScrollParent(firstEl) : window;
       const nearBottom = parent === window
         ? window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24
@@ -422,25 +434,26 @@ export default function ObjectDetailPage() {
           })();
 
       if (nearBottom) {
-        // Pak de laatste sectie die in de DOM aanwezig is
-        for (let i = sectionsToObserve.length - 1; i >= 0; i--) {
-          if (document.getElementById(sectionsToObserve[i].id)) {
-            setActiveSection(sectionsToObserve[i].id);
-            return;
-          }
-        }
+        setActiveSection(present[present.length - 1].id);
+        return;
       }
 
-      let best: { id: string; dist: number } | null = null;
-      sectionsToObserve.forEach(s => {
-        const el = document.getElementById(s.id);
-        if (!el) return;
-        const top = el.getBoundingClientRect().top;
-        // Voorkeur voor secties wiens top net boven of bij offsetLine zit
-        const dist = top <= offsetLine ? offsetLine - top : (top - offsetLine) * 1.6;
-        if (!best || dist < best.dist) best = { id: s.id, dist };
-      });
-      if (best) setActiveSection(best.id);
+      // 1) Sectie die offsetLine bevat → kies de laatste (meest recente in DOM-volgorde)
+      const containing = present.filter(s => s.top <= offsetLine && s.bottom > offsetLine);
+      if (containing.length > 0) {
+        setActiveSection(containing[containing.length - 1].id);
+        return;
+      }
+
+      // 2) Anders: laatste sectie wiens top de offsetLine al gepasseerd is
+      const passed = present.filter(s => s.top <= offsetLine);
+      if (passed.length > 0) {
+        setActiveSection(passed[passed.length - 1].id);
+        return;
+      }
+
+      // 3) Anders: eerste sectie (we zitten boven alles)
+      setActiveSection(present[0].id);
     };
 
     const firstEl = document.getElementById(sectionsToObserve[0]?.id);
