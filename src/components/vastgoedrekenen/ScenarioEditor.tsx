@@ -314,7 +314,7 @@ export default function ScenarioEditor(props: Props) {
         <CardHeader className="pb-3">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <TextInput value={s.scenario_name} onRawChange={() => setDirty(true)} onChange={(value) => patch({ scenario_name: value ?? '' })} className="font-semibold text-base w-full" />
+              <TextInput value={s.scenario_name} onRawChange={markDirtyFromRaw} onChange={(value) => patch({ scenario_name: value ?? '' })} className="font-semibold text-base w-full" />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto min-w-0">
@@ -373,9 +373,9 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Aankoopanalyse</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
-          <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={() => setDirty(true)} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={() => setDirty(true)} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput onRawChange={() => setDirty(true)} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
 
           <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
             <Select value={s.ovb_classification} onValueChange={(v) => patch({ ovb_classification: v as Scenario['ovb_classification'] })}>
@@ -400,8 +400,8 @@ export default function ScenarioEditor(props: Props) {
 
           {ovbMode === 'manual' && (
             <>
-              <MobileFieldGroup label="OVB-percentage handmatig (%)"><NumInput onRawChange={() => setDirty(true)} value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></MobileFieldGroup>
-              <MobileFieldGroup label="OVB-bedrag handmatig (€)"><NumInput onRawChange={() => setDirty(true)} value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></MobileFieldGroup>
+              <MobileFieldGroup label="OVB-percentage handmatig (%)"><NumInput onRawChange={markDirtyFromRaw} value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></MobileFieldGroup>
+              <MobileFieldGroup label="OVB-bedrag handmatig (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></MobileFieldGroup>
               <div className="col-span-full text-xs text-amber-700 dark:text-amber-300">⚠ OVB is handmatig overschreven. Controleer dit bij twijfel met notaris/fiscalist.</div>
             </>
           )}
@@ -409,12 +409,12 @@ export default function ScenarioEditor(props: Props) {
             <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
           )}
 
-          <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput onRawChange={() => setDirty(true)} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
-          <MobileFieldGroup label="Notariskosten (€)"><NumInput onRawChange={() => setDirty(true)} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Advieskosten (€)"><NumInput onRawChange={() => setDirty(true)} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Due diligence (€)"><NumInput onRawChange={() => setDirty(true)} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput onRawChange={() => setDirty(true)} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
-          <MobileFieldGroup label="Financieringskosten (€)"><NumInput onRawChange={() => setDirty(true)} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Notariskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Advieskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Due diligence (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Financieringskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {showHelp && (
           <CardContent className="pt-0">
@@ -455,12 +455,12 @@ export default function ScenarioEditor(props: Props) {
           </MobileFieldGroup>
 
           <MobileFieldGroup label="Huidige maandhuur (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
-            <NumInput onRawChange={() => setDirty(true)} value={rentFromComponents ? Math.round(outputs.currentAnnualRent / 12) : s.current_monthly_rent} onChange={(v) => patch({ current_monthly_rent: v })} suffix="€" />
+            <NumInput onRawChange={markDirtyFromRaw} value={rentFromComponents ? Math.round(outputs.currentAnnualRent / 12) : s.current_monthly_rent} onChange={(v) => patch({ current_monthly_rent: v })} suffix="€" />
           </MobileFieldGroup>
           <MobileFieldGroup label="Markthuur per maand (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
-            <NumInput onRawChange={() => setDirty(true)} value={rentFromComponents ? Math.round(outputs.marketAnnualRent / 12) : s.market_monthly_rent} onChange={(v) => patch({ market_monthly_rent: v })} suffix="€" />
+            <NumInput onRawChange={markDirtyFromRaw} value={rentFromComponents ? Math.round(outputs.marketAnnualRent / 12) : s.market_monthly_rent} onChange={(v) => patch({ market_monthly_rent: v })} suffix="€" />
           </MobileFieldGroup>
-          <MobileFieldGroup label="Handmatige gecorrigeerde maandhuur (€)"><NumInput onRawChange={() => setDirty(true)} value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Handmatige gecorrigeerde maandhuur (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></MobileFieldGroup>
 
           <MobileFieldGroup label="Huur voor berekening">
             <Select value={s.rent_choice ?? 'huidig'} onValueChange={(v) => patch({ rent_choice: v as Scenario['rent_choice'] })}>
@@ -473,11 +473,11 @@ export default function ScenarioEditor(props: Props) {
               </SelectContent>
             </Select>
           </MobileFieldGroup>
-          <MobileFieldGroup label="Leegstand (%)"><NumInput onRawChange={() => setDirty(true)} value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
-          <MobileFieldGroup label="Exploitatie (%)"><NumInput onRawChange={() => setDirty(true)} value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
-          <MobileFieldGroup label="Onderhoud (%)"><NumInput onRawChange={() => setDirty(true)} value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
-          <MobileFieldGroup label="Beheer (%)"><NumInput onRawChange={() => setDirty(true)} value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
-          <MobileFieldGroup label="Overige jaarlijkse kosten (€)"><NumInput onRawChange={() => setDirty(true)} value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Leegstand (%)"><NumInput onRawChange={markDirtyFromRaw} value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Exploitatie (%)"><NumInput onRawChange={markDirtyFromRaw} value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Onderhoud (%)"><NumInput onRawChange={markDirtyFromRaw} value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beheer (%)"><NumInput onRawChange={markDirtyFromRaw} value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige jaarlijkse kosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {aannameWaarschuwingen.length > 0 && (
           <CardContent className="pt-0">
@@ -515,10 +515,10 @@ export default function ScenarioEditor(props: Props) {
             <Label className="cursor-pointer leading-snug whitespace-normal break-words">Incentive-reserve meegenomen</Label>
           </div>
           <MobileFieldGroup label="Bron / onderbouwing aannames" className="md:col-span-2 lg:col-span-3">
-            <TextInput value={s.assumptions_source} onRawChange={() => setDirty(true)} onChange={(value) => patch({ assumptions_source: value })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
+            <TextInput value={s.assumptions_source} onRawChange={markDirtyFromRaw} onChange={(value) => patch({ assumptions_source: value })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
           </MobileFieldGroup>
           <MobileFieldGroup label="Reden profielkeuze" className="md:col-span-2 lg:col-span-3">
-            <TextInput value={s.assumption_profile_reason} onRawChange={() => setDirty(true)} onChange={(value) => patch({ assumption_profile_reason: value })} placeholder="Waarom dit profiel?" />
+            <TextInput value={s.assumption_profile_reason} onRawChange={markDirtyFromRaw} onChange={(value) => patch({ assumption_profile_reason: value })} placeholder="Waarom dit profiel?" />
           </MobileFieldGroup>
         </CardContent>
       </Card>
@@ -637,7 +637,7 @@ export default function ScenarioEditor(props: Props) {
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
             <div className="w-full sm:w-32 min-w-0">
               <MobileFieldGroup label="Onvoorzien (%)">
-                <NumInput onRawChange={() => setDirty(true)} value={s.unforeseen_percentage} onChange={(v) => patch({ unforeseen_percentage: v })} suffix="%" />
+                <NumInput onRawChange={markDirtyFromRaw} value={s.unforeseen_percentage} onChange={(v) => patch({ unforeseen_percentage: v })} suffix="%" />
               </MobileFieldGroup>
             </div>
             <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
@@ -670,7 +670,7 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Biedingsadvies</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
-          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput onRawChange={() => setDirty(true)} value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput onRawChange={markDirtyFromRaw} value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
           <div className="col-span-full">
             <BerekeningUitleg>
               Max all-in waarde = gecorrigeerde jaarhuur / gewenste BAR. Daarna worden aankoopkosten, OVB, kosten, financieringskosten en veiligheidsmarge afgetrokken om tot de maximale bieding te komen.
@@ -683,7 +683,7 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Notities</CardTitle></CardHeader>
         <CardContent>
-          <RawTextarea initialValue={s.notes ?? ''} onRawChange={() => setDirty(true)} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
+          <RawTextarea initialValue={s.notes ?? ''} onRawChange={markDirtyFromRaw} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
         </CardContent>
       </Card>
     </div>
