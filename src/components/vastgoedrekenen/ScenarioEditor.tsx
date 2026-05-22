@@ -649,7 +649,7 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Notities</CardTitle></CardHeader>
         <CardContent>
-          <Textarea value={s.notes ?? ''} onChange={(e) => patch({ notes: e.target.value })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
+          <RawTextarea initialValue={s.notes ?? ''} onRawChange={() => setDirty(true)} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
         </CardContent>
       </Card>
     </div>
