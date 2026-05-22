@@ -1,132 +1,133 @@
+# Plan: Biedingenmodule
+
 ## Doel
 
-Een nieuwe sectie **"Dossier & aanbieding"** op de Objectdetailpagina, waarmee je per off-market object overzicht houdt over informatiepositie, klaar-staande teksten, interne aandachtspunten en verkoopgereedheid — zonder ergens te blokkeren als data ontbreekt.
+Eén centrale `biedingen`-tabel om biedingen gestructureerd vast te leggen, vergelijken en opvolgen — gekoppeld aan objecten, relaties/kandidaten en deals. Vervangt losse notitievelden en houdt volledige historie inclusief tegenvoorstellen.
 
-## Scope (V1)
+## Datamodel (Supabase migration)
 
-Eén nieuwe tab/sectie op `ObjectDetailPage`, met 5 subtabs:
-
-1. **Checklist** — items per categorie met 6 statussen
-2. **Aanbiedingsteksten** — opgeslagen marketingteksten met kopieerknop
-3. **Aandachtspunten** — interne risico's/openstaande punten
-4. **Documenten** — bestaande `DocumentenPanel` hergebruiken (read-only link)
-5. **Verkoopgereedheid** — samenvatting + dossierscore bovenaan altijd zichtbaar
-
-## Datamodel (Supabase migrations)
-
-Drie nieuwe tabellen, allemaal met dezelfde RLS als andere object-gebonden tabellen (`is_intern_gebruiker(auth.uid())` voor SELECT/INSERT/UPDATE/DELETE).
+Eén nieuwe tabel `biedingen`, RLS via `is_intern_gebruiker(auth.uid())` zoals andere object-tabellen.
 
 ```text
-object_dossier_items
+biedingen
   id uuid pk
-  object_id uuid                          -- geen FK; consistent met bestaande tabellen
-  category text                           -- 'basis' | 'financieel' | 'juridisch' | 'technisch' | 'commercieel'
-  item_key text                           -- stabiele key (bv 'huurlijst', 'energielabel')
-  label text                              -- weergavetekst (default uit catalogus, overschrijfbaar)
-  status text                             -- 'aanwezig'|'opgevraagd'|'ontbreekt'|'niet_beschikbaar'|'nvt'|'te_controleren'|null
-  notitie text
-  bron text
-  opgevraagd_op date
-  document_id uuid                        -- optionele koppeling object_documenten.id
-  weight smallint default 1               -- 1=normaal, 2=belangrijk, 3=cruciaal
-  is_custom boolean default false         -- door user toegevoegd item
-  created_at / updated_at
-  unique(object_id, item_key)
-
-object_aanbiedingsteksten              -- 1 rij per object
-  id uuid pk
-  object_id uuid unique
-  korte_teaser text
-  whatsapp_tekst text
-  email_tekst text
-  uitgebreide_omschrijving text
-  highlights text
-  externe_aandachtspunten text
-  fee_tekst text
-  nda_tekst text
-  created_at / updated_at
-
-object_aandachtspunten
-  id uuid pk
-  object_id uuid
-  titel text not null
-  type text                              -- 'juridisch'|'technisch'|'financieel'|'commercieel'|'info_ontbreekt'|'overig'
-  ernst text                             -- 'laag'|'middel'|'hoog'
-  intern_only boolean default true
-  notitie text
-  status text default 'open'             -- 'open'|'opgevolgd'|'opgelost'|'niet_oplosbaar'
+  object_id uuid                              -- verplicht (alle biedingen horen bij een object)
+  relatie_id uuid                             -- verplicht
+  deal_id uuid                                -- optioneel
+  object_pipeline_id uuid                     -- optioneel (link met kandidaatregel)
+  counter_offer_to_id uuid                    -- self-ref, optioneel
+  bedrag bigint                               -- in EUR, nullable (concepten/tegenvoorstellen i.v.)
+  currency text default 'EUR'
+  bieddatum date default current_date
+  geldig_tot date
+  status biedingstatus                        -- enum, default 'concept'
+  offer_type biedingtype                      -- enum, default 'indicatief'
+  financieringsvoorbehoud voorbehoud_status   -- enum 'geen'|'ja'|'onbekend'|'nader_te_bepalen'
+  dd_voorbehoud voorbehoud_status
+  gewenste_levering date
+  gewenste_levering_tekst text                -- als datum nog niet bekend
+  waarborgsom_bedrag bigint
+  waarborgsom_pct numeric
+  kosten_type text                            -- 'kk'|'von'|'nader'
+  voorwaarden text
+  notities text
+  interne_notities text
+  bron text                                   -- 'kandidaat'|'makelaar'|'koper'|'schriftelijk'|'telefonisch'|'email'|'whatsapp'|'anders'
+  is_best_offer boolean default false
+  is_final_offer boolean default false
+  rejected_reason text
+  accepted_at timestamptz
+  rejected_at timestamptz
+  withdrawn_at timestamptz
+  expired_at timestamptz                      -- gezet wanneer geldig_tot voorbij + status update
+  aangemaakt_door uuid
   created_at / updated_at
 ```
 
-Bestaande velden op `objecten` worden niet gewijzigd. Checklist-items worden lazy aangemaakt: als er nog geen rij bestaat voor een `item_key`, behandelen we hem als status `null` (= "nog niet ingevuld").
-
-## Checklist-catalogus
-
-Hardcoded TS-bestand `src/lib/objectDossier/catalog.ts` met alle items uit categorieën A–E uit het verzoek, per item: `key`, `label`, `category`, `weight`, optioneel `autoFromObjectField` (bv. `energielabel`, `bouwjaar`, `vraagprijs`) om automatisch status `aanwezig` te tonen als het objectveld al gevuld is. Gebruiker kan dat overschrijven door expliciet een rij op te slaan.
-
-## Verkoopgereedheid-score
-
-Logica in `src/lib/objectDossier/readiness.ts`:
-
-- Score = gewogen percentage van items met status `aanwezig` of `nvt` t.o.v. relevante items (alles behalve `nvt`).
-- `opgevraagd` en `te_controleren` tellen voor 50%.
-- `ontbreekt` / `niet_beschikbaar` / leeg tellen voor 0%.
-- Cruciale items (`weight=3`) die ontbreken worden apart getoond als "Belangrijkste ontbrekende punten".
-
-Label-mapping op basis van score + aanwezigheid cruciale items:
+Enums:
 
 ```text
-< 20%                                  → Niet gereed
-20–40%                                 → Summier dossier
-40–60% en korte_teaser aanwezig        → Teaser-gereed
-60–80%                                 → Informatiepakket gedeeltelijk
-≥ 80%                                  → Verkoopklaar
-≥ 90% en alle juridische cruciaal ok   → DD-gereed
+biedingstatus:   concept | ontvangen | in_behandeling | tegenvoorstel_gedaan |
+                 aangepast_bod_gevraagd | geaccepteerd | afgewezen | ingetrokken | verlopen
+
+biedingtype:     indicatief | openingsbod | voorwaardelijk | onvoorwaardelijk |
+                 eindbod | tegenvoorstel | verhoogd_bod | schriftelijk | mondeling
+
+voorbehoud_status: geen | ja | onbekend | nader_te_bepalen
 ```
 
-## Componenten
+Index op `object_id`, `relatie_id`, `deal_id`, `status`.
+
+`contact_moments` heeft al `system_key` + `is_system` — gebruiken voor tijdlijnitems (`bieding_toegevoegd`, `bieding_geaccepteerd`, etc.) met FK-loze `object_id`/`relatie_id`/`deal_id` zoals overige integraties.
+
+Geen FK constraints (consistent met bestaande tabellen). Null-safe in alle queries.
+
+## Bestandsstructuur
 
 ```text
-src/components/object/dossier/
-  ObjectDossierCard.tsx          -- wrapper + readiness header + tabs
-  DossierReadinessBadge.tsx      -- gekleurd label + percentage
-  DossierChecklist.tsx           -- accordion per categorie
-  DossierChecklistItem.tsx       -- status-select, notitie, datum, bron, doc, acties
-  OfferingTextsSection.tsx       -- form met textareas + kopieerknop per veld
-  AttentionPointsSection.tsx     -- lijst + add/edit dialog
+src/lib/biedingen/
+  types.ts              -- TS-types + enum constants + labels
+  format.ts             -- helpers: formatBedrag, verschilVraagprijs, isVerlopen
+  status.ts             -- status transitions + bevestigingsvragen
+
+src/hooks/
+  useBiedingen.tsx      -- list/create/update/delete per object/deal/relatie
+
+src/components/biedingen/
+  OfferStatusBadge.tsx
+  OfferTypeBadge.tsx
+  OfferCard.tsx                 -- mobiel + standalone weergave
+  OfferTable.tsx                -- desktop tabel
+  OfferComparison.tsx           -- kpi-strip: hoogste / laatste / beste zonder voorbehoud
+  OfferActionsMenu.tsx          -- dropdown met alle acties
+  OfferFormDialog.tsx           -- create/edit modal
+  OfferAcceptDialog.tsx         -- bevestiging + optioneel andere afwijzen
+  OfferRejectDialog.tsx         -- reden invullen
+  OfferCounterDialog.tsx        -- tegenvoorstel-shortcut
+  OffersSection.tsx             -- volledige sectie: comparison + table/cards + add knop
+  OffersForCandidate.tsx        -- biedingsgeschiedenis per kandidaat (chronologisch)
 ```
 
-Hergebruikt: `Accordion`, `Tabs`, `Textarea`, `Input`, `Badge`, `Button`, `Card`, `toast` (sonner).
+## Integratie in bestaande schermen
 
-## Acties
+- **ObjectDetailPage**: nieuwe sectie "Biedingen" toegevoegd aan SectionNav, geplaatst direct na/naast Kandidaten/Pipeline.
+- **DealDetailPage**: nieuwe sectie "Biedingen" (filtert op `deal_id`).
+- **ObjectPipelineSectie / KandidatenKanban**: per kandidaatregel knop "+ Bod" die `OfferFormDialog` opent met `object_id`, `relatie_id` en `object_pipeline_id` voorgevuld. Toont compact laatste bod + badge bij kandidaat.
 
-- Per checklist-item dropdown "Acties": **Taak aanmaken** (opent bestaande `TaakFormDialog` met preset object/titel), **Contactmoment loggen** (`ContactMomentFormDialog`), **Document koppelen** (selectie uit `object_documenten`).
-- Per tekstveld: **Kopieer** (clipboard + toast).
-- Bovenin sectie: knop **Markeer als teaser-gereed** / **verkoopklaar** → zet de juiste commerciële checklist-items op `aanwezig`.
+## Acties & side-effects
 
-## Integratie in `ObjectDetailPage.tsx`
+- **Toevoegen** → tijdlijnitem `bieding_toegevoegd` op object+relatie+deal, optioneel vervolgtaak via bestaande `TaakFormDialog`.
+- **Wijzigen** → tijdlijnitem `bieding_gewijzigd`.
+- **Tegenvoorstel** → nieuwe bieding met `counter_offer_to_id` + `offer_type='tegenvoorstel'`, status default `tegenvoorstel_gedaan`. Vorige bieding krijgt status `tegenvoorstel_gedaan` indien nog open.
+- **Accepteren** → bevestigingsdialog, `accepted_at` zetten, vraagt of andere open biedingen op zelfde object als afgewezen moeten worden gemarkeerd (default uit). Toont info dat dealfase handmatig bij te werken is.
+- **Afwijzen** → reden verplicht, `rejected_at`+`rejected_reason`.
+- **Intrekken** → `withdrawn_at`.
+- **Verlopen detectie** → client-side: als `geldig_tot < today` en status nog open → toon "Verlopen" badge. Geen automatische DB-update.
 
-Eén nieuw tabblad / sectie "Dossier & aanbieding" toegevoegd vóór bestaande Vastgoedrekenen-tab. Geen wijziging aan andere tabs. Lazy data-fetch via nieuwe hook `useObjectDossier(objectId)` die de drie tabellen ophaalt; alles null-safe zodat oude objecten zonder rijen probleemloos renderen.
+## Vergelijking (OfferComparison)
 
-## Null-safety & non-blocking
+KPI-strip bovenaan:
+- Aantal open biedingen
+- Hoogste bod (+ verschil met `objecten.prijsindicatie` waar parsebaar of `vraagprijs`)
+- Laatste bod
+- Beste bod zonder voorbehouden (financiering=geen en dd=geen)
+- Eerstvolgende vervaldatum
 
-- Geen NOT NULL constraints op status/notes.
-- Geen verplichte invoer in UI.
-- Als migrations niet hebben gedraaid: hook vangt errors en toont lege staat.
-- Bestaande objecten zonder enige dossierrij tonen "Nog niets ingevuld" + score 0% (Niet gereed), zonder crash.
+Verschil met vraagprijs: parseer `objecten.prijsindicatie` (string) via bestaande logica indien aanwezig; anders "Vraagprijs onbekend".
 
-## Out of scope (V1)
+## Responsiveness
 
-- PDF-export van dossier
-- Automatische teaser-generatie via AI
-- Externe deel-link / publieke teaserpagina
-- Bulk-acties over meerdere objecten
-- Notificaties voor opgevraagde-maar-niet-binnen info
+- Desktop (`md+`): `OfferTable` met sorteerbare kolommen.
+- Mobiel: `OfferCard` lijst, full-width, geen horizontale scroll, acties in `DropdownMenu`.
+- `OfferFormDialog` gebruikt bestaande shadcn Dialog met 5 collapsible secties: Koppeling / Bod / Voorwaarden / Opvolging / Notities.
+
+## Out of scope (v1)
+
+- Dashboard-widgets (datamodel ondersteunt het, UI volgt later).
+- Automatische dealfase-transities bij accepteren (alleen suggestie tonen).
+- E-mailnotificaties bij verlopen biedingen.
+- Bulk-acties over meerdere biedingen.
 
 ## Acceptatie
 
-Alle 12 acceptatiecriteria uit het verzoek; build draait schoon; mobiel = accordion, desktop = tabs + cards.
-
----
-
-Akkoord met dit plan? Dan begin ik met de migration en daarna de componenten.
+Alle 17 punten uit het verzoek; build schoon; null-safe; geen horizontale scroll mobiel; tijdlijn-integratie werkt; tegenvoorstel-keten zichtbaar per kandidaat.
