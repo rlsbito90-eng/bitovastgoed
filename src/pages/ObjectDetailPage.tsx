@@ -1170,28 +1170,10 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
 
-          {/* ============ 6. UNDERWRITING / VASTGOEDREKENEN ============ */}
-          <SectionAnchor
-            id="vastgoedrekenen"
-            eyebrow="06 — Underwriting"
-            title="Vastgoedrekenen"
-          >
-            <div className="section-card p-3 sm:p-5">
-              <VastgoedrekenenTab
-                objectId={object.id}
-                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
-                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
-                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
-                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
-                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
-              />
-            </div>
-          </SectionAnchor>
-
-          {/* ============ 7. DOCUMENTEN ============ */}
+          {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="07 — Data room"
+            eyebrow="06 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
             <ObjectDossierCard
@@ -1259,7 +1241,25 @@ export default function ObjectDetailPage() {
 
           </SectionAnchor>
 
-          {/* ============ 7. ACTIVITEIT ============ */}
+          {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
+          <SectionAnchor
+            id="vastgoedrekenen"
+            eyebrow="07 — Underwriting"
+            title="Vastgoedrekenen"
+          >
+            <div className="section-card p-3 sm:p-5">
+              <VastgoedrekenenTab
+                objectId={object.id}
+                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
+                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
+                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
+                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
+              />
+            </div>
+          </SectionAnchor>
+
+          {/* ============ 8. ACTIVITEIT ============ */}
           <SectionAnchor id="activiteit" eyebrow="08 — Activity" title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
