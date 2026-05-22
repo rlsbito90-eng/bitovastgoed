@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,15 +46,27 @@ type Suffix = '€' | '%' | 'm²' | 'maanden';
 
 function NumInput({ value, onChange, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; placeholder?: string; suffix?: Suffix }) {
   return (
-    <div className="relative">
+    <div className="relative w-full min-w-0">
       <Input
         type="number"
         value={value ?? ''}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        className={`h-9 ${suffix ? 'pr-9' : ''}`}
+        className={`h-9 w-full min-w-0 ${suffix ? 'pr-9' : ''}`}
       />
       {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{suffix}</span>}
+    </div>
+  );
+}
+
+function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
+  return (
+    <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
+      <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">{label}</Label>
+      <div className="min-w-0 w-full [&_input]:w-full [&_input]:min-w-0 [&_[role=combobox]]:w-full [&_[role=combobox]]:min-w-0">
+        {children}
+      </div>
+      {helper && <p className="text-[10px] leading-snug text-muted-foreground whitespace-normal break-words">{helper}</p>}
     </div>
   );
 }
@@ -319,29 +331,27 @@ export default function ScenarioEditor(props: Props) {
       {/* Aankoopanalyse */}
       <Card>
         <CardHeader><CardTitle className="text-base">Aankoopanalyse</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div><Label>Vraagprijs (€)</Label><NumInput value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></div>
-          <div><Label>Beoogde aankoopprijs (€)</Label><NumInput value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></div>
-          <div><Label>Veiligheidsmarge (€)</Label><NumInput value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label="Vraagprijs (€)"><NumInput value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
 
-          <div>
-            <Label className="flex items-center gap-1">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</Label>
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
             <Select value={s.ovb_classification} onValueChange={(v) => patch({ ovb_classification: v as Scenario['ovb_classification'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>OVB-modus</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="OVB-modus">
             <Select value={s.ovb_mode} onValueChange={(v) => patch({ ovb_mode: v as Scenario['ovb_mode'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Automatisch</SelectItem>
                 <SelectItem value="per_component">Per component</SelectItem>
                 <SelectItem value="manual">Handmatig</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </MobileFieldGroup>
           <div className="rounded-md border bg-muted/30 p-2">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Berekende OVB</p>
             <p className="text-sm font-semibold font-mono-data">{fmtEur(outputs.totalTransferTax)}</p>
@@ -349,8 +359,8 @@ export default function ScenarioEditor(props: Props) {
 
           {ovbMode === 'manual' && (
             <>
-              <div><Label>OVB-percentage handmatig (%)</Label><NumInput value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></div>
-              <div><Label>OVB-bedrag handmatig (€)</Label><NumInput value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></div>
+              <MobileFieldGroup label="OVB-percentage handmatig (%)"><NumInput value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></MobileFieldGroup>
+              <MobileFieldGroup label="OVB-bedrag handmatig (€)"><NumInput value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></MobileFieldGroup>
               <div className="col-span-full text-xs text-amber-700 dark:text-amber-300">⚠ OVB is handmatig overschreven. Controleer dit bij twijfel met notaris/fiscalist.</div>
             </>
           )}
@@ -358,12 +368,12 @@ export default function ScenarioEditor(props: Props) {
             <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
           )}
 
-          <div><Label>Aankoopfee (%) excl. btw</Label><NumInput value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></div>
-          <div><Label>Notariskosten (€)</Label><NumInput value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></div>
-          <div><Label>Advieskosten (€)</Label><NumInput value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></div>
-          <div><Label>Due diligence (€)</Label><NumInput value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></div>
-          <div><Label>Overige aankoopkosten (€)</Label><NumInput value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></div>
-          <div><Label>Financieringskosten (€)</Label><NumInput value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></div>
+          <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Notariskosten (€)"><NumInput value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Advieskosten (€)"><NumInput value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Due diligence (€)"><NumInput value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Financieringskosten (€)"><NumInput value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {showHelp && (
           <CardContent className="pt-0">
@@ -383,45 +393,37 @@ export default function ScenarioEditor(props: Props) {
             Deze percentages zijn quickscan-aannames. Ze zijn bedoeld om realistisch en waar nodig conservatief te rekenen, maar moeten vóór bieding worden gecontroleerd op basis van huurcontracten, onderhoudsstaat, servicekosten, VvE, objecttype, locatie en marktdata.
           </p>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <Label className="flex items-center gap-1">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</Label>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</span>}>
             <Select value={rentSource} onValueChange={(v) => patch({ rent_source: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(RENT_SOURCE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Aannameprofiel</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Aannameprofiel">
             <Select value={s.assumption_profile ?? defaultProfileFor(propertyType, s.strategy_type)} onValueChange={(v) => applyProfile(v as AssumptionProfileKey)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(ASSUMPTION_PROFILE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Kostenstructuur / servicekosten</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Kostenstructuur / servicekosten">
             <Select value={s.cost_structure ?? 'onbekend'} onValueChange={(v) => patch({ cost_structure: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(COST_STRUCTURE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </MobileFieldGroup>
 
-          <div>
-            <Label>Huidige maandhuur (€)</Label>
+          <MobileFieldGroup label="Huidige maandhuur (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
             <NumInput value={rentFromComponents ? Math.round(outputs.currentAnnualRent / 12) : s.current_monthly_rent} onChange={(v) => patch({ current_monthly_rent: v })} suffix="€" />
-            {rentFromComponents && <p className="text-[10px] text-muted-foreground mt-1">Opgeteld uit componenten</p>}
-          </div>
-          <div>
-            <Label>Markthuur per maand (€)</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Markthuur per maand (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
             <NumInput value={rentFromComponents ? Math.round(outputs.marketAnnualRent / 12) : s.market_monthly_rent} onChange={(v) => patch({ market_monthly_rent: v })} suffix="€" />
-            {rentFromComponents && <p className="text-[10px] text-muted-foreground mt-1">Opgeteld uit componenten</p>}
-          </div>
-          <div><Label>Handmatige gecorrigeerde maandhuur (€)</Label><NumInput value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></div>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Handmatige gecorrigeerde maandhuur (€)"><NumInput value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></MobileFieldGroup>
 
-          <div>
-            <Label>Huur voor berekening</Label>
+          <MobileFieldGroup label="Huur voor berekening">
             <Select value={s.rent_choice ?? 'huidig'} onValueChange={(v) => patch({ rent_choice: v as Scenario['rent_choice'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="huidig">Huidige huur</SelectItem>
                 <SelectItem value="markt">Markthuur</SelectItem>
@@ -429,12 +431,12 @@ export default function ScenarioEditor(props: Props) {
                 <SelectItem value="handmatig">Handmatig</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div><Label>Leegstand (%)</Label><NumInput value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Exploitatie (%)</Label><NumInput value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Onderhoud (%)</Label><NumInput value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Beheer (%)</Label><NumInput value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Overige jaarlijkse kosten (€)</Label><NumInput value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></div>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Leegstand (%)"><NumInput value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Exploitatie (%)"><NumInput value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Onderhoud (%)"><NumInput value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beheer (%)"><NumInput value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige jaarlijkse kosten (€)"><NumInput value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {aannameWaarschuwingen.length > 0 && (
           <CardContent className="pt-0">
@@ -446,41 +448,37 @@ export default function ScenarioEditor(props: Props) {
       {/* Controles + onderbouwing */}
       <Card>
         <CardHeader><CardTitle className="text-base">Controles & onderbouwing</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <Label>MJOP aanwezig</Label>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label="MJOP aanwezig">
             <Select value={s.mjop_present ?? 'onbekend'} onValueChange={(v) => patch({ mjop_present: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(MJOP_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Betrouwbaarheid aannames</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Betrouwbaarheid aannames">
             <Select value={s.assumptions_reliability ?? 'middel'} onValueChange={(v) => patch({ assumptions_reliability: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(RELIABILITY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-3 pt-6">
+          </MobileFieldGroup>
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.contract_checked} onCheckedChange={(v) => patch({ contract_checked: v })} />
-            <Label className="cursor-pointer">Contractduur gecontroleerd</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Contractduur gecontroleerd</Label>
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.service_costs_checked} onCheckedChange={(v) => patch({ service_costs_checked: v })} />
-            <Label className="cursor-pointer">Servicekosten gecontroleerd</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Servicekosten gecontroleerd</Label>
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.incentive_reserve} onCheckedChange={(v) => patch({ incentive_reserve: v })} />
-            <Label className="cursor-pointer">Incentive-reserve meegenomen</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Incentive-reserve meegenomen</Label>
           </div>
-          <div className="sm:col-span-2 lg:col-span-3">
-            <Label>Bron / onderbouwing aannames</Label>
+          <MobileFieldGroup label="Bron / onderbouwing aannames" className="md:col-span-2 lg:col-span-3">
             <Input value={s.assumptions_source ?? ''} onChange={(e) => patch({ assumptions_source: e.target.value || null })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3">
-            <Label>Reden profielkeuze</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Reden profielkeuze" className="md:col-span-2 lg:col-span-3">
             <Input value={s.assumption_profile_reason ?? ''} onChange={(e) => patch({ assumption_profile_reason: e.target.value || null })} placeholder="Waarom dit profiel?" />
-          </div>
+          </MobileFieldGroup>
         </CardContent>
       </Card>
 
@@ -496,46 +494,49 @@ export default function ScenarioEditor(props: Props) {
           <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
           {components.map((c) => (
-            <div key={c.id} className="border rounded-md p-2 space-y-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end min-w-0">
-                <div className="col-span-2"><Label className="text-xs">Naam</Label><Input className="h-8" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></div>
-                <div>
-                  <Label className="text-xs">Type</Label>
+            <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Component</p>
+                <Button size="sm" variant="ghost" onClick={() => deleteComponent(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Component verwijderen</span>
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
+                <MobileFieldGroup label="Naam" className="lg:col-span-2"><Input className="h-9" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Type">
                   <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                   </Select>
-                </div>
-                <div><Label className="text-xs">GBO (m²)</Label><Input className="h-8" type="number" value={c.surface_gbo ?? ''} onChange={(e) => updateComponent(c.id, { surface_gbo: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-                <div><Label className="text-xs">Maandhuur (€)</Label><Input className="h-8" type="number" value={c.current_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-                <div><Label className="text-xs">Markthuur/maand (€)</Label><Input className="h-8" type="number" value={c.market_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { market_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-                <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteComponent(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                </MobileFieldGroup>
+                <MobileFieldGroup label="GBO (m²)"><Input className="h-9" type="number" value={c.surface_gbo ?? ''} onChange={(e) => updateComponent(c.id, { surface_gbo: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Maandhuur (€)"><Input className="h-9" type="number" value={c.current_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Markthuur/maand (€)"><Input className="h-9" type="number" value={c.market_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { market_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
               </div>
               {ovbMode === 'per_component' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 items-end border-t pt-2 min-w-0">
-                  <div><Label className="text-xs">Toegerekende waarde (€)</Label><Input className="h-8" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-                  <div>
-                    <Label className="text-xs">OVB-classificatie</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
+                  <MobileFieldGroup label="Toegerekende waarde (€)"><Input className="h-9" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                  <MobileFieldGroup label="OVB-classificatie">
                     <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                     </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Toerekeningsmethode</Label>
+                  </MobileFieldGroup>
+                  <MobileFieldGroup label="Toerekeningsmethode">
                     <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="value">Op waarde</SelectItem>
                         <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
                         <SelectItem value="manual">Handmatig bedrag</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div><Label className="text-xs">OVB-% (override)</Label><Input className="h-8" type="number" value={c.transfer_tax_percentage ?? ''} onChange={(e) => updateComponent(c.id, { transfer_tax_percentage: e.target.value === '' ? null : Number(e.target.value), transfer_tax_manual_override: e.target.value !== '' })} /></div>
+                  </MobileFieldGroup>
+                  <MobileFieldGroup label="OVB-% (override)"><Input className="h-9" type="number" value={c.transfer_tax_percentage ?? ''} onChange={(e) => updateComponent(c.id, { transfer_tax_percentage: e.target.value === '' ? null : Number(e.target.value), transfer_tax_manual_override: e.target.value !== '' })} /></MobileFieldGroup>
                 </div>
               )}
             </div>
@@ -555,20 +556,28 @@ export default function ScenarioEditor(props: Props) {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
-            <div key={u.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2 min-w-0">
-              <div><Label className="text-xs">Naam</Label><Input className="h-8" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></div>
-              <div><Label className="text-xs">Woon m²</Label><Input className="h-8" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div><Label className="text-xs">WOZ (€)</Label><Input className="h-8" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div><Label className="text-xs">Energielabel</Label><Input className="h-8" value={u.energy_label ?? ''} onChange={(e) => updateWwsUnit(u.id, { energy_label: e.target.value || null })} /></div>
-              <div><Label className="text-xs">Maandhuur (€)</Label><Input className="h-8" type="number" value={u.current_monthly_rent ?? ''} onChange={(e) => updateWwsUnit(u.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-              <div className="text-xs">
-                <Label className="text-xs">Punten / segment</Label>
-                <div className="h-8 flex items-center font-mono-data">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
+            <div key={u.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Woonunit</p>
+                <Button size="sm" variant="ghost" onClick={() => deleteWwsUnit(u.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Woonunit verwijderen</span>
+                </Button>
               </div>
-              <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteWwsUnit(u.id)}><Trash2 className="h-4 w-4" /></Button></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
+                <MobileFieldGroup label="Naam"><Input className="h-9" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Woon m²"><Input className="h-9" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="WOZ (€)"><Input className="h-9" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Energielabel"><Input className="h-9" value={u.energy_label ?? ''} onChange={(e) => updateWwsUnit(u.id, { energy_label: e.target.value || null })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Maandhuur (€)"><Input className="h-9" type="number" value={u.current_monthly_rent ?? ''} onChange={(e) => updateWwsUnit(u.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <div className="min-w-0 w-full space-y-1.5">
+                  <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
+                  <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
+                </div>
+              </div>
             </div>
           ))}
           {showHelp && (
@@ -584,23 +593,32 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs whitespace-nowrap">Onvoorzien (%)</Label>
-              <Input className="h-9 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
+            <div className="w-full sm:w-32 min-w-0">
+              <MobileFieldGroup label="Onvoorzien (%)">
+                <Input className="h-9" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+              </MobileFieldGroup>
             </div>
             <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
-            <div key={c.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2 min-w-0">
-              <div className="col-span-2"><Label className="text-xs">Categorie</Label><Input className="h-8" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></div>
-              <div className="col-span-2"><Label className="text-xs">Omschrijving</Label><Input className="h-8" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></div>
-              <div><Label className="text-xs">Bedrag (€)</Label><Input className="h-8" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></div>
-              <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteCost(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
+            <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
+                <Button size="sm" variant="ghost" onClick={() => deleteCost(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Kostenpost verwijderen</span>
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
+                <MobileFieldGroup label="Categorie" className="lg:col-span-2"><Input className="h-9" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2"><Input className="h-9" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Bedrag (€)"><Input className="h-9" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></MobileFieldGroup>
+              </div>
             </div>
           ))}
           <p className="text-xs text-muted-foreground pt-1">Totale kosten (incl. {Number(s.unforeseen_percentage ?? 0)}% onvoorzien): {fmtEur(outputs.totalCosts)}</p>
@@ -610,8 +628,8 @@ export default function ScenarioEditor(props: Props) {
       {/* Biedingsadvies */}
       <Card>
         <CardHeader><CardTitle className="text-base">Biedingsadvies</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div><Label className="flex items-center gap-1">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</Label><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
           <div className="col-span-full">
             <BerekeningUitleg>
               Max all-in waarde = gecorrigeerde jaarhuur / gewenste BAR. Daarna worden aankoopkosten, OVB, kosten, financieringskosten en veiligheidsmarge afgetrokken om tot de maximale bieding te komen.

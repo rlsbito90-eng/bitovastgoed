@@ -16,9 +16,9 @@ const RENT_CHOICE_LABELS: Record<string, string> = {
 
 function Item({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="text-xs font-medium text-foreground">{value}</span>
+    <div className="flex flex-col min-w-0">
+      <span className="text-[10px] uppercase tracking-normal sm:tracking-wide leading-snug text-muted-foreground whitespace-normal break-words">{label}</span>
+      <span className="text-xs font-medium leading-snug text-foreground whitespace-normal break-words">{value}</span>
     </div>
   );
 }
@@ -27,7 +27,7 @@ export default function RekenbasisBar({ scenario, outputs }: { scenario: Scenari
   return (
     <div className="rounded-md border bg-muted/30 px-3 py-2">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Rekenbasis</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 min-w-0">
         <Item label="Huurbron" value={RENT_SOURCE_LABELS[scenario.rent_source ?? 'handmatig'] ?? '—'} />
         <Item label="Aannameprofiel" value={ASSUMPTION_PROFILE_LABELS[(scenario.assumption_profile ?? 'conservatief') as keyof typeof ASSUMPTION_PROFILE_LABELS] ?? '—'} />
         <Item label="Huurtype" value={RENT_CHOICE_LABELS[scenario.rent_choice ?? 'huidig'] ?? '—'} />
