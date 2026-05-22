@@ -3,10 +3,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import type { Scenario, TaxSettings, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, fmtPct, DEAL_BADGE } from './format';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { SALE_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/verkoop';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { mapToAssumptionType } from '@/lib/vastgoedrekenen/profiles';
-import { Trophy, TrendingUp, ShieldCheck, Target } from 'lucide-react';
+import { Trophy, TrendingUp, ShieldCheck, Target, Coins } from 'lucide-react';
 
 type SharedProps = {
   taxSettings: TaxSettings | null;
