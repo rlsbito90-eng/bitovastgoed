@@ -1152,7 +1152,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 4. DEALFLOW TIMELINE ============ */}
-          <SectionAnchor id="dealflow" eyebrow="04 — Transaction" title="Dealflow">
+          <SectionAnchor id="dealflow" eyebrow="04 — Dealflow" title="Dealflow">
             <ObjectPipelineFaseSectie object={object} />
             <div className="mt-4">
               <ObjectPipelineSectie objectId={object.id} />
