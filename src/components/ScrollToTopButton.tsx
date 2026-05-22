@@ -51,15 +51,15 @@ export default function ScrollToTopButton() {
       type="button"
       onClick={naarBoven}
       aria-label="Naar boven"
-      className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 h-10 w-10 rounded-full
-        bg-primary text-primary-foreground shadow-lg border border-primary/20
+      className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 h-11 w-11 rounded-full
+        glass-fab text-primary-foreground
         flex items-center justify-center
-        hover:bg-primary/90 hover:shadow-xl
+        hover:scale-105 active:scale-95
         transition-all duration-200 ease-out
-        ${zichtbaar ? 'opacity-90 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'}
+        ${zichtbaar ? 'opacity-95 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'}
       `}
     >
-      <ArrowUp className="h-4 w-4" />
+      <ArrowUp className="h-[18px] w-[18px]" />
     </button>
   );
 }
