@@ -63,11 +63,18 @@ function useRawInput(initialValue: string, onRawChange?: (value: string) => void
     }
   };
 
+  const keyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && event.currentTarget instanceof HTMLInputElement) {
+      event.currentTarget.blur();
+    }
+  };
+
   return {
     raw,
     change,
     focus: () => { focusedRef.current = true; },
     blur,
+    keyDown,
   };
 }
 
@@ -82,6 +89,7 @@ export const RawTextInput = memo(function RawTextInput({ initialValue, onRawChan
       onFocus={input.focus}
       onChange={(e) => input.change(e.target.value)}
       onBlur={input.blur}
+      onKeyDown={input.keyDown}
       className={className}
     />
   );
@@ -98,6 +106,7 @@ export const RawTextarea = memo(function RawTextarea({ initialValue, onRawChange
       onFocus={input.focus}
       onChange={(e) => input.change(e.target.value)}
       onBlur={input.blur}
+      onKeyDown={input.keyDown}
       className={className}
     />
   );
@@ -116,6 +125,7 @@ export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRaw
         onFocus={input.focus}
         onChange={(e) => input.change(e.target.value)}
         onBlur={input.blur}
+        onKeyDown={input.keyDown}
         className={`${className ?? ''} ${suffix ? 'pr-9' : ''}`}
       />
       {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{suffix}</span>}
