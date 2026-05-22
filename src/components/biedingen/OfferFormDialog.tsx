@@ -212,7 +212,9 @@ export default function OfferFormDialog({
         await create(payload);
         toast.success('Bieding toegevoegd');
       }
+      await onSaved?.();
       onOpenChange(false);
+
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {
