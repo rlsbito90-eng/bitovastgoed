@@ -258,10 +258,10 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  ? 'glass-pill-active text-accent'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
               }`}
             >
               <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
@@ -278,10 +278,10 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  ? 'glass-pill-active text-accent'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
               }`}
             >
               <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
