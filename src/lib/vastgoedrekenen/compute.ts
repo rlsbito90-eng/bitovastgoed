@@ -170,7 +170,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       targetExitValue: Number(rec.sale_target_exit_value ?? 0),
       saleHasInput: sale.hasAnySaleInput,
       exitIsManual: Number(rec.sale_exit_value_manual ?? 0) > 0,
-      hasIndicativeCosts: costs.some((c) => c.reliability_status !== 'gecontroleerd'),
+      hasIndicativeCosts: costs.some((c) => c.reliability_status !== 'hoog'),
     })
     : null;
   const dealScore = saleScore?.dealScore ?? baseDealScore;
