@@ -665,6 +665,13 @@ export default function ObjectDetailPage() {
                     {object.bron && <Field label="Bron">{object.bron}</Field>}
                     <Field label="Exclusiviteit">{object.exclusief ? 'Exclusief aangeboden' : 'Niet exclusief'}</Field>
                     <Field label="Portefeuille">{object.isPortefeuille ? 'Ja' : 'Nee'}</Field>
+                    {parentObject && (
+                      <Field label="Onderdeel van portefeuille">
+                        <Link to={`/objecten/${parentObject.id}`} className="text-accent hover:underline inline-flex items-center gap-1">
+                          {parentObject.titel} <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      </Field>
+                    )}
                   </div>
                 </div>
               </div>
