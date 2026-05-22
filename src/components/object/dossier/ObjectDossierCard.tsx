@@ -2,7 +2,7 @@
 // Tabs: Overzicht (default) · Checklist · Actielijst · Aanbieding · Aandachtspunten · Documenten.
 // Overzicht is de hoofdweergave; checklist blijft beschikbaar voor wie alles wil afwerken.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useObjectDossier } from '@/hooks/useObjectDossier';
 import { buildEffectiveItems, computeReadiness } from '@/lib/objectDossier/readiness';
@@ -22,11 +22,12 @@ import { toast } from 'sonner';
 interface Props {
   objectId: string;
   objectRecord?: Record<string, unknown> | null;
+  openTabRequest?: { tab: DossierTab; token: number } | null;
 }
 
-type DossierTab = 'overzicht' | 'checklist' | 'actielijst' | 'aanbieding' | 'aandacht' | 'documenten';
+export type DossierTab = 'overzicht' | 'checklist' | 'actielijst' | 'aanbieding' | 'aandacht' | 'documenten';
 
-export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
+export default function ObjectDossierCard({ objectId, objectRecord, openTabRequest }: Props) {
   const { items, texts, attention, loading, error, reload } = useObjectDossier(objectId);
   const [taakOpen, setTaakOpen] = useState(false);
   const [taakPreset, setTaakPreset] = useState<{ title?: string } | null>(null);
@@ -87,6 +88,10 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
     effective.filter(e => e.status === 'opgevraagd').length +
     effective.filter(e => e.status === 'te_controleren').length +
     openAttentionCount;
+
+  useEffect(() => {
+    if (openTabRequest) setActiveTab(openTabRequest.tab);
+  }, [openTabRequest?.token, openTabRequest?.tab]);
 
   return (
     <section className="section-card p-5">
