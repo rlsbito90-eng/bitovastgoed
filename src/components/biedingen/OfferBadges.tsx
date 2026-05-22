@@ -1,6 +1,6 @@
 import { effectieveStatus } from '@/lib/biedingen/format';
-import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS } from '@/lib/biedingen/types';
-import type { Bieding, BiedingStatus, BiedingType } from '@/lib/biedingen/types';
+import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BIEDING_RICHTING_LABELS } from '@/lib/biedingen/types';
+import type { Bieding, BiedingStatus, BiedingType, BiedingRichting } from '@/lib/biedingen/types';
 
 type Tone = 'neutral' | 'sand' | 'gold' | 'amber' | 'emerald' | 'crimson' | 'sky';
 
