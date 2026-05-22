@@ -360,6 +360,7 @@ export default function ObjectDetailPage() {
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const objectTaken = store.getTakenByObject(object.id);
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
+  const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
   const reedsGekoppeldRelaties = useMemo(
     () => new Set<string>(kandidatenPipeline.map(k => k.relatieId)),
     [kandidatenPipeline],
