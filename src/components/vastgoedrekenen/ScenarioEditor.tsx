@@ -500,7 +500,7 @@ export default function ScenarioEditor(props: Props) {
           {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
           {components.map((c) => (
             <div key={c.id} className="border rounded-md p-2 space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end min-w-0">
                 <div className="col-span-2"><Label className="text-xs">Naam</Label><Input className="h-8" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></div>
                 <div>
                   <Label className="text-xs">Type</Label>
