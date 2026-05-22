@@ -588,98 +588,82 @@ export default function ObjectDetailPage() {
       {/* =================================================
           PREMIUM HERO — asset overview
           ================================================= */}
-      <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm">
-        {/* Banner */}
-        <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
-          {heroUrl ? (
-            <img src={heroUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 via-muted to-accent/10 flex items-center justify-center">
-              <Building2 className="h-16 w-16 text-muted-foreground/40" />
-            </div>
-          )}
-          {/* Gradient scrim voor leesbaarheid */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/10" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-transparent to-background/30" />
-        </div>
+      {(() => {
+        const badgesBlock = (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <ObjectStatusBadge status={object.status} />
+            {object.exclusief && (
+              <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border border-accent/40 text-accent rounded-full bg-accent/15 backdrop-blur">
+                Exclusief
+              </span>
+            )}
+            {object.anoniem && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-foreground/80 bg-background/60 backdrop-blur border border-border/50 px-2 py-0.5 rounded-full">
+                <EyeOff className="h-3 w-3" /> Anoniem
+              </span>
+            )}
+            {object.isPortefeuille && (
+              <span className="inline-flex items-center gap-1 text-[11px] bg-accent/15 text-accent backdrop-blur border border-accent/30 px-2 py-0.5 rounded-full">
+                <Building2 className="h-3 w-3" /> Portefeuille
+              </span>
+            )}
+          </div>
+        );
 
-        {/* Overlay content */}
-        <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-6 lg:p-8">
-          {/* Top: badges + actions */}
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <ObjectStatusBadge status={object.status} />
-              {object.exclusief && (
-                <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border border-accent/40 text-accent rounded-full bg-accent/15 backdrop-blur">
-                  Exclusief
-                </span>
-              )}
-              {object.anoniem && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-foreground/80 bg-background/60 backdrop-blur border border-border/50 px-2 py-0.5 rounded-full">
-                  <EyeOff className="h-3 w-3" /> Anoniem
-                </span>
-              )}
-              {object.isPortefeuille && (
-                <span className="inline-flex items-center gap-1 text-[11px] bg-accent/15 text-accent backdrop-blur border border-accent/30 px-2 py-0.5 rounded-full">
-                  <Building2 className="h-3 w-3" /> Portefeuille
-                </span>
-              )}
-            </div>
-
-            {/* Quick actions cluster */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+        const actionsBlock = (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Bewerken
+            </button>
+            <ObjectPdfButton object={object} />
+            {object.isArchived ? (
               <button
-                onClick={() => setEditOpen(true)}
+                onClick={async () => {
+                  try {
+                    await store.unarchiveObject(object.id);
+                    toast.success('Object teruggezet naar Actief');
+                  } catch (err: any) {
+                    toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
               >
-                <Pencil className="h-3.5 w-3.5" /> Bewerken
+                <ArchiveRestore className="h-3.5 w-3.5" /> Activeren
               </button>
-              <ObjectPdfButton object={object} />
-              {object.isArchived ? (
-                <button
-                  onClick={async () => {
-                    try {
-                      await store.unarchiveObject(object.id);
-                      toast.success('Object teruggezet naar Actief');
-                    } catch (err: any) {
-                      toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
-                >
-                  <ArchiveRestore className="h-3.5 w-3.5" /> Activeren
+            ) : (
+              <button
+                onClick={() => setArchiefOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
+              >
+                <Archive className="h-3.5 w-3.5" /> Archiveer
+              </button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="inline-flex items-center justify-center px-2 py-1.5 text-[12px] bg-background/70 backdrop-blur border border-destructive/40 rounded-md hover:bg-destructive/10 transition text-destructive" aria-label="Verwijderen">
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-              ) : (
-                <button
-                  onClick={() => setArchiefOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
-                >
-                  <Archive className="h-3.5 w-3.5" /> Archiveer
-                </button>
-              )}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="inline-flex items-center justify-center px-2 py-1.5 text-[12px] bg-background/70 backdrop-blur border border-destructive/40 rounded-md hover:bg-destructive/10 transition text-destructive" aria-label="Verwijderen">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
-                    <AlertDialogDescription>Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
+                  <AlertDialogDescription>Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
+        );
 
-          {/* Bottom: title + metadata */}
-          <div className="min-w-0 mt-auto">
-            <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-semibold text-foreground tracking-tight leading-[1.05] break-words drop-shadow-sm">
+        const titleBlock = (
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-semibold text-foreground tracking-tight leading-[1.1] break-words drop-shadow-sm">
               {object.titel}
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
@@ -691,8 +675,42 @@ export default function ObjectDetailPage() {
               )}
             </div>
           </div>
-        </div>
-      </header>
+        );
+
+        return (
+          <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm">
+            {/* Banner */}
+            <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
+              {heroUrl ? (
+                <img src={heroUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-muted to-accent/10 flex items-center justify-center">
+                  <Building2 className="h-16 w-16 text-muted-foreground/40" />
+                </div>
+              )}
+              {/* Gradient scrim (alleen op sm+, waar overlay-content erover heen valt) */}
+              <div className="absolute inset-0 hidden sm:block bg-gradient-to-t from-background via-background/70 to-background/10" />
+              <div className="absolute inset-0 hidden sm:block bg-gradient-to-r from-background/70 via-transparent to-background/30" />
+            </div>
+
+            {/* MOBIEL — content stroomt onder de banner, geen overlap */}
+            <div className="sm:hidden p-4 space-y-3 bg-card">
+              {badgesBlock}
+              {titleBlock}
+              {actionsBlock}
+            </div>
+
+            {/* DESKTOP — overlay content */}
+            <div className="hidden sm:flex absolute inset-0 flex-col justify-between p-6 lg:p-8">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                {badgesBlock}
+                {actionsBlock}
+              </div>
+              <div className="mt-auto">{titleBlock}</div>
+            </div>
+          </header>
+        );
+      })()}
 
       {/* =================================================
           HERO KPI STRIP — institutional underwriting overview
