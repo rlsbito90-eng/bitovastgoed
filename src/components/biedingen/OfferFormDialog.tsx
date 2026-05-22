@@ -115,6 +115,7 @@ export default function OfferFormDialog({
         geldigTot: bieding.geldigTot ?? '',
         status: bieding.status,
         offerType: bieding.offerType,
+        richting: bieding.richting ?? 'van_koper',
         financieringsvoorbehoud: bieding.financieringsvoorbehoud,
         ddVoorbehoud: bieding.ddVoorbehoud,
         gewensteLevering: bieding.gewensteLevering ?? '',
