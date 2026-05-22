@@ -273,11 +273,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Mobile Nav Overlay */}
         {mobileOpen && (
           <div
-            className="lg:hidden fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm"
+            className="lg:hidden fixed inset-0 z-50 glass-overlay"
             onClick={() => setMobileOpen(false)}
           >
             <div
-              className="fixed left-0 top-0 bottom-0 w-72 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 flex flex-col"
+              className="fixed left-0 top-0 bottom-0 w-72 glass-dark text-sidebar-foreground border-r border-sidebar-border/50 p-4 flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <Link
