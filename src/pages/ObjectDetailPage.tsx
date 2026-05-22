@@ -165,6 +165,14 @@ const SECTIONS = [
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
+/** Mobile-only sectiebar items — op desktop staan deze al in de rechter sidebar */
+const MOBILE_ONLY_SECTIONS = [
+  { id: 'deal-cockpit', label: 'Cockpit', icon: Target },
+  { id: 'next-action', label: 'Next action', icon: Calendar },
+  { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
+];
+
+
 
 function SectionNav({ active }: { active: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -261,10 +269,31 @@ function SectionNav({ active }: { active: string }) {
             </a>
           );
         })}
+        <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
+        {MOBILE_ONLY_SECTIONS.map((s) => {
+          const isActive = active === s.id;
+          return (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={(e) => handleClick(e, s.id)}
+              ref={(el) => { tabRefs.current[s.id] = el; }}
+              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+              {s.label}
+            </a>
+          );
+        })}
       </div>
     </nav>
   );
 }
+
 
 
 /* ============================================================
@@ -288,10 +317,9 @@ export default function ObjectDetailPage() {
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
 
-  const scrollToSection = (id: string) => {
+  const performScroll = (id: string) => {
     const target = document.getElementById(id);
-    if (!target) return;
-    setActiveSection(id);
+    if (!target) return false;
 
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
@@ -326,14 +354,27 @@ export default function ObjectDetailPage() {
       const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
       parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
+    return true;
+  };
 
+  const scrollToSection = (id: string) => {
+    setActiveSection(id);
+    // Voer scroll meerdere keren uit zodat layout-shifts (tab-switch, lazy mount)
+    // niet leiden tot een halve scroll → één klik is altijd genoeg.
+    requestAnimationFrame(() => {
+      performScroll(id);
+      requestAnimationFrame(() => performScroll(id));
+      setTimeout(() => performScroll(id), 180);
+      setTimeout(() => performScroll(id), 420);
+    });
     if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
 
   const openDossierTab = (tab: DossierTab) => {
     setDossierOpenRequest({ tab, token: Date.now() });
-    requestAnimationFrame(() => scrollToSection('documenten'));
+    scrollToSection('documenten');
   };
+
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -349,7 +390,9 @@ export default function ObjectDetailPage() {
   // Scroll-spy
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
-    SECTIONS.forEach(s => {
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+    const sectionsToObserve = isDesktop ? SECTIONS : [...SECTIONS, ...MOBILE_ONLY_SECTIONS];
+    sectionsToObserve.forEach(s => {
       const el = document.getElementById(s.id);
       if (!el) return;
       const obs = new IntersectionObserver(
@@ -1268,7 +1311,7 @@ export default function ObjectDetailPage() {
         {/* RIGHT — sticky deal cockpit */}
         <aside className="lg:sticky lg:top-[88px] space-y-3 min-w-0">
           {/* Deal status cockpit */}
-          <div className="section-card p-5 space-y-4">
+          <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                 Deal cockpit
@@ -1316,7 +1359,8 @@ export default function ObjectDetailPage() {
           </div>
 
           {/* Volgende actie — uit Taken-module */}
-          <div className="section-card p-5 space-y-3">
+          <div id="next-action" className="section-card p-5 space-y-3 scroll-mt-24">
+
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                 Next action
@@ -1373,7 +1417,7 @@ export default function ObjectDetailPage() {
           </div>
 
           {/* Quick actions */}
-          <div className="section-card p-5 space-y-1.5">
+          <div id="quick-actions" className="section-card p-5 space-y-1.5 scroll-mt-24">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
               Quick actions
             </p>
