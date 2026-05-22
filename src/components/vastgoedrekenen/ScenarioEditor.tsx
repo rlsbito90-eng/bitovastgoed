@@ -740,9 +740,30 @@ export default function ScenarioEditor(props: Props) {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
-                <MobileFieldGroup label="Categorie" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.cost_category} onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.description ?? ''} onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Bedrag (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Categorie" className="lg:col-span-2">
+                  <RawTextInput
+                    className="h-9"
+                    initialValue={c.cost_category}
+                    onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })}
+                    onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })}
+                  />
+                </MobileFieldGroup>
+                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2">
+                  <RawTextInput
+                    className="h-9"
+                    initialValue={c.description ?? ''}
+                    onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null })}
+                    onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })}
+                  />
+                </MobileFieldGroup>
+                <MobileFieldGroup label="Bedrag (€)">
+                  <RawNumberInput
+                    className="h-9"
+                    initialValue={numberToRaw(c.amount)}
+                    onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })}
+                    onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })}
+                  />
+                </MobileFieldGroup>
               </div>
             </div>
           ))}
