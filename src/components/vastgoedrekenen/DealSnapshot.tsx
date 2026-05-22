@@ -35,7 +35,7 @@ export default function DealSnapshot({ o }: { o: ComputedOutputs }) {
     <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{deal.label}</span>
+          <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{o.scoreLabel}</span>
           <span className={`text-xs px-2 py-1 rounded-full border ${risk.cls}`}>{risk.label}</span>
           <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
             Betrouwbaarheid: {o.inputReliability}
@@ -70,6 +70,27 @@ export default function DealSnapshot({ o }: { o: ComputedOutputs }) {
           <p className="font-medium mb-1">Conclusie</p>
           <p>{o.conclusion}</p>
           <p className="mt-2 text-muted-foreground">Aanbevolen vervolgstap: <span className="text-foreground">{o.recommendedNextStep}</span></p>
+        </div>
+
+        <div className="rounded-md border bg-card p-3 text-xs leading-relaxed space-y-2">
+          <div>
+            <p className="font-medium text-foreground">Score-uitleg</p>
+            <p className="text-muted-foreground">{o.scoreReason}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="font-medium text-foreground mb-1">Positief</p>
+              <ul className="space-y-1 text-muted-foreground">
+                {o.scorePositivePoints.length > 0 ? o.scorePositivePoints.map((p, i) => <li key={i}>• {p}</li>) : <li>• Nog geen positief punt berekend.</li>}
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Aandachtspunten</p>
+              <ul className="space-y-1 text-muted-foreground">
+                {o.scoreAttentionPoints.length > 0 ? o.scoreAttentionPoints.map((p, i) => <li key={i}>• {p}</li>) : <li>• Geen directe aandachtspunten.</li>}
+              </ul>
+            </div>
+          </div>
         </div>
 
         {o.warnings.length > 0 && (
