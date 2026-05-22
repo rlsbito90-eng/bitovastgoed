@@ -136,6 +136,114 @@ export type Database = {
           },
         ]
       }
+      biedingen: {
+        Row: {
+          aangemaakt_door: string | null
+          accepted_at: string | null
+          bedrag: number | null
+          bieddatum: string
+          bron: string | null
+          counter_offer_to_id: string | null
+          created_at: string
+          currency: string
+          dd_voorbehoud: Database["public"]["Enums"]["voorbehoud_status"]
+          deal_id: string | null
+          expired_at: string | null
+          financieringsvoorbehoud: Database["public"]["Enums"]["voorbehoud_status"]
+          geldig_tot: string | null
+          gewenste_levering: string | null
+          gewenste_levering_tekst: string | null
+          id: string
+          interne_notities: string | null
+          is_best_offer: boolean
+          is_final_offer: boolean
+          kosten_type: string | null
+          notities: string | null
+          object_id: string
+          object_pipeline_id: string | null
+          offer_type: Database["public"]["Enums"]["biedingtype"]
+          rejected_at: string | null
+          rejected_reason: string | null
+          relatie_id: string
+          status: Database["public"]["Enums"]["biedingstatus"]
+          updated_at: string
+          voorwaarden: string | null
+          waarborgsom_bedrag: number | null
+          waarborgsom_pct: number | null
+          withdrawn_at: string | null
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          accepted_at?: string | null
+          bedrag?: number | null
+          bieddatum?: string
+          bron?: string | null
+          counter_offer_to_id?: string | null
+          created_at?: string
+          currency?: string
+          dd_voorbehoud?: Database["public"]["Enums"]["voorbehoud_status"]
+          deal_id?: string | null
+          expired_at?: string | null
+          financieringsvoorbehoud?: Database["public"]["Enums"]["voorbehoud_status"]
+          geldig_tot?: string | null
+          gewenste_levering?: string | null
+          gewenste_levering_tekst?: string | null
+          id?: string
+          interne_notities?: string | null
+          is_best_offer?: boolean
+          is_final_offer?: boolean
+          kosten_type?: string | null
+          notities?: string | null
+          object_id: string
+          object_pipeline_id?: string | null
+          offer_type?: Database["public"]["Enums"]["biedingtype"]
+          rejected_at?: string | null
+          rejected_reason?: string | null
+          relatie_id: string
+          status?: Database["public"]["Enums"]["biedingstatus"]
+          updated_at?: string
+          voorwaarden?: string | null
+          waarborgsom_bedrag?: number | null
+          waarborgsom_pct?: number | null
+          withdrawn_at?: string | null
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          accepted_at?: string | null
+          bedrag?: number | null
+          bieddatum?: string
+          bron?: string | null
+          counter_offer_to_id?: string | null
+          created_at?: string
+          currency?: string
+          dd_voorbehoud?: Database["public"]["Enums"]["voorbehoud_status"]
+          deal_id?: string | null
+          expired_at?: string | null
+          financieringsvoorbehoud?: Database["public"]["Enums"]["voorbehoud_status"]
+          geldig_tot?: string | null
+          gewenste_levering?: string | null
+          gewenste_levering_tekst?: string | null
+          id?: string
+          interne_notities?: string | null
+          is_best_offer?: boolean
+          is_final_offer?: boolean
+          kosten_type?: string | null
+          notities?: string | null
+          object_id?: string
+          object_pipeline_id?: string | null
+          offer_type?: Database["public"]["Enums"]["biedingtype"]
+          rejected_at?: string | null
+          rejected_reason?: string | null
+          relatie_id?: string
+          status?: Database["public"]["Enums"]["biedingstatus"]
+          updated_at?: string
+          voorwaarden?: string | null
+          waarborgsom_bedrag?: number | null
+          waarborgsom_pct?: number | null
+          withdrawn_at?: string | null
+        }
+        Relationships: []
+      }
       calculation_components: {
         Row: {
           allocated_component_value: number | null
@@ -3282,6 +3390,26 @@ export type Database = {
         | "zorgvastgoed"
         | "mixed_use"
         | "ontwikkellocatie"
+      biedingstatus:
+        | "concept"
+        | "ontvangen"
+        | "in_behandeling"
+        | "tegenvoorstel_gedaan"
+        | "aangepast_bod_gevraagd"
+        | "geaccepteerd"
+        | "afgewezen"
+        | "ingetrokken"
+        | "verlopen"
+      biedingtype:
+        | "indicatief"
+        | "openingsbod"
+        | "voorwaardelijk"
+        | "onvoorwaardelijk"
+        | "eindbod"
+        | "tegenvoorstel"
+        | "verhoogd_bod"
+        | "schriftelijk"
+        | "mondeling"
       campagne_kanaal:
         | "brief"
         | "bellen"
@@ -3457,6 +3585,7 @@ export type Database = {
         | "bieding_opvolgen"
         | "onderhandelen"
         | "overig"
+      voorbehoud_status: "geen" | "ja" | "onbekend" | "nader_te_bepalen"
       vr_calc_status:
         | "concept"
         | "indicatief"
@@ -3674,6 +3803,28 @@ export const Constants = {
         "mixed_use",
         "ontwikkellocatie",
       ],
+      biedingstatus: [
+        "concept",
+        "ontvangen",
+        "in_behandeling",
+        "tegenvoorstel_gedaan",
+        "aangepast_bod_gevraagd",
+        "geaccepteerd",
+        "afgewezen",
+        "ingetrokken",
+        "verlopen",
+      ],
+      biedingtype: [
+        "indicatief",
+        "openingsbod",
+        "voorwaardelijk",
+        "onvoorwaardelijk",
+        "eindbod",
+        "tegenvoorstel",
+        "verhoogd_bod",
+        "schriftelijk",
+        "mondeling",
+      ],
       campagne_kanaal: [
         "brief",
         "bellen",
@@ -3867,6 +4018,7 @@ export const Constants = {
         "onderhandelen",
         "overig",
       ],
+      voorbehoud_status: ["geen", "ja", "onbekend", "nader_te_bepalen"],
       vr_calc_status: [
         "concept",
         "indicatief",
