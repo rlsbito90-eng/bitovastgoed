@@ -541,7 +541,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
           ================================================= */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 lg:gap-6 min-w-0 items-start">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start">
         {/* LEFT — content */}
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
