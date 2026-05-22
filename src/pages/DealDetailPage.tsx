@@ -38,7 +38,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <p className="field-label">{label}</p>
-      <div className="text-sm text-foreground mt-1 break-words">{children}</div>
+      <div className="field-value mt-1.5">{children}</div>
     </div>
   );
 }
