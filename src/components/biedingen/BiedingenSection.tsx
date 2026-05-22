@@ -302,7 +302,9 @@ export default function BiedingenSection({
         defaultRelatieId={defaults?.relatieId}
         defaultDealId={defaults?.dealId}
         defaultObjectPipelineId={defaults?.objectPipelineId}
+        onSaved={refresh}
       />
+
       <OfferAcceptDialog open={!!acceptTarget} onOpenChange={o => !o && setAcceptTarget(null)} bieding={acceptTarget} />
       <OfferRejectDialog open={!!rejectTarget} onOpenChange={o => !o && setRejectTarget(null)} bieding={rejectTarget} />
     </TooltipProvider>
