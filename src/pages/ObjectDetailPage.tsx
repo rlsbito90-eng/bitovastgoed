@@ -1319,9 +1319,9 @@ export default function ObjectDetailPage() {
           <div className="section-card p-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Volgende actie
+                Next action
               </p>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">uit Taken</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">from Taken</span>
             </div>
             {volgendeTaak ? (
               <button
