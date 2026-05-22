@@ -600,6 +600,153 @@ export default function ScenarioEditor(props: Props) {
         )}
       </Card>
 
+      {/* Verkoop / exit */}
+      {(() => {
+        const sr = s as unknown as Record<string, unknown>;
+        const saleStrategy = (sr.sale_strategy as string | null) ?? 'geen_verkoop';
+        const bidBasis = (sr.bid_basis as string | null) ?? 'huur';
+        const focused = SALE_FOCUSED_STRATEGIES.has(s.strategy_type as string)
+          || SALE_FOCUSED_SALE_STRATEGIES.has(saleStrategy);
+        const setSale = (key: string, value: unknown) => patch({ [key]: value } as unknown as Partial<Scenario>);
+        return (
+          <Card>
+            <CardHeader>
+              <details open={focused}>
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
+                  <CardTitle className="text-base">Verkoop / exit</CardTitle>
+                  <span className="text-xs text-muted-foreground">
+                    {focused ? 'Relevant voor dit scenario' : 'Optioneel — klik om te openen'}
+                  </span>
+                </summary>
+                <div className="mt-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+                    <MobileFieldGroup label="Verkoopstrategie">
+                      <Select value={saleStrategy} onValueChange={(v) => setSale('sale_strategy', v)}>
+                        <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>{Object.entries(SALE_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Verwachte verkooptermijn (maanden)">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_expected_period_months as number | null} onChange={(v) => setSale('sale_expected_period_months', v)} suffix="maanden" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Bid-basis voor maximale bieding" helper={bidBasis === 'verkoop' ? 'Max bieding wordt afgeleid van netto verkoopopbrengst minus gewenste marge.' : 'Max bieding wordt afgeleid van gecorrigeerde jaarhuur via BAR.'}>
+                      <Select value={bidBasis} onValueChange={(v) => setSale('bid_basis', v)}>
+                        <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="huur">Huur / BAR (standaard)</SelectItem>
+                          <SelectItem value="verkoop">Verkoop / exit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </MobileFieldGroup>
+
+                    <MobileFieldGroup label="Verkoopprijs totaal (€)">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_total as number | null} onChange={(v) => setSale('sale_price_total', v)} placeholder="bijv. 2200000" suffix="€" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Verkoopprijs per m² (€)">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_per_m2 as number | null} onChange={(v) => setSale('sale_price_per_m2', v)} placeholder="bijv. 5500" suffix="€" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Verkoopbare m²">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_sellable_m2 as number | null} onChange={(v) => setSale('sale_sellable_m2', v)} suffix="m²" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Verkoopprijs per unit (€)">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_per_unit as number | null} onChange={(v) => setSale('sale_price_per_unit', v)} placeholder="bijv. 350000" suffix="€" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Aantal verkoopbare units">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_units_count as number | null} onChange={(v) => setSale('sale_units_count', v)} />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Handmatige exitwaarde (€)" helper="Optioneel — overschrijft afgeleide netto verkoopopbrengst voor de exitwaarde-output.">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_exit_value_manual as number | null} onChange={(v) => setSale('sale_exit_value_manual', v)} suffix="€" />
+                    </MobileFieldGroup>
+
+                    <MobileFieldGroup label="Verkoopkosten (%)" helper="Makelaars-/verkoopkosten als % van bruto opbrengst.">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_costs_percentage as number | null} onChange={(v) => setSale('sale_costs_percentage', v)} placeholder="bijv. 1.5" suffix="%" />
+                    </MobileFieldGroup>
+                    <MobileFieldGroup label="Overige verkoopkosten (€)">
+                      <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
+                    </MobileFieldGroup>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Doelstelling voor maximale bieding</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+                      <MobileFieldGroup label="Gewenste winst / marge (€)">
+                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_margin_amount as number | null} onChange={(v) => setSale('sale_target_margin_amount', v)} suffix="€" />
+                      </MobileFieldGroup>
+                      <MobileFieldGroup label="Gewenste marge (%)">
+                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_margin_percentage as number | null} onChange={(v) => setSale('sale_target_margin_percentage', v)} suffix="%" />
+                      </MobileFieldGroup>
+                      <MobileFieldGroup label="Gewenste ROI (%)">
+                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_roi_percentage as number | null} onChange={(v) => setSale('sale_target_roi_percentage', v)} suffix="%" />
+                      </MobileFieldGroup>
+                      <MobileFieldGroup label="Target exitwaarde (€)">
+                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_exit_value as number | null} onChange={(v) => setSale('sale_target_exit_value', v)} suffix="€" />
+                      </MobileFieldGroup>
+                    </div>
+                  </div>
+
+                  {/* Live preview */}
+                  <div className="rounded-md border bg-muted/30 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Bruto verkoopopbrengst</p>
+                      <p className="font-mono-data font-semibold">{outputs.grossSaleProceeds != null ? fmtEur(outputs.grossSaleProceeds) : 'Onvoldoende gegevens'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Verkoopkosten</p>
+                      <p className="font-mono-data">{outputs.saleCostsTotal != null ? fmtEur(outputs.saleCostsTotal) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Netto verkoopopbrengst</p>
+                      <p className="font-mono-data font-semibold">{outputs.netSaleProceeds != null ? fmtEur(outputs.netSaleProceeds) : 'Onvoldoende gegevens'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Exitwaarde</p>
+                      <p className="font-mono-data">{outputs.exitValue != null ? fmtEur(outputs.exitValue) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Bruto marge</p>
+                      <p className="font-mono-data">{outputs.grossMargin != null ? fmtEur(outputs.grossMargin) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Netto marge</p>
+                      <p className={`font-mono-data font-semibold ${outputs.netMargin != null && outputs.netMargin < 0 ? 'text-destructive' : ''}`}>{outputs.netMargin != null ? fmtEur(outputs.netMargin) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">ROI op totale investering</p>
+                      <p className={`font-mono-data font-semibold ${outputs.roi != null && outputs.roi < 0 ? 'text-destructive' : ''}`}>{outputs.roi != null ? `${outputs.roi.toFixed(2)}%` : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Verschil met aankoopprijs</p>
+                      <p className="font-mono-data">{outputs.saleVsPurchase != null ? fmtEur(outputs.saleVsPurchase) : '—'}</p>
+                    </div>
+                  </div>
+
+                  {outputs.bidBasisUsed === 'verkoop' && outputs.exitBasedMaxBid != null && (
+                    <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs">
+                      <p className="font-semibold text-sm">Maximale bieding op basis van exit: {fmtEur(outputs.exitBasedMaxBid)}</p>
+                      <p className="text-muted-foreground mt-1">
+                        Berekend als: netto verkoopopbrengst − gewenste marge/ROI − aankoopkosten − OVB − bouw-/renovatiekosten − financiering − veiligheidsmarge.
+                        Bindende doelstelling: <span className="font-medium">{
+                          outputs.exitBidBindingTarget === 'marge_euro' ? 'gewenste winst (€)' :
+                          outputs.exitBidBindingTarget === 'marge_pct' ? 'gewenste marge (%)' :
+                          outputs.exitBidBindingTarget === 'roi' ? 'gewenste ROI (%)' :
+                          outputs.exitBidBindingTarget === 'target_exit' ? 'target exitwaarde' : '—'
+                        }</span>.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </CardHeader>
+          </Card>
+        );
+      })()}
+
+
+
       {/* Controles + onderbouwing */}
       <Card>
         <CardHeader><CardTitle className="text-base">Controles & onderbouwing</CardTitle></CardHeader>
