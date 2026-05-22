@@ -280,7 +280,7 @@ export default function ObjectDetailPage() {
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
-  const [editTaak, setEditTaak] = useState<import('@/data/mock-data').Taak | null>(null);
+  const [editTaak, setEditTaak] = useState<any>(null);
 
   const scrollToSection = (id: string) => {
     const target = document.getElementById(id);
