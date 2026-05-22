@@ -212,6 +212,7 @@ export default function ScenarioEditor(props: Props) {
       recommended_next_step: outputs.recommendedNextStep,
       warnings: outputs.warnings as unknown as never,
     });
+    baselineRef.current = s;
     setDirty(false);
     setLastSavedAt(new Date());
     toast.success('Scenario opgeslagen');
