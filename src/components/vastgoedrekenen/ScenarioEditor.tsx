@@ -525,20 +525,20 @@ export default function ScenarioEditor(props: Props) {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
-                <MobileFieldGroup label="Naam" className="lg:col-span-2"><Input className="h-9" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Naam" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.component_name} onCommit={(raw) => updateComponent(c.id, { component_name: raw.trim() || 'Component' })} /></MobileFieldGroup>
                 <MobileFieldGroup label="Type">
                   <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })}>
                     <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                   </Select>
                 </MobileFieldGroup>
-                <MobileFieldGroup label="GBO (m²)"><Input className="h-9" type="number" value={c.surface_gbo ?? ''} onChange={(e) => updateComponent(c.id, { surface_gbo: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Maandhuur (€)"><Input className="h-9" type="number" value={c.current_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { current_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Markthuur/maand (€)"><Input className="h-9" type="number" value={c.market_monthly_rent ?? ''} onChange={(e) => updateComponent(c.id, { market_monthly_rent: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="GBO (m²)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Markthuur/maand (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
               </div>
               {ovbMode === 'per_component' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
-                  <MobileFieldGroup label="Toegerekende waarde (€)"><Input className="h-9" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></MobileFieldGroup>
+                  <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
                   <MobileFieldGroup label="OVB-classificatie">
                     <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
                       <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
@@ -555,7 +555,7 @@ export default function ScenarioEditor(props: Props) {
                       </SelectContent>
                     </Select>
                   </MobileFieldGroup>
-                  <MobileFieldGroup label="OVB-% (override)"><Input className="h-9" type="number" value={c.transfer_tax_percentage ?? ''} onChange={(e) => updateComponent(c.id, { transfer_tax_percentage: e.target.value === '' ? null : Number(e.target.value), transfer_tax_manual_override: e.target.value !== '' })} /></MobileFieldGroup>
+                  <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
                 </div>
               )}
             </div>
