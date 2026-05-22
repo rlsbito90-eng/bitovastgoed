@@ -796,7 +796,58 @@ export default function ObjectDetailPage() {
                     hint={object.taxatiedatum ? formatDate(object.taxatiedatum) : undefined}
                   />
                 )}
+                {object.marktwaardeIndicatie != null && (
+                  <MetricTile
+                    label="Marktwaarde"
+                    value={formatCurrency(object.marktwaardeIndicatie)}
+                    hint={object.marktwaardeBron ?? undefined}
+                  />
+                )}
               </div>
+
+              {object.prijsindicatie && (
+                <div className="hairline pt-4">
+                  <Field label="Prijsindicatie / toelichting"><pre className="whitespace-pre-wrap font-sans text-sm">{object.prijsindicatie}</pre></Field>
+                </div>
+              )}
+
+              {/* Financiële scenario's */}
+              {object.financieleScenarios && (
+                object.financieleScenarios.huidig || object.financieleScenarios.marktconform || object.financieleScenarios.naRenovatie
+              ) && (
+                <div className="hairline pt-4">
+                  <p className="field-label mb-2">Financiële scenario's</p>
+                  <div className="overflow-x-auto rounded-md border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs text-muted-foreground">
+                        <tr>
+                          <th className="text-left font-medium px-3 py-2">Scenario</th>
+                          <th className="text-right font-medium px-3 py-2">Jaarhuur</th>
+                          <th className="text-right font-medium px-3 py-2">BAR</th>
+                          <th className="text-right font-medium px-3 py-2">NOI</th>
+                          <th className="text-left font-medium px-3 py-2">Toelichting</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(['huidig','marktconform','naRenovatie'] as const).map(k => {
+                          const s = object.financieleScenarios?.[k];
+                          if (!s) return null;
+                          const label = k === 'huidig' ? 'Huidig' : k === 'marktconform' ? 'Marktconform' : 'Na renovatie';
+                          return (
+                            <tr key={k} className="border-t border-border/40">
+                              <td className="px-3 py-2 font-medium">{label}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.jaarhuur != null ? formatCurrency(s.jaarhuur) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.bar != null ? formatPercent(s.bar, 2) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.noi != null ? formatCurrency(s.noi) : '—'}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{s.opmerking ?? '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="hairline pt-4 flex items-center gap-2 text-[12px] text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
@@ -806,6 +857,7 @@ export default function ObjectDetailPage() {
                 </span>
               </div>
             </div>
+
 
             {/* HUURDERS als sub-card binnen financieel */}
             {huurders.length > 0 && (
