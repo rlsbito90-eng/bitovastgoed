@@ -44,7 +44,7 @@ type Props = {
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
 
-function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; onDirty: () => void; placeholder?: string; suffix?: Suffix }) {
+function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; onDirty?: () => void; placeholder?: string; suffix?: Suffix }) {
   return (
     <RawNumberInput
       initialValue={numberToRaw(value)}
