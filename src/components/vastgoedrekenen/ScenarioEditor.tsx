@@ -362,7 +362,11 @@ export default function ScenarioEditor(props: Props) {
       vat_applicable: null,
       created_at: now,
       updated_at: now,
-    } as ScenarioCost]));
+      calc_mode: 'totaal',
+      amount_per_m2: null,
+      m2_basis: objectArea ?? null,
+    } as unknown as ScenarioCost]));
+
   }
   function updateCost(id: string, p: Partial<ScenarioCost>, forceDirty = false) {
     setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)), forceDirty);
