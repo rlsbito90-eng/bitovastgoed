@@ -341,7 +341,7 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={diffPurchase} asking={purchase} /></td>
                       <td className="px-3 py-2 text-xs border-b bg-emerald-500/5">{saleStrategyLabel}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.grossSaleProceeds != null ? fmtEur(o.grossSaleProceeds) : '—'}</td>
-                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.totalSaleCosts != null ? fmtEur(o.totalSaleCosts) : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.saleCostsTotal != null ? fmtEur(o.saleCostsTotal) : '—'}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 font-semibold">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</td>
                       <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</td>
                       <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</td>
