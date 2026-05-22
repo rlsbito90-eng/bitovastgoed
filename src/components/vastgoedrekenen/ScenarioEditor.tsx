@@ -152,7 +152,7 @@ export default function ScenarioEditor(props: Props) {
 
   const outputs = useMemo(() => computeScenario({
     scenario: s,
-    components, draftCosts, wwsUnits,
+    components, costs: draftCosts, wwsUnits,
     taxSettings,
     objectType,
     objectArea,
