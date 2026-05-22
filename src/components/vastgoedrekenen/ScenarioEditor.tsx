@@ -813,7 +813,16 @@ export default function ScenarioEditor(props: Props) {
                   <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
                 </div>
                 {draftCosts.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
-                {draftCosts.map((c) => (
+                {draftCosts.map((c) => {
+                  const cr = c as unknown as Record<string, unknown>;
+                  const mode = ((cr.calc_mode as string | null) ?? 'totaal');
+                  const perM2 = (cr.amount_per_m2 as number | null) ?? null;
+                  const basis = (cr.m2_basis as number | null) ?? null;
+                  const effective = mode === 'per_m2' && perM2 && basis ? Math.round(perM2 * basis) : Number(c.amount ?? 0);
+                  const derivedPerM2 = mode === 'totaal' && basis && basis > 0 && Number(c.amount ?? 0) > 0
+                    ? Math.round(Number(c.amount) / basis)
+                    : null;
+                  return (
                   <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
@@ -822,19 +831,55 @@ export default function ScenarioEditor(props: Props) {
                         <span className="sr-only">Kostenpost verwijderen</span>
                       </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
                       <MobileFieldGroup label="Categorie" className="lg:col-span-2">
                         <RawTextInput className="h-9" initialValue={c.cost_category} onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' }, true)} onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })} />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Omschrijving" className="lg:col-span-2">
                         <RawTextInput className="h-9" initialValue={c.description ?? ''} onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null }, true)} onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })} />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Bedrag (€)">
-                        <RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
+                      <MobileFieldGroup label="Berekeningswijze">
+                        <Select value={mode} onValueChange={(v) => updateCost(c.id, { calc_mode: v } as unknown as Partial<ScenarioCost>, true)}>
+                          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="totaal">Totaalbedrag</SelectItem>
+                            <SelectItem value="per_m2">Per m²</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </MobileFieldGroup>
+                      <MobileFieldGroup label="m²-basis">
+                        <RawNumberInput className="h-9" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                       </MobileFieldGroup>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+                      {mode === 'totaal' ? (
+                        <>
+                          <MobileFieldGroup label="Bedrag totaal (€)">
+                            <RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="€/m² (afgeleid)">
+                            <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data">
+                              {derivedPerM2 != null ? fmtEurPerM2(derivedPerM2) : 'Vul m²-basis in'}
+                            </div>
+                          </MobileFieldGroup>
+                        </>
+                      ) : (
+                        <>
+                          <MobileFieldGroup label="Bouwkosten per m² (€)">
+                            <RawNumberInput className="h-9" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="Totaal (afgeleid)">
+                            <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data font-semibold">
+                              {effective > 0 ? fmtEur(effective) : 'Vul €/m² en m²-basis in'}
+                            </div>
+                          </MobileFieldGroup>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
+
                 <p className="text-xs text-muted-foreground pt-1">Totale kosten (incl. {Number(s.unforeseen_percentage ?? 0)}% onvoorzien): {fmtEur(outputs.totalCosts)}</p>
                 {showHelp && (
                   <BerekeningUitleg>
