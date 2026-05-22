@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
-import type { ReactNode } from 'react';
 
 type Props = {
   objectId: string;
