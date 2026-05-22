@@ -1548,6 +1548,9 @@ export default function ObjectDetailPage() {
         taak={editTaak}
         defaultObjectId={object.id}
       />
+
+      {/* Mobile bottom scroll space — zodat laatste sectie netjes onder sticky bar past */}
+      <div aria-hidden className="lg:hidden h-[40vh]" />
     </div>
   );
 }
