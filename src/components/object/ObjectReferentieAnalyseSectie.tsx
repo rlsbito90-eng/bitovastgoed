@@ -253,7 +253,7 @@ export default function ObjectReferentieAnalyseSectie({ object }: Props) {
           </div>
         ) : (
           <>
-            <div className="p-4 rounded-md border-2 border-accent/40 bg-accent/[0.06] min-w-0">
+            <div className="p-4 sm:p-5 rounded-md border-2 border-accent/40 bg-accent/[0.06] min-w-0 text-center flex flex-col items-center">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Indicatieve marktwaarde (mediaan)</p>
               <p className="text-xl sm:text-3xl font-semibold font-mono-data text-accent mt-1 break-words">
                 {formatCurrency(Math.round(marktwaarde.mediaan))}
@@ -264,15 +264,15 @@ export default function ObjectReferentieAnalyseSectie({ object }: Props) {
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
+              <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0 text-center flex flex-col items-center justify-center">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Ondergrens</p>
-                <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
+                <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate max-w-full">
                   {formatCurrency(Math.round(marktwaarde.onder))}
                 </p>
               </div>
-              <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0">
+              <div className="p-2.5 sm:p-3 rounded-md border border-border min-w-0 text-center flex flex-col items-center justify-center">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bovengrens</p>
-                <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate">
+                <p className="text-sm sm:text-base font-semibold font-mono-data mt-0.5 truncate max-w-full">
                   {formatCurrency(Math.round(marktwaarde.boven))}
                 </p>
               </div>
