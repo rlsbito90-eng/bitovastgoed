@@ -70,6 +70,7 @@ export interface Bieding {
   notities?: string | null;
   interneNotities?: string | null;
   bron?: BiedingBron | null;
+  richting: BiedingRichting;
   isBestOffer: boolean;
   isFinalOffer: boolean;
   rejectedReason?: string | null;
