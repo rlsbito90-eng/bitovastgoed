@@ -160,7 +160,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex h-screen bg-background overflow-x-hidden">
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex lg:flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
+        className={`hidden lg:flex lg:flex-col border-r border-sidebar-border/60 glass-dark text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
           desktopCollapsed ? "lg:w-20" : "lg:w-64"
         }`}
       >
