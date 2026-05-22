@@ -100,6 +100,11 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
         <div className="text-sm text-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
           <p className="font-medium mb-1">Conclusie</p>
           <p>{o.conclusion}</p>
+          {(o.dealScore === 'A' || o.dealScore === 'B') && o.riskScore === 'hoog' && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              Let op: kansrijk op basis van marge en ROI, maar risicovol omdat bouwkosten en/of verkoopwaarde nog indicatief zijn.
+            </p>
+          )}
           <p className="mt-2 text-xs text-muted-foreground">
             Vervolgstap: <span className="text-foreground">{o.recommendedNextStep}</span>
           </p>
