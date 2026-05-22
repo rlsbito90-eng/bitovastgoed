@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
