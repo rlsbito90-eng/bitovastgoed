@@ -1414,7 +1414,7 @@ export default function ObjectDetailPage() {
           </div>
 
           {/* Quick actions */}
-          <div className="section-card p-5 space-y-1.5">
+          <div id="quick-actions" className="section-card p-5 space-y-1.5 scroll-mt-24">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
               Quick actions
             </p>
