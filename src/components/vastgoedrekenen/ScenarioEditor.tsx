@@ -393,45 +393,37 @@ export default function ScenarioEditor(props: Props) {
             Deze percentages zijn quickscan-aannames. Ze zijn bedoeld om realistisch en waar nodig conservatief te rekenen, maar moeten vóór bieding worden gecontroleerd op basis van huurcontracten, onderhoudsstaat, servicekosten, VvE, objecttype, locatie en marktdata.
           </p>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <Label className="flex items-center gap-1">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</Label>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</span>}>
             <Select value={rentSource} onValueChange={(v) => patch({ rent_source: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(RENT_SOURCE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Aannameprofiel</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Aannameprofiel">
             <Select value={s.assumption_profile ?? defaultProfileFor(propertyType, s.strategy_type)} onValueChange={(v) => applyProfile(v as AssumptionProfileKey)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(ASSUMPTION_PROFILE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Kostenstructuur / servicekosten</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Kostenstructuur / servicekosten">
             <Select value={s.cost_structure ?? 'onbekend'} onValueChange={(v) => patch({ cost_structure: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(COST_STRUCTURE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </MobileFieldGroup>
 
-          <div>
-            <Label>Huidige maandhuur (€)</Label>
+          <MobileFieldGroup label="Huidige maandhuur (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
             <NumInput value={rentFromComponents ? Math.round(outputs.currentAnnualRent / 12) : s.current_monthly_rent} onChange={(v) => patch({ current_monthly_rent: v })} suffix="€" />
-            {rentFromComponents && <p className="text-[10px] text-muted-foreground mt-1">Opgeteld uit componenten</p>}
-          </div>
-          <div>
-            <Label>Markthuur per maand (€)</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Markthuur per maand (€)" helper={rentFromComponents ? 'Opgeteld uit componenten' : undefined}>
             <NumInput value={rentFromComponents ? Math.round(outputs.marketAnnualRent / 12) : s.market_monthly_rent} onChange={(v) => patch({ market_monthly_rent: v })} suffix="€" />
-            {rentFromComponents && <p className="text-[10px] text-muted-foreground mt-1">Opgeteld uit componenten</p>}
-          </div>
-          <div><Label>Handmatige gecorrigeerde maandhuur (€)</Label><NumInput value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></div>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Handmatige gecorrigeerde maandhuur (€)"><NumInput value={s.manual_corrected_monthly_rent} onChange={(v) => patch({ manual_corrected_monthly_rent: v })} suffix="€" /></MobileFieldGroup>
 
-          <div>
-            <Label>Huur voor berekening</Label>
+          <MobileFieldGroup label="Huur voor berekening">
             <Select value={s.rent_choice ?? 'huidig'} onValueChange={(v) => patch({ rent_choice: v as Scenario['rent_choice'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="huidig">Huidige huur</SelectItem>
                 <SelectItem value="markt">Markthuur</SelectItem>
@@ -439,12 +431,12 @@ export default function ScenarioEditor(props: Props) {
                 <SelectItem value="handmatig">Handmatig</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div><Label>Leegstand (%)</Label><NumInput value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Exploitatie (%)</Label><NumInput value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Onderhoud (%)</Label><NumInput value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Beheer (%)</Label><NumInput value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></div>
-          <div><Label>Overige jaarlijkse kosten (€)</Label><NumInput value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></div>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Leegstand (%)"><NumInput value={s.vacancy_percentage} onChange={(v) => patch({ vacancy_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Exploitatie (%)"><NumInput value={s.operating_cost_percentage} onChange={(v) => patch({ operating_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Onderhoud (%)"><NumInput value={s.maintenance_reserve_percentage} onChange={(v) => patch({ maintenance_reserve_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beheer (%)"><NumInput value={s.management_cost_percentage} onChange={(v) => patch({ management_cost_percentage: v, assumption_profile: 'handmatig', assumptions_manual: true })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige jaarlijkse kosten (€)"><NumInput value={s.other_annual_costs} onChange={(v) => patch({ other_annual_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {aannameWaarschuwingen.length > 0 && (
           <CardContent className="pt-0">
