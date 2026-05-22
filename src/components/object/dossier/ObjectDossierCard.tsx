@@ -111,17 +111,17 @@ export default function ObjectDossierCard({ objectId, objectRecord, openTabReque
       )}
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DossierTab)}>
-        <TabsList className="tabs-scroll sm:inline-flex sm:w-auto sm:flex-wrap sm:h-auto bg-muted/60 p-1 rounded-lg">
-          <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
-          <TabsTrigger value="checklist">Checklist</TabsTrigger>
-          <TabsTrigger value="actielijst">
+        <TabsList className="tabs-scroll sm:inline-flex sm:w-auto sm:flex-wrap sm:h-auto bg-muted/40 backdrop-blur p-1 rounded-full gap-1 border border-border/50">
+          <TabsTrigger value="overzicht" className="dossier-tab-pill">Overzicht</TabsTrigger>
+          <TabsTrigger value="checklist" className="dossier-tab-pill">Checklist</TabsTrigger>
+          <TabsTrigger value="actielijst" className="dossier-tab-pill">
             Actielijst {actionsCount > 0 && <span className="ml-1 text-[10px] opacity-70">({actionsCount})</span>}
           </TabsTrigger>
-          <TabsTrigger value="aanbieding">Aanbieding</TabsTrigger>
-          <TabsTrigger value="aandacht">
+          <TabsTrigger value="aanbieding" className="dossier-tab-pill">Aanbieding</TabsTrigger>
+          <TabsTrigger value="aandacht" className="dossier-tab-pill">
             Aandachtspunten {openAttentionCount > 0 && <span className="ml-1 text-[10px] opacity-70">({openAttentionCount})</span>}
           </TabsTrigger>
-          <TabsTrigger value="documenten">Documenten</TabsTrigger>
+          <TabsTrigger value="documenten" className="dossier-tab-pill">Documenten</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overzicht" className="pt-4">
