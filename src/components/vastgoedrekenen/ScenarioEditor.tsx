@@ -545,15 +545,16 @@ export default function ScenarioEditor(props: Props) {
 
       {/* WWS Units */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">WWS / huursegmentanalyse ({wwsUnits.length})</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
-              <Button size="sm" variant="outline" onClick={createWwsFromComponents}>Maak WWS-units uit wooncomponenten</Button>
+              <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto whitespace-normal sm:whitespace-nowrap text-left sm:text-center h-auto sm:h-9 py-2">Maak WWS-units uit wooncomponenten</Button>
             )}
-            <Button size="sm" variant="outline" onClick={addWwsUnit}><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
+            <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
