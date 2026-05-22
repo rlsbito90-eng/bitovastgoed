@@ -16,13 +16,14 @@ import {
   type AssumptionProfileKey, type PropertyAssumptionType,
 } from '@/lib/vastgoedrekenen/profiles';
 import { buildNogTeControleren, buildAannameWaarschuwingen } from '@/lib/vastgoedrekenen/validation';
-import DealSnapshot from './DealSnapshot';
 import HelpTooltip from './HelpTooltip';
 import BerekeningUitleg from './BerekeningUitleg';
 import RekenbasisBar from './RekenbasisBar';
 import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
-import { fmtEur } from './format';
+import ResultaatKaart from './ResultaatKaart';
+import { Section } from './Section';
+import { fmtEur, fmtPct } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
