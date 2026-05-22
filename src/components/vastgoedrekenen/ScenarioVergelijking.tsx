@@ -339,6 +339,13 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                       <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.maximumBid)}</td>
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.differenceWithAskingPrice} asking={asking} /></td>
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={diffPurchase} asking={purchase} /></td>
+                      <td className="px-3 py-2 text-xs border-b bg-emerald-500/5">{saleStrategyLabel}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.grossSaleProceeds != null ? fmtEur(o.grossSaleProceeds) : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.totalSaleCosts != null ? fmtEur(o.totalSaleCosts) : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 font-semibold">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</td>
+                      <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</td>
+                      <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</td>
                       <td className="px-3 py-2 border-b"><span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.dealScore}</span></td>
                     </tr>
                   );
