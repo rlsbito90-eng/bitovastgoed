@@ -336,7 +336,7 @@ export default function ScenarioEditor(props: Props) {
           <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
           <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
 
-          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
             <Select value={s.ovb_classification} onValueChange={(v) => patch({ ovb_classification: v as Scenario['ovb_classification'] })}>
               <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
@@ -394,7 +394,7 @@ export default function ScenarioEditor(props: Props) {
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
-          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</span>}>
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Huurbron {showHelp && <HelpTooltip text="Bepaalt welke huur leidend is voor de berekening." />}</span>}>
             <Select value={rentSource} onValueChange={(v) => patch({ rent_source: v })}>
               <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(RENT_SOURCE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
@@ -629,7 +629,7 @@ export default function ScenarioEditor(props: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">Biedingsadvies</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
-          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
           <div className="col-span-full">
             <BerekeningUitleg>
               Max all-in waarde = gecorrigeerde jaarhuur / gewenste BAR. Daarna worden aankoopkosten, OVB, kosten, financieringskosten en veiligheidsmarge afgetrokken om tot de maximale bieding te komen.
