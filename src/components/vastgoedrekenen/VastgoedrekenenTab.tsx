@@ -46,39 +46,40 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[200px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="sm:col-span-2 lg:col-span-1 lg:flex-1 min-w-0">
               <Label className="text-xs">Naam quickscan</Label>
               <Input value={calculation.calculation_name} onChange={(e) => updateCalculation({ calculation_name: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label className="text-xs">Status</Label>
               <Select value={calculation.status} onValueChange={(v) => updateCalculation({ status: v as typeof calculation.status })}>
-                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="min-w-0">
               <Label className="text-xs">Hoofdstrategie</Label>
               <Select value={calculation.main_strategy} onValueChange={(v) => updateCalculation({ main_strategy: v as typeof calculation.main_strategy })}>
-                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="min-w-0">
               <Label className="text-xs">Objecttype</Label>
               <Select value={calculation.object_type} onValueChange={(v) => updateCalculation({ object_type: v as typeof calculation.object_type })}>
-                <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="enkelvoudig">Enkelvoudig</SelectItem>
                   <SelectItem value="mixed_use">Mixed-use</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
+            <Button className="w-full sm:w-auto sm:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
               <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
             </Button>
           </div>
+
         </CardHeader>
       </Card>
 
