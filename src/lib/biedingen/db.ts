@@ -61,6 +61,7 @@ export const biedingToDb = (b: Partial<Bieding>) => {
   if (b.notities !== undefined) o.notities = b.notities || null;
   if (b.interneNotities !== undefined) o.interne_notities = b.interneNotities || null;
   if (b.bron !== undefined) o.bron = b.bron || null;
+  if (b.richting !== undefined) o.richting = b.richting;
   if (b.isBestOffer !== undefined) o.is_best_offer = b.isBestOffer;
   if (b.isFinalOffer !== undefined) o.is_final_offer = b.isFinalOffer;
   if (b.rejectedReason !== undefined) o.rejected_reason = b.rejectedReason || null;
