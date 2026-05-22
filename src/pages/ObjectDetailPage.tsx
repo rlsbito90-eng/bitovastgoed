@@ -16,7 +16,9 @@ import {
   VERKOPER_VIA_LABELS,
   DOCUMENT_TYPE_LABELS,
   INDEXATIE_BASIS_LABELS,
+  AANBIEDINGSWIJZE_LABELS,
 } from '@/data/mock-data';
+
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, EyeOff, Star,
@@ -225,11 +227,11 @@ function SectionNav({ active }: { active: string }) {
   return (
     <nav
       ref={navRef}
-      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2 bg-background/90 backdrop-blur-md"
+      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
     >
       <div
         ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/50 px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
+        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
       >
         {SECTIONS.map((s) => {
           const isActive = active === s.id;
@@ -239,14 +241,17 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+              className={`group relative inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-accent/12 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.25)]'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
               }`}
             >
-              <s.icon className="h-3.5 w-3.5" />
+              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
               {s.label}
+              {isActive && (
+                <span className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-[2px] w-8 bg-accent rounded-full" />
+              )}
             </a>
           );
         })}
@@ -254,6 +259,7 @@ function SectionNav({ active }: { active: string }) {
     </nav>
   );
 }
+
 
 /* ============================================================
  * Page
@@ -537,7 +543,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
           ================================================= */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 lg:gap-6 min-w-0 items-start">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start">
         {/* LEFT — content */}
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
@@ -552,14 +558,23 @@ export default function ObjectDetailPage() {
                 mode="single"
               />
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
                 <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
+                {object.aantalHuurders != null && (
+                  <Field label="Aantal huurders"><span className="tabular-nums">{object.aantalHuurders}</span></Field>
+                )}
                 {object.leegstandPct != null && (
                   <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
                 )}
+                {object.aanbiedingswijze && (
+                  <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>
+                )}
+                {object.beschikbaarVanaf && (
+                  <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
+                )}
                 <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar ?? '—'}</span></Field>
-                {object.energielabelV2 && (
-                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2}</span></Field>
+                {(object.energielabelV2 || object.energielabel) && (
+                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
                 )}
                 {object.onderhoudsstaatNiveau && (
                   <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
@@ -573,6 +588,7 @@ export default function ObjectDetailPage() {
                 {object.bron && <Field label="Bron">{object.bron}</Field>}
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
+
 
               {(object.oppervlakteVvo || object.oppervlakteBvo || object.oppervlakteGbo || object.perceelOppervlakte) && (
                 <div className="hairline pt-5">
@@ -680,7 +696,70 @@ export default function ObjectDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Aanbieding & proces — commerciële/processtukken uit edit */}
+            {(object.propositie || object.objectomschrijving || object.locatieOmschrijving ||
+              object.technischeStaatOmschrijving || object.procesVoorwaarden || object.dataroomUrl) && (
+              <div className="section-card p-5 sm:p-6 space-y-4 mt-4">
+                <h3 className="section-title">Aanbieding & proces</h3>
+                <div className="space-y-4">
+                  {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
+                  {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
+                  {object.locatieOmschrijving && <Field label="Locatie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>}
+                  {object.technischeStaatOmschrijving && <Field label="Technische staat"><pre className="whitespace-pre-wrap font-sans text-sm">{object.technischeStaatOmschrijving}</pre></Field>}
+                  {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
+                  {object.dataroomUrl && (
+                    <Field label="Dataroom">
+                      <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
+                        {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </Field>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Onderhoud & investeringen */}
+            {(object.recenteInvesteringen || object.achterstalligOnderhoud) && (
+              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
+                <h3 className="section-title">Onderhoud & investeringen</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {object.recenteInvesteringen && <Field label="Recente investeringen"><pre className="whitespace-pre-wrap font-sans text-sm">{object.recenteInvesteringen}</pre></Field>}
+                  {object.achterstalligOnderhoud && <Field label="Achterstallig onderhoud"><pre className="whitespace-pre-wrap font-sans text-sm">{object.achterstalligOnderhoud}</pre></Field>}
+                </div>
+              </div>
+            )}
+
+            {/* Contactpersoon object (publiek) */}
+            {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
+              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
+                <h3 className="section-title">Contactpersoon</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {object.contactNaam && (
+                    <Field label="Naam">
+                      {object.contactNaam}
+                      {object.contactFunctie && <span className="text-muted-foreground"> · {object.contactFunctie}</span>}
+                    </Field>
+                  )}
+                  {object.contactTelefoon && (
+                    <Field label="Telefoon">
+                      <a href={`tel:${object.contactTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5" />{object.contactTelefoon}
+                      </a>
+                    </Field>
+                  )}
+                  {object.contactEmail && (
+                    <Field label="E-mail">
+                      <a href={`mailto:${object.contactEmail}`} className="hover:text-accent inline-flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />{object.contactEmail}
+                      </a>
+                    </Field>
+                  )}
+                </div>
+              </div>
+            )}
           </SectionAnchor>
+
 
           {/* ============ 2. FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow="02 — Underwriting" title="Financieel">
@@ -717,7 +796,58 @@ export default function ObjectDetailPage() {
                     hint={object.taxatiedatum ? formatDate(object.taxatiedatum) : undefined}
                   />
                 )}
+                {object.marktwaardeIndicatie != null && (
+                  <MetricTile
+                    label="Marktwaarde"
+                    value={formatCurrency(object.marktwaardeIndicatie)}
+                    hint={object.marktwaardeBron ?? undefined}
+                  />
+                )}
               </div>
+
+              {object.prijsindicatie && (
+                <div className="hairline pt-4">
+                  <Field label="Prijsindicatie / toelichting"><pre className="whitespace-pre-wrap font-sans text-sm">{object.prijsindicatie}</pre></Field>
+                </div>
+              )}
+
+              {/* Financiële scenario's */}
+              {object.financieleScenarios && (
+                object.financieleScenarios.huidig || object.financieleScenarios.marktconform || object.financieleScenarios.naRenovatie
+              ) && (
+                <div className="hairline pt-4">
+                  <p className="field-label mb-2">Financiële scenario's</p>
+                  <div className="overflow-x-auto rounded-md border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs text-muted-foreground">
+                        <tr>
+                          <th className="text-left font-medium px-3 py-2">Scenario</th>
+                          <th className="text-right font-medium px-3 py-2">Jaarhuur</th>
+                          <th className="text-right font-medium px-3 py-2">BAR</th>
+                          <th className="text-right font-medium px-3 py-2">NOI</th>
+                          <th className="text-left font-medium px-3 py-2">Toelichting</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(['huidig','marktconform','naRenovatie'] as const).map(k => {
+                          const s = object.financieleScenarios?.[k];
+                          if (!s) return null;
+                          const label = k === 'huidig' ? 'Huidig' : k === 'marktconform' ? 'Marktconform' : 'Na renovatie';
+                          return (
+                            <tr key={k} className="border-t border-border/40">
+                              <td className="px-3 py-2 font-medium">{label}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.jaarhuur != null ? formatCurrency(s.jaarhuur) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.bar != null ? formatPercent(s.bar, 2) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.noi != null ? formatCurrency(s.noi) : '—'}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{s.opmerking ?? '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="hairline pt-4 flex items-center gap-2 text-[12px] text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
@@ -727,6 +857,7 @@ export default function ObjectDetailPage() {
                 </span>
               </div>
             </div>
+
 
             {/* HUURDERS als sub-card binnen financieel */}
             {huurders.length > 0 && (
