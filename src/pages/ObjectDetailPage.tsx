@@ -360,13 +360,14 @@ export default function ObjectDetailPage() {
 
   const scrollToSection = (id: string) => {
     setActiveSection(id);
+    scrollLockRef.current = Date.now() + 700; // lock scrollspy briefly
     // Voer scroll meerdere keren uit zodat layout-shifts (tab-switch, lazy mount)
     // niet leiden tot een halve scroll → één klik is altijd genoeg.
     requestAnimationFrame(() => {
       performScroll(id);
       requestAnimationFrame(() => performScroll(id));
-      setTimeout(() => performScroll(id), 180);
-      setTimeout(() => performScroll(id), 420);
+      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 500; }, 180);
+      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 300; }, 420);
     });
     if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
