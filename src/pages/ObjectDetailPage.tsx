@@ -1357,7 +1357,8 @@ export default function ObjectDetailPage() {
           </div>
 
           {/* Volgende actie — uit Taken-module */}
-          <div className="section-card p-5 space-y-3">
+          <div id="next-action" className="section-card p-5 space-y-3 scroll-mt-24">
+
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                 Next action
