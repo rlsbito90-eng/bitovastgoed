@@ -28,6 +28,10 @@ import {
   Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
 } from 'lucide-react';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
+import KandidaatSelectieDialog from '@/components/pipeline/KandidaatSelectieDialog';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenActieBadge';
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
@@ -128,7 +132,7 @@ function SectionAnchor({
 }) {
   return (
     <section id={id} className={`scroll-mt-24 ${className ?? ''}`}>
-      <div className="flex items-end justify-between gap-3 mb-3">
+      <div className="flex items-end justify-between gap-3 mb-3 pl-1 sm:pl-2">
         <div className="min-w-0">
           {eyebrow && (
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent/80">
@@ -231,7 +235,8 @@ function SectionNav({ active }: { active: string }) {
     >
       <div
         ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
+        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+        style={{ scrollbarWidth: 'none' }}
       >
         {SECTIONS.map((s) => {
           const isActive = active === s.id;
@@ -241,7 +246,7 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group relative inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
                   ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -249,9 +254,6 @@ function SectionNav({ active }: { active: string }) {
             >
               <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
               {s.label}
-              {isActive && (
-                <span className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-[2px] w-8 bg-accent rounded-full" />
-              )}
             </a>
           );
         })}
@@ -275,6 +277,27 @@ export default function ObjectDetailPage() {
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<string>('overzicht');
+  const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
+  const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
+  const [taakDialogOpen, setTaakDialogOpen] = useState(false);
+  const [editTaak, setEditTaak] = useState<any>(null);
+
+  const scrollToSection = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const rootStyles = getComputedStyle(document.documentElement);
+    const parsePx = (v: string, fb: number) => {
+      const n = parseFloat(v);
+      if (!n) return fb;
+      return v.trim().endsWith('rem') ? n * 16 : n;
+    };
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const topbar = isDesktop
+      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + 60);
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -321,6 +344,23 @@ export default function ObjectDetailPage() {
   const huurMetrics = store.getHuurMetrics(object.id);
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
+  const objectTaken = store.getTakenByObject(object.id);
+  const kandidatenPipeline = store.getPipelineVoorObject(object.id);
+  const reedsGekoppeldRelaties = useMemo(
+    () => new Set<string>(kandidatenPipeline.map(k => k.relatieId)),
+    [kandidatenPipeline],
+  );
+  const volgendeTaak = useMemo(() => {
+    const open = objectTaken
+      .filter(t => t.status === 'open')
+      .sort((a, b) => {
+        const av = taakIsVerlopen(a.deadline) ? 0 : 1;
+        const bv = taakIsVerlopen(b.deadline) ? 0 : 1;
+        if (av !== bv) return av - bv;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+    return open[0] ?? null;
+  }, [objectTaken]);
 
   const barEffect = object.brutoAanvangsrendement
     ?? (object.huurinkomsten && object.vraagprijs
@@ -1135,56 +1175,108 @@ export default function ObjectDetailPage() {
             )}
           </div>
 
-          {/* Volgende actie / alerts */}
+          {/* Volgende actie — uit Taken-module */}
           <div className="section-card p-5 space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-              Volgende actie
-            </p>
-            <div className="flex items-start gap-2.5">
-              <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                <Calendar className="h-3.5 w-3.5 text-accent" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-foreground">
-                  {matches.length > 0
-                    ? `Teaser sturen naar ${matches.length} kandidaat${matches.length > 1 ? 'en' : ''}`
-                    : 'Object onder de aandacht brengen'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Vandaag</p>
-              </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                Volgende actie
+              </p>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">uit Taken</span>
             </div>
-            {object.interneOpmerkingen && (
-              <div className="hairline pt-3 flex items-start gap-2">
-                <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground line-clamp-3">{object.interneOpmerkingen}</p>
+            {volgendeTaak ? (
+              <button
+                type="button"
+                onClick={() => { setEditTaak(volgendeTaak); setTaakDialogOpen(true); }}
+                className="w-full text-left flex items-start gap-2.5 group"
+              >
+                <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
+                  <Calendar className="h-3.5 w-3.5 text-accent" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground group-hover:text-accent transition-colors line-clamp-2">
+                    {volgendeTaak.titel}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {formatDate(volgendeTaak.deadline)}
+                      {volgendeTaak.deadlineTijd ? ` · ${volgendeTaak.deadlineTijd}` : ''}
+                    </p>
+                    {taakIsVerlopen(volgendeTaak.deadline) && (
+                      <GeenActieBadge variant="verlopen" date={volgendeTaak.deadline} />
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent shrink-0" />
+              </button>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-7 w-7 rounded-md bg-muted border border-border flex items-center justify-center shrink-0">
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Geen volgende actie gepland.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setEditTaak(null); setTaakDialogOpen(true); }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition"
+                >
+                  <Calendar className="h-3.5 w-3.5" /> Taak aanmaken
+                </button>
               </div>
+            )}
+            {objectTaken.filter(t => t.status === 'open').length > 1 && (
+              <p className="text-[11px] text-muted-foreground hairline pt-2">
+                +{objectTaken.filter(t => t.status === 'open').length - 1} open ta{objectTaken.filter(t => t.status === 'open').length - 1 === 1 ? 'ak' : 'ken'}
+              </p>
             )}
           </div>
 
           {/* Quick actions */}
-          <div className="section-card p-5 space-y-2">
+          <div className="section-card p-5 space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
               Quick actions
             </p>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => setKandidaatDialogOpen(true)}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Users className="h-3.5 w-3.5 text-muted-foreground" /> Kandidaat toevoegen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => { scrollToSection('documenten'); toast.info('Aanbiedingsteksten staan onderaan documenten/dossier.'); }}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Send className="h-3.5 w-3.5 text-muted-foreground" /> Teaser sturen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => setNotitieDialogOpen(true)}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <StickyNote className="h-3.5 w-3.5 text-muted-foreground" /> Notitie toevoegen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => { scrollToSection('documenten'); toast.info('Document-upload volgt in een volgende update. Open Object bewerken om documenten te beheren.'); }}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <a
-              href="#vastgoedrekenen"
-              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md"
+            <button
+              type="button"
+              onClick={() => scrollToSection('vastgoedrekenen')}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
               <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Underwriting openen
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-            </a>
+            </button>
           </div>
         </aside>
       </div>
@@ -1203,6 +1295,28 @@ export default function ObjectDetailPage() {
             toast.error(`Archiveren mislukt: ${err.message ?? 'onbekende fout'}`);
           }
         }}
+      />
+
+      <KandidaatSelectieDialog
+        open={kandidaatDialogOpen}
+        onOpenChange={setKandidaatDialogOpen}
+        objectId={object.id}
+        reedsGekoppeld={reedsGekoppeldRelaties}
+        onToegevoegd={() => toast.success('Kandidaat toegevoegd aan pipeline')}
+      />
+
+      <ContactMomentFormDialog
+        open={notitieDialogOpen}
+        onOpenChange={setNotitieDialogOpen}
+        defaultType="notitie"
+        defaultObjectId={object.id}
+      />
+
+      <TaakFormDialog
+        open={taakDialogOpen}
+        onOpenChange={(o) => { setTaakDialogOpen(o); if (!o) setEditTaak(null); }}
+        taak={editTaak}
+        defaultObjectId={object.id}
       />
     </div>
   );
