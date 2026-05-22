@@ -338,7 +338,7 @@ function RowActions({ b, onEdit, onCounter, onAccept, onReject, onDelete }: {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Bieding verwijderen?</AlertingDialogTitleSafe />
+              <AlertDialogTitle>Bieding verwijderen?</AlertDialogTitle>
               <AlertDialogDescription>Deze actie is onomkeerbaar.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
