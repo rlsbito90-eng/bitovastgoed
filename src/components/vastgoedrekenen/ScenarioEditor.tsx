@@ -264,7 +264,7 @@ export default function ScenarioEditor(props: Props) {
               <Input className="font-semibold text-base w-full" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
-            <div className="grid grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto min-w-0">
               <Select value={s.strategy_type} onValueChange={(v) => patch({ strategy_type: v as Scenario['strategy_type'] })}>
                 <SelectTrigger className="h-9 w-full lg:w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
