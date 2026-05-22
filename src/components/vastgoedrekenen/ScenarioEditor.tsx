@@ -331,29 +331,27 @@ export default function ScenarioEditor(props: Props) {
       {/* Aankoopanalyse */}
       <Card>
         <CardHeader><CardTitle className="text-base">Aankoopanalyse</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div><Label>Vraagprijs (€)</Label><NumInput value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></div>
-          <div><Label>Beoogde aankoopprijs (€)</Label><NumInput value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></div>
-          <div><Label>Veiligheidsmarge (€)</Label><NumInput value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label="Vraagprijs (€)"><NumInput value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
 
-          <div>
-            <Label className="flex items-center gap-1">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</Label>
+          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
             <Select value={s.ovb_classification} onValueChange={(v) => patch({ ovb_classification: v as Scenario['ovb_classification'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>OVB-modus</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="OVB-modus">
             <Select value={s.ovb_mode} onValueChange={(v) => patch({ ovb_mode: v as Scenario['ovb_mode'] })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Automatisch</SelectItem>
                 <SelectItem value="per_component">Per component</SelectItem>
                 <SelectItem value="manual">Handmatig</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </MobileFieldGroup>
           <div className="rounded-md border bg-muted/30 p-2">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Berekende OVB</p>
             <p className="text-sm font-semibold font-mono-data">{fmtEur(outputs.totalTransferTax)}</p>
@@ -361,8 +359,8 @@ export default function ScenarioEditor(props: Props) {
 
           {ovbMode === 'manual' && (
             <>
-              <div><Label>OVB-percentage handmatig (%)</Label><NumInput value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></div>
-              <div><Label>OVB-bedrag handmatig (€)</Label><NumInput value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></div>
+              <MobileFieldGroup label="OVB-percentage handmatig (%)"><NumInput value={s.transfer_tax_percentage} onChange={(v) => patch({ transfer_tax_percentage: v })} placeholder="bijv. 8" suffix="%" /></MobileFieldGroup>
+              <MobileFieldGroup label="OVB-bedrag handmatig (€)"><NumInput value={s.transfer_tax_amount} onChange={(v) => patch({ transfer_tax_amount: v })} placeholder="bijv. 130000" suffix="€" /></MobileFieldGroup>
               <div className="col-span-full text-xs text-amber-700 dark:text-amber-300">⚠ OVB is handmatig overschreven. Controleer dit bij twijfel met notaris/fiscalist.</div>
             </>
           )}
@@ -370,12 +368,12 @@ export default function ScenarioEditor(props: Props) {
             <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
           )}
 
-          <div><Label>Aankoopfee (%) excl. btw</Label><NumInput value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></div>
-          <div><Label>Notariskosten (€)</Label><NumInput value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></div>
-          <div><Label>Advieskosten (€)</Label><NumInput value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></div>
-          <div><Label>Due diligence (€)</Label><NumInput value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></div>
-          <div><Label>Overige aankoopkosten (€)</Label><NumInput value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></div>
-          <div><Label>Financieringskosten (€)</Label><NumInput value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></div>
+          <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
+          <MobileFieldGroup label="Notariskosten (€)"><NumInput value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Advieskosten (€)"><NumInput value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Due diligence (€)"><NumInput value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
+          <MobileFieldGroup label="Financieringskosten (€)"><NumInput value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
         </CardContent>
         {showHelp && (
           <CardContent className="pt-0">
