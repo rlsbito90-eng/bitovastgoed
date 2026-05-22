@@ -1084,7 +1084,7 @@ export default function ObjectDetailPage() {
           {/* ============ 3. KANDIDATEN / MATCHING ============ */}
           <SectionAnchor
             id="kandidaten"
-            eyebrow="03 — Demand"
+            eyebrow="03 — Candidates"
             title={`Top kandidaten · ${matches.length}`}
           >
             <div className="section-card overflow-hidden">
