@@ -947,7 +947,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ 2. FINANCIEEL ============ */}
-          <SectionAnchor id="financieel" eyebrow="02 — Financieel" title="Financieel">
+          <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
