@@ -439,10 +439,6 @@
     letter-spacing: 0.075em;
     color: hsl(var(--foreground) / 0.62);
   }
-  :is(.dark) .field-label,
-  :root.dark .field-label {
-    color: hsl(var(--foreground) / 0.72);
-  }
   @media (prefers-color-scheme: dark) {
     .field-label { color: hsl(var(--foreground) / 0.72); }
   }
