@@ -195,7 +195,10 @@ export default function ScenarioEditor(props: Props) {
     costDraftDirtyRef.current = true;
     setDraftCosts((prev) => {
       const next = updater(prev);
-      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || !areScenarioCostsEqual(next, baselineCostsRef.current));
+      const costsDirty = !areScenarioCostsEqual(next, baselineCostsRef.current);
+      costDraftDirtyRef.current = costsDirty;
+      if (!costsDirty) deletedCostIdsRef.current = [];
+      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || costsDirty);
       return next;
     });
   };
@@ -213,7 +216,10 @@ export default function ScenarioEditor(props: Props) {
   async function save() {
     const savedCosts: ScenarioCost[] = [];
     for (const costId of deletedCostIdsRef.current) {
-      if (!isTempCostId(costId)) await supabase.from('scenario_costs').delete().eq('id', costId);
+      if (!isTempCostId(costId)) {
+        const { error } = await supabase.from('scenario_costs').delete().eq('id', costId);
+        if (error) { toast.error('Kostenpost verwijderen mislukt'); return; }
+      }
     }
     for (const cost of draftCosts) {
       const payload = {
@@ -226,10 +232,12 @@ export default function ScenarioEditor(props: Props) {
         vat_applicable: cost.vat_applicable,
       };
       if (isTempCostId(cost.id)) {
-        const { data } = await supabase.from('scenario_costs').insert(payload).select('*').single();
+        const { data, error } = await supabase.from('scenario_costs').insert(payload).select('*').single();
+        if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
         if (data) savedCosts.push(data as ScenarioCost);
       } else {
-        await supabase.from('scenario_costs').update(payload).eq('id', cost.id);
+        const { error } = await supabase.from('scenario_costs').update(payload).eq('id', cost.id);
+        if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
         savedCosts.push(cost);
       }
     }
