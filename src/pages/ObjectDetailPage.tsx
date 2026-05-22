@@ -160,8 +160,8 @@ const SECTIONS = [
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
-  { id: 'vastgoedrekenen', label: 'Underwriting', icon: Calculator },
   { id: 'documenten', label: 'Documenten', icon: FolderOpen },
+  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
@@ -292,20 +292,42 @@ export default function ObjectDetailPage() {
     const target = document.getElementById(id);
     if (!target) return;
     setActiveSection(id);
-    const rootStyles = getComputedStyle(document.documentElement);
-    const parsePx = (v: string, fb: number) => {
-      const n = parseFloat(v);
-      if (!n) return fb;
-      return v.trim().endsWith('rem') ? n * 16 : n;
-    };
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-    const topbar = isDesktop
-      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
-      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
-    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + 12);
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    const buffer = 12;
+
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return window;
+    };
+    const scrollParent = getScrollParent(target);
+
+    if (scrollParent === window) {
+      const rootStyles = getComputedStyle(document.documentElement);
+      const parsePx = (v: string, fb: number) => {
+        const n = parseFloat(v);
+        if (!n) return fb;
+        return v.trim().endsWith('rem') ? n * 16 : n;
+      };
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      const topbar = isDesktop
+        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+      const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    } else {
+      const parent = scrollParent as HTMLElement;
+      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
+      parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
+    if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
 
   const openDossierTab = (tab: DossierTab) => {
@@ -925,7 +947,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ 2. FINANCIEEL ============ */}
-          <SectionAnchor id="financieel" eyebrow="02 — Financieel" title="Financieel">
+          <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
@@ -1062,7 +1084,7 @@ export default function ObjectDetailPage() {
           {/* ============ 3. KANDIDATEN / MATCHING ============ */}
           <SectionAnchor
             id="kandidaten"
-            eyebrow="03 — Demand"
+            eyebrow="03 — Candidates"
             title={`Top kandidaten · ${matches.length}`}
           >
             <div className="section-card overflow-hidden">
@@ -1130,7 +1152,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 4. DEALFLOW TIMELINE ============ */}
-          <SectionAnchor id="dealflow" eyebrow="04 — Transaction" title="Dealflow">
+          <SectionAnchor id="dealflow" eyebrow="04 — Dealflow" title="Dealflow">
             <ObjectPipelineFaseSectie object={object} />
             <div className="mt-4">
               <ObjectPipelineSectie objectId={object.id} />
@@ -1148,28 +1170,10 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
 
-          {/* ============ 6. UNDERWRITING / VASTGOEDREKENEN ============ */}
-          <SectionAnchor
-            id="vastgoedrekenen"
-            eyebrow="06 — Underwriting"
-            title="Vastgoedrekenen"
-          >
-            <div className="section-card p-3 sm:p-5">
-              <VastgoedrekenenTab
-                objectId={object.id}
-                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
-                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
-                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
-                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
-                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
-              />
-            </div>
-          </SectionAnchor>
-
-          {/* ============ 7. DOCUMENTEN ============ */}
+          {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="07 — Data room"
+            eyebrow="06 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
             <ObjectDossierCard
@@ -1237,7 +1241,25 @@ export default function ObjectDetailPage() {
 
           </SectionAnchor>
 
-          {/* ============ 7. ACTIVITEIT ============ */}
+          {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
+          <SectionAnchor
+            id="vastgoedrekenen"
+            eyebrow="07 — Underwriting"
+            title="Vastgoedrekenen"
+          >
+            <div className="section-card p-3 sm:p-5">
+              <VastgoedrekenenTab
+                objectId={object.id}
+                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
+                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
+                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
+                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
+              />
+            </div>
+          </SectionAnchor>
+
+          {/* ============ 8. ACTIVITEIT ============ */}
           <SectionAnchor id="activiteit" eyebrow="08 — Activity" title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
@@ -1297,9 +1319,9 @@ export default function ObjectDetailPage() {
           <div className="section-card p-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Volgende actie
+                Next action
               </p>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">uit Taken</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">from Taken</span>
             </div>
             {volgendeTaak ? (
               <button
