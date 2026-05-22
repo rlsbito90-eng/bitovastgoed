@@ -305,6 +305,9 @@ export default function ScenarioEditor(props: Props) {
       conclusion: outputs.conclusion,
       recommended_next_step: outputs.recommendedNextStep,
       warnings: outputs.warnings as unknown as never,
+      exit_value: outputs.exitValue,
+      profit: outputs.netMargin,
+      profit_margin: outputs.roi,
     });
     deletedCostIdsRef.current = [];
     costDraftDirtyRef.current = false;
