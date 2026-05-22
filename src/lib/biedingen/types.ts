@@ -24,6 +24,22 @@ export type BiedingType =
 
 export type VoorbehoudStatus = 'geen' | 'ja' | 'onbekend' | 'nader_te_bepalen';
 
+export type BiedingRichting = 'van_koper' | 'van_verkoper' | 'namens_verkoper' | 'intern';
+
+export const BIEDING_RICHTING_LABELS: Record<BiedingRichting, string> = {
+  van_koper: 'Van koper',
+  van_verkoper: 'Van verkoper',
+  namens_verkoper: 'Namens verkoper',
+  intern: 'Intern',
+};
+
+export const BIEDING_RICHTING_LABELS_LONG: Record<BiedingRichting, string> = {
+  van_koper: 'Bod van koper',
+  van_verkoper: 'Tegenvoorstel van verkoper',
+  namens_verkoper: 'Voorstel namens verkoper',
+  intern: 'Intern voorstel',
+};
+
 export type KostenType = 'kk' | 'von' | 'nader';
 
 export type BiedingBron =
