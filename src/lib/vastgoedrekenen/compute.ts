@@ -114,10 +114,25 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     safetyMargin: Number(scenario.safety_margin ?? 0),
   });
 
-  // Verschil met vraagprijs op basis van MAXIMALE BIEDING (niet realisticBid).
-  // Positief = biedingsruimte boven vraagprijs; negatief = benodigde prijsverlaging.
-  const differenceWithAsking = asking > 0 ? bid.maxBid - asking : 0;
-  const requiredDiscount = asking > 0 && bid.maxBid < asking ? asking - bid.maxBid : 0;
+  // --- Verkoop / exit ---
+  const sale = computeSale(scenario, totalInvestment, purchase);
+
+  // Exit-gebaseerde max bieding: trek overhead (aankoopkosten, kosten, financiering, marge) af
+  // van de max toegestane totale investering die door verkoop wordt gedragen.
+  const overhead = acq.totalAcquisitionCosts + totals.total + financing + Number(scenario.safety_margin ?? 0) + ovb.totalOvb;
+  const exitBasedMaxBidNet = sale.exitBasedMaxBid != null
+    ? Math.max(0, sale.exitBasedMaxBid - overhead)
+    : null;
+
+  // Bid-basis: 'verkoop' indien expliciet zo ingesteld én exit-bid bekend; anders 'huur'.
+  const bidBasisField = (scenario as Record<string, unknown>).bid_basis as string | null | undefined;
+  const useSaleBasis = bidBasisField === 'verkoop' && exitBasedMaxBidNet != null && exitBasedMaxBidNet > 0;
+  const effectiveMaxBid = useSaleBasis ? (exitBasedMaxBidNet as number) : bid.maxBid;
+  const bidBasisUsed: 'huur' | 'verkoop' = useSaleBasis ? 'verkoop' : 'huur';
+
+  // Verschil met vraagprijs op basis van de gekozen MAXIMALE BIEDING.
+  const differenceWithAsking = asking > 0 ? effectiveMaxBid - asking : 0;
+  const requiredDiscount = asking > 0 && effectiveMaxBid < asking ? asking - effectiveMaxBid : 0;
 
   // --- Scores ---
   const scoreInput = {
