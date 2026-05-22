@@ -70,7 +70,16 @@ function pickBest(rows: RowData[]) {
   const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
   const byRisk = [...pool].sort((a, b) => riskRank[a.outputs.riskScore] - riskRank[b.outputs.riskScore])[0];
 
-  return { byBid, byBar, byInvestment, byRisk };
+  // Verkoopgerichte rankings (alleen wanneer er minstens 1 scenario verkoopdata heeft)
+  const withSale = pool.filter((r) => r.outputs.netMargin != null);
+  const byMargin = withSale.length > 0
+    ? [...withSale].sort((a, b) => (b.outputs.netMargin ?? -Infinity) - (a.outputs.netMargin ?? -Infinity))[0]
+    : null;
+  const byRoi = withSale.length > 0
+    ? [...withSale].sort((a, b) => (b.outputs.roi ?? -Infinity) - (a.outputs.roi ?? -Infinity))[0]
+    : null;
+
+  return { byBid, byBar, byInvestment, byRisk, byMargin, byRoi };
 }
 
 function DiffBlock({ diff, asking }: { diff: number; asking: number }) {
