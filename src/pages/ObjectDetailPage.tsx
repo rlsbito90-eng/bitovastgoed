@@ -178,20 +178,8 @@ function SectionNav({ active }: { active: string }) {
     const target = document.getElementById(id);
     if (!target) return;
 
-    // Bepaal sticky offset op basis van actuele topbar + sub-nav hoogte
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-    const rootStyles = getComputedStyle(document.documentElement);
-    const parsePx = (v: string, fb: number) => {
-      const n = parseFloat(v);
-      if (!n) return fb;
-      return v.trim().endsWith('rem') ? n * 16 : n;
-    };
-    const topbar = isDesktop
-      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
-      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
     const subNav = navRef.current?.getBoundingClientRect().height ?? 52;
     const buffer = 8;
-    const stickyOffset = topbar + subNav + buffer;
 
     // Scroll de main-container (overflow-y-auto) of window — pak de dichtstbijzijnde scrollende parent
     const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
@@ -204,12 +192,25 @@ function SectionNav({ active }: { active: string }) {
       return window;
     };
     const scrollParent = getScrollParent(target);
+
+    // Als de scrollParent een element is, zit de topbar ER BUITEN — dan alleen subNav compenseren.
+    // Bij window-scroll moet de topbar wél meegerekend worden.
     if (scrollParent === window) {
-      const top = target.getBoundingClientRect().top + window.scrollY - stickyOffset;
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      const rootStyles = getComputedStyle(document.documentElement);
+      const parsePx = (v: string, fb: number) => {
+        const n = parseFloat(v);
+        if (!n) return fb;
+        return v.trim().endsWith('rem') ? n * 16 : n;
+      };
+      const topbar = isDesktop
+        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+      const top = target.getBoundingClientRect().top + window.scrollY - (topbar + subNav + buffer);
       window.scrollTo({ top, behavior: 'smooth' });
     } else {
       const parent = scrollParent as HTMLElement;
-      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - stickyOffset;
+      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (subNav + buffer);
       parent.scrollTo({ top, behavior: 'smooth' });
     }
 
