@@ -86,8 +86,9 @@ const emptyForm = (): FormState => ({
 export default function OfferFormDialog({
   open, onOpenChange, bieding,
   defaultObjectId, defaultRelatieId, defaultDealId, defaultObjectPipelineId,
-  counterTo,
+  counterTo, onSaved,
 }: Props) {
+
   const { relaties, contactpersonen, objecten, deals, getObjectById } = useDataStore();
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
