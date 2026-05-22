@@ -165,6 +165,14 @@ const SECTIONS = [
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
+/** Mobile-only sectiebar items — op desktop staan deze al in de rechter sidebar */
+const MOBILE_ONLY_SECTIONS = [
+  { id: 'deal-cockpit', label: 'Cockpit', icon: Target },
+  { id: 'next-action', label: 'Next action', icon: Calendar },
+  { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
+];
+
+
 
 function SectionNav({ active }: { active: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
