@@ -10,6 +10,7 @@ import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import type { ReactNode } from 'react';
 
 type Props = {
   objectId: string;
@@ -19,6 +20,18 @@ type Props = {
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
 };
+
+
+function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
+      <Label className="block text-xs font-medium leading-snug whitespace-normal break-words">{label}</Label>
+      <div className="min-w-0 w-full [&_input]:w-full [&_input]:min-w-0 [&_[role=combobox]]:w-full [&_[role=combobox]]:min-w-0">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 
 function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType }: {
@@ -46,27 +59,23 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="sm:col-span-2 lg:col-span-1 lg:flex-1 min-w-0">
-              <Label className="text-xs">Naam quickscan</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+            <MobileFieldGroup label="Naam quickscan" className="md:col-span-2 lg:col-span-1 lg:flex-1">
               <Input value={calculation.calculation_name} onChange={(e) => updateCalculation({ calculation_name: e.target.value })} />
-            </div>
-            <div className="min-w-0">
-              <Label className="text-xs">Status</Label>
+            </MobileFieldGroup>
+            <MobileFieldGroup label="Status">
               <Select value={calculation.status} onValueChange={(v) => updateCalculation({ status: v as typeof calculation.status })}>
                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
-            <div className="min-w-0">
-              <Label className="text-xs">Hoofdstrategie</Label>
+            </MobileFieldGroup>
+            <MobileFieldGroup label="Hoofdstrategie">
               <Select value={calculation.main_strategy} onValueChange={(v) => updateCalculation({ main_strategy: v as typeof calculation.main_strategy })}>
                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
-            <div className="min-w-0">
-              <Label className="text-xs">Objecttype</Label>
+            </MobileFieldGroup>
+            <MobileFieldGroup label="Objecttype">
               <Select value={calculation.object_type} onValueChange={(v) => updateCalculation({ object_type: v as typeof calculation.object_type })}>
                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -74,8 +83,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                   <SelectItem value="mixed_use">Mixed-use</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <Button className="w-full sm:w-auto sm:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
+            </MobileFieldGroup>
+            <Button className="w-full md:w-auto md:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
               <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
             </Button>
           </div>
