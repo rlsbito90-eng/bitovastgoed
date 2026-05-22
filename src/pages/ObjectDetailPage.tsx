@@ -316,6 +316,7 @@ export default function ObjectDetailPage() {
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
+  const scrollLockRef = useRef<number>(0);
 
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
