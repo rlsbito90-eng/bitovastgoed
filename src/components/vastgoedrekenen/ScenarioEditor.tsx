@@ -717,7 +717,7 @@ export default function ScenarioEditor(props: Props) {
       {/* Kosten */}
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
+          <CardTitle className="text-base">Kosten ({draftCosts.length})</CardTitle>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
             <div className="w-full sm:w-32 min-w-0">
               <MobileFieldGroup label="Onvoorzien (%)">
@@ -729,8 +729,8 @@ export default function ScenarioEditor(props: Props) {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
-          {costs.map((c) => (
+          {draftCosts.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
+          {draftCosts.map((c) => (
             <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
