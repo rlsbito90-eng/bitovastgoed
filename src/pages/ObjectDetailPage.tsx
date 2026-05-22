@@ -696,7 +696,70 @@ export default function ObjectDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Aanbieding & proces — commerciële/processtukken uit edit */}
+            {(object.propositie || object.objectomschrijving || object.locatieOmschrijving ||
+              object.technischeStaatOmschrijving || object.procesVoorwaarden || object.dataroomUrl) && (
+              <div className="section-card p-5 sm:p-6 space-y-4 mt-4">
+                <h3 className="section-title">Aanbieding & proces</h3>
+                <div className="space-y-4">
+                  {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
+                  {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
+                  {object.locatieOmschrijving && <Field label="Locatie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>}
+                  {object.technischeStaatOmschrijving && <Field label="Technische staat"><pre className="whitespace-pre-wrap font-sans text-sm">{object.technischeStaatOmschrijving}</pre></Field>}
+                  {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
+                  {object.dataroomUrl && (
+                    <Field label="Dataroom">
+                      <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
+                        {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </Field>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Onderhoud & investeringen */}
+            {(object.recenteInvesteringen || object.achterstalligOnderhoud) && (
+              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
+                <h3 className="section-title">Onderhoud & investeringen</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {object.recenteInvesteringen && <Field label="Recente investeringen"><pre className="whitespace-pre-wrap font-sans text-sm">{object.recenteInvesteringen}</pre></Field>}
+                  {object.achterstalligOnderhoud && <Field label="Achterstallig onderhoud"><pre className="whitespace-pre-wrap font-sans text-sm">{object.achterstalligOnderhoud}</pre></Field>}
+                </div>
+              </div>
+            )}
+
+            {/* Contactpersoon object (publiek) */}
+            {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
+              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
+                <h3 className="section-title">Contactpersoon</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {object.contactNaam && (
+                    <Field label="Naam">
+                      {object.contactNaam}
+                      {object.contactFunctie && <span className="text-muted-foreground"> · {object.contactFunctie}</span>}
+                    </Field>
+                  )}
+                  {object.contactTelefoon && (
+                    <Field label="Telefoon">
+                      <a href={`tel:${object.contactTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5" />{object.contactTelefoon}
+                      </a>
+                    </Field>
+                  )}
+                  {object.contactEmail && (
+                    <Field label="E-mail">
+                      <a href={`mailto:${object.contactEmail}`} className="hover:text-accent inline-flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />{object.contactEmail}
+                      </a>
+                    </Field>
+                  )}
+                </div>
+              </div>
+            )}
           </SectionAnchor>
+
 
           {/* ============ 2. FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow="02 — Underwriting" title="Financieel">
