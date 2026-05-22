@@ -197,6 +197,7 @@ export default function OfferFormDialog({
         geldigTot: form.geldigTot || null,
         status: form.status,
         offerType: form.offerType,
+        richting: form.richting,
         financieringsvoorbehoud: form.financieringsvoorbehoud,
         ddVoorbehoud: form.ddVoorbehoud,
         gewensteLevering: form.gewensteLevering || null,
