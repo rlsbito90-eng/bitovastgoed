@@ -317,10 +317,9 @@ export default function ObjectDetailPage() {
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
 
-  const scrollToSection = (id: string) => {
+  const performScroll = (id: string) => {
     const target = document.getElementById(id);
-    if (!target) return;
-    setActiveSection(id);
+    if (!target) return false;
 
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
@@ -355,14 +354,27 @@ export default function ObjectDetailPage() {
       const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
       parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
+    return true;
+  };
 
+  const scrollToSection = (id: string) => {
+    setActiveSection(id);
+    // Voer scroll meerdere keren uit zodat layout-shifts (tab-switch, lazy mount)
+    // niet leiden tot een halve scroll → één klik is altijd genoeg.
+    requestAnimationFrame(() => {
+      performScroll(id);
+      requestAnimationFrame(() => performScroll(id));
+      setTimeout(() => performScroll(id), 180);
+      setTimeout(() => performScroll(id), 420);
+    });
     if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
 
   const openDossierTab = (tab: DossierTab) => {
     setDossierOpenRequest({ tab, token: Date.now() });
-    requestAnimationFrame(() => scrollToSection('documenten'));
+    scrollToSection('documenten');
   };
+
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
