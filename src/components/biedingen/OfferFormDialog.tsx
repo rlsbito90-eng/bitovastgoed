@@ -301,6 +301,17 @@ export default function OfferFormDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
+              <Label>Richting / afzender</Label>
+              <Select value={form.richting} onValueChange={v => set('richting', v as BiedingRichting)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(BIEDING_RICHTING_LABELS_LONG).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="geldigTot">Geldig tot</Label>
               <Input id="geldigTot" type="date"
                 value={form.geldigTot} onChange={e => set('geldigTot', e.target.value)} />
