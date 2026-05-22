@@ -165,6 +165,7 @@ export type Database = {
           rejected_at: string | null
           rejected_reason: string | null
           relatie_id: string
+          richting: Database["public"]["Enums"]["bieding_richting"]
           status: Database["public"]["Enums"]["biedingstatus"]
           updated_at: string
           voorwaarden: string | null
@@ -200,6 +201,7 @@ export type Database = {
           rejected_at?: string | null
           rejected_reason?: string | null
           relatie_id: string
+          richting?: Database["public"]["Enums"]["bieding_richting"]
           status?: Database["public"]["Enums"]["biedingstatus"]
           updated_at?: string
           voorwaarden?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           rejected_at?: string | null
           rejected_reason?: string | null
           relatie_id?: string
+          richting?: Database["public"]["Enums"]["bieding_richting"]
           status?: Database["public"]["Enums"]["biedingstatus"]
           updated_at?: string
           voorwaarden?: string | null
@@ -3390,6 +3393,11 @@ export type Database = {
         | "zorgvastgoed"
         | "mixed_use"
         | "ontwikkellocatie"
+      bieding_richting:
+        | "van_koper"
+        | "van_verkoper"
+        | "namens_verkoper"
+        | "intern"
       biedingstatus:
         | "concept"
         | "ontvangen"
@@ -3802,6 +3810,12 @@ export const Constants = {
         "zorgvastgoed",
         "mixed_use",
         "ontwikkellocatie",
+      ],
+      bieding_richting: [
+        "van_koper",
+        "van_verkoper",
+        "namens_verkoper",
+        "intern",
       ],
       biedingstatus: [
         "concept",
