@@ -57,6 +57,18 @@ function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: nu
   );
 }
 
+function TextInput({ value, onChange, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; placeholder?: string; className?: string }) {
+  return (
+    <RawTextInput
+      initialValue={value ?? ''}
+      placeholder={placeholder}
+      className={className}
+      onRawChange={() => setTimeout(() => undefined, 0)}
+      onCommit={(raw) => onChange(raw || null)}
+    />
+  );
+}
+
 function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
   return (
     <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
