@@ -11,6 +11,7 @@ import { computeBidAdvice } from './bieding';
 import { computeInputReliability, computeRiskScore, computeComplexity, computeDealScore } from './scores';
 import { buildConclusion, buildNextStep } from './conclusie';
 import { getAssumptionSet, type PropertyAssumptionType } from './profiles';
+import { computeSale } from './verkoop';
 
 export type ComputeContext = {
   scenario: Scenario;
