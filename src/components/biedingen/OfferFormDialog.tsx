@@ -12,9 +12,9 @@ import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
   BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, VOORBEHOUD_LABELS,
-  KOSTEN_LABELS, BRON_LABELS,
+  KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
   type Bieding, type BiedingStatus, type BiedingType,
-  type VoorbehoudStatus, type KostenType, type BiedingBron,
+  type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
 
 interface Props {
@@ -46,6 +46,7 @@ interface FormState {
   geldigTot: string;
   status: BiedingStatus;
   offerType: BiedingType;
+  richting: BiedingRichting;
   financieringsvoorbehoud: VoorbehoudStatus;
   ddVoorbehoud: VoorbehoudStatus;
   gewensteLevering: string;
@@ -70,6 +71,7 @@ const emptyForm = (): FormState => ({
   geldigTot: '',
   status: 'ontvangen',
   offerType: 'indicatief',
+  richting: 'van_koper',
   financieringsvoorbehoud: 'onbekend',
   ddVoorbehoud: 'onbekend',
   gewensteLevering: '',
@@ -113,6 +115,7 @@ export default function OfferFormDialog({
         geldigTot: bieding.geldigTot ?? '',
         status: bieding.status,
         offerType: bieding.offerType,
+        richting: bieding.richting ?? 'van_koper',
         financieringsvoorbehoud: bieding.financieringsvoorbehoud,
         ddVoorbehoud: bieding.ddVoorbehoud,
         gewensteLevering: bieding.gewensteLevering ?? '',
@@ -138,6 +141,7 @@ export default function OfferFormDialog({
               dealId: counterTo.dealId ?? '',
               offerType: 'tegenvoorstel' as BiedingType,
               status: 'tegenvoorstel_gedaan' as BiedingStatus,
+              richting: 'van_verkoper' as BiedingRichting,
               bedrag: '',
               voorwaarden: counterTo.voorwaarden ?? '',
               gewensteLevering: counterTo.gewensteLevering ?? '',
@@ -193,6 +197,7 @@ export default function OfferFormDialog({
         geldigTot: form.geldigTot || null,
         status: form.status,
         offerType: form.offerType,
+        richting: form.richting,
         financieringsvoorbehoud: form.financieringsvoorbehoud,
         ddVoorbehoud: form.ddVoorbehoud,
         gewensteLevering: form.gewensteLevering || null,
@@ -290,6 +295,17 @@ export default function OfferFormDialog({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(BIEDING_STATUS_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Richting / afzender</Label>
+              <Select value={form.richting} onValueChange={v => set('richting', v as BiedingRichting)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(BIEDING_RICHTING_LABELS_LONG).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
                   ))}
                 </SelectContent>

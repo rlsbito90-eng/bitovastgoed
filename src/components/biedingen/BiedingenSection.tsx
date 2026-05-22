@@ -14,7 +14,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtEur, vraagprijsDelta, isVerlopen, dagenTotVerval, effectieveStatus } from '@/lib/biedingen/format';
-import { OfferStatusBadge, OfferTypeBadge } from './OfferBadges';
+import { OfferStatusBadge, OfferTypeBadge, OfferDirectionBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 import type { Bieding, BiedingStatus } from '@/lib/biedingen/types';
@@ -195,7 +195,7 @@ export default function BiedingenSection({
                           </td>
                           {showObjectCol && <td className="px-3 py-2 max-w-[220px]">{renderObjectLabel(b.objectId)}</td>}
                           {showRelatieCol && <td className="px-3 py-2 max-w-[220px]">{renderRelatieLabel(b.relatieId)}</td>}
-                          <td className="px-3 py-2"><OfferTypeBadge type={b.offerType} /></td>
+                          <td className="px-3 py-2"><div className="flex flex-wrap gap-1"><OfferTypeBadge type={b.offerType} /><OfferDirectionBadge richting={b.richting} /></div></td>
                           <td className="px-3 py-2 text-right font-medium whitespace-nowrap">
                             {b.bedrag != null ? fmtEur(b.bedrag) : '—'}
                             {b.counterOfferToId && (
@@ -278,6 +278,7 @@ export default function BiedingenSection({
                       <div className="flex flex-wrap gap-1.5">
                         <OfferStatusBadge bieding={b} />
                         <OfferTypeBadge type={b.offerType} />
+                        <OfferDirectionBadge richting={b.richting} />
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {new Date(b.bieddatum).toLocaleDateString('nl-NL')}

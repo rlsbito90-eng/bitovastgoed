@@ -1,6 +1,6 @@
 import { effectieveStatus } from '@/lib/biedingen/format';
-import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS } from '@/lib/biedingen/types';
-import type { Bieding, BiedingStatus, BiedingType } from '@/lib/biedingen/types';
+import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BIEDING_RICHTING_LABELS } from '@/lib/biedingen/types';
+import type { Bieding, BiedingStatus, BiedingType, BiedingRichting } from '@/lib/biedingen/types';
 
 type Tone = 'neutral' | 'sand' | 'gold' | 'amber' | 'emerald' | 'crimson' | 'sky';
 
@@ -55,4 +55,15 @@ const typeTone: Record<BiedingType, Tone> = {
 
 export function OfferTypeBadge({ type }: { type: BiedingType }) {
   return <Chip label={BIEDING_TYPE_LABELS[type]} tone={typeTone[type]} />;
+}
+
+const richtingTone: Record<BiedingRichting, Tone> = {
+  van_koper: 'sky',
+  van_verkoper: 'gold',
+  namens_verkoper: 'gold',
+  intern: 'neutral',
+};
+
+export function OfferDirectionBadge({ richting }: { richting: BiedingRichting }) {
+  return <Chip label={BIEDING_RICHTING_LABELS[richting]} tone={richtingTone[richting]} />;
 }
