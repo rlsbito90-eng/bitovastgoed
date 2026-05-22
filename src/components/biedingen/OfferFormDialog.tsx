@@ -12,9 +12,9 @@ import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
   BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, VOORBEHOUD_LABELS,
-  KOSTEN_LABELS, BRON_LABELS,
+  KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
   type Bieding, type BiedingStatus, type BiedingType,
-  type VoorbehoudStatus, type KostenType, type BiedingBron,
+  type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
 
 interface Props {
