@@ -493,7 +493,7 @@ export default function ScenarioEditor(props: Props) {
           : 'Geen verkoopdata';
         const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien`;
         const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)}`;
-        const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · ${outputs.inputReliability}`;
+        const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · betrouwbaarheid ${outputs.inputReliability}`;
         const compStatus = `${components.length} component(en)`;
         const wwsStatus = `${wwsUnits.length} woonunit(s)`;
         const scoreStatus = `${outputs.scoreLabel}`;
