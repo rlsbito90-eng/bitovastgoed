@@ -1296,6 +1296,28 @@ export default function ObjectDetailPage() {
           }
         }}
       />
+
+      <KandidaatSelectieDialog
+        open={kandidaatDialogOpen}
+        onOpenChange={setKandidaatDialogOpen}
+        objectId={object.id}
+        reedsGekoppeld={reedsGekoppeldRelaties}
+        onToegevoegd={() => toast.success('Kandidaat toegevoegd aan pipeline')}
+      />
+
+      <ContactMomentFormDialog
+        open={notitieDialogOpen}
+        onOpenChange={setNotitieDialogOpen}
+        defaultType="notitie"
+        defaultObjectId={object.id}
+      />
+
+      <TaakFormDialog
+        open={taakDialogOpen}
+        onOpenChange={(o) => { setTaakDialogOpen(o); if (!o) setEditTaak(null); }}
+        taak={editTaak}
+        defaultObjectId={object.id}
+      />
     </div>
   );
 }
