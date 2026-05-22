@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -154,15 +154,37 @@ const SECTIONS = [
 ];
 
 function SectionNav({ active }: { active: string }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+
+  useEffect(() => {
+    const el = tabRefs.current[active];
+    const scroller = scrollerRef.current;
+    if (!el || !scroller) return;
+    const elLeft = el.offsetLeft;
+    const elRight = elLeft + el.offsetWidth;
+    const viewLeft = scroller.scrollLeft;
+    const viewRight = viewLeft + scroller.clientWidth;
+    if (elLeft < viewLeft + 16) {
+      scroller.scrollTo({ left: Math.max(0, elLeft - 16), behavior: 'smooth' });
+    } else if (elRight > viewRight - 16) {
+      scroller.scrollTo({ left: elRight - scroller.clientWidth + 16, behavior: 'smooth' });
+    }
+  }, [active]);
+
   return (
-    <nav className="sticky top-16 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 mb-2">
-      <div className="glass-topbar rounded-xl border border-border/50 px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1">
+    <nav className="sticky top-14 lg:top-16 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2 -mt-3 sm:-mt-4 bg-background/80 backdrop-blur-sm">
+      <div
+        ref={scrollerRef}
+        className="glass-topbar rounded-xl border border-border/50 px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
+      >
         {SECTIONS.map((s) => {
           const isActive = active === s.id;
           return (
             <a
               key={s.id}
               href={`#${s.id}`}
+              ref={(el) => { tabRefs.current[s.id] = el; }}
               className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
                 isActive
                   ? 'bg-accent/12 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.25)]'
