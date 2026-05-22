@@ -6,6 +6,9 @@ export const fmtEur = (n: number | null | undefined) => (n == null || isNaN(Numb
 export const fmtPct = (n: number | null | undefined) => (n == null ? '—' : `${NUM.format(Number(n))}%`);
 export const fmtNum = (n: number | null | undefined) => (n == null ? '—' : NUM.format(Number(n)));
 export const fmtM2 = (n: number | null | undefined) => (n == null ? '—' : `${NUM.format(Number(n))} m²`);
+export const fmtEurPerM2 = (n: number | null | undefined) =>
+  (n == null || isNaN(Number(n)) ? '—' : `${EUR.format(Math.round(Number(n)))}/m²`);
+
 
 export const SEGMENT_BADGE: Record<string, { label: string; cls: string }> = {
   sociaal: { label: 'Sociaal', cls: 'bg-destructive/10 text-destructive border-destructive/30' },

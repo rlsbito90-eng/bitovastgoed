@@ -23,7 +23,7 @@ import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
 import { Section } from './Section';
-import { fmtEur, fmtPct } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,6 +95,7 @@ function isTempCostId(id: string): boolean {
 }
 
 function normalizeCost(cost: ScenarioCost) {
+  const rec = cost as unknown as Record<string, unknown>;
   return {
     id: cost.id,
     cost_category: cost.cost_category ?? '',
@@ -103,8 +104,12 @@ function normalizeCost(cost: ScenarioCost) {
     notes: cost.notes ?? null,
     reliability_status: cost.reliability_status ?? null,
     vat_applicable: cost.vat_applicable ?? null,
+    calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
+    amount_per_m2: rec.amount_per_m2 != null ? Number(rec.amount_per_m2) : null,
+    m2_basis: rec.m2_basis != null ? Number(rec.m2_basis) : null,
   };
 }
+
 
 function areScenarioCostsEqual(a: ScenarioCost[], b: ScenarioCost[]): boolean {
   if (a.length !== b.length) return false;
@@ -224,6 +229,7 @@ export default function ScenarioEditor(props: Props) {
       }
     }
     for (const cost of draftCosts) {
+      const rec = cost as unknown as Record<string, unknown>;
       const payload = {
         scenario_id: s.id,
         cost_category: cost.cost_category || 'Kostenpost',
@@ -232,7 +238,11 @@ export default function ScenarioEditor(props: Props) {
         notes: cost.notes,
         reliability_status: cost.reliability_status,
         vat_applicable: cost.vat_applicable,
+        calc_mode: ((rec.calc_mode as string | null) ?? 'totaal'),
+        amount_per_m2: (rec.amount_per_m2 as number | null) ?? null,
+        m2_basis: (rec.m2_basis as number | null) ?? null,
       };
+
       if (isTempCostId(cost.id)) {
         const { data, error } = await supabase.from('scenario_costs').insert(payload).select('*').single();
         if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
@@ -243,6 +253,7 @@ export default function ScenarioEditor(props: Props) {
         savedCosts.push(cost);
       }
     }
+
     await onUpdate(s.id, {
       scenario_name: s.scenario_name, description: s.description, status: s.status, strategy_type: s.strategy_type,
       asking_price: s.asking_price, purchase_price: s.purchase_price,
@@ -274,7 +285,9 @@ export default function ScenarioEditor(props: Props) {
         sale_target_exit_value: (s as Record<string, unknown>).sale_target_exit_value ?? null,
         sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
         bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
+        sale_price_source: (s as Record<string, unknown>).sale_price_source ?? null,
       }) as Partial<Scenario>,
+
     });
     await upsertOutput({
       total_transfer_tax: outputs.totalTransferTax,
@@ -349,7 +362,11 @@ export default function ScenarioEditor(props: Props) {
       vat_applicable: null,
       created_at: now,
       updated_at: now,
-    } as ScenarioCost]));
+      calc_mode: 'totaal',
+      amount_per_m2: null,
+      m2_basis: objectArea ?? null,
+    } as unknown as ScenarioCost]));
+
   }
   function updateCost(id: string, p: Partial<ScenarioCost>, forceDirty = false) {
     setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)), forceDirty);
@@ -659,13 +676,29 @@ export default function ScenarioEditor(props: Props) {
                         </Select>
                       </MobileFieldGroup>
 
-                      <MobileFieldGroup label="Verkoopprijs totaal (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_total as number | null} onChange={(v) => setSale('sale_price_total', v)} placeholder="bijv. 2200000" suffix="€" />
+                      <MobileFieldGroup label="Verkoopprijs totaal (€)" helper={(sr.sale_price_source ?? null) === 'total' ? 'Handmatig totaal' : ((sr.sale_price_source ?? null) === 'per_m2' ? 'Automatisch berekend uit €/m² × m²' : undefined)}>
+                        <NumInput
+                          onRawChange={markDirtyFromRaw}
+                          value={(sr.sale_price_source as string | null) === 'per_m2' && outputs.grossSaleProceeds != null
+                            ? outputs.grossSaleProceeds
+                            : (sr.sale_price_total as number | null)}
+                          onChange={(v) => patch({ sale_price_total: v, sale_price_source: v != null && v > 0 ? 'total' : null } as unknown as Partial<Scenario>)}
+                          placeholder="bijv. 2200000"
+                          suffix="€"
+                        />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Verkoopprijs per m² (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_per_m2 as number | null} onChange={(v) => setSale('sale_price_per_m2', v)} placeholder="bijv. 5500" suffix="€" />
+                      <MobileFieldGroup label="Verkoopprijs per m² (€)" helper={(sr.sale_price_source ?? null) === 'per_m2' ? 'Handmatig €/m²' : (outputs.salePricePerM2 != null ? 'Automatisch berekend' : undefined)}>
+                        <NumInput
+                          onRawChange={markDirtyFromRaw}
+                          value={(sr.sale_price_source as string | null) === 'per_m2'
+                            ? (sr.sale_price_per_m2 as number | null)
+                            : (outputs.salePricePerM2 ?? (sr.sale_price_per_m2 as number | null))}
+                          onChange={(v) => patch({ sale_price_per_m2: v, sale_price_source: v != null && v > 0 ? 'per_m2' : null } as unknown as Partial<Scenario>)}
+                          placeholder="bijv. 5500"
+                          suffix="€"
+                        />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Verkoopbare m²">
+                      <MobileFieldGroup label="Verkoopbare m²" helper={outputs.salePricePerM2 == null && (sr.sale_sellable_m2 == null || Number(sr.sale_sellable_m2) <= 0) ? 'Vul m² in voor €/m²-berekening' : undefined}>
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_sellable_m2 as number | null} onChange={(v) => setSale('sale_sellable_m2', v)} suffix="m²" />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Verkoopprijs per unit (€)">
@@ -684,6 +717,7 @@ export default function ScenarioEditor(props: Props) {
                       <MobileFieldGroup label="Overige verkoopkosten (€)">
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
                       </MobileFieldGroup>
+
                     </div>
 
                     <div className="border-t pt-4">
@@ -710,9 +744,18 @@ export default function ScenarioEditor(props: Props) {
                         <p className="font-mono-data font-semibold">{outputs.grossSaleProceeds != null ? fmtEur(outputs.grossSaleProceeds) : 'Onvoldoende gegevens'}</p>
                       </div>
                       <div>
+                        <p className="text-muted-foreground">Verkoopprijs /m²</p>
+                        <p className="font-mono-data font-semibold">{outputs.salePricePerM2 != null ? fmtEurPerM2(outputs.salePricePerM2) : 'Onvoldoende gegevens'}</p>
+                      </div>
+                      <div>
                         <p className="text-muted-foreground">Verkoopkosten</p>
                         <p className="font-mono-data">{outputs.saleCostsTotal != null ? fmtEur(outputs.saleCostsTotal) : '—'}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Netto verkoop /m²</p>
+                        <p className="font-mono-data">{outputs.netSaleProceedsPerM2 != null ? fmtEurPerM2(outputs.netSaleProceedsPerM2) : '—'}</p>
+                      </div>
+
                       <div>
                         <p className="text-muted-foreground">Netto verkoopopbrengst</p>
                         <p className="font-mono-data font-semibold">{outputs.netSaleProceeds != null ? fmtEur(outputs.netSaleProceeds) : 'Onvoldoende gegevens'}</p>
@@ -770,7 +813,16 @@ export default function ScenarioEditor(props: Props) {
                   <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
                 </div>
                 {draftCosts.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
-                {draftCosts.map((c) => (
+                {draftCosts.map((c) => {
+                  const cr = c as unknown as Record<string, unknown>;
+                  const mode = ((cr.calc_mode as string | null) ?? 'totaal');
+                  const perM2 = (cr.amount_per_m2 as number | null) ?? null;
+                  const basis = (cr.m2_basis as number | null) ?? null;
+                  const effective = mode === 'per_m2' && perM2 && basis ? Math.round(perM2 * basis) : Number(c.amount ?? 0);
+                  const derivedPerM2 = mode === 'totaal' && basis && basis > 0 && Number(c.amount ?? 0) > 0
+                    ? Math.round(Number(c.amount) / basis)
+                    : null;
+                  return (
                   <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
@@ -779,19 +831,55 @@ export default function ScenarioEditor(props: Props) {
                         <span className="sr-only">Kostenpost verwijderen</span>
                       </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
                       <MobileFieldGroup label="Categorie" className="lg:col-span-2">
                         <RawTextInput className="h-9" initialValue={c.cost_category} onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' }, true)} onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })} />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Omschrijving" className="lg:col-span-2">
                         <RawTextInput className="h-9" initialValue={c.description ?? ''} onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null }, true)} onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })} />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Bedrag (€)">
-                        <RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
+                      <MobileFieldGroup label="Berekeningswijze">
+                        <Select value={mode} onValueChange={(v) => updateCost(c.id, { calc_mode: v } as unknown as Partial<ScenarioCost>, true)}>
+                          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="totaal">Totaalbedrag</SelectItem>
+                            <SelectItem value="per_m2">Per m²</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </MobileFieldGroup>
+                      <MobileFieldGroup label="m²-basis">
+                        <RawNumberInput className="h-9" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                       </MobileFieldGroup>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+                      {mode === 'totaal' ? (
+                        <>
+                          <MobileFieldGroup label="Bedrag totaal (€)">
+                            <RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="€/m² (afgeleid)">
+                            <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data">
+                              {derivedPerM2 != null ? fmtEurPerM2(derivedPerM2) : 'Vul m²-basis in'}
+                            </div>
+                          </MobileFieldGroup>
+                        </>
+                      ) : (
+                        <>
+                          <MobileFieldGroup label="Bouwkosten per m² (€)">
+                            <RawNumberInput className="h-9" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="Totaal (afgeleid)">
+                            <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data font-semibold">
+                              {effective > 0 ? fmtEur(effective) : 'Vul €/m² en m²-basis in'}
+                            </div>
+                          </MobileFieldGroup>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
+
                 <p className="text-xs text-muted-foreground pt-1">Totale kosten (incl. {Number(s.unforeseen_percentage ?? 0)}% onvoorzien): {fmtEur(outputs.totalCosts)}</p>
                 {showHelp && (
                   <BerekeningUitleg>

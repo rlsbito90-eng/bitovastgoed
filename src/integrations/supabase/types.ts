@@ -547,6 +547,7 @@ export type Database = {
           sale_other_costs: number | null
           sale_price_per_m2: number | null
           sale_price_per_unit: number | null
+          sale_price_source: string | null
           sale_price_total: number | null
           sale_sellable_m2: number | null
           sale_strategy: string | null
@@ -615,6 +616,7 @@ export type Database = {
           sale_other_costs?: number | null
           sale_price_per_m2?: number | null
           sale_price_per_unit?: number | null
+          sale_price_source?: string | null
           sale_price_total?: number | null
           sale_sellable_m2?: number | null
           sale_strategy?: string | null
@@ -683,6 +685,7 @@ export type Database = {
           sale_other_costs?: number | null
           sale_price_per_m2?: number | null
           sale_price_per_unit?: number | null
+          sale_price_source?: string | null
           sale_price_total?: number | null
           sale_sellable_m2?: number | null
           sale_strategy?: string | null
@@ -2922,10 +2925,13 @@ export type Database = {
       scenario_costs: {
         Row: {
           amount: number
+          amount_per_m2: number | null
+          calc_mode: string
           cost_category: string
           created_at: string
           description: string | null
           id: string
+          m2_basis: number | null
           notes: string | null
           reliability_status:
             | Database["public"]["Enums"]["vr_input_reliability"]
@@ -2936,10 +2942,13 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          amount_per_m2?: number | null
+          calc_mode?: string
           cost_category: string
           created_at?: string
           description?: string | null
           id?: string
+          m2_basis?: number | null
           notes?: string | null
           reliability_status?:
             | Database["public"]["Enums"]["vr_input_reliability"]
@@ -2950,10 +2959,13 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_per_m2?: number | null
+          calc_mode?: string
           cost_category?: string
           created_at?: string
           description?: string | null
           id?: string
+          m2_basis?: number | null
           notes?: string | null
           reliability_status?:
             | Database["public"]["Enums"]["vr_input_reliability"]

@@ -24,11 +24,24 @@ export function computeAcquisitionCosts(scenario: Scenario): AcquisitionBreakdow
   return { buyerFeeBase, buyerFeeVat, totalAcquisitionCosts };
 }
 
+/** Bereken effectief bedrag van een kostenpost: per_m2 × m2_basis óf totaalbedrag. */
+export function effectiveCostAmount(c: ScenarioCost): number {
+  const rec = c as unknown as Record<string, unknown>;
+  const mode = (rec.calc_mode as string | null) ?? 'totaal';
+  if (mode === 'per_m2') {
+    const pm = Number(rec.amount_per_m2 ?? 0);
+    const m2 = Number(rec.m2_basis ?? 0);
+    if (pm > 0 && m2 > 0) return Math.round(pm * m2);
+  }
+  return Number(c.amount ?? 0);
+}
+
 export function computeTotalCosts(costs: ScenarioCost[], unforeseenPct: number): { totalDirect: number; unforeseen: number; total: number } {
-  const totalDirect = costs.reduce((s, c) => s + Number(c.amount ?? 0), 0);
+  const totalDirect = costs.reduce((s, c) => s + effectiveCostAmount(c), 0);
   const unforeseen = Math.round((totalDirect * Number(unforeseenPct ?? 0)) / 100);
   return { totalDirect, unforeseen, total: totalDirect + unforeseen };
 }
+
 
 export function computeTotalInvestment(args: {
   purchasePrice: number;

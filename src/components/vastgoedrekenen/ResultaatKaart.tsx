@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import type { Scenario, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtPct, DEAL_BADGE, RISK_BADGE } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
 
 /**
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
@@ -96,6 +96,36 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
             </>
           )}
         </div>
+
+        {/* €/m² subregel — alleen tonen wanneer er minstens één KPI beschikbaar is */}
+        {(() => {
+          const items: Array<{ label: string; value: string }> = [];
+          if (o.purchasePricePerM2 != null) items.push({ label: 'Aankoop /m²', value: fmtEurPerM2(o.purchasePricePerM2) });
+          if (o.totalInvestmentPerM2 != null) items.push({ label: 'Investering /m²', value: fmtEurPerM2(o.totalInvestmentPerM2) });
+          if (o.maximumBidPerM2 != null) items.push({ label: 'Max bod /m²', value: fmtEurPerM2(o.maximumBidPerM2) });
+          if (!exploitatie) {
+            if (o.salePricePerM2 != null) items.push({ label: 'Verkoop /m²', value: fmtEurPerM2(o.salePricePerM2) });
+            if (o.netSaleProceedsPerM2 != null) items.push({ label: 'Netto verkoop /m²', value: fmtEurPerM2(o.netSaleProceedsPerM2) });
+            if (o.netMarginPerM2 != null) items.push({ label: 'Marge /m²', value: fmtEurPerM2(o.netMarginPerM2) });
+            if (o.totalCostsPerM2 != null) items.push({ label: 'Bouwkosten /m²', value: fmtEurPerM2(o.totalCostsPerM2) });
+          } else {
+            if (o.annualRentPerM2 != null) items.push({ label: 'Jaarhuur /m²', value: fmtEurPerM2(o.annualRentPerM2) });
+            if (o.noiPerM2 != null) items.push({ label: 'NOI /m²', value: fmtEurPerM2(o.noiPerM2) });
+          }
+          if (items.length === 0) return null;
+          return (
+            <div className="rounded-md border border-dashed bg-muted/20 p-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+              {items.map((it) => (
+                <span key={it.label} className="whitespace-nowrap">
+                  <span className="text-muted-foreground">{it.label}: </span>
+                  <span className="font-mono-data font-medium">{it.value}</span>
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
+
 
         <div className="text-sm text-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
           <p className="font-medium mb-1">Conclusie</p>

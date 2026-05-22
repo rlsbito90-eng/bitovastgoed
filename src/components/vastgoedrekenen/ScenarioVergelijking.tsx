@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Scenario, TaxSettings, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtPct, DEAL_BADGE } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE } from './format';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { SALE_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/verkoop';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
@@ -140,18 +140,23 @@ function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: s
             <>
               <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
               <div><p className="text-muted-foreground">NOI</p><p className="font-mono-data">{fmtEur(o.noi)}</p></div>
+              {o.annualRentPerM2 != null && <div><p className="text-muted-foreground">Jaarhuur /m²</p><p className="font-mono-data">{fmtEurPerM2(o.annualRentPerM2)}</p></div>}
             </>
           ) : (
             <>
               <div><p className="text-muted-foreground">ROI</p><p className={`font-mono-data ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</p></div>
               <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+              {o.salePricePerM2 != null && <div><p className="text-muted-foreground">Verkoop /m²</p><p className="font-mono-data">{fmtEurPerM2(o.salePricePerM2)}</p></div>}
             </>
           )}
+          {o.totalInvestmentPerM2 != null && <div><p className="text-muted-foreground">Investering /m²</p><p className="font-mono-data">{fmtEurPerM2(o.totalInvestmentPerM2)}</p></div>}
+          {o.maximumBidPerM2 != null && <div><p className="text-muted-foreground">Max bod /m²</p><p className="font-mono-data">{fmtEurPerM2(o.maximumBidPerM2)}</p></div>}
         </div>
         {o.scoreAttentionPoints.length > 0 && (
           <p className="text-[11px] text-muted-foreground leading-snug">⚠ {o.scoreAttentionPoints[0]}</p>
         )}
         <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
+
       </CardContent>
     </Card>
   );
@@ -287,19 +292,26 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                   <th className="px-3 py-2 border-b">Strategie</th>
                   <th className="px-3 py-2 border-b">Score</th>
                   <th className="px-3 py-2 text-right border-b bg-primary/5">Maximale bieding</th>
+                  <th className="px-3 py-2 text-right border-b">Max bod /m²</th>
                   <th className="px-3 py-2 text-right border-b">Δ vraagprijs</th>
                   <th className="px-3 py-2 text-right border-b">Totale investering</th>
+                  <th className="px-3 py-2 text-right border-b">Investering /m²</th>
                   <th className="px-3 py-2 text-right border-b">Kernrendement</th>
                   <th className="px-3 py-2 text-right border-b">NOI / Nettomarge</th>
                   {showFullTable && (
                     <>
                       <th className="px-3 py-2 border-b">Status</th>
                       <th className="px-3 py-2 text-right border-b">Vraagprijs</th>
+                      <th className="px-3 py-2 text-right border-b">Vraagprijs /m²</th>
                       <th className="px-3 py-2 text-right border-b">Aankoopprijs</th>
+                      <th className="px-3 py-2 text-right border-b">Aankoop /m²</th>
                       <th className="px-3 py-2 text-right border-b">Bouw-/renovatie</th>
+                      <th className="px-3 py-2 text-right border-b">Bouwkosten /m²</th>
                       <th className="px-3 py-2 text-right border-b">Jaarhuur huidig</th>
                       <th className="px-3 py-2 text-right border-b">Jaarhuur markt</th>
                       <th className="px-3 py-2 text-right border-b">Gecorr. jaarhuur</th>
+                      <th className="px-3 py-2 text-right border-b">Huur /m²</th>
+                      <th className="px-3 py-2 text-right border-b">NOI /m²</th>
                       <th className="px-3 py-2 text-right border-b">Exploitatie</th>
                       <th className="px-3 py-2 text-right border-b">BAR op vraagpr.</th>
                       <th className="px-3 py-2 text-right border-b">Factor op vraagpr.</th>
@@ -307,12 +319,16 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                       <th className="px-3 py-2 text-right border-b">Δ aankoopprijs</th>
                       <th className="px-3 py-2 border-b bg-emerald-500/5">Verkoopstrategie</th>
                       <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Bruto verkoopopbr.</th>
+                      <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Verkoop /m²</th>
                       <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Verkoopkosten</th>
                       <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Netto verkoopopbr.</th>
+                      <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Netto verkoop /m²</th>
+                      <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Marge /m²</th>
                       <th className="px-3 py-2 text-right border-b bg-emerald-500/5">ROI</th>
                       <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Exitwaarde</th>
                     </>
                   )}
+
                 </tr>
               </thead>
               <tbody>
@@ -348,8 +364,10 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.scoreLabel}</span>
                       </td>
                       <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.maximumBid)}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.maximumBidPerM2)}</td>
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.differenceWithAskingPrice} asking={asking} /></td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.totalInvestment)}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.totalInvestmentPerM2)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">
                         {exploitatie
                           ? fmtPct(o.barTotalInvestment)
@@ -364,11 +382,16 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                         <>
                           <td className="px-3 py-2 text-xs border-b">{VR_STATUS_LABELS[s.status]}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{asking > 0 ? fmtEur(asking) : '—'}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.askingPricePerM2)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{purchase > 0 ? fmtEur(purchase) : '—'}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.purchasePricePerM2)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.totalCosts)}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.totalCostsPerM2)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.currentAnnualRent)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.marketAnnualRent)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.correctedAnnualRent)}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.annualRentPerM2)}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.noiPerM2)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(expl)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{fmtPct(barAsking)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b">{factorAsking != null ? `${factorAsking.toFixed(2)}×` : '—'}</td>
@@ -376,12 +399,16 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                           <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={diffPurchase} asking={purchase} /></td>
                           <td className="px-3 py-2 text-xs border-b bg-emerald-500/5">{saleStrategyLabel}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.grossSaleProceeds != null ? fmtEur(o.grossSaleProceeds) : '—'}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 text-xs">{fmtEurPerM2(o.salePricePerM2)}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.saleCostsTotal != null ? fmtEur(o.saleCostsTotal) : '—'}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 font-semibold">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</td>
+                          <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 text-xs">{fmtEurPerM2(o.netSaleProceedsPerM2)}</td>
+                          <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 text-xs ${o.netMarginPerM2 != null && o.netMarginPerM2 < 0 ? 'text-destructive' : ''}`}>{fmtEurPerM2(o.netMarginPerM2)}</td>
                           <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</td>
                           <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</td>
                         </>
                       )}
+
                     </tr>
                   );
                 })}

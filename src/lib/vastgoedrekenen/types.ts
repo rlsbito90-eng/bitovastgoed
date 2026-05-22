@@ -91,5 +91,27 @@ export type ComputedOutputs = {
   exitBidBindingTarget: 'marge_euro' | 'marge_pct' | 'roi' | 'target_exit' | null;
   /** Welke basis is gebruikt voor maximumBid: huur (BAR) of verkoop (exit). */
   bidBasisUsed: 'huur' | 'verkoop';
+  // --- €/m² KPI's (null = onvoldoende gegevens) ---
+  /** Aankoopprijs per m² GBO. */
+  purchasePricePerM2: number | null;
+  /** Vraagprijs per m² GBO. */
+  askingPricePerM2: number | null;
+  /** Totale investering per m² GBO. */
+  totalInvestmentPerM2: number | null;
+  /** Maximale bieding per m² GBO. */
+  maximumBidPerM2: number | null;
+  /** Totale bouw-/projectkosten per m² GBO (inclusief onvoorzien). */
+  totalCostsPerM2: number | null;
+  /** Verkoopprijs per m² op basis van bruto / verkoopbare m². */
+  salePricePerM2: number | null;
+  /** Netto verkoopopbrengst per m². */
+  netSaleProceedsPerM2: number | null;
+  /** Nettomarge per m² (sellable m²). */
+  netMarginPerM2: number | null;
+  /** Jaarhuur per m² (gecorrigeerd / m² GBO). */
+  annualRentPerM2: number | null;
+  /** NOI per m². */
+  noiPerM2: number | null;
 };
+
 

@@ -217,6 +217,25 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     dealScore,
   });
 
+  // --- €/m² afgeleide KPI's ---
+  const safeDiv = (num: number | null | undefined, den: number | null | undefined): number | null => {
+    if (num == null || den == null) return null;
+    const n2 = Number(num); const d2 = Number(den);
+    if (!isFinite(n2) || !isFinite(d2) || d2 <= 0) return null;
+    return Math.round(n2 / d2);
+  };
+  const gbo = objectArea && objectArea > 0 ? objectArea : null;
+  const sellableM2 = Number((scenario as Record<string, unknown>).sale_sellable_m2 ?? 0) || null;
+  const salePricePerM2 = sale.grossSaleProceeds != null && sellableM2
+    ? safeDiv(sale.grossSaleProceeds, sellableM2)
+    : null;
+  const netSaleProceedsPerM2 = sale.netSaleProceeds != null && sellableM2
+    ? safeDiv(sale.netSaleProceeds, sellableM2)
+    : null;
+  const netMarginPerM2 = sale.netMargin != null && sellableM2
+    ? safeDiv(sale.netMargin, sellableM2)
+    : null;
+
   return {
     totalTransferTax: ovb.totalOvb,
     totalAcquisitionCosts: acq.totalAcquisitionCosts,
@@ -273,5 +292,16 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     exitBasedMaxBid: exitBasedMaxBidNet,
     exitBidBindingTarget: sale.exitBidBindingTarget,
     bidBasisUsed,
+    purchasePricePerM2: safeDiv(purchase, gbo),
+    askingPricePerM2: safeDiv(asking, gbo),
+    totalInvestmentPerM2: safeDiv(totalInvestment, gbo),
+    maximumBidPerM2: safeDiv(effectiveMaxBid, gbo),
+    totalCostsPerM2: safeDiv(totals.total, gbo),
+    salePricePerM2,
+    netSaleProceedsPerM2,
+    netMarginPerM2,
+    annualRentPerM2: safeDiv(correctedAnnual, gbo),
+    noiPerM2: safeDiv(noi, gbo),
   };
 }
+
