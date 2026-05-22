@@ -292,20 +292,42 @@ export default function ObjectDetailPage() {
     const target = document.getElementById(id);
     if (!target) return;
     setActiveSection(id);
-    const rootStyles = getComputedStyle(document.documentElement);
-    const parsePx = (v: string, fb: number) => {
-      const n = parseFloat(v);
-      if (!n) return fb;
-      return v.trim().endsWith('rem') ? n * 16 : n;
-    };
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-    const topbar = isDesktop
-      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
-      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
-    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + 12);
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    const buffer = 12;
+
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return window;
+    };
+    const scrollParent = getScrollParent(target);
+
+    if (scrollParent === window) {
+      const rootStyles = getComputedStyle(document.documentElement);
+      const parsePx = (v: string, fb: number) => {
+        const n = parseFloat(v);
+        if (!n) return fb;
+        return v.trim().endsWith('rem') ? n * 16 : n;
+      };
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      const topbar = isDesktop
+        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+      const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    } else {
+      const parent = scrollParent as HTMLElement;
+      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
+      parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
+    if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
 
   const openDossierTab = (tab: DossierTab) => {
