@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,15 +46,27 @@ type Suffix = '€' | '%' | 'm²' | 'maanden';
 
 function NumInput({ value, onChange, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; placeholder?: string; suffix?: Suffix }) {
   return (
-    <div className="relative">
+    <div className="relative w-full min-w-0">
       <Input
         type="number"
         value={value ?? ''}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        className={`h-9 ${suffix ? 'pr-9' : ''}`}
+        className={`h-9 w-full min-w-0 ${suffix ? 'pr-9' : ''}`}
       />
       {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{suffix}</span>}
+    </div>
+  );
+}
+
+function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
+  return (
+    <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
+      <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">{label}</Label>
+      <div className="min-w-0 w-full [&_input]:w-full [&_input]:min-w-0 [&_[role=combobox]]:w-full [&_[role=combobox]]:min-w-0">
+        {children}
+      </div>
+      {helper && <p className="text-[10px] leading-snug text-muted-foreground whitespace-normal break-words">{helper}</p>}
     </div>
   );
 }
