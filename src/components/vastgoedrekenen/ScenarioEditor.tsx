@@ -191,6 +191,15 @@ export default function ScenarioEditor(props: Props) {
     setDirty((prev) => (prev ? prev : true));
   };
 
+  const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[]) => {
+    costDraftDirtyRef.current = true;
+    setDraftCosts((prev) => {
+      const next = updater(prev);
+      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || !areScenarioCostsEqual(next, baselineCostsRef.current));
+      return next;
+    });
+  };
+
   // Aannameprofiel default zetten als er nog niets is — niet markeren als dirty.
   useEffect(() => {
     if (!s.assumption_profile) {
@@ -202,6 +211,28 @@ export default function ScenarioEditor(props: Props) {
   }, [propertyType]);
 
   async function save() {
+    const savedCosts: ScenarioCost[] = [];
+    for (const costId of deletedCostIdsRef.current) {
+      if (!isTempCostId(costId)) await supabase.from('scenario_costs').delete().eq('id', costId);
+    }
+    for (const cost of draftCosts) {
+      const payload = {
+        scenario_id: s.id,
+        cost_category: cost.cost_category || 'Kostenpost',
+        description: cost.description,
+        amount: Number(cost.amount ?? 0),
+        notes: cost.notes,
+        reliability_status: cost.reliability_status,
+        vat_applicable: cost.vat_applicable,
+      };
+      if (isTempCostId(cost.id)) {
+        const { data } = await supabase.from('scenario_costs').insert(payload).select('*').single();
+        if (data) savedCosts.push(data as ScenarioCost);
+      } else {
+        await supabase.from('scenario_costs').update(payload).eq('id', cost.id);
+        savedCosts.push(cost);
+      }
+    }
     await onUpdate(s.id, {
       scenario_name: s.scenario_name, description: s.description, status: s.status, strategy_type: s.strategy_type,
       asking_price: s.asking_price, purchase_price: s.purchase_price,
@@ -248,10 +279,15 @@ export default function ScenarioEditor(props: Props) {
       recommended_next_step: outputs.recommendedNextStep,
       warnings: outputs.warnings as unknown as never,
     });
+    deletedCostIdsRef.current = [];
+    costDraftDirtyRef.current = false;
     baselineRef.current = s;
+    baselineCostsRef.current = savedCosts;
+    setDraftCosts(savedCosts);
     setDirty(false);
     setLastSavedAt(new Date());
     toast.success('Scenario opgeslagen');
+    refetch();
   }
 
   // --- Component CRUD ---
@@ -269,15 +305,27 @@ export default function ScenarioEditor(props: Props) {
   }
 
   // --- Cost CRUD ---
-  async function addCost() {
-    await supabase.from('scenario_costs').insert({ scenario_id: s.id, cost_category: 'Renovatiekosten', amount: 0 });
-    refetch();
+  function addCost() {
+    const now = new Date().toISOString();
+    setCostDrafts((prev) => ([...prev, {
+      id: `temp-cost-${crypto.randomUUID()}`,
+      scenario_id: s.id,
+      cost_category: 'Renovatiekosten',
+      description: null,
+      amount: 0,
+      notes: null,
+      reliability_status: null,
+      vat_applicable: null,
+      created_at: now,
+      updated_at: now,
+    } as ScenarioCost]));
   }
-  async function updateCost(id: string, p: Partial<ScenarioCost>) {
-    await supabase.from('scenario_costs').update(p).eq('id', id); refetch();
+  function updateCost(id: string, p: Partial<ScenarioCost>) {
+    setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)));
   }
-  async function deleteCost(id: string) {
-    await supabase.from('scenario_costs').delete().eq('id', id); refetch();
+  function deleteCost(id: string) {
+    if (!isTempCostId(id) && !deletedCostIdsRef.current.includes(id)) deletedCostIdsRef.current.push(id);
+    setCostDrafts((prev) => prev.filter((cost) => cost.id !== id));
   }
 
   // --- WWS Unit CRUD ---
