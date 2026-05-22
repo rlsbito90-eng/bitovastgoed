@@ -76,8 +76,18 @@ export default function ScenarioEditor(props: Props) {
   const [s, setS] = useState<Scenario>(scenario);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const skipDirtyOnce = useRef(true);
-  useEffect(() => { skipDirtyOnce.current = true; setS(scenario); setDirty(false); }, [scenario]);
+
+  // Reset alleen als we daadwerkelijk naar een ander scenario kijken,
+  // niet bij elke nieuwe object-reference van de parent. Anders verspringt typen
+  // en wordt de eerste wijziging niet als dirty herkend.
+  const lastIdRef = useRef(scenario.id);
+  useEffect(() => {
+    if (lastIdRef.current !== scenario.id) {
+      lastIdRef.current = scenario.id;
+      setS(scenario);
+      setDirty(false);
+    }
+  }, [scenario]);
 
   const { components, costs, wwsUnits, refetch, upsertOutput } = useScenarioChildren(s.id);
 
@@ -112,15 +122,14 @@ export default function ScenarioEditor(props: Props) {
 
   const patch = (p: Partial<Scenario>) => {
     setS((prev) => ({ ...prev, ...p }));
-    if (skipDirtyOnce.current) { skipDirtyOnce.current = false; return; }
     setDirty(true);
   };
 
-  // Aannameprofiel default zetten als er nog niets is
+  // Aannameprofiel default zetten als er nog niets is — niet markeren als dirty.
   useEffect(() => {
     if (!s.assumption_profile) {
       const def = defaultProfileFor(propertyType, s.strategy_type);
-      patch({ assumption_profile: def });
+      setS((prev) => ({ ...prev, assumption_profile: def }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyType]);
