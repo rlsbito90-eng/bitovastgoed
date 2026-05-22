@@ -225,11 +225,11 @@ function SectionNav({ active }: { active: string }) {
   return (
     <nav
       ref={navRef}
-      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2 bg-background/90 backdrop-blur-md"
+      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
     >
       <div
         ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/50 px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
+        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
       >
         {SECTIONS.map((s) => {
           const isActive = active === s.id;
@@ -239,14 +239,17 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+              className={`group relative inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-accent/12 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.25)]'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
               }`}
             >
-              <s.icon className="h-3.5 w-3.5" />
+              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
               {s.label}
+              {isActive && (
+                <span className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-[2px] w-8 bg-accent rounded-full" />
+              )}
             </a>
           );
         })}
@@ -254,6 +257,7 @@ function SectionNav({ active }: { active: string }) {
     </nav>
   );
 }
+
 
 /* ============================================================
  * Page
