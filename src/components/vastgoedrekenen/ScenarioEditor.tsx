@@ -515,7 +515,7 @@ export default function ScenarioEditor(props: Props) {
                 <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteComponent(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
               {ovbMode === 'per_component' && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end border-t pt-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end border-t pt-2">
                   <div><Label className="text-xs">Toegerekende waarde (€)</Label><Input className="h-8" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
                   <div>
                     <Label className="text-xs">OVB-classificatie</Label>
