@@ -289,6 +289,13 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                   <th className="px-3 py-2 text-right border-b bg-primary/5">Maximale bieding</th>
                   <th className="px-3 py-2 text-right border-b">Δ vraagprijs</th>
                   <th className="px-3 py-2 text-right border-b">Δ aankoopprijs</th>
+                  <th className="px-3 py-2 border-b bg-emerald-500/5">Verkoopstrategie</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Bruto verkoopopbrengst</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Verkoopkosten</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Netto verkoopopbrengst</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Nettomarge</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">ROI</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Exitwaarde</th>
                   <th className="px-3 py-2 border-b">Score</th>
                 </tr>
               </thead>
@@ -304,6 +311,8 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                   const expl = o.operatingCostsEur + o.maintenanceCostsEur + o.managementCostsEur + o.otherCostsEur;
                   const diffPurchase = purchase > 0 ? o.maximumBid - purchase : 0;
                   const isBestBid = best?.byBid.scenario.id === s.id;
+                  const saleStrategyKey = ((s as unknown as Record<string, unknown>).sale_strategy as string | null) ?? null;
+                  const saleStrategyLabel = saleStrategyKey ? (SALE_STRATEGY_LABELS[saleStrategyKey] ?? saleStrategyKey) : '—';
                   return (
                     <tr key={s.id} className="hover:bg-muted/30 border-b last:border-b-0">
                       <td className="px-3 py-2 sticky left-0 bg-card font-medium border-b">
