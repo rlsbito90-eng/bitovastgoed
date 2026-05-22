@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Scenario, TaxSettings, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtPct, DEAL_BADGE } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE } from './format';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { SALE_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/verkoop';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
@@ -140,18 +140,23 @@ function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: s
             <>
               <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
               <div><p className="text-muted-foreground">NOI</p><p className="font-mono-data">{fmtEur(o.noi)}</p></div>
+              {o.annualRentPerM2 != null && <div><p className="text-muted-foreground">Jaarhuur /m²</p><p className="font-mono-data">{fmtEurPerM2(o.annualRentPerM2)}</p></div>}
             </>
           ) : (
             <>
               <div><p className="text-muted-foreground">ROI</p><p className={`font-mono-data ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</p></div>
               <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+              {o.salePricePerM2 != null && <div><p className="text-muted-foreground">Verkoop /m²</p><p className="font-mono-data">{fmtEurPerM2(o.salePricePerM2)}</p></div>}
             </>
           )}
+          {o.totalInvestmentPerM2 != null && <div><p className="text-muted-foreground">Investering /m²</p><p className="font-mono-data">{fmtEurPerM2(o.totalInvestmentPerM2)}</p></div>}
+          {o.maximumBidPerM2 != null && <div><p className="text-muted-foreground">Max bod /m²</p><p className="font-mono-data">{fmtEurPerM2(o.maximumBidPerM2)}</p></div>}
         </div>
         {o.scoreAttentionPoints.length > 0 && (
           <p className="text-[11px] text-muted-foreground leading-snug">⚠ {o.scoreAttentionPoints[0]}</p>
         )}
         <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
+
       </CardContent>
     </Card>
   );
