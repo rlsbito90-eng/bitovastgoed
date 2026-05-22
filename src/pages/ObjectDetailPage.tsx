@@ -23,8 +23,10 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
 } from 'lucide-react';
+import BiedingenSection from '@/components/biedingen/BiedingenSection';
+
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
