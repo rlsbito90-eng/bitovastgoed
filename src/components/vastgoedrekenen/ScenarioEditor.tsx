@@ -596,7 +596,7 @@ export default function ScenarioEditor(props: Props) {
         <CardContent className="space-y-2">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
-            <div key={c.id} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end border rounded-md p-2">
+            <div key={c.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2">
               <div className="col-span-2"><Label className="text-xs">Categorie</Label><Input className="h-8" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></div>
               <div className="col-span-2"><Label className="text-xs">Omschrijving</Label><Input className="h-8" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></div>
               <div><Label className="text-xs">Bedrag (€)</Label><Input className="h-8" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></div>
