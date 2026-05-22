@@ -119,6 +119,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         objectEnergyLabel={objectEnergyLabel}
         objectBouwjaar={objectBouwjaar}
         objectRawType={objectRawType}
+        onSelectScenario={openAndScrollTo}
       />
 
 
