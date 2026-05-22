@@ -102,16 +102,16 @@ export default function BiedingenSection({
   return (
     <TooltipProvider delayDuration={150}>
       <Card className="section-card">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-          <div className="min-w-0">
-            <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3">
+          <div className="min-w-0 flex items-center justify-between gap-2 sm:block">
+            <CardTitle className="text-base flex items-center gap-2 flex-wrap">
               {title}
               <span className="text-xs font-normal text-muted-foreground">
                 {stats.aantalActief} actief{stats.totaalAantal !== stats.aantalActief ? ` · ${stats.totaalAantal} totaal` : ''}
               </span>
             </CardTitle>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <Button variant="ghost" size="sm" onClick={() => setShowHistory(s => !s)} className="text-xs">
               {showHistory ? <><EyeOff className="h-3.5 w-3.5 mr-1" />Verberg historie</> : <><History className="h-3.5 w-3.5 mr-1" />Toon historie</>}
             </Button>
