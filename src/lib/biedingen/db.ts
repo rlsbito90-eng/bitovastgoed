@@ -24,6 +24,7 @@ export const biedingFromDb = (r: any): Bieding => ({
   notities: r.notities ?? null,
   interneNotities: r.interne_notities ?? null,
   bron: r.bron ?? null,
+  richting: r.richting ?? 'van_koper',
   isBestOffer: !!r.is_best_offer,
   isFinalOffer: !!r.is_final_offer,
   rejectedReason: r.rejected_reason ?? null,
