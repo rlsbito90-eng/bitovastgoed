@@ -134,7 +134,7 @@ function SectionAnchor({
   className?: string;
 }) {
   return (
-    <section id={id} className={`scroll-mt-24 ${className ?? ''}`}>
+    <section id={id} className={`scroll-mt-28 lg:scroll-mt-36 ${className ?? ''}`}>
       <div className="flex items-end justify-between gap-3 mb-3 pl-1 sm:pl-2">
         <div className="min-w-0">
           {eyebrow && (
