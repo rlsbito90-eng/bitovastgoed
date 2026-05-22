@@ -485,7 +485,9 @@ export default function ScenarioEditor(props: Props) {
           || propertyType === 'residentieel' || propertyType === 'mixed_use';
         const criticalChecks = nogTeControleren.length > 0;
 
-        const huurStatus = `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`;
+        const huurStatus = exploitatie
+          ? `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`
+          : 'Niet leidend voor dit verkoopscenario';
         const verkoopStatus = outputs.netSaleProceeds != null
           ? `Netto opbr. ${fmtEur(outputs.netSaleProceeds)}${outputs.roi != null ? ` · ROI ${outputs.roi.toFixed(1)}%` : ''}`
           : 'Geen verkoopdata';
