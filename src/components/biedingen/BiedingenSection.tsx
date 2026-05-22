@@ -180,7 +180,11 @@ export default function BiedingenSection({
                       const verlopen = isVerlopen(b);
                       const dagen = dagenTotVerval(b);
                       return (
-                        <tr key={b.id} className="border-t border-border/40 hover:bg-muted/30 transition-colors">
+                        <tr
+                          key={b.id}
+                          className="border-t border-border/40 hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handleEdit(b)}
+                        >
                           <td className="px-3 py-2 whitespace-nowrap">
                             <div>{new Date(b.bieddatum).toLocaleDateString('nl-NL')}</div>
                             {b.geldigTot && (
@@ -215,7 +219,7 @@ export default function BiedingenSection({
                           <td className="px-3 py-2 max-w-[200px]">
                             <VoorwaardenSummary b={b} />
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-2 text-right" onClick={e => e.stopPropagation()}>
                             <RowActions
                               b={b}
                               onEdit={() => handleEdit(b)}
@@ -227,6 +231,7 @@ export default function BiedingenSection({
                           </td>
                         </tr>
                       );
+
                     })}
                   </tbody>
                 </table>
