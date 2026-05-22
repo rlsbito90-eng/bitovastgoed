@@ -230,7 +230,7 @@ export default function ScenarioEditor(props: Props) {
     }
     for (const cost of draftCosts) {
       const rec = cost as unknown as Record<string, unknown>;
-      const payload: Record<string, unknown> = {
+      const payload = {
         scenario_id: s.id,
         cost_category: cost.cost_category || 'Kostenpost',
         description: cost.description,
@@ -238,10 +238,11 @@ export default function ScenarioEditor(props: Props) {
         notes: cost.notes,
         reliability_status: cost.reliability_status,
         vat_applicable: cost.vat_applicable,
-        calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
-        amount_per_m2: rec.amount_per_m2 ?? null,
-        m2_basis: rec.m2_basis ?? null,
+        calc_mode: ((rec.calc_mode as string | null) ?? 'totaal'),
+        amount_per_m2: (rec.amount_per_m2 as number | null) ?? null,
+        m2_basis: (rec.m2_basis as number | null) ?? null,
       };
+
       if (isTempCostId(cost.id)) {
         const { data, error } = await supabase.from('scenario_costs').insert(payload).select('*').single();
         if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
