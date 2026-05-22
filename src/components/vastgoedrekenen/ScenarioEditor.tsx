@@ -191,14 +191,14 @@ export default function ScenarioEditor(props: Props) {
     setDirty((prev) => (prev ? prev : true));
   };
 
-  const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[]) => {
+  const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[], forceDirty = false) => {
     costDraftDirtyRef.current = true;
     setDraftCosts((prev) => {
       const next = updater(prev);
       const costsDirty = !areScenarioCostsEqual(next, baselineCostsRef.current);
-      costDraftDirtyRef.current = costsDirty;
+      costDraftDirtyRef.current = forceDirty || costsDirty;
       if (!costsDirty) deletedCostIdsRef.current = [];
-      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || costsDirty);
+      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || forceDirty || costsDirty);
       return next;
     });
   };
@@ -328,8 +328,8 @@ export default function ScenarioEditor(props: Props) {
       updated_at: now,
     } as ScenarioCost]));
   }
-  function updateCost(id: string, p: Partial<ScenarioCost>) {
-    setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)));
+  function updateCost(id: string, p: Partial<ScenarioCost>, forceDirty = false) {
+    setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)), forceDirty);
   }
   function deleteCost(id: string) {
     if (!isTempCostId(id) && !deletedCostIdsRef.current.includes(id)) deletedCostIdsRef.current.push(id);
