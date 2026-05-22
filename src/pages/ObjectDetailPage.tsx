@@ -28,6 +28,10 @@ import {
   Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
 } from 'lucide-react';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
+import KandidaatSelectieDialog from '@/components/pipeline/KandidaatSelectieDialog';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenActieBadge';
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
