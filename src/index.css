@@ -435,7 +435,20 @@
   .page-shell-full   { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1640px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
 
   .field-label {
-    @apply text-[11px] font-medium text-muted-foreground uppercase tracking-wider;
+    @apply text-[11.5px] lg:text-[12px] font-semibold uppercase;
+    letter-spacing: 0.075em;
+    color: hsl(var(--foreground) / 0.62);
+  }
+  :is(.dark) .field-label,
+  :root.dark .field-label {
+    color: hsl(var(--foreground) / 0.72);
+  }
+  @media (prefers-color-scheme: dark) {
+    .field-label { color: hsl(var(--foreground) / 0.72); }
+  }
+  .field-value {
+    @apply text-[14px] lg:text-[14.5px] font-medium text-foreground break-words;
+    line-height: 1.55;
   }
   .hairline { @apply border-t border-border/70; }
 
