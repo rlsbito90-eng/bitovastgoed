@@ -195,7 +195,7 @@ export default function BiedingenSection({
                           </td>
                           {showObjectCol && <td className="px-3 py-2 max-w-[220px]">{renderObjectLabel(b.objectId)}</td>}
                           {showRelatieCol && <td className="px-3 py-2 max-w-[220px]">{renderRelatieLabel(b.relatieId)}</td>}
-                          <td className="px-3 py-2"><OfferTypeBadge type={b.offerType} /></td>
+                          <td className="px-3 py-2"><div className="flex flex-wrap gap-1"><OfferTypeBadge type={b.offerType} /><OfferDirectionBadge richting={b.richting} /></div></td>
                           <td className="px-3 py-2 text-right font-medium whitespace-nowrap">
                             {b.bedrag != null ? fmtEur(b.bedrag) : '—'}
                             {b.counterOfferToId && (
