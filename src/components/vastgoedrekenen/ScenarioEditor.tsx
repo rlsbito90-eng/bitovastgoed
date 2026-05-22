@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Plus, Save, CheckCircle2 } from 'lucide-react';
@@ -25,6 +24,7 @@ import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import { fmtEur } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
+import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -43,21 +43,6 @@ type Props = {
 };
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
-
-function NumInput({ value, onChange, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; placeholder?: string; suffix?: Suffix }) {
-  return (
-    <div className="relative w-full min-w-0">
-      <Input
-        type="number"
-        value={value ?? ''}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        className={`h-9 w-full min-w-0 ${suffix ? 'pr-9' : ''}`}
-      />
-      {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{suffix}</span>}
-    </div>
-  );
-}
 
 function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
   return (
