@@ -242,20 +242,29 @@ export default function BiedingenSection({
                 {visible.map(b => {
                   const delta = vraagprijs && b.bedrag ? vraagprijsDelta(b.bedrag, vraagprijs) : null;
                   return (
-                    <div key={b.id} className="rounded-md border border-border/60 p-3 space-y-2 bg-card">
+                    <div
+                      key={b.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleEdit(b)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEdit(b); } }}
+                      className="rounded-md border border-border/60 p-3 space-y-2 bg-card cursor-pointer hover:bg-muted/40 active:bg-muted/60 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           {showRelatieCol && <div className="text-sm">{renderRelatieLabel(b.relatieId)}</div>}
                           {showObjectCol && <div className="mt-1 text-xs text-muted-foreground">{renderObjectLabel(b.objectId)}</div>}
                         </div>
-                        <RowActions
-                          b={b}
-                          onEdit={() => handleEdit(b)}
-                          onCounter={() => handleCounter(b)}
-                          onAccept={() => setAcceptTarget(b)}
-                          onReject={() => setRejectTarget(b)}
-                          onDelete={async () => { await remove(b.id); }}
-                        />
+                        <div onClick={e => e.stopPropagation()}>
+                          <RowActions
+                            b={b}
+                            onEdit={() => handleEdit(b)}
+                            onCounter={() => handleCounter(b)}
+                            onAccept={() => setAcceptTarget(b)}
+                            onReject={() => setRejectTarget(b)}
+                            onDelete={async () => { await remove(b.id); }}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-baseline justify-between gap-2 flex-wrap">
                         <div className="text-lg font-semibold">{b.bedrag != null ? fmtEur(b.bedrag) : '—'}</div>
@@ -277,6 +286,7 @@ export default function BiedingenSection({
                       <VoorwaardenSummary b={b} className="text-xs" />
                     </div>
                   );
+
                 })}
               </div>
             </>
