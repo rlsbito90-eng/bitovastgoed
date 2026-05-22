@@ -448,41 +448,37 @@ export default function ScenarioEditor(props: Props) {
       {/* Controles + onderbouwing */}
       <Card>
         <CardHeader><CardTitle className="text-base">Controles & onderbouwing</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <Label>MJOP aanwezig</Label>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label="MJOP aanwezig">
             <Select value={s.mjop_present ?? 'onbekend'} onValueChange={(v) => patch({ mjop_present: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(MJOP_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Betrouwbaarheid aannames</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Betrouwbaarheid aannames">
             <Select value={s.assumptions_reliability ?? 'middel'} onValueChange={(v) => patch({ assumptions_reliability: v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(RELIABILITY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-3 pt-6">
+          </MobileFieldGroup>
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.contract_checked} onCheckedChange={(v) => patch({ contract_checked: v })} />
-            <Label className="cursor-pointer">Contractduur gecontroleerd</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Contractduur gecontroleerd</Label>
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.service_costs_checked} onCheckedChange={(v) => patch({ service_costs_checked: v })} />
-            <Label className="cursor-pointer">Servicekosten gecontroleerd</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Servicekosten gecontroleerd</Label>
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex items-center gap-3 min-w-0 rounded-md border bg-muted/20 p-3 md:pt-6 md:border-0 md:bg-transparent md:p-0">
             <Switch checked={!!s.incentive_reserve} onCheckedChange={(v) => patch({ incentive_reserve: v })} />
-            <Label className="cursor-pointer">Incentive-reserve meegenomen</Label>
+            <Label className="cursor-pointer leading-snug whitespace-normal break-words">Incentive-reserve meegenomen</Label>
           </div>
-          <div className="sm:col-span-2 lg:col-span-3">
-            <Label>Bron / onderbouwing aannames</Label>
+          <MobileFieldGroup label="Bron / onderbouwing aannames" className="md:col-span-2 lg:col-span-3">
             <Input value={s.assumptions_source ?? ''} onChange={(e) => patch({ assumptions_source: e.target.value || null })} placeholder="bv. huurcontracten, MJOP, marktreport, ..." />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3">
-            <Label>Reden profielkeuze</Label>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Reden profielkeuze" className="md:col-span-2 lg:col-span-3">
             <Input value={s.assumption_profile_reason ?? ''} onChange={(e) => patch({ assumption_profile_reason: e.target.value || null })} placeholder="Waarom dit profiel?" />
-          </div>
+          </MobileFieldGroup>
         </CardContent>
       </Card>
 
@@ -632,8 +628,8 @@ export default function ScenarioEditor(props: Props) {
       {/* Biedingsadvies */}
       <Card>
         <CardHeader><CardTitle className="text-base">Biedingsadvies</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div><Label className="flex items-center gap-1">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</Label><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+          <MobileFieldGroup label={<span className="inline-flex items-center gap-1">Gewenste BAR (%) {showHelp && <HelpTooltip text="Bruto aanvangsrendement op totale investering. Hoger = strenger bieden." />}</span>}><NumInput value={s.target_bar} onChange={(v) => patch({ target_bar: v })} suffix="%" /></MobileFieldGroup>
           <div className="col-span-full">
             <BerekeningUitleg>
               Max all-in waarde = gecorrigeerde jaarhuur / gewenste BAR. Daarna worden aankoopkosten, OVB, kosten, financieringskosten en veiligheidsmarge afgetrokken om tot de maximale bieding te komen.
