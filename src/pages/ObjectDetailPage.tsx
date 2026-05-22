@@ -231,7 +231,8 @@ function SectionNav({ active }: { active: string }) {
     >
       <div
         ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
+        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+        style={{ scrollbarWidth: 'none' }}
       >
         {SECTIONS.map((s) => {
           const isActive = active === s.id;
@@ -241,7 +242,7 @@ function SectionNav({ active }: { active: string }) {
               href={`#${s.id}`}
               onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group relative inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
+              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-all ${
                 isActive
                   ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_hsl(var(--accent)/0.35)]'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -249,9 +250,6 @@ function SectionNav({ active }: { active: string }) {
             >
               <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
               {s.label}
-              {isActive && (
-                <span className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-[2px] w-8 bg-accent rounded-full" />
-              )}
             </a>
           );
         })}
