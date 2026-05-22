@@ -558,7 +558,7 @@ export default function ScenarioEditor(props: Props) {
         <CardContent className="space-y-2">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
-            <div key={u.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2">
+            <div key={u.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2 min-w-0">
               <div><Label className="text-xs">Naam</Label><Input className="h-8" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></div>
               <div><Label className="text-xs">Woon m²</Label><Input className="h-8" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></div>
               <div><Label className="text-xs">WOZ (€)</Label><Input className="h-8" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
