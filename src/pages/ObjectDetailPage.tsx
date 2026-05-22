@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
+import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
   getMatchesForObjectFromData,
   formatCurrency,
@@ -17,6 +18,7 @@ import {
   DOCUMENT_TYPE_LABELS,
   INDEXATIE_BASIS_LABELS,
   AANBIEDINGSWIJZE_LABELS,
+  OBJECT_STATUS_LABELS,
 } from '@/data/mock-data';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
@@ -52,7 +54,8 @@ import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
-import ObjectDossierCard from '@/components/object/dossier/ObjectDossierCard';
+import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
+import Timeline from '@/components/contactmoment/Timeline';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
@@ -231,6 +234,7 @@ function SectionNav({ active }: { active: string }) {
   return (
     <nav
       ref={navRef}
+      data-object-section-nav="true"
       className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
     >
       <div
@@ -272,6 +276,7 @@ export default function ObjectDetailPage() {
   const navigate = useNavigate();
   const store = useDataStore();
   const { labelFor } = useSubcategorieen();
+  const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [archiefOpen, setArchiefOpen] = useState(false);
@@ -281,10 +286,12 @@ export default function ObjectDetailPage() {
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
+  const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
 
   const scrollToSection = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return;
+    setActiveSection(id);
     const rootStyles = getComputedStyle(document.documentElement);
     const parsePx = (v: string, fb: number) => {
       const n = parseFloat(v);
@@ -295,8 +302,15 @@ export default function ObjectDetailPage() {
     const topbar = isDesktop
       ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
       : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
-    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + 60);
-    window.scrollTo({ top, behavior: 'smooth' });
+    const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
+    const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
+    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + 12);
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  };
+
+  const openDossierTab = (tab: DossierTab) => {
+    setDossierOpenRequest({ tab, token: Date.now() });
+    requestAnimationFrame(() => scrollToSection('documenten'));
   };
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
@@ -346,6 +360,7 @@ export default function ObjectDetailPage() {
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const objectTaken = store.getTakenByObject(object.id);
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
+  const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
   const reedsGekoppeldRelaties = useMemo(
     () => new Set<string>(kandidatenPipeline.map(k => k.relatieId)),
     [kandidatenPipeline],
@@ -412,9 +427,28 @@ export default function ObjectDetailPage() {
   const hoofdfoto = fotos.find(f => f.isHoofdfoto) ?? fotos[0];
   const heroUrl = hoofdfoto ? fotoUrls[hoofdfoto.storagePath] : undefined;
 
-  const locatieLabel = object.anoniem
-    ? (object.publiekeRegio ?? `${object.provincie}`)
-    : `${object.plaats}, ${object.provincie}`;
+  const propertyTypeLabel = object.propertyTypeId
+    ? (propertyTypeById(object.propertyTypeId)?.name ?? ASSET_CLASS_LABELS[object.type])
+    : ASSET_CLASS_LABELS[object.type];
+  const propertySubtypeLabels = (object.propertySubtypeIds ?? [])
+    .map(id => propertySubtypeById(id)?.name)
+    .filter(Boolean) as string[];
+  const dealTypeLabels = (object.dealTypeIds ?? [])
+    .map(id => dealTypeById(id)?.name)
+    .filter(Boolean) as string[];
+  const subtypeLabel = propertySubtypeLabels.length > 0
+    ? propertySubtypeLabels.join(', ')
+    : (subcatLabel ?? object.subcategorie);
+  const documentatieStatusRows = Object.entries(object.documentatieStatus ?? {})
+    .filter(([, status]) => !!status);
+  const verborgenImSecties = Object.entries(object.imSectiesZichtbaar ?? {})
+    .filter(([, zichtbaar]) => zichtbaar === false)
+    .map(([key]) => key);
+  const locatieLabel = [
+    object.adres,
+    [object.postcode, object.plaats].filter(Boolean).join(' '),
+    object.provincie,
+  ].filter(Boolean).join(', ') || object.publiekeRegio || object.plaats || object.provincie || 'Locatie onbekend';
 
   return (
     <div className="page-shell-detail">
@@ -529,8 +563,8 @@ export default function ObjectDetailPage() {
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
               <HeaderChip icon={MapPin}>{locatieLabel}</HeaderChip>
-              <HeaderChip icon={Building2}>{ASSET_CLASS_LABELS[object.type]}</HeaderChip>
-              {subcatLabel && <HeaderChip>{subcatLabel}</HeaderChip>}
+              <HeaderChip icon={Building2}>{propertyTypeLabel}</HeaderChip>
+              {subtypeLabel && <HeaderChip>{subtypeLabel}</HeaderChip>}
               {object.internReferentienummer && (
                 <HeaderChip>{object.internReferentienummer}</HeaderChip>
               )}
@@ -598,6 +632,56 @@ export default function ObjectDetailPage() {
                 mode="single"
               />
 
+              <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4 hairline pt-5">
+                <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="h-4 w-4 text-accent" />
+                    <h3 className="section-title">Locatie</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
+                    {object.adres && <Field label="Adres">{object.adres}</Field>}
+                    {object.postcode && <Field label="Postcode">{object.postcode}</Field>}
+                    {object.plaats && <Field label="Plaats">{object.plaats}</Field>}
+                    {object.provincie && <Field label="Provincie">{object.provincie}</Field>}
+                    {object.publiekeRegio && <Field label="Publieke regio">{object.publiekeRegio}</Field>}
+                    {object.locatieOmschrijving && (
+                      <div className="sm:col-span-2">
+                        <Field label="Locatie-omschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Info className="h-4 w-4 text-accent" />
+                    <h3 className="section-title">Identificatie</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3">
+                    {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
+                    <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
+                    {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}
+                    <Field label="Anonimiteit">{object.anoniem ? 'Anoniem presenteren' : 'Volledig zichtbaar'}</Field>
+                    {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
+                    {object.bron && <Field label="Bron">{object.bron}</Field>}
+                    <Field label="Exclusiviteit">{object.exclusief ? 'Exclusief aangeboden' : 'Niet exclusief'}</Field>
+                    <Field label="Portefeuille">{object.isPortefeuille ? 'Ja' : 'Nee'}</Field>
+                    {parentObject && (
+                      <Field label="Onderdeel van portefeuille">
+                        <Link to={`/objecten/${parentObject.id}`} className="text-accent hover:underline inline-flex items-center gap-1">
+                          {parentObject.titel} <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      </Field>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 hairline pt-5">
+                <Field label="Type vastgoed">{propertyTypeLabel}</Field>
+                {subtypeLabel && <Field label="Subtype">{subtypeLabel}</Field>}
+                {dealTypeLabels.length > 0 && <Field label="Dealtype / propositie">{dealTypeLabels.join(', ')}</Field>}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
                 <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
                 {object.aantalHuurders != null && (
@@ -619,6 +703,9 @@ export default function ObjectDetailPage() {
                 {object.onderhoudsstaatNiveau && (
                   <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
                 )}
+                {!object.onderhoudsstaatNiveau && object.onderhoudsstaat && (
+                  <Field label="Onderhoudsstaat">{object.onderhoudsstaat}</Field>
+                )}
                 {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
                 {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
                 {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
@@ -626,6 +713,7 @@ export default function ObjectDetailPage() {
                 <Field label="Transformatie">{object.transformatiePotentie ? 'Ja' : 'Nee'}</Field>
                 {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
                 {object.bron && <Field label="Bron">{object.bron}</Field>}
+                <Field label="Documentatie beschikbaar">{object.documentenBeschikbaar ? 'Ja' : 'Nee'}</Field>
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
 
@@ -650,11 +738,31 @@ export default function ObjectDetailPage() {
                 </div>
               )}
 
-              {!object.anoniem && (object.adres || object.postcode) && (
+              {object.oppervlaktenPerVerdieping && object.oppervlaktenPerVerdieping.length > 0 && (
                 <div className="hairline pt-5">
-                  <Field label="Adres">
-                    {[object.adres, object.postcode, object.plaats].filter(Boolean).join(', ')}
-                  </Field>
+                  <p className="field-label mb-2">Oppervlakten per verdieping</p>
+                  <div className="overflow-x-auto rounded-md border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs text-muted-foreground">
+                        <tr>
+                          <th className="text-left font-medium px-3 py-2">Verdieping</th>
+                          <th className="text-right font-medium px-3 py-2">VVO</th>
+                          <th className="text-right font-medium px-3 py-2">BVO</th>
+                          <th className="text-left font-medium px-3 py-2">Bestemming</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {object.oppervlaktenPerVerdieping.map((rij, index) => (
+                          <tr key={`${rij.verdieping}-${index}`} className="border-t border-border/40">
+                            <td className="px-3 py-2 font-medium">{rij.verdieping || '—'}</td>
+                            <td className="px-3 py-2 text-right font-mono-data">{rij.vvo != null ? formatM2(rij.vvo) : '—'}</td>
+                            <td className="px-3 py-2 text-right font-mono-data">{rij.bvo != null ? formatM2(rij.bvo) : '—'}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{rij.bestemming || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -739,7 +847,8 @@ export default function ObjectDetailPage() {
 
             {/* Aanbieding & proces — commerciële/processtukken uit edit */}
             {(object.propositie || object.objectomschrijving || object.locatieOmschrijving ||
-              object.technischeStaatOmschrijving || object.procesVoorwaarden || object.dataroomUrl) && (
+              object.technischeStaatOmschrijving || object.procesVoorwaarden || object.dataroomUrl ||
+              documentatieStatusRows.length > 0 || verborgenImSecties.length > 0) && (
               <div className="section-card p-5 sm:p-6 space-y-4 mt-4">
                 <h3 className="section-title">Aanbieding & proces</h3>
                 <div className="space-y-4">
@@ -754,6 +863,20 @@ export default function ObjectDetailPage() {
                         {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
                       </a>
                     </Field>
+                  )}
+                  {documentatieStatusRows.length > 0 && (
+                    <Field label="Documentatie-overzicht">
+                      <div className="flex flex-wrap gap-1.5">
+                        {documentatieStatusRows.map(([type, status]) => (
+                          <span key={type} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
+                            {DOCUMENT_TYPE_LABELS[type as keyof typeof DOCUMENT_TYPE_LABELS] ?? type}: {status === 'beschikbaar' ? 'beschikbaar' : status === 'op_aanvraag' ? 'op aanvraag' : 'na NDA'}
+                          </span>
+                        ))}
+                      </div>
+                    </Field>
+                  )}
+                  {verborgenImSecties.length > 0 && (
+                    <Field label="Verborgen IM-secties">{verborgenImSecties.join(', ')}</Field>
                   )}
                 </div>
               </div>
@@ -893,7 +1016,7 @@ export default function ObjectDetailPage() {
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
                 <span>
                   Voor scenario-analyse en gevoeligheid:&nbsp;
-                  <a href="#vastgoedrekenen" className="text-accent hover:underline font-medium">open underwriting →</a>
+                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open underwriting →</button>
                 </span>
               </div>
             </div>
@@ -1028,11 +1151,18 @@ export default function ObjectDetailPage() {
           {/* ============ 5. DOCUMENTEN ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="05 — Data room"
+            eyebrow="06 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
+            <ObjectDossierCard
+              objectId={object.id}
+              objectRecord={object as unknown as Record<string, unknown>}
+              openTabRequest={dossierOpenRequest}
+            />
+
             {documenten.length > 0 ? (
-              <div className="section-card p-5 sm:p-6">
+              <div className="section-card p-5 sm:p-6 mt-4">
+                <h3 className="section-title mb-3">Bestanden in data room</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {documenten.map(doc => (
                     <div key={doc.id} className="row-hover flex items-center gap-3 border border-border/60 rounded-lg p-3 bg-card/40">
@@ -1058,9 +1188,9 @@ export default function ObjectDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="section-card p-8 text-center">
+              <div className="section-card p-8 text-center mt-4">
                 <FolderOpen className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Nog geen documenten in de data room.</p>
+                <p className="text-sm text-muted-foreground">Nog geen bestanden in de data room. Open de tab Documenten hierboven om te uploaden.</p>
               </div>
             )}
 
@@ -1087,19 +1217,12 @@ export default function ObjectDetailPage() {
               </div>
             )}
 
-            {/* Dossier card (aanbieding) */}
-            <div className="mt-4">
-              <ObjectDossierCard
-                objectId={object.id}
-                objectRecord={object as unknown as Record<string, unknown>}
-              />
-            </div>
           </SectionAnchor>
 
           {/* ============ 6. VASTGOEDREKENEN / UNDERWRITING ============ */}
           <SectionAnchor
             id="vastgoedrekenen"
-            eyebrow="06 — Underwriting"
+            eyebrow="07 — Underwriting"
             title="Vastgoedrekenen"
           >
             <div className="section-card p-3 sm:p-5">
@@ -1115,13 +1238,8 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 7. ACTIVITEIT ============ */}
-          <SectionAnchor id="activiteit" eyebrow="07 — Ops" title="Activiteit & notities">
-            <div className="section-card p-6 text-center">
-              <Activity className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Activiteit-stream (calls, mails, taken) wordt in een volgende iteratie aan dit object gekoppeld.
-              </p>
-            </div>
+          <SectionAnchor id="activiteit" eyebrow="08 — Activity" title="Activiteit & notities">
+            <Timeline objectId={object.id} />
           </SectionAnchor>
         </div>
 
@@ -1247,7 +1365,7 @@ export default function ObjectDetailPage() {
             </button>
             <button
               type="button"
-              onClick={() => { scrollToSection('documenten'); toast.info('Aanbiedingsteksten staan onderaan documenten/dossier.'); }}
+              onClick={() => openDossierTab('aanbieding')}
               className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
               <Send className="h-3.5 w-3.5 text-muted-foreground" /> Teaser sturen
@@ -1263,7 +1381,7 @@ export default function ObjectDetailPage() {
             </button>
             <button
               type="button"
-              onClick={() => { scrollToSection('documenten'); toast.info('Document-upload volgt in een volgende update. Open Object bewerken om documenten te beheren.'); }}
+              onClick={() => openDossierTab('documenten')}
               className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
