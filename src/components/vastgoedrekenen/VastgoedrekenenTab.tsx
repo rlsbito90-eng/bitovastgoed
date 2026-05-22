@@ -55,6 +55,18 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     setOpenScenarios(next);
   }
 
+  function openAndScrollTo(id: string) {
+    setOpenScenarios((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setTimeout(() => {
+      const el = document.getElementById(`scenario-${id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
+
   return (
     <div className="space-y-4">
       <Card>
