@@ -2,11 +2,24 @@
 
 import type { ComputedOutputs } from './types';
 
+const eur = (n: number | null | undefined) => n == null
+  ? '—'
+  : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+
 export function buildConclusion(o: Pick<ComputedOutputs,
   'dealScore' | 'barTotalInvestment' | 'maximumBid' | 'differenceWithAskingPrice' |
-  'requiredDiscount' | 'inputReliability' | 'riskScore' | 'complexityScore'> & { askingPrice: number }): string {
+  'requiredDiscount' | 'inputReliability' | 'riskScore' | 'complexityScore' |
+  'assessmentType' | 'scoreLabel' | 'netSaleProceeds' | 'netMargin' | 'roi' | 'exitValue'> & { askingPrice: number }): string {
   const bar = o.barTotalInvestment != null ? `${o.barTotalInvestment.toFixed(2)}%` : 'n.v.t.';
   const bid = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(o.maximumBid);
+
+  if (o.assessmentType === 'verkoop') {
+    if (o.netSaleProceeds == null && o.exitValue == null) {
+      return 'Dit verkoop-/exitscenario heeft nog onvoldoende verkoopopbrengst of exitwaarde om financieel te beoordelen.';
+    }
+    const roi = o.roi != null ? `${o.roi.toFixed(1)}%` : 'n.v.t.';
+    return `Op basis van de ingevoerde verkoopopbrengst ontstaat een nettomarge van ${eur(o.netMargin)} en een ROI van ${roi}. De maximale bieding op basis van exit bedraagt ${bid}. Score: ${o.scoreLabel}.`;
+  }
 
   if (o.dealScore === 'A') {
     return `Dit object lijkt zeer interessant. De BAR op totale investering komt uit op ${bar}. Een realistische maximale bieding ligt rond ${bid}.`;
