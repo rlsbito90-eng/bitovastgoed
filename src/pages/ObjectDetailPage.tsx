@@ -155,6 +155,7 @@ const SECTIONS = [
 
 function SectionNav({ active }: { active: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   useEffect(() => {
@@ -172,8 +173,56 @@ function SectionNav({ active }: { active: string }) {
     }
   }, [active]);
 
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    // Bepaal sticky offset op basis van actuele topbar + sub-nav hoogte
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const rootStyles = getComputedStyle(document.documentElement);
+    const parsePx = (v: string, fb: number) => {
+      const n = parseFloat(v);
+      if (!n) return fb;
+      return v.trim().endsWith('rem') ? n * 16 : n;
+    };
+    const topbar = isDesktop
+      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+    const subNav = navRef.current?.getBoundingClientRect().height ?? 52;
+    const buffer = 8;
+    const stickyOffset = topbar + subNav + buffer;
+
+    // Scroll de main-container (overflow-y-auto) of window — pak de dichtstbijzijnde scrollende parent
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return window;
+    };
+    const scrollParent = getScrollParent(target);
+    if (scrollParent === window) {
+      const top = target.getBoundingClientRect().top + window.scrollY - stickyOffset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    } else {
+      const parent = scrollParent as HTMLElement;
+      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - stickyOffset;
+      parent.scrollTo({ top, behavior: 'smooth' });
+    }
+
+    // Update hash zonder browser-jump
+    if (history.replaceState) history.replaceState(null, '', `#${id}`);
+  };
+
   return (
-    <nav className="sticky top-14 lg:top-16 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2 -mt-3 sm:-mt-4 bg-background/80 backdrop-blur-sm">
+    <nav
+      ref={navRef}
+      className="sticky z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pb-2 bg-background/85 backdrop-blur-md"
+      style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
+    >
       <div
         ref={scrollerRef}
         className="glass-topbar rounded-xl border border-border/50 px-2 py-1.5 overflow-x-auto whitespace-nowrap flex gap-1 scrollbar-none"
@@ -184,6 +233,7 @@ function SectionNav({ active }: { active: string }) {
             <a
               key={s.id}
               href={`#${s.id}`}
+              onClick={(e) => handleClick(e, s.id)}
               ref={(el) => { tabRefs.current[s.id] = el; }}
               className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
                 isActive
