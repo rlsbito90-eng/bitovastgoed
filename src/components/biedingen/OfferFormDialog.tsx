@@ -46,6 +46,7 @@ interface FormState {
   geldigTot: string;
   status: BiedingStatus;
   offerType: BiedingType;
+  richting: BiedingRichting;
   financieringsvoorbehoud: VoorbehoudStatus;
   ddVoorbehoud: VoorbehoudStatus;
   gewensteLevering: string;
