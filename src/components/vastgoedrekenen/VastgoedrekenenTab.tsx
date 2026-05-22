@@ -1,7 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
@@ -10,6 +9,7 @@ import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { RawTextInput } from './RawInputs';
 
 type Props = {
   objectId: string;
@@ -46,11 +46,6 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
 
   const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
-  // Lokale naam-state zodat typen niet bij elke keypress een DB-write + refetch triggert.
-  const [localName, setLocalName] = useState<string>('');
-  useEffect(() => {
-    if (calculation) setLocalName(calculation.calculation_name);
-  }, [calculation?.id, calculation?.calculation_name]);
 
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
 
@@ -66,18 +61,12 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         <CardHeader className="pb-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
             <MobileFieldGroup label="Naam quickscan" className="md:col-span-2 lg:col-span-1 lg:flex-1">
-              <Input
-                value={localName}
-                onChange={(e) => setLocalName(e.target.value)}
-                onBlur={() => {
-                  const trimmed = localName.trim();
-                  if (trimmed && trimmed !== calculation.calculation_name) {
-                    updateCalculation({ calculation_name: trimmed });
-                  } else if (!trimmed) {
-                    setLocalName(calculation.calculation_name);
-                  }
+              <RawTextInput
+                initialValue={calculation.calculation_name}
+                onCommit={(value) => {
+                  const trimmed = value.trim();
+                  if (trimmed && trimmed !== calculation.calculation_name) updateCalculation({ calculation_name: trimmed });
                 }}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               />
             </MobileFieldGroup>
             <MobileFieldGroup label="Status">
