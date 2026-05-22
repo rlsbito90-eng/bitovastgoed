@@ -64,18 +64,18 @@ export default function DossierOverview({
       )}
 
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
           <h3 className="text-sm font-semibold text-foreground">Categorieën</h3>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={onMarkTeaserReady}
-              className="text-xs px-2.5 py-1 rounded border border-input hover:bg-muted"
+              className="text-xs px-3 py-1.5 rounded-md border border-input hover:bg-muted whitespace-nowrap"
             >
               Markeer teaser-gereed
             </button>
             <button
               onClick={onMarkSaleReady}
-              className="text-xs px-2.5 py-1 rounded border border-input hover:bg-muted"
+              className="text-xs px-3 py-1.5 rounded-md border border-input hover:bg-muted whitespace-nowrap"
             >
               Markeer verkoopklaar
             </button>
