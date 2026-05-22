@@ -834,8 +834,22 @@ export const formatCurrency = (amount?: number): string => {
   }).format(amount);
 };
 
-export const formatCurrencyCompact = (amount?: number): string => {
+/**
+ * Compacte bedragnotatie ("€24k", "€1,6 mln").
+ * Op desktop (>=1024px) tonen we altijd het volledige bedrag — daar is ruimte zat.
+ * Op mobiel blijven we compact om ruimte te besparen.
+ * Forceer compact via { forceCompact: true } voor zeer kleine widgets.
+ */
+export const formatCurrencyCompact = (
+  amount?: number,
+  opts?: { forceCompact?: boolean },
+): string => {
   if (amount == null) return '—';
+  const isDesktop =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(min-width: 1024px)').matches;
+  if (isDesktop && !opts?.forceCompact) return formatCurrency(amount);
   if (Math.abs(amount) >= 1_000_000) {
     return `€${(amount / 1_000_000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln`;
   }
