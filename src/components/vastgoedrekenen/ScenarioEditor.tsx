@@ -264,7 +264,7 @@ export default function ScenarioEditor(props: Props) {
               <Input className="font-semibold text-base w-full" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
-            <div className="grid grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto min-w-0">
               <Select value={s.strategy_type} onValueChange={(v) => patch({ strategy_type: v as Scenario['strategy_type'] })}>
                 <SelectTrigger className="h-9 w-full lg:w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
@@ -500,7 +500,7 @@ export default function ScenarioEditor(props: Props) {
           {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
           {components.map((c) => (
             <div key={c.id} className="border rounded-md p-2 space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end min-w-0">
                 <div className="col-span-2"><Label className="text-xs">Naam</Label><Input className="h-8" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></div>
                 <div>
                   <Label className="text-xs">Type</Label>
@@ -515,7 +515,7 @@ export default function ScenarioEditor(props: Props) {
                 <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteComponent(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
               {ovbMode === 'per_component' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end border-t pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 items-end border-t pt-2 min-w-0">
                   <div><Label className="text-xs">Toegerekende waarde (€)</Label><Input className="h-8" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
                   <div>
                     <Label className="text-xs">OVB-classificatie</Label>
@@ -558,7 +558,7 @@ export default function ScenarioEditor(props: Props) {
         <CardContent className="space-y-2">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
-            <div key={u.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2">
+            <div key={u.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2 min-w-0">
               <div><Label className="text-xs">Naam</Label><Input className="h-8" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></div>
               <div><Label className="text-xs">Woon m²</Label><Input className="h-8" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></div>
               <div><Label className="text-xs">WOZ (€)</Label><Input className="h-8" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
@@ -596,7 +596,7 @@ export default function ScenarioEditor(props: Props) {
         <CardContent className="space-y-2">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
-            <div key={c.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2">
+            <div key={c.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2 min-w-0">
               <div className="col-span-2"><Label className="text-xs">Categorie</Label><Input className="h-8" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></div>
               <div className="col-span-2"><Label className="text-xs">Omschrijving</Label><Input className="h-8" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></div>
               <div><Label className="text-xs">Bedrag (€)</Label><Input className="h-8" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></div>

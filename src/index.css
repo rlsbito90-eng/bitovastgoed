@@ -359,6 +359,55 @@
     .mobile-stack-actions [role="combobox"] { width: 100%; justify-content: center; }
   }
 
+  /* === App-wide responsive layout utilities ===
+     Use these app-wide instead of one-off responsive grid/flex combinations.
+     Mobile-first: 1 column, full-width controls, no overflow. */
+
+  .mobile-stack {
+    @apply flex flex-col sm:flex-row sm:items-center gap-3 w-full min-w-0;
+  }
+  .mobile-stack > * { @apply min-w-0; }
+
+  .mobile-full-width > * { @apply w-full sm:w-auto; }
+
+  .responsive-form-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0;
+  }
+  .responsive-form-grid > * { @apply min-w-0; }
+
+  .responsive-form-row {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 items-end min-w-0;
+  }
+  .responsive-form-row > * { @apply min-w-0; }
+
+  .responsive-card-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 min-w-0;
+  }
+  .responsive-card-grid > * { @apply min-w-0; }
+
+  .responsive-kpi-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 min-w-0;
+  }
+  .responsive-kpi-grid > * { @apply min-w-0 h-full; }
+
+  .safe-label {
+    @apply block text-[11px] font-medium text-muted-foreground leading-tight break-words whitespace-normal mb-1;
+  }
+
+  /* Defensive: form controls inside responsive containers can shrink. */
+  .responsive-form-grid input,
+  .responsive-form-grid select,
+  .responsive-form-grid [role="combobox"],
+  .responsive-form-row input,
+  .responsive-form-row select,
+  .responsive-form-row [role="combobox"],
+  .mobile-stack input,
+  .mobile-stack select,
+  .mobile-stack [role="combobox"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
 
   /* Pipeline chevron step */
   .chevron-step {
