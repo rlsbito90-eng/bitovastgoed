@@ -49,6 +49,11 @@
 
     --radius: 0.75rem;
 
+    /* Layout heights — single source of truth voor sticky offsets */
+    --mobile-header-height: 3.5rem;   /* 56px — matches lg:hidden topbar h-14 */
+    --desktop-header-height: 4rem;    /* 64px — matches hidden lg:flex topbar h-16 */
+    --section-nav-height: 3rem;       /* approx sticky sub-nav height */
+
     --success: 152 45% 32%;
     --success-foreground: 33 33% 96%;
     --warning: 38 60% 50%;

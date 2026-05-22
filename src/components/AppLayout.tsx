@@ -214,7 +214,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         {/* Mobile Header */}
-      <header className="lg:hidden flex items-center justify-between h-14 px-3 border-b border-border/60 glass-topbar sticky top-0 z-30">
+      <header
+        className="lg:hidden flex items-center justify-between px-3 border-b border-border/60 glass-topbar sticky top-0 z-30"
+        style={{ height: "var(--mobile-header-height, 3.5rem)" }}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
