@@ -29,7 +29,10 @@ interface Props {
   defaultObjectPipelineId?: string;
   /** Tegenvoorstel-modus: vorig bod */
   counterTo?: Bieding | null;
+  /** Wordt aangeroepen na succesvol opslaan zodat de parent kan refetchen */
+  onSaved?: () => void | Promise<void>;
 }
+
 
 const norm = (s?: string | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
