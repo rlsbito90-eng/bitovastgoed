@@ -16,7 +16,9 @@ import {
   VERKOPER_VIA_LABELS,
   DOCUMENT_TYPE_LABELS,
   INDEXATIE_BASIS_LABELS,
+  AANBIEDINGSWIJZE_LABELS,
 } from '@/data/mock-data';
+
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, EyeOff, Star,
