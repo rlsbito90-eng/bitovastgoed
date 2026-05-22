@@ -14,7 +14,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtEur, vraagprijsDelta, isVerlopen, dagenTotVerval, effectieveStatus } from '@/lib/biedingen/format';
-import { OfferStatusBadge, OfferTypeBadge } from './OfferBadges';
+import { OfferStatusBadge, OfferTypeBadge, OfferDirectionBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 import type { Bieding, BiedingStatus } from '@/lib/biedingen/types';
