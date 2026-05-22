@@ -106,7 +106,7 @@ export default function ObjectDossierCard({ objectId, objectRecord }: Props) {
       )}
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DossierTab)}>
-        <TabsList className="flex flex-wrap h-auto gap-1">
+        <TabsList className="tabs-scroll sm:inline-flex sm:w-auto sm:flex-wrap sm:h-auto bg-muted/60 p-1 rounded-lg">
           <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
           <TabsTrigger value="actielijst">
