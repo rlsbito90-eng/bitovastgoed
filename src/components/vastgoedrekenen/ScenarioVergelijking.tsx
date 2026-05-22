@@ -3,10 +3,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import type { Scenario, TaxSettings, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, fmtPct, DEAL_BADGE } from './format';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { SALE_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/verkoop';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { mapToAssumptionType } from '@/lib/vastgoedrekenen/profiles';
-import { Trophy, TrendingUp, ShieldCheck, Target } from 'lucide-react';
+import { Trophy, TrendingUp, ShieldCheck, Target, Coins } from 'lucide-react';
 
 type SharedProps = {
   taxSettings: TaxSettings | null;
@@ -69,7 +70,16 @@ function pickBest(rows: RowData[]) {
   const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
   const byRisk = [...pool].sort((a, b) => riskRank[a.outputs.riskScore] - riskRank[b.outputs.riskScore])[0];
 
-  return { byBid, byBar, byInvestment, byRisk };
+  // Verkoopgerichte rankings (alleen wanneer er minstens 1 scenario verkoopdata heeft)
+  const withSale = pool.filter((r) => r.outputs.netMargin != null);
+  const byMargin = withSale.length > 0
+    ? [...withSale].sort((a, b) => (b.outputs.netMargin ?? -Infinity) - (a.outputs.netMargin ?? -Infinity))[0]
+    : null;
+  const byRoi = withSale.length > 0
+    ? [...withSale].sort((a, b) => (b.outputs.roi ?? -Infinity) - (a.outputs.roi ?? -Infinity))[0]
+    : null;
+
+  return { byBid, byBar, byInvestment, byRisk, byMargin, byRoi };
 }
 
 function DiffBlock({ diff, asking }: { diff: number; asking: number }) {
@@ -127,7 +137,20 @@ function ScenarioCardMobile({ row }: { row: RowData }) {
           <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
           <div><p className="text-muted-foreground">Factor op TI</p><p className="font-mono-data">{o.factorTotalInvestment != null ? `${o.factorTotalInvestment.toFixed(2)}×` : '—'}</p></div>
         </div>
-        <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]}</p>
+        {o.saleHasInput && (
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-1">
+            <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-medium">
+              <Coins className="h-3.5 w-3.5" /> Verkoop / exit
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><p className="text-muted-foreground">Verkoopopbrengst</p><p className="font-mono-data">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</p></div>
+              <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+              <div><p className="text-muted-foreground">ROI</p><p className={`font-mono-data ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</p></div>
+              <div><p className="text-muted-foreground">Exitwaarde</p><p className="font-mono-data">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</p></div>
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
       </CardContent>
     </Card>
   );
@@ -206,6 +229,20 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                 <p className="text-sm font-semibold mt-1 leading-snug">{best.byRisk.scenario.scenario_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">Risico: {best.byRisk.outputs.riskScore}</p>
               </div>
+              {best.byMargin && (
+                <div className="rounded-md border bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> Hoogste nettomarge</p>
+                  <p className="text-sm font-semibold mt-1 leading-snug">{best.byMargin.scenario.scenario_name}</p>
+                  <p className="text-xs font-mono-data text-muted-foreground">{best.byMargin.outputs.netMargin != null ? fmtEur(best.byMargin.outputs.netMargin) : '—'}</p>
+                </div>
+              )}
+              {best.byRoi && (
+                <div className="rounded-md border bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Hoogste ROI</p>
+                  <p className="text-sm font-semibold mt-1 leading-snug">{best.byRoi.scenario.scenario_name}</p>
+                  <p className="text-xs font-mono-data text-muted-foreground">{best.byRoi.outputs.roi != null ? `${best.byRoi.outputs.roi.toFixed(1)}%` : '—'}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -252,6 +289,13 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                   <th className="px-3 py-2 text-right border-b bg-primary/5">Maximale bieding</th>
                   <th className="px-3 py-2 text-right border-b">Δ vraagprijs</th>
                   <th className="px-3 py-2 text-right border-b">Δ aankoopprijs</th>
+                  <th className="px-3 py-2 border-b bg-emerald-500/5">Verkoopstrategie</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Bruto verkoopopbrengst</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Verkoopkosten</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Netto verkoopopbrengst</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Nettomarge</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">ROI</th>
+                  <th className="px-3 py-2 text-right border-b bg-emerald-500/5">Exitwaarde</th>
                   <th className="px-3 py-2 border-b">Score</th>
                 </tr>
               </thead>
@@ -267,6 +311,8 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                   const expl = o.operatingCostsEur + o.maintenanceCostsEur + o.managementCostsEur + o.otherCostsEur;
                   const diffPurchase = purchase > 0 ? o.maximumBid - purchase : 0;
                   const isBestBid = best?.byBid.scenario.id === s.id;
+                  const saleStrategyKey = ((s as unknown as Record<string, unknown>).sale_strategy as string | null) ?? null;
+                  const saleStrategyLabel = saleStrategyKey ? (SALE_STRATEGY_LABELS[saleStrategyKey] ?? saleStrategyKey) : '—';
                   return (
                     <tr key={s.id} className="hover:bg-muted/30 border-b last:border-b-0">
                       <td className="px-3 py-2 sticky left-0 bg-card font-medium border-b">
@@ -293,6 +339,13 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                       <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.maximumBid)}</td>
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.differenceWithAskingPrice} asking={asking} /></td>
                       <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={diffPurchase} asking={purchase} /></td>
+                      <td className="px-3 py-2 text-xs border-b bg-emerald-500/5">{saleStrategyLabel}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.grossSaleProceeds != null ? fmtEur(o.grossSaleProceeds) : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.saleCostsTotal != null ? fmtEur(o.saleCostsTotal) : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 font-semibold">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</td>
+                      <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</td>
+                      <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</td>
+                      <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</td>
                       <td className="px-3 py-2 border-b"><span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.dealScore}</span></td>
                     </tr>
                   );

@@ -1,0 +1,16 @@
+ALTER TABLE public.calculation_scenarios
+  ADD COLUMN IF NOT EXISTS sale_strategy text,
+  ADD COLUMN IF NOT EXISTS sale_price_total bigint,
+  ADD COLUMN IF NOT EXISTS sale_price_per_m2 numeric,
+  ADD COLUMN IF NOT EXISTS sale_price_per_unit bigint,
+  ADD COLUMN IF NOT EXISTS sale_units_count integer,
+  ADD COLUMN IF NOT EXISTS sale_sellable_m2 numeric,
+  ADD COLUMN IF NOT EXISTS sale_costs_percentage numeric,
+  ADD COLUMN IF NOT EXISTS sale_other_costs bigint,
+  ADD COLUMN IF NOT EXISTS sale_exit_value_manual bigint,
+  ADD COLUMN IF NOT EXISTS sale_target_margin_percentage numeric,
+  ADD COLUMN IF NOT EXISTS sale_target_margin_amount bigint,
+  ADD COLUMN IF NOT EXISTS sale_target_roi_percentage numeric,
+  ADD COLUMN IF NOT EXISTS sale_target_exit_value bigint,
+  ADD COLUMN IF NOT EXISTS sale_expected_period_months integer,
+  ADD COLUMN IF NOT EXISTS bid_basis text;
