@@ -23,7 +23,7 @@ import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
 import { Section } from './Section';
-import { fmtEur, fmtPct } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,6 +95,7 @@ function isTempCostId(id: string): boolean {
 }
 
 function normalizeCost(cost: ScenarioCost) {
+  const rec = cost as unknown as Record<string, unknown>;
   return {
     id: cost.id,
     cost_category: cost.cost_category ?? '',
@@ -103,8 +104,12 @@ function normalizeCost(cost: ScenarioCost) {
     notes: cost.notes ?? null,
     reliability_status: cost.reliability_status ?? null,
     vat_applicable: cost.vat_applicable ?? null,
+    calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
+    amount_per_m2: rec.amount_per_m2 != null ? Number(rec.amount_per_m2) : null,
+    m2_basis: rec.m2_basis != null ? Number(rec.m2_basis) : null,
   };
 }
+
 
 function areScenarioCostsEqual(a: ScenarioCost[], b: ScenarioCost[]): boolean {
   if (a.length !== b.length) return false;
