@@ -43,26 +43,26 @@ type Props = {
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
 
-function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; onDirty?: () => void; placeholder?: string; suffix?: Suffix }) {
+function NumInput({ value, onChange, onRawChange, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; suffix?: Suffix }) {
   return (
     <RawNumberInput
       initialValue={numberToRaw(value)}
       placeholder={placeholder}
       suffix={suffix}
       className="h-9 w-full min-w-0"
-      onRawChange={onDirty}
+      onRawChange={onRawChange}
       onCommit={(raw) => onChange(parseRawNumber(raw))}
     />
   );
 }
 
-function TextInput({ value, onChange, onDirty, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; onDirty?: () => void; placeholder?: string; className?: string }) {
+function TextInput({ value, onChange, onRawChange, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; className?: string }) {
   return (
     <RawTextInput
       initialValue={value ?? ''}
       placeholder={placeholder}
       className={className}
-      onRawChange={onDirty}
+      onRawChange={onRawChange}
       onCommit={(raw) => onChange(raw || null)}
     />
   );
