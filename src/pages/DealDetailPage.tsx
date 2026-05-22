@@ -23,6 +23,8 @@ import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
+import BiedingenSection from '@/components/biedingen/BiedingenSection';
+
 import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
