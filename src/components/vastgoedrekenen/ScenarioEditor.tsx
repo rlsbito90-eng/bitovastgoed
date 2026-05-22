@@ -582,14 +582,17 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Kosten */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Onvoorzien (%)</Label>
-            <Input className="h-8 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
-            <Button size="sm" variant="outline" onClick={addCost}><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Onvoorzien (%)</Label>
+              <Input className="h-9 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+            </div>
+            <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
