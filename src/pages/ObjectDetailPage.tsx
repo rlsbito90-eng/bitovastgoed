@@ -390,7 +390,7 @@ export default function ObjectDetailPage() {
   // Scroll-spy
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
-    SECTIONS.forEach(s => {
+    [...SECTIONS, ...MOBILE_ONLY_SECTIONS].forEach(s => {
       const el = document.getElementById(s.id);
       if (!el) return;
       const obs = new IntersectionObserver(
