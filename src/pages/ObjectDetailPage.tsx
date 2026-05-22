@@ -160,8 +160,8 @@ const SECTIONS = [
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
-  { id: 'documenten', label: 'Documenten', icon: FolderOpen },
   { id: 'vastgoedrekenen', label: 'Underwriting', icon: Calculator },
+  { id: 'documenten', label: 'Documenten', icon: FolderOpen },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
@@ -925,7 +925,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ 2. FINANCIEEL ============ */}
-          <SectionAnchor id="financieel" eyebrow="02 — Underwriting" title="Financieel">
+          <SectionAnchor id="financieel" eyebrow="02 — Financieel" title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
@@ -1016,7 +1016,7 @@ export default function ObjectDetailPage() {
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
                 <span>
                   Voor scenario-analyse en gevoeligheid:&nbsp;
-                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open underwriting →</button>
+                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
                 </span>
               </div>
             </div>
@@ -1148,10 +1148,28 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
 
-          {/* ============ 5. DOCUMENTEN ============ */}
+          {/* ============ 6. UNDERWRITING / VASTGOEDREKENEN ============ */}
+          <SectionAnchor
+            id="vastgoedrekenen"
+            eyebrow="06 — Underwriting"
+            title="Vastgoedrekenen"
+          >
+            <div className="section-card p-3 sm:p-5">
+              <VastgoedrekenenTab
+                objectId={object.id}
+                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
+                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
+                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
+                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
+              />
+            </div>
+          </SectionAnchor>
+
+          {/* ============ 7. DOCUMENTEN ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="06 — Data room"
+            eyebrow="07 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
             <ObjectDossierCard
@@ -1217,24 +1235,6 @@ export default function ObjectDetailPage() {
               </div>
             )}
 
-          </SectionAnchor>
-
-          {/* ============ 6. VASTGOEDREKENEN / UNDERWRITING ============ */}
-          <SectionAnchor
-            id="vastgoedrekenen"
-            eyebrow="07 — Underwriting"
-            title="Vastgoedrekenen"
-          >
-            <div className="section-card p-3 sm:p-5">
-              <VastgoedrekenenTab
-                objectId={object.id}
-                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
-                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
-                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
-                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
-                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
-              />
-            </div>
           </SectionAnchor>
 
           {/* ============ 7. ACTIVITEIT ============ */}
@@ -1392,7 +1392,7 @@ export default function ObjectDetailPage() {
               onClick={() => scrollToSection('vastgoedrekenen')}
               className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
-              <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Underwriting openen
+              <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Vastgoedrekenen openen
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
           </div>
