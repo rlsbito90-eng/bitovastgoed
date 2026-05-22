@@ -141,6 +141,7 @@ export default function OfferFormDialog({
               dealId: counterTo.dealId ?? '',
               offerType: 'tegenvoorstel' as BiedingType,
               status: 'tegenvoorstel_gedaan' as BiedingStatus,
+              richting: 'van_verkoper' as BiedingRichting,
               bedrag: '',
               voorwaarden: counterTo.voorwaarden ?? '',
               gewensteLevering: counterTo.gewensteLevering ?? '',
