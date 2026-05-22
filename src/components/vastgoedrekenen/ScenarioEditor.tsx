@@ -900,7 +900,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={criticalChecks && nogTeControleren.length > 4}>
+            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
