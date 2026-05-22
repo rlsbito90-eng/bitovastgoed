@@ -137,7 +137,20 @@ function ScenarioCardMobile({ row }: { row: RowData }) {
           <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
           <div><p className="text-muted-foreground">Factor op TI</p><p className="font-mono-data">{o.factorTotalInvestment != null ? `${o.factorTotalInvestment.toFixed(2)}×` : '—'}</p></div>
         </div>
-        <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]}</p>
+        {o.saleHasInput && (
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-1">
+            <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-medium">
+              <Coins className="h-3.5 w-3.5" /> Verkoop / exit
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><p className="text-muted-foreground">Verkoopopbrengst</p><p className="font-mono-data">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</p></div>
+              <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+              <div><p className="text-muted-foreground">ROI</p><p className={`font-mono-data ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</p></div>
+              <div><p className="text-muted-foreground">Exitwaarde</p><p className="font-mono-data">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</p></div>
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
       </CardContent>
     </Card>
   );
