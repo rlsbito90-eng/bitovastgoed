@@ -28,6 +28,28 @@ export function verschilMetVraagprijs(bedrag?: number | null, vraagprijs?: numbe
   return { verschil, pct };
 }
 
+export function vraagprijsDelta(bedrag?: number | null, vraagprijs?: number | null):
+  { label: string; tone: 'positive' | 'negative' | 'neutral' } | null {
+  const v = verschilMetVraagprijs(bedrag, vraagprijs);
+  if (!v) return null;
+  const sign = v.verschil > 0 ? '+' : v.verschil < 0 ? '−' : '±';
+  const abs = Math.abs(v.verschil);
+  const eur = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(abs);
+  const label = `${sign}${eur} (${v.pct >= 0 ? '+' : ''}${v.pct.toFixed(1)}%)`;
+  const tone = v.verschil > 0 ? 'positive' : v.verschil < 0 ? 'negative' : 'neutral';
+  return { label, tone };
+}
+
+export function dagenTotVerval(b: Pick<Bieding, 'geldigTot'>): number | null {
+  if (!b.geldigTot) return null;
+  try {
+    const d = new Date(b.geldigTot); d.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  } catch { return null; }
+}
+
+
 export function isVerlopen(b: Pick<Bieding, 'geldigTot' | 'status'>) {
   if (!b.geldigTot) return false;
   if (b.status === 'geaccepteerd' || b.status === 'afgewezen' || b.status === 'ingetrokken') return false;
