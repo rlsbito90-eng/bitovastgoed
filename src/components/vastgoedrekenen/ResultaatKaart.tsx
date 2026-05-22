@@ -30,7 +30,7 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 sm:col-span-2 lg:col-span-2 min-w-0">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Maximale bieding</p>
             <p className="text-2xl sm:text-3xl font-semibold font-mono-data mt-0.5 leading-tight text-primary break-words">
@@ -52,57 +52,59 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
             <p className="text-base font-semibold font-mono-data mt-0.5 break-words">{fmtEur(o.totalInvestment)}</p>
           </div>
           {exploitatie ? (
-            <div className="rounded-md border p-3 grid grid-cols-3 gap-2 min-w-0">
-              <div className="min-w-0">
+            <>
+              <div className="rounded-md border p-3 min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">NOI</p>
-                <p className="text-sm font-semibold font-mono-data break-words">{fmtEur(o.noi)}</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5 break-words">{fmtEur(o.noi)}</p>
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">BAR TI</p>
-                <p className="text-sm font-semibold font-mono-data">{fmtPct(o.barTotalInvestment)}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Factor</p>
-                <p className="text-sm font-semibold font-mono-data">
-                  {o.factorTotalInvestment != null ? `${o.factorTotalInvestment.toFixed(2)}×` : '—'}
+              <div className="rounded-md border p-3 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">BAR TI · Factor</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5 break-words">
+                  {fmtPct(o.barTotalInvestment)}
+                  {o.factorTotalInvestment != null ? ` · ${o.factorTotalInvestment.toFixed(2)}×` : ''}
                 </p>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="rounded-md border p-3 grid grid-cols-3 gap-2 min-w-0">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Netto opbr.</p>
-                <p className="text-sm font-semibold font-mono-data break-words">
+            <>
+              <div className="rounded-md border p-3 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Netto verkoopopbrengst</p>
+                <p className="text-base font-semibold font-mono-data mt-0.5 break-words">
                   {o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}
                 </p>
               </div>
-              <div className="min-w-0">
+              <div className="rounded-md border p-3 min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Nettomarge</p>
                 <p
-                  className={`text-sm font-semibold font-mono-data break-words ${
+                  className={`text-base font-semibold font-mono-data mt-0.5 break-words ${
                     o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''
                   }`}
                 >
                   {o.netMargin != null ? fmtEur(o.netMargin) : '—'}
                 </p>
               </div>
-              <div className="min-w-0">
+              <div className="rounded-md border p-3 min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">ROI</p>
                 <p
-                  className={`text-sm font-semibold font-mono-data ${
+                  className={`text-base font-semibold font-mono-data mt-0.5 ${
                     o.roi != null && o.roi < 0 ? 'text-destructive' : ''
                   }`}
                 >
                   {o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}
                 </p>
               </div>
-            </div>
+            </>
           )}
         </div>
 
         <div className="text-sm text-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
           <p className="font-medium mb-1">Conclusie</p>
           <p>{o.conclusion}</p>
+          {(o.dealScore === 'A' || o.dealScore === 'B') && o.riskScore === 'hoog' && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              Let op: kansrijk op basis van marge en ROI, maar risicovol omdat bouwkosten en/of verkoopwaarde nog indicatief zijn.
+            </p>
+          )}
           <p className="mt-2 text-xs text-muted-foreground">
             Vervolgstap: <span className="text-foreground">{o.recommendedNextStep}</span>
           </p>

@@ -483,15 +483,17 @@ export default function ScenarioEditor(props: Props) {
         const hasResidential = wwsUnits.length > 0
           || components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement')
           || propertyType === 'residentieel' || propertyType === 'mixed_use';
-        const criticalChecks = nogTeControleren.length > 0;
+        
 
-        const huurStatus = `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`;
+        const huurStatus = exploitatie
+          ? `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`
+          : 'Niet leidend voor dit verkoopscenario';
         const verkoopStatus = outputs.netSaleProceeds != null
           ? `Netto opbr. ${fmtEur(outputs.netSaleProceeds)}${outputs.roi != null ? ` · ROI ${outputs.roi.toFixed(1)}%` : ''}`
           : 'Geen verkoopdata';
         const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien`;
         const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)}`;
-        const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · ${outputs.inputReliability}`;
+        const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · betrouwbaarheid ${outputs.inputReliability}`;
         const compStatus = `${components.length} component(en)`;
         const wwsStatus = `${wwsUnits.length} woonunit(s)`;
         const scoreStatus = `${outputs.scoreLabel}`;
@@ -898,7 +900,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={criticalChecks && nogTeControleren.length > 4}>
+            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
