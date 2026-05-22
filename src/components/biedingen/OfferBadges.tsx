@@ -56,3 +56,14 @@ const typeTone: Record<BiedingType, Tone> = {
 export function OfferTypeBadge({ type }: { type: BiedingType }) {
   return <Chip label={BIEDING_TYPE_LABELS[type]} tone={typeTone[type]} />;
 }
+
+const richtingTone: Record<BiedingRichting, Tone> = {
+  van_koper: 'sky',
+  van_verkoper: 'gold',
+  namens_verkoper: 'gold',
+  intern: 'neutral',
+};
+
+export function OfferDirectionBadge({ richting }: { richting: BiedingRichting }) {
+  return <Chip label={BIEDING_RICHTING_LABELS[richting]} tone={richtingTone[richting]} />;
+}
