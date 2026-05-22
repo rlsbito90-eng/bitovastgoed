@@ -752,7 +752,7 @@ export default function ScenarioEditor(props: Props) {
                   <RawTextInput
                     className="h-9"
                     initialValue={c.cost_category}
-                    onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })}
+                    onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' }, true)}
                     onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })}
                   />
                 </MobileFieldGroup>
@@ -760,7 +760,7 @@ export default function ScenarioEditor(props: Props) {
                   <RawTextInput
                     className="h-9"
                     initialValue={c.description ?? ''}
-                    onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null })}
+                    onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null }, true)}
                     onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })}
                   />
                 </MobileFieldGroup>
@@ -768,7 +768,7 @@ export default function ScenarioEditor(props: Props) {
                   <RawNumberInput
                     className="h-9"
                     initialValue={numberToRaw(c.amount)}
-                    onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })}
+                    onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)}
                     onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })}
                   />
                 </MobileFieldGroup>
