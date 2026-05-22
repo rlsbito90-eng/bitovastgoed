@@ -345,9 +345,9 @@ export default function ObjectDetailPage() {
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const objectTaken = store.getTakenByObject(object.id);
-  const kandidatenPipeline = (store as any).getPipelineVoorObject?.(object.id) ?? [];
+  const kandidatenPipeline = store.getPipelineVoorObject(object.id);
   const reedsGekoppeldRelaties = useMemo(
-    () => new Set<string>(kandidatenPipeline.map((k: any) => k.relatieId)),
+    () => new Set<string>(kandidatenPipeline.map(k => k.relatieId)),
     [kandidatenPipeline],
   );
   const volgendeTaak = useMemo(() => {
