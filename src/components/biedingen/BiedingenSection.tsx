@@ -278,6 +278,7 @@ export default function BiedingenSection({
                       <div className="flex flex-wrap gap-1.5">
                         <OfferStatusBadge bieding={b} />
                         <OfferTypeBadge type={b.offerType} />
+                        <OfferDirectionBadge richting={b.richting} />
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {new Date(b.bieddatum).toLocaleDateString('nl-NL')}
