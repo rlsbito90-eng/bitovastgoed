@@ -66,6 +66,32 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     out.push({ level: 'warning', message: 'Transformatiescenario zonder transformatiekosten. Voeg bouwkosten, vergunningskosten en fasering toe.' });
   }
 
+  // --- Verkoop / exit waarschuwingen ---
+  const rec = scenario as Record<string, unknown>;
+  const saleStrategy = (rec.sale_strategy as string | null) ?? null;
+  const isSaleFocusedStrategy = ['uitponden','splitsen','verkopen_geheel','verkoop_per_unit','bedrijfsunits_los','buy_fix_sell','buy_split_sell','buy_transform_sell','herontwikkeling'].includes(scenario.strategy_type as string)
+    || (saleStrategy != null && saleStrategy !== 'geen_verkoop' && saleStrategy !== '');
+  const hasGrossSale = Number(rec.sale_price_total ?? 0) > 0
+    || (Number(rec.sale_price_per_m2 ?? 0) > 0 && Number(rec.sale_sellable_m2 ?? 0) > 0)
+    || (Number(rec.sale_price_per_unit ?? 0) > 0 && Number(rec.sale_units_count ?? 0) > 0);
+
+  if (isSaleFocusedStrategy && !hasGrossSale) {
+    out.push({ level: 'warning', message: 'Verkoopscenario zonder verkoopopbrengst. Vul verkoopprijs (totaal, per m² of per unit) in.' });
+  }
+  if (isSaleFocusedStrategy && Number(rec.sale_costs_percentage ?? 0) === 0 && Number(rec.sale_other_costs ?? 0) === 0) {
+    out.push({ level: 'info', message: 'Verkoopkosten ontbreken — voeg makelaars-/verkoopkosten % en/of overige verkoopkosten toe.' });
+  }
+  if (Number(rec.sale_exit_value_manual ?? 0) > 0) {
+    out.push({ level: 'info', message: 'Exitwaarde is een handmatige aanname. Onderbouw met referenties, brokeropinion of vergelijkbare transacties.' });
+  }
+  if (rec.bid_basis === 'verkoop'
+    && Number(rec.sale_target_margin_amount ?? 0) === 0
+    && Number(rec.sale_target_margin_percentage ?? 0) === 0
+    && Number(rec.sale_target_roi_percentage ?? 0) === 0
+    && Number(rec.sale_target_exit_value ?? 0) === 0) {
+    out.push({ level: 'warning', message: 'Maximale bieding op basis van verkoop, maar geen gewenste marge/ROI/exitwaarde ingevuld.' });
+  }
+
   return out;
 }
 
