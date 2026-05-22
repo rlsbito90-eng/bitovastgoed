@@ -128,8 +128,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? Math.max(0, sale.exitBasedMaxBid - overhead)
     : null;
 
-  // Bid-basis: 'verkoop' indien expliciet zo ingesteld én exit-bid bekend; anders 'huur'.
-  const bidBasisField = (scenario as Record<string, unknown>).bid_basis as string | null | undefined;
+  // Bid-basis: verkoopgerichte cases gebruiken exit-bieding zodra die beschikbaar is.
   const assessmentType = determineAssessmentType(scenario);
   const useSaleBasis = assessmentType === 'verkoop' && exitBasedMaxBidNet != null && exitBasedMaxBidNet > 0;
   const effectiveMaxBid = useSaleBasis ? (exitBasedMaxBidNet as number) : bid.maxBid;
