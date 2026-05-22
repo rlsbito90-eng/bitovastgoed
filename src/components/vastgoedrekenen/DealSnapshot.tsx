@@ -14,9 +14,9 @@ function Stat({ label, value, accent, tone }: { label: string; value: string; ac
       ? 'text-amber-700 dark:text-amber-300'
       : accent ? 'text-primary' : 'text-foreground';
   return (
-    <div className={`rounded-md border bg-card p-3 ${toneCls}`}>
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`text-base font-semibold mt-1 font-mono-data ${valueCls}`}>{value}</p>
+    <div className={`rounded-md border bg-card p-3 min-w-0 overflow-hidden ${toneCls}`}>
+      <p className="text-[10px] uppercase tracking-normal sm:tracking-wide leading-snug text-muted-foreground whitespace-normal break-words">{label}</p>
+      <p className={`text-sm sm:text-base font-semibold mt-1 font-mono-data leading-snug whitespace-normal break-words ${valueCls}`}>{value}</p>
     </div>
   );
 }
@@ -34,7 +34,7 @@ export default function DealSnapshot({ o }: { o: ComputedOutputs }) {
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{deal.label}</span>
           <span className={`text-xs px-2 py-1 rounded-full border ${risk.cls}`}>{risk.label}</span>
           <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
@@ -45,7 +45,7 @@ export default function DealSnapshot({ o }: { o: ComputedOutputs }) {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 min-w-0">
           <Stat label="Aankoopprijs" value={fmtEur(purchasePrice)} />
           <Stat label="Overdrachtsbelasting" value={fmtEur(o.totalTransferTax)} />
           <Stat label="Aankoopkosten" value={fmtEur(o.totalAcquisitionCosts)} />

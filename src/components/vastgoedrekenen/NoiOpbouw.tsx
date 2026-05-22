@@ -38,11 +38,11 @@ export default function NoiOpbouw({ scenario, o }: { scenario: Scenario; o: Comp
             <Row label="= NOI" pct={o.noiMargin ?? undefined} eur={o.noi} bold />
           </tbody>
         </table>
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-          <div className="rounded border p-2"><p className="text-muted-foreground">Totale correctie</p><p className="font-mono-data">{o.totalCorrectionPct.toFixed(1)}%</p></div>
-          <div className="rounded border p-2"><p className="text-muted-foreground">NOI-marge</p><p className="font-mono-data">{o.noiMargin != null ? `${o.noiMargin.toFixed(1)}%` : '—'}</p></div>
-          <div className="rounded border p-2"><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{o.barTotalInvestment != null ? `${o.barTotalInvestment.toFixed(2)}%` : '—'}</p></div>
-          <div className="rounded border p-2"><p className="text-muted-foreground">NAR op TI</p><p className="font-mono-data">{o.narTotalInvestment != null ? `${o.narTotalInvestment.toFixed(2)}%` : '—'}</p></div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs min-w-0">
+          <div className="rounded border p-2 min-w-0"><p className="text-muted-foreground whitespace-normal break-words">Totale correctie</p><p className="font-mono-data break-words">{o.totalCorrectionPct.toFixed(1)}%</p></div>
+          <div className="rounded border p-2 min-w-0"><p className="text-muted-foreground whitespace-normal break-words">NOI-marge</p><p className="font-mono-data break-words">{o.noiMargin != null ? `${o.noiMargin.toFixed(1)}%` : '—'}</p></div>
+          <div className="rounded border p-2 min-w-0"><p className="text-muted-foreground whitespace-normal break-words">BAR op TI</p><p className="font-mono-data break-words">{o.barTotalInvestment != null ? `${o.barTotalInvestment.toFixed(2)}%` : '—'}</p></div>
+          <div className="rounded border p-2 min-w-0"><p className="text-muted-foreground whitespace-normal break-words">NAR op TI</p><p className="font-mono-data break-words">{o.narTotalInvestment != null ? `${o.narTotalInvestment.toFixed(2)}%` : '—'}</p></div>
         </div>
         {scenario.assumption_profile && scenario.assumption_profile !== 'handmatig' && (
           <p className="mt-3 text-xs text-muted-foreground">
