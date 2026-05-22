@@ -297,13 +297,14 @@ export default function BiedingenSection({
 function VoorwaardenSummary({ b, className = '' }: { b: Bieding; className?: string }) {
   const parts: string[] = [];
   if (b.financieringsvoorbehoud === 'ja') parts.push('Financiering: ja');
-  if (b.financieringsvoorbehoud === 'nee') parts.push('Financiering: nee');
+  if (b.financieringsvoorbehoud === 'geen') parts.push('Geen financ.voorb.');
   if (b.ddVoorbehoud === 'ja') parts.push('DD: ja');
-  if (b.ddVoorbehoud === 'nee') parts.push('DD: nee');
+  if (b.ddVoorbehoud === 'geen') parts.push('Geen DD-voorb.');
   if (b.gewensteLeveringTekst) parts.push(`Levering: ${b.gewensteLeveringTekst}`);
   else if (b.gewensteLevering) parts.push(`Levering: ${new Date(b.gewensteLevering).toLocaleDateString('nl-NL')}`);
-  if (b.kostenType === 'k_k') parts.push('k.k.');
-  if (b.kostenType === 'v_o_n') parts.push('v.o.n.');
+  if (b.kostenType === 'kk') parts.push('k.k.');
+  if (b.kostenType === 'von') parts.push('v.o.n.');
+
   if (parts.length === 0) return <span className={`text-muted-foreground ${className}`}>—</span>;
   return <span className={`text-muted-foreground line-clamp-2 ${className}`}>{parts.join(' · ')}</span>;
 }
