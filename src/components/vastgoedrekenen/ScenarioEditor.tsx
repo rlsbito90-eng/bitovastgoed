@@ -88,26 +88,62 @@ function isScenarioShallowEqual(a: Scenario, b: Scenario): boolean {
   return true;
 }
 
+function isTempCostId(id: string): boolean {
+  return id.startsWith('temp-cost-');
+}
+
+function normalizeCost(cost: ScenarioCost) {
+  return {
+    id: cost.id,
+    cost_category: cost.cost_category ?? '',
+    description: cost.description ?? null,
+    amount: Number(cost.amount ?? 0),
+    notes: cost.notes ?? null,
+    reliability_status: cost.reliability_status ?? null,
+    vat_applicable: cost.vat_applicable ?? null,
+  };
+}
+
+function areScenarioCostsEqual(a: ScenarioCost[], b: ScenarioCost[]): boolean {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(a.map(normalizeCost)) === JSON.stringify(b.map(normalizeCost));
+}
+
 export default function ScenarioEditor(props: Props) {
   const { scenario, taxSettings, objectType, objectArea, viewMode, onUpdate, onDelete } = props;
   const [s, setS] = useState<Scenario>(scenario);
+  const [draftCosts, setDraftCosts] = useState<ScenarioCost[]>([]);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Baseline = laatst opgeslagen / geladen scenario. Wordt gebruikt om te bepalen
   // of het formulier dirty is na een commit (zo wordt revert naar origineel ook gedetecteerd).
   const baselineRef = useRef<Scenario>(scenario);
+  const baselineCostsRef = useRef<ScenarioCost[]>([]);
+  const costDraftDirtyRef = useRef(false);
+  const deletedCostIdsRef = useRef<string[]>([]);
   const lastIdRef = useRef(scenario.id);
   useEffect(() => {
     if (lastIdRef.current !== scenario.id) {
       lastIdRef.current = scenario.id;
       baselineRef.current = scenario;
       setS(scenario);
+      baselineCostsRef.current = [];
+      costDraftDirtyRef.current = false;
+      deletedCostIdsRef.current = [];
+      setDraftCosts([]);
       setDirty(false);
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, refetch, upsertOutput } = useScenarioChildren(s.id);
+  const { components, costs, wwsUnits, loading: childrenLoading, refetch, upsertOutput } = useScenarioChildren(s.id);
+
+  useEffect(() => {
+    if (childrenLoading || costDraftDirtyRef.current) return;
+    baselineCostsRef.current = costs;
+    setDraftCosts(costs);
+    setDirty(!isScenarioShallowEqual(s, baselineRef.current));
+  }, [childrenLoading, costs, s]);
 
   const propertyType: PropertyAssumptionType = useMemo(
     () => mapToAssumptionType(props.objectRawType ?? null, objectType),
