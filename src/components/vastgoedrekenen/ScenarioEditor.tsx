@@ -57,13 +57,13 @@ function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: nu
   );
 }
 
-function TextInput({ value, onChange, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; placeholder?: string; className?: string }) {
+function TextInput({ value, onChange, onDirty, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; onDirty?: () => void; placeholder?: string; className?: string }) {
   return (
     <RawTextInput
       initialValue={value ?? ''}
       placeholder={placeholder}
       className={className}
-      onRawChange={() => setTimeout(() => undefined, 0)}
+      onRawChange={onDirty}
       onCommit={(raw) => onChange(raw || null)}
     />
   );
