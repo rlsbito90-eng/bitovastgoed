@@ -21,7 +21,7 @@ export const DEAL_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 export const RISK_BADGE: Record<string, { label: string; cls: string }> = {
-  laag: { label: 'Risico: laag', cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300' },
-  middel: { label: 'Risico: middel', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300' },
-  hoog: { label: 'Risico: hoog', cls: 'bg-destructive/10 text-destructive border-destructive/30' },
+  laag: { label: 'Laag uitvoeringsrisico', cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300' },
+  middel: { label: 'Gemiddeld uitvoeringsrisico', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300' },
+  hoog: { label: 'Hoog uitvoeringsrisico', cls: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
