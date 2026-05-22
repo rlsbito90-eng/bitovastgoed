@@ -558,14 +558,23 @@ export default function ObjectDetailPage() {
                 mode="single"
               />
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
                 <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
+                {object.aantalHuurders != null && (
+                  <Field label="Aantal huurders"><span className="tabular-nums">{object.aantalHuurders}</span></Field>
+                )}
                 {object.leegstandPct != null && (
                   <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
                 )}
+                {object.aanbiedingswijze && (
+                  <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>
+                )}
+                {object.beschikbaarVanaf && (
+                  <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
+                )}
                 <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar ?? '—'}</span></Field>
-                {object.energielabelV2 && (
-                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2}</span></Field>
+                {(object.energielabelV2 || object.energielabel) && (
+                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
                 )}
                 {object.onderhoudsstaatNiveau && (
                   <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
@@ -579,6 +588,7 @@ export default function ObjectDetailPage() {
                 {object.bron && <Field label="Bron">{object.bron}</Field>}
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
+
 
               {(object.oppervlakteVvo || object.oppervlakteBvo || object.oppervlakteGbo || object.perceelOppervlakte) && (
                 <div className="hairline pt-5">
