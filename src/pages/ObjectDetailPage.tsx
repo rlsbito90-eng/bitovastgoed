@@ -344,6 +344,23 @@ export default function ObjectDetailPage() {
   const huurMetrics = store.getHuurMetrics(object.id);
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
+  const objectTaken = store.getTakenByObject(object.id);
+  const kandidatenPipeline = (store as any).getPipelineVoorObject?.(object.id) ?? [];
+  const reedsGekoppeldRelaties = useMemo(
+    () => new Set<string>(kandidatenPipeline.map((k: any) => k.relatieId)),
+    [kandidatenPipeline],
+  );
+  const volgendeTaak = useMemo(() => {
+    const open = objectTaken
+      .filter(t => t.status === 'open')
+      .sort((a, b) => {
+        const av = taakIsVerlopen(a.deadline) ? 0 : 1;
+        const bv = taakIsVerlopen(b.deadline) ? 0 : 1;
+        if (av !== bv) return av - bv;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+    return open[0] ?? null;
+  }, [objectTaken]);
 
   const barEffect = object.brutoAanvangsrendement
     ?? (object.huurinkomsten && object.vraagprijs
