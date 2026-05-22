@@ -114,7 +114,7 @@ function ScenarioCardMobile({ row }: { row: RowData }) {
             <p className="font-semibold leading-snug break-words">{s.scenario_name}</p>
             <p className="text-xs text-muted-foreground">{VR_STRATEGY_LABELS[s.strategy_type] ?? s.strategy_type}</p>
           </div>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.dealScore}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.scoreLabel}</span>
         </div>
 
         <div className={`rounded-md border p-3 ${toneCls}`}>
@@ -150,6 +150,15 @@ function ScenarioCardMobile({ row }: { row: RowData }) {
             </div>
           </div>
         )}
+        <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1.5">
+          <p className="font-medium text-foreground">Score-uitleg</p>
+          <p className="text-muted-foreground">{o.scoreReason}</p>
+          {o.scoreAttentionPoints.length > 0 && (
+            <ul className="text-muted-foreground space-y-1">
+              {o.scoreAttentionPoints.slice(0, 3).map((p, i) => <li key={i}>• {p}</li>)}
+            </ul>
+          )}
+        </div>
         <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
       </CardContent>
     </Card>
@@ -346,7 +355,10 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                       <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</td>
                       <td className={`px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5 ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b bg-emerald-500/5">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</td>
-                      <td className="px-3 py-2 border-b"><span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.dealScore}</span></td>
+                      <td className="px-3 py-2 border-b">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.scoreLabel}</span>
+                        <p className="mt-1 text-[11px] leading-snug text-muted-foreground max-w-[220px]">{o.scoreReason}</p>
+                      </td>
                     </tr>
                   );
                 })}

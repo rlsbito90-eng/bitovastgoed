@@ -17,7 +17,7 @@ export const DEAL_BADGE: Record<string, { label: string; cls: string }> = {
   A: { label: 'A — zeer interessant', cls: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300' },
   B: { label: 'B — interessant', cls: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300' },
   C: { label: 'C — alleen bij korting', cls: 'bg-orange-500/15 text-orange-700 border-orange-500/30 dark:text-orange-300' },
-  reject: { label: 'Reject', cls: 'bg-destructive/15 text-destructive border-destructive/30' },
+  reject: { label: 'Niet haalbaar', cls: 'bg-destructive/15 text-destructive border-destructive/30' },
 };
 
 export const RISK_BADGE: Record<string, { label: string; cls: string }> = {

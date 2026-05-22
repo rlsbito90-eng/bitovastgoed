@@ -98,14 +98,14 @@ export function computeSale(s: Scenario, totalInvestment: number, purchasePrice:
   const gross = computeGrossSaleProceeds(s);
   const costs = computeSaleCosts(gross, s);
   const net = gross != null ? gross - (costs ?? 0) : null;
+  const manualExit = n(rec.sale_exit_value_manual);
+  const exitValue = manualExit > 0 ? manualExit : (net ?? null);
+  const marginBasis = net ?? exitValue;
   const grossMargin = gross != null && totalInvestment > 0 ? gross - totalInvestment : null;
-  const netMargin = net != null && totalInvestment > 0 ? net - totalInvestment : null;
+  const netMargin = marginBasis != null && totalInvestment > 0 ? marginBasis - totalInvestment : null;
   const roi = netMargin != null && totalInvestment > 0
     ? Number(((netMargin / totalInvestment) * 100).toFixed(2))
     : null;
-
-  const manualExit = n(rec.sale_exit_value_manual);
-  const exitValue = manualExit > 0 ? manualExit : (net ?? null);
 
   const saleVsPurchase = gross != null && purchasePrice > 0 ? gross - purchasePrice : null;
   const saleVsTotalInvestment = net != null && totalInvestment > 0 ? net - totalInvestment : null;
@@ -116,7 +116,7 @@ export function computeSale(s: Scenario, totalInvestment: number, purchasePrice:
   // gewenste minimum opbrengst-target.
   let exitBasedMaxBid: number | null = null;
   let binding: SaleComputation['exitBidBindingTarget'] = null;
-  if (net != null && net > 0) {
+  if (marginBasis != null && marginBasis > 0) {
     const targetMarginEur = n(rec.sale_target_margin_amount);
     const targetMarginPct = n(rec.sale_target_margin_percentage);
     const targetRoiPct = n(rec.sale_target_roi_percentage);
@@ -125,17 +125,17 @@ export function computeSale(s: Scenario, totalInvestment: number, purchasePrice:
     // Verzamel candidaten voor max totale investering = net - winst
     const candidates: Array<{ key: NonNullable<SaleComputation['exitBidBindingTarget']>; maxTotalInvestment: number }> = [];
     if (targetMarginEur > 0) {
-      candidates.push({ key: 'marge_euro', maxTotalInvestment: net - targetMarginEur });
+      candidates.push({ key: 'marge_euro', maxTotalInvestment: marginBasis - targetMarginEur });
     }
     if (targetMarginPct > 0) {
       // marge% van netto opbrengst
-      candidates.push({ key: 'marge_pct', maxTotalInvestment: net * (1 - targetMarginPct / 100) });
+      candidates.push({ key: 'marge_pct', maxTotalInvestment: marginBasis * (1 - targetMarginPct / 100) });
     }
     if (targetRoiPct > 0) {
       // ROI = marge / TI → TI = net / (1 + ROI%)
-      candidates.push({ key: 'roi', maxTotalInvestment: net / (1 + targetRoiPct / 100) });
+      candidates.push({ key: 'roi', maxTotalInvestment: marginBasis / (1 + targetRoiPct / 100) });
     }
-    if (targetExit > 0 && targetExit < net) {
+    if (targetExit > 0 && targetExit < marginBasis) {
       // exitwaarde-target = max TI
       candidates.push({ key: 'target_exit', maxTotalInvestment: targetExit });
     }
