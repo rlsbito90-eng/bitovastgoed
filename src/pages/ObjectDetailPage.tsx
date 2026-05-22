@@ -1309,7 +1309,7 @@ export default function ObjectDetailPage() {
         {/* RIGHT — sticky deal cockpit */}
         <aside className="lg:sticky lg:top-[88px] space-y-3 min-w-0">
           {/* Deal status cockpit */}
-          <div className="section-card p-5 space-y-4">
+          <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                 Deal cockpit
