@@ -1175,56 +1175,108 @@ export default function ObjectDetailPage() {
             )}
           </div>
 
-          {/* Volgende actie / alerts */}
+          {/* Volgende actie — uit Taken-module */}
           <div className="section-card p-5 space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-              Volgende actie
-            </p>
-            <div className="flex items-start gap-2.5">
-              <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                <Calendar className="h-3.5 w-3.5 text-accent" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-foreground">
-                  {matches.length > 0
-                    ? `Teaser sturen naar ${matches.length} kandidaat${matches.length > 1 ? 'en' : ''}`
-                    : 'Object onder de aandacht brengen'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Vandaag</p>
-              </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                Volgende actie
+              </p>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">uit Taken</span>
             </div>
-            {object.interneOpmerkingen && (
-              <div className="hairline pt-3 flex items-start gap-2">
-                <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground line-clamp-3">{object.interneOpmerkingen}</p>
+            {volgendeTaak ? (
+              <button
+                type="button"
+                onClick={() => { setEditTaak(volgendeTaak); setTaakDialogOpen(true); }}
+                className="w-full text-left flex items-start gap-2.5 group"
+              >
+                <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
+                  <Calendar className="h-3.5 w-3.5 text-accent" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground group-hover:text-accent transition-colors line-clamp-2">
+                    {volgendeTaak.titel}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {formatDate(volgendeTaak.deadline)}
+                      {volgendeTaak.deadlineTijd ? ` · ${volgendeTaak.deadlineTijd}` : ''}
+                    </p>
+                    {taakIsVerlopen(volgendeTaak.deadline) && (
+                      <GeenActieBadge variant="verlopen" date={volgendeTaak.deadline} />
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent shrink-0" />
+              </button>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-7 w-7 rounded-md bg-muted border border-border flex items-center justify-center shrink-0">
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Geen volgende actie gepland.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setEditTaak(null); setTaakDialogOpen(true); }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition"
+                >
+                  <Calendar className="h-3.5 w-3.5" /> Taak aanmaken
+                </button>
               </div>
+            )}
+            {objectTaken.filter(t => t.status === 'open').length > 1 && (
+              <p className="text-[11px] text-muted-foreground hairline pt-2">
+                +{objectTaken.filter(t => t.status === 'open').length - 1} open ta{objectTaken.filter(t => t.status === 'open').length - 1 === 1 ? 'ak' : 'ken'}
+              </p>
             )}
           </div>
 
           {/* Quick actions */}
-          <div className="section-card p-5 space-y-2">
+          <div className="section-card p-5 space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
               Quick actions
             </p>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => setKandidaatDialogOpen(true)}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Users className="h-3.5 w-3.5 text-muted-foreground" /> Kandidaat toevoegen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => { scrollToSection('documenten'); toast.info('Aanbiedingsteksten staan onderaan documenten/dossier.'); }}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Send className="h-3.5 w-3.5 text-muted-foreground" /> Teaser sturen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => setNotitieDialogOpen(true)}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <StickyNote className="h-3.5 w-3.5 text-muted-foreground" /> Notitie toevoegen
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <button className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md">
+            <button
+              type="button"
+              onClick={() => { scrollToSection('documenten'); toast.info('Document-upload volgt in een volgende update. Open Object bewerken om documenten te beheren.'); }}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
+            >
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            <a
-              href="#vastgoedrekenen"
-              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground rounded-md"
+            <button
+              type="button"
+              onClick={() => scrollToSection('vastgoedrekenen')}
+              className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
               <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Underwriting openen
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-            </a>
+            </button>
           </div>
         </aside>
       </div>
