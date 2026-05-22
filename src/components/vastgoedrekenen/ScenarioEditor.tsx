@@ -80,19 +80,28 @@ function MobileFieldGroup({ label, children, helper, className }: { label: React
   );
 }
 
+function isScenarioShallowEqual(a: Scenario, b: Scenario): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof Scenario>;
+  for (const k of keys) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
+
 export default function ScenarioEditor(props: Props) {
   const { scenario, taxSettings, objectType, objectArea, viewMode, onUpdate, onDelete } = props;
   const [s, setS] = useState<Scenario>(scenario);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
-  // Reset alleen als we daadwerkelijk naar een ander scenario kijken,
-  // niet bij elke nieuwe object-reference van de parent. Anders verspringt typen
-  // en wordt de eerste wijziging niet als dirty herkend.
+  // Baseline = laatst opgeslagen / geladen scenario. Wordt gebruikt om te bepalen
+  // of het formulier dirty is na een commit (zo wordt revert naar origineel ook gedetecteerd).
+  const baselineRef = useRef<Scenario>(scenario);
   const lastIdRef = useRef(scenario.id);
   useEffect(() => {
     if (lastIdRef.current !== scenario.id) {
       lastIdRef.current = scenario.id;
+      baselineRef.current = scenario;
       setS(scenario);
       setDirty(false);
     }
@@ -129,9 +138,21 @@ export default function ScenarioEditor(props: Props) {
     energyLabel: props.objectEnergyLabel,
   }, outputs.totalCorrectionPct), [s, components, costs, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, outputs.totalCorrectionPct]);
 
+  // Patch = gecommitte wijziging (na blur / select / switch). Dirty wordt afgeleid
+  // van een vergelijking met de baseline, zodat reverten naar origineel dirty wist.
   const patch = (p: Partial<Scenario>) => {
-    setS((prev) => ({ ...prev, ...p }));
-    setDirty(true);
+    setS((prev) => {
+      const next = { ...prev, ...p } as Scenario;
+      setDirty(!isScenarioShallowEqual(next, baselineRef.current));
+      return next;
+    });
+  };
+
+  // Raw input change (per toetsaanslag): markeer direct als dirty, zodat de
+  // Opslaan-knop bij de eerste wijziging actief wordt. Bij blur loopt dezelfde
+  // wijziging door patch() en wordt dirty opnieuw correct berekend.
+  const markDirtyFromRaw = () => {
+    setDirty((prev) => (prev ? prev : true));
   };
 
   // Aannameprofiel default zetten als er nog niets is — niet markeren als dirty.
@@ -139,6 +160,7 @@ export default function ScenarioEditor(props: Props) {
     if (!s.assumption_profile) {
       const def = defaultProfileFor(propertyType, s.strategy_type);
       setS((prev) => ({ ...prev, assumption_profile: def }));
+      baselineRef.current = { ...baselineRef.current, assumption_profile: def };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyType]);
