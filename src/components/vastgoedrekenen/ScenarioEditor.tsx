@@ -152,7 +152,7 @@ export default function ScenarioEditor(props: Props) {
 
   const outputs = useMemo(() => computeScenario({
     scenario: s,
-    components, costs, wwsUnits,
+    components, draftCosts, wwsUnits,
     taxSettings,
     objectType,
     objectArea,
@@ -160,26 +160,26 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, costs, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  }), [s, components, draftCosts, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
-    scenario: s, components, costs, wwsUnits, objectType, propertyType,
+    scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel,
-  }), [s, components, costs, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar]);
+  }), [s, components, draftCosts, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar]);
 
   const aannameWaarschuwingen = useMemo(() => buildAannameWaarschuwingen({
-    scenario: s, components, costs, wwsUnits, objectType, propertyType,
+    scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel,
-  }, outputs.totalCorrectionPct), [s, components, costs, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, outputs.totalCorrectionPct]);
+  }, outputs.totalCorrectionPct), [s, components, draftCosts, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, outputs.totalCorrectionPct]);
 
   // Patch = gecommitte wijziging (na blur / select / switch). Dirty wordt afgeleid
   // van een vergelijking met de baseline, zodat reverten naar origineel dirty wist.
   const patch = (p: Partial<Scenario>) => {
     setS((prev) => {
       const next = { ...prev, ...p } as Scenario;
-      setDirty(!isScenarioShallowEqual(next, baselineRef.current));
+      setDirty(!isScenarioShallowEqual(next, baselineRef.current) || !areScenarioCostsEqual(draftCosts, baselineCostsRef.current));
       return next;
     });
   };
