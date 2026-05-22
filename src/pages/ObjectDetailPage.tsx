@@ -220,8 +220,7 @@ function SectionNav({ active }: { active: string }) {
   return (
     <nav
       ref={navRef}
-      className="sticky z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pb-2 bg-background/85 backdrop-blur-md"
-      style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
+      className="sticky z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pb-2 bg-background/85 backdrop-blur-md [top:var(--mobile-header-height,3.5rem)] lg:[top:var(--desktop-header-height,4rem)]"
     >
       <div
         ref={scrollerRef}
