@@ -229,6 +229,20 @@ export default function ScenarioVergelijking({ scenarios, ...shared }: { scenari
                 <p className="text-sm font-semibold mt-1 leading-snug">{best.byRisk.scenario.scenario_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">Risico: {best.byRisk.outputs.riskScore}</p>
               </div>
+              {best.byMargin && (
+                <div className="rounded-md border bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> Hoogste nettomarge</p>
+                  <p className="text-sm font-semibold mt-1 leading-snug">{best.byMargin.scenario.scenario_name}</p>
+                  <p className="text-xs font-mono-data text-muted-foreground">{best.byMargin.outputs.netMargin != null ? fmtEur(best.byMargin.outputs.netMargin) : '—'}</p>
+                </div>
+              )}
+              {best.byRoi && (
+                <div className="rounded-md border bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Hoogste ROI</p>
+                  <p className="text-sm font-semibold mt-1 leading-snug">{best.byRoi.scenario.scenario_name}</p>
+                  <p className="text-xs font-mono-data text-muted-foreground">{best.byRoi.outputs.roi != null ? `${best.byRoi.outputs.roi.toFixed(1)}%` : '—'}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
