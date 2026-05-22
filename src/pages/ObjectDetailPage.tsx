@@ -160,7 +160,7 @@ const SECTIONS = [
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
-  { id: 'vastgoedrekenen', label: 'Underwriting', icon: Calculator },
+  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'documenten', label: 'Documenten', icon: FolderOpen },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
