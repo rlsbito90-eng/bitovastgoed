@@ -256,6 +256,24 @@ export default function ScenarioEditor(props: Props) {
       cost_structure: s.cost_structure, incentive_reserve: s.incentive_reserve,
       mjop_present: s.mjop_present, contract_checked: s.contract_checked, service_costs_checked: s.service_costs_checked,
       rent_source: s.rent_source,
+      // Verkoop / exit (nullable kolommen)
+      ...((s as Record<string, unknown>) && {
+        sale_strategy: (s as Record<string, unknown>).sale_strategy ?? null,
+        sale_price_total: (s as Record<string, unknown>).sale_price_total ?? null,
+        sale_price_per_m2: (s as Record<string, unknown>).sale_price_per_m2 ?? null,
+        sale_price_per_unit: (s as Record<string, unknown>).sale_price_per_unit ?? null,
+        sale_units_count: (s as Record<string, unknown>).sale_units_count ?? null,
+        sale_sellable_m2: (s as Record<string, unknown>).sale_sellable_m2 ?? null,
+        sale_costs_percentage: (s as Record<string, unknown>).sale_costs_percentage ?? null,
+        sale_other_costs: (s as Record<string, unknown>).sale_other_costs ?? null,
+        sale_exit_value_manual: (s as Record<string, unknown>).sale_exit_value_manual ?? null,
+        sale_target_margin_amount: (s as Record<string, unknown>).sale_target_margin_amount ?? null,
+        sale_target_margin_percentage: (s as Record<string, unknown>).sale_target_margin_percentage ?? null,
+        sale_target_roi_percentage: (s as Record<string, unknown>).sale_target_roi_percentage ?? null,
+        sale_target_exit_value: (s as Record<string, unknown>).sale_target_exit_value ?? null,
+        sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
+        bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
+      }) as Partial<Scenario>,
     });
     await upsertOutput({
       total_transfer_tax: outputs.totalTransferTax,
