@@ -157,7 +157,8 @@ function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: s
   );
 }
 
-export default function ScenarioVergelijking({ scenarios, ...shared }: { scenarios: Scenario[] } & SharedProps) {
+export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...shared }: { scenarios: Scenario[]; onSelectScenario?: (id: string) => void } & SharedProps) {
+  const [showFullTable, setShowFullTable] = useState(false);
   const [map, setMap] = useState<Record<string, RowData>>({});
 
   const handleReady = useCallback((id: string, data: RowData | null) => {
