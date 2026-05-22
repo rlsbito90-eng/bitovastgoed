@@ -672,13 +672,29 @@ export default function ScenarioEditor(props: Props) {
                         </Select>
                       </MobileFieldGroup>
 
-                      <MobileFieldGroup label="Verkoopprijs totaal (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_total as number | null} onChange={(v) => setSale('sale_price_total', v)} placeholder="bijv. 2200000" suffix="€" />
+                      <MobileFieldGroup label="Verkoopprijs totaal (€)" helper={(sr.sale_price_source ?? null) === 'total' ? 'Handmatig totaal' : ((sr.sale_price_source ?? null) === 'per_m2' ? 'Automatisch berekend uit €/m² × m²' : undefined)}>
+                        <NumInput
+                          onRawChange={markDirtyFromRaw}
+                          value={(sr.sale_price_source as string | null) === 'per_m2' && outputs.grossSaleProceeds != null
+                            ? outputs.grossSaleProceeds
+                            : (sr.sale_price_total as number | null)}
+                          onChange={(v) => patch({ sale_price_total: v, sale_price_source: v != null && v > 0 ? 'total' : null } as unknown as Partial<Scenario>)}
+                          placeholder="bijv. 2200000"
+                          suffix="€"
+                        />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Verkoopprijs per m² (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_price_per_m2 as number | null} onChange={(v) => setSale('sale_price_per_m2', v)} placeholder="bijv. 5500" suffix="€" />
+                      <MobileFieldGroup label="Verkoopprijs per m² (€)" helper={(sr.sale_price_source ?? null) === 'per_m2' ? 'Handmatig €/m²' : (outputs.salePricePerM2 != null ? 'Automatisch berekend' : undefined)}>
+                        <NumInput
+                          onRawChange={markDirtyFromRaw}
+                          value={(sr.sale_price_source as string | null) === 'per_m2'
+                            ? (sr.sale_price_per_m2 as number | null)
+                            : (outputs.salePricePerM2 ?? (sr.sale_price_per_m2 as number | null))}
+                          onChange={(v) => patch({ sale_price_per_m2: v, sale_price_source: v != null && v > 0 ? 'per_m2' : null } as unknown as Partial<Scenario>)}
+                          placeholder="bijv. 5500"
+                          suffix="€"
+                        />
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="Verkoopbare m²">
+                      <MobileFieldGroup label="Verkoopbare m²" helper={outputs.salePricePerM2 == null && (sr.sale_sellable_m2 == null || Number(sr.sale_sellable_m2) <= 0) ? 'Vul m² in voor €/m²-berekening' : undefined}>
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_sellable_m2 as number | null} onChange={(v) => setSale('sale_sellable_m2', v)} suffix="m²" />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Verkoopprijs per unit (€)">
@@ -697,6 +713,7 @@ export default function ScenarioEditor(props: Props) {
                       <MobileFieldGroup label="Overige verkoopkosten (€)">
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
                       </MobileFieldGroup>
+
                     </div>
 
                     <div className="border-t pt-4">
