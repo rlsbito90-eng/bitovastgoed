@@ -8,7 +8,7 @@ import {
 } from './huur';
 import { computeAcquisitionCosts, computeTotalCosts, computeTotalInvestment, pricePerM2 } from './investering';
 import { computeBidAdvice } from './bieding';
-import { computeInputReliability, computeRiskScore, computeComplexity, computeDealScore } from './scores';
+import { computeInputReliability, computeRiskScore, computeComplexity, computeDealScore, computeSaleScenarioScore, determineAssessmentType } from './scores';
 import { buildConclusion, buildNextStep } from './conclusie';
 import { getAssumptionSet, type PropertyAssumptionType } from './profiles';
 import { computeSale } from './verkoop';
@@ -31,6 +31,10 @@ export type ComputeContext = {
 function sumComponentMonthly(components: Component[], key: 'current_monthly_rent' | 'market_monthly_rent'): number {
   return components.reduce((s, c) => s + Number(c[key] ?? 0), 0);
 }
+
+const eur = (n: number | null | undefined) => n == null
+  ? '—'
+  : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
 export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const { scenario, components, costs, wwsUnits, taxSettings, objectType, objectArea } = ctx;
@@ -147,21 +151,64 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const inputReliability = computeInputReliability(scoreInput);
   const risk = computeRiskScore(scoreInput);
   const complexity = computeComplexity(scoreInput);
-  const dealScore = computeDealScore(scoreInput, risk.level);
+  const assessmentType = determineAssessmentType(scenario);
+  const baseDealScore = computeDealScore(scoreInput, risk.level);
+  const rec = scenario as Record<string, unknown>;
+  const saleScore = assessmentType === 'verkoop'
+    ? computeSaleScenarioScore({
+      netSaleProceeds: sale.netSaleProceeds,
+      exitValue: sale.exitValue,
+      totalInvestment,
+      netMargin: sale.netMargin,
+      roi: sale.roi,
+      maximumBid: effectiveMaxBid,
+      askingPrice: asking,
+      purchasePrice: purchase,
+      targetRoi: Number(rec.sale_target_roi_percentage ?? 0),
+      targetMarginAmount: Number(rec.sale_target_margin_amount ?? 0),
+      targetMarginPercentage: Number(rec.sale_target_margin_percentage ?? 0),
+      targetExitValue: Number(rec.sale_target_exit_value ?? 0),
+      saleHasInput: sale.hasAnySaleInput,
+      exitIsManual: Number(rec.sale_exit_value_manual ?? 0) > 0,
+      hasIndicativeCosts: costs.some((c) => c.reliability_status !== 'gecontroleerd'),
+    })
+    : null;
+  const dealScore = saleScore?.dealScore ?? baseDealScore;
+  const scoreLabel = saleScore?.label ?? (dealScore === 'A' ? 'Kansrijk' : dealScore === 'B' ? 'Acceptabel' : dealScore === 'C' ? 'Onzeker' : 'Niet haalbaar');
+  const scoreReason = saleScore?.reason ?? (dealScore === 'reject'
+    ? 'De huur-/rendementsbasis is onvoldoende voor een exploitatiecase.'
+    : 'Score gebaseerd op huur, NOI, BAR en rendement op totale investering.');
+  const scorePositivePoints = saleScore?.positivePoints ?? [
+    `Gecorrigeerde jaarhuur: ${eur(correctedAnnual)}`,
+    `NOI: ${eur(noi)}`,
+    `BAR op totale investering: ${barTotal != null ? `${barTotal.toFixed(2)}%` : 'n.v.t.'}`,
+  ];
+  const scoreAttentionPoints = saleScore?.attentionPoints ?? [
+    ...(dealScore === 'reject' ? ['BAR/huurinkomsten zijn onvoldoende voor de gewenste rendementseis.'] : []),
+    ...risk.flags,
+  ];
 
   // --- Conclusie ---
   const conclusion = buildConclusion({
     dealScore,
     barTotalInvestment: barTotal,
-    maximumBid: bid.maxBid,
+    maximumBid: effectiveMaxBid,
     differenceWithAskingPrice: differenceWithAsking,
     requiredDiscount,
     inputReliability,
     riskScore: risk.level,
     complexityScore: complexity,
     askingPrice: asking,
+    assessmentType,
+    scoreLabel,
+    netSaleProceeds: sale.netSaleProceeds,
+    netMargin: sale.netMargin,
+    roi: sale.roi,
+    exitValue: sale.exitValue,
   });
-  const nextStep = buildNextStep({
+  const nextStep = assessmentType === 'verkoop'
+    ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
+    : buildNextStep({
     inputReliability,
     missingWoz: !ctx.objectWoz,
     missingLabel: !ctx.objectEnergyLabel,
@@ -206,6 +253,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     riskScore: risk.level,
     complexityScore: complexity,
     inputReliability,
+    assessmentType,
+    scoreLabel,
+    scoreReason,
+    scorePositivePoints,
+    scoreAttentionPoints,
     conclusion,
     recommendedNextStep: nextStep,
     warnings: risk.flags,
