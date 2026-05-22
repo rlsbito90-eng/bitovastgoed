@@ -59,5 +59,20 @@ export type ComputedOutputs = {
   conclusion: string;
   recommendedNextStep: string;
   warnings: string[];
+  // --- Verkoop / exit ---
+  saleHasInput: boolean;
+  grossSaleProceeds: number | null;
+  saleCostsTotal: number | null;
+  netSaleProceeds: number | null;
+  grossMargin: number | null;
+  netMargin: number | null;
+  roi: number | null;
+  exitValue: number | null;
+  saleVsPurchase: number | null;
+  saleVsTotalInvestment: number | null;
+  exitBasedMaxBid: number | null;
+  exitBidBindingTarget: 'marge_euro' | 'marge_pct' | 'roi' | 'target_exit' | null;
+  /** Welke basis is gebruikt voor maximumBid: huur (BAR) of verkoop (exit). */
+  bidBasisUsed: 'huur' | 'verkoop';
 };
 
