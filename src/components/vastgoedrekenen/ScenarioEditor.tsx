@@ -229,7 +229,8 @@ export default function ScenarioEditor(props: Props) {
       }
     }
     for (const cost of draftCosts) {
-      const payload = {
+      const rec = cost as unknown as Record<string, unknown>;
+      const payload: Record<string, unknown> = {
         scenario_id: s.id,
         cost_category: cost.cost_category || 'Kostenpost',
         description: cost.description,
@@ -237,6 +238,9 @@ export default function ScenarioEditor(props: Props) {
         notes: cost.notes,
         reliability_status: cost.reliability_status,
         vat_applicable: cost.vat_applicable,
+        calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
+        amount_per_m2: rec.amount_per_m2 ?? null,
+        m2_basis: rec.m2_basis ?? null,
       };
       if (isTempCostId(cost.id)) {
         const { data, error } = await supabase.from('scenario_costs').insert(payload).select('*').single();
@@ -248,6 +252,7 @@ export default function ScenarioEditor(props: Props) {
         savedCosts.push(cost);
       }
     }
+
     await onUpdate(s.id, {
       scenario_name: s.scenario_name, description: s.description, status: s.status, strategy_type: s.strategy_type,
       asking_price: s.asking_price, purchase_price: s.purchase_price,
@@ -279,7 +284,9 @@ export default function ScenarioEditor(props: Props) {
         sale_target_exit_value: (s as Record<string, unknown>).sale_target_exit_value ?? null,
         sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
         bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
+        sale_price_source: (s as Record<string, unknown>).sale_price_source ?? null,
       }) as Partial<Scenario>,
+
     });
     await upsertOutput({
       total_transfer_tax: outputs.totalTransferTax,
