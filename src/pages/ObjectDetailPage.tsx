@@ -389,26 +389,70 @@ export default function ObjectDetailPage() {
     return () => { cancelled = true; };
   }, [fotos.map(f => f.storagePath).join('|')]);
 
-  // Scroll-spy
+  // Scroll-spy: kies de sectie wiens top het dichtst onder de sticky sectiebar ligt.
+  // Wanneer near bottom: forceer laatste zichtbare sectie. Respecteert scrollLockRef.
   useEffect(() => {
-    const observers: IntersectionObserver[] = [];
     const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
     const sectionsToObserve = isDesktop ? SECTIONS : [...SECTIONS, ...MOBILE_ONLY_SECTIONS];
-    sectionsToObserve.forEach(s => {
-      const el = document.getElementById(s.id);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(e => {
-            if (e.isIntersecting) setActiveSection(s.id);
-          });
-        },
-        { rootMargin: '-30% 0px -60% 0px', threshold: 0 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-    return () => observers.forEach(o => o.disconnect());
+
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return window;
+    };
+
+    const compute = () => {
+      if (Date.now() < scrollLockRef.current) return;
+      const subNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
+      const subNavBottom = subNav?.getBoundingClientRect().bottom ?? 60;
+      const offsetLine = subNavBottom + 16;
+
+      // Detect near-bottom of scroll container → activate last section
+      const firstEl = document.getElementById(sectionsToObserve[0].id);
+      const parent = firstEl ? getScrollParent(firstEl) : window;
+      const nearBottom = parent === window
+        ? window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24
+        : (() => {
+            const p = parent as HTMLElement;
+            return p.scrollTop + p.clientHeight >= p.scrollHeight - 24;
+          })();
+
+      if (nearBottom) {
+        // Pak de laatste sectie die in de DOM aanwezig is
+        for (let i = sectionsToObserve.length - 1; i >= 0; i--) {
+          if (document.getElementById(sectionsToObserve[i].id)) {
+            setActiveSection(sectionsToObserve[i].id);
+            return;
+          }
+        }
+      }
+
+      let best: { id: string; dist: number } | null = null;
+      sectionsToObserve.forEach(s => {
+        const el = document.getElementById(s.id);
+        if (!el) return;
+        const top = el.getBoundingClientRect().top;
+        // Voorkeur voor secties wiens top net boven of bij offsetLine zit
+        const dist = top <= offsetLine ? offsetLine - top : (top - offsetLine) * 1.6;
+        if (!best || dist < best.dist) best = { id: s.id, dist };
+      });
+      if (best) setActiveSection(best.id);
+    };
+
+    const firstEl = document.getElementById(sectionsToObserve[0]?.id);
+    const parent = firstEl ? getScrollParent(firstEl) : window;
+    const target: HTMLElement | Window = parent;
+    target.addEventListener('scroll', compute, { passive: true });
+    window.addEventListener('resize', compute);
+    compute();
+    return () => {
+      target.removeEventListener('scroll', compute);
+      window.removeEventListener('resize', compute);
+    };
   }, [object?.id]);
 
   if (!object) {
