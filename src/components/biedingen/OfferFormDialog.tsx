@@ -71,6 +71,7 @@ const emptyForm = (): FormState => ({
   geldigTot: '',
   status: 'ontvangen',
   offerType: 'indicatief',
+  richting: 'van_koper',
   financieringsvoorbehoud: 'onbekend',
   ddVoorbehoud: 'onbekend',
   gewensteLevering: '',
