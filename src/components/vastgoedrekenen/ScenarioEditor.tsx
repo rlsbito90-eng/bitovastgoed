@@ -486,15 +486,16 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Componenten */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle className="text-base">Componenten / units ({components.length})</CardTitle>
             <p className="text-xs text-muted-foreground mt-1 max-w-xl">
               Gebruik componenten wanneer een object uit meerdere delen bestaat (woningen, winkel, kantoor, bedrijfsunits, kelder, parkeerplaatsen, bergingen). Componenten werken door in huur, WWS, OVB per component, uitpondanalyse en prijs per m².
             </p>
           </div>
-          <Button size="sm" variant="outline" onClick={addComponent}><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
+          <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
           {components.map((c) => (
