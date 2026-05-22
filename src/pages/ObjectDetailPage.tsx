@@ -843,6 +843,17 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
+          {/* ============ 5. BIEDINGEN ============ */}
+          <SectionAnchor id="biedingen" eyebrow="05 — Negotiations" title="Biedingen">
+            <BiedingenSection
+              scope={{ objectId: object.id }}
+              vraagprijs={object.vraagprijs ?? null}
+              defaults={{ objectId: object.id }}
+              toonObject={false}
+            />
+          </SectionAnchor>
+
+
           {/* ============ 5. DOCUMENTEN ============ */}
           <SectionAnchor
             id="documenten"
