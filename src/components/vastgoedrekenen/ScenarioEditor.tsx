@@ -259,36 +259,37 @@ export default function ScenarioEditor(props: Props) {
       {/* Header + opslagstatus */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <Input className="font-semibold text-base" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Input className="font-semibold text-base w-full" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto">
               <Select value={s.strategy_type} onValueChange={(v) => patch({ strategy_type: v as Scenario['strategy_type'] })}>
-                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full lg:w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
               <Select value={s.status} onValueChange={(v) => patch({ status: v as Scenario['status'] })}>
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full lg:w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
-              <Button variant="default" onClick={save} disabled={!dirty}>
+              <Button variant="default" onClick={save} disabled={!dirty} className="w-full lg:w-auto">
                 <Save className="h-4 w-4 mr-1" />Opslaan
               </Button>
-              <Button variant="outline" size="icon" onClick={() => onDelete(s.id)}><Trash2 className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon" onClick={() => onDelete(s.id)} className="justify-self-end"><Trash2 className="h-4 w-4" /></Button>
             </div>
           </div>
-          <div className="flex items-center gap-3 mt-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
             {dirty ? (
               <span className="text-amber-700 dark:text-amber-300">● Wijzigingen niet opgeslagen</span>
             ) : (
               <span className="text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Opgeslagen</span>
             )}
             {lastSavedAt && <span className="text-muted-foreground">Laatst opgeslagen: {lastSavedAt.toLocaleTimeString('nl-NL')}</span>}
-            <span className="text-muted-foreground">Berekeningen live bijgewerkt</span>
+            <span className="text-muted-foreground hidden sm:inline">Berekeningen live bijgewerkt</span>
           </div>
         </CardHeader>
+
       </Card>
 
       {/* Rekenbasis */}
@@ -485,20 +486,21 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Componenten */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle className="text-base">Componenten / units ({components.length})</CardTitle>
             <p className="text-xs text-muted-foreground mt-1 max-w-xl">
               Gebruik componenten wanneer een object uit meerdere delen bestaat (woningen, winkel, kantoor, bedrijfsunits, kelder, parkeerplaatsen, bergingen). Componenten werken door in huur, WWS, OVB per component, uitpondanalyse en prijs per m².
             </p>
           </div>
-          <Button size="sm" variant="outline" onClick={addComponent}><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
+          <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
           {components.map((c) => (
             <div key={c.id} className="border rounded-md p-2 space-y-2">
-              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end">
                 <div className="col-span-2"><Label className="text-xs">Naam</Label><Input className="h-8" value={c.component_name} onChange={(e) => updateComponent(c.id, { component_name: e.target.value })} /></div>
                 <div>
                   <Label className="text-xs">Type</Label>
@@ -513,7 +515,7 @@ export default function ScenarioEditor(props: Props) {
                 <div className="flex items-end justify-end"><Button size="icon" variant="ghost" onClick={() => deleteComponent(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
               </div>
               {ovbMode === 'per_component' && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end border-t pt-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end border-t pt-2">
                   <div><Label className="text-xs">Toegerekende waarde (€)</Label><Input className="h-8" type="number" value={c.allocated_component_value ?? ''} onChange={(e) => updateComponent(c.id, { allocated_component_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
                   <div>
                     <Label className="text-xs">OVB-classificatie</Label>
@@ -543,19 +545,20 @@ export default function ScenarioEditor(props: Props) {
 
       {/* WWS Units */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">WWS / huursegmentanalyse ({wwsUnits.length})</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
-              <Button size="sm" variant="outline" onClick={createWwsFromComponents}>Maak WWS-units uit wooncomponenten</Button>
+              <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto whitespace-normal sm:whitespace-nowrap text-left sm:text-center h-auto sm:h-9 py-2">Maak WWS-units uit wooncomponenten</Button>
             )}
-            <Button size="sm" variant="outline" onClick={addWwsUnit}><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
+            <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
           {wwsUnits.map((u) => (
-            <div key={u.id} className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-end border rounded-md p-2">
+            <div key={u.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end border rounded-md p-2">
               <div><Label className="text-xs">Naam</Label><Input className="h-8" value={u.unit_name} onChange={(e) => updateWwsUnit(u.id, { unit_name: e.target.value })} /></div>
               <div><Label className="text-xs">Woon m²</Label><Input className="h-8" type="number" value={u.living_area_m2 ?? ''} onChange={(e) => updateWwsUnit(u.id, { living_area_m2: e.target.value === '' ? null : Number(e.target.value) })} /></div>
               <div><Label className="text-xs">WOZ (€)</Label><Input className="h-8" type="number" value={u.woz_value ?? ''} onChange={(e) => updateWwsUnit(u.id, { woz_value: e.target.value === '' ? null : Number(e.target.value) })} /></div>
@@ -579,18 +582,21 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Kosten */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Onvoorzien (%)</Label>
-            <Input className="h-8 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
-            <Button size="sm" variant="outline" onClick={addCost}><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Onvoorzien (%)</Label>
+              <Input className="h-9 w-20" type="number" value={s.unforeseen_percentage ?? ''} onChange={(e) => patch({ unforeseen_percentage: e.target.value === '' ? null : Number(e.target.value) })} />
+            </div>
+            <Button size="sm" variant="outline" onClick={addCost} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Kostenpost</Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-2">
           {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
           {costs.map((c) => (
-            <div key={c.id} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end border rounded-md p-2">
+            <div key={c.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end border rounded-md p-2">
               <div className="col-span-2"><Label className="text-xs">Categorie</Label><Input className="h-8" value={c.cost_category} onChange={(e) => updateCost(c.id, { cost_category: e.target.value })} /></div>
               <div className="col-span-2"><Label className="text-xs">Omschrijving</Label><Input className="h-8" value={c.description ?? ''} onChange={(e) => updateCost(c.id, { description: e.target.value || null })} /></div>
               <div><Label className="text-xs">Bedrag (€)</Label><Input className="h-8" type="number" value={c.amount ?? 0} onChange={(e) => updateCost(c.id, { amount: Number(e.target.value || 0) })} /></div>

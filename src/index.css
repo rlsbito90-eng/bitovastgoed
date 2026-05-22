@@ -340,6 +340,26 @@
   .text-clamp-mobile { @apply break-words sm:truncate; }
   .badge-mobile { @apply text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5; }
 
+  /* Horizontally scrollable tabs for mobile (single-line, swipeable) */
+  .tabs-scroll {
+    @apply flex w-full overflow-x-auto whitespace-nowrap gap-1 h-auto justify-start;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tabs-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
+
+  /* Mobile-first action buttons: stacked + full-width on small screens */
+  @media (max-width: 640px) {
+    .mobile-stack-actions { display: flex; flex-direction: column; width: 100%; gap: 0.5rem; }
+    .mobile-stack-actions > * { width: 100%; }
+    .mobile-stack-actions button,
+    .mobile-stack-actions [role="combobox"] { width: 100%; justify-content: center; }
+  }
+
+
   /* Pipeline chevron step */
   .chevron-step {
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
