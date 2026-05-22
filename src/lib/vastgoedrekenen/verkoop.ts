@@ -61,18 +61,30 @@ export type SaleComputation = {
   exitBidBindingTarget: 'marge_euro' | 'marge_pct' | 'roi' | 'target_exit' | null;
 };
 
-/** Bruto verkoopopbrengst, kies eerste beschikbare bron: totaal → per m² → per unit. */
+/**
+ * Bruto verkoopopbrengst, kies op basis van expliciet aangeduide bron (sale_price_source)
+ * of valt terug op eerste beschikbare: totaal → per m² → per unit.
+ * Voorkomt rekenloops wanneer beide totaal en €/m² zijn ingevuld.
+ */
 export function computeGrossSaleProceeds(s: Scenario): number | null {
-  const total = n((s as Record<string, unknown>).sale_price_total);
+  const rec = s as Record<string, unknown>;
+  const source = (rec.sale_price_source as string | null) ?? null;
+  const total = n(rec.sale_price_total);
+  const ppm2 = n(rec.sale_price_per_m2);
+  const m2 = n(rec.sale_sellable_m2);
+  const ppu = n(rec.sale_price_per_unit);
+  const units = n(rec.sale_units_count);
+
+  if (source === 'per_m2' && ppm2 > 0 && m2 > 0) return Math.round(ppm2 * m2);
+  if (source === 'total' && total > 0) return Math.round(total);
+
+  // Fallback / auto-detect (bestaande data zonder source)
   if (total > 0) return Math.round(total);
-  const ppm2 = n((s as Record<string, unknown>).sale_price_per_m2);
-  const m2 = n((s as Record<string, unknown>).sale_sellable_m2);
   if (ppm2 > 0 && m2 > 0) return Math.round(ppm2 * m2);
-  const ppu = n((s as Record<string, unknown>).sale_price_per_unit);
-  const units = n((s as Record<string, unknown>).sale_units_count);
   if (ppu > 0 && units > 0) return Math.round(ppu * units);
   return null;
 }
+
 
 export function computeSaleCosts(gross: number | null, s: Scenario): number | null {
   if (gross == null) return null;
