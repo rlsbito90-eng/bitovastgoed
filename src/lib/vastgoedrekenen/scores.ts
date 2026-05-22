@@ -1,7 +1,8 @@
 // Scores: inputbetrouwbaarheid, risico, complexiteit, deal score.
 
-import type { Component, Scenario, ScenarioCost, WwsUnit } from './types';
+import type { Component, Scenario, ScenarioAssessmentType, ScenarioCost, ScenarioScoreLabel, WwsUnit } from './types';
 import { VR_DEFAULTS } from './defaults';
+import { SALE_FOCUSED_SALE_STRATEGIES, SALE_FOCUSED_STRATEGIES } from './verkoop';
 
 export type ScoreInput = {
   scenario: Scenario;
@@ -76,4 +77,91 @@ export function computeDealScore(i: ScoreInput, risk: 'laag' | 'middel' | 'hoog'
   if (bar >= VR_DEFAULTS.dealScoreBarB) return 'B';
   if (bar >= VR_DEFAULTS.dealScoreBarC) return 'C';
   return 'reject';
+}
+
+export function determineAssessmentType(scenario: Scenario): ScenarioAssessmentType {
+  const rec = scenario as Record<string, unknown>;
+  const saleStrategy = typeof rec.sale_strategy === 'string' ? rec.sale_strategy : null;
+  const bidBasis = typeof rec.bid_basis === 'string' ? rec.bid_basis : null;
+  if (bidBasis === 'verkoop') return 'verkoop';
+  if (saleStrategy && saleStrategy !== 'geen_verkoop' && SALE_FOCUSED_SALE_STRATEGIES.has(saleStrategy)) return 'verkoop';
+  if (SALE_FOCUSED_STRATEGIES.has(String(scenario.strategy_type))) return 'verkoop';
+  return 'exploitatie';
+}
+
+export type SaleScoreInput = {
+  netSaleProceeds: number | null;
+  exitValue: number | null;
+  totalInvestment: number;
+  netMargin: number | null;
+  roi: number | null;
+  maximumBid: number;
+  askingPrice: number;
+  purchasePrice: number;
+  targetRoi: number;
+  targetMarginAmount: number;
+  targetMarginPercentage: number;
+  targetExitValue: number;
+  saleHasInput: boolean;
+  exitIsManual: boolean;
+  hasIndicativeCosts: boolean;
+};
+
+export type ScenarioScoreResult = {
+  label: ScenarioScoreLabel;
+  dealScore: 'A' | 'B' | 'C' | 'reject';
+  reason: string;
+  positivePoints: string[];
+  attentionPoints: string[];
+};
+
+const eur = (value: number) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
+
+export function computeSaleScenarioScore(i: SaleScoreInput): ScenarioScoreResult {
+  const positives: string[] = [];
+  const attention: string[] = [];
+  const targetPrice = i.askingPrice > 0 ? i.askingPrice : i.purchasePrice;
+
+  if (i.netMargin != null) positives.push(`Nettomarge: ${eur(i.netMargin)}`);
+  if (i.roi != null) positives.push(`ROI: ${i.roi.toFixed(1)}%`);
+  if (i.targetRoi > 0) positives.push(`Gewenste ROI: ${i.targetRoi.toFixed(1)}%`);
+  if (i.maximumBid > 0) positives.push(`Maximale bieding o.b.v. exit: ${eur(i.maximumBid)}`);
+  if (i.hasIndicativeCosts) attention.push('Bouwkosten zijn indicatief.');
+  if (i.exitIsManual) attention.push('Exitwaarde is handmatig ingevoerd.');
+  if (targetPrice > 0) {
+    attention.push(i.maximumBid >= targetPrice ? 'Maximale bieding ligt rond of boven de vraag-/aankoopprijs.' : 'Maximale bieding ligt onder de vraag-/aankoopprijs.');
+  }
+
+  const insufficient = !i.saleHasInput || (i.netSaleProceeds == null && i.exitValue == null);
+  if (insufficient) {
+    return { label: 'Onvoldoende data', dealScore: 'reject', reason: 'Verkoopopbrengst ontbreekt.', positivePoints: positives, attentionPoints: ['Verkoopopbrengst ontbreekt.', ...attention] };
+  }
+  if (i.targetRoi > 0 && (i.roi == null || i.roi < i.targetRoi)) {
+    return { label: 'ROI onvoldoende', dealScore: 'C', reason: 'ROI ligt onder gewenste ROI.', positivePoints: positives, attentionPoints: ['ROI ligt onder gewenste ROI.', ...attention] };
+  }
+  if (i.targetMarginAmount > 0 && (i.netMargin == null || i.netMargin < i.targetMarginAmount)) {
+    return { label: 'Marge onvoldoende', dealScore: 'C', reason: 'Nettomarge ligt onder de gewenste winstmarge.', positivePoints: positives, attentionPoints: ['Nettomarge ligt onder de gewenste winstmarge.', ...attention] };
+  }
+  if (i.targetMarginPercentage > 0 && (i.netSaleProceeds == null || i.netMargin == null || (i.netMargin / i.netSaleProceeds) * 100 < i.targetMarginPercentage)) {
+    return { label: 'Marge onvoldoende', dealScore: 'C', reason: 'Nettomargepercentage ligt onder de gewenste marge.', positivePoints: positives, attentionPoints: ['Nettomargepercentage ligt onder de gewenste marge.', ...attention] };
+  }
+  if (i.targetExitValue > 0 && (i.exitValue == null || i.exitValue < i.targetExitValue)) {
+    return { label: 'Exitdoel niet gehaald', dealScore: 'C', reason: 'Netto verkoopopbrengst ligt onder target exitwaarde.', positivePoints: positives, attentionPoints: ['Netto verkoopopbrengst ligt onder target exitwaarde.', ...attention] };
+  }
+  if (targetPrice > 0 && i.maximumBid > 0 && i.maximumBid < targetPrice) {
+    return { label: 'Te duur', dealScore: 'C', reason: 'Maximale bieding ligt onder vraag-/aankoopprijs.', positivePoints: positives, attentionPoints: ['Maximale bieding ligt onder vraag-/aankoopprijs.', ...attention] };
+  }
+  if (i.netMargin == null || i.netMargin <= 0 || i.roi == null || i.roi < 0) {
+    return { label: 'Niet haalbaar', dealScore: 'reject', reason: 'Nettomarge of ROI is negatief.', positivePoints: positives, attentionPoints: ['Nettomarge of ROI is negatief.', ...attention] };
+  }
+
+  const roiBeatsTarget = i.targetRoi <= 0 || i.roi >= i.targetRoi;
+  const bidMeetsPrice = targetPrice <= 0 || i.maximumBid >= targetPrice * 0.98;
+  if (roiBeatsTarget && bidMeetsPrice) {
+    return { label: 'Kansrijk', dealScore: 'A', reason: 'Nettomarge is positief, ROI haalt de target en de maximale bieding ligt rond of boven de prijs.', positivePoints: positives, attentionPoints: attention };
+  }
+  if (roiBeatsTarget) {
+    return { label: 'Acceptabel', dealScore: 'B', reason: 'Nettomarge is positief en ROI ligt rond of boven de gewenste ROI.', positivePoints: positives, attentionPoints: attention };
+  }
+  return { label: 'Onzeker', dealScore: 'C', reason: 'Positieve marge, maar targets of prijsruimte vragen extra controle.', positivePoints: positives, attentionPoints: attention };
 }
