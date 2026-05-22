@@ -95,19 +95,25 @@ function DiffBlock({ diff, asking }: { diff: number; asking: number }) {
   );
 }
 
-function ScenarioCardMobile({ row }: { row: RowData }) {
+function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: string) => void }) {
   const { scenario: s, outputs: o } = row;
   const asking = Number(s.asking_price ?? 0);
-  const purchase = Number(s.purchase_price ?? 0);
   const vp = bidVsAsking(o, asking);
   const deal = DEAL_BADGE[o.dealScore];
+  const exploitatie = o.assessmentType === 'exploitatie';
   const toneCls = vp.tone === 'positive'
     ? 'border-emerald-500/40 bg-emerald-500/5'
     : vp.tone === 'negative'
       ? 'border-amber-500/40 bg-amber-500/5'
       : 'border-muted';
+  const clickable = !!onSelect;
   return (
-    <Card>
+    <Card
+      className={clickable ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}
+      onClick={clickable ? () => onSelect!(s.id) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+    >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -128,37 +134,22 @@ function ScenarioCardMobile({ row }: { row: RowData }) {
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div><p className="text-muted-foreground">Vraagprijs</p><p className="font-mono-data">{asking > 0 ? fmtEur(asking) : '—'}</p></div>
-          <div><p className="text-muted-foreground">Aankoopprijs</p><p className="font-mono-data">{purchase > 0 ? fmtEur(purchase) : '—'}</p></div>
           <div><p className="text-muted-foreground">Totale investering</p><p className="font-mono-data">{fmtEur(o.totalInvestment)}</p></div>
-          <div><p className="text-muted-foreground">Bouw-/renovatiekosten</p><p className="font-mono-data">{fmtEur(o.totalCosts)}</p></div>
-          <div><p className="text-muted-foreground">Gecorr. jaarhuur</p><p className="font-mono-data">{fmtEur(o.correctedAnnualRent)}</p></div>
-          <div><p className="text-muted-foreground">NOI</p><p className="font-mono-data">{fmtEur(o.noi)}</p></div>
-          <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
-          <div><p className="text-muted-foreground">Factor op TI</p><p className="font-mono-data">{o.factorTotalInvestment != null ? `${o.factorTotalInvestment.toFixed(2)}×` : '—'}</p></div>
-        </div>
-        {o.saleHasInput && (
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-1">
-            <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-medium">
-              <Coins className="h-3.5 w-3.5" /> Verkoop / exit
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><p className="text-muted-foreground">Verkoopopbrengst</p><p className="font-mono-data">{o.netSaleProceeds != null ? fmtEur(o.netSaleProceeds) : '—'}</p></div>
-              <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+          {exploitatie ? (
+            <>
+              <div><p className="text-muted-foreground">BAR op TI</p><p className="font-mono-data">{fmtPct(o.barTotalInvestment)}</p></div>
+              <div><p className="text-muted-foreground">NOI</p><p className="font-mono-data">{fmtEur(o.noi)}</p></div>
+            </>
+          ) : (
+            <>
               <div><p className="text-muted-foreground">ROI</p><p className={`font-mono-data ${o.roi != null && o.roi < 0 ? 'text-destructive' : ''}`}>{o.roi != null ? `${o.roi.toFixed(1)}%` : '—'}</p></div>
-              <div><p className="text-muted-foreground">Exitwaarde</p><p className="font-mono-data">{o.exitValue != null ? fmtEur(o.exitValue) : '—'}</p></div>
-            </div>
-          </div>
-        )}
-        <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1.5">
-          <p className="font-medium text-foreground">Score-uitleg</p>
-          <p className="text-muted-foreground">{o.scoreReason}</p>
-          {o.scoreAttentionPoints.length > 0 && (
-            <ul className="text-muted-foreground space-y-1">
-              {o.scoreAttentionPoints.slice(0, 3).map((p, i) => <li key={i}>• {p}</li>)}
-            </ul>
+              <div><p className="text-muted-foreground">Nettomarge</p><p className={`font-mono-data ${o.netMargin != null && o.netMargin < 0 ? 'text-destructive' : ''}`}>{o.netMargin != null ? fmtEur(o.netMargin) : '—'}</p></div>
+            </>
           )}
         </div>
+        {o.scoreAttentionPoints.length > 0 && (
+          <p className="text-[11px] text-muted-foreground leading-snug">⚠ {o.scoreAttentionPoints[0]}</p>
+        )}
         <p className="text-[11px] text-muted-foreground">Status: {VR_STATUS_LABELS[s.status]} {o.bidBasisUsed === 'verkoop' && '· bod o.b.v. verkoop'}</p>
       </CardContent>
     </Card>
