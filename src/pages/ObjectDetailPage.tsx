@@ -277,6 +277,27 @@ export default function ObjectDetailPage() {
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<string>('overzicht');
+  const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
+  const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
+  const [taakDialogOpen, setTaakDialogOpen] = useState(false);
+  const [editTaak, setEditTaak] = useState<import('@/data/mock-data').Taak | null>(null);
+
+  const scrollToSection = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const rootStyles = getComputedStyle(document.documentElement);
+    const parsePx = (v: string, fb: number) => {
+      const n = parseFloat(v);
+      if (!n) return fb;
+      return v.trim().endsWith('rem') ? n * 16 : n;
+    };
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const topbar = isDesktop
+      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + 60);
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
