@@ -483,7 +483,7 @@ export default function ScenarioEditor(props: Props) {
         const hasResidential = wwsUnits.length > 0
           || components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement')
           || propertyType === 'residentieel' || propertyType === 'mixed_use';
-        const criticalChecks = nogTeControleren.length > 0;
+        
 
         const huurStatus = exploitatie
           ? `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`
