@@ -148,23 +148,24 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-base">Vastgoedrekenen</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
               <Select value={viewMode} onValueChange={(v) => setViewMode(v as 'begeleid' | 'compact' | 'expert')}>
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="begeleid">Begeleid</SelectItem>
                   <SelectItem value="compact">Compact</SelectItem>
                   <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) setActiveId(c.id); }}>
+              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) setActiveId(c.id); }}>
                 <Plus className="h-4 w-4 mr-1" /> Nieuwe quickscan
               </Button>
             </div>
           </div>
         </CardHeader>
+
         {calculations.length > 0 && (
           <CardContent className="pt-0 flex flex-wrap gap-2">
             {calculations.map((c) => (
