@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import type { Scenario, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtPct, DEAL_BADGE, RISK_BADGE } from './format';
+import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
 
 /**
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
