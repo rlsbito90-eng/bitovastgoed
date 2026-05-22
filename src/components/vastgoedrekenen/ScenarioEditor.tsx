@@ -259,36 +259,37 @@ export default function ScenarioEditor(props: Props) {
       {/* Header + opslagstatus */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <Input className="font-semibold text-base" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Input className="font-semibold text-base w-full" value={s.scenario_name} onChange={(e) => patch({ scenario_name: e.target.value })} />
               {showHelp && <p className="text-xs text-muted-foreground mt-1">Geef het scenario een korte, herkenbare naam.</p>}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto">
               <Select value={s.strategy_type} onValueChange={(v) => patch({ strategy_type: v as Scenario['strategy_type'] })}>
-                <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full lg:w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
               <Select value={s.status} onValueChange={(v) => patch({ status: v as Scenario['status'] })}>
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full lg:w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
-              <Button variant="default" onClick={save} disabled={!dirty}>
+              <Button variant="default" onClick={save} disabled={!dirty} className="w-full lg:w-auto">
                 <Save className="h-4 w-4 mr-1" />Opslaan
               </Button>
-              <Button variant="outline" size="icon" onClick={() => onDelete(s.id)}><Trash2 className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon" onClick={() => onDelete(s.id)} className="justify-self-end"><Trash2 className="h-4 w-4" /></Button>
             </div>
           </div>
-          <div className="flex items-center gap-3 mt-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
             {dirty ? (
               <span className="text-amber-700 dark:text-amber-300">● Wijzigingen niet opgeslagen</span>
             ) : (
               <span className="text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Opgeslagen</span>
             )}
             {lastSavedAt && <span className="text-muted-foreground">Laatst opgeslagen: {lastSavedAt.toLocaleTimeString('nl-NL')}</span>}
-            <span className="text-muted-foreground">Berekeningen live bijgewerkt</span>
+            <span className="text-muted-foreground hidden sm:inline">Berekeningen live bijgewerkt</span>
           </div>
         </CardHeader>
+
       </Card>
 
       {/* Rekenbasis */}
