@@ -44,6 +44,19 @@ type Props = {
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
 
+function NumInput({ value, onChange, onDirty, placeholder, suffix }: { value: number | null | undefined; onChange: (n: number | null) => void; onDirty: () => void; placeholder?: string; suffix?: Suffix }) {
+  return (
+    <RawNumberInput
+      initialValue={numberToRaw(value)}
+      placeholder={placeholder}
+      suffix={suffix}
+      className="h-9 w-full min-w-0"
+      onRawChange={onDirty}
+      onCommit={(raw) => onChange(parseRawNumber(raw))}
+    />
+  );
+}
+
 function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
   return (
     <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
