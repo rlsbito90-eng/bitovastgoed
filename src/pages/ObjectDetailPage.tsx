@@ -23,8 +23,10 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
 } from 'lucide-react';
+import BiedingenSection from '@/components/biedingen/BiedingenSection';
+
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
@@ -148,10 +150,12 @@ const SECTIONS = [
   { id: 'financieel', label: 'Financieel', icon: LineChart },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
+  { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'documenten', label: 'Documenten', icon: FolderOpen },
   { id: 'vastgoedrekenen', label: 'Underwriting', icon: Calculator },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
+
 
 function SectionNav({ active }: { active: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -838,6 +842,17 @@ export default function ObjectDetailPage() {
               <ObjectPipelineSectie objectId={object.id} />
             </div>
           </SectionAnchor>
+
+          {/* ============ 5. BIEDINGEN ============ */}
+          <SectionAnchor id="biedingen" eyebrow="05 — Negotiations" title="Biedingen">
+            <BiedingenSection
+              scope={{ objectId: object.id }}
+              vraagprijs={object.vraagprijs ?? null}
+              defaults={{ objectId: object.id }}
+              toonObject={false}
+            />
+          </SectionAnchor>
+
 
           {/* ============ 5. DOCUMENTEN ============ */}
           <SectionAnchor

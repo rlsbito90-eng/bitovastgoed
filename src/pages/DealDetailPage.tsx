@@ -23,6 +23,8 @@ import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
+import BiedingenSection from '@/components/biedingen/BiedingenSection';
+
 import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -343,7 +345,13 @@ export default function DealDetailPage() {
 
           <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
           <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
+          <BiedingenSection
+            scope={{ dealId: deal.id }}
+            vraagprijs={object?.vraagprijs ?? null}
+            defaults={{ dealId: deal.id, objectId: deal.objectId, relatieId: deal.relatieId }}
+          />
           {object && <DealMarktwaardeReadOnly object={object} />}
+
         </div>
 
         {/* SIDEBAR */}
