@@ -88,26 +88,62 @@ function isScenarioShallowEqual(a: Scenario, b: Scenario): boolean {
   return true;
 }
 
+function isTempCostId(id: string): boolean {
+  return id.startsWith('temp-cost-');
+}
+
+function normalizeCost(cost: ScenarioCost) {
+  return {
+    id: cost.id,
+    cost_category: cost.cost_category ?? '',
+    description: cost.description ?? null,
+    amount: Number(cost.amount ?? 0),
+    notes: cost.notes ?? null,
+    reliability_status: cost.reliability_status ?? null,
+    vat_applicable: cost.vat_applicable ?? null,
+  };
+}
+
+function areScenarioCostsEqual(a: ScenarioCost[], b: ScenarioCost[]): boolean {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(a.map(normalizeCost)) === JSON.stringify(b.map(normalizeCost));
+}
+
 export default function ScenarioEditor(props: Props) {
   const { scenario, taxSettings, objectType, objectArea, viewMode, onUpdate, onDelete } = props;
   const [s, setS] = useState<Scenario>(scenario);
+  const [draftCosts, setDraftCosts] = useState<ScenarioCost[]>([]);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Baseline = laatst opgeslagen / geladen scenario. Wordt gebruikt om te bepalen
   // of het formulier dirty is na een commit (zo wordt revert naar origineel ook gedetecteerd).
   const baselineRef = useRef<Scenario>(scenario);
+  const baselineCostsRef = useRef<ScenarioCost[]>([]);
+  const costDraftDirtyRef = useRef(false);
+  const deletedCostIdsRef = useRef<string[]>([]);
   const lastIdRef = useRef(scenario.id);
   useEffect(() => {
     if (lastIdRef.current !== scenario.id) {
       lastIdRef.current = scenario.id;
       baselineRef.current = scenario;
       setS(scenario);
+      baselineCostsRef.current = [];
+      costDraftDirtyRef.current = false;
+      deletedCostIdsRef.current = [];
+      setDraftCosts([]);
       setDirty(false);
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, refetch, upsertOutput } = useScenarioChildren(s.id);
+  const { components, costs, wwsUnits, loading: childrenLoading, refetch, upsertOutput } = useScenarioChildren(s.id);
+
+  useEffect(() => {
+    if (childrenLoading || costDraftDirtyRef.current) return;
+    baselineCostsRef.current = costs;
+    setDraftCosts(costs);
+    setDirty(!isScenarioShallowEqual(s, baselineRef.current));
+  }, [childrenLoading, costs, s]);
 
   const propertyType: PropertyAssumptionType = useMemo(
     () => mapToAssumptionType(props.objectRawType ?? null, objectType),
@@ -116,7 +152,7 @@ export default function ScenarioEditor(props: Props) {
 
   const outputs = useMemo(() => computeScenario({
     scenario: s,
-    components, costs, wwsUnits,
+    components, costs: draftCosts, wwsUnits,
     taxSettings,
     objectType,
     objectArea,
@@ -124,26 +160,26 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, costs, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  }), [s, components, draftCosts, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
-    scenario: s, components, costs, wwsUnits, objectType, propertyType,
+    scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel,
-  }), [s, components, costs, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar]);
+  }), [s, components, draftCosts, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar]);
 
   const aannameWaarschuwingen = useMemo(() => buildAannameWaarschuwingen({
-    scenario: s, components, costs, wwsUnits, objectType, propertyType,
+    scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel,
-  }, outputs.totalCorrectionPct), [s, components, costs, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, outputs.totalCorrectionPct]);
+  }, outputs.totalCorrectionPct), [s, components, draftCosts, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, outputs.totalCorrectionPct]);
 
   // Patch = gecommitte wijziging (na blur / select / switch). Dirty wordt afgeleid
   // van een vergelijking met de baseline, zodat reverten naar origineel dirty wist.
   const patch = (p: Partial<Scenario>) => {
     setS((prev) => {
       const next = { ...prev, ...p } as Scenario;
-      setDirty(!isScenarioShallowEqual(next, baselineRef.current));
+      setDirty(!isScenarioShallowEqual(next, baselineRef.current) || !areScenarioCostsEqual(draftCosts, baselineCostsRef.current));
       return next;
     });
   };
@@ -153,6 +189,18 @@ export default function ScenarioEditor(props: Props) {
   // wijziging door patch() en wordt dirty opnieuw correct berekend.
   const markDirtyFromRaw = () => {
     setDirty((prev) => (prev ? prev : true));
+  };
+
+  const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[], forceDirty = false) => {
+    costDraftDirtyRef.current = true;
+    setDraftCosts((prev) => {
+      const next = updater(prev);
+      const costsDirty = !areScenarioCostsEqual(next, baselineCostsRef.current);
+      costDraftDirtyRef.current = forceDirty || costsDirty;
+      if (!costsDirty) deletedCostIdsRef.current = [];
+      setDirty(!isScenarioShallowEqual(s, baselineRef.current) || forceDirty || costsDirty);
+      return next;
+    });
   };
 
   // Aannameprofiel default zetten als er nog niets is — niet markeren als dirty.
@@ -166,6 +214,33 @@ export default function ScenarioEditor(props: Props) {
   }, [propertyType]);
 
   async function save() {
+    const savedCosts: ScenarioCost[] = [];
+    for (const costId of deletedCostIdsRef.current) {
+      if (!isTempCostId(costId)) {
+        const { error } = await supabase.from('scenario_costs').delete().eq('id', costId);
+        if (error) { toast.error('Kostenpost verwijderen mislukt'); return; }
+      }
+    }
+    for (const cost of draftCosts) {
+      const payload = {
+        scenario_id: s.id,
+        cost_category: cost.cost_category || 'Kostenpost',
+        description: cost.description,
+        amount: Number(cost.amount ?? 0),
+        notes: cost.notes,
+        reliability_status: cost.reliability_status,
+        vat_applicable: cost.vat_applicable,
+      };
+      if (isTempCostId(cost.id)) {
+        const { data, error } = await supabase.from('scenario_costs').insert(payload).select('*').single();
+        if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
+        if (data) savedCosts.push(data as ScenarioCost);
+      } else {
+        const { error } = await supabase.from('scenario_costs').update(payload).eq('id', cost.id);
+        if (error) { toast.error('Kostenpost opslaan mislukt'); return; }
+        savedCosts.push(cost);
+      }
+    }
     await onUpdate(s.id, {
       scenario_name: s.scenario_name, description: s.description, status: s.status, strategy_type: s.strategy_type,
       asking_price: s.asking_price, purchase_price: s.purchase_price,
@@ -212,10 +287,15 @@ export default function ScenarioEditor(props: Props) {
       recommended_next_step: outputs.recommendedNextStep,
       warnings: outputs.warnings as unknown as never,
     });
+    deletedCostIdsRef.current = [];
+    costDraftDirtyRef.current = false;
     baselineRef.current = s;
+    baselineCostsRef.current = savedCosts;
+    setDraftCosts(savedCosts);
     setDirty(false);
     setLastSavedAt(new Date());
     toast.success('Scenario opgeslagen');
+    refetch();
   }
 
   // --- Component CRUD ---
@@ -233,15 +313,27 @@ export default function ScenarioEditor(props: Props) {
   }
 
   // --- Cost CRUD ---
-  async function addCost() {
-    await supabase.from('scenario_costs').insert({ scenario_id: s.id, cost_category: 'Renovatiekosten', amount: 0 });
-    refetch();
+  function addCost() {
+    const now = new Date().toISOString();
+    setCostDrafts((prev) => ([...prev, {
+      id: `temp-cost-${crypto.randomUUID()}`,
+      scenario_id: s.id,
+      cost_category: 'Renovatiekosten',
+      description: null,
+      amount: 0,
+      notes: null,
+      reliability_status: null,
+      vat_applicable: null,
+      created_at: now,
+      updated_at: now,
+    } as ScenarioCost]));
   }
-  async function updateCost(id: string, p: Partial<ScenarioCost>) {
-    await supabase.from('scenario_costs').update(p).eq('id', id); refetch();
+  function updateCost(id: string, p: Partial<ScenarioCost>, forceDirty = false) {
+    setCostDrafts((prev) => prev.map((cost) => (cost.id === id ? { ...cost, ...p } as ScenarioCost : cost)), forceDirty);
   }
-  async function deleteCost(id: string) {
-    await supabase.from('scenario_costs').delete().eq('id', id); refetch();
+  function deleteCost(id: string) {
+    if (!isTempCostId(id) && !deletedCostIdsRef.current.includes(id)) deletedCostIdsRef.current.push(id);
+    setCostDrafts((prev) => prev.filter((cost) => cost.id !== id));
   }
 
   // --- WWS Unit CRUD ---
@@ -633,7 +725,7 @@ export default function ScenarioEditor(props: Props) {
       {/* Kosten */}
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-base">Kosten ({costs.length})</CardTitle>
+          <CardTitle className="text-base">Kosten ({draftCosts.length})</CardTitle>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
             <div className="w-full sm:w-32 min-w-0">
               <MobileFieldGroup label="Onvoorzien (%)">
@@ -645,8 +737,8 @@ export default function ScenarioEditor(props: Props) {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {costs.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
-          {costs.map((c) => (
+          {draftCosts.length === 0 && <p className="text-xs text-muted-foreground">Voeg handmatige kostenposten toe (renovatie, transformatie, splitsing, verkoopkosten, etc.).</p>}
+          {draftCosts.map((c) => (
             <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
@@ -656,9 +748,30 @@ export default function ScenarioEditor(props: Props) {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
-                <MobileFieldGroup label="Categorie" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.cost_category} onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.description ?? ''} onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })} /></MobileFieldGroup>
-                <MobileFieldGroup label="Bedrag (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} /></MobileFieldGroup>
+                <MobileFieldGroup label="Categorie" className="lg:col-span-2">
+                  <RawTextInput
+                    className="h-9"
+                    initialValue={c.cost_category}
+                    onRawChange={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' }, true)}
+                    onCommit={(raw) => updateCost(c.id, { cost_category: raw.trim() || 'Kostenpost' })}
+                  />
+                </MobileFieldGroup>
+                <MobileFieldGroup label="Omschrijving" className="lg:col-span-2">
+                  <RawTextInput
+                    className="h-9"
+                    initialValue={c.description ?? ''}
+                    onRawChange={(raw) => updateCost(c.id, { description: raw.trim() || null }, true)}
+                    onCommit={(raw) => updateCost(c.id, { description: raw.trim() || null })}
+                  />
+                </MobileFieldGroup>
+                <MobileFieldGroup label="Bedrag (€)">
+                  <RawNumberInput
+                    className="h-9"
+                    initialValue={numberToRaw(c.amount)}
+                    onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)}
+                    onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })}
+                  />
+                </MobileFieldGroup>
               </div>
             </div>
           ))}
