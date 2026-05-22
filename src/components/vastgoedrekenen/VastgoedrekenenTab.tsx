@@ -127,7 +127,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         {scenarios.map((s) => {
           const open = openScenarios.has(s.id);
           return (
-            <div key={s.id} className="border rounded-md overflow-hidden">
+            <div key={s.id} id={`scenario-${s.id}`} className="border rounded-md overflow-hidden scroll-mt-20">
               <button type="button" onClick={() => toggle(s.id)} className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50">
                 <span className="flex items-center gap-2">
                   {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
