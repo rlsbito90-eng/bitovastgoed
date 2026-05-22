@@ -138,9 +138,17 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                 {kandidaten.map(k => {
                   const rel = relaties.find(r => r.id === k.relatieId);
                   return (
-                    <tr key={k.id} className="hover:bg-muted/30">
+                    <tr
+                      key={k.id}
+                      onClick={() => setBewerken(k)}
+                      className="hover:bg-muted/40 cursor-pointer transition-colors"
+                    >
                       <td className="py-2 px-2">
-                        <Link to={`/relaties/${k.relatieId}`} className="font-medium hover:text-primary inline-flex items-center gap-1">
+                        <Link
+                          to={`/relaties/${k.relatieId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium hover:text-primary inline-flex items-center gap-1"
+                        >
                           {rel ? getRelatieDropdownLabel(rel, contactpersonen) : '(verwijderd)'}
                           <ExternalLink className="h-3 w-3 opacity-60" />
                         </Link>
@@ -160,7 +168,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                         ) : '—'}
                       </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">{fmtDatum(k.laatsteContactdatum)}</td>
-                      <td className="py-2 px-2 text-right">
+                      <td className="py-2 px-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" onClick={() => setBewerken(k)} className="h-8 w-8 p-0">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
