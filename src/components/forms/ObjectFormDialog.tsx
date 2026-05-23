@@ -724,6 +724,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                             value={form.huurinkomsten ?? ''}
                             onChange={e => setJaarhuur(e.target.value)}
                             placeholder="bv. 7.200" />
+                          <p className="text-[11px] text-muted-foreground mt-1">Fallback/indicatie. Als huurdersregels aanwezig zijn, wordt de totale huur op detailniveau daarvan afgeleid.</p>
                         </Veld>
                         <Veld label={<>Maandelijkse huur (€/mnd) <AutoBadge show={laatstGewijzigdHuur !== 'maand' && !!form.huurinkomsten} /></>}>
                           <Input type="number" inputMode="decimal" className="min-w-0"
