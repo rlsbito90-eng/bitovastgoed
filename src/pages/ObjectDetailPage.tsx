@@ -442,8 +442,10 @@ export default function ObjectDetailPage() {
     const out: SectionDef[] = [];
     const hasDeals = object ? store.getDealsByObject(object.id).length > 0 : false;
     const documentenCount = object ? store.getDocumentenVoorObject(object.id).length : 0;
-    const fotosCount = object ? store.getFotosVoorObject(object.id).length : 0;
-    const hasDocumentenSectie = documentenCount > 0 || fotosCount > 1;
+    // Documenten-sectie is alleen zichtbaar als er daadwerkelijk documenten of plattegronden zijn.
+    // Een gewone hero-foto (of zelfs een fotogalerij) activeert deze sectie niet — media-beheer
+    // gebeurt via Object bewerken → Media-tab. Dit voorkomt een grote lege Documenten-sectie.
+    const hasDocumentenSectie = documentenCount > 0;
     for (const s of BASE_SECTIONS) {
       // Verkoper-sectie wordt vóór 'aanbieding' ingevoegd (conditioneel)
       if (s.id === 'aanbieding') {
