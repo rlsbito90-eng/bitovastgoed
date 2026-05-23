@@ -1719,8 +1719,8 @@ export default function ObjectDetailPage() {
           )}
 
 
-          {/* ============ DOCUMENTEN ============ */}
-          {(documenten.length > 0 || fotos.length > 1) && (
+          {/* ============ DOCUMENTEN (ondersteunend, zonder hoofdnummer) ============ */}
+          {documenten.length > 0 && (
             <SectionAnchor
               id="documenten"
               eyebrow={eyebrowFor("documenten", "Data room")}
@@ -1754,7 +1754,16 @@ export default function ObjectDetailPage() {
                   <>
                     {overigeDocs.length > 0 && (
                       <div className="section-card p-5 sm:p-6 mt-4">
-                        <h3 className="section-title mb-3">Documenten ({overigeDocs.length})</h3>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="section-title">Documenten ({overigeDocs.length})</h3>
+                          <button
+                            type="button"
+                            onClick={() => openEdit('media')}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            Beheren
+                          </button>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {overigeDocs.map(renderDocRow)}
                         </div>
@@ -1762,7 +1771,16 @@ export default function ObjectDetailPage() {
                     )}
                     {plattegronden.length > 0 && (
                       <div className="section-card p-5 sm:p-6 mt-4">
-                        <h3 className="section-title mb-3">Plattegronden ({plattegronden.length})</h3>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="section-title">Plattegronden ({plattegronden.length})</h3>
+                          <button
+                            type="button"
+                            onClick={() => openEdit('media')}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            Beheren
+                          </button>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {plattegronden.map(renderDocRow)}
                         </div>
@@ -1771,28 +1789,6 @@ export default function ObjectDetailPage() {
                   </>
                 );
               })()}
-
-              {fotos.length > 1 && (
-                <div className="section-card p-5 sm:p-6 mt-4">
-                  <h3 className="section-title mb-3">Foto's ({fotos.length})</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {fotos.map(foto => (
-                      <div key={foto.id} className="relative aspect-[4/3] bg-muted rounded-md overflow-hidden group">
-                        {fotoUrls[foto.storagePath] ? (
-                          <img src={fotoUrls[foto.storagePath]} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full bg-muted" />
-                        )}
-                        {foto.isHoofdfoto && (
-                          <div className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow">
-                            <Star className="h-2.5 w-2.5 fill-current" /> Hoofd
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </SectionAnchor>
           )}
 
