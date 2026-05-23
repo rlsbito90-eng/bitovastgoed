@@ -82,12 +82,15 @@ function MetricTile({
   hint,
   accent,
   tone = 'default',
+  badge,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   accent?: boolean;
   tone?: 'default' | 'positive' | 'warning';
+  /** Subtiele bron-indicatie: AUTO (afgeleid) of HANDMATIG (override). */
+  badge?: 'auto' | 'handmatig';
 }) {
   const toneCls =
     tone === 'positive'
@@ -101,9 +104,23 @@ function MetricTile({
         accent ? 'accent-rule' : ''
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
-        {label}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
+          {label}
+        </p>
+        {badge && (
+          <span
+            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${
+              badge === 'auto'
+                ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
+                : 'border-accent/40 text-accent bg-accent/5'
+            }`}
+            title={badge === 'auto' ? 'Automatisch afgeleid' : 'Handmatig ingevoerd / override'}
+          >
+            {badge === 'auto' ? 'auto' : 'handm.'}
+          </span>
+        )}
+      </div>
       <p className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-none break-words ${toneCls}`}>
         {value}
       </p>
@@ -531,19 +548,41 @@ export default function ObjectDetailPage() {
     return open[0] ?? null;
   })();
 
-  const barEffect = object.brutoAanvangsrendement
-    ?? (object.huurinkomsten && object.vraagprijs
-      ? (object.huurinkomsten / object.vraagprijs) * 100
+  // BAR: auto wanneer geen handmatige waarde, anders override
+  const barAuto = object.huurinkomsten && object.vraagprijs
+    ? (object.huurinkomsten / object.vraagprijs) * 100
+    : null;
+  const barEffect = object.brutoAanvangsrendement ?? barAuto;
+  const barIsHandmatig = object.brutoAanvangsrendement != null;
+
+  // NAR: handmatig opgeslagen, anders auto uit NOI / vraagprijs
+  const narAuto = object.noi != null && object.vraagprijs
+    ? (object.noi / object.vraagprijs) * 100
+    : (object.huurinkomsten != null && object.servicekostenJaar != null && object.vraagprijs
+      ? ((object.huurinkomsten - object.servicekostenJaar) / object.vraagprijs) * 100
       : null);
+  const narEffect = object.nettoAanvangsrendement ?? narAuto;
+  const narIsHandmatig = object.nettoAanvangsrendement != null;
+
+  // NOI: handmatig wanneer expliciet ingevuld, anders afgeleid (jaarhuur − servicekosten)
+  const noiAuto = object.huurinkomsten != null && object.servicekostenJaar != null
+    ? object.huurinkomsten - object.servicekostenJaar
+    : null;
+  const noiEffect = object.noi ?? noiAuto;
+  const noiIsHandmatig = object.noi != null;
 
   const factor = object.huurinkomsten && object.vraagprijs
     ? object.vraagprijs / object.huurinkomsten
     : null;
 
+  // Maandhuur — puur afgeleid, niet opgeslagen
+  const maandhuur = object.huurinkomsten != null ? object.huurinkomsten / 12 : null;
+
   const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
   const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
-  const huurPerM2Berekend = object.huurPerM2
-    ?? eurPerM2(object.huurinkomsten, m2VoorBerekening);
+  const huurPerM2Auto = eurPerM2(object.huurinkomsten, m2VoorBerekening);
+  const huurPerM2Berekend = object.huurPerM2 ?? huurPerM2Auto;
+  const huurPerM2IsHandmatig = object.huurPerM2 != null;
   const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
 
   // Lead deal voor cockpit
@@ -593,6 +632,22 @@ export default function ObjectDetailPage() {
     : (subcatLabel ?? object.subcategorie);
   const documentatieStatusRows = Object.entries(object.documentatieStatus ?? {})
     .filter(([, status]) => !!status);
+  const IM_SECTIE_LABELS: Record<string, string> = {
+    propositie: 'Propositie',
+    object: 'Objectomschrijving',
+    locatie: 'Locatie',
+    oppervlakten: 'Oppervlakten per verdieping',
+    huur: 'Huurinformatie',
+    financieel: "Financiële scenario's",
+    marktwaarde: 'Marktwaarde-indicatie',
+    technisch: 'Technische staat',
+    juridisch: 'Juridisch & kadaster',
+    duurzaamheid: 'Duurzaamheid / energielabel',
+    risicos: "Risico's",
+    documentatie: 'Documentatie-overzicht',
+    proces: 'Proces & voorwaarden',
+    contact: 'Contact',
+  };
   const verborgenImSecties = Object.entries(object.imSectiesZichtbaar ?? {})
     .filter(([, zichtbaar]) => zichtbaar === false)
     .map(([key]) => key);
@@ -816,21 +871,32 @@ export default function ObjectDetailPage() {
           HERO KPI STRIP — institutional underwriting overview
           ================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
-        <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
-        <MetricTile label="€ / m²" value={prijsPerM2Str} />
+        <MetricTile
+          label="Vraagprijs"
+          value={
+            object.vraagprijs != null
+              ? formatCurrency(object.vraagprijs)
+              : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
+          }
+          hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+          accent
+        />
+        <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
         <MetricTile
           label="BAR"
           value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
           tone={barEffect != null && barEffect >= 6 ? 'positive' : 'default'}
+          badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
         />
         <MetricTile
           label="Factor"
           value={factor != null ? `${factor.toFixed(1)}×` : '—'}
+          badge={factor != null ? 'auto' : undefined}
         />
         <MetricTile
           label="Huur / jr"
           value={object.huurinkomsten ? formatCurrencyCompact(object.huurinkomsten) : '—'}
-          hint={huurPerM2Berekend != null ? huurPerM2Str : undefined}
+          hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
         />
         <MetricTile
           label="Oppervlakte"
@@ -899,11 +965,11 @@ export default function ObjectDetailPage() {
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
                     <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
                     {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}
-                    <Field label="Anonimiteit">{object.anoniem ? 'Anoniem presenteren' : 'Volledig zichtbaar'}</Field>
+                    {object.anoniem && <Field label="Anonimiteit">Anoniem presenteren</Field>}
                     {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
                     {object.bron && <Field label="Bron">{object.bron}</Field>}
-                    <Field label="Exclusiviteit">{object.exclusief ? 'Exclusief aangeboden' : 'Niet exclusief'}</Field>
-                    <Field label="Portefeuille">{object.isPortefeuille ? 'Ja' : 'Nee'}</Field>
+                    {object.exclusief && <Field label="Exclusiviteit">Exclusief aangeboden</Field>}
+                    {object.isPortefeuille && <Field label="Portefeuille">Ja</Field>}
                     {parentObject && (
                       <Field label="Onderdeel van portefeuille">
                         <Link to={`/objecten/${parentObject.id}`} className="text-accent hover:underline inline-flex items-center gap-1">
@@ -929,13 +995,13 @@ export default function ObjectDetailPage() {
                 {object.leegstandPct != null && (
                   <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
                 )}
-                {object.aanbiedingswijze && (
-                  <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>
-                )}
+                {/* aanbiedingswijze + bron staan al in Identificatie-blok — niet dupliceren */}
                 {object.beschikbaarVanaf && (
                   <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
                 )}
-                <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar ?? '—'}</span></Field>
+                {object.bouwjaar != null && (
+                  <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar}</span></Field>
+                )}
                 {(object.energielabelV2 || object.energielabel) && (
                   <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
                 )}
@@ -948,11 +1014,13 @@ export default function ObjectDetailPage() {
                 {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
                 {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
                 {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
-                <Field label="Ontwikkelpotentie">{object.ontwikkelPotentie ? 'Ja' : 'Nee'}</Field>
-                <Field label="Transformatie">{object.transformatiePotentie ? 'Ja' : 'Nee'}</Field>
+                {object.ontwikkelPotentie && (<Field label="Ontwikkelpotentie">Ja</Field>)}
+                {object.transformatiePotentie && (<Field label="Transformatie">Ja</Field>)}
                 {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
-                {object.bron && <Field label="Bron">{object.bron}</Field>}
-                <Field label="Documentatie beschikbaar">{object.documentenBeschikbaar ? 'Ja' : 'Nee'}</Field>
+                {/* documentenBeschikbaar: alleen tonen als fallback wanneer geen documentatiestatus uit dossier-catalog bekend is */}
+                {documentatieStatusRows.length === 0 && object.documentenBeschikbaar && (
+                  <Field label="Documentatie">Beschikbaar</Field>
+                )}
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
 
@@ -1221,7 +1289,18 @@ export default function ObjectDetailPage() {
                     </Field>
                   )}
                   {verborgenImSecties.length > 0 && (
-                    <Field label="Verborgen IM-secties">{verborgenImSecties.join(', ')}</Field>
+                    <Field label="Niet getoond in IM">
+                      <div className="flex flex-wrap gap-1.5">
+                        {verborgenImSecties.map(key => (
+                          <span
+                            key={key}
+                            className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground"
+                          >
+                            {IM_SECTIE_LABELS[key] ?? key}
+                          </span>
+                        ))}
+                      </div>
+                    </Field>
                   )}
                 </div>
               </div>
@@ -1273,23 +1352,62 @@ export default function ObjectDetailPage() {
           <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
-                <MetricTile label="BAR" value={barEffect != null ? formatPercent(barEffect, 2) : '—'} />
-                {object.nettoAanvangsrendement != null && (
-                  <MetricTile label="NAR" value={formatPercent(object.nettoAanvangsrendement, 2)} />
+                <MetricTile
+                  label="Vraagprijs"
+                  value={
+                    object.vraagprijs != null
+                      ? formatCurrency(object.vraagprijs)
+                      : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
+                  }
+                  hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+                  accent
+                />
+                <MetricTile
+                  label="BAR"
+                  value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
+                  badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
+                />
+                {narEffect != null && (
+                  <MetricTile
+                    label="NAR"
+                    value={formatPercent(narEffect, 2)}
+                    badge={narIsHandmatig ? 'handmatig' : 'auto'}
+                  />
                 )}
-                <MetricTile label="Factor" value={factor != null ? `${factor.toFixed(1)}×` : '—'} />
+                <MetricTile
+                  label="Factor"
+                  value={factor != null ? `${factor.toFixed(1)}×` : '—'}
+                  badge={factor != null ? 'auto' : undefined}
+                />
                 {object.huurinkomsten != null && (
                   <MetricTile label="Huur / jr" value={formatCurrency(object.huurinkomsten)} />
                 )}
-                {object.noi != null && (
-                  <MetricTile label="NOI" value={formatCurrency(object.noi)} tone="positive" />
+                {maandhuur != null && (
+                  <MetricTile
+                    label="Huur / mnd"
+                    value={formatCurrency(Math.round(maandhuur))}
+                    badge="auto"
+                  />
+                )}
+                {noiEffect != null && (
+                  <MetricTile
+                    label="NOI"
+                    value={formatCurrency(noiEffect)}
+                    tone="positive"
+                    badge={noiIsHandmatig ? 'handmatig' : 'auto'}
+                  />
                 )}
                 {object.servicekostenJaar != null && (
                   <MetricTile label="Servicekosten" value={formatCurrency(object.servicekostenJaar)} />
                 )}
-                <MetricTile label="€ / m²" value={prijsPerM2Str} />
-                <MetricTile label="Huur / m²" value={huurPerM2Str} />
+                <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
+                {huurPerM2Berekend != null && (
+                  <MetricTile
+                    label="Huur / m²"
+                    value={huurPerM2Str}
+                    badge={huurPerM2IsHandmatig ? 'handmatig' : 'auto'}
+                  />
+                )}
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"

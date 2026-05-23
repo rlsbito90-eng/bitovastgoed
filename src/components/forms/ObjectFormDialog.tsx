@@ -144,6 +144,7 @@ const leegForm: FormState = {
   isPortefeuille: false,
   parentObjectId: undefined,
   documentenBeschikbaar: false,
+  markeerAlsReferentie: false,
   interneOpmerkingen: undefined,
   opmerkingen: undefined,
   referentieanalyseZichtbaar: true,
@@ -202,11 +203,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
-  // UI-only toggle: "Ook bruikbaar als referentieobject"
-  // Wordt bewust niet in de database opgeslagen — dient als visuele hint
-  // én als trigger voor het kwaliteitsblok. Een echt referentieobject
-  // wordt apart aangemaakt via het Referentieobject-formulier.
-  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
+  // Persistente toggle: "Ook bruikbaar als referentieobject".
+  // Wordt opgeslagen op het object zelf en kan in een latere fase gebruikt
+  // worden als bron voor de referentie-analyse.
+  const markeerAlsReferentie = !!form.markeerAlsReferentie;
+  const setMarkeerAlsReferentie = (v: boolean) => set('markeerAlsReferentie', v);
 
   // Raw input state voor financiële berekeningen — voorkomt cursor-jumps
   // en houdt twee-richtings koppeling tussen maandhuur ↔ jaarhuur soepel.
@@ -224,15 +225,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
-      // Bestaande objecten: respecteer huidige waarde — standaard uit.
-      setMarkeerAlsReferentie(false);
       // Als er al een handmatige huur/m²-waarde stond: behandel als manual.
       setHuurPerM2Manual(object.huurPerM2 != null);
     } else {
+      // Nieuwe objecten: markeerAlsReferentie standaard UIT (komt uit leegForm).
       setForm(leegForm);
       setGemaaktId(undefined);
-      // Nieuwe objecten: standaard UIT (gebruiker zet handmatig aan als relevant).
-      setMarkeerAlsReferentie(false);
       setHuurPerM2Manual(false);
     }
     setTab('algemeen');
