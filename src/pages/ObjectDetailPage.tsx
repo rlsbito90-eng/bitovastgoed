@@ -1691,8 +1691,8 @@ export default function ObjectDetailPage() {
           {(documenten.length > 0 || fotos.length > 1) && (
             <SectionAnchor
               id="documenten"
-              eyebrow={eyebrowFor("documenten", "Documenten")}
-              title={documenten.length > 0 ? `Documenten · ${documenten.length}` : 'Documenten'}
+              eyebrow={eyebrowFor("documenten", "Data room")}
+              title="Documenten"
             >
               {documenten.length > 0 && (
                 <div className="section-card p-5 sm:p-6 mt-4">
