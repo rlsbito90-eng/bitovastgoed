@@ -980,7 +980,7 @@ export default function ObjectDetailPage() {
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
           {/* ============ 1. OVERZICHT — Identificatie + Locatie + Classificatie ============ */}
-          <SectionAnchor id="overzicht" eyebrow="01 — Asset" title="Overzicht">
+          <SectionAnchor id="overzicht" eyebrow={eyebrowFor("overzicht", "Asset")} title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <ClassificatieRij
                 propertyTypeId={object.propertyTypeId}
@@ -1044,7 +1044,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 2. FINANCIEEL ============ */}
-          <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
+          <SectionAnchor id="financieel" eyebrow={eyebrowFor("financieel", "Financials")} title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 <MetricTile
@@ -1183,7 +1183,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ VERHUUR ============ */}
-          <SectionAnchor id="verhuur" eyebrow="03 — Verhuur" title="Verhuur">
+          <SectionAnchor id="verhuur" eyebrow={eyebrowFor("verhuur", "Verhuur")} title="Verhuur">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
                 <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
@@ -1240,7 +1240,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ PAND & TECHNISCHE STAAT ============ */}
-          <SectionAnchor id="pand" eyebrow="04 — Pand" title="Pand & technische staat">
+          <SectionAnchor id="pand" eyebrow={eyebrowFor("pand", "Pand")} title="Pand & technische staat">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
                 {object.bouwjaar != null && (
@@ -1346,7 +1346,7 @@ export default function ObjectDetailPage() {
               </div>
             );
             return (
-              <SectionAnchor id="potentie" eyebrow="05 — Upside" title="Potentie & mogelijkheden">
+              <SectionAnchor id="potentie" eyebrow={eyebrowFor("potentie", "Upside")} title="Potentie & mogelijkheden">
                 <div className="section-card p-5 sm:p-6 space-y-4">
                   {types.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -1410,7 +1410,7 @@ export default function ObjectDetailPage() {
 
           {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
           {hasJuridischData(object) && (
-            <SectionAnchor id="juridisch" eyebrow="06 — Legal" title="Juridisch & kadastraal">
+            <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
               <div className="section-card p-5 sm:p-6 space-y-3">
                 {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
                 {(object.kadastraleGemeente || object.kadastraalNummer) && (
@@ -1426,7 +1426,7 @@ export default function ObjectDetailPage() {
 
           {/* ============ CONTACTEN (conditioneel) ============ */}
           {hasContactenData(object) && (
-            <SectionAnchor id="contacten" eyebrow="07 — Contacts" title="Contacten">
+            <SectionAnchor id="contacten" eyebrow={eyebrowFor("contacten", "Contacts")} title="Contacten">
               <div className="grid sm:grid-cols-2 gap-4">
                 {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
                   <div className="section-card p-5 space-y-3">
@@ -1489,7 +1489,7 @@ export default function ObjectDetailPage() {
           )}
 
           {/* ============ AANBIEDING & PROCES ============ */}
-          <SectionAnchor id="aanbieding" eyebrow="08 — Offering" title="Aanbieding & proces">
+          <SectionAnchor id="aanbieding" eyebrow={eyebrowFor("aanbieding", "Offering")} title="Aanbieding & proces">
             {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
               object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
               documentatieStatusRows.length > 0 || verborgenImSecties.length > 0 || object.interneOpmerkingen) ? (
@@ -1556,7 +1556,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ DOSSIERSTATUS ============ */}
-          <SectionAnchor id="dossier" eyebrow="09 — Readiness" title="Dossierstatus">
+          <SectionAnchor id="dossier" eyebrow={eyebrowFor("dossier", "Readiness")} title="Dossierstatus">
             <ObjectDossierCard
               objectId={object.id}
               objectRecord={object as unknown as Record<string, unknown>}
@@ -1566,7 +1566,7 @@ export default function ObjectDetailPage() {
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
           {object.referentieanalyseZichtbaar !== false && (
-            <SectionAnchor id="referenties" eyebrow="10 — Benchmarks" title="Referentieanalyse">
+            <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
               <ObjectReferentieAnalyseSectie object={object} />
             </SectionAnchor>
           )}
@@ -1578,7 +1578,7 @@ export default function ObjectDetailPage() {
           {/* ============ 3. KANDIDATEN / MATCHING ============ */}
           <SectionAnchor
             id="kandidaten"
-            eyebrow="03 — Candidates"
+            eyebrow="Candidates"
             title={`Top kandidaten · ${matches.length}`}
           >
             <div className="section-card overflow-hidden">
@@ -1646,7 +1646,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 4. DEALFLOW TIMELINE ============ */}
-          <SectionAnchor id="dealflow" eyebrow="04 — Dealflow" title="Dealflow">
+          <SectionAnchor id="dealflow" eyebrow="Dealflow" title="Dealflow">
             <ObjectPipelineFaseSectie object={object} />
             <div className="mt-4">
               <ObjectPipelineSectie objectId={object.id} />
@@ -1656,7 +1656,7 @@ export default function ObjectDetailPage() {
           {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="06 — Data room"
+            eyebrow="Data room"
             title={`Documenten · ${documenten.length}`}
           >
             {/* Dossier-checklist staat in eigen Dossierstatus-sectie hierboven. */}
@@ -1724,7 +1724,7 @@ export default function ObjectDetailPage() {
           {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
           <SectionAnchor
             id="vastgoedrekenen"
-            eyebrow="07 — Underwriting"
+            eyebrow={eyebrowFor("vastgoedrekenen", "Underwriting")}
             title="Vastgoedrekenen"
           >
             <div className="section-card p-3 sm:p-5">
@@ -1740,7 +1740,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 8. BIEDINGEN ============ */}
-          <SectionAnchor id="biedingen" eyebrow="08 — Negotiations" title="Biedingen">
+          <SectionAnchor id="biedingen" eyebrow={eyebrowFor("biedingen", "Negotiations")} title="Biedingen">
             <BiedingenSection
               scope={{ objectId: object.id }}
               vraagprijs={object.vraagprijs ?? null}
@@ -1750,7 +1750,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ 9. ACTIVITEIT ============ */}
-          <SectionAnchor id="activiteit" eyebrow="09 — Activity" title="Activiteit & notities">
+          <SectionAnchor id="activiteit" eyebrow={eyebrowFor("activiteit", "Activity")} title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
         </div>
