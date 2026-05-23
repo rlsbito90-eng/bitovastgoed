@@ -202,20 +202,29 @@ function SectionAnchor({
   );
 }
 
-/** Sticky section nav (cockpit subnav) */
-const SECTIONS = [
+/** Sticky section nav (cockpit subnav) — vaste basis, conditioneel uitgebreid in page */
+type SectionDef = { id: string; label: string; icon: any };
+
+const BASE_SECTIONS: SectionDef[] = [
   { id: 'overzicht', label: 'Overzicht', icon: Info },
   { id: 'financieel', label: 'Financieel', icon: LineChart },
+  { id: 'verhuur', label: 'Verhuur', icon: Users },
+  { id: 'pand', label: 'Pand', icon: Building2 },
+  // potentie (conditioneel) wordt hier dynamisch tussen geplaatst
+  // juridisch (conditioneel)
+  // contacten (conditioneel)
+  { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
+  { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'documenten', label: 'Documenten', icon: FolderOpen },
-  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
+  { id: 'vastgoedrekenen', label: 'Rekenen', icon: Calculator },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
 /** Mobile-only sectiebar items — op desktop staan deze al in de rechter sidebar */
-const MOBILE_ONLY_SECTIONS = [
+const MOBILE_ONLY_SECTIONS: SectionDef[] = [
   { id: 'deal-cockpit', label: 'Cockpit', icon: Target },
   { id: 'next-action', label: 'Next action', icon: Calendar },
   { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
