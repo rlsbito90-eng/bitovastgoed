@@ -232,7 +232,7 @@ const MOBILE_ONLY_SECTIONS: SectionDef[] = [
 
 
 
-function SectionNav({ active }: { active: string }) {
+function SectionNav({ active, sections }: { active: string; sections: SectionDef[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
