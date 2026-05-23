@@ -1610,6 +1610,27 @@ export default function ObjectDetailPage() {
       </div>
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ArchiveerDialog
         open={archiefOpen}
         onOpenChange={setArchiefOpen}
