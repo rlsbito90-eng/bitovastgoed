@@ -848,7 +848,7 @@ export default function ScenarioEditor(props: Props) {
                         </Select>
                       </MobileFieldGroup>
                       <MobileFieldGroup label="m²-basis">
-                        <RawNumberInput className="h-9" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                        <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                       </MobileFieldGroup>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
