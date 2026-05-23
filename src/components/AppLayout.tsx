@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
+import NotificationsBell from "@/components/NotificationsBell";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
