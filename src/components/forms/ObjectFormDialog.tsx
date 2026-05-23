@@ -56,6 +56,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   object?: ObjectVastgoed | null;
+  /** Tab waarop de dialog standaard opent. Default: 'algemeen'. */
+  initialTab?: string;
 }
 
 // ---------------------------------------------------------------------
