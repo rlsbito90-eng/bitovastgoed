@@ -1869,6 +1869,13 @@ export type Database = {
           pipeline_updated_at: string | null
           plaats: string | null
           postcode: string | null
+          potentie_afhankelijkheden: string | null
+          potentie_bron: string | null
+          potentie_extra_m2: number | null
+          potentie_extra_units: number | null
+          potentie_omschrijving: string | null
+          potentie_onderbouwing_status: string | null
+          potentie_strategie: string | null
           prijsindicatie: string | null
           proces_voorwaarden: string | null
           property_subtype_ids: string[]
@@ -1982,6 +1989,13 @@ export type Database = {
           pipeline_updated_at?: string | null
           plaats?: string | null
           postcode?: string | null
+          potentie_afhankelijkheden?: string | null
+          potentie_bron?: string | null
+          potentie_extra_m2?: number | null
+          potentie_extra_units?: number | null
+          potentie_omschrijving?: string | null
+          potentie_onderbouwing_status?: string | null
+          potentie_strategie?: string | null
           prijsindicatie?: string | null
           proces_voorwaarden?: string | null
           property_subtype_ids?: string[]
@@ -2095,6 +2109,13 @@ export type Database = {
           pipeline_updated_at?: string | null
           plaats?: string | null
           postcode?: string | null
+          potentie_afhankelijkheden?: string | null
+          potentie_bron?: string | null
+          potentie_extra_m2?: number | null
+          potentie_extra_units?: number | null
+          potentie_omschrijving?: string | null
+          potentie_onderbouwing_status?: string | null
+          potentie_strategie?: string | null
           prijsindicatie?: string | null
           proces_voorwaarden?: string | null
           property_subtype_ids?: string[]

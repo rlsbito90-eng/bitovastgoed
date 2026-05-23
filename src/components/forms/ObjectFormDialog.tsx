@@ -14,7 +14,9 @@
 // Nieuwe objecten: media-tab is disabled tot het object een ID heeft
 // (oftewel: eerst één keer opslaan, daarna upload).
 
-import { useState, useEffect, ReactNode, useMemo } from 'react';
+import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
+import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
+import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,6 +124,13 @@ const leegForm: FormState = {
   kadastraalNummer: undefined,
   ontwikkelPotentie: false,
   transformatiePotentie: false,
+  potentieOmschrijving: undefined,
+  potentieStrategie: undefined,
+  potentieExtraM2: undefined,
+  potentieExtraUnits: undefined,
+  potentieOnderbouwingStatus: undefined,
+  potentieAfhankelijkheden: undefined,
+  potentieBron: undefined,
   samenvatting: undefined,
   investeringsthese: undefined,
   risicos: undefined,
@@ -197,7 +206,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   // Wordt bewust niet in de database opgeslagen — dient als visuele hint
   // én als trigger voor het kwaliteitsblok. Een echt referentieobject
   // wordt apart aangemaakt via het Referentieobject-formulier.
-  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
+  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(true);
+
+  // Raw input state voor financiële berekeningen — voorkomt cursor-jumps
+  // en houdt twee-richtings koppeling tussen maandhuur ↔ jaarhuur soepel.
+  const [maandhuurInput, setMaandhuurInput] = useState<string>('');
+  const [laatstGewijzigdHuur, setLaatstGewijzigdHuur] = useState<'maand' | 'jaar' | null>(null);
+
+  // Scroll-container ref: bij tabwissel scrollt deze automatisch naar boven.
+  const scrollRef = useResetScrollOnChange(tab);
 
   // Hydreer form bij open
   useEffect(() => {
@@ -205,12 +222,18 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
+      // Bij bestaande objecten: respecteer huidige waarde via interne UI-state (default uit).
+      setMarkeerAlsReferentie(false);
     } else {
       setForm(leegForm);
       setGemaaktId(undefined);
+      // Nieuwe objecten: default aan — gebruiker kan uitzetten.
+      setMarkeerAlsReferentie(true);
     }
     setTab('algemeen');
-    setMarkeerAlsReferentie(false);
+    // Initialiseer maandhuur-input op basis van jaarhuur
+    setMaandhuurInput(object?.huurinkomsten ? String(Math.round(object.huurinkomsten / 12 * 100) / 100) : '');
+    setLaatstGewijzigdHuur(null);
   }, [object, open]);
 
   // Genereer referentienummer automatisch voor nieuwe objecten
@@ -345,7 +368,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] max-h-[95dvh] p-0 gap-0 flex flex-col overflow-hidden overflow-x-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <DialogTitle>
@@ -411,24 +434,25 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
         )}
 
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
-            <TabsList className="inline-flex">
-              <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
-              <TabsTrigger value="financieel">Financieel</TabsTrigger>
-              <TabsTrigger value="verhuur">Verhuur</TabsTrigger>
-              <TabsTrigger value="pand">Pand</TabsTrigger>
-              <TabsTrigger value="juridisch">Juridisch</TabsTrigger>
-              <TabsTrigger value="verkoper">Verkoper</TabsTrigger>
-              <TabsTrigger value="thesis">Thesis</TabsTrigger>
-              <TabsTrigger value="im">IM &amp; document</TabsTrigger>
-              <TabsTrigger value="media" disabled={!objectId}>
+          <div className="shrink-0 px-3 sm:px-6 pt-3 pb-2 border-b border-border bg-background overflow-x-auto no-scrollbar">
+            <TabsList className="inline-flex h-auto p-1 gap-1 bg-transparent rounded-full glass-card border border-border/60">
+              <TabsTrigger value="algemeen" className="modal-tab-pill data-[state=active]:shadow-none">Algemeen</TabsTrigger>
+              <TabsTrigger value="financieel" className="modal-tab-pill data-[state=active]:shadow-none">Financieel</TabsTrigger>
+              <TabsTrigger value="verhuur" className="modal-tab-pill data-[state=active]:shadow-none">Verhuur</TabsTrigger>
+              <TabsTrigger value="pand" className="modal-tab-pill data-[state=active]:shadow-none">Pand</TabsTrigger>
+              <TabsTrigger value="juridisch" className="modal-tab-pill data-[state=active]:shadow-none">Juridisch</TabsTrigger>
+              <TabsTrigger value="verkoper" className="modal-tab-pill data-[state=active]:shadow-none">Verkoper</TabsTrigger>
+              <TabsTrigger value="thesis" className="modal-tab-pill data-[state=active]:shadow-none">Thesis</TabsTrigger>
+              <TabsTrigger value="im" className="modal-tab-pill data-[state=active]:shadow-none">IM &amp; document</TabsTrigger>
+              <TabsTrigger value="media" disabled={!objectId} className="modal-tab-pill data-[state=active]:shadow-none">
                 <span className="hidden sm:inline">Media</span>
                 <Image className="h-4 w-4 sm:hidden" />
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 min-h-0">
+
             {/* TAB 1: ALGEMEEN */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
               <Sectie titel="Identificatie">
@@ -663,55 +687,124 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               </Sectie>
 
               <Sectie titel="Huur & rendement">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Totale huurinkomsten (€/jr)">
-                    <Input type="number" value={form.huurinkomsten ?? ''}
-                      onChange={e => set('huurinkomsten', num(e.target.value))} />
-                  </Veld>
-                  <Veld label={<>Huur per m² (€)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" step="0.01" value={form.huurPerM2 ?? ''}
-                      onChange={e => set('huurPerM2', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="Servicekosten (€/jr)">
-                    <Input type="number" value={form.servicekostenJaar ?? ''}
-                      onChange={e => set('servicekostenJaar', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="NOI — netto operationeel inkomen (€/jr)">
-                    <Input type="number" value={form.noi ?? ''}
-                      onChange={e => set('noi', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="BAR — bruto aanvangsrendement (%)">
-                    <Input type="number" step="0.01" value={form.brutoAanvangsrendement ?? ''}
-                      onChange={e => set('brutoAanvangsrendement', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="NAR — netto aanvangsrendement (%)">
-                    <Input type="number" step="0.01" value={form.nettoAanvangsrendement ?? ''}
-                      onChange={e => set('nettoAanvangsrendement', num(e.target.value))} />
-                  </Veld>
-                </div>
+                {(() => {
+                  const m2Basis = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                  const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
+                  const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
+                  const autoNar = calcNar(form.noi, form.vraagprijs);
+                  const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
+                  const setJaarhuur = (raw: string) => {
+                    const v = num(raw);
+                    setLaatstGewijzigdHuur('jaar');
+                    set('huurinkomsten', v);
+                    setMaandhuurInput(v == null ? '' : String(maandhuurFromJaar(v) ?? ''));
+                    // Auto huur/m² als gebruiker dit veld nog niet handmatig invulde
+                    if (form.huurPerM2 == null || laatstGewijzigdHuur === 'jaar') {
+                      const auto = calcHuurPerM2(v, m2Basis);
+                      if (auto != null) set('huurPerM2', auto);
+                    }
+                  };
+                  const setMaandhuur = (raw: string) => {
+                    setMaandhuurInput(raw);
+                    setLaatstGewijzigdHuur('maand');
+                    const v = num(raw);
+                    const jaar = jaarFromMaandhuur(v);
+                    set('huurinkomsten', jaar);
+                    if (form.huurPerM2 == null) {
+                      const auto = calcHuurPerM2(jaar, m2Basis);
+                      if (auto != null) set('huurPerM2', auto);
+                    }
+                  };
+                  return (
+                    <>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <Veld label="Totale huurinkomsten (€/jr)">
+                          <Input type="number" inputMode="decimal" className="min-w-0"
+                            value={form.huurinkomsten ?? ''}
+                            onChange={e => setJaarhuur(e.target.value)} />
+                        </Veld>
+                        <Veld label={<>Maandelijkse huur (€) <AutoBadge /></>}>
+                          <Input type="number" inputMode="decimal" className="min-w-0"
+                            value={maandhuurInput}
+                            onChange={e => setMaandhuur(e.target.value)}
+                            placeholder="auto = jaarhuur / 12" />
+                        </Veld>
+                        <Veld label={<>Huur per m² (€/jr) <AutoBadge show={!!autoHuurPerM2} /><RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
+                          <Input type="number" step="0.01" inputMode="decimal" className="min-w-0"
+                            value={form.huurPerM2 ?? ''}
+                            onChange={e => set('huurPerM2', num(e.target.value))}
+                            placeholder={autoHuurPerM2 ? `auto: € ${autoHuurPerM2}` : 'onvoldoende gegevens'} />
+                        </Veld>
+                        <Veld label="Servicekosten (€/jr)">
+                          <Input type="number" className="min-w-0" value={form.servicekostenJaar ?? ''}
+                            onChange={e => set('servicekostenJaar', num(e.target.value))} />
+                        </Veld>
+                        <Veld label="NOI — netto operationeel inkomen (€/jr)">
+                          <Input type="number" className="min-w-0" value={form.noi ?? ''}
+                            onChange={e => set('noi', num(e.target.value))}
+                            placeholder="handmatig — overschrijft niets" />
+                        </Veld>
+                        <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={!!autoBar} /></>}>
+                          <Input type="number" step="0.01" className="min-w-0"
+                            value={form.brutoAanvangsrendement ?? ''}
+                            onChange={e => set('brutoAanvangsrendement', num(e.target.value))}
+                            placeholder={autoBar != null ? `auto: ${autoBar}%` : 'jaarhuur ÷ vraagprijs'} />
+                        </Veld>
+                        <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={!!autoNar} /></>}>
+                          <Input type="number" step="0.01" className="min-w-0"
+                            value={form.nettoAanvangsrendement ?? ''}
+                            onChange={e => set('nettoAanvangsrendement', num(e.target.value))}
+                            placeholder={autoNar != null ? `auto: ${autoNar}%` : 'NOI ÷ vraagprijs'} />
+                        </Veld>
+                        <Veld label="Kapitalisatiefactor (auto)">
+                          <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                            {formatFactor(autoFactor)}
+                            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">auto</span>
+                          </div>
+                        </Veld>
+                      </div>
+                    </>
+                  );
+                })()}
               </Sectie>
 
               <Sectie titel="Waarderingen">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="WOZ-waarde (€)">
-                    <Input type="number" value={form.wozWaarde ?? ''}
+                    <Input type="number" className="min-w-0" value={form.wozWaarde ?? ''}
                       onChange={e => set('wozWaarde', num(e.target.value))} />
                   </Veld>
-                  <Veld label="WOZ peildatum">
-                    <Input type="date" value={form.wozPeildatum ?? ''}
-                      onChange={e => set('wozPeildatum', e.target.value || undefined)} />
+                  <Veld label="WOZ-peildatum (jaar)">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={2000}
+                      max={new Date().getFullYear() + 1}
+                      className="min-w-0"
+                      placeholder="bv. 2025"
+                      value={form.wozPeildatum ? new Date(form.wozPeildatum).getFullYear().toString() : ''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        if (!v) { set('wozPeildatum', undefined); return; }
+                        const jaar = Number(v);
+                        if (!Number.isFinite(jaar)) return;
+                        set('wozPeildatum', `${jaar}-01-01`);
+                      }}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">Wordt opgeslagen als 1 januari van het gekozen jaar.</p>
                   </Veld>
                   <Veld label="Taxatiewaarde (€)">
-                    <Input type="number" value={form.taxatiewaarde ?? ''}
+                    <Input type="number" className="min-w-0" value={form.taxatiewaarde ?? ''}
                       onChange={e => set('taxatiewaarde', num(e.target.value))} />
                   </Veld>
                   <Veld label="Taxatiedatum">
-                    <Input type="date" value={form.taxatiedatum ?? ''}
+                    <Input type="date" className="min-w-0" value={form.taxatiedatum ?? ''}
                       onChange={e => set('taxatiedatum', e.target.value || undefined)} />
                   </Veld>
                 </div>
               </Sectie>
             </TabsContent>
+
 
             {/* TAB 3: VERHUUR */}
             <TabsContent value="verhuur" className="space-y-5 mt-0">
@@ -852,7 +945,90 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     Transformatiepotentie
                   </label>
                 </div>
+
+                {(form.ontwikkelPotentie || form.transformatiePotentie) && (
+                  <div className="mt-4 p-3 sm:p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-4">
+                    <p className="text-xs uppercase tracking-wider text-accent font-semibold">
+                      Potentie / mogelijkheden
+                    </p>
+                    <Veld label="Potentieomschrijving">
+                      <Textarea rows={2} value={form.potentieOmschrijving ?? ''}
+                        onChange={e => set('potentieOmschrijving', e.target.value || undefined)}
+                        placeholder="Korte beschrijving van de potentie of mogelijkheid" />
+                    </Veld>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Mogelijke strategie">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieStrategie ?? ''}
+                          onChange={e => set('potentieStrategie', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="transformatie">Transformatie</option>
+                          <option value="uitponden">Uitponden</option>
+                          <option value="splitsen">Splitsen</option>
+                          <option value="optoppen">Optoppen</option>
+                          <option value="herontwikkeling">Herontwikkeling</option>
+                          <option value="kamerverhuur">Kamerverhuur</option>
+                          <option value="functiewijziging">Functiewijziging</option>
+                          <option value="renovatie">Renovatie / value-add</option>
+                          <option value="uitbreiding">Uitbreiding</option>
+                          <option value="anders">Anders</option>
+                        </select>
+                      </Veld>
+                      <Veld label="Status onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieOnderbouwingStatus ?? ''}
+                          onChange={e => set('potentieOnderbouwingStatus', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="idee">Idee</option>
+                          <option value="indicatief">Indicatief</option>
+                          <option value="besproken">Besproken</option>
+                          <option value="onderzocht">Onderzocht</option>
+                          <option value="vergunningstraject">Vergunningstraject</option>
+                          <option value="vergund">Vergund</option>
+                        </select>
+                      </Veld>
+                      <Veld label="Indicatief extra m² mogelijk">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraM2 ?? ''}
+                          onChange={e => set('potentieExtraM2', num(e.target.value))} />
+                      </Veld>
+                      <Veld label="Indicatief aantal extra units">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraUnits ?? ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
+                          }} />
+                      </Veld>
+                      <Veld label="Bron / onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieBron ?? ''}
+                          onChange={e => set('potentieBron', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="gemeente">Gemeente</option>
+                          <option value="makelaar">Makelaar</option>
+                          <option value="architect">Architect</option>
+                          <option value="eigenaar">Eigenaar</option>
+                          <option value="eigen_analyse">Eigen analyse</option>
+                          <option value="onbekend">Onbekend</option>
+                        </select>
+                      </Veld>
+                    </div>
+                    <Veld label="Belangrijkste afhankelijkheden / risico's">
+                      <Textarea rows={2} value={form.potentieAfhankelijkheden ?? ''}
+                        onChange={e => set('potentieAfhankelijkheden', e.target.value || undefined)}
+                        placeholder="bv. bestemmingsplanwijziging, parkeernorm, draagvlak gemeente" />
+                    </Veld>
+                  </div>
+                )}
               </Sectie>
+
             </TabsContent>
 
             {/* TAB 5: JURIDISCH */}
@@ -1211,6 +1387,16 @@ function Veld({ label, children, span = 1 }: { label: ReactNode; children: React
 }
 
 /** Visuele markering: ** = sterk aanbevolen voor referentiegebruik, * = nuttig. */
+/** Kleine `auto`-indicator naast afgeleide velden. */
+function AutoBadge({ show = true }: { show?: boolean }) {
+  if (!show) return null;
+  return (
+    <span className="ml-1.5 align-middle inline-flex items-center rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent">
+      auto
+    </span>
+  );
+}
+
 function RefMark({ level, show }: { level: 'sterk' | 'nuttig'; show: boolean }) {
   if (!show) return null;
   return (

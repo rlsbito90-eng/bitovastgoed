@@ -369,6 +369,27 @@
       0 4px 12px -6px hsl(var(--accent) / 0.35);
   }
 
+  /* Modal tab-pill — zelfde liquid-glass selected state als app-sectiebalken */
+  .modal-tab-pill {
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] sm:text-sm font-medium text-muted-foreground transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40;
+  }
+  .modal-tab-pill:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--accent) / 0.06);
+  }
+  .modal-tab-pill[data-state="active"] {
+    color: hsl(var(--accent));
+    background: linear-gradient(180deg, hsl(var(--accent) / 0.22), hsl(var(--accent) / 0.12));
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--accent) / 0.5),
+      0 1px 0 hsl(var(--glass-highlight) / 0.5) inset,
+      0 4px 12px -6px hsl(var(--accent) / 0.35);
+  }
+
+  /* Verberg scrollbars zonder scrollen te blokkeren */
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
   /* Floating glass action button */
   .glass-fab {
     background: linear-gradient(180deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 0.78));
