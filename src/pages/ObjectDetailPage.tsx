@@ -1656,73 +1656,66 @@ export default function ObjectDetailPage() {
           )}
 
 
-          {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
-          <SectionAnchor
-            id="documenten"
-            eyebrow={eyebrowFor("documenten", "Data room")}
-            title={`Documenten & data room · ${documenten.length}`}
-          >
-            {/* Dossier-checklist staat in eigen Dossierstatus-sectie hierboven. */}
-
-
-            {documenten.length > 0 ? (
-              <div className="section-card p-5 sm:p-6 mt-4">
-                <h3 className="section-title mb-3">Bestanden in data room</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {documenten.map(doc => (
-                    <div key={doc.id} className="row-hover flex items-center gap-3 border border-border/60 rounded-lg p-3 bg-card/40">
-                      <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                        <FileText className="h-4 w-4 text-accent" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{doc.bestandsnaam}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {DOCUMENT_TYPE_LABELS[doc.documenttype]} · {formatFileSize(doc.bestandsgrootteBytes)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(doc.storagePath)}
-                        className="p-2 hover:bg-muted rounded shrink-0"
-                        aria-label="Downloaden"
-                      >
-                        <Download className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="section-card p-8 text-center mt-4">
-                <FolderOpen className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Nog geen bestanden in de data room. Open de tab Documenten hierboven om te uploaden.</p>
-              </div>
-            )}
-
-            {/* Foto's */}
-            {fotos.length > 1 && (
-              <div className="section-card p-5 sm:p-6 mt-4">
-                <h3 className="section-title mb-3">Foto's ({fotos.length})</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {fotos.map(foto => (
-                    <div key={foto.id} className="relative aspect-[4/3] bg-muted rounded-md overflow-hidden group">
-                      {fotoUrls[foto.storagePath] ? (
-                        <img src={fotoUrls[foto.storagePath]} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full bg-muted" />
-                      )}
-                      {foto.isHoofdfoto && (
-                        <div className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow">
-                          <Star className="h-2.5 w-2.5 fill-current" /> Hoofd
+          {/* ============ DOCUMENTEN ============ */}
+          {(documenten.length > 0 || fotos.length > 1) && (
+            <SectionAnchor
+              id="documenten"
+              eyebrow={eyebrowFor("documenten", "Documenten")}
+              title={documenten.length > 0 ? `Documenten · ${documenten.length}` : 'Documenten'}
+            >
+              {documenten.length > 0 && (
+                <div className="section-card p-5 sm:p-6 mt-4">
+                  <h3 className="section-title mb-3">Bestanden in data room</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {documenten.map(doc => (
+                      <div key={doc.id} className="row-hover flex items-center gap-3 border border-border/60 rounded-lg p-3 bg-card/40">
+                        <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
+                          <FileText className="h-4 w-4 text-accent" />
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{doc.bestandsnaam}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {DOCUMENT_TYPE_LABELS[doc.documenttype]} · {formatFileSize(doc.bestandsgrootteBytes)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(doc.storagePath)}
+                          className="p-2 hover:bg-muted rounded shrink-0"
+                          aria-label="Downloaden"
+                        >
+                          <Download className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-          </SectionAnchor>
+              {fotos.length > 1 && (
+                <div className="section-card p-5 sm:p-6 mt-4">
+                  <h3 className="section-title mb-3">Foto's ({fotos.length})</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {fotos.map(foto => (
+                      <div key={foto.id} className="relative aspect-[4/3] bg-muted rounded-md overflow-hidden group">
+                        {fotoUrls[foto.storagePath] ? (
+                          <img src={fotoUrls[foto.storagePath]} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full bg-muted" />
+                        )}
+                        {foto.isHoofdfoto && (
+                          <div className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow">
+                            <Star className="h-2.5 w-2.5 fill-current" /> Hoofd
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </SectionAnchor>
+          )}
+
 
           {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
           <SectionAnchor
