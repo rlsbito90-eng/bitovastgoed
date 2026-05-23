@@ -855,21 +855,32 @@ export default function ObjectDetailPage() {
           HERO KPI STRIP — institutional underwriting overview
           ================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
-        <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
-        <MetricTile label="€ / m²" value={prijsPerM2Str} />
+        <MetricTile
+          label="Vraagprijs"
+          value={
+            object.vraagprijs != null
+              ? formatCurrency(object.vraagprijs)
+              : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
+          }
+          hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+          accent
+        />
+        <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
         <MetricTile
           label="BAR"
           value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
           tone={barEffect != null && barEffect >= 6 ? 'positive' : 'default'}
+          badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
         />
         <MetricTile
           label="Factor"
           value={factor != null ? `${factor.toFixed(1)}×` : '—'}
+          badge={factor != null ? 'auto' : undefined}
         />
         <MetricTile
           label="Huur / jr"
           value={object.huurinkomsten ? formatCurrencyCompact(object.huurinkomsten) : '—'}
-          hint={huurPerM2Berekend != null ? huurPerM2Str : undefined}
+          hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
         />
         <MetricTile
           label="Oppervlakte"
