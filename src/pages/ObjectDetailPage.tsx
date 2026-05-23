@@ -1652,11 +1652,8 @@ export default function ObjectDetailPage() {
             eyebrow="06 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
-            <ObjectDossierCard
-              objectId={object.id}
-              objectRecord={object as unknown as Record<string, unknown>}
-              openTabRequest={dossierOpenRequest}
-            />
+            {/* Dossier-checklist staat in eigen Dossierstatus-sectie hierboven. */}
+
 
             {documenten.length > 0 ? (
               <div className="section-card p-5 sm:p-6 mt-4">
