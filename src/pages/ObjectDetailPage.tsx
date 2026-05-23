@@ -420,6 +420,11 @@ export default function ObjectDetailPage() {
   const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [editInitialTab, setEditInitialTab] = useState<string>('algemeen');
+  const openEdit = (tab: string = 'algemeen') => {
+    setEditInitialTab(tab);
+    setEditOpen(true);
+  };
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
@@ -1015,9 +1020,8 @@ export default function ObjectDetailPage() {
 
       {/* WALT/WALB strip (alleen als huurders) */}
       {huurMetrics && huurMetrics.aantalHuurders > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
           <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
-          <MetricTile label="Totale jaarhuur" value={formatCurrencyCompact(huurMetrics.totaleJaarhuur)} />
           <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
           <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
         </div>
@@ -1610,7 +1614,7 @@ export default function ObjectDetailPage() {
               </div>
             ) : (
               <div className="section-card p-5 text-sm text-muted-foreground">
-                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => setEditOpen(true)} className="text-accent hover:underline">Object bewerken</button>.
+                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => openEdit('aanbieding')} className="text-accent hover:underline">Object bewerken</button>.
               </div>
             )}
           </SectionAnchor>
@@ -1966,7 +1970,7 @@ export default function ObjectDetailPage() {
         </aside>
       </div>
 
-      <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+      <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} initialTab={editInitialTab} />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

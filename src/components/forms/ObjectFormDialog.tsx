@@ -56,6 +56,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   object?: ObjectVastgoed | null;
+  /** Tab waarop de dialog standaard opent. Default: 'algemeen'. */
+  initialTab?: string;
 }
 
 // ---------------------------------------------------------------------
@@ -192,7 +194,7 @@ const ENERGIELABELS: Energielabel[] =
 // Component
 // ---------------------------------------------------------------------
 
-export default function ObjectFormDialog({ open, onOpenChange, object }: Props) {
+export default function ObjectFormDialog({ open, onOpenChange, object, initialTab = 'algemeen' }: Props) {
   const { addObject, updateObject, objecten, genereerRefnummer } = useDataStore();
   const isEdit = !!object;
 
@@ -202,7 +204,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
-  const [tab, setTab] = useState('algemeen');
+  const [tab, setTab] = useState(initialTab);
+
+  // Reset tab naar initialTab telkens de dialog opent
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
   // Persistente toggle: "Ook bruikbaar als referentieobject".
   // Wordt opgeslagen op het object zelf en kan in een latere fase gebruikt
   // worden als bron voor de referentie-analyse.
