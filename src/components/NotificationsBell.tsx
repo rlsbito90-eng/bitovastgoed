@@ -10,9 +10,25 @@
 //
 // Sortering: ongelezen > prioriteit (kritiek..laag) > nieuwste eerst.
 //
-// In deze fase wordt alleen voor nieuwe matches (score >= drempel)
-// automatisch een melding aangemaakt. Andere modules kunnen later
-// `pushNotification` aanroepen om meldingen toe te voegen.
+// === BEPERKTE TRIGGERS ===
+// Alleen de hieronder genoemde situaties veroorzaken meldingen.
+// Hierbuiten wordt nooit automatisch een melding aangemaakt om
+// notificatie-overload te voorkomen.
+//
+// 1. Taken
+//    - Taak met hoge/urgente prioriteit nieuw aangemaakt  → 'hoog'
+//    - Taakdeadline is vandaag (open/in uitvoering/wacht) → 'hoog'
+//    - Taak is verlopen                                   → 'kritiek'
+// 2. Biedingen
+//    - Bod verloopt vandaag of morgen (status actief)     → 'hoog'
+// 3. Matching
+//    - Nieuwe sterke match (score >= STRONG_MATCH_MIN)    → 'normaal'
+// 4. Systeem / datakwaliteit
+//    - Mogelijke dubbele relatie                          → 'kritiek'
+//    - Mogelijke dubbele objectinvoer                     → 'kritiek'
+//
+// Externe modules kunnen via `pushNotification` extra meldingen
+// toevoegen, maar dit gebeurt bewust spaarzaam.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -29,14 +45,17 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getAllMatchesFromData } from '@/data/mock-data';
+import { useBiedingen } from '@/hooks/useBiedingen';
+import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
 
 const STORAGE_KEY = 'bito-notifications-v2';
-const SEEN_MATCH_KEYS = 'bito-notifications-seen-match-keys-v1';
-const INIT_FLAG = 'bito-notifications-initialized-v2';
-const DREMPEL = 3;
+const CREATED_IDS_KEY = 'bito-notifications-created-ids-v1';
+const INIT_FLAG = 'bito-notifications-initialized-v3';
+const STRONG_MATCH_MIN = 5; // ~ "boven 85%" op 0..5 schaal
 const MAX_NOTIFICATIONS = 200;
+const MAX_CREATED_IDS = 2000;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +127,6 @@ function loadAll(): AppNotification[] {
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
-    // Backwards-compat: oudere items zonder priority/type-velden veilig maken.
     return arr.map((n: Partial<AppNotification> & { id: string; title: string; createdAt: number }) => ({
       id: n.id,
       type: (n.type as NotificationType) ?? 'systeem',
@@ -133,9 +151,9 @@ function saveAll(list: AppNotification[]): void {
   }
 }
 
-function loadSeenMatchKeys(): Set<string> {
+function loadCreatedIds(): Set<string> {
   try {
-    const raw = localStorage.getItem(SEEN_MATCH_KEYS);
+    const raw = localStorage.getItem(CREATED_IDS_KEY);
     if (!raw) return new Set();
     const arr = JSON.parse(raw);
     return new Set(Array.isArray(arr) ? arr : []);
@@ -144,9 +162,12 @@ function loadSeenMatchKeys(): Set<string> {
   }
 }
 
-function saveSeenMatchKeys(set: Set<string>): void {
+function saveCreatedIds(set: Set<string>): void {
   try {
-    localStorage.setItem(SEEN_MATCH_KEYS, JSON.stringify([...set]));
+    // Cap om localStorage niet te laten groeien zonder limiet.
+    const arr = [...set];
+    const trimmed = arr.length > MAX_CREATED_IDS ? arr.slice(arr.length - MAX_CREATED_IDS) : arr;
+    localStorage.setItem(CREATED_IDS_KEY, JSON.stringify(trimmed));
   } catch {
     // ignore
   }
@@ -161,9 +182,13 @@ export function pushNotification(
     read?: boolean;
   },
 ): void {
+  const id = n.id ?? `${n.type}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`;
+  const created = loadCreatedIds();
+  if (created.has(id)) return;
   const list = loadAll();
+  if (list.some((x) => x.id === id)) return;
   const item: AppNotification = {
-    id: n.id ?? `${n.type}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`,
+    id,
     type: n.type,
     priority: n.priority,
     title: n.title,
@@ -173,10 +198,10 @@ export function pushNotification(
     createdAt: n.createdAt ?? Date.now(),
     read: n.read ?? false,
   };
-  if (list.some((x) => x.id === item.id)) return;
   const next = [item, ...list].slice(0, MAX_NOTIFICATIONS);
   saveAll(next);
-  // Notify open bells in dezelfde tab
+  created.add(id);
+  saveCreatedIds(created);
   try {
     window.dispatchEvent(new CustomEvent('bito:notifications-updated'));
   } catch {
@@ -188,6 +213,10 @@ export function pushNotification(
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
+}
+
+function todayKey(d = new Date()): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function formatDateTime(ts: number): string {
@@ -224,18 +253,78 @@ function relativeHint(ts: number): string | null {
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'zojuist';
   if (m < 60) return `${m} min geleden`;
-  return null; // langer dan een uur → datum is duidelijk genoeg
+  return null;
+}
+
+// ── Duplicate detectors ──────────────────────────────────────────────────────
+
+function norm(s?: string | null): string {
+  return (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function detectRelatieDuplicates(relaties: Relatie[]): Array<{ key: string; groep: Relatie[] }> {
+  const groups = new Map<string, Relatie[]>();
+  for (const r of relaties) {
+    if (r.softDeletedAt) continue;
+    const keys: string[] = [];
+    const email = norm(r.email);
+    const tel = norm(r.telefoon).replace(/[^\d+]/g, '');
+    const kvk = norm(r.kvkNummer);
+    const naam = norm(r.bedrijfsnaam);
+    if (email) keys.push(`email:${email}`);
+    if (tel && tel.length >= 8) keys.push(`tel:${tel}`);
+    if (kvk) keys.push(`kvk:${kvk}`);
+    if (naam) keys.push(`naam:${naam}`);
+    for (const k of keys) {
+      const arr = groups.get(k) ?? [];
+      arr.push(r);
+      groups.set(k, arr);
+    }
+  }
+  const out: Array<{ key: string; groep: Relatie[] }> = [];
+  for (const [key, groep] of groups) {
+    const uniek = Array.from(new Map(groep.map((g) => [g.id, g])).values());
+    if (uniek.length >= 2) out.push({ key, groep: uniek });
+  }
+  return out;
+}
+
+function detectObjectDuplicates(objecten: ObjectVastgoed[]): Array<{ key: string; groep: ObjectVastgoed[] }> {
+  const groups = new Map<string, ObjectVastgoed[]>();
+  for (const o of objecten) {
+    const keys: string[] = [];
+    const adres = norm(o.adres);
+    const pc = norm(o.postcode).replace(/\s+/g, '');
+    const plaats = norm(o.plaats);
+    const ref = norm(o.internReferentienummer);
+    const titel = norm(o.titel);
+    if (adres && pc) keys.push(`adres:${adres}|${pc}`);
+    else if (adres && plaats) keys.push(`adres:${adres}|${plaats}`);
+    if (ref) keys.push(`ref:${ref}`);
+    if (titel && plaats) keys.push(`titel:${titel}|${plaats}`);
+    for (const k of keys) {
+      const arr = groups.get(k) ?? [];
+      arr.push(o);
+      groups.set(k, arr);
+    }
+  }
+  const out: Array<{ key: string; groep: ObjectVastgoed[] }> = [];
+  for (const [key, groep] of groups) {
+    const uniek = Array.from(new Map(groep.map((g) => [g.id, g])).values());
+    if (uniek.length >= 2) out.push({ key, groep: uniek });
+  }
+  return out;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function NotificationsBell() {
   const store = useDataStore();
+  const { items: biedingen } = useBiedingen({ all: true });
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>(() => loadAll());
   const ref = useRef<HTMLDivElement>(null);
 
-  // Houd state in sync met externe pushNotification calls
   useEffect(() => {
     const handler = () => setItems(loadAll());
     window.addEventListener('bito:notifications-updated', handler);
@@ -246,63 +335,194 @@ export default function NotificationsBell() {
     };
   }, []);
 
-  // Bron: actuele matches met score >= drempel
-  const matches = useMemo(() => {
-    return getAllMatchesFromData(store.zoekprofielen, store.objecten)
-      .filter((m) => m.score >= DREMPEL);
-  }, [store.zoekprofielen, store.objecten]);
+  // Bron-derived candidate notificaties berekenen.
+  const matches = useMemo(
+    () => getAllMatchesFromData(store.zoekprofielen, store.objecten).filter((m) => m.score >= STRONG_MATCH_MIN),
+    [store.zoekprofielen, store.objecten],
+  );
 
-  // Genereer matching-meldingen voor nieuwe matches sinds laatst gezien.
-  // Eerste init markeert bestaande matches als gezien (geen lawine).
+  const taken = store.taken;
+  const relaties = store.relaties;
+  const objecten = store.objecten;
+
+  // Hoofd-synchronisatie effect. Genereert max één nieuwe melding per
+  // unieke kandidaat-id; reeds eerder aangemaakte ids worden overgeslagen
+  // ook als de gebruiker ze al gewist heeft.
   useEffect(() => {
-    const seen = loadSeenMatchKeys();
+    const created = loadCreatedIds();
     const initialized = localStorage.getItem(INIT_FLAG) === '1';
+    const now = new Date();
+    const dayKey = todayKey(now);
 
-    if (!initialized) {
-      const all = new Set(matches.map((m) => `${m.objectId}::${m.zoekprofielId}`));
-      saveSeenMatchKeys(all);
-      try { localStorage.setItem(INIT_FLAG, '1'); } catch { /* ignore */ }
-      return;
-    }
+    const candidates: AppNotification[] = [];
 
-    const nieuw = matches.filter(
-      (m) => !seen.has(`${m.objectId}::${m.zoekprofielId}`),
-    );
-    if (nieuw.length === 0) return;
+    // 1. Taken
+    for (const t of taken) {
+      if (t.softDeletedAt) continue;
+      if (t.status === 'afgerond' || t.status === 'geannuleerd') continue;
 
-    setItems((prev) => {
-      const existing = new Set(prev.map((n) => n.id));
-      const toAdd: AppNotification[] = [];
-      for (const m of nieuw) {
-        const id = `match::${m.objectId}::${m.zoekprofielId}`;
-        if (existing.has(id)) continue;
-        const obj = store.getObjectById(m.objectId);
-        const zp = store.zoekprofielen.find((z) => z.id === m.zoekprofielId);
-        const rel = zp ? store.getRelatieById(zp.relatieId) : null;
-        if (!obj || !zp || !rel) continue;
-        toAdd.push({
-          id,
-          type: 'matching',
-          priority: m.score >= 5 ? 'hoog' : 'normaal',
-          title: `Nieuwe match: ${obj.titel}`,
-          body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/5`,
-          href: `/objecten/${m.objectId}`,
-          context: { kind: 'object', id: m.objectId },
+      // 1a. Verlopen
+      if (isTaakTeLaat(t, now)) {
+        candidates.push({
+          id: `taak-verlopen::${t.id}`,
+          type: 'taak',
+          priority: 'kritiek',
+          title: `Taak verlopen: ${t.titel}`,
+          body: t.deadline ? `Deadline ${t.deadline}${t.deadlineTijd ? ` ${t.deadlineTijd.slice(0, 5)}` : ''}` : undefined,
+          href: '/taken',
+          context: { kind: 'taak', id: t.id },
+          createdAt: Date.now(),
+          read: false,
+        });
+        continue; // verlopen overschaduwt "vandaag"
+      }
+
+      // 1b. Vandaag
+      if (isTaakVandaag(t, now)) {
+        candidates.push({
+          id: `taak-vandaag::${t.id}::${dayKey}`,
+          type: 'taak',
+          priority: 'hoog',
+          title: `Taak vandaag: ${t.titel}`,
+          body: t.deadlineTijd ? `Vandaag ${t.deadlineTijd.slice(0, 5)}` : 'Vandaag',
+          href: '/taken',
+          context: { kind: 'taak', id: t.id },
           createdAt: Date.now(),
           read: false,
         });
       }
+
+      // 1c. Nieuw aangemaakt met hoge/urgente prioriteit
+      if (t.prioriteit === 'hoog' || t.prioriteit === 'urgent') {
+        candidates.push({
+          id: `taak-hoogprio::${t.id}`,
+          type: 'taak',
+          priority: 'hoog',
+          title: `Nieuwe ${t.prioriteit === 'urgent' ? 'urgente' : 'hoog-prioriteit'}taak: ${t.titel}`,
+          body: t.deadline ? `Deadline ${t.deadline}` : undefined,
+          href: '/taken',
+          context: { kind: 'taak', id: t.id },
+          createdAt: Date.now(),
+          read: false,
+        });
+      }
+    }
+
+    // 2. Biedingen — bod verloopt vandaag of morgen
+    const ACTIEVE_BOD_STATUS = new Set([
+      'concept', 'ontvangen', 'in_behandeling', 'tegenvoorstel_gedaan', 'aangepast_bod_gevraagd',
+    ]);
+    for (const b of biedingen) {
+      if (!b.geldigTot) continue;
+      if (!ACTIEVE_BOD_STATUS.has(b.status)) continue;
+      const [y, m, d] = String(b.geldigTot).slice(0, 10).split('-').map(Number);
+      if (!y) continue;
+      const gt = new Date(y, m - 1, d);
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      const diffDagen = Math.round((gt.getTime() - start.getTime()) / 86400000);
+      if (diffDagen === 0 || diffDagen === 1) {
+        const obj = store.getObjectById(b.objectId);
+        candidates.push({
+          id: `bod-verloop::${b.id}::${String(b.geldigTot).slice(0, 10)}`,
+          type: 'bieding',
+          priority: 'hoog',
+          title: diffDagen === 0 ? 'Bod verloopt vandaag' : 'Bod verloopt morgen',
+          body: obj ? `${obj.titel} · geldig tot ${String(b.geldigTot).slice(0, 10)}` : `Geldig tot ${String(b.geldigTot).slice(0, 10)}`,
+          href: obj ? `/objecten/${obj.id}` : undefined,
+          context: { kind: 'bieding', id: b.id },
+          createdAt: Date.now(),
+          read: false,
+        });
+      }
+    }
+
+    // 3. Matching — sterke match
+    for (const m of matches) {
+      const obj = store.getObjectById(m.objectId);
+      const zp = store.zoekprofielen.find((z) => z.id === m.zoekprofielId);
+      const rel = zp ? store.getRelatieById(zp.relatieId) : null;
+      if (!obj || !zp || !rel) continue;
+      candidates.push({
+        id: `match-sterk::${m.objectId}::${m.zoekprofielId}`,
+        type: 'matching',
+        priority: 'normaal',
+        title: `Sterke match: ${obj.titel}`,
+        body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/5`,
+        href: `/objecten/${m.objectId}`,
+        context: { kind: 'object', id: m.objectId },
+        createdAt: Date.now(),
+        read: false,
+      });
+    }
+
+    // 4. Datakwaliteit — dubbele relaties
+    for (const dup of detectRelatieDuplicates(relaties)) {
+      const namen = dup.groep.slice(0, 3).map((r) => r.bedrijfsnaam || r.contactpersoon || 'Onbekend').join(', ');
+      const reden = dup.key.split(':')[0];
+      const redenLabel = reden === 'email' ? 'zelfde e-mail'
+        : reden === 'tel' ? 'zelfde telefoonnummer'
+        : reden === 'kvk' ? 'zelfde KvK-nummer'
+        : 'gelijke bedrijfsnaam';
+      candidates.push({
+        id: `dupe-relatie::${dup.key}`,
+        type: 'systeem',
+        priority: 'kritiek',
+        title: 'Mogelijke dubbele relatie',
+        body: `${namen} (${redenLabel})`,
+        href: `/relaties/${dup.groep[0].id}`,
+        context: { kind: 'relatie', id: dup.groep[0].id },
+        createdAt: Date.now(),
+        read: false,
+      });
+    }
+
+    // 4b. Datakwaliteit — dubbele objecten
+    for (const dup of detectObjectDuplicates(objecten)) {
+      const titels = dup.groep.slice(0, 3).map((o) => o.titel).join(', ');
+      const reden = dup.key.split(':')[0];
+      const redenLabel = reden === 'adres' ? 'zelfde adres'
+        : reden === 'ref' ? 'zelfde intern referentienummer'
+        : 'gelijke titel + plaats';
+      candidates.push({
+        id: `dupe-object::${dup.key}`,
+        type: 'systeem',
+        priority: 'kritiek',
+        title: 'Mogelijke dubbele objectinvoer',
+        body: `${titels} (${redenLabel})`,
+        href: `/objecten/${dup.groep[0].id}`,
+        context: { kind: 'object', id: dup.groep[0].id },
+        createdAt: Date.now(),
+        read: false,
+      });
+    }
+
+    // Eerste init: markeer alle huidige kandidaten als 'al gezien' zodat
+    // de gebruiker niet wordt overspoeld door historische data.
+    if (!initialized) {
+      const next = new Set(created);
+      for (const c of candidates) next.add(c.id);
+      saveCreatedIds(next);
+      try { localStorage.setItem(INIT_FLAG, '1'); } catch { /* ignore */ }
+      return;
+    }
+
+    const nieuw = candidates.filter((c) => !created.has(c.id));
+    if (nieuw.length === 0) return;
+
+    setItems((prev) => {
+      const existing = new Set(prev.map((n) => n.id));
+      const toAdd = nieuw.filter((n) => !existing.has(n.id));
       if (toAdd.length === 0) return prev;
       const next = [...toAdd, ...prev].slice(0, MAX_NOTIFICATIONS);
       saveAll(next);
       return next;
     });
 
-    const nextSeen = new Set(seen);
-    for (const m of nieuw) nextSeen.add(`${m.objectId}::${m.zoekprofielId}`);
-    saveSeenMatchKeys(nextSeen);
+    const nextCreated = new Set(created);
+    for (const c of nieuw) nextCreated.add(c.id);
+    saveCreatedIds(nextCreated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matches]);
+  }, [taken, biedingen, matches, relaties, objecten]);
 
   // Klik buiten popover sluit hem
   useEffect(() => {
@@ -420,7 +640,7 @@ export default function NotificationsBell() {
               <Bell className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">Geen meldingen.</p>
               <p className="text-xs text-muted-foreground/70 mt-1">
-                Nieuwe matches verschijnen hier automatisch.
+                Alleen kritieke gebeurtenissen verschijnen hier.
               </p>
             </div>
           ) : (
