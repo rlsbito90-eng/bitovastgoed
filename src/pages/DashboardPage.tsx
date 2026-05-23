@@ -164,7 +164,7 @@ export default function DashboardPage() {
     () => getAllMatchesFromData(store.zoekprofielen, store.objecten),
     [store.zoekprofielen, store.objecten],
   );
-  const sterkeMatches = useMemo(() => matches.filter(m => m.score >= 70), [matches]);
+  const sterkeMatches = useMemo(() => matches.filter(m => isStrongMatch(m.score)), [matches]);
 
   // --- Pipeline value & weighted fee ---
   const commissieStats = useMemo(
