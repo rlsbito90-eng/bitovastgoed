@@ -206,12 +206,14 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   // Wordt bewust niet in de database opgeslagen — dient als visuele hint
   // én als trigger voor het kwaliteitsblok. Een echt referentieobject
   // wordt apart aangemaakt via het Referentieobject-formulier.
-  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(true);
+  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
 
   // Raw input state voor financiële berekeningen — voorkomt cursor-jumps
   // en houdt twee-richtings koppeling tussen maandhuur ↔ jaarhuur soepel.
   const [maandhuurInput, setMaandhuurInput] = useState<string>('');
   const [laatstGewijzigdHuur, setLaatstGewijzigdHuur] = useState<'maand' | 'jaar' | null>(null);
+  // Was huur/m² handmatig ingevuld? Zo niet: blijft volledig afgeleid van jaarhuur ÷ m².
+  const [huurPerM2Manual, setHuurPerM2Manual] = useState(false);
 
   // Scroll-container ref: bij tabwissel scrollt deze automatisch naar boven.
   const scrollRef = useResetScrollOnChange(tab);
