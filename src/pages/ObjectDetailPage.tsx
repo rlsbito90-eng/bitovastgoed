@@ -11,6 +11,7 @@ import {
   formatM2,
   formatPercent,
   formatEurPerM2,
+  formatHuurPerM2PerJaar,
   eurPerM2,
   ASSET_CLASS_LABELS,
   ONDERHOUDSSTAAT_LABELS,
