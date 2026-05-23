@@ -30,6 +30,8 @@ import {
   calculateMonthlyRent,
   calculateRentPerM2,
   deriveVerhuurMetrics,
+  isStrongMatch,
+  countKandidaten,
 } from '@/lib/derivations';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
