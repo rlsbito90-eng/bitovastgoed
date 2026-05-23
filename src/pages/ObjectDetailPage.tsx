@@ -1642,17 +1642,6 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ 5. BIEDINGEN ============ */}
-          <SectionAnchor id="biedingen" eyebrow="05 — Negotiations" title="Biedingen">
-            <BiedingenSection
-              scope={{ objectId: object.id }}
-              vraagprijs={object.vraagprijs ?? null}
-              defaults={{ objectId: object.id }}
-              toonObject={false}
-            />
-          </SectionAnchor>
-
-
           {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
             id="documenten"
@@ -1739,8 +1728,18 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ 8. ACTIVITEIT ============ */}
-          <SectionAnchor id="activiteit" eyebrow="08 — Activity" title="Activiteit & notities">
+          {/* ============ 8. BIEDINGEN ============ */}
+          <SectionAnchor id="biedingen" eyebrow="08 — Negotiations" title="Biedingen">
+            <BiedingenSection
+              scope={{ objectId: object.id }}
+              vraagprijs={object.vraagprijs ?? null}
+              defaults={{ objectId: object.id }}
+              toonObject={false}
+            />
+          </SectionAnchor>
+
+          {/* ============ 9. ACTIVITEIT ============ */}
+          <SectionAnchor id="activiteit" eyebrow="09 — Activity" title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
         </div>
