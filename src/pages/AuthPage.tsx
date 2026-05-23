@@ -34,7 +34,7 @@ export default function AuthPage() {
     const { error } = await signIn(loginEmail, loginWw);
     setBezig(false);
     if (error) {
-      toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : error.message);
+      toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : 'Inloggen mislukt. Controleer je gegevens.');
     } else {
       toast.success('Welkom terug');
       navigate('/', { replace: true });
