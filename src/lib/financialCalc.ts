@@ -34,5 +34,18 @@ export const nar = (noi?: number, vraagprijs?: number): number | undefined =>
 export const kapitalisatiefactor = (vraagprijs?: number, jaar?: number): number | undefined =>
   vraagprijs && jaar && jaar > 0 ? round2(vraagprijs / jaar) : undefined;
 
-/** Formatteer kapitalisatiefactor als "13.8x". */
-export const formatFactor = (f?: number): string => (f != null ? `${f.toFixed(1)}x` : '—');
+/** Formatteer kapitalisatiefactor als "13,8x" (NL). */
+export const formatFactor = (f?: number): string =>
+  f != null ? `${f.toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x` : '—';
+
+/** NL-formatteringshelpers voor auto-weergaven. */
+export const fmtEuroNL = (n?: number, opts: { decimals?: number; suffix?: string } = {}): string => {
+  if (n == null || !Number.isFinite(n)) return '';
+  const { decimals = 0, suffix = '' } = opts;
+  return `€ ${n.toLocaleString('nl-NL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${suffix}`;
+};
+
+export const fmtPctNL = (n?: number, decimals = 2): string => {
+  if (n == null || !Number.isFinite(n)) return '';
+  return `${n.toLocaleString('nl-NL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
+};
