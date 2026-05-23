@@ -82,12 +82,15 @@ function MetricTile({
   hint,
   accent,
   tone = 'default',
+  badge,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   accent?: boolean;
   tone?: 'default' | 'positive' | 'warning';
+  /** Subtiele bron-indicatie: AUTO (afgeleid) of HANDMATIG (override). */
+  badge?: 'auto' | 'handmatig';
 }) {
   const toneCls =
     tone === 'positive'
@@ -101,9 +104,23 @@ function MetricTile({
         accent ? 'accent-rule' : ''
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
-        {label}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">
+          {label}
+        </p>
+        {badge && (
+          <span
+            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${
+              badge === 'auto'
+                ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
+                : 'border-accent/40 text-accent bg-accent/5'
+            }`}
+            title={badge === 'auto' ? 'Automatisch afgeleid' : 'Handmatig ingevoerd / override'}
+          >
+            {badge === 'auto' ? 'auto' : 'handm.'}
+          </span>
+        )}
+      </div>
       <p className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-none break-words ${toneCls}`}>
         {value}
       </p>
