@@ -1,273 +1,330 @@
 
-# Inventarisatie Object bewerken & Objectdetail
+# Beslisrapport — Object bewerken & Objectdetailpagina
 
-Doel: alleen analyseren, niets wijzigen. Bron: `ObjectFormDialog.tsx`, `ObjectDetailPage.tsx`, `data/mock-data.ts` (`ObjectVastgoed`), dossier-catalogus, matching-engine, brochure-PDF en Vastgoedrekenen-tab.
-
----
-
-## 1. Overzicht per tab
-
-### Tab 1 — Algemeen
-Secties: Identificatie · Anonimiteit · Locatie · Classificatie · Portefeuille & bron · Weergave.
-- Identificatie: titel*, intern referentienummer, objectstatus, aanbiedingswijze.
-- Anonimiteit: anoniem (checkbox), publieke naam, publieke regio.
-- Locatie: adres, postcode, plaats, provincie.
-- Classificatie: type vastgoed (nieuwe taxonomie), subcategorieën (multi), dealtypes (multi), beschikbaar vanaf, huidig gebruik.
-- Portefeuille & bron: isPortefeuille, exclusief, parentObjectId, bron.
-- Weergave: referentieanalyseZichtbaar (toggle).
-
-### Tab 2 — Financieel
-Secties: Prijs · Huur & rendement · Waarderingen.
-- Prijs: vraagprijs, prijsindicatie (tekst).
-- Huur & rendement: huurinkomsten (jaar), maandhuur (afgeleid/twee-weg), huurPerM2 (auto of manueel), servicekostenJaar, noi, brutoAanvangsrendement (auto), nettoAanvangsrendement (auto), kapitalisatiefactor (read-only auto).
-- Waarderingen: wozWaarde, wozPeildatum (jaar → 1 jan), taxatiewaarde, taxatiedatum (volledige datum).
-
-### Tab 3 — Verhuur
-- Verhuurstatus (verhuurd/gedeeltelijk/leeg), aantalHuurders, leegstandPct.
-- HuurdersPanel (aparte tabel `huurders`, niet in `objects`).
-
-### Tab 4 — Pand
-Secties: Oppervlakten (NEN 2580) · Bouw · Onderhoud · Potentie.
-- Oppervlakten: oppervlakte (totaal), oppervlakteVvo, oppervlakteBvo, oppervlakteGbo, perceelOppervlakte.
-- Bouw: bouwjaar, energielabelV2, aantalVerdiepingen, aantalUnits.
-- Onderhoud: onderhoudsstaatNiveau, asbestinventarisatieAanwezig, recenteInvesteringen, achterstalligOnderhoud.
-- Potentie: ontwikkelPotentie + transformatiePotentie (toggles). Bij aan → potentieOmschrijving, potentieStrategie, potentieOnderbouwingStatus, potentieExtraM2, potentieExtraUnits, totalen (auto), potentieBron, potentieAfhankelijkheden.
-
-### Tab 5 — Juridisch
-- Eigendomssituatie, erfpachtinformatie, bestemmingsinformatie.
-- Kadaster: gemeente, sectie, perceel/kadastraal nummer.
-
-### Tab 6 — Verkoper
-- verkoperNaam, verkoperRol, verkoperVia, verkoperTelefoon, verkoperEmail, verkoopmotivatie.
-
-### Tab 7 — Thesis
-- samenvatting, investeringsthese, onderscheidendeKenmerken, risicos, opmerkingen, interneOpmerkingen.
-
-### Tab 8 — IM & document
-- propositie, objectomschrijving, locatieOmschrijving, technischeStaatOmschrijving, oppervlaktenPerVerdieping (lijst), financieleScenarios (huidig/marktconform/naRenovatie), marktwaardeIndicatie, marktwaardeBron, procesVoorwaarden, dataroomUrl, contactNaam/Functie/Telefoon/Email, documentatieStatus (per documenttype), imSectiesZichtbaar (toggle per IM-sectie).
-
-### Tab 9 — Media
-- Foto's (FotosPanel) en documenten (DocumentenPanel). Alleen na 1× opslaan.
-
-### Modal-niveau (over alle tabs)
-- Header-toggle "Ook bruikbaar als referentieobject" → UI-only, niet opgeslagen.
-- Footer: status-wijziging naar `verkocht`/`ingetrokken`/`afgevallen` triggert ArchiveerDialog (isArchived, archivedAt, archivedReason, archivedNote).
+Bron: `.lovable/plan.md` (inventarisatie). Doel: concreet verbeteradvies, geen code-wijzigingen.
 
 ---
 
-## 2. Veldentabel (`ObjectVastgoed`)
+## 1. Samenvatting belangrijkste bevindingen
 
-Kolomlegenda: **Veld** · type · verplicht · auto? · in detail? · gebruik elders (M = matching, V = vastgoedrekenen, D = dossier, P = PDF/brochure, R = referentie-analyse, K = KPI-strip).
+### Wat is nu goed
+- **Brede dekking**: vrijwel alle relevante vastgoedvelden zijn aanwezig in de modal en consequent in `ObjectVastgoed`.
+- **Sterke modulekoppeling**: vraagprijs, oppervlakte, bouwjaar, type, plaats/provincie, verhuurstatus en energielabel worden hergebruikt in matching, PDF-brochure, dossier, Vastgoedrekenen en referentieanalyse.
+- **Tabstructuur** (9 tabs) maakt de modal hanteerbaar; de Pand-tab is goed gegroepeerd rond oppervlakten en bouw.
+- **Anonimiteit-laag** (anoniem / publieke naam / publieke regio) is consequent doorgevoerd tot in PDF en hero.
+- **Auto-suggesties** voor BAR/NAR/factor en huur/m² werken in de modal — fundament is er.
+- **Archiveer-flow** bij status `verkocht`/`ingetrokken`/`afgevallen` is correct losgekoppeld.
 
-### Identificatie / status
-- `titel` — tekst — **verplicht** — manueel — detail: hero — P,K.
-- `internReferentienummer` — tekst — opt — auto bij nieuw (`genereerRefnummer`) maar overschrijfbaar — detail: Overzicht/Identificatie — P.
-- `status` — select (7 waardes) — verplicht (default `te_beoordelen`) — manueel — detail: badge & Identificatie — D (triggert archief), filters.
-- `aanbiedingswijze` — select — opt (default `off_market`) — manueel — detail: ja, 2× getoond (zie dubbelingen).
-- `bron` — tekst — opt — manueel — detail: 2× (zie dubbelingen) — R (nuttig).
-- `exclusief` — toggle — opt — manueel — detail: ja — P.
-- `datumToegevoegd`, `updatedAt`, `softDeletedAt`, `isArchived`, `archivedAt`, `archivedReason`, `archivedNote` — systeem.
+### Waar zit overlap
+- **Legacy duplicaten**: `type` ↔ `propertyTypeId`, `subcategorie`/`subcategorieId` ↔ `propertySubtypeIds`, `energielabel` ↔ `energielabelV2`, `onderhoudsstaat` ↔ `onderhoudsstaatNiveau`. Vier velden bestaan in twee vormen → kans op divergentie.
+- **Twee contactblokken**: `verkoperNaam/...` (Verkoper-tab) én `contactNaam/...` (IM-tab). Op detail twee aparte cards.
+- **`aanbiedingswijze` en `bron`** worden 2× getoond in het Overzichtsblok op de detailpagina.
+- **`marktwaardeIndicatie`** (handmatig) vs. mediaan uit referentieanalyse — twee bronnen, niet aan elkaar gekoppeld in UI.
+- **`aantalHuurders` / `leegstandPct`** worden handmatig ingevoerd terwijl `huurders`-tabel ze kan afleiden.
 
-### Anonimiteit
-- `anoniem` — toggle — default **true** — manueel — detail: Identificatie + P (publieke fallback).
-- `publiekeNaam` — tekst — opt — manueel — detail: ja — P.
-- `publiekeRegio` — tekst — opt — manueel — detail: Locatie — P.
+### Waar zit inconsistentie
+- **Maandhuur** is alleen UI-state in de modal, niet opgeslagen, niet zichtbaar op detail. Gebruiker mist de waarde achteraf.
+- **Rendementen handmatig opgeslagen** kunnen afwijken van automatisch berekende waarden in matching of Vastgoedrekenen — twee "waarheden".
+- **`huurPerM2`** wordt soms opgeslagen, soms afgeleid; bij oppervlakte-wijziging niet automatisch geherwaardeerd.
+- **Tab IM** bevat zowel commerciële teksten als technische data (oppervlaktenPerVerdieping, marktwaarde, technische staat) — gemengde scopes.
+- **`wozPeildatum`** wordt als jaar ingevoerd, opgeslagen als `YYYY-01-01`, soms volledig uitgeschreven in PDF.
+
+### Velden ingevoerd maar niet goed zichtbaar
+- `prijsindicatie` — alleen onder Financieel; niet als fallback in de hero wanneer vraagprijs ontbreekt.
+- `subcategorie` (legacy free-text) — nergens leesbaar.
+- `energielabel` (legacy) en `onderhoudsstaat` (legacy) — alleen fallback, niet bewerkbaar.
+- `wozPeildatum` — alleen hint bij WOZ-tile.
+- `imSectiesZichtbaar` — getoond als platte regel "Verborgen IM-secties", niet erg leesbaar.
+- Maandhuur (afgeleid) — niet getoond op detail.
+
+### Velden getoond maar niet logisch gekoppeld
+- `documentenBeschikbaar` — getoond op detail, niet bewerkbaar in modal.
+- `markeerAlsReferentie` — toggle in modal-header maar niet opgeslagen.
+- `financieleScenarios` — staan onder Financieel maar overlappen functioneel met Vastgoedrekenen.
+- `marktwaardeIndicatie` — KPI-tegel, maar geen visuele relatie met referentieanalyse-mediaan.
+- `aantalHuurders` — KPI, maar `huurders`-lijst eronder geeft een ander getal als beide bestaan.
+
+---
+
+## 2. Veldenmatrix
+
+Legenda module: **V**=Vastgoedrekenen · **M**=Matching · **D**=Dossier · **R**=Referentieanalyse · **P**=PDF/Brochure · **F**=Filters/Overzicht.
+Prio: H=Hoog · Mi=Middel · L=Laag.
+
+### Identificatie & status
+
+| Veld | Locatie nu | Detail nu | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| titel | Algemeen | Hero | P, F | Behouden (verplicht) | H |
+| internReferentienummer | Algemeen | Overzicht | P, F | Behouden, auto-suggestie blijft | Mi |
+| status | Algemeen | Badge + Overzicht | D, F | Behouden | H |
+| aanbiedingswijze | Algemeen | **2×** | P, F | Behouden, **dedupliceren detail** | H |
+| bron | Algemeen | **2×** | R, F | Behouden, **dedupliceren detail** | Mi |
+| exclusief | Algemeen | Overzicht | P, F | Behouden | L |
+| anoniem | Algemeen | Identificatie + alle outputs | P | Behouden | H |
+| publiekeNaam / publiekeRegio | Algemeen | Identificatie / Locatie | P | Behouden, **alleen tonen indien gevuld** | Mi |
 
 ### Locatie
-- `adres`, `postcode`, `plaats`*, `provincie`* — tekst/select — `plaats` en `provincie` verplicht in type, niet gevalideerd in form — manueel — detail: Locatie — M (regio), R (sterk), P, D (auto-veld `adres`).
 
-### Classificatie (taxonomie)
-- `propertyTypeId` — fk select — opt (sterk aangeraden) — manueel; synct `type` (legacy AssetClass) — detail: ja — **M (sleutelveld)**.
-- `propertySubtypeIds` — multi-select — opt — manueel — detail: ja — M.
-- `dealTypeIds` — multi-select — opt — manueel — detail: ja — M.
-- `type` (AssetClass legacy) — afgeleid van propertyType — detail: badges — M (fallback), P.
-- `subcategorie`, `subcategorieId` — **legacy** — niet meer in form-UI direct, behalve via taxonomie-keten — detail: gebruikt via `useSubcategorieen`.
-- `huidigGebruik` — tekst — opt — manueel — detail: Overzicht — P.
-- `beschikbaarVanaf` — datum — opt — manueel — detail: ja.
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| adres / postcode / plaats / provincie | Algemeen | Locatie-blok | M, R, P, D, F | Behouden; plaats+provincie hard verplicht maken in form | H |
+
+### Classificatie
+
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| propertyTypeId | Algemeen | Badge | M, V, P, F | Behouden — **leidend** | H |
+| propertySubtypeIds | Algemeen | Badge | M | Behouden | Mi |
+| dealTypeIds | Algemeen | Badge | M | Behouden | Mi |
+| type (AssetClass legacy) | auto-sync | Badge | M, P | **Behouden als afgeleid**, niet meer bewerkbaar tonen | Mi |
+| subcategorie (legacy) | — | — | — | **Archiveren** in UI; alleen lezen op detail indien aanwezig | L |
+| subcategorieId (legacy) | — | — | — | **Archiveren** in UI | L |
+| huidigGebruik | Algemeen | Overzicht | P | **Verplaatsen** naar Verhuur of Pand | Mi |
+| beschikbaarVanaf | Algemeen | Overzicht | F | Behouden | L |
 
 ### Portefeuille
-- `isPortefeuille` — toggle — manueel — detail: ja.
-- `parentObjectId` — select — manueel — detail: link naar parent.
+
+| Veld | Locatie nu | Detail | Advies | Prio |
+|---|---|---|---|---|
+| isPortefeuille | Algemeen | Badge | Behouden | Mi |
+| parentObjectId | Algemeen | Link | Behouden | Mi |
 
 ### Financieel
-- `vraagprijs` — bedrag — opt — manueel — detail: hero KPI + Financieel — **M (prijsfilter), V, D, P, R, K**.
-- `prijsindicatie` — tekst — opt — manueel — detail: Financieel — P (fallback).
-- `huurinkomsten` (jaar) — bedrag — opt — manueel — detail: KPI/hero/financieel — V, D, P, K.
-- *(maandhuur)* — UI-only state, NIET opgeslagen — afgeleid jaar÷12.
-- `huurPerM2` — bedrag — opt — auto uit jaarhuur÷m² óf manueel — detail: KPI strip — R (nuttig), P (fallback berekening), K.
-- `servicekostenJaar` — bedrag — opt — manueel — detail: ja — P.
-- `noi` — bedrag — opt — manueel — detail: ja — P.
-- `brutoAanvangsrendement` — % — opt — auto-suggestie, opslag handmatig — detail: KPI — D, P, K.
-- `nettoAanvangsrendement` — % — opt — auto-suggestie, opslag handmatig — detail: ja — P.
-- *kapitalisatiefactor* — niet opgeslagen, alleen weergave (vraagprijs÷jaarhuur) — detail: KPI.
-- `wozWaarde` — bedrag — opt — manueel — detail: ja — V (apart prop), P, D.
-- `wozPeildatum` — datum (opgeslagen 1-jan) — opt — manueel jaar-input — detail: hint bij WOZ-tile — P.
-- `taxatiewaarde`, `taxatiedatum` — bedrag/datum — opt — manueel — detail: ja — P.
-- `marktwaardeIndicatie`, `marktwaardeBron` — bedrag/tekst — opt — manueel — detail: KPI Financieel — P, R (fallback mediaan).
+
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| vraagprijs | Financieel | Hero + KPI | V, M, D, P, R, F | Behouden | H |
+| prijsindicatie | Financieel | Toelichting | P | Behouden; **fallback in Hero tonen** indien geen vraagprijs | Mi |
+| huurinkomsten (jaar) | Financieel | Hero + KPI | V, D, P, F | Behouden | H |
+| (maandhuur) | Financieel UI-only | — | — | **Tonen op detail** als afgeleide KPI "Huur/mnd"; niet opslaan | Mi |
+| huurPerM2 | Financieel | KPI | R, P | **Volledig auto** met override-toggle | H |
+| servicekostenJaar | Financieel | KPI | P, V | Behouden | Mi |
+| noi | Financieel | KPI | V, P | **Auto** (huur − servicekosten) met override | H |
+| brutoAanvangsrendement | Financieel | KPI | M, P, D | **Auto** met override | H |
+| nettoAanvangsrendement | Financieel | KPI | P | **Auto** met override | Mi |
+| (kapitalisatiefactor) | Financieel afgeleid | KPI | P | Behouden auto | Mi |
+| wozWaarde | Financieel | KPI | V, P, D | Behouden | Mi |
+| wozPeildatum | Financieel (jaar) | Hint | P | Behouden, **als losse jaar-tag tonen** | L |
+| taxatiewaarde / taxatiedatum | Financieel | KPI | P | Behouden | Mi |
+| marktwaardeIndicatie / marktwaardeBron | IM-tab | KPI | P, R | **Verplaatsen** naar Financieel/Waarderingen | Mi |
+| financieleScenarios (3 stuks) | IM-tab | Tabel onder Financieel | P | **Verplaatsen** naar Vastgoedrekenen (of laten en label "snapshot") | Mi |
 
 ### Verhuur
-- `verhuurStatus` — select — verplicht (default `leeg`) — manueel — detail: ja — **M**, R (nuttig), P.
-- `aantalHuurders` — nummer — opt — manueel (zou afgeleid moeten zijn van HuurdersPanel) — detail: ja.
-- `leegstandPct` — % — opt — manueel — detail: ja.
-- *(huurders zelf)* — aparte tabel; getoond als sub-card onder Financieel.
 
-### Oppervlakten
-- `oppervlakte` — m² — opt — manueel — detail: hero KPI — **M, V, D, P**, R (sterk).
-- `oppervlakteVvo`, `oppervlakteBvo`, `oppervlakteGbo` — m² — opt — manueel — detail: NEN-blok — P, V (area).
-- `perceelOppervlakte` — m² — opt — manueel — detail: ja — P, R (nuttig).
-- `oppervlaktenPerVerdieping[]` — lijst (verdieping/vvo/bvo/bestemming) — opt — manueel — detail: tabel — P (IM-sectie).
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| verhuurStatus | Verhuur | KPI/badge | M, R, P, F | Behouden | H |
+| aantalHuurders | Verhuur | KPI | F | **Auto** uit huurders-tabel, manuele override alleen bij 0 rijen | Mi |
+| leegstandPct | Verhuur | KPI | F | **Auto** uit huurders×m² | Mi |
+| huurders[] | aparte tabel | sub-card onder Financieel | V, P | Behouden | H |
 
-### Bouw
-- `bouwjaar` — nummer (jaar) — opt — manueel — detail: ja — **M, V (apart prop), D, P, R**.
-- `energielabelV2` — select — opt — manueel — detail: ja — M, V, D, P, R (nuttig).
-- `energielabel` — string (legacy) — opt — wordt niet meer in form bewerkt — detail: fallback.
-- `aantalVerdiepingen` — nummer — opt — manueel — detail: ja — P.
-- `aantalUnits` — nummer — opt — manueel — detail: ja, basis voor potentie totalen — P.
+### Oppervlakten & bouw
 
-### Onderhoud / risico op pand-tab
-- `onderhoudsstaatNiveau` — select — opt — manueel — detail: ja — P, R (nuttig).
-- `onderhoudsstaat` — string (legacy) — opt — alleen fallback in detail.
-- `recenteInvesteringen`, `achterstalligOnderhoud` — textarea — opt — manueel — detail: aparte card "Onderhoud & investeringen" — P.
-- `asbestinventarisatieAanwezig` — toggle — opt — manueel — detail: ja indien true.
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| oppervlakte | Pand | Hero KPI | M, V, D, P, R, F | Behouden | H |
+| oppervlakteVvo / Bvo / Gbo | Pand | NEN-blok | V, P | Behouden | Mi |
+| perceelOppervlakte | Pand | NEN-blok | P, R | Behouden | Mi |
+| oppervlaktenPerVerdieping[] | IM-tab | tabel | P | **Verplaatsen** naar Pand/Oppervlakten | Mi |
+| bouwjaar | Pand | KPI | M, V, D, P, R, F | Behouden | H |
+| energielabelV2 | Pand | KPI | M, V, D, P, R | Behouden | H |
+| energielabel (legacy) | — | fallback | — | **Archiveren** in UI | L |
+| aantalVerdiepingen / aantalUnits | Pand | KPI | P | Behouden | Mi |
+
+### Onderhoud
+
+| Veld | Locatie nu | Detail | Modules | Advies | Prio |
+|---|---|---|---|---|---|
+| onderhoudsstaatNiveau | Pand | KPI | P, R | Behouden | Mi |
+| onderhoudsstaat (legacy) | — | fallback | — | **Archiveren** in UI | L |
+| recenteInvesteringen / achterstalligOnderhoud | Pand | sub-card | P | Behouden | Mi |
+| asbestinventarisatieAanwezig | Pand | flag | — | Behouden | L |
+| technischeStaatOmschrijving | IM-tab | sub-card | P | **Verplaatsen** naar Pand/Onderhoud | Mi |
 
 ### Potentie
-- `ontwikkelPotentie`, `transformatiePotentie` — toggle — default false — manueel — detail: badges in Potentie-blok.
-- `potentieOmschrijving`, `potentieStrategie`, `potentieOnderbouwingStatus`, `potentieAfhankelijkheden`, `potentieBron` — tekst/select — opt — manueel — detail: Potentie-blok.
-- `potentieExtraM2`, `potentieExtraUnits` — nummer — opt — manueel — detail: 3-koloms KPI (huidig/extra/totaal).
+
+| Veld | Locatie nu | Detail | Advies | Prio |
+|---|---|---|---|---|
+| ontwikkelPotentie / transformatiePotentie | Pand | badges | Behouden, **verplaatsen** naar eigen tab "Potentie" | Mi |
+| potentieOmschrijving / Strategie / OnderbouwingStatus | Pand | Potentie-blok | Behouden, eigen tab | Mi |
+| potentieExtraM2 / potentieExtraUnits | Pand | KPI (huidig/extra/totaal) | Behouden, eigen tab | Mi |
+| potentieBron / Afhankelijkheden | Pand | Potentie-blok | Behouden, eigen tab | L |
 
 ### Juridisch
-- `eigendomssituatie`, `erfpachtinformatie`, `bestemmingsinformatie` — tekst/textarea — opt — manueel — detail: "Juridisch & kadastraal" sub-card — P, D.
-- `kadastraleGemeente`, `kadastraleSectie`, `kadastraalNummer` — tekst — opt — manueel — detail: ja — P.
 
-### Verkoper
-- `verkoperNaam`, `verkoperRol`, `verkoperVia` (select), `verkoperTelefoon`, `verkoperEmail`, `verkoopmotivatie` — opt — manueel — detail: Verkoper sub-card — P (fallback contact).
+| Veld | Locatie nu | Detail | Advies | Prio |
+|---|---|---|---|---|
+| eigendomssituatie | Juridisch | sub-card | Behouden | H |
+| erfpachtinformatie | Juridisch | sub-card | Behouden | Mi |
+| bestemmingsinformatie | Juridisch | sub-card | Behouden | Mi |
+| kadastraleGemeente/Sectie/Nummer | Juridisch | sub-card | Behouden | L |
 
-### Thesis / commentaar
-- `samenvatting`, `investeringsthese`, `onderscheidendeKenmerken`, `risicos`, `opmerkingen`, `interneOpmerkingen` — textarea — opt — manueel — detail: Overzicht (bullets) — P.
+### Verkoper / contact
 
-### IM-content
-- `propositie`, `objectomschrijving`, `locatieOmschrijving`, `technischeStaatOmschrijving`, `procesVoorwaarden`, `dataroomUrl` — opt — manueel — detail: "Aanbieding & proces" sub-card — P.
-- `financieleScenarios` (huidig/marktconform/naRenovatie) — gestructureerd — opt — manueel — detail: tabel onder Financieel — P.
-- `contactNaam/Functie/Telefoon/Email` — opt — manueel — detail: "Contactpersoon" sub-card — P (primair).
-- `documentatieStatus` (map) — opt — manueel — detail: badges in Aanbieding & proces — P.
-- `imSectiesZichtbaar` (map) — opt — manueel — detail: "Verborgen IM-secties" tekst — P.
+| Veld | Locatie nu | Detail | Advies | Prio |
+|---|---|---|---|---|
+| verkoperNaam/Rol/Via/Tel/Email | Verkoper | sub-card | Behouden | H |
+| verkoopmotivatie | Verkoper | sub-card | Behouden | Mi |
+| contactNaam/Functie/Tel/Email | IM-tab | sub-card | **Samenvoegen** met Verkoper-tab als "Contacten" met rol-veld | Mi |
 
-### Overig
-- `referentieanalyseZichtbaar` — toggle — default true — manueel — detail: stuurt zichtbaarheid van `ObjectReferentieAnalyseSectie`.
-- `documentenBeschikbaar` — toggle — bestaat in type maar wordt **niet bewerkt in modal**; wel getoond op detail ("Documentatie beschikbaar: Ja/Nee").
-- Pipeline-velden (`pipelineId`, `pipelineStageId`, …) — beheerd via pipeline-component, niet in form.
+### Thesis / IM / dossier
 
----
-
-## 3. Velden die ontbreken op detailpagina
-
-- `prijsindicatie` — staat alleen onder "Prijsindicatie / toelichting" als aanwezig; **niet getoond als fallback in hero KPI** (alleen vraagprijs).
-- `subcategorie` (legacy free-text) — niet meer ergens leesbaar.
-- `subcategorieId` (legacy fk) — niet zichtbaar.
-- `energielabel` (legacy string) — alleen fallback wanneer V2 leeg; geen UI om aan te passen → de-facto onbewerkbaar.
-- `onderhoudsstaat` (legacy string) — idem, alleen fallback.
-- `parentObjectId` aanmaak-flow vanuit detail: wel getoond, niet inline bewerkbaar.
-- `wozPeildatum` los — alleen hint bij WOZ-tile, niet apart leesbaar als waarde leeg is.
-- `imSectiesZichtbaar` — getoond als platte lijst "Verborgen IM-secties"; niet erg leesbaar.
-
-## 4. Velden die zichtbaar zijn op detail maar slecht bewerkbaar
-
-- `documentenBeschikbaar` — getoond, maar niet in modal-form.
-- Hero/sticky deal-cockpit-velden komen uit dezelfde data; geen inline editing.
-- WALT/WALB — afgeleid uit huurders, geen direct veld op object (correct).
-
-## 5. Velden die dubbel of overlappend lijken
-
-- `type` (AssetClass) vs `propertyTypeId` — bewust legacy parallel; risico op divergentie als data van extern komt.
-- `subcategorie` (string) + `subcategorieId` (legacy fk) + `propertySubtypeIds` (nieuw multi) — drie wegen, twee legacy.
-- `energielabel` (string) + `energielabelV2` (enum) — legacy duplicaat.
-- `onderhoudsstaat` (string) + `onderhoudsstaatNiveau` (enum) — legacy duplicaat.
-- `aanbiedingswijze` — **2× weergegeven in Overzicht** (Identificatie-card én onderste meta-grid).
-- `bron` — **2× weergegeven** (Identificatie-card én onderste meta-grid).
-- `verkoperNaam/...` (Verkoper-tab) vs `contactNaam/...` (IM-tab) — twee contactblokken; gewenst gedrag is fallback, maar in UI staan twee aparte cards naast elkaar. Verwarrend.
-- `marktwaardeIndicatie` (handmatig) vs mediaan uit referentie-analyse — bewust twee bronnen, maar onderling niet duidelijk gelinkt in UI.
-- Maandhuur (UI-only) — input bestaat naast `huurinkomsten`; lijkt veld maar wordt nergens opgeslagen — kan verwarrend zijn voor gebruiker die "maandhuur" terug verwacht te zien.
-- `noi` (handmatig) vs servicekosten/huurinkomsten — er is geen auto-berekende NOI = jaarhuur − servicekosten − exploitatielast; gebruiker moet handmatig.
-
-## 6. Velden die mogelijk verkeerd geplaatst zijn
-
-- **Potentie** zit nu in tab **Pand**. Past beter in een eigen tab "Potentie & strategie" of als deel van Thesis (gegeven business-impact en de uitgebreidheid).
-- **WOZ/Taxatie** in tab Financieel is correct, maar `wozPeildatum`-jaarselectie zou natuurlijker bij Juridisch/Waardering passen. Acceptabel.
-- **`referentieanalyseZichtbaar`** zit in tab Algemeen onder "Weergave". Past beter bij IM/document of een algemeen "Zichtbaarheid"-blok.
-- **`huidigGebruik`** zit onder Classificatie (Algemeen). Hoort eerder bij Verhuur of Pand.
-- **`marktwaardeIndicatie` + `marktwaardeBron`** staan in IM-tab; horen logisch onder Financieel/Waarderingen.
-- **`oppervlaktenPerVerdieping`** zit in IM-tab. Hoort qua data thuis bij Pand/oppervlakten.
-- **`technischeStaatOmschrijving`** zit in IM. Hoort bij Pand/Onderhoud (vrije tekst aanvulling op `onderhoudsstaatNiveau`).
-- **`contactNaam/Functie/...`** (IM) versus Verkoper-tab — overweeg samenvoegen in één "Contact & verkoper" tab.
-
-## 7. Velden die beter automatisch berekend kunnen worden
-
-- `huurPerM2` — feitelijk al auto, maar nog steeds opgeslagen als handmatige override. Overweeg volledig afgeleid te maken (kolom = computed) tenzij gebruiker bewust een markthuur per m² wil noteren.
-- `brutoAanvangsrendement`, `nettoAanvangsrendement`, kapitalisatiefactor — kunnen 100% auto zijn met override-knop. Nu is opslag handmatig, suggestie auto.
-- `aantalHuurders` — kan afgeleid worden uit `huurders`-tabel; nu dubbel beheer.
-- `leegstandPct` — kan afgeleid uit huurders×m² / totale m².
-- Totaal m²/units na plan — al auto in form, maar **niet opgeslagen**; oké als puur derived view.
-- NOI — kan auto = huur − servicekosten − exploitatielast (mits exploitatielast veld bestaat; nu niet).
-
-## 8. Velden die handmatig moeten blijven
-
-- `vraagprijs`, `huurinkomsten`, oppervlakten, bouwjaar, energielabel, eigendomssituatie, kadastraal: harde brondata.
-- `samenvatting`, `propositie`, `investeringsthese`, `risicos`, IM-tekstvelden: copy.
-- `potentie*` toggles + omschrijvingen: strategisch oordeel.
-- `marktwaardeIndicatie`: bewust handmatig naast mediaan.
-- Verkoper-info + contact: handmatig.
-
-## 9. Velden die beter naar een andere module kunnen
-
-- Pipeline-velden — al apart beheerd, prima zo.
-- `documentenBeschikbaar` (vlag) — best vervangen door bestaande dossier-readiness (catalogus heeft al per-document-status). Veld is feitelijk overbodig.
-- `financieleScenarios` — past mogelijk beter in Vastgoedrekenen (gevoeligheid/scenario) dan in IM. Nu zijn het simpele 3-veld snapshots; Vastgoedrekenen kent een vollediger model.
-- `aantalHuurders` / `leegstandPct` — naar Verhuur-module afgeleid uit huurders.
-- `recenteInvesteringen` / `achterstalligOnderhoud` / `asbestinventarisatieAanwezig` — passen in een "Technische staat / dossier" module met links naar bouwkundige documenten.
-- `procesVoorwaarden`, `dataroomUrl`, `documentatieStatus` — passen logisch bij Dealflow / Aanbieding in plaats van object-master.
-
-## 10. Categorisering per gebruik
-
-- **Dagelijks gebruik / sleutelvelden:** titel, status, plaats, provincie, propertyTypeId, vraagprijs, huurinkomsten, oppervlakte, bouwjaar, verhuurStatus, energielabelV2, propositie, samenvatting.
-- **Administratief:** internReferentienummer, datumToegevoegd, updatedAt, isArchived, imSectiesZichtbaar, documentatieStatus.
-- **Belangrijk voor matching:** propertyTypeId, propertySubtypeIds, dealTypeIds (en legacy `type`), provincie/plaats, vraagprijs, oppervlakte, bouwjaar, verhuurStatus, energielabelV2.
-- **Belangrijk voor underwriting / Vastgoedrekenen:** vraagprijs, huurinkomsten, servicekostenJaar, noi, wozWaarde, oppervlakteGbo/VVO, bouwjaar, energielabelV2 (V2), `type` als raw-type.
-- **Belangrijk voor verkoop / dossier / teaser:** propositie, samenvatting, objectomschrijving, locatieOmschrijving, technischeStaatOmschrijving, investeringsthese, onderscheidendeKenmerken, risicos, marktwaardeIndicatie/Bron, financieleScenarios, contactNaam c.s., dataroomUrl, documentatieStatus, foto's/documenten, oppervlaktenPerVerdieping.
+| Veld | Locatie nu | Detail | Advies | Prio |
+|---|---|---|---|---|
+| samenvatting | Thesis | Overzicht | Behouden | H |
+| investeringsthese | Thesis | Overzicht | Behouden | H |
+| onderscheidendeKenmerken / risicos / opmerkingen | Thesis | Overzicht | Behouden | Mi |
+| interneOpmerkingen | Thesis | warn-card | Behouden | Mi |
+| propositie / objectomschrijving / locatieOmschrijving | IM-tab | sub-card | Behouden | Mi |
+| procesVoorwaarden / dataroomUrl | IM-tab | sub-card | **Verplaatsen** naar Dossier & aanbieding | Mi |
+| documentatieStatus (map) | IM-tab | badges | **Verplaatsen** naar Dossier-module (afleiden uit catalog) | Mi |
+| imSectiesZichtbaar (map) | IM-tab | "Verborgen IM-secties" | Behouden, **leesbaarder weergeven** of verplaatsen naar PDF-instellingen | L |
+| referentieanalyseZichtbaar | Algemeen/Weergave | stuurt sectie | **Verplaatsen** naar één "Zichtbaarheid" blok onder Dossier | L |
+| documentenBeschikbaar | — | "Ja/Nee" | **Vervangen** door dossier-readiness derived | L |
+| markeerAlsReferentie | header (UI-only) | — | Beslissen: schrappen of persisteren als kolom | L |
 
 ---
 
-## 11. Aanbevolen verbeteringen (geen acties nu, alleen advies)
+## 3. Aanbevolen structuur Object bewerken
 
-1. Detail-pagina: dedupliceer `aanbiedingswijze` en `bron` (nu 2×).
-2. Toon `prijsindicatie` als fallback in hero-KPI "Vraagprijs" wanneer er geen numerieke vraagprijs is.
-3. Voeg `documentenBeschikbaar` toggle toe aan modal, óf vervang door derived uit dossier-readiness en verberg het veld in detail.
-4. Maak een aparte tab/sectie **Potentie & strategie** (uit Pand); voorkomt dat strategische blokken in een technische tab leven.
-5. Verplaats `marktwaardeIndicatie/Bron`, `oppervlaktenPerVerdieping`, `technischeStaatOmschrijving` van IM-tab naar respectievelijk Financieel, Pand, Pand/Onderhoud.
-6. Voeg een visuele waarschuwing/legacy-badge bij `subcategorie`, `energielabel`, `onderhoudsstaat`, `type`; op termijn migratiepad naar enkel taxonomie + V2-enums.
-7. Maak rendementen (`BAR`, `NAR`, `factor`) standaard auto met een expliciete "Overschrijven"-toggle, zodat opgeslagen waarden niet stilletjes afwijken van berekende.
-8. Maak `aantalHuurders` en `leegstandPct` derived uit `huurders`-tabel; behoud handmatige override alleen wanneer geen huurders zijn ingevoerd.
-9. Splits IM-tab in twee tabs ("IM-content" + "Document & proces") of breng `contactNaam/...` samen met Verkoper.
-10. Sla maandhuur niet alleen UI-state op; toon ergens read-only op detail (KPI "Huur/mnd") zodat gebruikers de berekende waarde terugvinden.
+Voorstel: **8 tabs** (van 9), scopes scherper.
 
-## 12. Risico's & technische aandachtspunten
+1. **Algemeen** — Identificatie · Anonimiteit · Locatie · Classificatie · Portefeuille · Bron.
+2. **Financieel** — Prijs · Huur & rendement · Waarderingen · **Marktwaarde-indicatie** (verplaatst uit IM).
+3. **Verhuur** — Status · (auto) aantalHuurders & leegstand · Huurders-panel · `huidigGebruik`.
+4. **Pand** — Oppervlakten (incl. **Per verdieping**) · Bouw · Onderhoud (incl. **technische staat omschrijving**) · asbest-flag.
+5. **Potentie** *(nieuw losgetrokken uit Pand)* — Toggles, omschrijving, strategie, extra m²/units, bron, risico's.
+6. **Juridisch** — Eigendom · Erfpacht · Bestemming · Kadaster.
+7. **Contacten** *(samenvoeging Verkoper + IM-contact)* — Verkoper · Contactpersoon object · Verkoopmotivatie.
+8. **Aanbieding & dossier** *(was Thesis + IM)* — Samenvatting · Investeringsthese · Risico's · Propositie · Object-/locatie-omschrijving · Procesvoorwaarden · Dataroom · Document-/IM-zichtbaarheid.
 
-- **Legacy duplicaten** (`type`/`subcategorie`/`energielabel`/`onderhoudsstaat`) blijven nu door zowel auto-sync als handmatige paden gevuld → kans op divergentie bij imports.
-- **`huurPerM2` opslag** kan afwijken van auto-berekening wanneer `oppervlakteGbo`/`Vvo` later wijzigt; geen invalidation.
-- **Rendementen handmatig opgeslagen** worden in detail getoond als waarheid; matching/Vastgoedrekenen kan andere waarde berekenen → inconsistent gevoel.
-- **`markeerAlsReferentie`** is UI-only (niet in DB). Indien later persistentie gewenst is, ontstaat extra kolom.
-- **`wozPeildatum`** wordt opgeslagen als `YYYY-01-01`; bij export/PDF wordt soms volledige datum getoond.
-- **Tab Verhuur** verwijst voor huurders naar aparte tabel; bij nieuwe (ongesavde) objecten is dit blok niet bruikbaar — verwacht UX, maar gebruiker moet eerst opslaan.
-- **`aanbiedingswijze` 2× tonen** is een louter UI-bug op detail.
-- **Dossier-catalog** dupliceert veel object-velden onder eigen keys (vraagprijs, huurinkomsten, bouwjaar, energielabel, eigendomssituatie, …) → check op consistentie wanneer object-velden wijzigen.
+> **Tab Media** blijft beschikbaar als sub-tab onder Aanbieding & dossier (foto's + documenten) — anders worden het 9 tabs.
 
-## 13. Concrete vervolgstappen (in volgorde van impact)
+---
 
-1. Bug-fix detailpagina: verwijder dubbele weergaves van `aanbiedingswijze` en `bron`.
-2. Beslis met product wat met legacy-velden (`type`/`subcategorie`/`energielabel`/`onderhoudsstaat`) moet gebeuren — migratie of bewust laten staan met disclaimer.
-3. Beslis of rendementen volledig auto (met override) worden.
-4. Beslis of `aantalHuurders`/`leegstandPct` derived worden uit huurders.
-5. Reorganiseer modal-tabs: aparte Potentie-tab, verplaats Marktwaarde naar Financieel, verplaats `oppervlaktenPerVerdieping` naar Pand, IM-tab opschonen.
-6. Voeg `documentenBeschikbaar` toe aan modal of vervang door derived dossier-status.
-7. Schrijf één centrale "field-map" (object-veld → tabs / detailsecties / matching / V&R / dossier / PDF) — handig voor toekomstige audits en testen.
-8. QA-ronde over PDF/brochure en referentieanalyse na elke veld-herindeling om regressies te vangen.
+## 4. Aanbevolen structuur Objectdetailpagina
+
+Sectievolgorde (sectiebar):
+
+1. **Cockpit / Next action / Quick actions** (mobiel + desktop).
+2. **Identificatie & locatie** — titel, ref, status, badges, adres-chip, klikbare maps-link.
+3. **Classificatie** — type, subtypes, dealtypes, huidig gebruik, beschikbaarheid.
+4. **Financieel** — KPI-strip (vraagprijs of prijsindicatie als fallback, BAR, NAR, factor, huur/jr, **huur/mnd** afgeleid, NOI, €/m², huur/m², WOZ, taxatie, marktwaarde-indicatie).
+5. **Verhuur** — status, aantal huurders (auto), leegstand, huurders-tabel, WALT/WALB.
+6. **Pand & technische staat** — oppervlakten + per verdieping, bouw, energielabel, onderhoud, recente investeringen, achterstallig onderhoud, technische staat omschrijving, asbest.
+7. **Potentie & mogelijkheden** — toggles, strategie, extra m²/units, onderbouwing-status, bron, risico's.
+8. **Juridisch & kadastraal** — eigendom, erfpacht, bestemming, kadaster.
+9. **Contacten** — verkoper + object-contact (één blok, twee kolommen).
+10. **Aanbieding & proces** — propositie, object-/locatie-omschrijving, technische staat (lang), procesvoorwaarden, dataroom, IM-zichtbaarheid.
+11. **Dossierstatus** — readiness (uit catalog), documentatie-overzicht (derived), foto's, documenten.
+12. **Referentieanalyse** — alleen indien aan.
+13. **Vastgoedrekenen** — scenario's en max-bieding.
+14. **Biedingen / Pipeline** — bestaand.
+
+Detail-regels:
+- **Dedupliceer** `aanbiedingswijze` en `bron` (1× tonen).
+- KPI-strips bovenaan elk blok, met **"Huur/mnd"** auto-afgeleid.
+- "Marktwaarde-indicatie" + mediaan referentieanalyse zichtbaar **naast elkaar** met label-bron.
+- Alles wat leeg is: **collapsen of weglaten** (niet "—" tonen waar geen waarde verwacht wordt).
+
+---
+
+## 5. Velden die uit Object bewerken kunnen
+
+| Veld(en) | Verplaatsen naar | Reden |
+|---|---|---|
+| `financieleScenarios` (huidig/marktconform/naRenovatie) | **Vastgoedrekenen** | Echte scenario-engine bestaat al; snapshot wordt redundant. |
+| `aantalHuurders`, `leegstandPct` | **Verhuurmodule (derived)** | Afleidbaar uit `huurders`. |
+| `documentatieStatus`, `documentenBeschikbaar` | **Dossier & aanbieding** | Dossier-catalog kent al per-doc status. |
+| `procesVoorwaarden`, `dataroomUrl` | **Dossier & aanbieding** | Hoort bij dealflow/aanbiedingsfase, niet bij object-master. |
+| `markeerAlsReferentie` (toggle) | **Referentieanalyse** (of schrappen) | Nu UI-only — beslissing nodig. |
+| `imSectiesZichtbaar` | **PDF-instellingen / aanbieding** | Stuurt outputs, niet object-data. |
+| `pipeline*`, `taken`, `biedingen` | (al apart) | Reeds elders beheerd — geen actie. |
+| Verplaatsing binnen modal (geen module-shift): `marktwaardeIndicatie/Bron`, `technischeStaatOmschrijving`, `oppervlaktenPerVerdieping` | Naar Financieel / Pand | Scope-zuivering. |
+
+---
+
+## 6. Automatische berekeningen
+
+| Veld | Advies | Formule / regel | Override mogelijk |
+|---|---|---|---|
+| Maandhuur | **Auto-afleiden** uit jaarhuur (÷12), tonen op detail | `huurinkomsten / 12` | Nee — alleen weergave |
+| Jaarhuur | Handmatig (brondata) | — | Ja |
+| Huur per m² | **Auto** uit jaarhuur ÷ (Gbo of VVO of totaal) | bidirectioneel toegestaan in modal | Ja, met expliciete toggle |
+| BAR | **Auto** = jaarhuur / vraagprijs × 100 | Toon "auto" badge | Ja, met override |
+| NAR | **Auto** = NOI / vraagprijs × 100 | Idem | Ja |
+| Kapitalisatiefactor | **Auto** = vraagprijs / jaarhuur | Read-only KPI | Nee |
+| NOI | **Auto** = jaarhuur − servicekosten (− exploitatielast indien veld bestaat) | Indicatief | Ja |
+| €/m² (prijs) | **Auto** = vraagprijs / Gbo (of VVO, dan oppervlakte) | Toon bron-basis | Nee |
+| Potentie totaal m² | **Auto** = oppervlakte + extraM² | Read-only | Nee |
+| Potentie totaal units | **Auto** = aantalUnits + extraUnits | Read-only | Nee |
+| WOZ-peildatum | **Handmatig** (jaar-input), opslaan als `YYYY-01-01`, **uniform tonen als jaar** | Geen formule | n.v.t. |
+| Aantal huurders / leegstand% | **Auto** uit huurders | Handmatig alleen als geen rijen | Ja |
+| Marktwaarde-indicatie | **Handmatig** (bewust naast referentie-mediaan) | — | n.v.t. |
+
+Regel: handmatige overschrijving moet visueel zichtbaar zijn (badge "handmatig"), zodat afwijking van de berekende waarde controleerbaar is.
+
+---
+
+## 7. Dagelijks gebruik
+
+### Must-have (bovenaan + sticky cockpit)
+titel · status · plaats/provincie · propertyType · vraagprijs (of prijsindicatie) · huurinkomsten · oppervlakte · bouwjaar · verhuurStatus · energielabelV2 · BAR · €/m² · next action.
+
+### Handig maar secundair (KPI/blok-niveau)
+NAR · factor · huur/m² · NOI · WOZ · taxatie · marktwaarde · servicekosten · perceel · aantalUnits/verdiepingen · onderhoudsstaatNiveau · aantalHuurders (auto) · WALT/WALB.
+
+### Alleen tonen indien gevuld
+publiekeNaam · publiekeRegio · prijsindicatie (anders niet) · huidigGebruik · recenteInvesteringen · achterstalligOnderhoud · asbest · alle potentievelden · kadaster-detail · verkoopmotivatie · procesvoorwaarden · dataroomUrl · interneOpmerkingen · marktwaardeBron · imSectiesZichtbaar.
+
+### Alleen nodig in bewerkmodal (niet prominenten op detail)
+internReferentienummer (klein in header) · documentatieStatus (in dossier-tab) · imSectiesZichtbaar · referentieanalyseZichtbaar · `type`/`subcategorie`/`energielabel`/`onderhoudsstaat` (legacy, alleen voor migratie).
+
+---
+
+## 8. Concrete vervolgstappen
+
+### Fase 1 — Quick wins (zonder schemawijziging)
+1. Dedupliceer `aanbiedingswijze` en `bron` op detailpagina.
+2. Toon `prijsindicatie` als fallback in Hero-KPI "Vraagprijs".
+3. Toon afgeleide **"Huur/mnd"** KPI op detail (puur afgeleid).
+4. Verberg legacy-velden (`type`/`subcategorie`/`energielabel`/`onderhoudsstaat`) in de modal-UI; behoud onder de motorkap.
+5. Pas "Alleen tonen indien gevuld"-regel consistent toe (geen lege "—" op secundaire velden).
+6. Voeg "auto" / "handmatig" badges toe bij BAR, NAR, huur/m², NOI in KPI-strip.
+7. Verbeter weergave `imSectiesZichtbaar` (chip-lijst) of verberg helemaal.
+
+### Fase 2 — Herstructurering UI/detailpagina
+1. Modal-tabs herindelen: **Potentie** loskoppelen, **Contacten** samenvoegen, **IM-tab** opsplitsen.
+2. Detail-sectievolgorde gelijktrekken met §4 (sectiebar updaten, anchors herzien).
+3. Verplaats binnen modal: `marktwaardeIndicatie/Bron` → Financieel, `oppervlaktenPerVerdieping` → Pand, `technischeStaatOmschrijving` → Pand/Onderhoud, `procesVoorwaarden`+`dataroomUrl`+`documentatieStatus` → Aanbieding & dossier.
+4. KPI-strips uniformeren (zelfde tile-component, zelfde volgorde) over alle blokken.
+
+### Fase 3 — Schema / datamodel
+1. Maak rendementen (BAR/NAR/factor/NOI/huurPerM2) **derived columns** of view; bewaar handmatige override apart (`bar_manual_override` etc.).
+2. Maak `aantalHuurders` en `leegstandPct` derived uit `huurders`; behoud override-veld bij 0 rijen.
+3. Beslis legacy-migratie: `type` → afgeleid van `propertyTypeId`; verwijder `subcategorie`/`energielabel`/`onderhoudsstaat` strings uit edit-paden.
+4. Beslis lot van `markeerAlsReferentie`: kolom toevoegen of UI-toggle verwijderen.
+5. Beslis lot van `documentenBeschikbaar`: derived uit dossier-readiness.
+
+### Fase 4 — Module-koppeling
+1. **Vastgoedrekenen**: importeer `financieleScenarios` éénmalig als startwaarde; daarna scenario-engine als enige bron.
+2. **Matching**: schakel matching over op derived rendementen (consistentie met detail).
+3. **Dossier**: koppel `documentatieStatus` aan catalog (één bron van waarheid voor readiness).
+4. **PDF/brochure**: stel `imSectiesZichtbaar` in via dedicated PDF-instellingenpaneel ipv object-master.
+5. **Referentieanalyse**: visualiseer relatie tussen handmatige `marktwaardeIndicatie` en mediaan (delta-chip).
+6. **Centrale field-map** documenteren (object-veld → modal-tab → detail-blok → modules) voor toekomstige audits.
+
+---
+
+## Bijlage — Beslissingen die nu gemaakt moeten worden
+
+1. Worden rendementen **derived (auto)** met override of blijven ze handmatige snapshots?
+2. Worden `aantalHuurders`/`leegstandPct` **derived** of blijft het handmatig?
+3. Wat doen we met legacy-velden: **migreren** (data overzetten + kolommen droppen) of **bevriezen** (alleen lezen)?
+4. `markeerAlsReferentie`: **persisteren** of **verwijderen**?
+5. `financieleScenarios`: **verplaatsen** naar Vastgoedrekenen of houden als snapshot?
+6. `documentenBeschikbaar`: **vervangen** door dossier-readiness derived of behouden als toggle?
+
+Na akkoord op deze 6 keuzes kan Fase 1+2 risicovrij uitgevoerd worden; Fase 3+4 volgen daarna.
 
