@@ -1,43 +1,125 @@
 // src/components/NotificationsBell.tsx
 //
-// Notificatie-bel in de topbar. Toont een persistent meldingenlog (localStorage)
-// met read/unread status en beheer-acties (markeer als gelezen, wis, alles
-// als gelezen, gelezen meldingen wissen).
+// Notificatie-bel in de topbar. Toont een persistent meldingenlog
+// (localStorage) met:
+// - read/unread status + beheer-acties (markeer / wis / alles gelezen)
+// - datum + tijd per melding (compact, met relatieve hint)
+// - basis voor type (taak/deal/bieding/dossier/matching/systeem)
+// - basis voor prioriteit (laag/normaal/hoog/kritiek)
+// - optionele contextlink (href) voor klik-doorverwijzing
 //
-// Bron: automatisch worden meldingen aangemaakt voor nieuwe matches met
-// score >= 3. Latere uitbreidingen kunnen `pushNotification` importeren om
-// extra meldingen toe te voegen.
+// Sortering: ongelezen > prioriteit (kritiek..laag) > nieuwste eerst.
+//
+// In deze fase wordt alleen voor nieuwe matches (score >= drempel)
+// automatisch een melding aangemaakt. Andere modules kunnen later
+// `pushNotification` aanroepen om meldingen toe te voegen.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Trash2, Sparkles } from 'lucide-react';
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  Trash2,
+  Sparkles,
+  CheckSquare,
+  Briefcase,
+  Gavel,
+  FolderOpen,
+  AlertTriangle,
+} from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getAllMatchesFromData, ASSET_CLASS_LABELS } from '@/data/mock-data';
+import { getAllMatchesFromData } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 
-const STORAGE_KEY = 'bito-notifications-v1';
+const STORAGE_KEY = 'bito-notifications-v2';
 const SEEN_MATCH_KEYS = 'bito-notifications-seen-match-keys-v1';
-const INIT_FLAG = 'bito-notifications-initialized-v1';
+const INIT_FLAG = 'bito-notifications-initialized-v2';
 const DREMPEL = 3;
+const MAX_NOTIFICATIONS = 200;
 
-export type NotificationType = 'match' | 'system' | 'info';
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'taak'
+  | 'deal'
+  | 'bieding'
+  | 'dossier'
+  | 'matching'
+  | 'systeem';
+
+export type NotificationPriority = 'laag' | 'normaal' | 'hoog' | 'kritiek';
+
+export type NotificationContextKind =
+  | 'object'
+  | 'relatie'
+  | 'deal'
+  | 'bieding'
+  | 'taak'
+  | 'document';
+
+export interface NotificationContext {
+  kind: NotificationContextKind;
+  id: string;
+}
 
 export interface AppNotification {
   id: string;
   type: NotificationType;
+  priority: NotificationPriority;
   title: string;
   body?: string;
   href?: string;
+  context?: NotificationContext;
   createdAt: number; // epoch ms
   read: boolean;
 }
+
+const TYPE_LABEL: Record<NotificationType, string> = {
+  taak: 'Taak',
+  deal: 'Dealflow',
+  bieding: 'Bieding',
+  dossier: 'Dossier',
+  matching: 'Matching',
+  systeem: 'Systeem',
+};
+
+const TYPE_ICON: Record<NotificationType, typeof Bell> = {
+  taak: CheckSquare,
+  deal: Briefcase,
+  bieding: Gavel,
+  dossier: FolderOpen,
+  matching: Sparkles,
+  systeem: AlertTriangle,
+};
+
+const PRIORITY_RANK: Record<NotificationPriority, number> = {
+  kritiek: 4,
+  hoog: 3,
+  normaal: 2,
+  laag: 1,
+};
+
+// ── Storage helpers ──────────────────────────────────────────────────────────
 
 function loadAll(): AppNotification[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    // Backwards-compat: oudere items zonder priority/type-velden veilig maken.
+    return arr.map((n: Partial<AppNotification> & { id: string; title: string; createdAt: number }) => ({
+      id: n.id,
+      type: (n.type as NotificationType) ?? 'systeem',
+      priority: (n.priority as NotificationPriority) ?? 'normaal',
+      title: n.title,
+      body: n.body,
+      href: n.href,
+      context: n.context,
+      createdAt: n.createdAt,
+      read: Boolean(n.read),
+    }));
   } catch {
     return [];
   }
@@ -70,16 +152,82 @@ function saveSeenMatchKeys(set: Set<string>): void {
   }
 }
 
-function timeAgo(ts: number): string {
+// ── Public API: laat andere modules een melding toevoegen ────────────────────
+
+export function pushNotification(
+  n: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & {
+    id?: string;
+    createdAt?: number;
+    read?: boolean;
+  },
+): void {
+  const list = loadAll();
+  const item: AppNotification = {
+    id: n.id ?? `${n.type}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`,
+    type: n.type,
+    priority: n.priority,
+    title: n.title,
+    body: n.body,
+    href: n.href,
+    context: n.context,
+    createdAt: n.createdAt ?? Date.now(),
+    read: n.read ?? false,
+  };
+  if (list.some((x) => x.id === item.id)) return;
+  const next = [item, ...list].slice(0, MAX_NOTIFICATIONS);
+  saveAll(next);
+  // Notify open bells in dezelfde tab
+  try {
+    window.dispatchEvent(new CustomEvent('bito:notifications-updated'));
+  } catch {
+    // ignore
+  }
+}
+
+// ── Datum/tijd formatting ────────────────────────────────────────────────────
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`;
+}
+
+function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+
+  const tijd = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (sameDay) return `Vandaag ${tijd}`;
+  if (isYesterday) return `Gisteren ${tijd}`;
+
+  const maanden = [
+    'jan', 'feb', 'mrt', 'apr', 'mei', 'jun',
+    'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
+  ];
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const datum = sameYear
+    ? `${d.getDate()} ${maanden[d.getMonth()]}`
+    : `${d.getDate()} ${maanden[d.getMonth()]} ${d.getFullYear()}`;
+  return `${datum} · ${tijd}`;
+}
+
+function relativeHint(ts: number): string | null {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'zojuist';
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} u`;
-  const d = Math.floor(h / 24);
-  return `${d} d`;
+  if (m < 60) return `${m} min geleden`;
+  return null; // langer dan een uur → datum is duidelijk genoeg
 }
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function NotificationsBell() {
   const store = useDataStore();
@@ -87,15 +235,25 @@ export default function NotificationsBell() {
   const [items, setItems] = useState<AppNotification[]>(() => loadAll());
   const ref = useRef<HTMLDivElement>(null);
 
-  // Bereken huidige matches om als bron te dienen voor notificaties.
+  // Houd state in sync met externe pushNotification calls
+  useEffect(() => {
+    const handler = () => setItems(loadAll());
+    window.addEventListener('bito:notifications-updated', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('bito:notifications-updated', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
+
+  // Bron: actuele matches met score >= drempel
   const matches = useMemo(() => {
     return getAllMatchesFromData(store.zoekprofielen, store.objecten)
       .filter((m) => m.score >= DREMPEL);
   }, [store.zoekprofielen, store.objecten]);
 
-  // Genereer notificaties voor NIEUWE matches sinds laatst gezien.
-  // Bij allereerste init: markeer bestaande matches als gezien zonder
-  // notificaties te genereren (anders krijgt gebruiker meteen een vol log).
+  // Genereer matching-meldingen voor nieuwe matches sinds laatst gezien.
+  // Eerste init markeert bestaande matches als gezien (geen lawine).
   useEffect(() => {
     const seen = loadSeenMatchKeys();
     const initialized = localStorage.getItem(INIT_FLAG) === '1';
@@ -108,7 +266,7 @@ export default function NotificationsBell() {
     }
 
     const nieuw = matches.filter(
-      (m) => !seen.has(`${m.objectId}::${m.zoekprofielId}`)
+      (m) => !seen.has(`${m.objectId}::${m.zoekprofielId}`),
     );
     if (nieuw.length === 0) return;
 
@@ -124,16 +282,18 @@ export default function NotificationsBell() {
         if (!obj || !zp || !rel) continue;
         toAdd.push({
           id,
-          type: 'match',
+          type: 'matching',
+          priority: m.score >= 5 ? 'hoog' : 'normaal',
           title: `Nieuwe match: ${obj.titel}`,
           body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/5`,
           href: `/objecten/${m.objectId}`,
+          context: { kind: 'object', id: m.objectId },
           createdAt: Date.now(),
           read: false,
         });
       }
       if (toAdd.length === 0) return prev;
-      const next = [...toAdd, ...prev].slice(0, 200);
+      const next = [...toAdd, ...prev].slice(0, MAX_NOTIFICATIONS);
       saveAll(next);
       return next;
     });
@@ -155,6 +315,16 @@ export default function NotificationsBell() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  // Sorteer: ongelezen > prioriteit > nieuwste
+  const sorted = useMemo(() => {
+    return [...items].sort((a, b) => {
+      if (a.read !== b.read) return a.read ? 1 : -1;
+      const p = PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority];
+      if (p !== 0) return p;
+      return b.createdAt - a.createdAt;
+    });
+  }, [items]);
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
 
@@ -207,7 +377,7 @@ export default function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-[min(380px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-[min(400px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
             <Bell className="h-4 w-4 text-accent" />
             <div className="flex-1 min-w-0">
@@ -254,9 +424,13 @@ export default function NotificationsBell() {
               </p>
             </div>
           ) : (
-            <div className="max-h-[400px] overflow-y-auto divide-y divide-border/60">
-              {items.map((n) => {
-                const Icon = n.type === 'match' ? Sparkles : Bell;
+            <div className="max-h-[440px] overflow-y-auto divide-y divide-border/60">
+              {sorted.map((n) => {
+                const Icon = TYPE_ICON[n.type] ?? Bell;
+                const isHighPri = n.priority === 'hoog' || n.priority === 'kritiek';
+                const showPriChip = !n.read && isHighPri;
+                const rel = relativeHint(n.createdAt);
+
                 const content = (
                   <div className="flex items-start gap-3 w-full">
                     <div className="relative mt-0.5 shrink-0">
@@ -269,13 +443,32 @@ export default function NotificationsBell() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                          {TYPE_LABEL[n.type]}
+                        </span>
+                        {showPriChip && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-medium ${
+                              n.priority === 'kritiek'
+                                ? 'bg-destructive/15 text-destructive'
+                                : 'bg-accent/15 text-accent'
+                            }`}
+                          >
+                            {n.priority === 'kritiek' ? 'Kritiek' : 'Hoog'}
+                          </span>
+                        )}
+                      </div>
                       <p className={`text-sm truncate ${n.read ? 'text-muted-foreground' : 'text-foreground font-medium'}`}>
                         {n.title}
                       </p>
                       {n.body && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">{n.body}</p>
                       )}
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">{timeAgo(n.createdAt)}</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono-data">
+                        {formatDateTime(n.createdAt)}
+                        {rel ? ` · ${rel}` : ''}
+                      </p>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
                       {!n.read && (
