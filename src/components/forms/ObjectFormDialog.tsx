@@ -215,12 +215,18 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
+      // Bij bestaande objecten: respecteer huidige waarde via interne UI-state (default uit).
+      setMarkeerAlsReferentie(false);
     } else {
       setForm(leegForm);
       setGemaaktId(undefined);
+      // Nieuwe objecten: default aan — gebruiker kan uitzetten.
+      setMarkeerAlsReferentie(true);
     }
     setTab('algemeen');
-    setMarkeerAlsReferentie(false);
+    // Initialiseer maandhuur-input op basis van jaarhuur
+    setMaandhuurInput(object?.huurinkomsten ? String(Math.round(object.huurinkomsten / 12 * 100) / 100) : '');
+    setLaatstGewijzigdHuur(null);
   }, [object, open]);
 
   // Genereer referentienummer automatisch voor nieuwe objecten
