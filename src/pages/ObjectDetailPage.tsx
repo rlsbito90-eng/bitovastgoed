@@ -1966,7 +1966,7 @@ export default function ObjectDetailPage() {
             </button>
             <button
               type="button"
-              onClick={() => openDossierTab('documenten')}
+              onClick={() => openEdit('media')}
               className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
