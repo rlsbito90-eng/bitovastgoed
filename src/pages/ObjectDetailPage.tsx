@@ -1553,6 +1553,14 @@ export default function ObjectDetailPage() {
             />
           </SectionAnchor>
 
+          {/* ============ REFERENTIES (conditioneel) ============ */}
+          {object.referentieanalyseZichtbaar !== false && (
+            <SectionAnchor id="referenties" eyebrow="10 — Benchmarks" title="Referentieanalyse">
+              <ObjectReferentieAnalyseSectie object={object} />
+            </SectionAnchor>
+          )}
+
+
 
 
 
