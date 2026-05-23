@@ -616,7 +616,7 @@ export default function ReferentieObjectenPage() {
                         {r.huurprijsPerJaar != null ? formatCurrency(r.huurprijsPerJaar) : '—'}
                       </TableCell>
                       <TableCell className="text-right font-mono-data">
-                        {huurPerM2Jaar != null ? formatCurrency(Math.round(huurPerM2Jaar)) : '—'}
+                        {formatHuurPerM2PerJaar(huurPerM2Jaar)}
                       </TableCell>
                       <TableCell className="text-muted-foreground capitalize">
                         {r.huurstatus ? r.huurstatus.replace('_', ' ') : '—'}
