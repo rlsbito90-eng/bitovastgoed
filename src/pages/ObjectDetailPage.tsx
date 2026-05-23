@@ -1020,12 +1020,12 @@ export default function ObjectDetailPage() {
         />
       </div>
 
-      {/* WALT/WALB strip (alleen als huurders) */}
-      {huurMetrics && huurMetrics.aantalHuurders > 0 && (
+      {/* Huurders + WALT/WALB strip (bron: huurdersregels indien aanwezig, anders object-fallback) */}
+      {verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-          <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
-          <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
-          <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
+          <MetricTile label="Huurders" value={verhuur.aantalHuurders.toString()} />
+          <MetricTile label="WALT" value={verhuur.waltJaren != null ? `${verhuur.waltJaren.toFixed(1)} jr` : '—'} />
+          <MetricTile label="WALB" value={verhuur.walbJaren != null ? `${verhuur.walbJaren.toFixed(1)} jr` : '—'} />
         </div>
       )}
 
