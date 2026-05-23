@@ -939,7 +939,7 @@ export default function ScenarioEditor(props: Props) {
                             </SelectContent>
                           </Select>
                         </MobileFieldGroup>
-                        <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
                       </div>
                     )}
                   </div>
