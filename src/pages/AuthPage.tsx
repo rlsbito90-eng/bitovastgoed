@@ -30,6 +30,24 @@ const GoogleButton = () => (
   </Button>
 );
 
+async function handleAppleSignIn() {
+  const result = await lovable.auth.signInWithOAuth('apple', {
+    redirect_uri: window.location.origin,
+  });
+  if (result.error) {
+    toast.error('Inloggen met Apple mislukt');
+  }
+}
+
+const AppleButton = () => (
+  <Button type="button" variant="outline" className="w-full" onClick={handleAppleSignIn}>
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M16.365 1.43c0 1.14-.46 2.23-1.2 3.02-.8.86-2.1 1.52-3.18 1.43-.14-1.1.43-2.24 1.15-3.02.8-.87 2.18-1.52 3.23-1.43zM20.5 17.27c-.55 1.27-.82 1.84-1.53 2.97-1 1.57-2.4 3.53-4.14 3.55-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.74-.02-3.07-1.79-4.07-3.36-2.8-4.4-3.1-9.56-1.37-12.3 1.23-1.96 3.17-3.1 5-3.1 1.86 0 3.03 1.02 4.56 1.02 1.49 0 2.4-1.02 4.55-1.02 1.62 0 3.34.88 4.56 2.4-4.01 2.2-3.36 7.93.58 9.84z"/>
+    </svg>
+    Doorgaan met Apple
+  </Button>
+);
+
 export default function AuthPage() {
   const { user, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
