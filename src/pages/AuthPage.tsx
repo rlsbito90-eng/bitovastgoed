@@ -102,26 +102,44 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Brand ambient backdrop — same family als de app */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-background" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 opacity-90"
+        style={{
+          backgroundImage:
+            'radial-gradient(900px 600px at 0% -10%, hsl(var(--accent) / 0.18), transparent 60%),' +
+            'radial-gradient(800px 600px at 100% 0%, hsl(var(--secondary) / 0.18), transparent 65%),' +
+            'radial-gradient(1000px 700px at 50% 110%, hsl(var(--primary) / 0.18), transparent 65%)',
+        }}
+      />
+
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="text-center mb-7">
           <img
             src="/logo-bito-vastgoed.png"
             alt="Bito Vastgoed"
-            className="mx-auto h-20 w-auto max-w-[160px] object-contain"
+            className="mx-auto h-20 w-auto max-w-[160px] object-contain drop-shadow-sm"
           />
-          <p className="text-sm text-muted-foreground mt-2">Interne dealflow & CRM</p>
+          <p className="text-[13px] text-muted-foreground mt-2 tracking-wide">
+            Interne dealflow &amp; CRM
+          </p>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-6 shadow-sm space-y-4">
-          <GoogleButton />
-          <AppleButton />
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">of</span>
+        <div className="glass-card p-6 sm:p-7 space-y-4 rounded-2xl">
+          <div className="grid grid-cols-1 gap-2.5">
+            <GoogleButton />
+            <AppleButton />
+          </div>
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-[0.18em]">
+              <span className="bg-card/80 backdrop-blur px-3 text-muted-foreground rounded-full">of</span>
             </div>
           </div>
+
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Inloggen</TabsTrigger>

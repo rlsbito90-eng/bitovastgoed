@@ -27,8 +27,11 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
 import KandidaatSelectieDialog from '@/components/pipeline/KandidaatSelectieDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
@@ -309,6 +312,7 @@ export default function ObjectDetailPage() {
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [archiefOpen, setArchiefOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<string>('overzicht');
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
@@ -610,6 +614,16 @@ export default function ObjectDetailPage() {
           </div>
         );
 
+        const unarchiveObject = async () => {
+          try {
+            await store.unarchiveObject(object.id);
+            toast.success('Object teruggezet naar Actief');
+          } catch (err: any) {
+            toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
+          }
+        };
+
+        // Desktop / overlay — alle acties zichtbaar
         const actionsBlock = (
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
@@ -621,14 +635,7 @@ export default function ObjectDetailPage() {
             <ObjectPdfButton object={object} />
             {object.isArchived ? (
               <button
-                onClick={async () => {
-                  try {
-                    await store.unarchiveObject(object.id);
-                    toast.success('Object teruggezet naar Actief');
-                  } catch (err: any) {
-                    toast.error(`Terugzetten mislukt: ${err.message ?? 'onbekende fout'}`);
-                  }
-                }}
+                onClick={unarchiveObject}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
               >
                 <ArchiveRestore className="h-3.5 w-3.5" /> Activeren
@@ -641,23 +648,56 @@ export default function ObjectDetailPage() {
                 <Archive className="h-3.5 w-3.5" /> Archiveer
               </button>
             )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="inline-flex items-center justify-center px-2 py-1.5 text-[12px] bg-background/70 backdrop-blur border border-destructive/40 rounded-md hover:bg-destructive/10 transition text-destructive" aria-label="Verwijderen">
-                  <Trash2 className="h-3.5 w-3.5" />
+            <button
+              onClick={() => setDeleteOpen(true)}
+              className="inline-flex items-center justify-center px-2 py-1.5 text-[12px] bg-background/70 backdrop-blur border border-destructive/40 rounded-md hover:bg-destructive/10 transition text-destructive"
+              aria-label="Verwijderen"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+
+        // Mobiel — alleen Bewerken + PDF primair; rest in overflow-menu
+        const actionsBlockMobile = (
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 h-9 px-3 text-[12.5px] font-medium glass-chip rounded-lg hover:bg-background transition text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Bewerken
+            </button>
+            <div className="[&>button]:!w-full [&>button]:!h-9 [&>button]:!justify-center [&>button]:!rounded-lg">
+              <ObjectPdfButton object={object} />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label="Meer acties"
+                  className="inline-flex items-center justify-center h-9 w-9 glass-chip rounded-lg hover:bg-background transition text-foreground"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
-                  <AlertDialogDescription>Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {object.isArchived ? (
+                  <DropdownMenuItem onClick={unarchiveObject}>
+                    <ArchiveRestore className="h-4 w-4 mr-2" /> Activeren
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => setArchiefOpen(true)}>
+                    <Archive className="h-4 w-4 mr-2" /> Archiveer
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         );
 
@@ -678,14 +718,35 @@ export default function ObjectDetailPage() {
         );
 
         return (
-          <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm">
+          <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm glass-card">
             {/* Banner */}
             <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
               {heroUrl ? (
                 <img src={heroUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-muted to-accent/10 flex items-center justify-center">
-                  <Building2 className="h-16 w-16 text-muted-foreground/40" />
+                <div
+                  className="w-full h-full relative flex items-center justify-center"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(120% 100% at 0% 0%, hsl(var(--accent) / 0.22), transparent 55%),' +
+                      'radial-gradient(120% 100% at 100% 100%, hsl(var(--secondary) / 0.22), transparent 60%),' +
+                      'linear-gradient(135deg, hsl(var(--primary) / 0.95), hsl(var(--primary) / 0.78))',
+                  }}
+                >
+                  <div className="absolute inset-0 opacity-[0.07]" style={{
+                    backgroundImage:
+                      'linear-gradient(hsl(var(--accent-foreground) / 0.6) 1px, transparent 1px),' +
+                      'linear-gradient(90deg, hsl(var(--accent-foreground) / 0.6) 1px, transparent 1px)',
+                    backgroundSize: '32px 32px',
+                  }} />
+                  <div className="relative flex flex-col items-center gap-2 text-primary-foreground/80">
+                    <div className="h-14 w-14 rounded-2xl bg-background/10 backdrop-blur border border-accent/30 flex items-center justify-center shadow-lg">
+                      <Building2 className="h-7 w-7 text-accent" />
+                    </div>
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-primary-foreground/70">
+                      Geen foto beschikbaar
+                    </span>
+                  </div>
                 </div>
               )}
               {/* Gradient scrim (alleen op sm+, waar overlay-content erover heen valt) */}
@@ -694,10 +755,10 @@ export default function ObjectDetailPage() {
             </div>
 
             {/* MOBIEL — content stroomt onder de banner, geen overlap */}
-            <div className="sm:hidden p-4 space-y-3 bg-card">
+            <div className="sm:hidden p-4 space-y-3.5 bg-card/80 backdrop-blur">
               {badgesBlock}
               {titleBlock}
-              {actionsBlock}
+              <div className="pt-1">{actionsBlockMobile}</div>
             </div>
 
             {/* DESKTOP — overlay content */}
@@ -1549,6 +1610,27 @@ export default function ObjectDetailPage() {
       </div>
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Object verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Verwijdert {object.titel} uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ArchiveerDialog
         open={archiefOpen}
         onOpenChange={setArchiefOpen}
