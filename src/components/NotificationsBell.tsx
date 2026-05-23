@@ -448,7 +448,7 @@ export default function NotificationsBell() {
         type: 'matching',
         priority: 'normaal',
         title: `Sterke match: ${obj.titel}`,
-        body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/5`,
+        body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/100`,
         href: `/objecten/${m.objectId}`,
         context: { kind: 'object', id: m.objectId },
         createdAt: Date.now(),
