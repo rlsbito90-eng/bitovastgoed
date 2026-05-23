@@ -49,7 +49,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
-import { isStrongMatch, STRONG_MATCH_THRESHOLD } from '@/lib/derivations';
+import { isStrongMatch } from '@/lib/derivations';
 
 const STORAGE_KEY = 'bito-notifications-v2';
 const CREATED_IDS_KEY = 'bito-notifications-created-ids-v1';
