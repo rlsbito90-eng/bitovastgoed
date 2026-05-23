@@ -502,8 +502,8 @@ export default function ReferentieObjectenPage() {
                     )}
                     {huurPerM2Jaar != null && (
                       <div className="min-w-0">
-                        <dt className="text-muted-foreground">Huur €/m²/jr</dt>
-                        <dd className="font-mono-data text-foreground truncate">{formatCurrency(Math.round(huurPerM2Jaar))}</dd>
+                        <dt className="text-muted-foreground">Huur / m²</dt>
+                        <dd className="font-mono-data text-foreground truncate">{formatHuurPerM2PerJaar(huurPerM2Jaar)}</dd>
                       </div>
                     )}
                     <div className="min-w-0">
