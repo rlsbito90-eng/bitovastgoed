@@ -29,6 +29,7 @@ import {
   calculateFactor,
   calculateMonthlyRent,
   calculateRentPerM2,
+  deriveVerhuurMetrics,
 } from '@/lib/derivations';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
@@ -645,7 +646,8 @@ export default function ObjectDetailPage() {
 
   const huurders = store.getHuurdersVoorObject(object.id);
   const documenten = store.getDocumentenVoorObject(object.id);
-  const huurMetrics = store.getHuurMetrics(object.id);
+  // Centrale verhuur-derivation (Prompt 3.3): huurdersregels leidend, object fallback.
+  const verhuur = deriveVerhuurMetrics(object, huurders);
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const objectTaken = store.getTakenByObject(object.id);
@@ -1018,12 +1020,12 @@ export default function ObjectDetailPage() {
         />
       </div>
 
-      {/* WALT/WALB strip (alleen als huurders) */}
-      {huurMetrics && huurMetrics.aantalHuurders > 0 && (
+      {/* Huurders + WALT/WALB strip (bron: huurdersregels indien aanwezig, anders object-fallback) */}
+      {verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-          <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
-          <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
-          <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
+          <MetricTile label="Huurders" value={verhuur.aantalHuurders.toString()} />
+          <MetricTile label="WALT" value={verhuur.waltJaren != null ? `${verhuur.waltJaren.toFixed(1)} jr` : '—'} />
+          <MetricTile label="WALB" value={verhuur.walbJaren != null ? `${verhuur.walbJaren.toFixed(1)} jr` : '—'} />
         </div>
       )}
 
@@ -1248,23 +1250,47 @@ export default function ObjectDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
                 <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
                 {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
-                {object.aantalHuurders != null && (
-                  <Field label="Aantal huurders"><span className="tabular-nums">{object.aantalHuurders}</span></Field>
+                {verhuur.aantalHuurders != null && (
+                  <Field label={verhuur.source === 'huurders' ? 'Aantal huurders' : 'Aantal huurders (indicatie)'}>
+                    <span className="tabular-nums">{verhuur.aantalHuurders}</span>
+                  </Field>
                 )}
-                {object.leegstandPct != null && (
-                  <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
+                {verhuur.leegstandPct != null && (
+                  <Field label="Leegstand"><span className="font-mono-data">{formatPercent(verhuur.leegstandPct)}</span></Field>
                 )}
                 {object.beschikbaarVanaf && (
                   <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
                 )}
               </div>
 
-              {huurMetrics && huurMetrics.aantalHuurders > 0 && (
+              {/* Soft mismatch warnings — alleen tonen als huurdersregels bestaan */}
+              {verhuur.source === 'huurders' && (verhuur.warnings.rentMismatch || verhuur.warnings.tenantCountMismatch) && (
+                <div className="hairline pt-4 space-y-1.5">
+                  {verhuur.warnings.rentMismatch && (
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <span>Let op: objecthuur ({formatCurrencyCompact(verhuur.detail.objectRent ?? 0)}) wijkt af van som huurdersregels ({formatCurrencyCompact(verhuur.detail.sumTenantRent ?? 0)}).</span>
+                    </div>
+                  )}
+                  {verhuur.warnings.tenantCountMismatch && (
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <span>Let op: aantal huurders op object ({object.aantalHuurders}) wijkt af van huurderslijst ({verhuur.detail.tenantsCount}).</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 hairline pt-5">
-                  <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
-                  <MetricTile label="Totale jaarhuur" value={formatCurrencyCompact(huurMetrics.totaleJaarhuur)} />
-                  <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
-                  <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
+                  <MetricTile label="Huurders" value={verhuur.aantalHuurders.toString()} />
+                  <MetricTile
+                    label="Totale jaarhuur"
+                    value={verhuur.totaleJaarhuur != null ? formatCurrencyCompact(verhuur.totaleJaarhuur) : '—'}
+                    hint={verhuur.totaleJaarhuur != null ? `${formatCurrencyCompact(verhuur.totaleJaarhuur / 12)} / mnd` : undefined}
+                  />
+                  <MetricTile label="WALT" value={verhuur.waltJaren != null ? `${verhuur.waltJaren.toFixed(1)} jr` : '—'} />
+                  <MetricTile label="WALB" value={verhuur.walbJaren != null ? `${verhuur.walbJaren.toFixed(1)} jr` : '—'} />
                 </div>
               )}
             </div>
