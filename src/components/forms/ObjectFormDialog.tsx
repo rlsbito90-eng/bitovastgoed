@@ -144,6 +144,7 @@ const leegForm: FormState = {
   isPortefeuille: false,
   parentObjectId: undefined,
   documentenBeschikbaar: false,
+  markeerAlsReferentie: false,
   interneOpmerkingen: undefined,
   opmerkingen: undefined,
   referentieanalyseZichtbaar: true,
