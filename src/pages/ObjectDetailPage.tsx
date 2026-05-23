@@ -416,7 +416,7 @@ export default function ObjectDetailPage() {
       }
       if (s.id === 'dealflow') {
         if (object && object.referentieanalyseZichtbaar !== false) {
-          out.push({ id: 'referenties', label: 'Benchmarks', icon: LineChart });
+          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
         }
       }
     }
