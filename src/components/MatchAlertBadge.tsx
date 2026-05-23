@@ -145,8 +145,8 @@ export default function MatchAlertBadge() {
                 {aantalTotaal === 0
                   ? 'Geen actuele matches'
                   : aantalNieuw > 0
-                    ? `${aantalNieuw} nieuw · ${aantalTotaal} totaal (score ≥ ${DREMPEL})`
-                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${DREMPEL})`
+                    ? `${aantalNieuw} nieuw · ${aantalTotaal} totaal (score ≥ ${STRONG_MATCH_THRESHOLD})`
+                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${STRONG_MATCH_THRESHOLD})`
                 }
               </p>
             </div>
