@@ -252,20 +252,21 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
   const navRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
-  useEffect(() => {
-    const el = tabRefs.current[active];
+  const centerTab = (id: string) => {
+    const el = tabRefs.current[id];
     const scroller = scrollerRef.current;
     if (!el || !scroller) return;
-    const elLeft = el.offsetLeft;
-    const elRight = elLeft + el.offsetWidth;
-    const viewLeft = scroller.scrollLeft;
-    const viewRight = viewLeft + scroller.clientWidth;
-    if (elLeft < viewLeft + 16) {
-      scroller.scrollTo({ left: Math.max(0, elLeft - 16), behavior: 'smooth' });
-    } else if (elRight > viewRight - 16) {
-      scroller.scrollTo({ left: elRight - scroller.clientWidth + 16, behavior: 'smooth' });
-    }
+    const target = el.offsetLeft - scroller.clientWidth / 2 + el.offsetWidth / 2;
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    const left = Math.max(0, Math.min(max, target));
+    scroller.scrollTo({ left, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    centerTab(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
