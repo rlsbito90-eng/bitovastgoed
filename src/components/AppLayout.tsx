@@ -18,7 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Calculator,
-  Bell,
+  
   Plus,
   HelpCircle,
   ChevronDown,
@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
+import NotificationsBell from "@/components/NotificationsBell";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
@@ -237,7 +238,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-0.5 shrink-0">
           <RefreshButton />
           <MatchAlertBadge />
+          <NotificationsBell />
         </div>
+
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
@@ -256,17 +259,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-1.5">
             <RefreshButton />
             <MatchAlertBadge />
-            <button
-              className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Notificaties"
-              title="Notificaties"
-            >
-              <Bell className="h-[18px] w-[18px]" />
-            </button>
+            <NotificationsBell />
             <Link to="/taken" className="btn-premium ml-2">
               <Plus className="h-4 w-4" />
               <span>Nieuw</span>
             </Link>
+
           </div>
         </header>
 
