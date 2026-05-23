@@ -29,6 +29,7 @@ import {
   calculateFactor,
   calculateMonthlyRent,
   calculateRentPerM2,
+  deriveVerhuurMetrics,
 } from '@/lib/derivations';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
