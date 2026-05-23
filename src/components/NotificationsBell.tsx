@@ -22,7 +22,7 @@
 // 2. Biedingen
 //    - Bod verloopt vandaag of morgen (status actief)     → 'hoog'
 // 3. Matching
-//    - Nieuwe sterke match (score >= STRONG_MATCH_MIN)    → 'normaal'
+//    - Nieuwe sterke match (score ≥ STRONG_MATCH_THRESHOLD, 0–100) → 'normaal'
 // 4. Systeem / datakwaliteit
 //    - Mogelijke dubbele relatie                          → 'kritiek'
 //    - Mogelijke dubbele objectinvoer                     → 'kritiek'
@@ -49,11 +49,12 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
+import { isStrongMatch } from '@/lib/derivations';
 
 const STORAGE_KEY = 'bito-notifications-v2';
 const CREATED_IDS_KEY = 'bito-notifications-created-ids-v1';
 const INIT_FLAG = 'bito-notifications-initialized-v3';
-const STRONG_MATCH_MIN = 5; // ~ "boven 85%" op 0..5 schaal
+// Sterke-match drempel komt uit centrale matching helper (0–100 schaal).
 const MAX_NOTIFICATIONS = 200;
 const MAX_CREATED_IDS = 2000;
 
@@ -337,7 +338,7 @@ export default function NotificationsBell() {
 
   // Bron-derived candidate notificaties berekenen.
   const matches = useMemo(
-    () => getAllMatchesFromData(store.zoekprofielen, store.objecten).filter((m) => m.score >= STRONG_MATCH_MIN),
+    () => getAllMatchesFromData(store.zoekprofielen, store.objecten).filter((m) => isStrongMatch(m.score)),
     [store.zoekprofielen, store.objecten],
   );
 
@@ -447,7 +448,7 @@ export default function NotificationsBell() {
         type: 'matching',
         priority: 'normaal',
         title: `Sterke match: ${obj.titel}`,
-        body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/5`,
+        body: `${getRelatieNaamCompact(rel, store.contactpersonen)} · ${zp.naam} · score ${m.score}/100`,
         href: `/objecten/${m.objectId}`,
         context: { kind: 'object', id: m.objectId },
         createdAt: Date.now(),

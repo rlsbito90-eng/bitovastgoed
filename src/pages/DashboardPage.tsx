@@ -13,6 +13,7 @@ import {
   DEAL_FASE_LABELS,
 } from '@/data/mock-data';
 import type { DealFase } from '@/data/mock-data';
+import { isStrongMatch } from '@/lib/derivations';
 import {
   LeadStatusBadge,
   DealFaseBadge,
@@ -164,7 +165,7 @@ export default function DashboardPage() {
     () => getAllMatchesFromData(store.zoekprofielen, store.objecten),
     [store.zoekprofielen, store.objecten],
   );
-  const sterkeMatches = useMemo(() => matches.filter(m => m.score >= 70), [matches]);
+  const sterkeMatches = useMemo(() => matches.filter(m => isStrongMatch(m.score)), [matches]);
 
   // --- Pipeline value & weighted fee ---
   const commissieStats = useMemo(

@@ -9,7 +9,7 @@
 // - Komt later een nieuwe match bij → tellertje verschijnt opnieuw
 //
 // Tracking via localStorage zodat de status persistent is per browser/device.
-// Drempel: matches met score >= 3.
+// Drempel: sterke match (score ≥ STRONG_MATCH_THRESHOLD, 0–100 schaal).
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -21,8 +21,8 @@ import {
   ASSET_CLASS_LABELS,
 } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { STRONG_MATCH_THRESHOLD, EXCELLENT_MATCH_THRESHOLD, isStrongMatch } from '@/lib/derivations';
 
-const DREMPEL = 3;
 const SEEN_KEYS_STORAGE = 'bito-matches-seen-keys-v2';
 const SEEN_INIT_STORAGE = 'bito-matches-seen-initialized-v2';
 
@@ -59,7 +59,7 @@ export default function MatchAlertBadge() {
   const matches = useMemo(() => {
     const alle = getAllMatchesFromData(store.zoekprofielen, store.objecten);
     return alle
-      .filter(m => m.score >= DREMPEL)
+      .filter(m => isStrongMatch(m.score))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         const zpA = store.zoekprofielen.find(z => z.id === a.zoekprofielId);
@@ -145,8 +145,8 @@ export default function MatchAlertBadge() {
                 {aantalTotaal === 0
                   ? 'Geen actuele matches'
                   : aantalNieuw > 0
-                    ? `${aantalNieuw} nieuw · ${aantalTotaal} totaal (score ≥ ${DREMPEL})`
-                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${DREMPEL})`
+                    ? `${aantalNieuw} nieuw · ${aantalTotaal} totaal (score ≥ ${STRONG_MATCH_THRESHOLD})`
+                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${STRONG_MATCH_THRESHOLD})`
                 }
               </p>
             </div>
@@ -191,12 +191,12 @@ export default function MatchAlertBadge() {
                           <span className="text-muted-foreground/60"> · {zp.naam}</span>
                         </p>
                       </div>
-                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                        m.score >= 5 ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                        : m.score >= 4 ? 'bg-accent/15 text-accent'
+                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono-data ${
+                        m.score >= EXCELLENT_MATCH_THRESHOLD ? 'bg-green-500/15 text-green-700 dark:text-green-400'
+                        : m.score >= STRONG_MATCH_THRESHOLD ? 'bg-accent/15 text-accent'
                         : 'bg-muted text-muted-foreground'
                       }`}>
-                        {m.score}/5
+                        {m.score}/100
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
