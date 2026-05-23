@@ -191,12 +191,12 @@ export default function MatchAlertBadge() {
                           <span className="text-muted-foreground/60"> · {zp.naam}</span>
                         </p>
                       </div>
-                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                        m.score >= 5 ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                        : m.score >= 4 ? 'bg-accent/15 text-accent'
+                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono-data ${
+                        m.score >= EXCELLENT_MATCH_THRESHOLD ? 'bg-green-500/15 text-green-700 dark:text-green-400'
+                        : m.score >= STRONG_MATCH_THRESHOLD ? 'bg-accent/15 text-accent'
                         : 'bg-muted text-muted-foreground'
                       }`}>
-                        {m.score}/5
+                        {m.score}/100
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
