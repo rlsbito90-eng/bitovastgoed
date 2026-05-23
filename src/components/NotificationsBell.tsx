@@ -22,7 +22,7 @@
 // 2. Biedingen
 //    - Bod verloopt vandaag of morgen (status actief)     → 'hoog'
 // 3. Matching
-//    - Nieuwe sterke match (score >= STRONG_MATCH_MIN)    → 'normaal'
+//    - Nieuwe sterke match (score ≥ STRONG_MATCH_THRESHOLD, 0–100) → 'normaal'
 // 4. Systeem / datakwaliteit
 //    - Mogelijke dubbele relatie                          → 'kritiek'
 //    - Mogelijke dubbele objectinvoer                     → 'kritiek'
