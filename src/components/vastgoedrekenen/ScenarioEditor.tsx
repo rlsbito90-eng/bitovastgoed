@@ -968,10 +968,10 @@ export default function ScenarioEditor(props: Props) {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
                       <MobileFieldGroup label="Naam"><RawTextInput className="h-9" initialValue={u.unit_name} onCommit={(raw) => updateWwsUnit(u.id, { unit_name: raw.trim() || 'Woonunit' })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Woon m²"><RawNumberInput className="h-9" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="WOZ (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Woon m²"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="WOZ (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></MobileFieldGroup>
                       <MobileFieldGroup label="Energielabel"><RawTextInput className="h-9" initialValue={u.energy_label ?? ''} onCommit={(raw) => updateWwsUnit(u.id, { energy_label: raw.trim() || null })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
                       <div className="min-w-0 w-full space-y-1.5">
                         <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
                         <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
