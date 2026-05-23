@@ -12,7 +12,7 @@ import {
   formatPercent,
   formatEurPerM2,
   formatHuurPerM2PerJaar,
-  eurPerM2, // eslint-disable-line @typescript-eslint/no-unused-vars -- behouden voor back-compat exports
+  
   ASSET_CLASS_LABELS,
   ONDERHOUDSSTAAT_LABELS,
   VERKOPER_VIA_LABELS,
