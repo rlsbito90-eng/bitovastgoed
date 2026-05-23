@@ -28,7 +28,7 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
