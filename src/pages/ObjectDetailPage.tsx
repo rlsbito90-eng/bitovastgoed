@@ -654,16 +654,18 @@ export default function ObjectDetailPage() {
   const verhuur = deriveVerhuurMetrics(object, huurders);
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
+  // Top kandidaten = sterke matches (score ≥ STRONG_MATCH_THRESHOLD, 0–100).
+  const sterkeMatches = matches.filter(m => isStrongMatch(m.score));
   const objectTaken = store.getTakenByObject(object.id);
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
   const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
   const reedsGekoppeldRelaties = new Set<string>(kandidatenPipeline.map(k => k.relatieId));
-  // Totaal aantal kandidaten voor dit object — unieke union van top matches en pipeline-relaties.
-  const kandidatenTotaalIds = new Set<string>([
-    ...matches.map(m => m.relatieId),
-    ...kandidatenPipeline.map(k => k.relatieId),
-  ]);
-  const kandidatenTotaal = kandidatenTotaalIds.size;
+  // Totaal aantal kandidaten voor dit object — unieke union van sterke matches en pipeline-relaties.
+  const kandidatenTotaal = countKandidaten({
+    matches,
+    pipelineRows: kandidatenPipeline,
+    objectId: object.id,
+  }).total;
   const volgendeTaak = (() => {
     const open = objectTaken
       .filter(t => t.status === 'open')
