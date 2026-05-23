@@ -1029,9 +1029,148 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* FINANCIEEL — bestaand blok, ongewijzigd qua inhoud, hieronder gerenderd na overzicht.
-              Sectievolgorde: overzicht → financieel → verhuur → pand → potentie → juridisch → contacten → aanbieding → dossier
-              We laten het bestaande financieel-blok hieronder volgen via de bestaande SectionAnchor. */}
+          {/* ============ 2. FINANCIEEL ============ */}
+          <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
+            <div className="section-card p-5 sm:p-6 space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                <MetricTile
+                  label="Vraagprijs"
+                  value={
+                    object.vraagprijs != null
+                      ? formatCurrency(object.vraagprijs)
+                      : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
+                  }
+                  hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+                  accent
+                />
+                <MetricTile
+                  label="BAR"
+                  value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
+                  badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
+                />
+                {narEffect != null && (
+                  <MetricTile
+                    label="NAR"
+                    value={formatPercent(narEffect, 2)}
+                    badge={narIsHandmatig ? 'handmatig' : 'auto'}
+                  />
+                )}
+                <MetricTile
+                  label="Factor"
+                  value={factor != null ? `${factor.toFixed(1)}×` : '—'}
+                  badge={factor != null ? 'auto' : undefined}
+                />
+                {object.huurinkomsten != null && (
+                  <MetricTile label="Huur / jr" value={formatCurrency(object.huurinkomsten)} />
+                )}
+                {maandhuur != null && (
+                  <MetricTile
+                    label="Huur / mnd"
+                    value={formatCurrency(Math.round(maandhuur))}
+                    badge="auto"
+                  />
+                )}
+                {noiEffect != null && (
+                  <MetricTile
+                    label="NOI"
+                    value={formatCurrency(noiEffect)}
+                    tone="positive"
+                    badge={noiIsHandmatig ? 'handmatig' : 'auto'}
+                  />
+                )}
+                {object.servicekostenJaar != null && (
+                  <MetricTile label="Servicekosten" value={formatCurrency(object.servicekostenJaar)} />
+                )}
+                <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
+                {huurPerM2Berekend != null && (
+                  <MetricTile
+                    label="Huur / m²"
+                    value={huurPerM2Str}
+                    badge={huurPerM2IsHandmatig ? 'handmatig' : 'auto'}
+                  />
+                )}
+                {object.wozWaarde != null && (
+                  <MetricTile
+                    label="WOZ"
+                    value={formatCurrency(object.wozWaarde)}
+                    hint={object.wozPeildatum ? formatDate(object.wozPeildatum) : undefined}
+                  />
+                )}
+                {object.taxatiewaarde != null && (
+                  <MetricTile
+                    label="Taxatie"
+                    value={formatCurrency(object.taxatiewaarde)}
+                    hint={object.taxatiedatum ? formatDate(object.taxatiedatum) : undefined}
+                  />
+                )}
+                {object.marktwaardeIndicatie != null && (
+                  <MetricTile
+                    label="Marktwaarde"
+                    value={formatCurrency(object.marktwaardeIndicatie)}
+                    hint={object.marktwaardeBron ?? undefined}
+                  />
+                )}
+              </div>
+
+              {object.prijsindicatie && (
+                <div className="hairline pt-4">
+                  <Field label="Prijsindicatie / toelichting"><pre className="whitespace-pre-wrap font-sans text-sm">{object.prijsindicatie}</pre></Field>
+                </div>
+              )}
+
+              {object.financieleScenarios && (
+                object.financieleScenarios.huidig || object.financieleScenarios.marktconform || object.financieleScenarios.naRenovatie
+              ) && (
+                <div className="hairline pt-4">
+                  <p className="field-label mb-2">Financiële scenario's</p>
+                  <div className="overflow-x-auto rounded-md border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs text-muted-foreground">
+                        <tr>
+                          <th className="text-left font-medium px-3 py-2">Scenario</th>
+                          <th className="text-right font-medium px-3 py-2">Jaarhuur</th>
+                          <th className="text-right font-medium px-3 py-2">BAR</th>
+                          <th className="text-right font-medium px-3 py-2">NOI</th>
+                          <th className="text-left font-medium px-3 py-2">Toelichting</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(['huidig','marktconform','naRenovatie'] as const).map(k => {
+                          const s = object.financieleScenarios?.[k];
+                          if (!s) return null;
+                          const label = k === 'huidig' ? 'Huidig' : k === 'marktconform' ? 'Marktconform' : 'Na renovatie';
+                          return (
+                            <tr key={k} className="border-t border-border/40">
+                              <td className="px-3 py-2 font-medium">{label}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.jaarhuur != null ? formatCurrency(s.jaarhuur) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.bar != null ? formatPercent(s.bar, 2) : '—'}</td>
+                              <td className="px-3 py-2 text-right font-mono-data">{s.noi != null ? formatCurrency(s.noi) : '—'}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{s.opmerking ?? '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="hairline pt-4 flex items-center gap-2 text-[12px] text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5 text-accent" />
+                <span>
+                  Voor scenario-analyse en gevoeligheid:&nbsp;
+                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
+                </span>
+              </div>
+            </div>
+
+            {object.referentieanalyseZichtbaar !== false && (
+              <div className="mt-4">
+                <ObjectReferentieAnalyseSectie object={object} />
+              </div>
+            )}
+          </SectionAnchor>
+
 
           {/* ============ VERHUUR ============ */}
           <SectionAnchor id="verhuur" eyebrow="03 — Verhuur" title="Verhuur">
