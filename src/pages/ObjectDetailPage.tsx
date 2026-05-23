@@ -270,8 +270,10 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
+    centerTab(id);
     const target = document.getElementById(id);
     if (!target) return;
+
 
     const subNav = navRef.current?.getBoundingClientRect().height ?? 52;
     const buffer = 8;
