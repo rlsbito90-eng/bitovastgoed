@@ -7,6 +7,7 @@ import {
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   formatCurrency,
+  formatHuurPerM2PerJaar,
   type AssetClass,
   type ReferentieObject,
 } from '@/data/mock-data';
