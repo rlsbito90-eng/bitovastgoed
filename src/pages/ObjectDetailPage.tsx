@@ -1289,7 +1289,18 @@ export default function ObjectDetailPage() {
                     </Field>
                   )}
                   {verborgenImSecties.length > 0 && (
-                    <Field label="Verborgen IM-secties">{verborgenImSecties.join(', ')}</Field>
+                    <Field label="Niet getoond in IM">
+                      <div className="flex flex-wrap gap-1.5">
+                        {verborgenImSecties.map(key => (
+                          <span
+                            key={key}
+                            className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground"
+                          >
+                            {IM_SECTIE_LABELS[key] ?? key}
+                          </span>
+                        ))}
+                      </div>
+                    </Field>
                   )}
                 </div>
               </div>
