@@ -1600,24 +1600,16 @@ export default function ObjectDetailPage() {
             />
           </SectionAnchor>
 
-          {/* ============ REFERENTIES (conditioneel) ============ */}
-          {object.referentieanalyseZichtbaar !== false && (
-            <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
-              <ObjectReferentieAnalyseSectie object={object} />
-            </SectionAnchor>
-          )}
-
-
-
-
-
-          {/* ============ 3. KANDIDATEN / MATCHING ============ */}
+          {/* ============ KANDIDATEN ============ */}
           <SectionAnchor
             id="kandidaten"
-            eyebrow="Candidates"
-            title={`Top kandidaten · ${matches.length}`}
+            eyebrow={eyebrowFor("kandidaten", "Candidates")}
+            title={`Kandidaten · ${matches.length}`}
           >
             <div className="section-card overflow-hidden">
+              <header className="section-header">
+                <h3 className="section-title">Top kandidaten</h3>
+              </header>
               {matches.length === 0 ? (
                 <p className="px-5 py-8 text-sm text-muted-foreground text-center">Geen matches gevonden.</p>
               ) : (
@@ -1653,41 +1645,24 @@ export default function ObjectDetailPage() {
               )}
             </div>
 
-            {/* Bestaande deals binnen kandidaten-context */}
-            {deals.length > 0 && (
-              <div className="section-card mt-4">
-                <header className="section-header">
-                  <h3 className="section-title">Gekoppelde deals ({deals.length})</h3>
-                </header>
-                <div className="divide-y divide-border/60">
-                  {deals.map(deal => {
-                    const rel = store.getRelatieById(deal.relatieId);
-                    return (
-                      <Link key={deal.id} to={`/deals/${deal.id}`} className="row-hover block px-5 py-3.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm text-foreground truncate">{rel?.bedrijfsnaam}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              {deal.commissieBedrag != null && `Commissie: ${formatCurrency(deal.commissieBedrag)}`}
-                            </p>
-                          </div>
-                          <DealFaseBadge fase={deal.fase} />
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </SectionAnchor>
-
-          {/* ============ 4. DEALFLOW TIMELINE ============ */}
-          <SectionAnchor id="dealflow" eyebrow="Dealflow" title="Dealflow">
-            <ObjectPipelineFaseSectie object={object} />
+            {/* Kandidaten / dealtraject (pipeline + toevoegen-knop) */}
             <div className="mt-4">
               <ObjectPipelineSectie objectId={object.id} />
             </div>
           </SectionAnchor>
+
+          {/* ============ DEALFLOW ============ */}
+          <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
+            <ObjectPipelineFaseSectie object={object} />
+          </SectionAnchor>
+
+          {/* ============ REFERENTIES (conditioneel) ============ */}
+          {object.referentieanalyseZichtbaar !== false && (
+            <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
+              <ObjectReferentieAnalyseSectie object={object} />
+            </SectionAnchor>
+          )}
+
 
           {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
