@@ -361,3 +361,41 @@ Verhuur-sectie en hero huurders-KPI's op Objectdetail gebruiken nu `deriveVerhuu
   volledig de bron is.
 - Lijstweergaven (ObjectenPage) tonen mogelijk nog `documentenBeschikbaar`-icoontjes;
   evalueren in latere prompt.
+
+## Prompt 3.5 — Matchinglogica centraliseren (uitgevoerd)
+
+### Wat is gedaan
+- **Sterke-match drempel centraal**: alle "is dit een sterke match?"-checks gebruiken
+  nu `isStrongMatch()` / `STRONG_MATCH_THRESHOLD` (70/100) uit
+  `src/lib/derivations/matching.ts`. Score blijft 0–100, geen conversie naar 0–5.
+- **NotificationsBell** (`src/components/NotificationsBell.tsx`)
+  - `STRONG_MATCH_MIN = 5` verwijderd; filter draait nu op `isStrongMatch(m.score)`.
+  - Notificatie-body toont `score N/100` i.p.v. `N/5`.
+  - Init-flag blijft ongewijzigd zodat bestaande matches niet massaal in de bel
+    belanden bij eerste gebruik.
+- **MatchAlertBadge** (`src/components/MatchAlertBadge.tsx`)
+  - Lokale `DREMPEL = 3` (op 0–5 schaal) vervangen door `STRONG_MATCH_THRESHOLD`.
+  - Score-chip toont `N/100`, kleur op basis van `STRONG_MATCH_THRESHOLD` (accent)
+    en `EXCELLENT_MATCH_THRESHOLD` (groen).
+- **MatchScoreBadge** (`src/components/StatusBadges.tsx`)
+  - Toon-label is nu `N/100` (was `N%`). Tones gebruiken centrale drempels
+    (≥85 emerald, ≥70 amber, anders neutral).
+- **ObjectDetailPage**
+  - Top kandidaten filtert nu op `isStrongMatch(m.score)`; lege staat toont
+    "Geen sterke matches (score ≥ 70/100)" wanneer er wel matches zijn maar onder
+    de drempel.
+  - `kandidatenTotaal` gebruikt centrale `countKandidaten({ matches, pipelineRows,
+    objectId })` → unieke union van sterke matches ∪ actieve pipeline-relaties
+    (geen dubbeltelling).
+- **DashboardPage** gebruikt `isStrongMatch` i.p.v. `score >= 70` literal.
+
+### Niet gewijzigd
+- Geen schema, migraties of bestaande matches aangeraakt.
+- Matching-scorelogica (`berekenMatchScore`) blijft 0–100.
+- Pipeline-fase logica en biedingen ongemoeid.
+
+### Open punten
+- Taxonomie legacy fallback (assetClass/typeVastgoed) blijft in
+  `berekenMatchScore`; opschonen komt later (Fase 3.8/3.9).
+- `KandidaatSelectieDialog` toont `item.score` als percentage — kan in latere
+  prompt heroverwogen worden op uniform `N/100` label.
