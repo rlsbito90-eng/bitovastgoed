@@ -1008,37 +1008,66 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                           <option value="vergund">Vergund</option>
                         </select>
                       </Veld>
-                      <Veld label="Extra m² mogelijk (bovenop huidig)">
+                    </div>
+
+                    {/* m²-rij: huidig | extra | totaal na plan */}
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <Veld label="Huidige m²">
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                            return huidig != null ? `${huidig.toLocaleString('nl-NL')} m²` : '—';
+                          })()}
+                        </div>
+                      </Veld>
+                      <Veld label="Extra m² mogelijk">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraM2 ?? ''}
                           onChange={e => set('potentieExtraM2', num(e.target.value))}
-                          placeholder={form.oppervlakte ? `huidig: ${form.oppervlakte} m²` : 'huidig onbekend'} />
-                        {(() => {
-                          const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
-                          const extra = form.potentieExtraM2;
-                          if (huidig == null || extra == null) {
-                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidig m² ontbreekt)' : '—'}</p>;
-                          }
-                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal m² na plan: <span className="font-medium text-foreground">{(huidig + extra).toLocaleString('nl-NL')} m²</span></p>;
-                        })()}
+                          placeholder="bv. 75" />
                       </Veld>
-                      <Veld label="Extra units mogelijk (bovenop huidig)">
+                      <Veld label={<>Totaal m² na plan <AutoBadge /></>}>
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                            const extra = form.potentieExtraM2;
+                            if (huidig == null) return 'onvoldoende gegevens';
+                            const totaal = huidig + (extra ?? 0);
+                            return `${totaal.toLocaleString('nl-NL')} m²`;
+                          })()}
+                        </div>
+                      </Veld>
+                    </div>
+
+                    {/* Units-rij: huidig | extra | totaal na plan */}
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <Veld label="Huidige units">
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {form.aantalUnits != null ? form.aantalUnits : '—'}
+                        </div>
+                      </Veld>
+                      <Veld label="Extra units mogelijk">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraUnits ?? ''}
                           onChange={e => {
                             const v = e.target.value;
                             set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
                           }}
-                          placeholder={form.aantalUnits != null ? `huidig: ${form.aantalUnits}` : 'huidig onbekend'} />
-                        {(() => {
-                          const huidig = form.aantalUnits;
-                          const extra = form.potentieExtraUnits;
-                          if (huidig == null || extra == null) {
-                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidige units ontbreken)' : '—'}</p>;
-                          }
-                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal units na plan: <span className="font-medium text-foreground">{huidig + extra}</span></p>;
-                        })()}
+                          placeholder="bv. 3" />
                       </Veld>
+                      <Veld label={<>Totaal units na plan <AutoBadge /></>}>
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.aantalUnits;
+                            const extra = form.potentieExtraUnits;
+                            if (huidig == null) return 'onvoldoende gegevens';
+                            return String(huidig + (extra ?? 0));
+                          })()}
+                        </div>
+                      </Veld>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
                       <Veld label="Bron / onderbouwing">
                         <select
                           className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
