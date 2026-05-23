@@ -1669,11 +1669,15 @@ export default function ObjectDetailPage() {
               <header className="section-header">
                 <h3 className="section-title">Top kandidaten</h3>
               </header>
-              {matches.length === 0 ? (
-                <p className="px-5 py-8 text-sm text-muted-foreground text-center">Geen matches gevonden.</p>
+              {sterkeMatches.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-muted-foreground text-center">
+                  {matches.length === 0
+                    ? 'Geen matches gevonden.'
+                    : 'Geen sterke matches (score ≥ 70/100).'}
+                </p>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {matches.slice(0, 10).map((m, i) => {
+                  {sterkeMatches.slice(0, 10).map((m, i) => {
                     const rel = store.getRelatieById(m.relatieId);
                     const zp = store.zoekprofielen.find(z => z.id === m.zoekprofielId);
                     return (
