@@ -127,6 +127,7 @@ export default function DocumentenPanel({
         ref={fileInput}
         type="file"
         multiple
+        accept={acceptAttr}
         className="hidden"
         onChange={e => handleFiles(e.target.files)}
       />
@@ -146,14 +147,14 @@ export default function DocumentenPanel({
           Klik om bestanden te kiezen of sleep ze hiernaartoe
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          PDF, Word, Excel, afbeeldingen · max {MAX_FILE_SIZE_MB} MB per bestand
+          {helpText ?? `PDF, Word, Excel, afbeeldingen · max ${MAX_FILE_SIZE_MB} MB per bestand`}
         </p>
       </div>
 
       <div className="space-y-2">
         {docs.length === 0 && (
           <p className="text-sm text-muted-foreground italic px-1">
-            Nog geen documenten geüpload.
+            {emptyText ?? 'Nog geen documenten geüpload.'}
           </p>
         )}
         {docs.map(doc => (
@@ -166,15 +167,17 @@ export default function DocumentenPanel({
                 {doc.createdAt && ` · ${formatDate(doc.createdAt.split('T')[0])}`}
               </p>
             </div>
-            <select
-              value={doc.documenttype}
-              onChange={e => handleTypeWissel(doc, e.target.value as DocumentType)}
-              className="shrink-0 h-9 px-2 text-xs rounded-md border border-input bg-background"
-            >
-              {Object.entries(DOCUMENT_TYPE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
+            {!hideTypeSelector && (
+              <select
+                value={doc.documenttype}
+                onChange={e => handleTypeWissel(doc, e.target.value as DocumentType)}
+                className="shrink-0 h-9 px-2 text-xs rounded-md border border-input bg-background"
+              >
+                {Object.entries(DOCUMENT_TYPE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            )}
             <button
               type="button"
               onClick={() => handleDownload(doc)}
