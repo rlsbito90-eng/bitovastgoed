@@ -1614,7 +1614,7 @@ export default function ObjectDetailPage() {
               </div>
             ) : (
               <div className="section-card p-5 text-sm text-muted-foreground">
-                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => setEditOpen(true)} className="text-accent hover:underline">Object bewerken</button>.
+                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => openEdit('aanbieding')} className="text-accent hover:underline">Object bewerken</button>.
               </div>
             )}
           </SectionAnchor>
