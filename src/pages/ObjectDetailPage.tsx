@@ -548,19 +548,41 @@ export default function ObjectDetailPage() {
     return open[0] ?? null;
   })();
 
-  const barEffect = object.brutoAanvangsrendement
-    ?? (object.huurinkomsten && object.vraagprijs
-      ? (object.huurinkomsten / object.vraagprijs) * 100
+  // BAR: auto wanneer geen handmatige waarde, anders override
+  const barAuto = object.huurinkomsten && object.vraagprijs
+    ? (object.huurinkomsten / object.vraagprijs) * 100
+    : null;
+  const barEffect = object.brutoAanvangsrendement ?? barAuto;
+  const barIsHandmatig = object.brutoAanvangsrendement != null;
+
+  // NAR: handmatig opgeslagen, anders auto uit NOI / vraagprijs
+  const narAuto = object.noi != null && object.vraagprijs
+    ? (object.noi / object.vraagprijs) * 100
+    : (object.huurinkomsten != null && object.servicekostenJaar != null && object.vraagprijs
+      ? ((object.huurinkomsten - object.servicekostenJaar) / object.vraagprijs) * 100
       : null);
+  const narEffect = object.nettoAanvangsrendement ?? narAuto;
+  const narIsHandmatig = object.nettoAanvangsrendement != null;
+
+  // NOI: handmatig wanneer expliciet ingevuld, anders afgeleid (jaarhuur − servicekosten)
+  const noiAuto = object.huurinkomsten != null && object.servicekostenJaar != null
+    ? object.huurinkomsten - object.servicekostenJaar
+    : null;
+  const noiEffect = object.noi ?? noiAuto;
+  const noiIsHandmatig = object.noi != null;
 
   const factor = object.huurinkomsten && object.vraagprijs
     ? object.vraagprijs / object.huurinkomsten
     : null;
 
+  // Maandhuur — puur afgeleid, niet opgeslagen
+  const maandhuur = object.huurinkomsten != null ? object.huurinkomsten / 12 : null;
+
   const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
   const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
-  const huurPerM2Berekend = object.huurPerM2
-    ?? eurPerM2(object.huurinkomsten, m2VoorBerekening);
+  const huurPerM2Auto = eurPerM2(object.huurinkomsten, m2VoorBerekening);
+  const huurPerM2Berekend = object.huurPerM2 ?? huurPerM2Auto;
+  const huurPerM2IsHandmatig = object.huurPerM2 != null;
   const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
 
   // Lead deal voor cockpit
