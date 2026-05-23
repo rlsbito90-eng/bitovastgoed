@@ -224,15 +224,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
-      // Bestaande objecten: respecteer huidige waarde — standaard uit.
-      setMarkeerAlsReferentie(false);
       // Als er al een handmatige huur/m²-waarde stond: behandel als manual.
       setHuurPerM2Manual(object.huurPerM2 != null);
     } else {
+      // Nieuwe objecten: markeerAlsReferentie standaard UIT (komt uit leegForm).
       setForm(leegForm);
       setGemaaktId(undefined);
-      // Nieuwe objecten: standaard UIT (gebruiker zet handmatig aan als relevant).
-      setMarkeerAlsReferentie(false);
       setHuurPerM2Manual(false);
     }
     setTab('algemeen');
