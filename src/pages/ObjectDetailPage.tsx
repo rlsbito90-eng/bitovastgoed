@@ -27,8 +27,11 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
 import KandidaatSelectieDialog from '@/components/pipeline/KandidaatSelectieDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
