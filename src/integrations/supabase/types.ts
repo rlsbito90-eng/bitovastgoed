@@ -1843,6 +1843,7 @@ export type Database = {
           kadastrale_sectie: string | null
           leegstand_pct: number | null
           locatie_omschrijving: string | null
+          markeer_als_referentie: boolean
           marktwaarde_bron: string | null
           marktwaarde_indicatie: number | null
           netto_aanvangsrendement: number | null
@@ -1963,6 +1964,7 @@ export type Database = {
           kadastrale_sectie?: string | null
           leegstand_pct?: number | null
           locatie_omschrijving?: string | null
+          markeer_als_referentie?: boolean
           marktwaarde_bron?: string | null
           marktwaarde_indicatie?: number | null
           netto_aanvangsrendement?: number | null
@@ -2083,6 +2085,7 @@ export type Database = {
           kadastrale_sectie?: string | null
           leegstand_pct?: number | null
           locatie_omschrijving?: string | null
+          markeer_als_referentie?: boolean
           marktwaarde_bron?: string | null
           marktwaarde_indicatie?: number | null
           netto_aanvangsrendement?: number | null
