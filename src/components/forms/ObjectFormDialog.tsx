@@ -938,7 +938,90 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     Transformatiepotentie
                   </label>
                 </div>
+
+                {(form.ontwikkelPotentie || form.transformatiePotentie) && (
+                  <div className="mt-4 p-3 sm:p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-4">
+                    <p className="text-xs uppercase tracking-wider text-accent font-semibold">
+                      Potentie / mogelijkheden
+                    </p>
+                    <Veld label="Potentieomschrijving">
+                      <Textarea rows={2} value={form.potentieOmschrijving ?? ''}
+                        onChange={e => set('potentieOmschrijving', e.target.value || undefined)}
+                        placeholder="Korte beschrijving van de potentie of mogelijkheid" />
+                    </Veld>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Mogelijke strategie">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieStrategie ?? ''}
+                          onChange={e => set('potentieStrategie', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="transformatie">Transformatie</option>
+                          <option value="uitponden">Uitponden</option>
+                          <option value="splitsen">Splitsen</option>
+                          <option value="optoppen">Optoppen</option>
+                          <option value="herontwikkeling">Herontwikkeling</option>
+                          <option value="kamerverhuur">Kamerverhuur</option>
+                          <option value="functiewijziging">Functiewijziging</option>
+                          <option value="renovatie">Renovatie / value-add</option>
+                          <option value="uitbreiding">Uitbreiding</option>
+                          <option value="anders">Anders</option>
+                        </select>
+                      </Veld>
+                      <Veld label="Status onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieOnderbouwingStatus ?? ''}
+                          onChange={e => set('potentieOnderbouwingStatus', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="idee">Idee</option>
+                          <option value="indicatief">Indicatief</option>
+                          <option value="besproken">Besproken</option>
+                          <option value="onderzocht">Onderzocht</option>
+                          <option value="vergunningstraject">Vergunningstraject</option>
+                          <option value="vergund">Vergund</option>
+                        </select>
+                      </Veld>
+                      <Veld label="Indicatief extra m² mogelijk">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraM2 ?? ''}
+                          onChange={e => set('potentieExtraM2', num(e.target.value))} />
+                      </Veld>
+                      <Veld label="Indicatief aantal extra units">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraUnits ?? ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
+                          }} />
+                      </Veld>
+                      <Veld label="Bron / onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieBron ?? ''}
+                          onChange={e => set('potentieBron', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="gemeente">Gemeente</option>
+                          <option value="makelaar">Makelaar</option>
+                          <option value="architect">Architect</option>
+                          <option value="eigenaar">Eigenaar</option>
+                          <option value="eigen_analyse">Eigen analyse</option>
+                          <option value="onbekend">Onbekend</option>
+                        </select>
+                      </Veld>
+                    </div>
+                    <Veld label="Belangrijkste afhankelijkheden / risico's">
+                      <Textarea rows={2} value={form.potentieAfhankelijkheden ?? ''}
+                        onChange={e => set('potentieAfhankelijkheden', e.target.value || undefined)}
+                        placeholder="bv. bestemmingsplanwijziging, parkeernorm, draagvlak gemeente" />
+                    </Veld>
+                  </div>
+                )}
               </Sectie>
+
             </TabsContent>
 
             {/* TAB 5: JURIDISCH */}
