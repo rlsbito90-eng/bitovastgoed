@@ -1384,21 +1384,24 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="media" className="space-y-6 mt-0">
               {objectId ? (
                 <>
-                  <Sectie titel="Foto's" beschrijving="Upload objectfoto's voor de detailpagina, teaser en PDF.">
+                  <Sectie titel="Foto's">
+                    <p className="text-xs text-muted-foreground -mt-2 mb-3">Upload objectfoto's voor de detailpagina, teaser en PDF.</p>
                     <FotosPanel objectId={objectId} />
                   </Sectie>
-                  <Sectie titel="Plattegronden" beschrijving="Upload plattegronden, meetstaten of indelingsschetsen. Worden apart van gewone foto's bewaard.">
+                  <Sectie titel="Plattegronden">
+                    <p className="text-xs text-muted-foreground -mt-2 mb-3">Upload plattegronden, meetstaten of indelingsschetsen. Worden apart van gewone foto's bewaard.</p>
                     <DocumentenPanel
                       objectId={objectId}
                       filterTypes={['plattegrond']}
                       defaultType="plattegrond"
                       hideTypeSelector
                       acceptAttr="application/pdf,image/*"
-                      helpText="PDF, JPG, PNG, WEBP · max 25 MB per bestand"
+                      helpText={`PDF, JPG, PNG, WEBP · max ${25} MB per bestand`}
                       emptyText="Nog geen plattegronden geüpload."
                     />
                   </Sectie>
-                  <Sectie titel="Documenten" beschrijving="Upload verkoopdocumentatie, huurinformatie, juridische stukken en overige onderbouwing.">
+                  <Sectie titel="Documenten">
+                    <p className="text-xs text-muted-foreground -mt-2 mb-3">Upload verkoopdocumentatie, huurinformatie, juridische stukken en overige onderbouwing.</p>
                     <DocumentenPanel
                       objectId={objectId}
                       excludeTypes={['plattegrond']}
