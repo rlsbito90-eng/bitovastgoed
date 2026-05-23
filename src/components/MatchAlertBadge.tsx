@@ -123,15 +123,17 @@ export default function MatchAlertBadge() {
       <button
         onClick={handleToggle}
         className="relative p-2 rounded-md hover:bg-muted transition-colors text-foreground"
-        aria-label={aantalNieuw > 0 ? `${aantalNieuw} nieuwe match${aantalNieuw === 1 ? '' : 'es'}` : 'Matches bekijken'}
+        aria-label={aantalNieuw > 0 ? `${aantalNieuw} nieuwe match${aantalNieuw === 1 ? '' : 'es'}` : 'Matches'}
+        title="Matches"
       >
-        <Bell className="h-5 w-5" />
+        <Sparkles className="h-5 w-5" />
         {aantalNieuw > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-semibold flex items-center justify-center font-mono-data">
             {aantalNieuw > 99 ? '99+' : aantalNieuw}
           </span>
         )}
       </button>
+
 
       {open && (
         <div className="absolute right-0 top-full mt-1 w-[min(380px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
