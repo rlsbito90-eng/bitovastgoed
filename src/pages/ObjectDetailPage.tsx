@@ -396,6 +396,9 @@ export default function ObjectDetailPage() {
   const sections = useMemo<SectionDef[]>(() => {
     const out: SectionDef[] = [];
     const hasDeals = object ? store.getDealsByObject(object.id).length > 0 : false;
+    const documentenCount = object ? store.getDocumentenVoorObject(object.id).length : 0;
+    const fotosCount = object ? store.getFotosVoorObject(object.id).length : 0;
+    const hasDocumentenSectie = documentenCount > 0 || fotosCount > 1;
     for (const s of BASE_SECTIONS) {
       // Verkoper-sectie wordt vóór 'aanbieding' ingevoegd (conditioneel)
       if (s.id === 'aanbieding') {
@@ -408,14 +411,18 @@ export default function ObjectDetailPage() {
         if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
         if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
       }
+      if (s.id === 'dossier' && hasDocumentenSectie) {
+        out.push({ id: 'documenten', label: 'Documenten', icon: FolderOpen });
+      }
       if (s.id === 'dealflow') {
         if (object && object.referentieanalyseZichtbaar !== false) {
-          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
+          out.push({ id: 'referenties', label: 'Benchmarks', icon: LineChart });
         }
       }
     }
     return out;
   }, [object, store]);
+
 
   // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
   // als sectiebar/scrollspy/anchors, zodat nummers nooit uit de pas lopen.
