@@ -83,7 +83,7 @@ export default function AdminPage() {
     }
     const { error } = await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', rol);
     if (error) {
-      toast.error(`Fout: ${error.message}`);
+      toast.error(mapDbError(error, 'Rol intrekken mislukt'));
       return;
     }
     toast.success(`Rol '${rol}' ingetrokken`);
