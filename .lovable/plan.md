@@ -1,133 +1,117 @@
-# Plan: Biedingenmodule
 
-## Doel
+## Scope
 
-Eén centrale `biedingen`-tabel om biedingen gestructureerd vast te leggen, vergelijken en opvolgen — gekoppeld aan objecten, relaties/kandidaten en deals. Vervangt losse notitievelden en houdt volledige historie inclusief tegenvoorstellen.
+Dit is een grote, app-brede UX/UI-update van invoer-/bewerkmodals plus enkele functionele aanvullingen (auto-rekenen financieel, conditionele potentievelden, WOZ-jaarinput). Onderstaand plan bundelt alle 10 onderdelen tot één coherente uitvoering.
 
-## Datamodel (Supabase migration)
+## Aanpak per onderdeel
 
-Eén nieuwe tabel `biedingen`, RLS via `is_intern_gebruiker(auth.uid())` zoals andere object-tabellen.
+### 1. Geen horizontale overflow op mobiel
+- `DialogContent` van zware modals krijgt `overflow-x-hidden` en `max-w-[100vw]` op mobiel.
+- Grids `sm:grid-cols-2`/`md:grid-cols-3` blijven 1-koloms onder `sm`.
+- Inputs en select-triggers krijgen `w-full min-w-0`.
+- Brede helperteksten/badges krijgen `break-words`.
+
+### 2. Modal-tabs in app-design (Liquid Glass selected state)
+- Maak een herbruikbare class `modal-tab-pill` in `index.css` (analoog aan `dossier-tab-pill`): glass-fill, gold ring/border op `data-[state=active]`, muted inactive, focus ring.
+- Pas `TabsList` aan naar `glass-card rounded-full bg-transparent p-1 gap-1` met horizontaal scrollen (`overflow-x-auto no-scrollbar`) en active tab `scrollIntoView({inline:'center'})`.
+- Toepassen op: `ObjectFormDialog`, `RelatieFormDialog`, `DealFormDialog`, `ZoekprofielFormDialog`, `ReferentieObjectFormDialog`, `AcquisitieCampagneFormDialog`, `AcquisitieTargetFormDialog`.
+
+### 3. Tabwissel → naar boven
+- Voeg ref op de scroll-container toe; bij `onValueChange` zet `scrollTop = 0`.
+- Eenvoudige hook `useResetScrollOnTabChange(tab, ref)` zodat we het in alle modals consistent kunnen toepassen.
+
+### 4. Financiële auto-berekeningen (ObjectFormDialog)
+Nieuwe utility `src/lib/financialCalc.ts`:
+- `derive({maandhuur, jaarhuur, m2, vraagprijs, noi}, lastEdited)` → afgeleide velden.
+Regels:
+- Maandhuur ↔ jaarhuur: bron is `lastEdited`; ander veld wordt afgeleid.
+- Huur per m² = jaarhuur / m² (oppervlakte GBO of VVO als fallback).
+- BAR = jaarhuur / vraagprijs × 100.
+- NAR = NOI / vraagprijs × 100.
+- Kapitalisatiefactor = vraagprijs / jaarhuur (weergave `13.8x`).
+- NOI: nooit overschrijven als gebruiker handmatig invulde — toon "auto-berekend" indicator alleen als waarde leeg is.
+- Raw input state per veld (string), parse op blur. Voorkomt cursor-jumps en sta lege string toe.
+- Save direct dirty bij eerste wijziging.
+- Toon kleine `auto` chip naast afgeleide velden.
+
+### 5. WOZ-peildatum jaar-input
+- Vervang datepicker door `Input type="number"` (jaar) of compacte jaar-select 2010–huidig+1.
+- Opslag: `01-01-YYYY` ISO string. Bestaande full-date waarden worden gelezen via `new Date(...).getFullYear()` als fallback.
+
+### 6. App-brede clear/empty
+- Alle nummer-inputs gebruiken `value={x ?? ''}` en `onChange` zet `undefined` bij lege string (utility `setNumOrEmpty`).
+- Select-velden: voeg `"—"` (leeg) optie toe waar relevant via `<SelectItem value="__none__">`; mapping naar `undefined`.
+- Verifieer dat backspace tot leeg → save dirty + persist als `null`.
+- Audit op alle formulieren met grep `value=\{[a-z]*\.[a-zA-Z]+ \?\? ['"]`.
+
+### 7. Standaard "Ook bruikbaar als referentieobject" aan
+- `leegForm` markeer state: `markeerAlsReferentie` initialiseren op `true` bij nieuw object, `false` bij edit (of huidige logica respecteren).
+
+### 8. Potentievelden conditioneel (Pand-tab)
+- Nieuwe DB-kolommen op `objecten`:
+  - `potentie_omschrijving text`
+  - `potentie_strategie text` (enum-string)
+  - `potentie_extra_m2 numeric`
+  - `potentie_extra_units integer`
+  - `potentie_onderbouwing_status text`
+  - `potentie_afhankelijkheden text`
+  - `potentie_bron text`
+- UI: blok zichtbaar als `ontwikkelPotentie || transformatiePotentie`.
+- Mapping toevoegen in datastore + types.
+
+### 9. App-brede consistentie
+- Tabs/scroll/overflow/clear-utilities toepassen op alle bovengenoemde modals + waar relevant `ContactMomentFormDialog`, `TaakFormDialog`, `OfferFormDialog`, `PipelineKandidaatDialog`, scenario-inputs in Vastgoedrekenen.
+
+### 10. QA
+- `tsc` schoon, build schoon, light + dark visueel checken (393×697 viewport en desktop).
+
+## Technische details
 
 ```text
-biedingen
-  id uuid pk
-  object_id uuid                              -- verplicht (alle biedingen horen bij een object)
-  relatie_id uuid                             -- verplicht
-  deal_id uuid                                -- optioneel
-  object_pipeline_id uuid                     -- optioneel (link met kandidaatregel)
-  counter_offer_to_id uuid                    -- self-ref, optioneel
-  bedrag bigint                               -- in EUR, nullable (concepten/tegenvoorstellen i.v.)
-  currency text default 'EUR'
-  bieddatum date default current_date
-  geldig_tot date
-  status biedingstatus                        -- enum, default 'concept'
-  offer_type biedingtype                      -- enum, default 'indicatief'
-  financieringsvoorbehoud voorbehoud_status   -- enum 'geen'|'ja'|'onbekend'|'nader_te_bepalen'
-  dd_voorbehoud voorbehoud_status
-  gewenste_levering date
-  gewenste_levering_tekst text                -- als datum nog niet bekend
-  waarborgsom_bedrag bigint
-  waarborgsom_pct numeric
-  kosten_type text                            -- 'kk'|'von'|'nader'
-  voorwaarden text
-  notities text
-  interne_notities text
-  bron text                                   -- 'kandidaat'|'makelaar'|'koper'|'schriftelijk'|'telefonisch'|'email'|'whatsapp'|'anders'
-  is_best_offer boolean default false
-  is_final_offer boolean default false
-  rejected_reason text
-  accepted_at timestamptz
-  rejected_at timestamptz
-  withdrawn_at timestamptz
-  expired_at timestamptz                      -- gezet wanneer geldig_tot voorbij + status update
-  aangemaakt_door uuid
-  created_at / updated_at
+src/
+├── index.css                            # + .modal-tab-pill, .modal-tabs-list
+├── lib/
+│   ├── financialCalc.ts                 # NEW: derive(...) helpers
+│   └── formHelpers.ts                   # NEW: setNumOrEmpty, NONE_VALUE
+├── hooks/
+│   └── useResetScrollOnTabChange.ts     # NEW
+├── components/forms/
+│   ├── ObjectFormDialog.tsx             # tabs, overflow, financieel, woz, potentie, ref-toggle default
+│   ├── RelatieFormDialog.tsx            # tabs, overflow, clear
+│   ├── DealFormDialog.tsx               # tabs, overflow, clear
+│   ├── ZoekprofielFormDialog.tsx        # tabs, overflow, clear
+│   ├── ReferentieObjectFormDialog.tsx   # tabs, overflow, clear, woz
+│   ├── AcquisitieCampagneFormDialog.tsx # tabs/overflow
+│   ├── AcquisitieTargetFormDialog.tsx   # tabs/overflow
+│   ├── ContactMomentFormDialog.tsx      # overflow, clear
+│   ├── TaakFormDialog.tsx               # overflow, clear
+│   └── ...
+└── components/biedingen/OfferFormDialog.tsx
+supabase/migrations/<ts>_object_potentie_velden.sql
 ```
 
-Enums:
-
-```text
-biedingstatus:   concept | ontvangen | in_behandeling | tegenvoorstel_gedaan |
-                 aangepast_bod_gevraagd | geaccepteerd | afgewezen | ingetrokken | verlopen
-
-biedingtype:     indicatief | openingsbod | voorwaardelijk | onvoorwaardelijk |
-                 eindbod | tegenvoorstel | verhoogd_bod | schriftelijk | mondeling
-
-voorbehoud_status: geen | ja | onbekend | nader_te_bepalen
+Migration:
+```sql
+ALTER TABLE public.objecten
+  ADD COLUMN potentie_omschrijving text,
+  ADD COLUMN potentie_strategie text,
+  ADD COLUMN potentie_extra_m2 numeric,
+  ADD COLUMN potentie_extra_units integer,
+  ADD COLUMN potentie_onderbouwing_status text,
+  ADD COLUMN potentie_afhankelijkheden text,
+  ADD COLUMN potentie_bron text;
 ```
 
-Index op `object_id`, `relatie_id`, `deal_id`, `status`.
+## Risico's
+- App-breed touchen van veel formulieren kan regressies introduceren in opslag-mapping. Mitigatie: alleen layout/value-handling aanpassen; geen submit-paths refactoren.
+- Auto-rekenen voor NOI moet handmatige invoer respecteren — strikte `lastEdited`-tracking.
+- Schema-change vereist user-approval (migration tool).
 
-`contact_moments` heeft al `system_key` + `is_system` — gebruiken voor tijdlijnitems (`bieding_toegevoegd`, `bieding_geaccepteerd`, etc.) met FK-loze `object_id`/`relatie_id`/`deal_id` zoals overige integraties.
+## Volgorde van uitvoering
+1. Index.css tab-pill + scroll hook + util libs.
+2. ObjectFormDialog (zwaarste): overflow, tabs, scroll, financieel, woz, potentie, ref-toggle.
+3. DB-migratie voor potentievelden (na user approval).
+4. Overige modals: tabs/overflow/clear toepassen.
+5. QA pass mobiel + desktop, light + dark.
 
-Geen FK constraints (consistent met bestaande tabellen). Null-safe in alle queries.
-
-## Bestandsstructuur
-
-```text
-src/lib/biedingen/
-  types.ts              -- TS-types + enum constants + labels
-  format.ts             -- helpers: formatBedrag, verschilVraagprijs, isVerlopen
-  status.ts             -- status transitions + bevestigingsvragen
-
-src/hooks/
-  useBiedingen.tsx      -- list/create/update/delete per object/deal/relatie
-
-src/components/biedingen/
-  OfferStatusBadge.tsx
-  OfferTypeBadge.tsx
-  OfferCard.tsx                 -- mobiel + standalone weergave
-  OfferTable.tsx                -- desktop tabel
-  OfferComparison.tsx           -- kpi-strip: hoogste / laatste / beste zonder voorbehoud
-  OfferActionsMenu.tsx          -- dropdown met alle acties
-  OfferFormDialog.tsx           -- create/edit modal
-  OfferAcceptDialog.tsx         -- bevestiging + optioneel andere afwijzen
-  OfferRejectDialog.tsx         -- reden invullen
-  OfferCounterDialog.tsx        -- tegenvoorstel-shortcut
-  OffersSection.tsx             -- volledige sectie: comparison + table/cards + add knop
-  OffersForCandidate.tsx        -- biedingsgeschiedenis per kandidaat (chronologisch)
-```
-
-## Integratie in bestaande schermen
-
-- **ObjectDetailPage**: nieuwe sectie "Biedingen" toegevoegd aan SectionNav, geplaatst direct na/naast Kandidaten/Pipeline.
-- **DealDetailPage**: nieuwe sectie "Biedingen" (filtert op `deal_id`).
-- **ObjectPipelineSectie / KandidatenKanban**: per kandidaatregel knop "+ Bod" die `OfferFormDialog` opent met `object_id`, `relatie_id` en `object_pipeline_id` voorgevuld. Toont compact laatste bod + badge bij kandidaat.
-
-## Acties & side-effects
-
-- **Toevoegen** → tijdlijnitem `bieding_toegevoegd` op object+relatie+deal, optioneel vervolgtaak via bestaande `TaakFormDialog`.
-- **Wijzigen** → tijdlijnitem `bieding_gewijzigd`.
-- **Tegenvoorstel** → nieuwe bieding met `counter_offer_to_id` + `offer_type='tegenvoorstel'`, status default `tegenvoorstel_gedaan`. Vorige bieding krijgt status `tegenvoorstel_gedaan` indien nog open.
-- **Accepteren** → bevestigingsdialog, `accepted_at` zetten, vraagt of andere open biedingen op zelfde object als afgewezen moeten worden gemarkeerd (default uit). Toont info dat dealfase handmatig bij te werken is.
-- **Afwijzen** → reden verplicht, `rejected_at`+`rejected_reason`.
-- **Intrekken** → `withdrawn_at`.
-- **Verlopen detectie** → client-side: als `geldig_tot < today` en status nog open → toon "Verlopen" badge. Geen automatische DB-update.
-
-## Vergelijking (OfferComparison)
-
-KPI-strip bovenaan:
-- Aantal open biedingen
-- Hoogste bod (+ verschil met `objecten.prijsindicatie` waar parsebaar of `vraagprijs`)
-- Laatste bod
-- Beste bod zonder voorbehouden (financiering=geen en dd=geen)
-- Eerstvolgende vervaldatum
-
-Verschil met vraagprijs: parseer `objecten.prijsindicatie` (string) via bestaande logica indien aanwezig; anders "Vraagprijs onbekend".
-
-## Responsiveness
-
-- Desktop (`md+`): `OfferTable` met sorteerbare kolommen.
-- Mobiel: `OfferCard` lijst, full-width, geen horizontale scroll, acties in `DropdownMenu`.
-- `OfferFormDialog` gebruikt bestaande shadcn Dialog met 5 collapsible secties: Koppeling / Bod / Voorwaarden / Opvolging / Notities.
-
-## Out of scope (v1)
-
-- Dashboard-widgets (datamodel ondersteunt het, UI volgt later).
-- Automatische dealfase-transities bij accepteren (alleen suggestie tonen).
-- E-mailnotificaties bij verlopen biedingen.
-- Bulk-acties over meerdere biedingen.
-
-## Acceptatie
-
-Alle 17 punten uit het verzoek; build schoon; null-safe; geen horizontale scroll mobiel; tijdlijn-integratie werkt; tegenvoorstel-keten zichtbaar per kandidaat.
+Geef akkoord, dan voer ik het in deze volgorde uit.
