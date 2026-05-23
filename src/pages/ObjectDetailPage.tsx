@@ -59,6 +59,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
+import { buildMapsUrl } from '@/lib/maps';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
