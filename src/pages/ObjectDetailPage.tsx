@@ -1015,9 +1015,8 @@ export default function ObjectDetailPage() {
 
       {/* WALT/WALB strip (alleen als huurders) */}
       {huurMetrics && huurMetrics.aantalHuurders > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
           <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
-          <MetricTile label="Totale jaarhuur" value={formatCurrencyCompact(huurMetrics.totaleJaarhuur)} />
           <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
           <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
         </div>
