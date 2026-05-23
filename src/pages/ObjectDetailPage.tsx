@@ -227,11 +227,13 @@ const BASE_SECTIONS: SectionDef[] = [
   { id: 'pand', label: 'Pand', icon: Building2 },
   // potentie (conditioneel) wordt hier dynamisch tussen geplaatst
   // juridisch (conditioneel)
-  // contacten (conditioneel)
+  // verkoper (conditioneel) — vervangt oude 'contacten'
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
+  { id: 'kandidaten', label: 'Kandidaten', icon: Users },
+  { id: 'dealflow', label: 'Dealflow', icon: Target },
   // referenties (conditioneel) wordt hier dynamisch tussen geplaatst
-  { id: 'vastgoedrekenen', label: 'Rekenen', icon: Calculator },
+  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
