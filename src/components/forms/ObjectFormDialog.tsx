@@ -16,7 +16,7 @@
 
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
-import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor } from '@/lib/financialCalc';
+import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -206,12 +206,14 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   // Wordt bewust niet in de database opgeslagen — dient als visuele hint
   // én als trigger voor het kwaliteitsblok. Een echt referentieobject
   // wordt apart aangemaakt via het Referentieobject-formulier.
-  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(true);
+  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
 
   // Raw input state voor financiële berekeningen — voorkomt cursor-jumps
   // en houdt twee-richtings koppeling tussen maandhuur ↔ jaarhuur soepel.
   const [maandhuurInput, setMaandhuurInput] = useState<string>('');
   const [laatstGewijzigdHuur, setLaatstGewijzigdHuur] = useState<'maand' | 'jaar' | null>(null);
+  // Was huur/m² handmatig ingevuld? Zo niet: blijft volledig afgeleid van jaarhuur ÷ m².
+  const [huurPerM2Manual, setHuurPerM2Manual] = useState(false);
 
   // Scroll-container ref: bij tabwissel scrollt deze automatisch naar boven.
   const scrollRef = useResetScrollOnChange(tab);
@@ -222,13 +224,16 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
-      // Bij bestaande objecten: respecteer huidige waarde via interne UI-state (default uit).
+      // Bestaande objecten: respecteer huidige waarde — standaard uit.
       setMarkeerAlsReferentie(false);
+      // Als er al een handmatige huur/m²-waarde stond: behandel als manual.
+      setHuurPerM2Manual(object.huurPerM2 != null);
     } else {
       setForm(leegForm);
       setGemaaktId(undefined);
-      // Nieuwe objecten: default aan — gebruiker kan uitzetten.
-      setMarkeerAlsReferentie(true);
+      // Nieuwe objecten: standaard UIT (gebruiker zet handmatig aan als relevant).
+      setMarkeerAlsReferentie(false);
+      setHuurPerM2Manual(false);
     }
     setTab('algemeen');
     // Initialiseer maandhuur-input op basis van jaarhuur
@@ -689,20 +694,21 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <Sectie titel="Huur & rendement">
                 {(() => {
                   const m2Basis = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                  // Huur/m² per jaar = jaarhuur / m². ALTIJD afgeleid van jaarhuur, nooit van maandhuur.
                   const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
                   const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
                   const autoNar = calcNar(form.noi, form.vraagprijs);
                   const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
+                  // Wanneer gebruiker niet handmatig invulde: toon afgeleide waarde live in het veld.
+                  const huurPerM2Display = huurPerM2Manual
+                    ? (form.huurPerM2 ?? '')
+                    : (autoHuurPerM2 ?? '');
+
                   const setJaarhuur = (raw: string) => {
                     const v = num(raw);
                     setLaatstGewijzigdHuur('jaar');
                     set('huurinkomsten', v);
                     setMaandhuurInput(v == null ? '' : String(maandhuurFromJaar(v) ?? ''));
-                    // Auto huur/m² als gebruiker dit veld nog niet handmatig invulde
-                    if (form.huurPerM2 == null || laatstGewijzigdHuur === 'jaar') {
-                      const auto = calcHuurPerM2(v, m2Basis);
-                      if (auto != null) set('huurPerM2', auto);
-                    }
                   };
                   const setMaandhuur = (raw: string) => {
                     setMaandhuurInput(raw);
@@ -710,10 +716,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     const v = num(raw);
                     const jaar = jaarFromMaandhuur(v);
                     set('huurinkomsten', jaar);
-                    if (form.huurPerM2 == null) {
-                      const auto = calcHuurPerM2(jaar, m2Basis);
-                      if (auto != null) set('huurPerM2', auto);
-                    }
                   };
                   return (
                     <>
@@ -721,19 +723,29 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                         <Veld label="Totale huurinkomsten (€/jr)">
                           <Input type="number" inputMode="decimal" className="min-w-0"
                             value={form.huurinkomsten ?? ''}
-                            onChange={e => setJaarhuur(e.target.value)} />
+                            onChange={e => setJaarhuur(e.target.value)}
+                            placeholder="bv. 7.200" />
                         </Veld>
-                        <Veld label={<>Maandelijkse huur (€) <AutoBadge /></>}>
+                        <Veld label={<>Maandelijkse huur (€/mnd) <AutoBadge show={laatstGewijzigdHuur !== 'maand' && !!form.huurinkomsten} /></>}>
                           <Input type="number" inputMode="decimal" className="min-w-0"
                             value={maandhuurInput}
                             onChange={e => setMaandhuur(e.target.value)}
-                            placeholder="auto = jaarhuur / 12" />
+                            placeholder="auto = jaarhuur ÷ 12" />
                         </Veld>
-                        <Veld label={<>Huur per m² (€/jr) <AutoBadge show={!!autoHuurPerM2} /><RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
+                        <Veld label={<>Huur per m² per jaar (€/m²/jr) <AutoBadge show={!huurPerM2Manual && autoHuurPerM2 != null} /><RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                           <Input type="number" step="0.01" inputMode="decimal" className="min-w-0"
-                            value={form.huurPerM2 ?? ''}
-                            onChange={e => set('huurPerM2', num(e.target.value))}
-                            placeholder={autoHuurPerM2 ? `auto: € ${autoHuurPerM2}` : 'onvoldoende gegevens'} />
+                            value={huurPerM2Display}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setHuurPerM2Manual(v !== '');
+                              set('huurPerM2', num(v));
+                            }}
+                            placeholder={autoHuurPerM2 != null ? fmtEuroNL(autoHuurPerM2, { decimals: 2 }) : 'onvoldoende gegevens'} />
+                          {huurPerM2Manual && autoHuurPerM2 != null && (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              Auto-berekend: {fmtEuroNL(autoHuurPerM2, { decimals: 2, suffix: '/m²/jr' })}
+                            </p>
+                          )}
                         </Veld>
                         <Veld label="Servicekosten (€/jr)">
                           <Input type="number" className="min-w-0" value={form.servicekostenJaar ?? ''}
@@ -744,22 +756,27 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                             onChange={e => set('noi', num(e.target.value))}
                             placeholder="handmatig — overschrijft niets" />
                         </Veld>
-                        <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={!!autoBar} /></>}>
+                        <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={form.brutoAanvangsrendement == null && autoBar != null} /></>}>
                           <Input type="number" step="0.01" className="min-w-0"
                             value={form.brutoAanvangsrendement ?? ''}
                             onChange={e => set('brutoAanvangsrendement', num(e.target.value))}
-                            placeholder={autoBar != null ? `auto: ${autoBar}%` : 'jaarhuur ÷ vraagprijs'} />
+                            placeholder={autoBar != null ? fmtPctNL(autoBar) : 'jaarhuur ÷ vraagprijs'} />
+                          {form.brutoAanvangsrendement == null && autoBar != null && (
+                            <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoBar)}</p>
+                          )}
                         </Veld>
-                        <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={!!autoNar} /></>}>
+                        <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={form.nettoAanvangsrendement == null && autoNar != null} /></>}>
                           <Input type="number" step="0.01" className="min-w-0"
                             value={form.nettoAanvangsrendement ?? ''}
                             onChange={e => set('nettoAanvangsrendement', num(e.target.value))}
-                            placeholder={autoNar != null ? `auto: ${autoNar}%` : 'NOI ÷ vraagprijs'} />
+                            placeholder={autoNar != null ? fmtPctNL(autoNar) : 'NOI ÷ vraagprijs'} />
+                          {form.nettoAanvangsrendement == null && autoNar != null && (
+                            <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoNar)}</p>
+                          )}
                         </Veld>
-                        <Veld label="Kapitalisatiefactor (auto)">
+                        <Veld label={<>Kapitalisatiefactor <AutoBadge show={autoFactor != null} /></>}>
                           <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
                             {formatFactor(autoFactor)}
-                            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">auto</span>
                           </div>
                         </Veld>
                       </div>
@@ -991,18 +1008,36 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                           <option value="vergund">Vergund</option>
                         </select>
                       </Veld>
-                      <Veld label="Indicatief extra m² mogelijk">
+                      <Veld label="Extra m² mogelijk (bovenop huidig)">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraM2 ?? ''}
-                          onChange={e => set('potentieExtraM2', num(e.target.value))} />
+                          onChange={e => set('potentieExtraM2', num(e.target.value))}
+                          placeholder={form.oppervlakte ? `huidig: ${form.oppervlakte} m²` : 'huidig onbekend'} />
+                        {(() => {
+                          const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                          const extra = form.potentieExtraM2;
+                          if (huidig == null || extra == null) {
+                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidig m² ontbreekt)' : '—'}</p>;
+                          }
+                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal m² na plan: <span className="font-medium text-foreground">{(huidig + extra).toLocaleString('nl-NL')} m²</span></p>;
+                        })()}
                       </Veld>
-                      <Veld label="Indicatief aantal extra units">
+                      <Veld label="Extra units mogelijk (bovenop huidig)">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraUnits ?? ''}
                           onChange={e => {
                             const v = e.target.value;
                             set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
-                          }} />
+                          }}
+                          placeholder={form.aantalUnits != null ? `huidig: ${form.aantalUnits}` : 'huidig onbekend'} />
+                        {(() => {
+                          const huidig = form.aantalUnits;
+                          const extra = form.potentieExtraUnits;
+                          if (huidig == null || extra == null) {
+                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidige units ontbreken)' : '—'}</p>;
+                          }
+                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal units na plan: <span className="font-medium text-foreground">{huidig + extra}</span></p>;
+                        })()}
                       </Veld>
                       <Veld label="Bron / onderbouwing">
                         <select
