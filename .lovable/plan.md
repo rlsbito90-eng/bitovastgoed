@@ -252,3 +252,23 @@ Conclusie: primair een **derivation- en bron-probleem**, niet een schema-problee
 8. Prompt 3.8 — Pand: legacy energielabel/onderhoudsstaat alleen read-only fallback.
 9. Prompt 3.9 — On-save sync nieuwe → legacy taxonomie (matching-fallback).
 10. (Later, separate PR) — Schema-cleanup 3C.
+
+---
+
+## A9. Prompt 3.1 — uitgevoerd
+
+Centrale pure helpers + selectors toegevoegd. **Geen UI, geen schema, geen migratie.**
+
+Bestanden:
+
+- `src/lib/derivations/financial.ts` — `safeNumber`, `safeDivide`, `calculateMonthlyRent`, `calculateAnnualFromMonthly`, `calculatePricePerM2`, `calculateRentPerM2`, `calculateBAR`, `calculateFactor`, `calculateNAR`, `resolveDerived`, `resolveBAR`, `resolveNAR`, `resolveNOI` (per-veld override-model met `{ value, source, auto, override, delta, mismatch }`).
+- `src/lib/derivations/verhuur.ts` — `deriveVerhuurMetrics(object, huurders, { today? })`, `hasRentMismatch`, `hasTenantCountMismatch`, constante `RENT_MISMATCH_THRESHOLD = 0.01`. Huurder-rijen leidend bij ≥1 rij, anders objectniveau-fallback. WALT/WALB **huur-gewogen**.
+- `src/lib/derivations/matching.ts` — `STRONG_MATCH_THRESHOLD = 70` (0–100 schaal, geen conversie), `EXCELLENT_MATCH_THRESHOLD = 85`, `isStrongMatch`, `isExcellentMatch`.
+- `src/lib/derivations/deal.ts` — `selectLeadDeal`, `calculateExpectedFee`, `countKandidaten`, `getActivePipelineCandidates`, `isActiveDealFase`. Gebruikt bestaande `FASE_KANS` uit `mock-data.ts`.
+- `src/lib/derivations/index.ts` — barrel-export.
+
+Tests (`src/test/derivations/*.test.ts`): **36 / 36 groen**.
+
+Niet aangeraakt: UI-componenten, `NotificationsBell`, `ObjectFormDialog`, `ObjectDetailPage`, schema, types, mock-data. De oude `STRONG_MATCH_MIN = 5` constante in `NotificationsBell` blijft staan tot Prompt 3.4.
+
+Volgende stappen 3.2 t/m 3.9 blijven ongewijzigd zoals beschreven in §A8.
