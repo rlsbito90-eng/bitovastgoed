@@ -680,55 +680,124 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               </Sectie>
 
               <Sectie titel="Huur & rendement">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Totale huurinkomsten (€/jr)">
-                    <Input type="number" value={form.huurinkomsten ?? ''}
-                      onChange={e => set('huurinkomsten', num(e.target.value))} />
-                  </Veld>
-                  <Veld label={<>Huur per m² (€)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" step="0.01" value={form.huurPerM2 ?? ''}
-                      onChange={e => set('huurPerM2', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="Servicekosten (€/jr)">
-                    <Input type="number" value={form.servicekostenJaar ?? ''}
-                      onChange={e => set('servicekostenJaar', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="NOI — netto operationeel inkomen (€/jr)">
-                    <Input type="number" value={form.noi ?? ''}
-                      onChange={e => set('noi', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="BAR — bruto aanvangsrendement (%)">
-                    <Input type="number" step="0.01" value={form.brutoAanvangsrendement ?? ''}
-                      onChange={e => set('brutoAanvangsrendement', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="NAR — netto aanvangsrendement (%)">
-                    <Input type="number" step="0.01" value={form.nettoAanvangsrendement ?? ''}
-                      onChange={e => set('nettoAanvangsrendement', num(e.target.value))} />
-                  </Veld>
-                </div>
+                {(() => {
+                  const m2Basis = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                  const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
+                  const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
+                  const autoNar = calcNar(form.noi, form.vraagprijs);
+                  const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
+                  const setJaarhuur = (raw: string) => {
+                    const v = num(raw);
+                    setLaatstGewijzigdHuur('jaar');
+                    set('huurinkomsten', v);
+                    setMaandhuurInput(v == null ? '' : String(maandhuurFromJaar(v) ?? ''));
+                    // Auto huur/m² als gebruiker dit veld nog niet handmatig invulde
+                    if (form.huurPerM2 == null || laatstGewijzigdHuur === 'jaar') {
+                      const auto = calcHuurPerM2(v, m2Basis);
+                      if (auto != null) set('huurPerM2', auto);
+                    }
+                  };
+                  const setMaandhuur = (raw: string) => {
+                    setMaandhuurInput(raw);
+                    setLaatstGewijzigdHuur('maand');
+                    const v = num(raw);
+                    const jaar = jaarFromMaandhuur(v);
+                    set('huurinkomsten', jaar);
+                    if (form.huurPerM2 == null) {
+                      const auto = calcHuurPerM2(jaar, m2Basis);
+                      if (auto != null) set('huurPerM2', auto);
+                    }
+                  };
+                  return (
+                    <>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <Veld label="Totale huurinkomsten (€/jr)">
+                          <Input type="number" inputMode="decimal" className="min-w-0"
+                            value={form.huurinkomsten ?? ''}
+                            onChange={e => setJaarhuur(e.target.value)} />
+                        </Veld>
+                        <Veld label={<>Maandelijkse huur (€) <AutoBadge /></>}>
+                          <Input type="number" inputMode="decimal" className="min-w-0"
+                            value={maandhuurInput}
+                            onChange={e => setMaandhuur(e.target.value)}
+                            placeholder="auto = jaarhuur / 12" />
+                        </Veld>
+                        <Veld label={<>Huur per m² (€/jr) <AutoBadge show={!!autoHuurPerM2} /><RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
+                          <Input type="number" step="0.01" inputMode="decimal" className="min-w-0"
+                            value={form.huurPerM2 ?? ''}
+                            onChange={e => set('huurPerM2', num(e.target.value))}
+                            placeholder={autoHuurPerM2 ? `auto: € ${autoHuurPerM2}` : 'onvoldoende gegevens'} />
+                        </Veld>
+                        <Veld label="Servicekosten (€/jr)">
+                          <Input type="number" className="min-w-0" value={form.servicekostenJaar ?? ''}
+                            onChange={e => set('servicekostenJaar', num(e.target.value))} />
+                        </Veld>
+                        <Veld label="NOI — netto operationeel inkomen (€/jr)">
+                          <Input type="number" className="min-w-0" value={form.noi ?? ''}
+                            onChange={e => set('noi', num(e.target.value))}
+                            placeholder="handmatig — overschrijft niets" />
+                        </Veld>
+                        <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={!!autoBar} /></>}>
+                          <Input type="number" step="0.01" className="min-w-0"
+                            value={form.brutoAanvangsrendement ?? ''}
+                            onChange={e => set('brutoAanvangsrendement', num(e.target.value))}
+                            placeholder={autoBar != null ? `auto: ${autoBar}%` : 'jaarhuur ÷ vraagprijs'} />
+                        </Veld>
+                        <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={!!autoNar} /></>}>
+                          <Input type="number" step="0.01" className="min-w-0"
+                            value={form.nettoAanvangsrendement ?? ''}
+                            onChange={e => set('nettoAanvangsrendement', num(e.target.value))}
+                            placeholder={autoNar != null ? `auto: ${autoNar}%` : 'NOI ÷ vraagprijs'} />
+                        </Veld>
+                        <Veld label="Kapitalisatiefactor (auto)">
+                          <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                            {formatFactor(autoFactor)}
+                            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">auto</span>
+                          </div>
+                        </Veld>
+                      </div>
+                    </>
+                  );
+                })()}
               </Sectie>
 
               <Sectie titel="Waarderingen">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="WOZ-waarde (€)">
-                    <Input type="number" value={form.wozWaarde ?? ''}
+                    <Input type="number" className="min-w-0" value={form.wozWaarde ?? ''}
                       onChange={e => set('wozWaarde', num(e.target.value))} />
                   </Veld>
-                  <Veld label="WOZ peildatum">
-                    <Input type="date" value={form.wozPeildatum ?? ''}
-                      onChange={e => set('wozPeildatum', e.target.value || undefined)} />
+                  <Veld label="WOZ-peildatum (jaar)">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={2000}
+                      max={new Date().getFullYear() + 1}
+                      className="min-w-0"
+                      placeholder="bv. 2025"
+                      value={form.wozPeildatum ? new Date(form.wozPeildatum).getFullYear().toString() : ''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        if (!v) { set('wozPeildatum', undefined); return; }
+                        const jaar = Number(v);
+                        if (!Number.isFinite(jaar)) return;
+                        set('wozPeildatum', `${jaar}-01-01`);
+                      }}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">Wordt opgeslagen als 1 januari van het gekozen jaar.</p>
                   </Veld>
                   <Veld label="Taxatiewaarde (€)">
-                    <Input type="number" value={form.taxatiewaarde ?? ''}
+                    <Input type="number" className="min-w-0" value={form.taxatiewaarde ?? ''}
                       onChange={e => set('taxatiewaarde', num(e.target.value))} />
                   </Veld>
                   <Veld label="Taxatiedatum">
-                    <Input type="date" value={form.taxatiedatum ?? ''}
+                    <Input type="date" className="min-w-0" value={form.taxatiedatum ?? ''}
                       onChange={e => set('taxatiedatum', e.target.value || undefined)} />
                   </Veld>
                 </div>
               </Sectie>
             </TabsContent>
+
 
             {/* TAB 3: VERHUUR */}
             <TabsContent value="verhuur" className="space-y-5 mt-0">
