@@ -1694,34 +1694,51 @@ export default function ObjectDetailPage() {
               eyebrow={eyebrowFor("documenten", "Data room")}
               title="Documenten"
             >
-              {documenten.length > 0 && (
-                <div className="section-card p-5 sm:p-6 mt-4">
-                  <h3 className="section-title mb-3">Bestanden in data room</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {documenten.map(doc => (
-                      <div key={doc.id} className="row-hover flex items-center gap-3 border border-border/60 rounded-lg p-3 bg-card/40">
-                        <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                          <FileText className="h-4 w-4 text-accent" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{doc.bestandsnaam}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {DOCUMENT_TYPE_LABELS[doc.documenttype]} · {formatFileSize(doc.bestandsgrootteBytes)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDownload(doc.storagePath)}
-                          className="p-2 hover:bg-muted rounded shrink-0"
-                          aria-label="Downloaden"
-                        >
-                          <Download className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      </div>
-                    ))}
+              {(() => {
+                const plattegronden = documenten.filter(d => d.documenttype === 'plattegrond');
+                const overigeDocs = documenten.filter(d => d.documenttype !== 'plattegrond');
+                const renderDocRow = (doc: typeof documenten[number]) => (
+                  <div key={doc.id} className="row-hover flex items-center gap-3 border border-border/60 rounded-lg p-3 bg-card/40">
+                    <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-accent" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{doc.bestandsnaam}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {DOCUMENT_TYPE_LABELS[doc.documenttype]} · {formatFileSize(doc.bestandsgrootteBytes)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(doc.storagePath)}
+                      className="p-2 hover:bg-muted rounded shrink-0"
+                      aria-label="Downloaden"
+                    >
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                    </button>
                   </div>
-                </div>
-              )}
+                );
+                return (
+                  <>
+                    {overigeDocs.length > 0 && (
+                      <div className="section-card p-5 sm:p-6 mt-4">
+                        <h3 className="section-title mb-3">Documenten ({overigeDocs.length})</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {overigeDocs.map(renderDocRow)}
+                        </div>
+                      </div>
+                    )}
+                    {plattegronden.length > 0 && (
+                      <div className="section-card p-5 sm:p-6 mt-4">
+                        <h3 className="section-title mb-3">Plattegronden ({plattegronden.length})</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {plattegronden.map(renderDocRow)}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {fotos.length > 1 && (
                 <div className="section-card p-5 sm:p-6 mt-4">
