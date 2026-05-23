@@ -949,11 +949,11 @@ export default function ObjectDetailPage() {
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
                     <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
                     {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}
-                    <Field label="Anonimiteit">{object.anoniem ? 'Anoniem presenteren' : 'Volledig zichtbaar'}</Field>
+                    {object.anoniem && <Field label="Anonimiteit">Anoniem presenteren</Field>}
                     {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
                     {object.bron && <Field label="Bron">{object.bron}</Field>}
-                    <Field label="Exclusiviteit">{object.exclusief ? 'Exclusief aangeboden' : 'Niet exclusief'}</Field>
-                    <Field label="Portefeuille">{object.isPortefeuille ? 'Ja' : 'Nee'}</Field>
+                    {object.exclusief && <Field label="Exclusiviteit">Exclusief aangeboden</Field>}
+                    {object.isPortefeuille && <Field label="Portefeuille">Ja</Field>}
                     {parentObject && (
                       <Field label="Onderdeel van portefeuille">
                         <Link to={`/objecten/${parentObject.id}`} className="text-accent hover:underline inline-flex items-center gap-1">
