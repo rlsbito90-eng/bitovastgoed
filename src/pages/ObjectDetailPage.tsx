@@ -979,13 +979,13 @@ export default function ObjectDetailPage() {
                 {object.leegstandPct != null && (
                   <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
                 )}
-                {object.aanbiedingswijze && (
-                  <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>
-                )}
+                {/* aanbiedingswijze + bron staan al in Identificatie-blok — niet dupliceren */}
                 {object.beschikbaarVanaf && (
                   <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
                 )}
-                <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar ?? '—'}</span></Field>
+                {object.bouwjaar != null && (
+                  <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar}</span></Field>
+                )}
                 {(object.energielabelV2 || object.energielabel) && (
                   <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
                 )}
@@ -998,11 +998,13 @@ export default function ObjectDetailPage() {
                 {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
                 {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
                 {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
-                <Field label="Ontwikkelpotentie">{object.ontwikkelPotentie ? 'Ja' : 'Nee'}</Field>
-                <Field label="Transformatie">{object.transformatiePotentie ? 'Ja' : 'Nee'}</Field>
+                {object.ontwikkelPotentie && (<Field label="Ontwikkelpotentie">Ja</Field>)}
+                {object.transformatiePotentie && (<Field label="Transformatie">Ja</Field>)}
                 {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
-                {object.bron && <Field label="Bron">{object.bron}</Field>}
-                <Field label="Documentatie beschikbaar">{object.documentenBeschikbaar ? 'Ja' : 'Nee'}</Field>
+                {/* documentenBeschikbaar: alleen tonen als fallback wanneer geen documentatiestatus uit dossier-catalog bekend is */}
+                {documentatieStatusRows.length === 0 && object.documentenBeschikbaar && (
+                  <Field label="Documentatie">Beschikbaar</Field>
+                )}
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
 
