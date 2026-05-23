@@ -427,24 +427,25 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
         )}
 
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
-            <TabsList className="inline-flex">
-              <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
-              <TabsTrigger value="financieel">Financieel</TabsTrigger>
-              <TabsTrigger value="verhuur">Verhuur</TabsTrigger>
-              <TabsTrigger value="pand">Pand</TabsTrigger>
-              <TabsTrigger value="juridisch">Juridisch</TabsTrigger>
-              <TabsTrigger value="verkoper">Verkoper</TabsTrigger>
-              <TabsTrigger value="thesis">Thesis</TabsTrigger>
-              <TabsTrigger value="im">IM &amp; document</TabsTrigger>
-              <TabsTrigger value="media" disabled={!objectId}>
+          <div className="shrink-0 px-3 sm:px-6 pt-3 pb-2 border-b border-border bg-background overflow-x-auto no-scrollbar">
+            <TabsList className="inline-flex h-auto p-1 gap-1 bg-transparent rounded-full glass-card border border-border/60">
+              <TabsTrigger value="algemeen" className="modal-tab-pill data-[state=active]:shadow-none">Algemeen</TabsTrigger>
+              <TabsTrigger value="financieel" className="modal-tab-pill data-[state=active]:shadow-none">Financieel</TabsTrigger>
+              <TabsTrigger value="verhuur" className="modal-tab-pill data-[state=active]:shadow-none">Verhuur</TabsTrigger>
+              <TabsTrigger value="pand" className="modal-tab-pill data-[state=active]:shadow-none">Pand</TabsTrigger>
+              <TabsTrigger value="juridisch" className="modal-tab-pill data-[state=active]:shadow-none">Juridisch</TabsTrigger>
+              <TabsTrigger value="verkoper" className="modal-tab-pill data-[state=active]:shadow-none">Verkoper</TabsTrigger>
+              <TabsTrigger value="thesis" className="modal-tab-pill data-[state=active]:shadow-none">Thesis</TabsTrigger>
+              <TabsTrigger value="im" className="modal-tab-pill data-[state=active]:shadow-none">IM &amp; document</TabsTrigger>
+              <TabsTrigger value="media" disabled={!objectId} className="modal-tab-pill data-[state=active]:shadow-none">
                 <span className="hidden sm:inline">Media</span>
                 <Image className="h-4 w-4 sm:hidden" />
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 min-h-0">
+
             {/* TAB 1: ALGEMEEN */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
               <Sectie titel="Identificatie">
