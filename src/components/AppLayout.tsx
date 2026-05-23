@@ -241,7 +241,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
-        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-20">
+        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-40">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
             className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
