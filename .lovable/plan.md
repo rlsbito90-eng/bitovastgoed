@@ -272,3 +272,32 @@ Tests (`src/test/derivations/*.test.ts`): **36 / 36 groen**.
 Niet aangeraakt: UI-componenten, `NotificationsBell`, `ObjectFormDialog`, `ObjectDetailPage`, schema, types, mock-data. De oude `STRONG_MATCH_MIN = 5` constante in `NotificationsBell` blijft staan tot Prompt 3.4.
 
 Volgende stappen 3.2 t/m 3.9 blijven ongewijzigd zoals beschreven in §A8.
+
+---
+
+## Prompt 3.2 — Objectdetail financiële KPI's via centrale helpers (uitgevoerd)
+
+**Scope:** `src/pages/ObjectDetailPage.tsx` (hero-KPI's + Financieel-sectie).
+**Niet aangeraakt:** schema, types, mock-data, Vastgoedrekenen, ObjectFormDialog, scenario-engine.
+
+### Wijzigingen
+- Inline BAR/NAR/NOI/Factor/maandhuur/huur-per-m²-berekeningen vervangen door imports uit `@/lib/derivations`:
+  - `resolveBAR`, `resolveNAR`, `resolveNOI`, `resolveDerived`
+  - `calculateFactor`, `calculateMonthlyRent`, `calculateRentPerM2`
+- Hero-KPI-strip en Financieel-sectie gebruiken nu dezelfde `barEffect`/`narEffect`/`noiEffect`/`factor`/`huurPerM2*` waarden → bron is identiek.
+- AUTO/HANDMATIG-badges blijven gestuurd door `source === 'override'` (was `object.<veld> != null`); semantiek ongewijzigd.
+- `eurPerM2` import uit `@/data/mock-data` verwijderd (vervangen door `calculateRentPerM2`).
+
+### Override-snapshot keuze
+Opgeslagen `brutoAanvangsrendement`, `nettoAanvangsrendement`, `noi` en `huurPerM2` worden behandeld als **handmatige snapshot** (override). Auto-derived waarde wordt alleen getoond als override ontbreekt. Geen schemavlag nodig — bestaande null/non-null bepaalt het.
+
+### Prijsindicatie
+`prijsindicatie` blijft puur tekstuele fallback in de Vraagprijs-tile. Wordt nergens in BAR/NAR/factor/€-m²-berekening gebruikt (helpers krijgen alleen `object.vraagprijs`).
+
+### Mismatch / soft warnings
+`resolveDerived` levert al `delta` en `mismatch` (tolerantie 0.2% relatief). UI toont nu nog géén warning-chip; opgenomen als vervolg in **Prompt 3.3** (voorstel: subtiele chip bij `mismatch && source==='override'` op BAR/NAR/NOI/huurPerM2-tiles).
+
+### Validatie
+- 36 derivation-tests groen.
+- TypeScript build schoon.
+- Geen schemawijziging, geen migratie, geen data overschreven.
