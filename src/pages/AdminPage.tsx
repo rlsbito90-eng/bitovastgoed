@@ -333,7 +333,7 @@ function JaarDoelDialog({ doel, onClose }: { doel: JaarDoel; onClose: () => void
       toast.success(isNieuw ? 'Jaardoel aangemaakt' : 'Jaardoel bijgewerkt');
       onClose();
     } catch (err: any) {
-      toast.error(err.message ?? 'Opslaan mislukt');
+      toast.error(mapDbError(err, 'Opslaan mislukt'));
     } finally {
       setBezig(false);
     }
