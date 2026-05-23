@@ -13,7 +13,7 @@
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   getAllMatchesFromData,
