@@ -13,6 +13,7 @@ import {
   DEAL_FASE_LABELS,
 } from '@/data/mock-data';
 import type { DealFase } from '@/data/mock-data';
+import { isStrongMatch } from '@/lib/derivations';
 import {
   LeadStatusBadge,
   DealFaseBadge,
