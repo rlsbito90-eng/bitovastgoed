@@ -400,6 +400,11 @@ export default function ObjectDetailPage() {
         if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
         if (object && hasContactenData(object)) out.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
       }
+      if (s.id === 'dossier') {
+        if (object && object.referentieanalyseZichtbaar !== false) {
+          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
+        }
+      }
     }
     return out;
   }, [object]);
