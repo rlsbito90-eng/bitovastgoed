@@ -230,11 +230,9 @@ const BASE_SECTIONS: SectionDef[] = [
   // contacten (conditioneel)
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
-  { id: 'kandidaten', label: 'Kandidaten', icon: Users },
-  { id: 'dealflow', label: 'Dealflow', icon: Activity },
-  { id: 'biedingen', label: 'Biedingen', icon: Coins },
-  { id: 'documenten', label: 'Documenten', icon: FolderOpen },
+  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst
   { id: 'vastgoedrekenen', label: 'Rekenen', icon: Calculator },
+  { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
@@ -401,6 +399,11 @@ export default function ObjectDetailPage() {
         if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
         if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
         if (object && hasContactenData(object)) out.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
+      }
+      if (s.id === 'dossier') {
+        if (object && object.referentieanalyseZichtbaar !== false) {
+          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
+        }
       }
     }
     return out;
@@ -1164,11 +1167,7 @@ export default function ObjectDetailPage() {
               </div>
             </div>
 
-            {object.referentieanalyseZichtbaar !== false && (
-              <div className="mt-4">
-                <ObjectReferentieAnalyseSectie object={object} />
-              </div>
-            )}
+            {/* Referentieanalyse staat verderop in eigen sectie 'Referenties' */}
           </SectionAnchor>
 
 
@@ -1554,6 +1553,14 @@ export default function ObjectDetailPage() {
             />
           </SectionAnchor>
 
+          {/* ============ REFERENTIES (conditioneel) ============ */}
+          {object.referentieanalyseZichtbaar !== false && (
+            <SectionAnchor id="referenties" eyebrow="10 — Benchmarks" title="Referentieanalyse">
+              <ObjectReferentieAnalyseSectie object={object} />
+            </SectionAnchor>
+          )}
+
+
 
 
 
@@ -1634,17 +1641,6 @@ export default function ObjectDetailPage() {
               <ObjectPipelineSectie objectId={object.id} />
             </div>
           </SectionAnchor>
-
-          {/* ============ 5. BIEDINGEN ============ */}
-          <SectionAnchor id="biedingen" eyebrow="05 — Negotiations" title="Biedingen">
-            <BiedingenSection
-              scope={{ objectId: object.id }}
-              vraagprijs={object.vraagprijs ?? null}
-              defaults={{ objectId: object.id }}
-              toonObject={false}
-            />
-          </SectionAnchor>
-
 
           {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
@@ -1732,8 +1728,18 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ 8. ACTIVITEIT ============ */}
-          <SectionAnchor id="activiteit" eyebrow="08 — Activity" title="Activiteit & notities">
+          {/* ============ 8. BIEDINGEN ============ */}
+          <SectionAnchor id="biedingen" eyebrow="08 — Negotiations" title="Biedingen">
+            <BiedingenSection
+              scope={{ objectId: object.id }}
+              vraagprijs={object.vraagprijs ?? null}
+              defaults={{ objectId: object.id }}
+              toonObject={false}
+            />
+          </SectionAnchor>
+
+          {/* ============ 9. ACTIVITEIT ============ */}
+          <SectionAnchor id="activiteit" eyebrow="09 — Activity" title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
         </div>
