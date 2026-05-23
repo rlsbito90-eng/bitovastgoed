@@ -98,6 +98,6 @@ export function TaakStatusBadge({ status }: { status: TaakStatus }) {
 }
 
 export function MatchScoreBadge({ score }: { score: number }) {
-  const tone: Tone = score >= 75 ? 'emerald' : score >= 50 ? 'amber' : 'neutral';
-  return <Chip label={`${score}%`} tone={tone} className="font-mono-data" />;
+  const tone: Tone = score >= EXCELLENT_MATCH_THRESHOLD ? 'emerald' : score >= STRONG_MATCH_THRESHOLD ? 'amber' : 'neutral';
+  return <Chip label={`${score}/100`} tone={tone} className="font-mono-data" />;
 }
