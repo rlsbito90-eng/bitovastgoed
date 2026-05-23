@@ -452,24 +452,7 @@ export default function ObjectDetailPage() {
   // Wanneer near bottom: forceer laatste zichtbare sectie. Respecteert scrollLockRef.
   useEffect(() => {
     const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-    const filtered = BASE_SECTIONS.filter(s => {
-      if (s.id === 'potentie') return !!object && hasPotentieData(object);
-      if (s.id === 'juridisch') return !!object && hasJuridischData(object);
-      if (s.id === 'contacten') return !!object && hasContactenData(object);
-      return true;
-    });
-    // potentie/juridisch/contacten zitten niet in BASE_SECTIONS-lijst: dynamisch toevoegen.
-    const dyn: SectionDef[] = [];
-    BASE_SECTIONS.forEach(s => {
-      dyn.push(s);
-      if (s.id === 'pand') {
-        if (object && hasPotentieData(object))  dyn.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
-        if (object && hasJuridischData(object)) dyn.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
-        if (object && hasContactenData(object)) dyn.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
-      }
-    });
-    const finalList = dyn.filter(s => filtered.includes(s) || ['potentie','juridisch','contacten'].includes(s.id));
-    const sectionsToObserve = isDesktop ? finalList : [...finalList, ...MOBILE_ONLY_SECTIONS];
+    const sectionsToObserve = isDesktop ? sections : [...sections, ...MOBILE_ONLY_SECTIONS];
 
     const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
       let el: HTMLElement | null = node?.parentElement ?? null;
