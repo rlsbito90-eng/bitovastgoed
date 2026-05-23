@@ -1346,9 +1346,8 @@ export default function ObjectDetailPage() {
                 {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
                 {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
                 {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
-                {documentatieStatusRows.length === 0 && object.documentenBeschikbaar && (
-                  <Field label="Documentatie">Beschikbaar</Field>
-                )}
+                {/* Legacy `documentenBeschikbaar` is bewust niet meer als losse rij getoond:
+                    dossier-readiness (sectie Dossierstatus) is de leidende bron voor documentstatus. */}
               </div>
 
               {(object.oppervlakteVvo || object.oppervlakteBvo || object.oppervlakteGbo || object.perceelOppervlakte) && (
