@@ -18,7 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Calculator,
-  Bell as _BellUnused,
+  
   Plus,
   HelpCircle,
   ChevronDown,
