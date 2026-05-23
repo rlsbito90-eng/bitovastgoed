@@ -202,6 +202,21 @@ function SectionAnchor({
   );
 }
 
+/** Helpers — bepalen of conditionele detail-secties zichtbaar moeten zijn */
+function hasPotentieData(o: any): boolean {
+  return !!(o && (o.ontwikkelPotentie || o.transformatiePotentie || o.potentieOmschrijving ||
+    o.potentieStrategie || o.potentieExtraM2 != null || o.potentieExtraUnits != null ||
+    o.potentieOnderbouwingStatus || o.potentieAfhankelijkheden || o.potentieBron));
+}
+function hasJuridischData(o: any): boolean {
+  return !!(o && (o.eigendomssituatie || o.erfpachtinformatie || o.bestemmingsinformatie ||
+    o.kadastraalNummer || o.kadastraleGemeente || o.kadastraleSectie));
+}
+function hasContactenData(o: any): boolean {
+  return !!(o && (o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
+    o.contactNaam || o.contactEmail || o.contactTelefoon));
+}
+
 /** Sticky section nav (cockpit subnav) — vaste basis, conditioneel uitgebreid in page */
 type SectionDef = { id: string; label: string; icon: any };
 
