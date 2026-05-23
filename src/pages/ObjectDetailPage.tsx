@@ -230,11 +230,9 @@ const BASE_SECTIONS: SectionDef[] = [
   // contacten (conditioneel)
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
-  { id: 'kandidaten', label: 'Kandidaten', icon: Users },
-  { id: 'dealflow', label: 'Dealflow', icon: Activity },
-  { id: 'biedingen', label: 'Biedingen', icon: Coins },
-  { id: 'documenten', label: 'Documenten', icon: FolderOpen },
+  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst
   { id: 'vastgoedrekenen', label: 'Rekenen', icon: Calculator },
+  { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
