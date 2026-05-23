@@ -741,7 +741,13 @@ export default function ObjectDetailPage() {
               {object.titel}
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-              <HeaderChip icon={MapPin}>{locatieLabel}</HeaderChip>
+              <HeaderChip
+                icon={MapPin}
+                href={mapsUrl ?? undefined}
+                title={mapsUrl ? 'Open in Google Maps' : undefined}
+              >
+                {locatieLabel}
+              </HeaderChip>
               <HeaderChip icon={Building2}>{propertyTypeLabel}</HeaderChip>
               {subtypeLabel && <HeaderChip>{subtypeLabel}</HeaderChip>}
               {object.internReferentienummer && (
