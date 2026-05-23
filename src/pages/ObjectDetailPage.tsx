@@ -1593,7 +1593,7 @@ export default function ObjectDetailPage() {
           <SectionAnchor
             id="kandidaten"
             eyebrow={eyebrowFor("kandidaten", "Candidates")}
-            title={`Kandidaten · ${matches.length}`}
+            title={`Kandidaten · ${kandidatenTotaal}`}
           >
             <div className="section-card overflow-hidden">
               <header className="section-header">
