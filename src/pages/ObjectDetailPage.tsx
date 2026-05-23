@@ -21,6 +21,15 @@ import {
   AANBIEDINGSWIJZE_LABELS,
   OBJECT_STATUS_LABELS,
 } from '@/data/mock-data';
+import {
+  resolveBAR,
+  resolveNAR,
+  resolveNOI,
+  resolveDerived,
+  calculateFactor,
+  calculateMonthlyRent,
+  calculateRentPerM2,
+} from '@/lib/derivations';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import {
