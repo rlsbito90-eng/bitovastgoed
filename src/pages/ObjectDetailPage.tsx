@@ -956,7 +956,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           STICKY SECTION NAV
           ================================================= */}
-      <SectionNav active={activeSection} />
+      <SectionNav active={activeSection} sections={sections} />
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
