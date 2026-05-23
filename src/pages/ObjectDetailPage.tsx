@@ -544,9 +544,7 @@ export default function ObjectDetailPage() {
   const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
   const huurPerM2Berekend = object.huurPerM2
     ?? eurPerM2(object.huurinkomsten, m2VoorBerekening);
-  const huurPerM2Str = huurPerM2Berekend != null
-    ? `€${Math.round(huurPerM2Berekend).toLocaleString('nl-NL')}/m²/jr`
-    : '—';
+  const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
 
   // Lead deal voor cockpit
   const leadDeal = (() => {
