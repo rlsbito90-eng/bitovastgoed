@@ -246,7 +246,7 @@ function JaarDoelenSectie() {
       await store.deleteJaarDoel(id);
       toast.success('Doel verwijderd');
     } catch (err: any) {
-      toast.error(err.message ?? 'Verwijderen mislukt');
+      toast.error(mapDbError(err, 'Verwijderen mislukt'));
     }
   };
 
