@@ -1,4 +1,5 @@
 // Data-hook voor de Vastgoedrekenen module.
+import { mapDbError } from '@/lib/errors';
 // Beheert CRUD voor calculations, scenarios, components, costs, wws units, sell-off units,
 // risk items en outputs voor een specifiek object.
 
@@ -36,7 +37,7 @@ export function useTaxSettings() {
       .from('vastgoedrekenen_tax_settings')
       .update(patch)
       .eq('id', id);
-    if (error) { toast.error('Wijzigen mislukt: ' + error.message); return; }
+    if (error) { toast.error(mapDbError(error, 'Wijzigen mislukt')); return; }
     toast.success('OVB-instellingen bijgewerkt');
     await fetchSettings();
   }, [fetchSettings]);
@@ -80,7 +81,7 @@ export function useObjectCalculations(objectId: string | undefined) {
       })
       .select('*')
       .single();
-    if (error) { toast.error('Aanmaken mislukt: ' + error.message); return null; }
+    if (error) { toast.error(mapDbError(error, 'Aanmaken mislukt')); return null; }
     toast.success('Quickscan aangemaakt');
     await fetchAll();
     return data as Calculation;
@@ -142,7 +143,7 @@ export function useQuickscanDetail(calculationId: string | undefined) {
       })
       .select('*')
       .single();
-    if (error) { toast.error('Scenario aanmaken mislukt: ' + error.message); return null; }
+    if (error) { toast.error(mapDbError(error, 'Scenario aanmaken mislukt')); return null; }
     await fetchAll();
     return data as Scenario;
   }, [calculation, fetchAll]);
@@ -199,7 +200,7 @@ export function useScenarioChildren(scenarioId: string | undefined) {
     const { error } = await supabase
       .from('calculation_outputs')
       .upsert({ scenario_id: scenarioId, ...payload }, { onConflict: 'scenario_id' });
-    if (error) toast.error('Opslaan outputs mislukt: ' + error.message);
+    if (error) toast.error(mapDbError(error, 'Opslaan outputs mislukt'));
   }, [scenarioId]);
 
   return {

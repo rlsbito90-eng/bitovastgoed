@@ -34,7 +34,7 @@ export default function AuthPage() {
     const { error } = await signIn(loginEmail, loginWw);
     setBezig(false);
     if (error) {
-      toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : error.message);
+      toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : 'Inloggen mislukt. Controleer je gegevens.');
     } else {
       toast.success('Welkom terug');
       navigate('/', { replace: true });
@@ -54,7 +54,7 @@ export default function AuthPage() {
       if (error.message.includes('already registered')) {
         toast.error('Dit e-mailadres is al geregistreerd');
       } else {
-        toast.error(error.message);
+        toast.error('Account aanmaken mislukt. Probeer het opnieuw of neem contact op met een beheerder.');
       }
     } else {
       toast.success('Account aangemaakt. Wacht op activatie door een beheerder.');

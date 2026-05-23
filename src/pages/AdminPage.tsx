@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/data/mock-data';
 import type { JaarDoel } from '@/data/mock-data';
 import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
+import { mapDbError } from '@/lib/errors';
 
 type Rol = 'admin' | 'medewerker';
 
@@ -68,7 +69,7 @@ export default function AdminPage() {
   const rolToekennen = async (userId: string, rol: Rol) => {
     const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: rol });
     if (error) {
-      toast.error(error.message.includes('duplicate') ? 'Rol is al toegekend' : `Fout: ${error.message}`);
+      toast.error(error.message?.includes('duplicate') ? 'Rol is al toegekend' : mapDbError(error, 'Rol toekennen mislukt'));
       return;
     }
     toast.success(`Rol '${rol}' toegekend`);
@@ -82,7 +83,7 @@ export default function AdminPage() {
     }
     const { error } = await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', rol);
     if (error) {
-      toast.error(`Fout: ${error.message}`);
+      toast.error(mapDbError(error, 'Rol intrekken mislukt'));
       return;
     }
     toast.success(`Rol '${rol}' ingetrokken`);
@@ -245,7 +246,7 @@ function JaarDoelenSectie() {
       await store.deleteJaarDoel(id);
       toast.success('Doel verwijderd');
     } catch (err: any) {
-      toast.error(err.message ?? 'Verwijderen mislukt');
+      toast.error(mapDbError(err, 'Verwijderen mislukt'));
     }
   };
 
@@ -332,7 +333,7 @@ function JaarDoelDialog({ doel, onClose }: { doel: JaarDoel; onClose: () => void
       toast.success(isNieuw ? 'Jaardoel aangemaakt' : 'Jaardoel bijgewerkt');
       onClose();
     } catch (err: any) {
-      toast.error(err.message ?? 'Opslaan mislukt');
+      toast.error(mapDbError(err, 'Opslaan mislukt'));
     } finally {
       setBezig(false);
     }
