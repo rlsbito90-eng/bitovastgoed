@@ -215,7 +215,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         {/* Mobile Header */}
       <header
-        className="lg:hidden flex items-center justify-between px-3 border-b border-border/60 glass-topbar sticky top-0 z-30"
+        className="lg:hidden flex items-center justify-between px-3 border-b border-border/60 glass-topbar sticky top-0 z-40"
         style={{ height: "var(--mobile-header-height, 3.5rem)" }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -241,7 +241,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
-        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-20">
+        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-40">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
             className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"

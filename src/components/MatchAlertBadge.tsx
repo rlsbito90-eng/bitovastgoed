@@ -134,7 +134,7 @@ export default function MatchAlertBadge() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-[min(380px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-40 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-[min(380px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-accent" />
             <div className="flex-1 min-w-0">
