@@ -9,7 +9,7 @@
 // - Komt later een nieuwe match bij → tellertje verschijnt opnieuw
 //
 // Tracking via localStorage zodat de status persistent is per browser/device.
-// Drempel: matches met score >= 3.
+// Drempel: sterke match (score ≥ STRONG_MATCH_THRESHOLD, 0–100 schaal).
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -21,8 +21,8 @@ import {
   ASSET_CLASS_LABELS,
 } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { STRONG_MATCH_THRESHOLD, EXCELLENT_MATCH_THRESHOLD, isStrongMatch } from '@/lib/derivations';
 
-const DREMPEL = 3;
 const SEEN_KEYS_STORAGE = 'bito-matches-seen-keys-v2';
 const SEEN_INIT_STORAGE = 'bito-matches-seen-initialized-v2';
 
