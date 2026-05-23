@@ -377,6 +377,21 @@ export default function ObjectDetailPage() {
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
   const scrollLockRef = useRef<number>(0);
 
+  // Conditioneel zichtbare secties → ook gebruikt door scrollspy en sectiebar.
+  const sections = useMemo<SectionDef[]>(() => {
+    const out: SectionDef[] = [];
+    for (const s of BASE_SECTIONS) {
+      out.push(s);
+      if (s.id === 'pand') {
+        if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
+        if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
+        if (object && hasContactenData(object)) out.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
+      }
+    }
+    return out;
+  }, [object]);
+
+
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return false;
