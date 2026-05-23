@@ -361,7 +361,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] max-h-[95dvh] p-0 gap-0 flex flex-col overflow-hidden overflow-x-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <DialogTitle>
