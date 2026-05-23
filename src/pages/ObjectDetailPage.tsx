@@ -1433,8 +1433,9 @@ export default function ObjectDetailPage() {
           )}
 
           {/* ============ CONTACTEN (conditioneel) ============ */}
-          {hasContactenData(object) && (
-            <SectionAnchor id="contacten" eyebrow={eyebrowFor("contacten", "Contacts")} title="Contacten">
+          {(hasContactenData(object) || deals.length > 0) && (
+            <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
+
               <div className="grid sm:grid-cols-2 gap-4">
                 {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
                   <div className="section-card p-5 space-y-3">
