@@ -1,6 +1,12 @@
 import { memo, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  parseDutchNumber,
+  toEditableNL,
+  formatNumberForKind,
+  type FormatKind,
+} from '@/lib/format/nl';
 
 type RawInputProps = {
   initialValue: string;
@@ -11,32 +17,13 @@ type RawInputProps = {
   suffix?: string;
 };
 
-export function numberToRaw(value: number | null | undefined) {
-  return value === null || value === undefined ? '' : String(value);
+// Backwards-compatible helpers (oude callsites blijven werken).
+export function numberToRaw(value: number | null | undefined): string {
+  return toEditableNL(value);
 }
 
 export function parseRawNumber(raw: string): number | null {
-  const stripped = raw.trim().replace(/[€%\s]/g, '');
-  if (!stripped || stripped === '-' || stripped === ',' || stripped === '.') return null;
-
-  const hasComma = stripped.includes(',');
-  const hasDot = stripped.includes('.');
-  let normalized = stripped;
-
-  if (hasComma && hasDot) {
-    normalized = stripped.lastIndexOf(',') > stripped.lastIndexOf('.')
-      ? stripped.replace(/\./g, '').replace(',', '.')
-      : stripped.replace(/,/g, '');
-  } else if (hasComma) {
-    normalized = stripped.replace(',', '.');
-  } else if (hasDot) {
-    const parts = stripped.split('.');
-    const looksLikeThousands = parts.length > 1 && parts.slice(1).every((part) => part.length === 3);
-    normalized = looksLikeThousands ? parts.join('') : stripped;
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
+  return parseDutchNumber(raw);
 }
 
 function useRawInput(initialValue: string, onRawChange?: (value: string) => void, onCommit?: (value: string) => void) {
@@ -75,6 +62,7 @@ function useRawInput(initialValue: string, onRawChange?: (value: string) => void
     focus: () => { focusedRef.current = true; },
     blur,
     keyDown,
+    focusedRef,
   };
 }
 
@@ -112,20 +100,85 @@ export const RawTextarea = memo(function RawTextarea({ initialValue, onRawChange
   );
 });
 
-export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRawChange, onCommit, placeholder, className, suffix }: RawInputProps) {
-  const input = useRawInput(initialValue, onRawChange, onCommit);
+type NumberFormatProps = RawInputProps & {
+  format?: FormatKind;
+  decimals?: number;
+};
+
+function inferKindFromSuffix(suffix: string | undefined, explicit?: FormatKind): FormatKind | undefined {
+  if (explicit) return explicit;
+  if (!suffix) return undefined;
+  const s = suffix.trim();
+  if (s === '€') return 'currency';
+  if (s === '%') return 'percent';
+  if (s === 'm²' || s === 'm2') return 'area';
+  return undefined;
+}
+
+export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRawChange, onCommit, placeholder, className, suffix, format, decimals }: NumberFormatProps) {
+  const kind = inferKindFromSuffix(suffix, format);
+
+  // Bepaal weergavewaarde: tijdens focus de editbare string, daarbuiten geformatteerd.
+  const computeDisplay = (rawStr: string, focused: boolean): string => {
+    if (focused) return rawStr;
+    if (!kind) return rawStr;
+    const n = parseDutchNumber(rawStr);
+    if (n == null) return rawStr;
+    return formatNumberForKind(n, kind, decimals);
+  };
+
+  const [raw, setRaw] = useState(() => computeDisplay(initialValue, false));
+  const [focused, setFocused] = useState(false);
+  const externalRef = useRef(initialValue);
+
+  useEffect(() => {
+    if (initialValue === externalRef.current) return;
+    externalRef.current = initialValue;
+    if (!focused) setRaw(computeDisplay(initialValue, false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValue]);
+
+  const handleFocus = () => {
+    setFocused(true);
+    // Toon editbare vorm bij focus zodat gebruiker eenvoudig kan typen.
+    if (kind) {
+      const n = parseDutchNumber(raw);
+      if (n != null) setRaw(toEditableNL(n));
+    }
+  };
+
+  const handleChange = (value: string) => {
+    setRaw(value);
+    onRawChange?.(value);
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    const n = parseDutchNumber(raw);
+    const editableForCommit = n == null ? raw.trim() : toEditableNL(n);
+    if (editableForCommit !== externalRef.current) {
+      externalRef.current = editableForCommit;
+      onCommit?.(editableForCommit);
+    }
+    // Zet displayed weer naar geformatteerd.
+    setRaw(n != null && kind ? formatNumberForKind(n, kind, decimals) : (n != null ? toEditableNL(n) : raw.trim()));
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') event.currentTarget.blur();
+  };
 
   return (
     <div className="relative w-full min-w-0">
       <Input
         type="text"
         inputMode="decimal"
-        value={input.raw}
+        value={raw}
         placeholder={placeholder}
-        onFocus={input.focus}
-        onChange={(e) => input.change(e.target.value)}
-        onBlur={input.blur}
-        onKeyDown={input.keyDown}
+        onFocus={handleFocus}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         className={`${className ?? ''} ${suffix ? 'pr-9' : ''}`}
       />
       {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{suffix}</span>}
