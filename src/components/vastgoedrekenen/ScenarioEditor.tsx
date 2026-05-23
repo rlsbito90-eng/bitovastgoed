@@ -866,7 +866,7 @@ export default function ScenarioEditor(props: Props) {
                       ) : (
                         <>
                           <MobileFieldGroup label="Bouwkosten per m² (€)">
-                            <RawNumberInput className="h-9" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                            <RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                           </MobileFieldGroup>
                           <MobileFieldGroup label="Totaal (afgeleid)">
                             <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data font-semibold">
