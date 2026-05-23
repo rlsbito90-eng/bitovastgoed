@@ -848,14 +848,14 @@ export default function ScenarioEditor(props: Props) {
                         </Select>
                       </MobileFieldGroup>
                       <MobileFieldGroup label="m²-basis">
-                        <RawNumberInput className="h-9" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                        <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(basis)} onRawChange={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { m2_basis: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                       </MobileFieldGroup>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
                       {mode === 'totaal' ? (
                         <>
                           <MobileFieldGroup label="Bedrag totaal (€)">
-                            <RawNumberInput className="h-9" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
+                            <RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.amount)} onRawChange={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 }, true)} onCommit={(raw) => updateCost(c.id, { amount: parseRawNumber(raw) ?? 0 })} />
                           </MobileFieldGroup>
                           <MobileFieldGroup label="€/m² (afgeleid)">
                             <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data">
@@ -866,7 +866,7 @@ export default function ScenarioEditor(props: Props) {
                       ) : (
                         <>
                           <MobileFieldGroup label="Bouwkosten per m² (€)">
-                            <RawNumberInput className="h-9" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
+                            <RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(perM2)} onRawChange={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>, true)} onCommit={(raw) => updateCost(c.id, { amount_per_m2: parseRawNumber(raw) } as unknown as Partial<ScenarioCost>)} />
                           </MobileFieldGroup>
                           <MobileFieldGroup label="Totaal (afgeleid)">
                             <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data font-semibold">
@@ -916,13 +916,13 @@ export default function ScenarioEditor(props: Props) {
                           <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                         </Select>
                       </MobileFieldGroup>
-                      <MobileFieldGroup label="GBO (m²)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Markthuur/maand (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="GBO (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Markthuur/maand (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
                     </div>
                     {ovbMode === 'per_component' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
-                        <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
                         <MobileFieldGroup label="OVB-classificatie">
                           <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
                             <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
@@ -939,7 +939,7 @@ export default function ScenarioEditor(props: Props) {
                             </SelectContent>
                           </Select>
                         </MobileFieldGroup>
-                        <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
                       </div>
                     )}
                   </div>
@@ -968,10 +968,10 @@ export default function ScenarioEditor(props: Props) {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
                       <MobileFieldGroup label="Naam"><RawTextInput className="h-9" initialValue={u.unit_name} onCommit={(raw) => updateWwsUnit(u.id, { unit_name: raw.trim() || 'Woonunit' })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Woon m²"><RawNumberInput className="h-9" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="WOZ (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Woon m²"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="WOZ (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></MobileFieldGroup>
                       <MobileFieldGroup label="Energielabel"><RawTextInput className="h-9" initialValue={u.energy_label ?? ''} onCommit={(raw) => updateWwsUnit(u.id, { energy_label: raw.trim() || null })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
                       <div className="min-w-0 w-full space-y-1.5">
                         <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
                         <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
