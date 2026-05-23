@@ -889,12 +889,24 @@ export const formatM2 = (n?: number): string => {
   return `${n.toLocaleString('nl-NL')} m²`;
 };
 
-// €/m² formatter - voor prijs/m², huur/m², bod/m²
+// €/m² formatter - voor prijs/m², bod/m² (NIET voor huur/m² — gebruik formatHuurPerM2PerJaar).
 export const formatEurPerM2 = (eur?: number, m2?: number, perJaar = false): string => {
   if (!eur || !m2 || m2 <= 0) return '—';
   const v = eur / m2;
   const rounded = v >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
   return `€${rounded.toLocaleString('nl-NL')}/m²${perJaar ? '/jr' : ''}`;
+};
+
+// Specifiek voor huur per m² per jaar — NL formatting, geen slash-notatie.
+// Voorbeelden: "€ 70 m² p/jr" of "€ 70,50 m² p/jr"
+export const formatHuurPerM2PerJaar = (v?: number | null): string => {
+  if (v == null || !Number.isFinite(v)) return '—';
+  const heeftDecimalen = Math.round(v) !== v;
+  const str = v.toLocaleString('nl-NL', {
+    minimumFractionDigits: heeftDecimalen ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+  return `€ ${str} m² p/jr`;
 };
 
 // Berekent prijs/m² (capital deal); huur/m²/jr; bod/m². Geeft `null` als
