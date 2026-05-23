@@ -240,7 +240,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
       setGemaaktId(undefined);
       setHuurPerM2Manual(false);
     }
-    setTab('algemeen');
+    // NB: tab niet resetten hier — dat gebeurt al in de open/initialTab-effect
+    // hierboven. Anders springt de modal na elke store.refresh (bv. document-
+    // upload of type-wijziging) terug naar Algemeen.
     // Initialiseer maandhuur-input op basis van jaarhuur
     setMaandhuurInput(object?.huurinkomsten ? String(Math.round(object.huurinkomsten / 12 * 100) / 100) : '');
     setLaatstGewijzigdHuur(null);
