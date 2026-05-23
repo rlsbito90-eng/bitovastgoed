@@ -1,13 +1,25 @@
-/** Numerieke formatters voor de Vastgoedrekenen module. */
-const EUR = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const NUM = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 });
+/** Numerieke formatters voor de Vastgoedrekenen module. Gebruikt centrale NL helpers. */
+import {
+  formatCurrency as nlFormatCurrency,
+  formatNumberNL,
+  formatArea as nlFormatArea,
+  formatPercentage as nlFormatPercentage,
+  formatFactor as nlFormatFactor,
+} from '@/lib/format/nl';
 
-export const fmtEur = (n: number | null | undefined) => (n == null || isNaN(Number(n)) ? '—' : EUR.format(Number(n)));
-export const fmtPct = (n: number | null | undefined) => (n == null ? '—' : `${NUM.format(Number(n))}%`);
-export const fmtNum = (n: number | null | undefined) => (n == null ? '—' : NUM.format(Number(n)));
-export const fmtM2 = (n: number | null | undefined) => (n == null ? '—' : `${NUM.format(Number(n))} m²`);
+export const fmtEur = (n: number | null | undefined) =>
+  n == null || isNaN(Number(n)) ? '—' : nlFormatCurrency(Number(n), 0);
+export const fmtPct = (n: number | null | undefined, decimals = 2) =>
+  n == null ? '—' : nlFormatPercentage(Number(n), decimals);
+export const fmtNum = (n: number | null | undefined, decimals = 2) =>
+  n == null ? '—' : formatNumberNL(Number(n), decimals);
+export const fmtM2 = (n: number | null | undefined, decimals = 2) =>
+  n == null ? '—' : nlFormatArea(Number(n), decimals);
 export const fmtEurPerM2 = (n: number | null | undefined) =>
-  (n == null || isNaN(Number(n)) ? '—' : `${EUR.format(Math.round(Number(n)))}/m²`);
+  n == null || isNaN(Number(n)) ? '—' : `${nlFormatCurrency(Math.round(Number(n)), 0)}/m²`;
+export const fmtFactor = (n: number | null | undefined, decimals = 1) =>
+  n == null || isNaN(Number(n)) ? '—' : nlFormatFactor(Number(n), decimals);
+
 
 
 export const SEGMENT_BADGE: Record<string, { label: string; cls: string }> = {
