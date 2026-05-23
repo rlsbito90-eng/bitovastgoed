@@ -1,4 +1,5 @@
 import type { LeadStatus, DealFase, ObjectStatus, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
+import { STRONG_MATCH_THRESHOLD, EXCELLENT_MATCH_THRESHOLD } from '@/lib/derivations';
 
 /**
  * Boutique status chip — flat, calm, with a thin colored dot for instant scanability.
