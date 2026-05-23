@@ -251,34 +251,63 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
   const scrollerRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const programmaticUntilRef = useRef<number>(0);
+  const lastCenteredRef = useRef<string>('');
 
-  const centerTab = (id: string) => {
+  const prefersReduced = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  const isTabFullyVisible = (el: HTMLElement, scroller: HTMLElement, pad = 24) => {
+    const left = el.offsetLeft;
+    const right = left + el.offsetWidth;
+    const viewLeft = scroller.scrollLeft + pad;
+    const viewRight = scroller.scrollLeft + scroller.clientWidth - pad;
+    return left >= viewLeft && right <= viewRight;
+  };
+
+  const centerTab = (id: string, force = false) => {
     const el = tabRefs.current[id];
     const scroller = scrollerRef.current;
     if (!el || !scroller) return;
+    if (!force && isTabFullyVisible(el, scroller)) {
+      lastCenteredRef.current = id;
+      return;
+    }
     const target = el.offsetLeft - scroller.clientWidth / 2 + el.offsetWidth / 2;
     const max = scroller.scrollWidth - scroller.clientWidth;
     const left = Math.max(0, Math.min(max, target));
-    scroller.scrollTo({ left, behavior: 'smooth' });
+    if (Math.abs(scroller.scrollLeft - left) < 4) {
+      lastCenteredRef.current = id;
+      return;
+    }
+    scroller.scrollTo({ left, behavior: prefersReduced() ? 'auto' : 'smooth' });
+    lastCenteredRef.current = id;
   };
 
+  // Scrollspy-driven updates: alleen centreren als tab buiten beeld is en
+  // niet tijdens een programmatic scroll. Debounced via rAF.
   useEffect(() => {
-    centerTab(active);
+    if (!active) return;
+    if (Date.now() < programmaticUntilRef.current) return;
+    if (lastCenteredRef.current === active) return;
+    const raf = requestAnimationFrame(() => centerTab(active, false));
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
-    centerTab(id);
+    // Geef click-centering voorrang en negeer scrollspy-centering tijdelijk.
+    programmaticUntilRef.current = Date.now() + 700;
+    centerTab(id, true);
+
     const target = document.getElementById(id);
     if (!target) return;
-
 
     const subNav = navRef.current?.getBoundingClientRect().height ?? 52;
     const buffer = 8;
 
-    // Scroll de main-container (overflow-y-auto) of window — pak de dichtstbijzijnde scrollende parent
     const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
       let el: HTMLElement | null = node?.parentElement ?? null;
       while (el) {
@@ -289,9 +318,8 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
       return window;
     };
     const scrollParent = getScrollParent(target);
+    const behavior: ScrollBehavior = prefersReduced() ? 'auto' : 'smooth';
 
-    // Als de scrollParent een element is, zit de topbar ER BUITEN — dan alleen subNav compenseren.
-    // Bij window-scroll moet de topbar wél meegerekend worden.
     if (scrollParent === window) {
       const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
       const rootStyles = getComputedStyle(document.documentElement);
@@ -304,14 +332,13 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
         ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
         : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
       const top = target.getBoundingClientRect().top + window.scrollY - (topbar + subNav + buffer);
-      window.scrollTo({ top, behavior: 'smooth' });
+      window.scrollTo({ top, behavior });
     } else {
       const parent = scrollParent as HTMLElement;
       const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (subNav + buffer);
-      parent.scrollTo({ top, behavior: 'smooth' });
+      parent.scrollTo({ top, behavior });
     }
 
-    // Update hash zonder browser-jump
     if (history.replaceState) history.replaceState(null, '', `#${id}`);
   };
 
