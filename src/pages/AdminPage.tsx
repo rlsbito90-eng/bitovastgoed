@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/data/mock-data';
 import type { JaarDoel } from '@/data/mock-data';
 import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
+import { mapDbError } from '@/lib/errors';
 
 type Rol = 'admin' | 'medewerker';
 
