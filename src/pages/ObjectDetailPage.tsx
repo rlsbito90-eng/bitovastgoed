@@ -395,21 +395,27 @@ export default function ObjectDetailPage() {
   // Conditioneel zichtbare secties → ook gebruikt door scrollspy en sectiebar.
   const sections = useMemo<SectionDef[]>(() => {
     const out: SectionDef[] = [];
+    const hasDeals = object ? store.getDealsByObject(object.id).length > 0 : false;
     for (const s of BASE_SECTIONS) {
+      // Verkoper-sectie wordt vóór 'aanbieding' ingevoegd (conditioneel)
+      if (s.id === 'aanbieding') {
+        if (object && (hasContactenData(object) || hasDeals)) {
+          out.push({ id: 'verkoper', label: 'Verkoper', icon: ContactIcon });
+        }
+      }
       out.push(s);
       if (s.id === 'pand') {
         if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
         if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
-        if (object && hasContactenData(object)) out.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
       }
-      if (s.id === 'dossier') {
+      if (s.id === 'dealflow') {
         if (object && object.referentieanalyseZichtbaar !== false) {
           out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
         }
       }
     }
     return out;
-  }, [object]);
+  }, [object, store]);
 
   // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
   // als sectiebar/scrollspy/anchors, zodat nummers nooit uit de pas lopen.
