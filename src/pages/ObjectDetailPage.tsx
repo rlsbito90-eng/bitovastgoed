@@ -1656,8 +1656,8 @@ export default function ObjectDetailPage() {
           {/* ============ 6. DOCUMENTEN / DATA ROOM ============ */}
           <SectionAnchor
             id="documenten"
-            eyebrow="Data room"
-            title={`Documenten · ${documenten.length}`}
+            eyebrow={eyebrowFor("documenten", "Data room")}
+            title={`Documenten & data room · ${documenten.length}`}
           >
             {/* Dossier-checklist staat in eigen Dossierstatus-sectie hierboven. */}
 
