@@ -1008,18 +1008,36 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                           <option value="vergund">Vergund</option>
                         </select>
                       </Veld>
-                      <Veld label="Indicatief extra m² mogelijk">
+                      <Veld label="Extra m² mogelijk (bovenop huidig)">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraM2 ?? ''}
-                          onChange={e => set('potentieExtraM2', num(e.target.value))} />
+                          onChange={e => set('potentieExtraM2', num(e.target.value))}
+                          placeholder={form.oppervlakte ? `huidig: ${form.oppervlakte} m²` : 'huidig onbekend'} />
+                        {(() => {
+                          const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                          const extra = form.potentieExtraM2;
+                          if (huidig == null || extra == null) {
+                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidig m² ontbreekt)' : '—'}</p>;
+                          }
+                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal m² na plan: <span className="font-medium text-foreground">{(huidig + extra).toLocaleString('nl-NL')} m²</span></p>;
+                        })()}
                       </Veld>
-                      <Veld label="Indicatief aantal extra units">
+                      <Veld label="Extra units mogelijk (bovenop huidig)">
                         <Input type="number" inputMode="numeric" className="min-w-0"
                           value={form.potentieExtraUnits ?? ''}
                           onChange={e => {
                             const v = e.target.value;
                             set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
-                          }} />
+                          }}
+                          placeholder={form.aantalUnits != null ? `huidig: ${form.aantalUnits}` : 'huidig onbekend'} />
+                        {(() => {
+                          const huidig = form.aantalUnits;
+                          const extra = form.potentieExtraUnits;
+                          if (huidig == null || extra == null) {
+                            return <p className="text-[11px] text-muted-foreground mt-1">Totaal na plan: {huidig == null ? 'onvoldoende gegevens (huidige units ontbreken)' : '—'}</p>;
+                          }
+                          return <p className="text-[11px] text-muted-foreground mt-1">Totaal units na plan: <span className="font-medium text-foreground">{huidig + extra}</span></p>;
+                        })()}
                       </Veld>
                       <Veld label="Bron / onderbouwing">
                         <select
