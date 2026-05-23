@@ -1970,7 +1970,7 @@ export default function ObjectDetailPage() {
         </aside>
       </div>
 
-      <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} />
+      <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} initialTab={editInitialTab} />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
