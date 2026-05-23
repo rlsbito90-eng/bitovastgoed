@@ -409,6 +409,17 @@ export default function ObjectDetailPage() {
     return out;
   }, [object]);
 
+  // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
+  // als sectiebar/scrollspy/anchors, zodat nummers nooit uit de pas lopen.
+  const eyebrowFor = (id: string, suffix?: string): string | undefined => {
+    const idx = sections.findIndex(s => s.id === id);
+    if (idx === -1) return suffix; // sectie niet in centrale lijst → geen nummer
+    const nn = String(idx + 1).padStart(2, '0');
+    return suffix ? `${nn} — ${suffix}` : nn;
+  };
+
+
+
 
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
