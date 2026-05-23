@@ -141,9 +141,9 @@ export default function AuthPage() {
           </div>
 
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Inloggen</TabsTrigger>
-              <TabsTrigger value="signup">Account aanvragen</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 h-auto p-1 gap-1 glass-card rounded-full bg-transparent">
+              <TabsTrigger value="login" className="dossier-tab-pill data-[state=active]:shadow-none">Inloggen</TabsTrigger>
+              <TabsTrigger value="signup" className="dossier-tab-pill data-[state=active]:shadow-none">Account aanvragen</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
