@@ -443,10 +443,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
               <TabsTrigger value="financieel" className="modal-tab-pill data-[state=active]:shadow-none">Financieel</TabsTrigger>
               <TabsTrigger value="verhuur" className="modal-tab-pill data-[state=active]:shadow-none">Verhuur</TabsTrigger>
               <TabsTrigger value="pand" className="modal-tab-pill data-[state=active]:shadow-none">Pand</TabsTrigger>
+              <TabsTrigger value="potentie" className="modal-tab-pill data-[state=active]:shadow-none">Potentie</TabsTrigger>
               <TabsTrigger value="juridisch" className="modal-tab-pill data-[state=active]:shadow-none">Juridisch</TabsTrigger>
-              <TabsTrigger value="verkoper" className="modal-tab-pill data-[state=active]:shadow-none">Verkoper</TabsTrigger>
-              <TabsTrigger value="thesis" className="modal-tab-pill data-[state=active]:shadow-none">Thesis</TabsTrigger>
-              <TabsTrigger value="im" className="modal-tab-pill data-[state=active]:shadow-none">IM &amp; document</TabsTrigger>
+              <TabsTrigger value="contacten" className="modal-tab-pill data-[state=active]:shadow-none">Contacten</TabsTrigger>
+              <TabsTrigger value="aanbieding" className="modal-tab-pill data-[state=active]:shadow-none">Aanbieding &amp; dossier</TabsTrigger>
               <TabsTrigger value="media" disabled={!objectId} className="modal-tab-pill data-[state=active]:shadow-none">
                 <span className="hidden sm:inline">Media</span>
                 <Image className="h-4 w-4 sm:hidden" />
@@ -605,13 +605,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                       onChange={e => set('beschikbaarVanaf', e.target.value || undefined)}
                     />
                   </Veld>
-                  <Veld label="Huidig gebruik">
-                    <Input
-                      value={form.huidigGebruik ?? ''}
-                      onChange={e => set('huidigGebruik', e.target.value || undefined)}
-                      placeholder="bv. verhuurd aan supermarkt"
-                    />
-                  </Veld>
+                  {/* huidigGebruik verplaatst naar tab Verhuur */}
                 </div>
               </Sectie>
 
@@ -818,13 +812,27 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                   </Veld>
                 </div>
               </Sectie>
+
+              <Sectie titel="Marktwaarde-indicatie">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Marktwaarde-indicatie (€)">
+                    <Input type="number" value={form.marktwaardeIndicatie ?? ''}
+                      onChange={e => set('marktwaardeIndicatie', num(e.target.value))} />
+                  </Veld>
+                  <Veld label="Bron / toelichting">
+                    <Input value={form.marktwaardeBron ?? ''}
+                      onChange={e => set('marktwaardeBron', e.target.value || undefined)}
+                      placeholder="bv. eigen analyse, mediaan referenties" />
+                  </Veld>
+                </div>
+              </Sectie>
             </TabsContent>
 
 
             {/* TAB 3: VERHUUR */}
             <TabsContent value="verhuur" className="space-y-5 mt-0">
-              <Sectie titel="Verhuurstatus">
-                <div className="grid sm:grid-cols-3 gap-4">
+              <Sectie titel="Verhuurstatus & gebruik">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Status<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -835,6 +843,13 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                       <option value="gedeeltelijk">Gedeeltelijk</option>
                       <option value="leeg">Leeg</option>
                     </select>
+                  </Veld>
+                  <Veld label="Huidig gebruik">
+                    <Input
+                      value={form.huidigGebruik ?? ''}
+                      onChange={e => set('huidigGebruik', e.target.value || undefined)}
+                      placeholder="bv. verhuurd aan supermarkt"
+                    />
                   </Veld>
                   <Veld label="Aantal huurders (aggregaat)">
                     <Input type="number" value={form.aantalHuurders ?? ''}
@@ -947,148 +962,19 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                 </div>
               </Sectie>
 
-              <Sectie titel="Potentie">
-                <div className="flex flex-wrap gap-x-6 gap-y-3">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={form.ontwikkelPotentie}
-                      onCheckedChange={v => set('ontwikkelPotentie', !!v)} />
-                    Ontwikkelpotentie
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={form.transformatiePotentie}
-                      onCheckedChange={v => set('transformatiePotentie', !!v)} />
-                    Transformatiepotentie
-                  </label>
-                </div>
+              <Sectie titel="Oppervlakten per verdieping">
+                <OppervlaktenEditor
+                  rijen={form.oppervlaktenPerVerdieping ?? []}
+                  onChange={v => set('oppervlaktenPerVerdieping', v)}
+                />
+              </Sectie>
 
-                {(form.ontwikkelPotentie || form.transformatiePotentie) && (
-                  <div className="mt-4 p-3 sm:p-4 rounded-lg border border-accent/30 bg-accent/5 space-y-4">
-                    <p className="text-xs uppercase tracking-wider text-accent font-semibold">
-                      Potentie / mogelijkheden
-                    </p>
-                    <Veld label="Potentieomschrijving">
-                      <Textarea rows={2} value={form.potentieOmschrijving ?? ''}
-                        onChange={e => set('potentieOmschrijving', e.target.value || undefined)}
-                        placeholder="Korte beschrijving van de potentie of mogelijkheid" />
-                    </Veld>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <Veld label="Mogelijke strategie">
-                        <select
-                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
-                          value={form.potentieStrategie ?? ''}
-                          onChange={e => set('potentieStrategie', e.target.value || undefined)}
-                        >
-                          <option value="">— Onbekend —</option>
-                          <option value="transformatie">Transformatie</option>
-                          <option value="uitponden">Uitponden</option>
-                          <option value="splitsen">Splitsen</option>
-                          <option value="optoppen">Optoppen</option>
-                          <option value="herontwikkeling">Herontwikkeling</option>
-                          <option value="kamerverhuur">Kamerverhuur</option>
-                          <option value="functiewijziging">Functiewijziging</option>
-                          <option value="renovatie">Renovatie / value-add</option>
-                          <option value="uitbreiding">Uitbreiding</option>
-                          <option value="anders">Anders</option>
-                        </select>
-                      </Veld>
-                      <Veld label="Status onderbouwing">
-                        <select
-                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
-                          value={form.potentieOnderbouwingStatus ?? ''}
-                          onChange={e => set('potentieOnderbouwingStatus', e.target.value || undefined)}
-                        >
-                          <option value="">— Onbekend —</option>
-                          <option value="idee">Idee</option>
-                          <option value="indicatief">Indicatief</option>
-                          <option value="besproken">Besproken</option>
-                          <option value="onderzocht">Onderzocht</option>
-                          <option value="vergunningstraject">Vergunningstraject</option>
-                          <option value="vergund">Vergund</option>
-                        </select>
-                      </Veld>
-                    </div>
-
-                    {/* m²-rij: huidig | extra | totaal na plan */}
-                    <div className="grid sm:grid-cols-3 gap-4">
-                      <Veld label="Huidige m²">
-                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
-                          {(() => {
-                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
-                            return huidig != null ? `${huidig.toLocaleString('nl-NL')} m²` : '—';
-                          })()}
-                        </div>
-                      </Veld>
-                      <Veld label="Extra m² mogelijk">
-                        <Input type="number" inputMode="numeric" className="min-w-0"
-                          value={form.potentieExtraM2 ?? ''}
-                          onChange={e => set('potentieExtraM2', num(e.target.value))}
-                          placeholder="bv. 75" />
-                      </Veld>
-                      <Veld label={<>Totaal m² na plan <AutoBadge /></>}>
-                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
-                          {(() => {
-                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
-                            const extra = form.potentieExtraM2;
-                            if (huidig == null) return 'onvoldoende gegevens';
-                            const totaal = huidig + (extra ?? 0);
-                            return `${totaal.toLocaleString('nl-NL')} m²`;
-                          })()}
-                        </div>
-                      </Veld>
-                    </div>
-
-                    {/* Units-rij: huidig | extra | totaal na plan */}
-                    <div className="grid sm:grid-cols-3 gap-4">
-                      <Veld label="Huidige units">
-                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
-                          {form.aantalUnits != null ? form.aantalUnits : '—'}
-                        </div>
-                      </Veld>
-                      <Veld label="Extra units mogelijk">
-                        <Input type="number" inputMode="numeric" className="min-w-0"
-                          value={form.potentieExtraUnits ?? ''}
-                          onChange={e => {
-                            const v = e.target.value;
-                            set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
-                          }}
-                          placeholder="bv. 3" />
-                      </Veld>
-                      <Veld label={<>Totaal units na plan <AutoBadge /></>}>
-                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
-                          {(() => {
-                            const huidig = form.aantalUnits;
-                            const extra = form.potentieExtraUnits;
-                            if (huidig == null) return 'onvoldoende gegevens';
-                            return String(huidig + (extra ?? 0));
-                          })()}
-                        </div>
-                      </Veld>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <Veld label="Bron / onderbouwing">
-                        <select
-                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
-                          value={form.potentieBron ?? ''}
-                          onChange={e => set('potentieBron', e.target.value || undefined)}
-                        >
-                          <option value="">— Onbekend —</option>
-                          <option value="gemeente">Gemeente</option>
-                          <option value="makelaar">Makelaar</option>
-                          <option value="architect">Architect</option>
-                          <option value="eigenaar">Eigenaar</option>
-                          <option value="eigen_analyse">Eigen analyse</option>
-                          <option value="onbekend">Onbekend</option>
-                        </select>
-                      </Veld>
-                    </div>
-                    <Veld label="Belangrijkste afhankelijkheden / risico's">
-                      <Textarea rows={2} value={form.potentieAfhankelijkheden ?? ''}
-                        onChange={e => set('potentieAfhankelijkheden', e.target.value || undefined)}
-                        placeholder="bv. bestemmingsplanwijziging, parkeernorm, draagvlak gemeente" />
-                    </Veld>
-                  </div>
-                )}
+              <Sectie titel="Technische staat (toelichting)">
+                <Veld label="Technische staat / MJOP">
+                  <Textarea rows={3} value={form.technischeStaatOmschrijving ?? ''}
+                    onChange={e => set('technischeStaatOmschrijving', e.target.value || undefined)}
+                    placeholder="Aanvulling op onderhoudsstaat-niveau, MJOP, recente ingrepen" />
+                </Veld>
               </Sectie>
 
             </TabsContent>
@@ -1133,10 +1019,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             </TabsContent>
 
             {/* TAB 6: VERKOPER */}
-            <TabsContent value="verkoper" className="space-y-5 mt-0">
-              <Sectie titel="Verkoper / contact">
+            <TabsContent value="contacten" className="space-y-5 mt-0">
+              <Sectie titel="Verkoper / eigenaar / aanbieder">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Verkoper naam">
+                  <Veld label="Naam">
                     <Input value={form.verkoperNaam ?? ''}
                       onChange={e => set('verkoperNaam', e.target.value || undefined)} />
                   </Veld>
@@ -1171,10 +1057,200 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     placeholder="waarom wil de verkoper van het object af" />
                 </Veld>
               </Sectie>
+
+              <Sectie titel="Objectcontact / makelaar / tussenpersoon">
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Indien leeg vallen IM en 1-pager terug op de verkoper-info. Lege velden verschijnen niet.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Naam">
+                    <Input value={form.contactNaam ?? ''}
+                      onChange={e => set('contactNaam', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Functie">
+                    <Input value={form.contactFunctie ?? ''}
+                      onChange={e => set('contactFunctie', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="Telefoon">
+                    <Input value={form.contactTelefoon ?? ''}
+                      onChange={e => set('contactTelefoon', e.target.value || undefined)} />
+                  </Veld>
+                  <Veld label="E-mail">
+                    <Input type="email" value={form.contactEmail ?? ''}
+                      onChange={e => set('contactEmail', e.target.value || undefined)} />
+                  </Veld>
+                </div>
+              </Sectie>
             </TabsContent>
 
-            {/* TAB 7: THESIS */}
-            <TabsContent value="thesis" className="space-y-5 mt-0">
+            {/* TAB: POTENTIE */}
+            <TabsContent value="potentie" className="space-y-5 mt-0">
+              <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2">
+                <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Registratie van ontwikkel- of transformatiepotentie. Vul alleen in als er werkelijk potentie is.
+                  Dit blok is een kansenregistratie — voor doorrekenen gebruik je Vastgoedrekenen.
+                </p>
+              </div>
+
+              <Sectie titel="Type potentie">
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={form.ontwikkelPotentie}
+                      onCheckedChange={v => set('ontwikkelPotentie', !!v)} />
+                    Ontwikkelpotentie
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={form.transformatiePotentie}
+                      onCheckedChange={v => set('transformatiePotentie', !!v)} />
+                    Transformatiepotentie
+                  </label>
+                </div>
+              </Sectie>
+
+              {(form.ontwikkelPotentie || form.transformatiePotentie
+                || form.potentieOmschrijving || form.potentieExtraM2 != null
+                || form.potentieExtraUnits != null) && (
+                <>
+                  <Sectie titel="Omschrijving & strategie">
+                    <Veld label="Potentieomschrijving">
+                      <Textarea rows={2} value={form.potentieOmschrijving ?? ''}
+                        onChange={e => set('potentieOmschrijving', e.target.value || undefined)}
+                        placeholder="Korte beschrijving van de potentie of mogelijkheid" />
+                    </Veld>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Mogelijke strategie">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieStrategie ?? ''}
+                          onChange={e => set('potentieStrategie', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="transformatie">Transformatie</option>
+                          <option value="uitponden">Uitponden</option>
+                          <option value="splitsen">Splitsen</option>
+                          <option value="optoppen">Optoppen</option>
+                          <option value="herontwikkeling">Herontwikkeling</option>
+                          <option value="kamerverhuur">Kamerverhuur</option>
+                          <option value="functiewijziging">Functiewijziging</option>
+                          <option value="renovatie">Renovatie / value-add</option>
+                          <option value="uitbreiding">Uitbreiding</option>
+                          <option value="anders">Anders</option>
+                        </select>
+                      </Veld>
+                      <Veld label="Status onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieOnderbouwingStatus ?? ''}
+                          onChange={e => set('potentieOnderbouwingStatus', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="idee">Idee</option>
+                          <option value="indicatief">Indicatief</option>
+                          <option value="besproken">Besproken</option>
+                          <option value="onderzocht">Onderzocht</option>
+                          <option value="vergunningstraject">Vergunningstraject</option>
+                          <option value="vergund">Vergund</option>
+                        </select>
+                      </Veld>
+                    </div>
+                  </Sectie>
+
+                  <Sectie titel="Programma na plan">
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <Veld label="Huidige m²">
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                            return huidig != null ? `${huidig.toLocaleString('nl-NL')} m²` : '—';
+                          })()}
+                        </div>
+                      </Veld>
+                      <Veld label="Extra m² mogelijk">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraM2 ?? ''}
+                          onChange={e => set('potentieExtraM2', num(e.target.value))}
+                          placeholder="bv. 75" />
+                      </Veld>
+                      <Veld label={<>Totaal m² na plan <AutoBadge /></>}>
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                            const extra = form.potentieExtraM2;
+                            if ((huidig == null || !Number.isFinite(huidig)) && (extra == null || !Number.isFinite(extra))) return '—';
+                            const totaal = (huidig ?? 0) + (extra ?? 0);
+                            return Number.isFinite(totaal) ? `${totaal.toLocaleString('nl-NL')} m²` : '—';
+                          })()}
+                        </div>
+                      </Veld>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-4 mt-4">
+                      <Veld label="Huidige units">
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {form.aantalUnits != null ? form.aantalUnits : '—'}
+                        </div>
+                      </Veld>
+                      <Veld label="Extra units mogelijk">
+                        <Input type="number" inputMode="numeric" className="min-w-0"
+                          value={form.potentieExtraUnits ?? ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
+                          }}
+                          placeholder="bv. 3" />
+                      </Veld>
+                      <Veld label={<>Totaal units na plan <AutoBadge /></>}>
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
+                          {(() => {
+                            const huidig = form.aantalUnits;
+                            const extra = form.potentieExtraUnits;
+                            if ((huidig == null || !Number.isFinite(huidig)) && (extra == null || !Number.isFinite(extra))) return '—';
+                            const totaal = (huidig ?? 0) + (extra ?? 0);
+                            return Number.isFinite(totaal) ? String(totaal) : '—';
+                          })()}
+                        </div>
+                      </Veld>
+                    </div>
+                  </Sectie>
+
+                  <Sectie titel="Onderbouwing & risico's">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Bron / onderbouwing">
+                        <select
+                          className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.potentieBron ?? ''}
+                          onChange={e => set('potentieBron', e.target.value || undefined)}
+                        >
+                          <option value="">— Onbekend —</option>
+                          <option value="gemeente">Gemeente</option>
+                          <option value="makelaar">Makelaar</option>
+                          <option value="architect">Architect</option>
+                          <option value="eigenaar">Eigenaar</option>
+                          <option value="eigen_analyse">Eigen analyse</option>
+                          <option value="onbekend">Onbekend</option>
+                        </select>
+                      </Veld>
+                    </div>
+                    <Veld label="Belangrijkste afhankelijkheden / risico's">
+                      <Textarea rows={2} value={form.potentieAfhankelijkheden ?? ''}
+                        onChange={e => set('potentieAfhankelijkheden', e.target.value || undefined)}
+                        placeholder="bv. bestemmingsplanwijziging, parkeernorm, draagvlak gemeente" />
+                    </Veld>
+                  </Sectie>
+                </>
+              )}
+            </TabsContent>
+
+            {/* TAB: AANBIEDING & DOSSIER */}
+            <TabsContent value="aanbieding" className="space-y-5 mt-0">
+              <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2">
+                <FileSignature className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Commerciële- en dossier-laag: samenvatting, propositie, omschrijvingen, proces en IM/1-pager-zichtbaarheid.
+                  Lege velden worden automatisch verborgen.
+                </p>
+              </div>
+
               <Sectie titel="Samenvatting (voor 1-pager)">
                 <Veld label="Samenvatting">
                   <Textarea rows={3} value={form.samenvatting ?? ''}
@@ -1203,27 +1279,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                 </Veld>
               </Sectie>
 
-              <Sectie titel="Interne notities">
-                <Veld label="Opmerkingen (extern)">
-                  <Textarea rows={2} value={form.opmerkingen ?? ''}
-                    onChange={e => set('opmerkingen', e.target.value || undefined)} />
-                </Veld>
-                <Veld label="Interne opmerkingen (alleen Bito)">
-                  <Textarea rows={2} value={form.interneOpmerkingen ?? ''}
-                    onChange={e => set('interneOpmerkingen', e.target.value || undefined)} />
-                </Veld>
-              </Sectie>
-            </TabsContent>
-
-            {/* TAB 8: IM & DOCUMENT */}
-            <TabsContent value="im" className="space-y-5 mt-0">
-              <div className="p-3 bg-muted/40 rounded-md flex items-start gap-2">
-                <FileSignature className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <p className="text-xs text-muted-foreground">
-                  Inhoud voor het Investment Memorandum (IM) en de 1-pager. Lege velden worden automatisch verborgen — er verschijnen geen placeholders.
-                </p>
-              </div>
-
               <Sectie titel="Propositie & omschrijvingen">
                 <Veld label="Propositie (kernboodschap)">
                   <Textarea rows={3} value={form.propositie ?? ''}
@@ -1240,53 +1295,17 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                     onChange={e => set('locatieOmschrijving', e.target.value || undefined)}
                     placeholder="Bereikbaarheid, omgeving, voorzieningen, demografie" />
                 </Veld>
-                <Veld label="Technische staat (toelichting)">
-                  <Textarea rows={3} value={form.technischeStaatOmschrijving ?? ''}
-                    onChange={e => set('technischeStaatOmschrijving', e.target.value || undefined)}
-                    placeholder="Aanvulling op onderhoudsstaat-niveau, MJOP, recente ingrepen" />
+              </Sectie>
+
+              <Sectie titel="Interne notities">
+                <Veld label="Opmerkingen (extern)">
+                  <Textarea rows={2} value={form.opmerkingen ?? ''}
+                    onChange={e => set('opmerkingen', e.target.value || undefined)} />
                 </Veld>
-              </Sectie>
-
-              <Sectie titel="Oppervlakten per verdieping">
-                <OppervlaktenEditor
-                  rijen={form.oppervlaktenPerVerdieping ?? []}
-                  onChange={v => set('oppervlaktenPerVerdieping', v)}
-                />
-              </Sectie>
-
-              <Sectie titel="Financiële scenario's">
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Optioneel. Lege scenario's verschijnen niet in het IM.
-                </p>
-                <ScenarioBlok
-                  titel="Huidige situatie"
-                  scenario={form.financieleScenarios?.huidig}
-                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), huidig: s })}
-                />
-                <ScenarioBlok
-                  titel="Marktconform"
-                  scenario={form.financieleScenarios?.marktconform}
-                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), marktconform: s })}
-                />
-                <ScenarioBlok
-                  titel="Na renovatie / herontwikkeling"
-                  scenario={form.financieleScenarios?.naRenovatie}
-                  onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), naRenovatie: s })}
-                />
-              </Sectie>
-
-              <Sectie titel="Marktwaarde-indicatie">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Marktwaarde-indicatie (€)">
-                    <Input type="number" value={form.marktwaardeIndicatie ?? ''}
-                      onChange={e => set('marktwaardeIndicatie', num(e.target.value))} />
-                  </Veld>
-                  <Veld label="Bron / toelichting">
-                    <Input value={form.marktwaardeBron ?? ''}
-                      onChange={e => set('marktwaardeBron', e.target.value || undefined)}
-                      placeholder="bv. eigen analyse, mediaan referenties" />
-                  </Veld>
-                </div>
+                <Veld label="Interne opmerkingen (alleen Bito)">
+                  <Textarea rows={2} value={form.interneOpmerkingen ?? ''}
+                    onChange={e => set('interneOpmerkingen', e.target.value || undefined)} />
+                </Veld>
               </Sectie>
 
               <Sectie titel="Proces & dataroom">
@@ -1302,33 +1321,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                 </Veld>
               </Sectie>
 
-              <Sectie titel="Contactgegevens (op IM/1-pager)">
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Indien leeg vallen we terug op de verkoper-info. Lege velden verschijnen niet.
-                </p>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Naam">
-                    <Input value={form.contactNaam ?? ''}
-                      onChange={e => set('contactNaam', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="Functie">
-                    <Input value={form.contactFunctie ?? ''}
-                      onChange={e => set('contactFunctie', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="Telefoon">
-                    <Input value={form.contactTelefoon ?? ''}
-                      onChange={e => set('contactTelefoon', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="E-mail">
-                    <Input type="email" value={form.contactEmail ?? ''}
-                      onChange={e => set('contactEmail', e.target.value || undefined)} />
-                  </Veld>
-                </div>
-              </Sectie>
-
               <Sectie titel="Documentatie-overzicht (in IM)">
                 <p className="text-xs text-muted-foreground -mt-2">
-                  Per documenttype kun je de status kiezen. Alleen typen met een gekozen status verschijnen in de documentatietabel van het IM.
+                  Per documenttype kun je de status kiezen. Alleen typen met een gekozen status verschijnen in de documentatietabel van het IM. Voor het werkelijke dossier en readiness, zie Dossier & aanbieding op de objectpagina.
                 </p>
                 <DocumentatieStatusEditor
                   status={form.documentatieStatus ?? {}}
@@ -1343,7 +1338,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                 <div className="grid sm:grid-cols-2 gap-2">
                   {IM_SECTIES.map(s => {
                     const huidig = form.imSectiesZichtbaar?.[s.key];
-                    const aan = huidig !== false; // default aan
+                    const aan = huidig !== false;
                     return (
                       <label key={s.key} className="flex items-center justify-between gap-2 p-2 rounded-md border border-border hover:bg-muted/30">
                         <span className="text-sm">{s.label}</span>
@@ -1360,6 +1355,29 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
                   })}
                 </div>
               </Sectie>
+
+              {(form.financieleScenarios?.huidig || form.financieleScenarios?.marktconform || form.financieleScenarios?.naRenovatie) && (
+                <Sectie titel="Financiële scenario's (legacy snapshot)">
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Bestaande scenario's blijven beschikbaar. Voor doorrekenen en vergelijking: gebruik Vastgoedrekenen.
+                  </p>
+                  <ScenarioBlok
+                    titel="Huidige situatie"
+                    scenario={form.financieleScenarios?.huidig}
+                    onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), huidig: s })}
+                  />
+                  <ScenarioBlok
+                    titel="Marktconform"
+                    scenario={form.financieleScenarios?.marktconform}
+                    onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), marktconform: s })}
+                  />
+                  <ScenarioBlok
+                    titel="Na renovatie / herontwikkeling"
+                    scenario={form.financieleScenarios?.naRenovatie}
+                    onChange={s => set('financieleScenarios', { ...(form.financieleScenarios ?? {}), naRenovatie: s })}
+                  />
+                </Sectie>
+              )}
             </TabsContent>
 
             {/* TAB 9: MEDIA */}
