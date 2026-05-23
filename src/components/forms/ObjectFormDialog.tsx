@@ -194,7 +194,7 @@ const ENERGIELABELS: Energielabel[] =
 // Component
 // ---------------------------------------------------------------------
 
-export default function ObjectFormDialog({ open, onOpenChange, object }: Props) {
+export default function ObjectFormDialog({ open, onOpenChange, object, initialTab = 'algemeen' }: Props) {
   const { addObject, updateObject, objecten, genereerRefnummer } = useDataStore();
   const isEdit = !!object;
 
