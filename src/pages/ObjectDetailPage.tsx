@@ -1793,7 +1793,7 @@ export default function ObjectDetailPage() {
                   </div>
                   <div>
                     <p className="field-label">Kandidaten</p>
-                    <p className="font-mono-data text-sm font-semibold mt-0.5">{matches.length}</p>
+                    <p className="font-mono-data text-sm font-semibold mt-0.5">{kandidatenTotaal}</p>
                   </div>
                 </div>
               </div>
