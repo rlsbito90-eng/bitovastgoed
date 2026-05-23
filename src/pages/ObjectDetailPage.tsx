@@ -455,9 +455,13 @@ export default function ObjectDetailPage() {
 
 
   // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
-  // als sectiebar/scrollspy/anchors, zodat nummers nooit uit de pas lopen.
+  // als sectiebar/scrollspy/anchors. Ondersteunende secties (Documenten) tellen
+  // niet mee in de hoofdnummering zodat ze geen "gat" veroorzaken.
+  const UNNUMBERED_SECTIONS = new Set(['documenten']);
   const eyebrowFor = (id: string, suffix?: string): string | undefined => {
-    const idx = sections.findIndex(s => s.id === id);
+    if (UNNUMBERED_SECTIONS.has(id)) return suffix; // titel zonder nummer
+    const numbered = sections.filter(s => !UNNUMBERED_SECTIONS.has(s.id));
+    const idx = numbered.findIndex(s => s.id === id);
     if (idx === -1) return suffix; // sectie niet in centrale lijst → geen nummer
     const nn = String(idx + 1).padStart(2, '0');
     return suffix ? `${nn} — ${suffix}` : nn;
