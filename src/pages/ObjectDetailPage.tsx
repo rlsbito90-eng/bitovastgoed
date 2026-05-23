@@ -1323,23 +1323,62 @@ export default function ObjectDetailPage() {
           <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                <MetricTile label="Vraagprijs" value={formatCurrency(object.vraagprijs)} accent />
-                <MetricTile label="BAR" value={barEffect != null ? formatPercent(barEffect, 2) : '—'} />
-                {object.nettoAanvangsrendement != null && (
-                  <MetricTile label="NAR" value={formatPercent(object.nettoAanvangsrendement, 2)} />
+                <MetricTile
+                  label="Vraagprijs"
+                  value={
+                    object.vraagprijs != null
+                      ? formatCurrency(object.vraagprijs)
+                      : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
+                  }
+                  hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+                  accent
+                />
+                <MetricTile
+                  label="BAR"
+                  value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
+                  badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
+                />
+                {narEffect != null && (
+                  <MetricTile
+                    label="NAR"
+                    value={formatPercent(narEffect, 2)}
+                    badge={narIsHandmatig ? 'handmatig' : 'auto'}
+                  />
                 )}
-                <MetricTile label="Factor" value={factor != null ? `${factor.toFixed(1)}×` : '—'} />
+                <MetricTile
+                  label="Factor"
+                  value={factor != null ? `${factor.toFixed(1)}×` : '—'}
+                  badge={factor != null ? 'auto' : undefined}
+                />
                 {object.huurinkomsten != null && (
                   <MetricTile label="Huur / jr" value={formatCurrency(object.huurinkomsten)} />
                 )}
-                {object.noi != null && (
-                  <MetricTile label="NOI" value={formatCurrency(object.noi)} tone="positive" />
+                {maandhuur != null && (
+                  <MetricTile
+                    label="Huur / mnd"
+                    value={formatCurrency(Math.round(maandhuur))}
+                    badge="auto"
+                  />
+                )}
+                {noiEffect != null && (
+                  <MetricTile
+                    label="NOI"
+                    value={formatCurrency(noiEffect)}
+                    tone="positive"
+                    badge={noiIsHandmatig ? 'handmatig' : 'auto'}
+                  />
                 )}
                 {object.servicekostenJaar != null && (
                   <MetricTile label="Servicekosten" value={formatCurrency(object.servicekostenJaar)} />
                 )}
-                <MetricTile label="€ / m²" value={prijsPerM2Str} />
-                <MetricTile label="Huur / m²" value={huurPerM2Str} />
+                <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
+                {huurPerM2Berekend != null && (
+                  <MetricTile
+                    label="Huur / m²"
+                    value={huurPerM2Str}
+                    badge={huurPerM2IsHandmatig ? 'handmatig' : 'auto'}
+                  />
+                )}
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"
