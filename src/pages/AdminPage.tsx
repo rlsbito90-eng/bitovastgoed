@@ -69,7 +69,7 @@ export default function AdminPage() {
   const rolToekennen = async (userId: string, rol: Rol) => {
     const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: rol });
     if (error) {
-      toast.error(error.message.includes('duplicate') ? 'Rol is al toegekend' : `Fout: ${error.message}`);
+      toast.error(error.message?.includes('duplicate') ? 'Rol is al toegekend' : mapDbError(error, 'Rol toekennen mislukt'));
       return;
     }
     toast.success(`Rol '${rol}' toegekend`);
