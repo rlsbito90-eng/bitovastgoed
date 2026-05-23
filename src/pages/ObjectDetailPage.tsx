@@ -312,6 +312,7 @@ export default function ObjectDetailPage() {
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [archiefOpen, setArchiefOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<string>('overzicht');
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
