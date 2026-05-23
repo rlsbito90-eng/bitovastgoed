@@ -59,7 +59,7 @@ export default function MatchAlertBadge() {
   const matches = useMemo(() => {
     const alle = getAllMatchesFromData(store.zoekprofielen, store.objecten);
     return alle
-      .filter(m => m.score >= DREMPEL)
+      .filter(m => isStrongMatch(m.score))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         const zpA = store.zoekprofielen.find(z => z.id === a.zoekprofielId);
