@@ -111,9 +111,36 @@ function MetricTile({
 }
 
 /** Header chip for hero metadata strip */
-function HeaderChip({ icon: Icon, children }: { icon?: any; children: ReactNode }) {
+function HeaderChip({
+  icon: Icon,
+  children,
+  href,
+  title,
+}: {
+  icon?: any;
+  children: ReactNode;
+  href?: string;
+  title?: string;
+}) {
+  const cls =
+    'inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/80 bg-background/60 backdrop-blur border border-border/50 rounded-full px-2.5 py-1';
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={title}
+        className={`${cls} hover:text-foreground hover:border-accent/60 hover:bg-background/80 transition-colors cursor-pointer min-h-[28px]`}
+      >
+        {Icon && <Icon className="h-3 w-3 text-accent" />}
+        <span>{children}</span>
+        <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+      </a>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/80 bg-background/60 backdrop-blur border border-border/50 rounded-full px-2.5 py-1">
+    <span className={cls}>
       {Icon && <Icon className="h-3 w-3 text-accent" />}
       {children}
     </span>
