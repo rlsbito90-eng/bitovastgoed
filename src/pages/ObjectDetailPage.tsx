@@ -308,7 +308,7 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
         className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
         style={{ scrollbarWidth: 'none' }}
       >
-        {SECTIONS.map((s) => {
+        {sections.map((s) => {
           const isActive = active === s.id;
           return (
             <a
