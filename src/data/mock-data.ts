@@ -410,6 +410,8 @@ export interface ObjectVastgoed {
 
   // Overig
   documentenBeschikbaar: boolean;
+  /** Persistente toggle: object is ook bruikbaar als referentieobject. */
+  markeerAlsReferentie?: boolean;
   interneOpmerkingen?: string;
   opmerkingen?: string;
   datumToegevoegd: string;
