@@ -204,7 +204,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
-  const [tab, setTab] = useState('algemeen');
+  const [tab, setTab] = useState(initialTab);
+
+  // Reset tab naar initialTab telkens de dialog opent
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
   // Persistente toggle: "Ook bruikbaar als referentieobject".
   // Wordt opgeslagen op het object zelf en kan in een latere fase gebruikt
   // worden als bron voor de referentie-analyse.
