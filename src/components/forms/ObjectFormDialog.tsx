@@ -14,7 +14,9 @@
 // Nieuwe objecten: media-tab is disabled tot het object een ID heeft
 // (oftewel: eerst één keer opslaan, daarna upload).
 
-import { useState, useEffect, ReactNode, useMemo } from 'react';
+import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
+import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
+import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
