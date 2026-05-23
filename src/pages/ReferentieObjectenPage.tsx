@@ -7,6 +7,7 @@ import {
   REFERENTIE_KWALITEIT_LABELS,
   berekenReferentieKwaliteit,
   formatCurrency,
+  formatHuurPerM2PerJaar,
   type AssetClass,
   type ReferentieObject,
 } from '@/data/mock-data';
@@ -501,8 +502,8 @@ export default function ReferentieObjectenPage() {
                     )}
                     {huurPerM2Jaar != null && (
                       <div className="min-w-0">
-                        <dt className="text-muted-foreground">Huur €/m²/jr</dt>
-                        <dd className="font-mono-data text-foreground truncate">{formatCurrency(Math.round(huurPerM2Jaar))}</dd>
+                        <dt className="text-muted-foreground">Huur / m²</dt>
+                        <dd className="font-mono-data text-foreground truncate">{formatHuurPerM2PerJaar(huurPerM2Jaar)}</dd>
                       </div>
                     )}
                     <div className="min-w-0">
@@ -586,7 +587,7 @@ export default function ReferentieObjectenPage() {
                     <TableHead className="text-right">Vraagprijs</TableHead>
                     <TableHead className="text-right">€ / m²</TableHead>
                     <TableHead className="text-right">Huur / jaar</TableHead>
-                    <TableHead className="text-right">Huur €/m²/jr</TableHead>
+                    <TableHead className="text-right">Huur / m²</TableHead>
                     <TableHead>Huurstatus</TableHead>
                     <TableHead className="text-right">Bouwjaar</TableHead>
                     <TableHead>Energielabel</TableHead>
@@ -615,7 +616,7 @@ export default function ReferentieObjectenPage() {
                         {r.huurprijsPerJaar != null ? formatCurrency(r.huurprijsPerJaar) : '—'}
                       </TableCell>
                       <TableCell className="text-right font-mono-data">
-                        {huurPerM2Jaar != null ? formatCurrency(Math.round(huurPerM2Jaar)) : '—'}
+                        {formatHuurPerM2PerJaar(huurPerM2Jaar)}
                       </TableCell>
                       <TableCell className="text-muted-foreground capitalize">
                         {r.huurstatus ? r.huurstatus.replace('_', ' ') : '—'}
