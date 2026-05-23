@@ -202,11 +202,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
-  // UI-only toggle: "Ook bruikbaar als referentieobject"
-  // Wordt bewust niet in de database opgeslagen — dient als visuele hint
-  // én als trigger voor het kwaliteitsblok. Een echt referentieobject
-  // wordt apart aangemaakt via het Referentieobject-formulier.
-  const [markeerAlsReferentie, setMarkeerAlsReferentie] = useState(false);
+  // Persistente toggle: "Ook bruikbaar als referentieobject".
+  // Wordt opgeslagen op het object zelf en kan in een latere fase gebruikt
+  // worden als bron voor de referentie-analyse.
+  const markeerAlsReferentie = !!form.markeerAlsReferentie;
+  const setMarkeerAlsReferentie = (v: boolean) => set('markeerAlsReferentie', v);
 
   // Raw input state voor financiële berekeningen — voorkomt cursor-jumps
   // en houdt twee-richtings koppeling tussen maandhuur ↔ jaarhuur soepel.
