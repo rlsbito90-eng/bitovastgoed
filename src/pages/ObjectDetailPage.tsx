@@ -59,6 +59,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
+import { buildMapsUrl } from '@/lib/maps';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
@@ -111,9 +112,36 @@ function MetricTile({
 }
 
 /** Header chip for hero metadata strip */
-function HeaderChip({ icon: Icon, children }: { icon?: any; children: ReactNode }) {
+function HeaderChip({
+  icon: Icon,
+  children,
+  href,
+  title,
+}: {
+  icon?: any;
+  children: ReactNode;
+  href?: string;
+  title?: string;
+}) {
+  const cls =
+    'inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/80 bg-background/60 backdrop-blur border border-border/50 rounded-full px-2.5 py-1';
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={title}
+        className={`${cls} hover:text-foreground hover:border-accent/60 hover:bg-background/80 transition-colors cursor-pointer min-h-[28px]`}
+      >
+        {Icon && <Icon className="h-3 w-3 text-accent" />}
+        <span>{children}</span>
+        <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+      </a>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/80 bg-background/60 backdrop-blur border border-border/50 rounded-full px-2.5 py-1">
+    <span className={cls}>
       {Icon && <Icon className="h-3 w-3 text-accent" />}
       {children}
     </span>
@@ -574,6 +602,12 @@ export default function ObjectDetailPage() {
     [object.postcode, object.plaats].filter(Boolean).join(' '),
     object.provincie,
   ].filter(Boolean).join(', ') || object.publiekeRegio || object.plaats || object.provincie || 'Locatie onbekend';
+  const mapsUrl = buildMapsUrl({
+    adres: object.adres,
+    postcode: object.postcode,
+    plaats: object.plaats ?? object.publiekeRegio,
+    provincie: object.provincie,
+  });
 
   return (
     <div className="page-shell-detail">
@@ -707,7 +741,13 @@ export default function ObjectDetailPage() {
               {object.titel}
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-              <HeaderChip icon={MapPin}>{locatieLabel}</HeaderChip>
+              <HeaderChip
+                icon={MapPin}
+                href={mapsUrl ?? undefined}
+                title={mapsUrl ? 'Open in Google Maps' : undefined}
+              >
+                {locatieLabel}
+              </HeaderChip>
               <HeaderChip icon={Building2}>{propertyTypeLabel}</HeaderChip>
               {subtypeLabel && <HeaderChip>{subtypeLabel}</HeaderChip>}
               {object.internReferentienummer && (
