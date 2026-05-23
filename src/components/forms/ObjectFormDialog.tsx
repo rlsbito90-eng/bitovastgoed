@@ -1380,6 +1380,16 @@ function Veld({ label, children, span = 1 }: { label: ReactNode; children: React
 }
 
 /** Visuele markering: ** = sterk aanbevolen voor referentiegebruik, * = nuttig. */
+/** Kleine `auto`-indicator naast afgeleide velden. */
+function AutoBadge({ show = true }: { show?: boolean }) {
+  if (!show) return null;
+  return (
+    <span className="ml-1.5 align-middle inline-flex items-center rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent">
+      auto
+    </span>
+  );
+}
+
 function RefMark({ level, show }: { level: 'sterk' | 'nuttig'; show: boolean }) {
   if (!show) return null;
   return (
