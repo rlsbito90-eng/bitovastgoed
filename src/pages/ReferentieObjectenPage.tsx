@@ -587,7 +587,7 @@ export default function ReferentieObjectenPage() {
                     <TableHead className="text-right">Vraagprijs</TableHead>
                     <TableHead className="text-right">€ / m²</TableHead>
                     <TableHead className="text-right">Huur / jaar</TableHead>
-                    <TableHead className="text-right">Huur €/m²/jr</TableHead>
+                    <TableHead className="text-right">Huur / m²</TableHead>
                     <TableHead>Huurstatus</TableHead>
                     <TableHead className="text-right">Bouwjaar</TableHead>
                     <TableHead>Energielabel</TableHead>
