@@ -327,3 +327,37 @@ Verhuur-sectie en hero huurders-KPI's op Objectdetail gebruiken nu `deriveVerhuu
 ### Open punten
 - Deal Cockpit en lijstweergaves (ObjectenPage) consumeren nog `object.huurinkomsten`/`object.aantalHuurders` direct; centraliseren in volgende prompt.
 - `store.huurMetrics` (DB-view) wordt nog niet gebruikt door Objectdetail; later kunnen we kiezen om de view geheel te vervangen door client-side derivation of beide te valideren.
+
+---
+
+## Prompt 3.4 — Dossier / Documenten / Media als bron van waarheid
+
+### Wijzigingen
+- **Documenten-sectie zichtbaarheid** (`ObjectDetailPage.tsx`): conditie versmald van
+  `documenten.length > 0 || fotos.length > 1` naar `documenten.length > 0`. Een gewone
+  hero-foto of fotogalerij activeert de Documenten-sectie niet langer. Foto-galerij-blok
+  intern uit Documenten-sectie verwijderd; media-beheer loopt via Object bewerken → Media-tab.
+- **Pand-sectie**: fallback-rij "Documentatie: Beschikbaar" (op basis van legacy
+  `documentenBeschikbaar`) verwijderd. Dossier-readiness (sectie Dossierstatus) is de
+  leidende bron voor documentstatus.
+- **Aanbieding & proces**: `documentatieStatus` blijft als tekstuele toelichting onder
+  "Documentatie-overzicht" (legacy/context), niet leidend voor readiness.
+- **Documenten-sectie** krijgt per groep (Documenten / Plattegronden) een kleine
+  "Beheren"-link die `openEdit('media')` aanroept.
+- **Quick Action "Document uploaden"** opent nu Object bewerken → Media-tab in plaats van
+  Dossier-tab Documenten.
+
+### Niet gewijzigd
+- Geen schemawijzigingen, geen migraties, geen bestaande data overschreven.
+- `documentenBeschikbaar` en `documentatieStatus` blijven bestaan als legacy-velden.
+- Media-tab in `ObjectFormDialog` is al gesplitst in Foto's / Plattegronden / Documenten
+  (Plattegronden gebruiken `DocumentenPanel` met `defaultType="plattegrond"` —
+  blijven dus los van gewone foto's).
+- Hoofdnummering ongewijzigd: Documenten staat in `UNNUMBERED_SECTIONS` en telt niet mee.
+
+### Open punten
+- `documentenBeschikbaar` en `documentatieStatus` kunnen in een latere prompt volledig
+  gedeprecateerd worden (UI + ObjectFormDialog veld weghalen) zodra dossier-checklist
+  volledig de bron is.
+- Lijstweergaven (ObjectenPage) tonen mogelijk nog `documentenBeschikbaar`-icoontjes;
+  evalueren in latere prompt.
