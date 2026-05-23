@@ -858,10 +858,11 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                       placeholder="bv. verhuurd aan supermarkt"
                     />
                   </Veld>
-                  <Veld label="Aantal huurders (aggregaat)">
+                  <Veld label="Aantal huurders (fallback)">
                     <Input type="number" value={form.aantalHuurders ?? ''}
                       onChange={e => set('aantalHuurders', num(e.target.value))}
-                      placeholder="Automatisch: onderstaand beheer" />
+                      placeholder="Alleen gebruikt als er geen huurdersregels zijn" />
+                    <p className="text-[11px] text-muted-foreground mt-1">Als huurdersregels aanwezig zijn, wordt het huurdersaantal op detailniveau daarvan afgeleid.</p>
                   </Veld>
                   <Veld label="Leegstand (%)">
                     <Input type="number" step="0.1" value={form.leegstandPct ?? ''}
