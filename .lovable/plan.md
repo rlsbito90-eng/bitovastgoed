@@ -301,3 +301,29 @@ Opgeslagen `brutoAanvangsrendement`, `nettoAanvangsrendement`, `noi` en `huurPer
 - 36 derivation-tests groen.
 - TypeScript build schoon.
 - Geen schemawijziging, geen migratie, geen data overschreven.
+
+## Prompt 3.3 — Verhuur-sectie + huurders-KPI's via centrale verhuur-helper
+
+### Scope
+Verhuur-sectie en hero huurders-KPI's op Objectdetail gebruiken nu `deriveVerhuurMetrics` uit `src/lib/derivations/verhuur.ts`. Huurdersregels zijn leidend zodra aanwezig; objectniveau-velden (`aantalHuurders`, `huurinkomsten`, `leegstandPct`) blijven fallback.
+
+### Wijzigingen
+- `ObjectDetailPage.tsx`:
+  - `deriveVerhuurMetrics(object, huurders)` als centrale bron; legacy `store.getHuurMetrics(object.id)` niet meer geconsumeerd op detail (store-veld blijft bestaan voor andere modules).
+  - Hero WALT/WALB-strip toont nu `verhuur.aantalHuurders`, `waltJaren.toFixed(1)`, `walbJaren.toFixed(1)`.
+  - Verhuur-sectie: aantal huurders, leegstand en totale jaarhuur via `verhuur.*`. Label wordt "(indicatie)" als bron `object` is.
+  - "Totale jaarhuur"-tile bevat nu maandhuur als sub-hint (`/mnd`).
+  - Soft mismatch-banners (AlertCircle, amber-500, klein) bij `warnings.rentMismatch` of `warnings.tenantCountMismatch`; alleen zichtbaar als huurdersregels bestaan. Geen save-blokker.
+- `ObjectFormDialog.tsx`:
+  - Label "Aantal huurders (aggregaat)" → "Aantal huurders (fallback)" + helpertekst.
+  - Helpertekst onder "Totale huurinkomsten (€/jr)" markeert het als fallback/indicatie.
+  - Geen schemawijziging; objectvelden blijven schrijfbaar en worden niet automatisch overschreven door huurdersregels.
+
+### Validatie
+- Bestaande 8 verhuur-tests + overige 28 derivation-tests groen (36 totaal).
+- TypeScript build schoon.
+- Geen schemawijziging, geen migratie, geen data overschreven.
+
+### Open punten
+- Deal Cockpit en lijstweergaves (ObjectenPage) consumeren nog `object.huurinkomsten`/`object.aantalHuurders` direct; centraliseren in volgende prompt.
+- `store.huurMetrics` (DB-view) wordt nog niet gebruikt door Objectdetail; later kunnen we kiezen om de view geheel te vervangen door client-side derivation of beide te valideren.
