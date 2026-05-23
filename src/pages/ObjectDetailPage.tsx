@@ -601,6 +601,12 @@ export default function ObjectDetailPage() {
     [object.postcode, object.plaats].filter(Boolean).join(' '),
     object.provincie,
   ].filter(Boolean).join(', ') || object.publiekeRegio || object.plaats || object.provincie || 'Locatie onbekend';
+  const mapsUrl = buildMapsUrl({
+    adres: object.adres,
+    postcode: object.postcode,
+    plaats: object.plaats ?? object.publiekeRegio,
+    provincie: object.provincie,
+  });
 
   return (
     <div className="page-shell-detail">
