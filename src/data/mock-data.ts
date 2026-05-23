@@ -347,6 +347,13 @@ export interface ObjectVastgoed {
   // Potentie
   ontwikkelPotentie: boolean;
   transformatiePotentie: boolean;
+  potentieOmschrijving?: string;
+  potentieStrategie?: string;
+  potentieExtraM2?: number;
+  potentieExtraUnits?: number;
+  potentieOnderbouwingStatus?: string;
+  potentieAfhankelijkheden?: string;
+  potentieBron?: string;
 
   // Thesis
   samenvatting?: string;
