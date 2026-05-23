@@ -49,11 +49,12 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
+import { isStrongMatch, STRONG_MATCH_THRESHOLD } from '@/lib/derivations';
 
 const STORAGE_KEY = 'bito-notifications-v2';
 const CREATED_IDS_KEY = 'bito-notifications-created-ids-v1';
 const INIT_FLAG = 'bito-notifications-initialized-v3';
-const STRONG_MATCH_MIN = 5; // ~ "boven 85%" op 0..5 schaal
+// Sterke-match drempel komt uit centrale matching helper (0–100 schaal).
 const MAX_NOTIFICATIONS = 200;
 const MAX_CREATED_IDS = 2000;
 
