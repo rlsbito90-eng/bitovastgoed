@@ -420,6 +420,11 @@ export default function ObjectDetailPage() {
   const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [editInitialTab, setEditInitialTab] = useState<string>('algemeen');
+  const openEdit = (tab: string = 'algemeen') => {
+    setEditInitialTab(tab);
+    setEditOpen(true);
+  };
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
