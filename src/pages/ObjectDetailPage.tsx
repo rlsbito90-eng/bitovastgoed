@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -28,7 +28,7 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal,
+  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -202,20 +202,44 @@ function SectionAnchor({
   );
 }
 
-/** Sticky section nav (cockpit subnav) */
-const SECTIONS = [
+/** Helpers — bepalen of conditionele detail-secties zichtbaar moeten zijn */
+function hasPotentieData(o: any): boolean {
+  return !!(o && (o.ontwikkelPotentie || o.transformatiePotentie || o.potentieOmschrijving ||
+    o.potentieStrategie || o.potentieExtraM2 != null || o.potentieExtraUnits != null ||
+    o.potentieOnderbouwingStatus || o.potentieAfhankelijkheden || o.potentieBron));
+}
+function hasJuridischData(o: any): boolean {
+  return !!(o && (o.eigendomssituatie || o.erfpachtinformatie || o.bestemmingsinformatie ||
+    o.kadastraalNummer || o.kadastraleGemeente || o.kadastraleSectie));
+}
+function hasContactenData(o: any): boolean {
+  return !!(o && (o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
+    o.contactNaam || o.contactEmail || o.contactTelefoon));
+}
+
+/** Sticky section nav (cockpit subnav) — vaste basis, conditioneel uitgebreid in page */
+type SectionDef = { id: string; label: string; icon: any };
+
+const BASE_SECTIONS: SectionDef[] = [
   { id: 'overzicht', label: 'Overzicht', icon: Info },
   { id: 'financieel', label: 'Financieel', icon: LineChart },
+  { id: 'verhuur', label: 'Verhuur', icon: Users },
+  { id: 'pand', label: 'Pand', icon: Building2 },
+  // potentie (conditioneel) wordt hier dynamisch tussen geplaatst
+  // juridisch (conditioneel)
+  // contacten (conditioneel)
+  { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
+  { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
   { id: 'dealflow', label: 'Dealflow', icon: Activity },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'documenten', label: 'Documenten', icon: FolderOpen },
-  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
+  { id: 'vastgoedrekenen', label: 'Rekenen', icon: Calculator },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
 ];
 
 /** Mobile-only sectiebar items — op desktop staan deze al in de rechter sidebar */
-const MOBILE_ONLY_SECTIONS = [
+const MOBILE_ONLY_SECTIONS: SectionDef[] = [
   { id: 'deal-cockpit', label: 'Cockpit', icon: Target },
   { id: 'next-action', label: 'Next action', icon: Calendar },
   { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
@@ -223,7 +247,7 @@ const MOBILE_ONLY_SECTIONS = [
 
 
 
-function SectionNav({ active }: { active: string }) {
+function SectionNav({ active, sections }: { active: string; sections: SectionDef[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -299,7 +323,7 @@ function SectionNav({ active }: { active: string }) {
         className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
         style={{ scrollbarWidth: 'none' }}
       >
-        {SECTIONS.map((s) => {
+        {sections.map((s) => {
           const isActive = active === s.id;
           return (
             <a
@@ -367,6 +391,21 @@ export default function ObjectDetailPage() {
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
   const scrollLockRef = useRef<number>(0);
+
+  // Conditioneel zichtbare secties → ook gebruikt door scrollspy en sectiebar.
+  const sections = useMemo<SectionDef[]>(() => {
+    const out: SectionDef[] = [];
+    for (const s of BASE_SECTIONS) {
+      out.push(s);
+      if (s.id === 'pand') {
+        if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
+        if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
+        if (object && hasContactenData(object)) out.push({ id: 'contacten', label: 'Contacten', icon: ContactIcon });
+      }
+    }
+    return out;
+  }, [object]);
+
 
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
@@ -443,7 +482,7 @@ export default function ObjectDetailPage() {
   // Wanneer near bottom: forceer laatste zichtbare sectie. Respecteert scrollLockRef.
   useEffect(() => {
     const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-    const sectionsToObserve = isDesktop ? SECTIONS : [...SECTIONS, ...MOBILE_ONLY_SECTIONS];
+    const sectionsToObserve = isDesktop ? sections : [...sections, ...MOBILE_ONLY_SECTIONS];
 
     const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
       let el: HTMLElement | null = node?.parentElement ?? null;
@@ -917,7 +956,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           STICKY SECTION NAV
           ================================================= */}
-      <SectionNav active={activeSection} />
+      <SectionNav active={activeSection} sections={sections} />
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
@@ -926,7 +965,7 @@ export default function ObjectDetailPage() {
         {/* LEFT — content */}
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
-          {/* ============ 1. OVERZICHT ============ */}
+          {/* ============ 1. OVERZICHT — Identificatie + Locatie + Classificatie ============ */}
           <SectionAnchor id="overzicht" eyebrow="01 — Asset" title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <ClassificatieRij
@@ -981,372 +1020,14 @@ export default function ObjectDetailPage() {
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 hairline pt-5">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 hairline pt-5">
                 <Field label="Type vastgoed">{propertyTypeLabel}</Field>
                 {subtypeLabel && <Field label="Subtype">{subtypeLabel}</Field>}
                 {dealTypeLabels.length > 0 && <Field label="Dealtype / propositie">{dealTypeLabels.join(', ')}</Field>}
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4 hairline pt-5">
-                <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
-                {object.aantalHuurders != null && (
-                  <Field label="Aantal huurders"><span className="tabular-nums">{object.aantalHuurders}</span></Field>
-                )}
-                {object.leegstandPct != null && (
-                  <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
-                )}
-                {/* aanbiedingswijze + bron staan al in Identificatie-blok — niet dupliceren */}
-                {object.beschikbaarVanaf && (
-                  <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
-                )}
-                {object.bouwjaar != null && (
-                  <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar}</span></Field>
-                )}
-                {(object.energielabelV2 || object.energielabel) && (
-                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
-                )}
-                {object.onderhoudsstaatNiveau && (
-                  <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
-                )}
-                {!object.onderhoudsstaatNiveau && object.onderhoudsstaat && (
-                  <Field label="Onderhoudsstaat">{object.onderhoudsstaat}</Field>
-                )}
-                {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
-                {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
-                {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
-                {object.ontwikkelPotentie && (<Field label="Ontwikkelpotentie">Ja</Field>)}
-                {object.transformatiePotentie && (<Field label="Transformatie">Ja</Field>)}
-                {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
-                {/* documentenBeschikbaar: alleen tonen als fallback wanneer geen documentatiestatus uit dossier-catalog bekend is */}
-                {documentatieStatusRows.length === 0 && object.documentenBeschikbaar && (
-                  <Field label="Documentatie">Beschikbaar</Field>
-                )}
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
-
-
-              {(object.oppervlakteVvo || object.oppervlakteBvo || object.oppervlakteGbo || object.perceelOppervlakte) && (
-                <div className="hairline pt-5">
-                  <p className="field-label mb-2">Oppervlakten (NEN 2580)</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {object.oppervlakteVvo && (
-                      <div className="text-sm"><span className="text-muted-foreground">VVO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteVvo)}</span></div>
-                    )}
-                    {object.oppervlakteBvo && (
-                      <div className="text-sm"><span className="text-muted-foreground">BVO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteBvo)}</span></div>
-                    )}
-                    {object.oppervlakteGbo && (
-                      <div className="text-sm"><span className="text-muted-foreground">GBO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteGbo)}</span></div>
-                    )}
-                    {object.perceelOppervlakte && (
-                      <div className="text-sm"><span className="text-muted-foreground">Perceel:</span> <span className="font-mono-data">{formatM2(object.perceelOppervlakte)}</span></div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {object.oppervlaktenPerVerdieping && object.oppervlaktenPerVerdieping.length > 0 && (
-                <div className="hairline pt-5">
-                  <p className="field-label mb-2">Oppervlakten per verdieping</p>
-                  <div className="overflow-x-auto rounded-md border border-border/60">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/40 text-xs text-muted-foreground">
-                        <tr>
-                          <th className="text-left font-medium px-3 py-2">Verdieping</th>
-                          <th className="text-right font-medium px-3 py-2">VVO</th>
-                          <th className="text-right font-medium px-3 py-2">BVO</th>
-                          <th className="text-left font-medium px-3 py-2">Bestemming</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {object.oppervlaktenPerVerdieping.map((rij, index) => (
-                          <tr key={`${rij.verdieping}-${index}`} className="border-t border-border/40">
-                            <td className="px-3 py-2 font-medium">{rij.verdieping || '—'}</td>
-                            <td className="px-3 py-2 text-right font-mono-data">{rij.vvo != null ? formatM2(rij.vvo) : '—'}</td>
-                            <td className="px-3 py-2 text-right font-mono-data">{rij.bvo != null ? formatM2(rij.bvo) : '—'}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{rij.bestemming || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {(() => {
-                const huidigeM2 = object.oppervlakteVvo ?? object.oppervlakteBvo ?? object.oppervlakteGbo ?? null;
-                const extraM2 = object.potentieExtraM2 ?? null;
-                const totaalM2 = (huidigeM2 != null || extraM2 != null) ? ((huidigeM2 ?? 0) + (extraM2 ?? 0)) : null;
-                const huidigeUnits = object.aantalUnits ?? null;
-                const extraUnits = object.potentieExtraUnits ?? null;
-                const totaalUnits = (huidigeUnits != null || extraUnits != null) ? ((huidigeUnits ?? 0) + (extraUnits ?? 0)) : null;
-                const heeftPotentie =
-                  object.ontwikkelPotentie ||
-                  object.transformatiePotentie ||
-                  !!object.potentieOmschrijving ||
-                  !!object.potentieStrategie ||
-                  extraM2 != null ||
-                  extraUnits != null ||
-                  !!object.potentieOnderbouwingStatus ||
-                  !!object.potentieAfhankelijkheden ||
-                  !!object.potentieBron;
-                if (!heeftPotentie) return null;
-                const types: string[] = [];
-                if (object.ontwikkelPotentie) types.push('Ontwikkelpotentie');
-                if (object.transformatiePotentie) types.push('Transformatiepotentie');
-                const Kpi = ({ label, value }: { label: string; value: ReactNode }) => (
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3 min-w-0">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-                    <p className="mt-1 font-mono-data text-sm font-semibold break-words">{value}</p>
-                  </div>
-                );
-                return (
-                  <div className="hairline pt-5">
-                    <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-accent" />
-                        <h3 className="text-sm font-semibold text-foreground">Potentie &amp; mogelijkheden</h3>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setEditOpen(true)}
-                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" /> Potentie bewerken
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {types.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {types.map(t => (
-                            <span key={t} className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        {(huidigeM2 != null || extraM2 != null || totaalM2 != null) && (
-                          <div className="min-w-0">
-                            <p className="field-label mb-2">m²-overzicht</p>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Kpi label="Huidig" value={huidigeM2 != null ? formatM2(huidigeM2) : '—'} />
-                              <Kpi label="Extra mogelijk" value={extraM2 != null ? formatM2(extraM2) : '—'} />
-                              <Kpi label="Totaal na plan" value={totaalM2 != null ? formatM2(totaalM2) : '—'} />
-                            </div>
-                          </div>
-                        )}
-                        {(huidigeUnits != null || extraUnits != null || totaalUnits != null) && (
-                          <div className="min-w-0">
-                            <p className="field-label mb-2">Units-overzicht</p>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Kpi label="Huidig" value={huidigeUnits != null ? huidigeUnits.toLocaleString('nl-NL') : '—'} />
-                              <Kpi label="Extra mogelijk" value={extraUnits != null ? extraUnits.toLocaleString('nl-NL') : '—'} />
-                              <Kpi label="Totaal na plan" value={totaalUnits != null ? totaalUnits.toLocaleString('nl-NL') : '—'} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {(object.potentieStrategie || object.potentieOnderbouwingStatus) && (
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          {object.potentieStrategie && <Field label="Mogelijke strategie">{object.potentieStrategie}</Field>}
-                          {object.potentieOnderbouwingStatus && <Field label="Status onderbouwing">{object.potentieOnderbouwingStatus}</Field>}
-                        </div>
-                      )}
-
-                      {object.potentieOmschrijving && (
-                        <Field label="Potentieomschrijving">
-                          <p className="whitespace-pre-wrap text-sm break-words">{object.potentieOmschrijving}</p>
-                        </Field>
-                      )}
-                      {object.potentieAfhankelijkheden && (
-                        <Field label="Afhankelijkheden / risico's">
-                          <p className="whitespace-pre-wrap text-sm break-words">{object.potentieAfhankelijkheden}</p>
-                        </Field>
-                      )}
-                      {object.potentieBron && (
-                        <Field label="Bron / onderbouwing">
-                          <p className="whitespace-pre-wrap text-sm break-words text-muted-foreground">{object.potentieBron}</p>
-                        </Field>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-
-
-              {(object.samenvatting || object.investeringsthese || object.risicos || object.onderscheidendeKenmerken || object.opmerkingen) && (
-                <div className="space-y-4 hairline pt-5">
-                  {object.samenvatting && <Field label="Samenvatting">{object.samenvatting}</Field>}
-                  {object.investeringsthese && (
-                    <Field label="Investeringsthese">
-                      <pre className="whitespace-pre-wrap font-sans text-sm">{object.investeringsthese}</pre>
-                    </Field>
-                  )}
-                  {object.onderscheidendeKenmerken && (
-                    <Field label="Onderscheidende kenmerken">{object.onderscheidendeKenmerken}</Field>
-                  )}
-                  {object.risicos && (
-                    <Field label="Risico's">
-                      <pre className="whitespace-pre-wrap font-sans text-sm">{object.risicos}</pre>
-                    </Field>
-                  )}
-                  {object.opmerkingen && <Field label="Opmerkingen">{object.opmerkingen}</Field>}
-                </div>
-              )}
-
-              {object.interneOpmerkingen && (
-                <div className="bg-warning/5 border border-warning/20 rounded-md p-3.5">
-                  <p className="field-label text-warning">Interne opmerking</p>
-                  <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{object.interneOpmerkingen}</p>
-                </div>
-              )}
             </div>
-
-            {/* Juridisch + Verkoper als sub-cards */}
-            {((object.eigendomssituatie || object.erfpachtinformatie || object.bestemmingsinformatie || object.kadastraalNummer) ||
-              (object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon)) && (
-              <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                {(object.eigendomssituatie || object.erfpachtinformatie || object.bestemmingsinformatie || object.kadastraalNummer) && (
-                  <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Juridisch & kadastraal</h3>
-                    <div className="space-y-3">
-                      {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
-                      {(object.kadastraleGemeente || object.kadastraalNummer) && (
-                        <Field label="Kadaster">
-                          {[object.kadastraleGemeente, object.kadastraleSectie, object.kadastraalNummer].filter(Boolean).join(' ')}
-                        </Field>
-                      )}
-                      {object.erfpachtinformatie && <Field label="Erfpacht">{object.erfpachtinformatie}</Field>}
-                      {object.bestemmingsinformatie && <Field label="Bestemming">{object.bestemmingsinformatie}</Field>}
-                    </div>
-                  </div>
-                )}
-                {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
-                  <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Verkoper</h3>
-                    <div className="space-y-3">
-                      {object.verkoperNaam && (
-                        <Field label="Naam">
-                          {object.verkoperNaam}
-                          {object.verkoperRol && <span className="text-muted-foreground"> · {object.verkoperRol}</span>}
-                        </Field>
-                      )}
-                      <Field label="Via">{VERKOPER_VIA_LABELS[object.verkoperVia ?? 'onbekend']}</Field>
-                      {object.verkoperTelefoon && (
-                        <Field label="Telefoon">
-                          <a href={`tel:${object.verkoperTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Phone className="h-3.5 w-3.5" />{object.verkoperTelefoon}
-                          </a>
-                        </Field>
-                      )}
-                      {object.verkoperEmail && (
-                        <Field label="E-mail">
-                          <a href={`mailto:${object.verkoperEmail}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Mail className="h-3.5 w-3.5" />{object.verkoperEmail}
-                          </a>
-                        </Field>
-                      )}
-                      {object.verkoopmotivatie && <Field label="Verkoopmotivatie">{object.verkoopmotivatie}</Field>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Aanbieding & proces — commerciële/processtukken uit edit */}
-            {(object.propositie || object.objectomschrijving || object.locatieOmschrijving ||
-              object.technischeStaatOmschrijving || object.procesVoorwaarden || object.dataroomUrl ||
-              documentatieStatusRows.length > 0 || verborgenImSecties.length > 0) && (
-              <div className="section-card p-5 sm:p-6 space-y-4 mt-4">
-                <h3 className="section-title">Aanbieding & proces</h3>
-                <div className="space-y-4">
-                  {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
-                  {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
-                  {object.locatieOmschrijving && <Field label="Locatie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>}
-                  {object.technischeStaatOmschrijving && <Field label="Technische staat"><pre className="whitespace-pre-wrap font-sans text-sm">{object.technischeStaatOmschrijving}</pre></Field>}
-                  {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
-                  {object.dataroomUrl && (
-                    <Field label="Dataroom">
-                      <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
-                        {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
-                      </a>
-                    </Field>
-                  )}
-                  {documentatieStatusRows.length > 0 && (
-                    <Field label="Documentatie-overzicht">
-                      <div className="flex flex-wrap gap-1.5">
-                        {documentatieStatusRows.map(([type, status]) => (
-                          <span key={type} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
-                            {DOCUMENT_TYPE_LABELS[type as keyof typeof DOCUMENT_TYPE_LABELS] ?? type}: {status === 'beschikbaar' ? 'beschikbaar' : status === 'op_aanvraag' ? 'op aanvraag' : 'na NDA'}
-                          </span>
-                        ))}
-                      </div>
-                    </Field>
-                  )}
-                  {verborgenImSecties.length > 0 && (
-                    <Field label="Niet getoond in IM">
-                      <div className="flex flex-wrap gap-1.5">
-                        {verborgenImSecties.map(key => (
-                          <span
-                            key={key}
-                            className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground"
-                          >
-                            {IM_SECTIE_LABELS[key] ?? key}
-                          </span>
-                        ))}
-                      </div>
-                    </Field>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Onderhoud & investeringen */}
-            {(object.recenteInvesteringen || object.achterstalligOnderhoud) && (
-              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
-                <h3 className="section-title">Onderhoud & investeringen</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {object.recenteInvesteringen && <Field label="Recente investeringen"><pre className="whitespace-pre-wrap font-sans text-sm">{object.recenteInvesteringen}</pre></Field>}
-                  {object.achterstalligOnderhoud && <Field label="Achterstallig onderhoud"><pre className="whitespace-pre-wrap font-sans text-sm">{object.achterstalligOnderhoud}</pre></Field>}
-                </div>
-              </div>
-            )}
-
-            {/* Contactpersoon object (publiek) */}
-            {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
-              <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
-                <h3 className="section-title">Contactpersoon</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {object.contactNaam && (
-                    <Field label="Naam">
-                      {object.contactNaam}
-                      {object.contactFunctie && <span className="text-muted-foreground"> · {object.contactFunctie}</span>}
-                    </Field>
-                  )}
-                  {object.contactTelefoon && (
-                    <Field label="Telefoon">
-                      <a href={`tel:${object.contactTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
-                        <Phone className="h-3.5 w-3.5" />{object.contactTelefoon}
-                      </a>
-                    </Field>
-                  )}
-                  {object.contactEmail && (
-                    <Field label="E-mail">
-                      <a href={`mailto:${object.contactEmail}`} className="hover:text-accent inline-flex items-center gap-1">
-                        <Mail className="h-3.5 w-3.5" />{object.contactEmail}
-                      </a>
-                    </Field>
-                  )}
-                </div>
-              </div>
-            )}
           </SectionAnchor>
-
 
           {/* ============ 2. FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow="02 — Financials" title="Financieel">
@@ -1437,7 +1118,6 @@ export default function ObjectDetailPage() {
                 </div>
               )}
 
-              {/* Financiële scenario's */}
               {object.financieleScenarios && (
                 object.financieleScenarios.huidig || object.financieleScenarios.marktconform || object.financieleScenarios.naRenovatie
               ) && (
@@ -1484,8 +1164,41 @@ export default function ObjectDetailPage() {
               </div>
             </div>
 
+            {object.referentieanalyseZichtbaar !== false && (
+              <div className="mt-4">
+                <ObjectReferentieAnalyseSectie object={object} />
+              </div>
+            )}
+          </SectionAnchor>
 
-            {/* HUURDERS als sub-card binnen financieel */}
+
+          {/* ============ VERHUUR ============ */}
+          <SectionAnchor id="verhuur" eyebrow="03 — Verhuur" title="Verhuur">
+            <div className="section-card p-5 sm:p-6 space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
+                <Field label="Verhuurstatus"><span className="capitalize">{object.verhuurStatus}</span></Field>
+                {object.huidigGebruik && (<Field label="Huidig gebruik">{object.huidigGebruik}</Field>)}
+                {object.aantalHuurders != null && (
+                  <Field label="Aantal huurders"><span className="tabular-nums">{object.aantalHuurders}</span></Field>
+                )}
+                {object.leegstandPct != null && (
+                  <Field label="Leegstand"><span className="font-mono-data">{formatPercent(object.leegstandPct)}</span></Field>
+                )}
+                {object.beschikbaarVanaf && (
+                  <Field label="Beschikbaar vanaf"><span className="tabular-nums">{formatDate(object.beschikbaarVanaf)}</span></Field>
+                )}
+              </div>
+
+              {huurMetrics && huurMetrics.aantalHuurders > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 hairline pt-5">
+                  <MetricTile label="Huurders" value={huurMetrics.aantalHuurders.toString()} />
+                  <MetricTile label="Totale jaarhuur" value={formatCurrencyCompact(huurMetrics.totaleJaarhuur)} />
+                  <MetricTile label="WALT" value={huurMetrics.waltJaren != null ? `${huurMetrics.waltJaren} jr` : '—'} />
+                  <MetricTile label="WALB" value={huurMetrics.walbJaren != null ? `${huurMetrics.walbJaren} jr` : '—'} />
+                </div>
+              )}
+            </div>
+
             {huurders.length > 0 && (
               <div className="section-card p-5 sm:p-6 space-y-3 mt-4">
                 <h3 className="section-title">Huurders ({huurders.length})</h3>
@@ -1514,13 +1227,335 @@ export default function ObjectDetailPage() {
                 </div>
               </div>
             )}
+          </SectionAnchor>
 
-            {object.referentieanalyseZichtbaar !== false && (
-              <div className="mt-4">
-                <ObjectReferentieAnalyseSectie object={object} />
+          {/* ============ PAND & TECHNISCHE STAAT ============ */}
+          <SectionAnchor id="pand" eyebrow="04 — Pand" title="Pand & technische staat">
+            <div className="section-card p-5 sm:p-6 space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
+                {object.bouwjaar != null && (
+                  <Field label="Bouwjaar"><span className="tabular-nums">{object.bouwjaar}</span></Field>
+                )}
+                {(object.energielabelV2 || object.energielabel) && (
+                  <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
+                )}
+                {object.onderhoudsstaatNiveau && (
+                  <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
+                )}
+                {!object.onderhoudsstaatNiveau && object.onderhoudsstaat && (
+                  <Field label="Onderhoudsstaat">{object.onderhoudsstaat}</Field>
+                )}
+                {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
+                {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
+                {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
+                {documentatieStatusRows.length === 0 && object.documentenBeschikbaar && (
+                  <Field label="Documentatie">Beschikbaar</Field>
+                )}
+              </div>
+
+              {(object.oppervlakteVvo || object.oppervlakteBvo || object.oppervlakteGbo || object.perceelOppervlakte) && (
+                <div className="hairline pt-5">
+                  <p className="field-label mb-2">Oppervlakten (NEN 2580)</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {object.oppervlakteVvo && (
+                      <div className="text-sm"><span className="text-muted-foreground">VVO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteVvo)}</span></div>
+                    )}
+                    {object.oppervlakteBvo && (
+                      <div className="text-sm"><span className="text-muted-foreground">BVO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteBvo)}</span></div>
+                    )}
+                    {object.oppervlakteGbo && (
+                      <div className="text-sm"><span className="text-muted-foreground">GBO:</span> <span className="font-mono-data">{formatM2(object.oppervlakteGbo)}</span></div>
+                    )}
+                    {object.perceelOppervlakte && (
+                      <div className="text-sm"><span className="text-muted-foreground">Perceel:</span> <span className="font-mono-data">{formatM2(object.perceelOppervlakte)}</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {object.oppervlaktenPerVerdieping && object.oppervlaktenPerVerdieping.length > 0 && (
+                <div className="hairline pt-5">
+                  <p className="field-label mb-2">Oppervlakten per verdieping</p>
+                  <div className="overflow-x-auto rounded-md border border-border/60">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs text-muted-foreground">
+                        <tr>
+                          <th className="text-left font-medium px-3 py-2">Verdieping</th>
+                          <th className="text-right font-medium px-3 py-2">VVO</th>
+                          <th className="text-right font-medium px-3 py-2">BVO</th>
+                          <th className="text-left font-medium px-3 py-2">Bestemming</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {object.oppervlaktenPerVerdieping.map((rij, index) => (
+                          <tr key={`${rij.verdieping}-${index}`} className="border-t border-border/40">
+                            <td className="px-3 py-2 font-medium">{rij.verdieping || '—'}</td>
+                            <td className="px-3 py-2 text-right font-mono-data">{rij.vvo != null ? formatM2(rij.vvo) : '—'}</td>
+                            <td className="px-3 py-2 text-right font-mono-data">{rij.bvo != null ? formatM2(rij.bvo) : '—'}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{rij.bestemming || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {object.technischeStaatOmschrijving && (
+                <div className="hairline pt-5">
+                  <Field label="Technische staat">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.technischeStaatOmschrijving}</pre>
+                  </Field>
+                </div>
+              )}
+
+              {(object.recenteInvesteringen || object.achterstalligOnderhoud) && (
+                <div className="hairline pt-5 grid sm:grid-cols-2 gap-4">
+                  {object.recenteInvesteringen && <Field label="Recente investeringen"><pre className="whitespace-pre-wrap font-sans text-sm">{object.recenteInvesteringen}</pre></Field>}
+                  {object.achterstalligOnderhoud && <Field label="Achterstallig onderhoud"><pre className="whitespace-pre-wrap font-sans text-sm">{object.achterstalligOnderhoud}</pre></Field>}
+                </div>
+              )}
+            </div>
+          </SectionAnchor>
+
+          {/* ============ POTENTIE & MOGELIJKHEDEN (conditioneel) ============ */}
+          {hasPotentieData(object) && (() => {
+            const huidigeM2 = object.oppervlakteVvo ?? object.oppervlakteBvo ?? object.oppervlakteGbo ?? null;
+            const extraM2 = object.potentieExtraM2 ?? null;
+            const totaalM2 = (huidigeM2 != null || extraM2 != null) ? ((huidigeM2 ?? 0) + (extraM2 ?? 0)) : null;
+            const huidigeUnits = object.aantalUnits ?? null;
+            const extraUnits = object.potentieExtraUnits ?? null;
+            const totaalUnits = (huidigeUnits != null || extraUnits != null) ? ((huidigeUnits ?? 0) + (extraUnits ?? 0)) : null;
+            const types: string[] = [];
+            if (object.ontwikkelPotentie) types.push('Ontwikkelpotentie');
+            if (object.transformatiePotentie) types.push('Transformatiepotentie');
+            const Kpi = ({ label, value }: { label: string; value: ReactNode }) => (
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-3 min-w-0">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="mt-1 font-mono-data text-sm font-semibold break-words">{value}</p>
+              </div>
+            );
+            return (
+              <SectionAnchor id="potentie" eyebrow="05 — Upside" title="Potentie & mogelijkheden">
+                <div className="section-card p-5 sm:p-6 space-y-4">
+                  {types.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {types.map(t => (
+                        <span key={t} className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {(huidigeM2 != null || extraM2 != null || totaalM2 != null) && (
+                      <div className="min-w-0">
+                        <p className="field-label mb-2">m²-overzicht</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Kpi label="Huidig" value={huidigeM2 != null ? formatM2(huidigeM2) : '—'} />
+                          <Kpi label="Extra mogelijk" value={extraM2 != null ? formatM2(extraM2) : '—'} />
+                          <Kpi label="Totaal na plan" value={totaalM2 != null ? formatM2(totaalM2) : '—'} />
+                        </div>
+                      </div>
+                    )}
+                    {(huidigeUnits != null || extraUnits != null || totaalUnits != null) && (
+                      <div className="min-w-0">
+                        <p className="field-label mb-2">Units-overzicht</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Kpi label="Huidig" value={huidigeUnits != null ? huidigeUnits.toLocaleString('nl-NL') : '—'} />
+                          <Kpi label="Extra mogelijk" value={extraUnits != null ? extraUnits.toLocaleString('nl-NL') : '—'} />
+                          <Kpi label="Totaal na plan" value={totaalUnits != null ? totaalUnits.toLocaleString('nl-NL') : '—'} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {(object.potentieStrategie || object.potentieOnderbouwingStatus) && (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {object.potentieStrategie && <Field label="Mogelijke strategie">{object.potentieStrategie}</Field>}
+                      {object.potentieOnderbouwingStatus && <Field label="Status onderbouwing">{object.potentieOnderbouwingStatus}</Field>}
+                    </div>
+                  )}
+
+                  {object.potentieOmschrijving && (
+                    <Field label="Potentieomschrijving">
+                      <p className="whitespace-pre-wrap text-sm break-words">{object.potentieOmschrijving}</p>
+                    </Field>
+                  )}
+                  {object.potentieAfhankelijkheden && (
+                    <Field label="Afhankelijkheden / risico's">
+                      <p className="whitespace-pre-wrap text-sm break-words">{object.potentieAfhankelijkheden}</p>
+                    </Field>
+                  )}
+                  {object.potentieBron && (
+                    <Field label="Bron / onderbouwing">
+                      <p className="whitespace-pre-wrap text-sm break-words text-muted-foreground">{object.potentieBron}</p>
+                    </Field>
+                  )}
+                </div>
+              </SectionAnchor>
+            );
+          })()}
+
+          {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
+          {hasJuridischData(object) && (
+            <SectionAnchor id="juridisch" eyebrow="06 — Legal" title="Juridisch & kadastraal">
+              <div className="section-card p-5 sm:p-6 space-y-3">
+                {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
+                {(object.kadastraleGemeente || object.kadastraalNummer) && (
+                  <Field label="Kadaster">
+                    {[object.kadastraleGemeente, object.kadastraleSectie, object.kadastraalNummer].filter(Boolean).join(' ')}
+                  </Field>
+                )}
+                {object.erfpachtinformatie && <Field label="Erfpacht">{object.erfpachtinformatie}</Field>}
+                {object.bestemmingsinformatie && <Field label="Bestemming">{object.bestemmingsinformatie}</Field>}
+              </div>
+            </SectionAnchor>
+          )}
+
+          {/* ============ CONTACTEN (conditioneel) ============ */}
+          {hasContactenData(object) && (
+            <SectionAnchor id="contacten" eyebrow="07 — Contacts" title="Contacten">
+              <div className="grid sm:grid-cols-2 gap-4">
+                {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
+                  <div className="section-card p-5 space-y-3">
+                    <h3 className="section-title">Verkoper / eigenaar / aanbieder</h3>
+                    <div className="space-y-3">
+                      {object.verkoperNaam && (
+                        <Field label="Naam">
+                          {object.verkoperNaam}
+                          {object.verkoperRol && <span className="text-muted-foreground"> · {object.verkoperRol}</span>}
+                        </Field>
+                      )}
+                      {object.verkoperVia && <Field label="Via">{VERKOPER_VIA_LABELS[object.verkoperVia] ?? object.verkoperVia}</Field>}
+                      {object.verkoperTelefoon && (
+                        <Field label="Telefoon">
+                          <a href={`tel:${object.verkoperTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
+                            <Phone className="h-3.5 w-3.5" />{object.verkoperTelefoon}
+                          </a>
+                        </Field>
+                      )}
+                      {object.verkoperEmail && (
+                        <Field label="E-mail">
+                          <a href={`mailto:${object.verkoperEmail}`} className="hover:text-accent inline-flex items-center gap-1">
+                            <Mail className="h-3.5 w-3.5" />{object.verkoperEmail}
+                          </a>
+                        </Field>
+                      )}
+                      {object.verkoopmotivatie && <Field label="Verkoopmotivatie">{object.verkoopmotivatie}</Field>}
+                    </div>
+                  </div>
+                )}
+                {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
+                  <div className="section-card p-5 space-y-3">
+                    <h3 className="section-title">Objectcontact / makelaar / tussenpersoon</h3>
+                    <div className="space-y-3">
+                      {object.contactNaam && (
+                        <Field label="Naam">
+                          {object.contactNaam}
+                          {object.contactFunctie && <span className="text-muted-foreground"> · {object.contactFunctie}</span>}
+                        </Field>
+                      )}
+                      {object.contactTelefoon && (
+                        <Field label="Telefoon">
+                          <a href={`tel:${object.contactTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
+                            <Phone className="h-3.5 w-3.5" />{object.contactTelefoon}
+                          </a>
+                        </Field>
+                      )}
+                      {object.contactEmail && (
+                        <Field label="E-mail">
+                          <a href={`mailto:${object.contactEmail}`} className="hover:text-accent inline-flex items-center gap-1">
+                            <Mail className="h-3.5 w-3.5" />{object.contactEmail}
+                          </a>
+                        </Field>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SectionAnchor>
+          )}
+
+          {/* ============ AANBIEDING & PROCES ============ */}
+          <SectionAnchor id="aanbieding" eyebrow="08 — Offering" title="Aanbieding & proces">
+            {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
+              object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
+              documentatieStatusRows.length > 0 || verborgenImSecties.length > 0 || object.interneOpmerkingen) ? (
+              <div className="section-card p-5 sm:p-6 space-y-4">
+                {object.samenvatting && <Field label="Samenvatting">{object.samenvatting}</Field>}
+                {object.investeringsthese && (
+                  <Field label="Investeringsthese">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.investeringsthese}</pre>
+                  </Field>
+                )}
+                {object.onderscheidendeKenmerken && (
+                  <Field label="Onderscheidende kenmerken">{object.onderscheidendeKenmerken}</Field>
+                )}
+                {object.risicos && (
+                  <Field label="Risico's">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.risicos}</pre>
+                  </Field>
+                )}
+                {object.opmerkingen && <Field label="Opmerkingen">{object.opmerkingen}</Field>}
+                {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
+                {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
+                {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
+                {object.dataroomUrl && (
+                  <Field label="Dataroom">
+                    <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
+                      {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
+                    </a>
+                  </Field>
+                )}
+                {documentatieStatusRows.length > 0 && (
+                  <Field label="Documentatie-overzicht">
+                    <div className="flex flex-wrap gap-1.5">
+                      {documentatieStatusRows.map(([type, status]) => (
+                        <span key={type} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
+                          {DOCUMENT_TYPE_LABELS[type as keyof typeof DOCUMENT_TYPE_LABELS] ?? type}: {status === 'beschikbaar' ? 'beschikbaar' : status === 'op_aanvraag' ? 'op aanvraag' : 'na NDA'}
+                        </span>
+                      ))}
+                    </div>
+                  </Field>
+                )}
+                {verborgenImSecties.length > 0 && (
+                  <Field label="Niet getoond in IM">
+                    <div className="flex flex-wrap gap-1.5">
+                      {verborgenImSecties.map(key => (
+                        <span key={key} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
+                          {IM_SECTIE_LABELS[key] ?? key}
+                        </span>
+                      ))}
+                    </div>
+                  </Field>
+                )}
+                {object.interneOpmerkingen && (
+                  <div className="bg-warning/5 border border-warning/20 rounded-md p-3.5">
+                    <p className="field-label text-warning">Interne opmerking</p>
+                    <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{object.interneOpmerkingen}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="section-card p-5 text-sm text-muted-foreground">
+                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => setEditOpen(true)} className="text-accent hover:underline">Object bewerken</button>.
               </div>
             )}
           </SectionAnchor>
+
+          {/* ============ DOSSIERSTATUS ============ */}
+          <SectionAnchor id="dossier" eyebrow="09 — Readiness" title="Dossierstatus">
+            <ObjectDossierCard
+              objectId={object.id}
+              objectRecord={object as unknown as Record<string, unknown>}
+              openTabRequest={dossierOpenRequest}
+            />
+          </SectionAnchor>
+
+
+
 
           {/* ============ 3. KANDIDATEN / MATCHING ============ */}
           <SectionAnchor
@@ -1617,11 +1652,8 @@ export default function ObjectDetailPage() {
             eyebrow="06 — Data room"
             title={`Documenten · ${documenten.length}`}
           >
-            <ObjectDossierCard
-              objectId={object.id}
-              objectRecord={object as unknown as Record<string, unknown>}
-              openTabRequest={dossierOpenRequest}
-            />
+            {/* Dossier-checklist staat in eigen Dossierstatus-sectie hierboven. */}
+
 
             {documenten.length > 0 ? (
               <div className="section-card p-5 sm:p-6 mt-4">
