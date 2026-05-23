@@ -338,7 +338,7 @@ export default function NotificationsBell() {
 
   // Bron-derived candidate notificaties berekenen.
   const matches = useMemo(
-    () => getAllMatchesFromData(store.zoekprofielen, store.objecten).filter((m) => m.score >= STRONG_MATCH_MIN),
+    () => getAllMatchesFromData(store.zoekprofielen, store.objecten).filter((m) => isStrongMatch(m.score)),
     [store.zoekprofielen, store.objecten],
   );
 
