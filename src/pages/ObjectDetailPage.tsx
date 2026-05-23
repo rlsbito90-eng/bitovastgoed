@@ -646,7 +646,8 @@ export default function ObjectDetailPage() {
 
   const huurders = store.getHuurdersVoorObject(object.id);
   const documenten = store.getDocumentenVoorObject(object.id);
-  const huurMetrics = store.getHuurMetrics(object.id);
+  // Centrale verhuur-derivation (Prompt 3.3): huurdersregels leidend, object fallback.
+  const verhuur = deriveVerhuurMetrics(object, huurders);
   const deals = store.getDealsByObject(object.id);
   const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
   const objectTaken = store.getTakenByObject(object.id);
