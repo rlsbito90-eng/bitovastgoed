@@ -238,7 +238,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-0.5 shrink-0">
           <RefreshButton />
           <MatchAlertBadge />
+          <NotificationsBell />
         </div>
+
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
