@@ -632,6 +632,22 @@ export default function ObjectDetailPage() {
     : (subcatLabel ?? object.subcategorie);
   const documentatieStatusRows = Object.entries(object.documentatieStatus ?? {})
     .filter(([, status]) => !!status);
+  const IM_SECTIE_LABELS: Record<string, string> = {
+    propositie: 'Propositie',
+    object: 'Objectomschrijving',
+    locatie: 'Locatie',
+    oppervlakten: 'Oppervlakten per verdieping',
+    huur: 'Huurinformatie',
+    financieel: "Financiële scenario's",
+    marktwaarde: 'Marktwaarde-indicatie',
+    technisch: 'Technische staat',
+    juridisch: 'Juridisch & kadaster',
+    duurzaamheid: 'Duurzaamheid / energielabel',
+    risicos: "Risico's",
+    documentatie: 'Documentatie-overzicht',
+    proces: 'Proces & voorwaarden',
+    contact: 'Contact',
+  };
   const verborgenImSecties = Object.entries(object.imSectiesZichtbaar ?? {})
     .filter(([, zichtbaar]) => zichtbaar === false)
     .map(([key]) => key);
