@@ -1006,6 +1006,112 @@ export default function ObjectDetailPage() {
                 </div>
               )}
 
+              {(() => {
+                const huidigeM2 = object.oppervlakteVvo ?? object.oppervlakteBvo ?? object.oppervlakteGbo ?? null;
+                const extraM2 = object.potentieExtraM2 ?? null;
+                const totaalM2 = (huidigeM2 != null || extraM2 != null) ? ((huidigeM2 ?? 0) + (extraM2 ?? 0)) : null;
+                const huidigeUnits = object.aantalUnits ?? null;
+                const extraUnits = object.potentieExtraUnits ?? null;
+                const totaalUnits = (huidigeUnits != null || extraUnits != null) ? ((huidigeUnits ?? 0) + (extraUnits ?? 0)) : null;
+                const heeftPotentie =
+                  object.ontwikkelPotentie ||
+                  object.transformatiePotentie ||
+                  !!object.potentieOmschrijving ||
+                  !!object.potentieStrategie ||
+                  extraM2 != null ||
+                  extraUnits != null ||
+                  !!object.potentieOnderbouwingStatus ||
+                  !!object.potentieAfhankelijkheden ||
+                  !!object.potentieBron;
+                if (!heeftPotentie) return null;
+                const types: string[] = [];
+                if (object.ontwikkelPotentie) types.push('Ontwikkelpotentie');
+                if (object.transformatiePotentie) types.push('Transformatiepotentie');
+                const Kpi = ({ label, value }: { label: string; value: ReactNode }) => (
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3 min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+                    <p className="mt-1 font-mono-data text-sm font-semibold break-words">{value}</p>
+                  </div>
+                );
+                return (
+                  <div className="hairline pt-5">
+                    <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-accent" />
+                        <h3 className="text-sm font-semibold text-foreground">Potentie &amp; mogelijkheden</h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Pencil className="h-3 w-3" /> Potentie bewerken
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {types.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {types.map(t => (
+                            <span key={t} className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {(huidigeM2 != null || extraM2 != null || totaalM2 != null) && (
+                          <div className="min-w-0">
+                            <p className="field-label mb-2">m²-overzicht</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Kpi label="Huidig" value={huidigeM2 != null ? formatM2(huidigeM2) : '—'} />
+                              <Kpi label="Extra mogelijk" value={extraM2 != null ? formatM2(extraM2) : '—'} />
+                              <Kpi label="Totaal na plan" value={totaalM2 != null ? formatM2(totaalM2) : '—'} />
+                            </div>
+                          </div>
+                        )}
+                        {(huidigeUnits != null || extraUnits != null || totaalUnits != null) && (
+                          <div className="min-w-0">
+                            <p className="field-label mb-2">Units-overzicht</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Kpi label="Huidig" value={huidigeUnits != null ? huidigeUnits.toLocaleString('nl-NL') : '—'} />
+                              <Kpi label="Extra mogelijk" value={extraUnits != null ? extraUnits.toLocaleString('nl-NL') : '—'} />
+                              <Kpi label="Totaal na plan" value={totaalUnits != null ? totaalUnits.toLocaleString('nl-NL') : '—'} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {(object.potentieStrategie || object.potentieOnderbouwingStatus) && (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          {object.potentieStrategie && <Field label="Mogelijke strategie">{object.potentieStrategie}</Field>}
+                          {object.potentieOnderbouwingStatus && <Field label="Status onderbouwing">{object.potentieOnderbouwingStatus}</Field>}
+                        </div>
+                      )}
+
+                      {object.potentieOmschrijving && (
+                        <Field label="Potentieomschrijving">
+                          <p className="whitespace-pre-wrap text-sm break-words">{object.potentieOmschrijving}</p>
+                        </Field>
+                      )}
+                      {object.potentieAfhankelijkheden && (
+                        <Field label="Afhankelijkheden / risico's">
+                          <p className="whitespace-pre-wrap text-sm break-words">{object.potentieAfhankelijkheden}</p>
+                        </Field>
+                      )}
+                      {object.potentieBron && (
+                        <Field label="Bron / onderbouwing">
+                          <p className="whitespace-pre-wrap text-sm break-words text-muted-foreground">{object.potentieBron}</p>
+                        </Field>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+
+
               {(object.samenvatting || object.investeringsthese || object.risicos || object.onderscheidendeKenmerken || object.opmerkingen) && (
                 <div className="space-y-4 hairline pt-5">
                   {object.samenvatting && <Field label="Samenvatting">{object.samenvatting}</Field>}
