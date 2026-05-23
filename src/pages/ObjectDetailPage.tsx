@@ -1167,11 +1167,7 @@ export default function ObjectDetailPage() {
               </div>
             </div>
 
-            {object.referentieanalyseZichtbaar !== false && (
-              <div className="mt-4">
-                <ObjectReferentieAnalyseSectie object={object} />
-              </div>
-            )}
+            {/* Referentieanalyse staat verderop in eigen sectie 'Referenties' */}
           </SectionAnchor>
 
 
