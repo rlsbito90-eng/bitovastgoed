@@ -1384,11 +1384,25 @@ export default function ObjectFormDialog({ open, onOpenChange, object }: Props) 
             <TabsContent value="media" className="space-y-6 mt-0">
               {objectId ? (
                 <>
-                  <Sectie titel="Foto's">
+                  <Sectie titel="Foto's" beschrijving="Upload objectfoto's voor de detailpagina, teaser en PDF.">
                     <FotosPanel objectId={objectId} />
                   </Sectie>
-                  <Sectie titel="Documenten">
-                    <DocumentenPanel objectId={objectId} />
+                  <Sectie titel="Plattegronden" beschrijving="Upload plattegronden, meetstaten of indelingsschetsen. Worden apart van gewone foto's bewaard.">
+                    <DocumentenPanel
+                      objectId={objectId}
+                      filterTypes={['plattegrond']}
+                      defaultType="plattegrond"
+                      hideTypeSelector
+                      acceptAttr="application/pdf,image/*"
+                      helpText="PDF, JPG, PNG, WEBP · max 25 MB per bestand"
+                      emptyText="Nog geen plattegronden geüpload."
+                    />
+                  </Sectie>
+                  <Sectie titel="Documenten" beschrijving="Upload verkoopdocumentatie, huurinformatie, juridische stukken en overige onderbouwing.">
+                    <DocumentenPanel
+                      objectId={objectId}
+                      excludeTypes={['plattegrond']}
+                    />
                   </Sectie>
                 </>
               ) : (
