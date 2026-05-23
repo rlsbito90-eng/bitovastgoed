@@ -922,7 +922,7 @@ export default function ScenarioEditor(props: Props) {
                     </div>
                     {ovbMode === 'per_component' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
-                        <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
                         <MobileFieldGroup label="OVB-classificatie">
                           <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
                             <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
