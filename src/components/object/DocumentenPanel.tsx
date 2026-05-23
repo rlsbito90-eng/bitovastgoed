@@ -18,12 +18,40 @@ import { toast } from 'sonner';
 
 interface Props {
   objectId: string;
+  /** Filter welke documenten zichtbaar zijn in dit paneel. */
+  filterTypes?: DocumentType[];
+  /** Sluit deze types uit (handig om plattegronden te scheiden van overige documenten). */
+  excludeTypes?: DocumentType[];
+  /** Forceer documenttype bij upload (overschrijft auto-detect). */
+  defaultType?: DocumentType;
+  /** Verberg de per-document type-selector. */
+  hideTypeSelector?: boolean;
+  /** Accept-attribuut voor file input. */
+  acceptAttr?: string;
+  /** Hulptekst onder de drop-zone. */
+  helpText?: string;
+  /** Tekst wanneer er geen documenten zijn. */
+  emptyText?: string;
 }
 
-export default function DocumentenPanel({ objectId }: Props) {
+export default function DocumentenPanel({
+  objectId,
+  filterTypes,
+  excludeTypes,
+  defaultType,
+  hideTypeSelector,
+  acceptAttr,
+  helpText,
+  emptyText,
+}: Props) {
   const { user } = useAuth();
   const store = useDataStore();
-  const docs = store.getDocumentenVoorObject(objectId);
+  const alleDocs = store.getDocumentenVoorObject(objectId);
+  const docs = alleDocs.filter(d => {
+    if (filterTypes && !filterTypes.includes(d.documenttype)) return false;
+    if (excludeTypes && excludeTypes.includes(d.documenttype)) return false;
+    return true;
+  });
   const [bezig, setBezig] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -40,7 +68,7 @@ export default function DocumentenPanel({ objectId }: Props) {
         const result = await uploadBestand(path, file);
         await store.addDocument({
           objectId,
-          documenttype: raadDocumentType(file.name),
+          documenttype: defaultType ?? raadDocumentType(file.name),
           bestandsnaam: result.bestandsnaam,
           storagePath: result.storagePath,
           bestandsgrootteBytes: result.bestandsgrootteBytes,
