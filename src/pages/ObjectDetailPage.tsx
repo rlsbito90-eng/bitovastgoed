@@ -604,6 +604,12 @@ export default function ObjectDetailPage() {
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
   const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
   const reedsGekoppeldRelaties = new Set<string>(kandidatenPipeline.map(k => k.relatieId));
+  // Totaal aantal kandidaten voor dit object — unieke union van top matches en pipeline-relaties.
+  const kandidatenTotaalIds = new Set<string>([
+    ...matches.map(m => m.relatieId),
+    ...kandidatenPipeline.map(k => k.relatieId),
+  ]);
+  const kandidatenTotaal = kandidatenTotaalIds.size;
   const volgendeTaak = (() => {
     const open = objectTaken
       .filter(t => t.status === 'open')
