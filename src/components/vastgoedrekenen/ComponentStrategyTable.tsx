@@ -27,6 +27,11 @@ type Props = {
 function f(u: SellOffUnit): Record<string, unknown> {
   return u as unknown as Record<string, unknown>;
 }
+function num(v: unknown): number | null | undefined {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 export default function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate, onDelete, onImport }: Props) {
   const totals = useMemo(() => aggregateStrategy(units), [units]);
