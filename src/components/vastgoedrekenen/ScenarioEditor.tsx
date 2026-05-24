@@ -22,6 +22,7 @@ import RekenbasisBar from './RekenbasisBar';
 import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
+import ComponentStrategyTable from './ComponentStrategyTable';
 import { Section } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
