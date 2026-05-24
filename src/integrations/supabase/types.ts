@@ -3003,11 +3003,21 @@ export type Database = {
       sell_off_units: {
         Row: {
           component_id: string | null
+          contribution_to_scenario_value: number | null
           created_at: string
           current_rent: number | null
           expected_sale_period_months: number | null
           expected_sale_value_rented: number | null
           expected_sale_value_vacant: number | null
+          hold_annual_rent: number | null
+          hold_bar: number | null
+          hold_factor: number | null
+          hold_monthly_rent: number | null
+          hold_nar: number | null
+          hold_rent_source: string | null
+          hold_valuation_method: string | null
+          hold_value_calculated: number | null
+          hold_value_manual: number | null
           id: string
           lease_term: string | null
           legal_costs: number | null
@@ -3015,14 +3025,23 @@ export type Database = {
           notes: string | null
           renovation_costs: number | null
           risk_level: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_costs_amount: number | null
+          sale_costs_pct: number | null
+          sale_price_per_m2: number | null
+          sale_price_source: string | null
+          sale_price_total: number | null
           sale_value_per_m2: number | null
           scenario_id: string
           selling_cost_amount: number | null
           selling_cost_percentage: number | null
+          sort_order: number
           splitting_costs: number | null
+          strategy: string | null
           surface_bvo: number | null
           surface_gbo: number | null
           surface_vvo: number | null
+          transformation_costs: number | null
+          unit_label: string | null
           unit_name: string
           unit_type: Database["public"]["Enums"]["vr_component_type"] | null
           updated_at: string
@@ -3032,11 +3051,21 @@ export type Database = {
         }
         Insert: {
           component_id?: string | null
+          contribution_to_scenario_value?: number | null
           created_at?: string
           current_rent?: number | null
           expected_sale_period_months?: number | null
           expected_sale_value_rented?: number | null
           expected_sale_value_vacant?: number | null
+          hold_annual_rent?: number | null
+          hold_bar?: number | null
+          hold_factor?: number | null
+          hold_monthly_rent?: number | null
+          hold_nar?: number | null
+          hold_rent_source?: string | null
+          hold_valuation_method?: string | null
+          hold_value_calculated?: number | null
+          hold_value_manual?: number | null
           id?: string
           lease_term?: string | null
           legal_costs?: number | null
@@ -3044,14 +3073,23 @@ export type Database = {
           notes?: string | null
           renovation_costs?: number | null
           risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_costs_amount?: number | null
+          sale_costs_pct?: number | null
+          sale_price_per_m2?: number | null
+          sale_price_source?: string | null
+          sale_price_total?: number | null
           sale_value_per_m2?: number | null
           scenario_id: string
           selling_cost_amount?: number | null
           selling_cost_percentage?: number | null
+          sort_order?: number
           splitting_costs?: number | null
+          strategy?: string | null
           surface_bvo?: number | null
           surface_gbo?: number | null
           surface_vvo?: number | null
+          transformation_costs?: number | null
+          unit_label?: string | null
           unit_name: string
           unit_type?: Database["public"]["Enums"]["vr_component_type"] | null
           updated_at?: string
@@ -3061,11 +3099,21 @@ export type Database = {
         }
         Update: {
           component_id?: string | null
+          contribution_to_scenario_value?: number | null
           created_at?: string
           current_rent?: number | null
           expected_sale_period_months?: number | null
           expected_sale_value_rented?: number | null
           expected_sale_value_vacant?: number | null
+          hold_annual_rent?: number | null
+          hold_bar?: number | null
+          hold_factor?: number | null
+          hold_monthly_rent?: number | null
+          hold_nar?: number | null
+          hold_rent_source?: string | null
+          hold_valuation_method?: string | null
+          hold_value_calculated?: number | null
+          hold_value_manual?: number | null
           id?: string
           lease_term?: string | null
           legal_costs?: number | null
@@ -3073,14 +3121,23 @@ export type Database = {
           notes?: string | null
           renovation_costs?: number | null
           risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
+          sale_costs_amount?: number | null
+          sale_costs_pct?: number | null
+          sale_price_per_m2?: number | null
+          sale_price_source?: string | null
+          sale_price_total?: number | null
           sale_value_per_m2?: number | null
           scenario_id?: string
           selling_cost_amount?: number | null
           selling_cost_percentage?: number | null
+          sort_order?: number
           splitting_costs?: number | null
+          strategy?: string | null
           surface_bvo?: number | null
           surface_gbo?: number | null
           surface_vvo?: number | null
+          transformation_costs?: number | null
+          unit_label?: string | null
           unit_name?: string
           unit_type?: Database["public"]["Enums"]["vr_component_type"] | null
           updated_at?: string
