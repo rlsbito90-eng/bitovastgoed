@@ -19,6 +19,8 @@ export type ComputeContext = {
   components: Component[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
+  /** Optionele componentstrategie-units (uit sell_off_units). */
+  strategyUnits?: SellOffUnit[];
   taxSettings: TaxSettings | null;
   objectType: 'enkelvoudig' | 'mixed_use';
   objectArea: number | null;
