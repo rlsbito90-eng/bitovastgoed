@@ -205,52 +205,101 @@ export function useScenarioChildren(scenarioId: string | undefined) {
 
   // --- Componentstrategie (sell_off_units) ---
   const createStrategyUnit = useCallback(async (patch: Record<string, unknown> = {}) => {
-    if (!scenarioId) return null;
-    const payload = { scenario_id: scenarioId, unit_label: 'Unit', strategy: 'later_beslissen', ...patch };
+    if (!scenarioId) {
+      toast.error('Vastgoedrekenen › Componentstrategie: scenario_id ontbreekt. Selecteer of bewaar eerst een scenario.');
+      return null;
+    }
+    const label = (patch.unit_label as string | undefined) ?? (patch.unit_name as string | undefined) ?? 'Unit';
+    const payload = {
+      scenario_id: scenarioId,
+      unit_name: label,
+      unit_label: label,
+      strategy: 'later_beslissen',
+      ...patch,
+    };
     const { data, error } = await supabase.from('sell_off_units').insert(payload as never).select('*').single();
-    if (error) { toast.error(mapDbError(error, 'Unit toevoegen mislukt')); return null; }
+    if (error) {
+      showAppErrorToast(error, { module: 'Vastgoedrekenen', section: 'Componentstrategie', record: label, action: 'Controleer naam, type en strategie.' });
+      return null;
+    }
     await fetchAll();
     return data as SellOffUnit;
   }, [scenarioId, fetchAll]);
 
   const updateStrategyUnit = useCallback(async (id: string, patch: Record<string, unknown>) => {
     const { error } = await supabase.from('sell_off_units').update(patch as never).eq('id', id);
-    if (error) toast.error(mapDbError(error, 'Unit opslaan mislukt'));
+    if (error) showAppErrorToast(error, { module: 'Vastgoedrekenen', section: 'Componentstrategie', action: 'Controleer ingevulde waarden.' });
     else await fetchAll();
   }, [fetchAll]);
 
   const deleteStrategyUnit = useCallback(async (id: string) => {
     const { error } = await supabase.from('sell_off_units').delete().eq('id', id);
-    if (error) toast.error('Verwijderen mislukt');
+    if (error) showAppErrorToast(error, { module: 'Vastgoedrekenen', section: 'Componentstrategie' });
     else await fetchAll();
   }, [fetchAll]);
 
   const importStrategyFromComponents = useCallback(async (mode: 'default' | 'hybrid' = 'default') => {
-    if (!scenarioId || components.length === 0) return;
+    if (!scenarioId) {
+      toast.error('Vastgoedrekenen › Componentstrategie: scenario_id ontbreekt. Bewaar eerst het scenario.');
+      return;
+    }
+    if (components.length === 0) {
+      toast.info('Geen componenten om te importeren. Voeg eerst componenten toe.');
+      return;
+    }
     const { defaultStrategyForType, hybridStrategyForType } = await import('@/lib/vastgoedrekenen/componentStrategy');
     const pick = mode === 'hybrid' ? hybridStrategyForType : defaultStrategyForType;
     const existingIds = new Set(sellOffUnits.map((u) => (u as unknown as { component_id?: string }).component_id).filter(Boolean));
-    const rows = components.filter((c) => !existingIds.has(c.id)).map((c) => ({
-      scenario_id: scenarioId,
-      component_id: c.id,
-      unit_label: c.component_name,
-      unit_type: c.component_type,
-      surface_gbo: c.surface_gbo,
-      surface_vvo: c.surface_vvo,
-      surface_bvo: c.surface_bvo,
-      hold_monthly_rent: c.current_monthly_rent,
-      hold_annual_rent: c.current_annual_rent,
-      strategy: pick(c.component_type),
-    }));
-    if (rows.length === 0) {
+    const toImport = components.filter((c) => !existingIds.has(c.id));
+    if (toImport.length === 0) {
       toast.info('Alle componenten zijn al geïmporteerd.');
       return;
     }
-    const { error } = await supabase.from('sell_off_units').insert(rows as never);
-    if (error) { toast.error(mapDbError(error, 'Importeren mislukt')); return; }
-    toast.success(`${rows.length} componenten geïmporteerd.`);
+
+    // Importeer per rij zodat we exact kunnen melden welke component faalt
+    // en niet-kritieke ontbrekende velden (oppervlakte, huur, …) niet blokkerend zijn.
+    const successes: string[] = [];
+    const failures: Array<{ name: string; message: string }> = [];
+    const warnings: string[] = [];
+
+    for (const c of toImport) {
+      const label = c.component_name?.trim() || 'Naamloze component';
+      const row = {
+        scenario_id: scenarioId,
+        component_id: c.id,
+        unit_name: label,           // verplicht in DB (not null)
+        unit_label: label,
+        unit_type: c.component_type ?? 'overig',
+        surface_gbo: c.surface_gbo ?? null,
+        surface_vvo: c.surface_vvo ?? null,
+        surface_bvo: c.surface_bvo ?? null,
+        hold_monthly_rent: c.current_monthly_rent ?? null,
+        hold_annual_rent: c.current_annual_rent ?? null,
+        strategy: pick(c.component_type),
+      };
+      const { error } = await supabase.from('sell_off_units').insert(row as never);
+      if (error) {
+        failures.push({
+          name: label,
+          message: describeDbError(error, {
+            module: 'Vastgoedrekenen',
+            section: 'Componentstrategie › Importeer uit componenten',
+            record: label,
+          }),
+        });
+      } else {
+        successes.push(label);
+        if (!c.surface_gbo) warnings.push(`${label}: oppervlakte (GBO) ontbreekt`);
+        if (!c.current_annual_rent && !c.current_monthly_rent) warnings.push(`${label}: huur ontbreekt`);
+      }
+    }
+
+    if (successes.length > 0) toast.success(`${successes.length} component(en) geïmporteerd.`);
+    for (const f of failures) toast.error(f.message);
+    if (warnings.length > 0) toast.warning(`Aanvullen aanbevolen:\n• ${warnings.slice(0, 5).join('\n• ')}${warnings.length > 5 ? `\n…en ${warnings.length - 5} meer` : ''}`);
     await fetchAll();
   }, [scenarioId, components, sellOffUnits, fetchAll]);
+
 
   return {
     components, costs, wwsUnits, sellOffUnits, risks, output, loading,
