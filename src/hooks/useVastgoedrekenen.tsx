@@ -203,8 +203,58 @@ export function useScenarioChildren(scenarioId: string | undefined) {
     if (error) toast.error(mapDbError(error, 'Opslaan outputs mislukt'));
   }, [scenarioId]);
 
+  // --- Componentstrategie (sell_off_units) ---
+  const createStrategyUnit = useCallback(async (patch: Record<string, unknown> = {}) => {
+    if (!scenarioId) return null;
+    const payload = { scenario_id: scenarioId, unit_label: 'Unit', strategy: 'later_beslissen', ...patch };
+    const { data, error } = await supabase.from('sell_off_units').insert(payload as never).select('*').single();
+    if (error) { toast.error(mapDbError(error, 'Unit toevoegen mislukt')); return null; }
+    await fetchAll();
+    return data as SellOffUnit;
+  }, [scenarioId, fetchAll]);
+
+  const updateStrategyUnit = useCallback(async (id: string, patch: Record<string, unknown>) => {
+    const { error } = await supabase.from('sell_off_units').update(patch as never).eq('id', id);
+    if (error) toast.error(mapDbError(error, 'Unit opslaan mislukt'));
+    else await fetchAll();
+  }, [fetchAll]);
+
+  const deleteStrategyUnit = useCallback(async (id: string) => {
+    const { error } = await supabase.from('sell_off_units').delete().eq('id', id);
+    if (error) toast.error('Verwijderen mislukt');
+    else await fetchAll();
+  }, [fetchAll]);
+
+  const importStrategyFromComponents = useCallback(async (mode: 'default' | 'hybrid' = 'default') => {
+    if (!scenarioId || components.length === 0) return;
+    const { defaultStrategyForType, hybridStrategyForType } = await import('@/lib/vastgoedrekenen/componentStrategy');
+    const pick = mode === 'hybrid' ? hybridStrategyForType : defaultStrategyForType;
+    const existingIds = new Set(sellOffUnits.map((u) => (u as unknown as { component_id?: string }).component_id).filter(Boolean));
+    const rows = components.filter((c) => !existingIds.has(c.id)).map((c) => ({
+      scenario_id: scenarioId,
+      component_id: c.id,
+      unit_label: c.component_name,
+      unit_type: c.component_type,
+      surface_gbo: c.surface_gbo,
+      surface_vvo: c.surface_vvo,
+      surface_bvo: c.surface_bvo,
+      hold_monthly_rent: c.current_monthly_rent,
+      hold_annual_rent: c.current_annual_rent,
+      strategy: pick(c.component_type),
+    }));
+    if (rows.length === 0) {
+      toast.info('Alle componenten zijn al geïmporteerd.');
+      return;
+    }
+    const { error } = await supabase.from('sell_off_units').insert(rows as never);
+    if (error) { toast.error(mapDbError(error, 'Importeren mislukt')); return; }
+    toast.success(`${rows.length} componenten geïmporteerd.`);
+    await fetchAll();
+  }, [scenarioId, components, sellOffUnits, fetchAll]);
+
   return {
     components, costs, wwsUnits, sellOffUnits, risks, output, loading,
     refetch: fetchAll, upsertOutput,
+    createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,
   };
 }

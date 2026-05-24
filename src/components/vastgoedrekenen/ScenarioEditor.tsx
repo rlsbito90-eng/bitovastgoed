@@ -22,6 +22,7 @@ import RekenbasisBar from './RekenbasisBar';
 import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
+import ComponentStrategyTable from './ComponentStrategyTable';
 import { Section } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
@@ -143,7 +144,7 @@ export default function ScenarioEditor(props: Props) {
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, loading: childrenLoading, refetch, upsertOutput } = useScenarioChildren(s.id);
+  const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
 
   useEffect(() => {
     if (childrenLoading || costDraftDirtyRef.current) return;
@@ -985,6 +986,19 @@ export default function ScenarioEditor(props: Props) {
                   </BerekeningUitleg>
                 )}
               </div>
+            </Section>
+
+            {/* 7b. Componentstrategie per scenario */}
+            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={sellOffUnits.length > 0 ? 'ok' : 'leeg'} defaultOpen={sellOffUnits.length > 0}>
+              <ComponentStrategyTable
+                units={sellOffUnits}
+                components={components}
+                asking={s.asking_price}
+                onCreate={createStrategyUnit}
+                onUpdate={updateStrategyUnit}
+                onDelete={deleteStrategyUnit}
+                onImport={importStrategyFromComponents}
+              />
             </Section>
 
             {/* 8. Onderbouwing & betrouwbaarheid */}

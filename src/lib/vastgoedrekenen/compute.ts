@@ -1,7 +1,7 @@
 // Orchestrator die alle Vastgoedrekenen-berekeningen samenbrengt
 // voor één scenario. Pure function — geen DB-calls.
 
-import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs } from './types';
+import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs, SellOffUnit } from './types';
 import { computeScenarioOvb } from './ovb';
 import {
   annualFromMonthly, getWwsCorrectedAnnualRent, pickCorrectedAnnualRent, bar as fnBar, factor as fnFactor,
@@ -12,12 +12,15 @@ import { computeInputReliability, computeRiskScore, computeComplexity, computeDe
 import { buildConclusion, buildNextStep } from './conclusie';
 import { getAssumptionSet, type PropertyAssumptionType } from './profiles';
 import { computeSale } from './verkoop';
+import { aggregateStrategy } from './componentStrategy';
 
 export type ComputeContext = {
   scenario: Scenario;
   components: Component[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
+  /** Optionele componentstrategie-units (uit sell_off_units). */
+  strategyUnits?: SellOffUnit[];
   taxSettings: TaxSettings | null;
   objectType: 'enkelvoudig' | 'mixed_use';
   objectArea: number | null;
@@ -236,11 +239,50 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? safeDiv(sale.netMargin, sellableM2)
     : null;
 
+  // --- Componentstrategie (optioneel) ---
+  const strategy = aggregateStrategy(ctx.strategyUnits ?? []);
+  // Bij actieve strategie: investering inclusief extra reno/transformatiekosten van hold-componenten.
+  const totalInvestmentWithStrategy = strategy.enabled
+    ? totalInvestment + strategy.extraInvestmentCosts
+    : totalInvestment;
+  const scenarioResultAtAsking = strategy.enabled && asking > 0
+    ? strategy.scenarioValue - (asking + ovb.totalOvb + acq.totalAcquisitionCosts + totals.total + financing + strategy.extraInvestmentCosts)
+    : null;
+  const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && totalInvestmentWithStrategy > 0
+    ? Number(((scenarioResultAtAsking / totalInvestmentWithStrategy) * 100).toFixed(2))
+    : null;
+  // Indicatieve max aankoopprijs: scenariowaarde minus alle niet-aankoopprijs gerelateerde
+  // kosten en gewenste marge (target_margin in € op total investment). OVB wordt iteratief
+  // bepaald via huidige OVB-helper: pass 1 met huidige OVB-tarief, pass 2 met aangepaste prijs.
+  function ovbPctEstimate(): number {
+    if (totalInvestment <= 0 || ovb.totalOvb === 0) {
+      // fallback: gebruik bestaand tarief uit scenario of OVB-default
+      return Number(scenario.transfer_tax_percentage ?? 10.4);
+    }
+    return purchase > 0 ? (ovb.totalOvb / purchase) * 100 : 10.4;
+  }
+  const targetMarginEur = Number(scenario.target_margin ?? 0);
+  let maxPurchasePrice: number | null = null;
+  if (strategy.enabled) {
+    const overheadExclOvb = acq.totalAcquisitionCosts + totals.total + financing + Number(scenario.safety_margin ?? 0) + strategy.extraInvestmentCosts + targetMarginEur;
+    const ovbPct = ovbPctEstimate();
+    // scenarioValue = price * (1 + ovbPct/100) + overheadExclOvb  →  price = (scenarioValue - overheadExclOvb) / (1 + ovbPct/100)
+    const denom = 1 + ovbPct / 100;
+    if (denom > 0) {
+      maxPurchasePrice = Math.max(0, Math.round((strategy.scenarioValue - overheadExclOvb) / denom));
+    }
+  }
+  const roundsAtAsking = strategy.enabled && asking > 0 && maxPurchasePrice != null
+    ? maxPurchasePrice >= asking
+    : null;
+
+  const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
+
   return {
     totalTransferTax: ovb.totalOvb,
     totalAcquisitionCosts: acq.totalAcquisitionCosts,
     totalCosts: totals.total,
-    totalInvestment,
+    totalInvestment: totalInvestmentWithStrategy,
     currentAnnualRent: currentAnnual,
     marketAnnualRent: marketAnnual,
     wwsCorrectedAnnualRent: wwsAnnual,
@@ -278,7 +320,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     scoreAttentionPoints,
     conclusion,
     recommendedNextStep: nextStep,
-    warnings: risk.flags,
+    warnings: combinedWarnings,
     saleHasInput: sale.hasAnySaleInput,
     grossSaleProceeds: sale.grossSaleProceeds,
     saleCostsTotal: sale.saleCostsTotal,
@@ -294,7 +336,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     bidBasisUsed,
     purchasePricePerM2: safeDiv(purchase, gbo),
     askingPricePerM2: safeDiv(asking, gbo),
-    totalInvestmentPerM2: safeDiv(totalInvestment, gbo),
+    totalInvestmentPerM2: safeDiv(totalInvestmentWithStrategy, gbo),
     maximumBidPerM2: safeDiv(effectiveMaxBid, gbo),
     totalCostsPerM2: safeDiv(totals.total, gbo),
     salePricePerM2,
@@ -302,6 +344,19 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     netMarginPerM2,
     annualRentPerM2: safeDiv(correctedAnnual, gbo),
     noiPerM2: safeDiv(noi, gbo),
+    strategyEnabled: strategy.enabled,
+    strategyMix: strategy.mix,
+    holdValue: strategy.holdValue,
+    saleNetProceedsUnits: strategy.netSaleProceeds,
+    scenarioValue: strategy.scenarioValue,
+    scenarioResultAtAsking,
+    scenarioMarginPct,
+    maxPurchasePrice,
+    roundsAtAsking,
+    strategyPerUnit: strategy.perUnit.map((p) => ({
+      unitId: p.unitId, label: p.label, type: p.type, strategy: p.strategy,
+      contribution: p.contribution, warnings: p.warnings,
+    })),
   };
 }
 

@@ -112,6 +112,34 @@ export type ComputedOutputs = {
   annualRentPerM2: number | null;
   /** NOI per m². */
   noiPerM2: number | null;
+  // --- Componentstrategie ---
+  /** Of er componentstrategie-units zijn die de scenariowaarde bepalen. */
+  strategyEnabled: boolean;
+  /** Korte omschrijving van de mix (bv. "6× Verkopen (leeg), 2× Aanhouden"). */
+  strategyMix: string;
+  /** Totale beleggingswaarde van behouden componenten. */
+  holdValue: number;
+  /** Totale netto verkoopopbrengst uit verkochte componenten. */
+  saleNetProceedsUnits: number;
+  /** Totale scenariowaarde uit componentstrategie. */
+  scenarioValue: number;
+  /** Scenarioresultaat bij vraagprijs (waarde − totale investering op vraagprijs). */
+  scenarioResultAtAsking: number | null;
+  /** Margepercentage bij vraagprijs. */
+  scenarioMarginPct: number | null;
+  /** Indicatieve maximale aankoopprijs op basis van componentstrategie. */
+  maxPurchasePrice: number | null;
+  /** Of het scenario rond te rekenen is bij de vraagprijs. */
+  roundsAtAsking: boolean | null;
+  /** Per-unit detailregels voor weergave. */
+  strategyPerUnit: Array<{
+    unitId: string;
+    label: string;
+    type: string | null;
+    strategy: string | null;
+    contribution: number;
+    warnings: string[];
+  }>;
 };
 
 
