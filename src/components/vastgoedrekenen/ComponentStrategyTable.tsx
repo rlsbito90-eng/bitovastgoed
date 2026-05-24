@@ -162,32 +162,32 @@ function UnitRow({ unit, onUpdate, onDelete }: { unit: SellOffUnit; onUpdate: Pr
             </Select>
           </Field>
           {saleSrc === 'totaal' ? (
-            <Field label="Verkoopprijs (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.sale_price_total)} onCommit={(raw) => onUpdate(unit.id, { sale_price_total: parseRawNumber(raw) })} /></Field>
+            <Field label="Verkoopprijs (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.sale_price_total))} onCommit={(raw) => onUpdate(unit.id, { sale_price_total: parseRawNumber(raw) })} /></Field>
           ) : (
             <Field label="Verkoopprijs per m² (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.sale_price_per_m2)} onCommit={(raw) => onUpdate(unit.id, { sale_price_per_m2: parseRawNumber(raw) })} /></Field>
           )}
-          <Field label="Verkoopkosten (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(r.sale_costs_pct)} onCommit={(raw) => onUpdate(unit.id, { sale_costs_pct: parseRawNumber(raw) })} /></Field>
-          <Field label="Verkoopkosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.sale_costs_amount)} onCommit={(raw) => onUpdate(unit.id, { sale_costs_amount: parseRawNumber(raw) })} /></Field>
-          <Field label="Juridische kosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.legal_costs)} onCommit={(raw) => onUpdate(unit.id, { legal_costs: parseRawNumber(raw) })} /></Field>
+          <Field label="Verkoopkosten (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(num(r.sale_costs_pct))} onCommit={(raw) => onUpdate(unit.id, { sale_costs_pct: parseRawNumber(raw) })} /></Field>
+          <Field label="Verkoopkosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.sale_costs_amount))} onCommit={(raw) => onUpdate(unit.id, { sale_costs_amount: parseRawNumber(raw) })} /></Field>
+          <Field label="Juridische kosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.legal_costs))} onCommit={(raw) => onUpdate(unit.id, { legal_costs: parseRawNumber(raw) })} /></Field>
           {(strategy === 'renoveren_verkopen' || strategy === 'splitsen_verkopen' || strategy === 'transformeren_verkopen') && (
-            <Field label="Renovatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.renovation_costs)} onCommit={(raw) => onUpdate(unit.id, { renovation_costs: parseRawNumber(raw) })} /></Field>
+            <Field label="Renovatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.renovation_costs))} onCommit={(raw) => onUpdate(unit.id, { renovation_costs: parseRawNumber(raw) })} /></Field>
           )}
           {strategy === 'splitsen_verkopen' && (
-            <Field label="Splitsingskosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.splitting_costs)} onCommit={(raw) => onUpdate(unit.id, { splitting_costs: parseRawNumber(raw) })} /></Field>
+            <Field label="Splitsingskosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.splitting_costs))} onCommit={(raw) => onUpdate(unit.id, { splitting_costs: parseRawNumber(raw) })} /></Field>
           )}
           {strategy === 'transformeren_verkopen' && (
-            <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.transformation_costs)} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>
+            <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>
           )}
         </div>
       )}
 
       {isHold && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3">
-          <Field label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.hold_monthly_rent)} onCommit={(raw) => {
+          <Field label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.hold_monthly_rent))} onCommit={(raw) => {
             const n = parseRawNumber(raw);
             onUpdate(unit.id, { hold_monthly_rent: n, hold_annual_rent: n != null ? Math.round(n * 12) : null });
           }} /></Field>
-          <Field label="Jaarhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.hold_annual_rent)} onCommit={(raw) => onUpdate(unit.id, { hold_annual_rent: parseRawNumber(raw) })} /></Field>
+          <Field label="Jaarhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.hold_annual_rent))} onCommit={(raw) => onUpdate(unit.id, { hold_annual_rent: parseRawNumber(raw) })} /></Field>
           <Field label="Waarderingsmethode">
             <Select value={valMethod} onValueChange={(v) => onUpdate(unit.id, { hold_valuation_method: v })}>
               <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
@@ -199,18 +199,18 @@ function UnitRow({ unit, onUpdate, onDelete }: { unit: SellOffUnit; onUpdate: Pr
               </SelectContent>
             </Select>
           </Field>
-          {valMethod === 'BAR' && <Field label="BAR (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(r.hold_bar)} onCommit={(raw) => onUpdate(unit.id, { hold_bar: parseRawNumber(raw) })} /></Field>}
-          {valMethod === 'NAR' && <Field label="NAR (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(r.hold_nar)} onCommit={(raw) => onUpdate(unit.id, { hold_nar: parseRawNumber(raw) })} /></Field>}
-          {valMethod === 'factor' && <Field label="Factor (×)"><RawNumberInput className="h-9" format="factor" initialValue={numberToRaw(r.hold_factor)} onCommit={(raw) => onUpdate(unit.id, { hold_factor: parseRawNumber(raw) })} /></Field>}
-          {valMethod === 'handmatige_waarde' && <Field label="Handmatige waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.hold_value_manual)} onCommit={(raw) => onUpdate(unit.id, { hold_value_manual: parseRawNumber(raw) })} /></Field>}
-          {(strategy === 'renoveren_aanhouden') && <Field label="Renovatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.renovation_costs)} onCommit={(raw) => onUpdate(unit.id, { renovation_costs: parseRawNumber(raw) })} /></Field>}
-          {(strategy === 'transformeren_aanhouden') && <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.transformation_costs)} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>}
+          {valMethod === 'BAR' && <Field label="BAR (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(num(r.hold_bar))} onCommit={(raw) => onUpdate(unit.id, { hold_bar: parseRawNumber(raw) })} /></Field>}
+          {valMethod === 'NAR' && <Field label="NAR (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(num(r.hold_nar))} onCommit={(raw) => onUpdate(unit.id, { hold_nar: parseRawNumber(raw) })} /></Field>}
+          {valMethod === 'factor' && <Field label="Factor (×)"><RawNumberInput className="h-9" format="factor" initialValue={numberToRaw(num(r.hold_factor))} onCommit={(raw) => onUpdate(unit.id, { hold_factor: parseRawNumber(raw) })} /></Field>}
+          {valMethod === 'handmatige_waarde' && <Field label="Handmatige waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.hold_value_manual))} onCommit={(raw) => onUpdate(unit.id, { hold_value_manual: parseRawNumber(raw) })} /></Field>}
+          {(strategy === 'renoveren_aanhouden') && <Field label="Renovatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.renovation_costs))} onCommit={(raw) => onUpdate(unit.id, { renovation_costs: parseRawNumber(raw) })} /></Field>}
+          {(strategy === 'transformeren_aanhouden') && <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>}
         </div>
       )}
 
       {isManual && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
-          <Field label="Handmatige waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.hold_value_manual)} onCommit={(raw) => onUpdate(unit.id, { hold_value_manual: parseRawNumber(raw) })} /></Field>
+          <Field label="Handmatige waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.hold_value_manual))} onCommit={(raw) => onUpdate(unit.id, { hold_value_manual: parseRawNumber(raw) })} /></Field>
         </div>
       )}
 
