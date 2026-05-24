@@ -164,7 +164,7 @@ function UnitRow({ unit, onUpdate, onDelete }: { unit: SellOffUnit; onUpdate: Pr
           {saleSrc === 'totaal' ? (
             <Field label="Verkoopprijs (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.sale_price_total))} onCommit={(raw) => onUpdate(unit.id, { sale_price_total: parseRawNumber(raw) })} /></Field>
           ) : (
-            <Field label="Verkoopprijs per m² (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(r.sale_price_per_m2)} onCommit={(raw) => onUpdate(unit.id, { sale_price_per_m2: parseRawNumber(raw) })} /></Field>
+            <Field label="Verkoopprijs per m² (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.sale_price_per_m2))} onCommit={(raw) => onUpdate(unit.id, { sale_price_per_m2: parseRawNumber(raw) })} /></Field>
           )}
           <Field label="Verkoopkosten (%)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(num(r.sale_costs_pct))} onCommit={(raw) => onUpdate(unit.id, { sale_costs_pct: parseRawNumber(raw) })} /></Field>
           <Field label="Verkoopkosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.sale_costs_amount))} onCommit={(raw) => onUpdate(unit.id, { sale_costs_amount: parseRawNumber(raw) })} /></Field>
