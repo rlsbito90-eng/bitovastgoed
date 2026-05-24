@@ -988,6 +988,19 @@ export default function ScenarioEditor(props: Props) {
               </div>
             </Section>
 
+            {/* 7b. Componentstrategie per scenario */}
+            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={sellOffUnits.length > 0 ? 'ok' : 'leeg'} defaultOpen={sellOffUnits.length > 0}>
+              <ComponentStrategyTable
+                units={sellOffUnits}
+                components={components}
+                asking={s.asking_price}
+                onCreate={createStrategyUnit}
+                onUpdate={updateStrategyUnit}
+                onDelete={deleteStrategyUnit}
+                onImport={importStrategyFromComponents}
+              />
+            </Section>
+
             {/* 8. Onderbouwing & betrouwbaarheid */}
             <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
               <div className="pt-3 space-y-3">
