@@ -143,7 +143,7 @@ export default function ScenarioEditor(props: Props) {
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, loading: childrenLoading, refetch, upsertOutput } = useScenarioChildren(s.id);
+  const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
 
   useEffect(() => {
     if (childrenLoading || costDraftDirtyRef.current) return;
