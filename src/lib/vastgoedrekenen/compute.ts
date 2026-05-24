@@ -320,7 +320,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     scoreAttentionPoints,
     conclusion,
     recommendedNextStep: nextStep,
-    warnings: risk.flags,
+    warnings: combinedWarnings,
     saleHasInput: sale.hasAnySaleInput,
     grossSaleProceeds: sale.grossSaleProceeds,
     saleCostsTotal: sale.saleCostsTotal,
@@ -336,7 +336,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     bidBasisUsed,
     purchasePricePerM2: safeDiv(purchase, gbo),
     askingPricePerM2: safeDiv(asking, gbo),
-    totalInvestmentPerM2: safeDiv(totalInvestment, gbo),
+    totalInvestmentPerM2: safeDiv(totalInvestmentWithStrategy, gbo),
     maximumBidPerM2: safeDiv(effectiveMaxBid, gbo),
     totalCostsPerM2: safeDiv(totals.total, gbo),
     salePricePerM2,
@@ -344,6 +344,19 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     netMarginPerM2,
     annualRentPerM2: safeDiv(correctedAnnual, gbo),
     noiPerM2: safeDiv(noi, gbo),
+    strategyEnabled: strategy.enabled,
+    strategyMix: strategy.mix,
+    holdValue: strategy.holdValue,
+    saleNetProceedsUnits: strategy.netSaleProceeds,
+    scenarioValue: strategy.scenarioValue,
+    scenarioResultAtAsking,
+    scenarioMarginPct,
+    maxPurchasePrice,
+    roundsAtAsking,
+    strategyPerUnit: strategy.perUnit.map((p) => ({
+      unitId: p.unitId, label: p.label, type: p.type, strategy: p.strategy,
+      contribution: p.contribution, warnings: p.warnings,
+    })),
   };
 }
 
