@@ -1,7 +1,7 @@
 // Orchestrator die alle Vastgoedrekenen-berekeningen samenbrengt
 // voor één scenario. Pure function — geen DB-calls.
 
-import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs } from './types';
+import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs, SellOffUnit } from './types';
 import { computeScenarioOvb } from './ovb';
 import {
   annualFromMonthly, getWwsCorrectedAnnualRent, pickCorrectedAnnualRent, bar as fnBar, factor as fnFactor,
@@ -12,6 +12,7 @@ import { computeInputReliability, computeRiskScore, computeComplexity, computeDe
 import { buildConclusion, buildNextStep } from './conclusie';
 import { getAssumptionSet, type PropertyAssumptionType } from './profiles';
 import { computeSale } from './verkoop';
+import { aggregateStrategy } from './componentStrategy';
 
 export type ComputeContext = {
   scenario: Scenario;
