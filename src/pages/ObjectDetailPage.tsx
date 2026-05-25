@@ -707,15 +707,11 @@ export default function ObjectDetailPage() {
   const huurPerM2IsHandmatig = huurPerM2Resolved.source === 'override';
   const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
 
-  // Lead deal voor cockpit
-  const leadDeal = (() => {
-    if (!deals.length) return null;
-    const sorted = [...deals].sort((a, b) => {
-      const ka = (b.commissieBedrag ?? 0) - (a.commissieBedrag ?? 0);
-      return ka;
-    });
-    return sorted[0];
-  })();
+  // Lead deal voor cockpit — centrale selector (Prompt 3.6)
+  const leadDeal = selectLeadDeal(deals, object.id);
+  // Gewogen verwachte fee voor lead deal — centrale helper
+  const leadDealVerwachteFee = leadDeal ? calculateExpectedFee([leadDeal]) : 0;
+
 
   const handleDelete = async () => {
     try {
