@@ -9,6 +9,33 @@
 - Geen schema-/datawijziging; legacy taxonomie-fallback ongemoeid (cleanup later in 3.8/3.9).
 - Tests: `src/test/derivations/matching.test.ts` + `src/test/derivations/deal.test.ts`.
 
+# Prompt 3.7 — Notificaties gecontroleerd en gecentraliseerd (afgerond)
+
+Toegestane triggers (geen nieuwe types toegevoegd):
+- **Taken**: verlopen (kritiek), vandaag (hoog), nieuw met hoog/urgent prio (hoog).
+- **Biedingen**: bod verloopt vandaag of morgen, alleen actieve statussen (hoog).
+- **Matching**: sterke match score ≥ 70 (centrale `isStrongMatch`) — normaal.
+- **Datakwaliteit**: dubbele relatie / dubbele objectinvoer (kritiek).
+
+Centrale bronnen:
+- `isStrongMatch` / `STRONG_MATCH_THRESHOLD` uit `@/lib/derivations`.
+- `useBiedingen({ all: true })` voor bieding-verloop.
+- `isTaakTeLaat` / `isTaakVandaag` uit `taakHelpers`.
+- Duplicate-detectie inline in `NotificationsBell` (geen losse bron nodig).
+
+Init / dedupe / persistentie:
+- `INIT_FLAG = bito-notifications-initialized-v3`: bij eerste init worden alle bestaande kandidaten als 'created' opgeslagen → geen historische backfill in de bel.
+- `CREATED_IDS_KEY` (cap 2000) houdt stabiele dedupe-keys bij: bv. `taak-vandaag::${id}::${yyyy-mm-dd}`, `bod-verloop::${id}::${datum}`, `match-sterk::${objId}::${zpId}`, `dupe-relatie::${key}`, `dupe-object::${key}`.
+- Gewiste meldingen komen niet terug voor dezelfde trigger (id blijft in `created`).
+- Read/wis-state in `STORAGE_KEY = bito-notifications-v2`, cross-tab sync via `storage` event + custom `bito:notifications-updated`.
+
+Geen schema-/datamigratie. Geen bestaande meldingen verwijderd. Geen nieuwe types.
+
+Open punten (later):
+- Eventueel notificaties cross-device synchroniseren via Supabase tabel (nu localStorage-only).
+- "Taak aan mij gekoppeld" trigger zodra gebruikersrol-toewijzing aan taken bestaat.
+
+
 # Prompt 3.6 — Dealflow/pipeline/biedingen/cockpit gecentraliseerd (afgerond)
 
 Bron van waarheid per domein:
