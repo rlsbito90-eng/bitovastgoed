@@ -9,6 +9,31 @@
 - Geen schema-/datawijziging; legacy taxonomie-fallback ongemoeid (cleanup later in 3.8/3.9).
 - Tests: `src/test/derivations/matching.test.ts` + `src/test/derivations/deal.test.ts`.
 
+# Prompt 3.6 — Dealflow/pipeline/biedingen/cockpit gecentraliseerd (afgerond)
+
+Bron van waarheid per domein:
+- **Top kandidaten / matches** → `getMatchesForObjectFromData` + `isStrongMatch` (≥70).
+- **Kandidaten in traject** → `object_pipeline` rows via `getPipelineVoorObject` / `getActivePipelineCandidates`.
+- **Kandidaatcount (hoofdteller)** → `countKandidaten({ matches, pipelineRows, objectId })` — unieke union, geen dubbeltelling.
+- **Lead deal** → `selectLeadDeal(deals, objectId)` (actief > hoogste FASE_KANS > recentste contact).
+- **Verwachte fee (gewogen)** → `calculateExpectedFee(deals)` = Σ commissieBedrag × FASE_KANS, alleen actieve fases.
+- **Potentiële commissie** → `deal.commissieBedrag` ongewogen (apart label in cockpit).
+- **Dealflowfase** → object pipeline / deal.fase (bestaande logica ongemoeid).
+- **Biedingen** → biedingen-module/tabel (`useBiedingen`), notificatie-verloop uit dezelfde bron.
+- **Deal Cockpit** → samenvatting via bovenstaande selectors, geen eigen logica.
+
+Wijzigingen:
+- `ObjectDetailPage`: lokale lead-deal-sortering vervangen door `selectLeadDeal`.
+- Cockpit toont nu expliciet "Verwachte fee (gewogen)" + "Potentiële commissie" — geen verwarring meer.
+- `DashboardPage` / `DealsPage` / `DealDetailPage` / `DealFormDialog` blijven `FASE_KANS` direct gebruiken (consistent met `calculateExpectedFee`).
+
+Geen schema-/datamigratie. Geen records verwijderd/overschreven.
+
+Open punten (later):
+- `DashboardPage` zou `calculateExpectedFee` rechtstreeks kunnen aanroepen i.p.v. `commissieStats.pipelineBedragGewogen` (semantisch identiek, cosmetische refactor).
+- Bieding-verloop notificaties centraliseren in `src/lib/biedingen` helper (3.7+).
+
+
 
 # Componentstrategie per scenario
 
