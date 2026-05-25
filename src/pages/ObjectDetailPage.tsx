@@ -32,6 +32,9 @@ import {
   deriveVerhuurMetrics,
   isStrongMatch,
   countKandidaten,
+  selectLeadDeal,
+  calculateExpectedFee,
+
 } from '@/lib/derivations';
 
 import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
@@ -707,15 +710,11 @@ export default function ObjectDetailPage() {
   const huurPerM2IsHandmatig = huurPerM2Resolved.source === 'override';
   const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
 
-  // Lead deal voor cockpit
-  const leadDeal = (() => {
-    if (!deals.length) return null;
-    const sorted = [...deals].sort((a, b) => {
-      const ka = (b.commissieBedrag ?? 0) - (a.commissieBedrag ?? 0);
-      return ka;
-    });
-    return sorted[0];
-  })();
+  // Lead deal voor cockpit — centrale selector (Prompt 3.6)
+  const leadDeal = selectLeadDeal(deals, object.id);
+  // Gewogen verwachte fee voor lead deal — centrale helper
+  const leadDealVerwachteFee = leadDeal ? calculateExpectedFee([leadDeal]) : 0;
+
 
   const handleDelete = async () => {
     try {
@@ -1859,13 +1858,22 @@ export default function ObjectDetailPage() {
                   </Link>
                 </div>
                 {leadDeal.commissieBedrag != null && (
-                  <div className="hairline pt-3">
-                    <p className="field-label">Verwachte fee</p>
-                    <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                      {formatCurrency(leadDeal.commissieBedrag)}
-                    </p>
+                  <div className="hairline pt-3 space-y-2">
+                    <div>
+                      <p className="field-label">Verwachte fee (gewogen)</p>
+                      <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
+                        {formatCurrency(leadDealVerwachteFee)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="field-label">Potentiële commissie</p>
+                      <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
+                        {formatCurrency(leadDeal.commissieBedrag)}
+                      </p>
+                    </div>
                   </div>
                 )}
+
                 <div className="grid grid-cols-2 gap-2 hairline pt-3">
                   <div>
                     <p className="field-label">Deals</p>
