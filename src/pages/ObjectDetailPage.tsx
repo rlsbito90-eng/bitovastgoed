@@ -1858,13 +1858,22 @@ export default function ObjectDetailPage() {
                   </Link>
                 </div>
                 {leadDeal.commissieBedrag != null && (
-                  <div className="hairline pt-3">
-                    <p className="field-label">Verwachte fee</p>
-                    <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                      {formatCurrency(leadDeal.commissieBedrag)}
-                    </p>
+                  <div className="hairline pt-3 space-y-2">
+                    <div>
+                      <p className="field-label">Verwachte fee (gewogen)</p>
+                      <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
+                        {formatCurrency(leadDealVerwachteFee)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="field-label">Potentiële commissie</p>
+                      <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
+                        {formatCurrency(leadDeal.commissieBedrag)}
+                      </p>
+                    </div>
                   </div>
                 )}
+
                 <div className="grid grid-cols-2 gap-2 hairline pt-3">
                   <div>
                     <p className="field-label">Deals</p>
