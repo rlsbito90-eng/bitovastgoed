@@ -1,4 +1,15 @@
 
+# Prompt 3.5 — Matchinglogica gecentraliseerd (afgerond)
+
+- Sterke-match drempel centraal: `STRONG_MATCH_THRESHOLD = 70` (0–100 schaal) in `src/lib/derivations/matching.ts`.
+- `isStrongMatch(score)` gebruikt in: `MatchAlertBadge`, `NotificationsBell`, `DashboardPage` (top kandidaten), `ObjectDetailPage` (sterke matches), `StatusBadges.MatchScoreBadge`.
+- Kandidaten-teller via `countKandidaten({ matches, pipelineRows, threshold })` in `src/lib/derivations/deal.ts` — telt unieke relaties uit matches ∪ pipeline, geen dubbeltelling.
+- Top kandidaten en kandidaten-in-traject blijven inhoudelijk gescheiden.
+- NotificationsBell init markeert bestaande matches als gezien → geen overload.
+- Geen schema-/datawijziging; legacy taxonomie-fallback ongemoeid (cleanup later in 3.8/3.9).
+- Tests: `src/test/derivations/matching.test.ts` + `src/test/derivations/deal.test.ts`.
+
+
 # Componentstrategie per scenario
 
 Doel: per scenario kunnen kiezen wat er met elke component/unit gebeurt (verkopen, aanhouden, renoveren, splitsen, transformeren, handmatig, later beslissen) en de scenariowaarde + maximale aankoopprijs samenstellen uit deze mix. Geïntegreerd binnen de bestaande `computeScenario`-engine.
