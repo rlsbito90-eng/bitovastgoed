@@ -396,50 +396,58 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
       data-object-section-nav="true"
       className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
     >
-      <div
-        ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {sections.map((s) => {
-          const isActive = active === s.id;
-          return (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => handleClick(e, s.id)}
-              ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
-                isActive
-                  ? 'glass-pill-active text-accent'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-              }`}
-            >
-              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
-              {s.label}
-            </a>
-          );
-        })}
-        <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
-        {MOBILE_ONLY_SECTIONS.map((s) => {
-          const isActive = active === s.id;
-          return (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => handleClick(e, s.id)}
-              ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
-                isActive
-                  ? 'glass-pill-active text-accent'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-              }`}
-            >
-              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
-              {s.label}
-            </a>
-          );
-        })}
+      <div className="relative">
+        {edges.left && (
+          <div aria-hidden className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-background/95 to-transparent rounded-l-xl" />
+        )}
+        {edges.right && (
+          <div aria-hidden className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l from-background/95 to-transparent rounded-r-xl" />
+        )}
+        <div
+          ref={scrollerRef}
+          className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {sections.map((s) => {
+            const isActive = active === s.id;
+            return (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => handleClick(e, s.id)}
+                ref={(el) => { tabRefs.current[s.id] = el; }}
+                className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {s.label}
+              </a>
+            );
+          })}
+          <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
+          {MOBILE_ONLY_SECTIONS.map((s) => {
+            const isActive = active === s.id;
+            return (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => handleClick(e, s.id)}
+                ref={(el) => { tabRefs.current[s.id] = el; }}
+                className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {s.label}
+              </a>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
