@@ -1800,6 +1800,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ DOSSIERSTATUS ============ */}
+          {activeTab === 'dossier' && (
           <SectionAnchor id="dossier" eyebrow={eyebrowFor("dossier", "Readiness")} title="Dossierstatus">
             <ObjectDossierCard
               objectId={object.id}
