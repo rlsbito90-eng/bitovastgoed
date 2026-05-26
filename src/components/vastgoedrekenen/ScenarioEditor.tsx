@@ -404,18 +404,96 @@ export default function ScenarioEditor(props: Props) {
 
   async function createWwsFromComponents() {
     const woon = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement');
-    if (woon.length === 0) { toast.error('Geen wooncomponenten gevonden'); return; }
-    for (const c of woon) {
-      await supabase.from('residential_wws_units').insert({
-        scenario_id: s.id,
-        unit_name: c.component_name,
-        living_area_m2: c.surface_gbo ?? null,
-        current_monthly_rent: c.current_monthly_rent ?? null,
-        woz_value: props.objectWoz ?? null,
-        energy_label: props.objectEnergyLabel ?? null,
-      });
+    if (woon.length === 0) { toast.error('Geen wooncomponenten gevonden om WWS-units uit aan te maken.'); return; }
+
+    // Skip wooncomponenten die al een WWS-unit hebben via component_id, zodat
+    // de knop idempotent is en geen duplicaten aanmaakt.
+    const reeds = new Set(
+      wwsUnits.map((u) => (u as unknown as { component_id?: string | null }).component_id ?? '').filter(Boolean),
+    );
+    const teImporteren = woon.filter((c) => !reeds.has(c.id));
+    if (teImporteren.length === 0) {
+      toast.info('Alle wooncomponenten zijn al als WWS-unit aanwezig.');
+      return;
     }
-    toast.success(`${woon.length} WWS-unit(s) aangemaakt`);
+
+    // Fallback-helpers volgens specificatie.
+    const pickSurface = (c: Component): { value: number | null; bron: 'gbo' | 'vvo' | 'bvo' | null } => {
+      const gbo = Number(c.surface_gbo ?? 0);
+      if (gbo > 0) return { value: gbo, bron: 'gbo' };
+      const vvo = Number(c.surface_vvo ?? 0);
+      if (vvo > 0) return { value: vvo, bron: 'vvo' };
+      const bvo = Number(c.surface_bvo ?? 0);
+      if (bvo > 0) return { value: bvo, bron: 'bvo' };
+      return { value: null, bron: null };
+    };
+    const pickMonthlyRent = (c: Component): number | null => {
+      const cm = Number(c.current_monthly_rent ?? 0);
+      if (cm > 0) return cm;
+      const ca = Number(c.current_annual_rent ?? 0);
+      if (ca > 0) return Math.round(ca / 12);
+      const mm = Number(c.market_monthly_rent ?? 0);
+      if (mm > 0) return mm;
+      const ma = Number(c.market_annual_rent ?? 0);
+      if (ma > 0) return Math.round(ma / 12);
+      return null;
+    };
+
+    const successes: string[] = [];
+    const failures: Array<{ name: string; message: string }> = [];
+    let missingSurface = 0;
+    let missingRent = 0;
+    let missingWoz = 0;
+    let missingLabel = 0;
+
+    for (const c of teImporteren) {
+      const label = c.component_name?.trim() || 'Naamloze wooncomponent';
+      const surface = pickSurface(c);
+      const monthlyRent = pickMonthlyRent(c);
+      const cRec = c as unknown as Record<string, unknown>;
+      const energyLabel = (cRec.energy_label as string | null) ?? props.objectEnergyLabel ?? null;
+      const woz = (cRec.woz_value as number | null) ?? props.objectWoz ?? null;
+      const notes = (cRec.notes as string | null) ?? null;
+      const floor = c.floor_or_location ?? null;
+
+      const payload: Record<string, unknown> = {
+        scenario_id: s.id,
+        component_id: c.id,
+        unit_name: label,
+        living_area_m2: surface.value,
+        current_monthly_rent: monthlyRent,
+        woz_value: woz,
+        energy_label: energyLabel,
+        floor,
+        notes,
+      };
+
+      const { error } = await supabase.from('residential_wws_units').insert(payload as never);
+      if (error) {
+        failures.push({ name: label, message: error.message });
+        continue;
+      }
+      successes.push(label);
+      if (!surface.value) missingSurface += 1;
+      if (!monthlyRent) missingRent += 1;
+      if (!woz) missingWoz += 1;
+      if (!energyLabel) missingLabel += 1;
+    }
+
+    if (successes.length > 0) {
+      toast.success(`${successes.length} WWS-unit(s) aangemaakt uit wooncomponenten.`);
+    }
+    for (const f of failures) {
+      toast.error(`WWS-unit ${f.name}: ${f.message}`);
+    }
+    const aanvullen: string[] = [];
+    if (missingSurface > 0) aanvullen.push(`bij ${missingSurface} WWS-unit(s) ontbreekt woonoppervlakte`);
+    if (missingRent > 0) aanvullen.push(`bij ${missingRent} WWS-unit(s) ontbreekt huur`);
+    if (missingWoz > 0) aanvullen.push(`bij ${missingWoz} WWS-unit(s) ontbreekt WOZ`);
+    if (missingLabel > 0) aanvullen.push(`bij ${missingLabel} WWS-unit(s) ontbreekt energielabel`);
+    if (aanvullen.length > 0) {
+      toast.warning(`Aanvullen aanbevolen:\n• ${aanvullen.join('\n• ')}`);
+    }
     refetch();
   }
 
