@@ -328,9 +328,9 @@ export default function DashboardPage() {
           href="/deals"
         />
         <KPICard
-          label="Verwachte fee"
-          value={formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
-          hint="Op basis van slaagkans"
+          label="Potentiële commissie"
+          value={formatCurrencyCompact(commissieStats.pipelineBedragTotaal)}
+          hint={`Gewogen: ${formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}`}
           icon={Banknote}
           tone="accent"
           href="/rapportage"
