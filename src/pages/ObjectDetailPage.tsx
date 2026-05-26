@@ -1737,6 +1737,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ AANBIEDING & PROCES ============ */}
+          {activeTab === 'dossier' && (
           <SectionAnchor id="aanbieding" eyebrow={eyebrowFor("aanbieding", "Offering")} title="Aanbieding & proces">
             {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
               object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
