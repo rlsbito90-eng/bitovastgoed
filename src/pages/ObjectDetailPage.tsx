@@ -1946,7 +1946,8 @@ export default function ObjectDetailPage() {
           )}
 
 
-          {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
+          {/* ============ VASTGOEDREKENEN ============ */}
+          {activeTab === 'vastgoedrekenen' && (
           <SectionAnchor
             id="vastgoedrekenen"
             eyebrow={eyebrowFor("vastgoedrekenen", "Underwriting")}
@@ -1963,8 +1964,10 @@ export default function ObjectDetailPage() {
               />
             </div>
           </SectionAnchor>
+          )}
 
-          {/* ============ 8. BIEDINGEN ============ */}
+          {/* ============ BIEDINGEN ============ */}
+          {activeTab === 'dealflow' && (
           <SectionAnchor id="biedingen" eyebrow={eyebrowFor("biedingen", "Negotiations")} title="Biedingen">
             <BiedingenSection
               scope={{ objectId: object.id }}
@@ -1973,11 +1976,14 @@ export default function ObjectDetailPage() {
               toonObject={false}
             />
           </SectionAnchor>
+          )}
 
-          {/* ============ 9. ACTIVITEIT ============ */}
+          {/* ============ ACTIVITEIT ============ */}
+          {activeTab === 'dealflow' && (
           <SectionAnchor id="activiteit" eyebrow={eyebrowFor("activiteit", "Activity")} title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
+          )}
         </div>
 
         {/* RIGHT — sticky deal cockpit */}
