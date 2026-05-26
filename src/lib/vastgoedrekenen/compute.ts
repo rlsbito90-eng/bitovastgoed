@@ -55,7 +55,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const otherPct = profileSet ? profileSet.other_percentage : 0;
 
   // --- OVB ---
-  const ovb = computeScenarioOvb(scenario, components, taxSettings);
+  const ovb = computeScenarioOvb(scenario, components, taxSettings, propertyType);
 
   // --- Aankoopkosten ---
   const acq = computeAcquisitionCosts(scenario);
