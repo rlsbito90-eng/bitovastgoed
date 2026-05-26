@@ -1803,6 +1803,7 @@ export default function ObjectDetailPage() {
               </div>
             )}
           </SectionAnchor>
+          )}
 
           {/* ============ DOSSIERSTATUS ============ */}
           {activeTab === 'dossier' && (
