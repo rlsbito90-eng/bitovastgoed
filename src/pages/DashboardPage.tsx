@@ -295,9 +295,12 @@ export default function DashboardPage() {
         </div>
         <div className="relative z-[1] mt-5 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 sm:gap-5">
           <div className="min-w-0">
-            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Verwachte fee</p>
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Potentiële commissie</p>
             <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none truncate">
-              {formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
+              {formatCurrencyCompact(commissieStats.pipelineBedragTotaal)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1 leading-none truncate">
+              Gewogen: {formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
             </p>
           </div>
           <div className="min-w-0">
@@ -325,9 +328,9 @@ export default function DashboardPage() {
           href="/deals"
         />
         <KPICard
-          label="Verwachte fee"
-          value={formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}
-          hint="Op basis van slaagkans"
+          label="Potentiële commissie"
+          value={formatCurrencyCompact(commissieStats.pipelineBedragTotaal)}
+          hint={`Gewogen: ${formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}`}
           icon={Banknote}
           tone="accent"
           href="/rapportage"
@@ -408,7 +411,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1.5 truncate" title="Weighted fee">
-                    fee ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
+                    fee gew. ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
                   </p>
                 </Link>
               );
