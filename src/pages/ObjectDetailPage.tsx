@@ -1192,6 +1192,7 @@ export default function ObjectDetailPage() {
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
           {/* ============ 1. OVERZICHT — Identificatie + Locatie + Classificatie ============ */}
+          {activeTab === 'overzicht' && (
           <SectionAnchor id="overzicht" eyebrow={eyebrowFor("overzicht", "Asset")} title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <ClassificatieRij
