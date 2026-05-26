@@ -268,10 +268,43 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const programmaticUntilRef = useRef<number>(0);
   const lastCenteredRef = useRef<string>('');
+  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
 
   const prefersReduced = () =>
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  const updateEdges = () => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const max = sc.scrollWidth - sc.clientWidth;
+    setEdges({ left: sc.scrollLeft > 2, right: sc.scrollLeft < max - 2 });
+  };
+
+  // Wheel → horizontaal scrollen op desktop (verticale wheel mapt naar horizontale scroll)
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const onWheel = (e: WheelEvent) => {
+      // Trackpad horizontale swipe levert deltaX → niets doen, browser regelt het al
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const max = sc.scrollWidth - sc.clientWidth;
+      if (max <= 0) return;
+      // Voorkom dat de page meescrollt wanneer we horizontaal kunnen scrollen
+      e.preventDefault();
+      sc.scrollLeft += e.deltaY;
+      updateEdges();
+    };
+    sc.addEventListener('wheel', onWheel, { passive: false });
+    sc.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', updateEdges);
+    updateEdges();
+    return () => {
+      sc.removeEventListener('wheel', onWheel as any);
+      sc.removeEventListener('scroll', updateEdges as any);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
 
   const isTabFullyVisible = (el: HTMLElement, scroller: HTMLElement, pad = 24) => {
     const left = el.offsetLeft;
