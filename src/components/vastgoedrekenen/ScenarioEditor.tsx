@@ -171,10 +171,10 @@ export default function ScenarioEditor(props: Props) {
   }), [s, components, draftCosts, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
-    scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
+    scenario: s, components, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
-    energyLabel: props.objectEnergyLabel,
-  }), [s, components, draftCosts, wwsUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar]);
+    energyLabel: props.objectEnergyLabel, dirty,
+  }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
 
   const aannameWaarschuwingen = useMemo(() => buildAannameWaarschuwingen({
     scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
