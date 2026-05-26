@@ -1669,7 +1669,7 @@ export default function ObjectDetailPage() {
           )}
 
           {/* ============ CONTACTEN (conditioneel) ============ */}
-          {(hasContactenData(object) || deals.length > 0) && (
+          {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (
             <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
 
               <div className="grid sm:grid-cols-2 gap-4">
