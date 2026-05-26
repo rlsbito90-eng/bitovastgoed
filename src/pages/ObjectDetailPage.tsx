@@ -1483,6 +1483,7 @@ export default function ObjectDetailPage() {
               </div>
             )}
           </SectionAnchor>
+          )}
 
           {/* ============ PAND & TECHNISCHE STAAT ============ */}
           {activeTab === 'pand' && (
