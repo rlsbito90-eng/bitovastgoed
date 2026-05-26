@@ -219,7 +219,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       if (!num(u.living_area_m2)) missArea++;
       if (!num(u.woz_value)) missWoz++;
       if (!u.energy_label) missLabel++;
-      if (!num(u.current_monthly_rent) && !num(u.market_monthly_rent)) missRent++;
+      if (!num(u.current_monthly_rent) && !num(u.corrected_monthly_rent) && !num(u.wws_max_monthly_rent)) missRent++;
     }
     const wwsFieldSummary = [
       missArea > 0 ? `${missArea}× oppervlakte` : null,
