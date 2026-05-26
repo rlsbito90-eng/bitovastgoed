@@ -264,10 +264,25 @@ export function useScenarioChildren(scenarioId: string | undefined) {
 
     for (const c of toImport) {
       const label = c.component_name?.trim() || 'Naamloze component';
+      const cRec = c as unknown as Record<string, unknown>;
+      const strategy = pick(c.component_type);
+      const isSale = ['verkopen_leeg','verkopen_verhuurd','renoveren_verkopen','splitsen_verkopen','transformeren_verkopen'].includes(strategy);
+
+      // Verkoopwaarde: gebruik expected_sale_value_vacant (of _rented) als startpunt
+      // voor sell-strategieën, zodat de strategie direct doorrekent.
+      const saleVacant = Number((cRec.expected_sale_value_vacant as number | null) ?? 0);
+      const saleRented = Number((cRec.expected_sale_value_rented as number | null) ?? 0);
+      const allocated = Number((cRec.allocated_component_value as number | null) ?? 0);
+      const salePriceTotal = saleVacant > 0
+        ? saleVacant
+        : saleRented > 0
+          ? saleRented
+          : allocated > 0 ? allocated : null;
+
       const row = {
         scenario_id: scenarioId,
         component_id: c.id,
-        unit_name: label,           // verplicht in DB (not null)
+        unit_name: label,
         unit_label: label,
         unit_type: c.component_type ?? 'overig',
         surface_gbo: c.surface_gbo ?? null,
@@ -275,7 +290,11 @@ export function useScenarioChildren(scenarioId: string | undefined) {
         surface_bvo: c.surface_bvo ?? null,
         hold_monthly_rent: c.current_monthly_rent ?? null,
         hold_annual_rent: c.current_annual_rent ?? null,
-        strategy: pick(c.component_type),
+        notes: (cRec.notes as string | null) ?? null,
+        strategy,
+        sale_price_source: isSale ? 'totaal' : null,
+        sale_price_total: isSale ? salePriceTotal : null,
+        hold_valuation_method: !isSale ? 'BAR' : null,
       };
       const { error } = await supabase.from('sell_off_units').insert(row as never);
       if (error) {
@@ -289,8 +308,9 @@ export function useScenarioChildren(scenarioId: string | undefined) {
         });
       } else {
         successes.push(label);
-        if (!c.surface_gbo) warnings.push(`${label}: oppervlakte (GBO) ontbreekt`);
-        if (!c.current_annual_rent && !c.current_monthly_rent) warnings.push(`${label}: huur ontbreekt`);
+        if (!c.surface_gbo && !c.surface_vvo && !c.surface_bvo) warnings.push(`${label}: oppervlakte ontbreekt`);
+        if (isSale && !salePriceTotal) warnings.push(`${label}: verkoopwaarde ontbreekt`);
+        if (!isSale && !c.current_annual_rent && !c.current_monthly_rent) warnings.push(`${label}: huur ontbreekt voor aanhouden`);
       }
     }
 

@@ -1,7 +1,7 @@
 // Validatie en waarschuwingen voor Vastgoedrekenen V1.
 // Levert "Nog te controleren" lijst + aanname-waarschuwingen.
 
-import type { Component, Scenario, ScenarioCost, WwsUnit } from './types';
+import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './types';
 import type { PropertyAssumptionType } from './profiles';
 
 export type ValidationItem = {
@@ -14,22 +14,82 @@ export type ValidationContext = {
   components: Component[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
+  sellOffUnits?: SellOffUnit[];
   objectType: 'enkelvoudig' | 'mixed_use';
   propertyType: PropertyAssumptionType;
   hasWoz: boolean;
   hasEnergyLabel: boolean;
   hasBouwjaar: boolean;
   energyLabel?: string | null;
+  dirty?: boolean;
 };
 
 /** Lijst met dingen die de gebruiker nog moet controleren / aanvullen. */
 export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   const out: ValidationItem[] = [];
-  const { scenario, components, wwsUnits, objectType } = c;
+  const { scenario, components, wwsUnits, sellOffUnits = [], objectType } = c;
+
+  // --- Niet-opgeslagen wijzigingen ---
+  if (c.dirty) {
+    out.push({ level: 'warning', message: 'Er zijn niet-opgeslagen wijzigingen. Berekeningen en scenariovergelijking kunnen verouderd zijn tot je opslaat.' });
+  }
 
   const wooncomponenten = components.filter((x) => x.component_type === 'woning' || x.component_type === 'appartement');
   if (wooncomponenten.length > 0 && wwsUnits.length === 0) {
-    out.push({ level: 'warning', message: `Er zijn ${wooncomponenten.length} wooncomponent(en) maar nog geen WWS-units. Voeg WWS-units toe of markeer WWS als niet relevant.` });
+    out.push({ level: 'warning', message: `Er zijn ${wooncomponenten.length} wooncomponent(en) maar nog geen WWS-units. Klik "Maak WWS-units uit wooncomponenten" of markeer WWS als niet relevant.` });
+  }
+
+  // --- WWS-units: ontbrekende kerngegevens ---
+  if (wwsUnits.length > 0) {
+    const zonderOppervlakte = wwsUnits.filter((u) => !Number(u.living_area_m2 ?? 0)).length;
+    const zonderHuur = wwsUnits.filter((u) => !Number(u.current_monthly_rent ?? 0)).length;
+    const zonderWoz = wwsUnits.filter((u) => !Number(u.woz_value ?? 0)).length;
+    const zonderLabel = wwsUnits.filter((u) => !u.energy_label).length;
+    if (zonderOppervlakte > 0) out.push({ level: 'warning', message: `${zonderOppervlakte} WWS-unit(s) zonder woonoppervlakte. WWS-punten en huursegment kunnen niet betrouwbaar worden bepaald.` });
+    if (zonderHuur > 0) out.push({ level: 'warning', message: `${zonderHuur} WWS-unit(s) zonder huidige maandhuur. Vul huur aan of zet huurbron op "WWS-gecorrigeerd".` });
+    if (zonderWoz > 0) out.push({ level: 'info', message: `${zonderWoz} WWS-unit(s) zonder WOZ-waarde. WOZ telt mee in WWS-punten.` });
+    if (zonderLabel > 0) out.push({ level: 'info', message: `${zonderLabel} WWS-unit(s) zonder energielabel. Label beïnvloedt WWS-punten.` });
+  }
+
+  // --- Componentstrategie ---
+  const SALE_STRATS = new Set(['verkopen_leeg','verkopen_verhuurd','renoveren_verkopen','splitsen_verkopen','transformeren_verkopen']);
+  const HOLD_STRATS = new Set(['aanhouden','renoveren_aanhouden','transformeren_aanhouden']);
+  if (sellOffUnits.length > 0) {
+    const sellMissingValue = sellOffUnits.filter((u) => {
+      const r = u as unknown as Record<string, unknown>;
+      const strat = (r.strategy as string | null) ?? '';
+      if (!SALE_STRATS.has(strat)) return false;
+      const src = (r.sale_price_source as string | null) ?? 'totaal';
+      const total = Number(r.sale_price_total ?? 0);
+      const perM2 = Number(r.sale_price_per_m2 ?? 0);
+      return src === 'per_m2' ? perM2 <= 0 : total <= 0;
+    }).length;
+    const holdMissingRent = sellOffUnits.filter((u) => {
+      const r = u as unknown as Record<string, unknown>;
+      const strat = (r.strategy as string | null) ?? '';
+      if (!HOLD_STRATS.has(strat)) return false;
+      const method = (r.hold_valuation_method as string | null) ?? 'BAR';
+      if (method === 'handmatige_waarde') return Number(r.hold_value_manual ?? 0) <= 0;
+      return Number(r.hold_annual_rent ?? 0) <= 0 && Number(r.hold_monthly_rent ?? 0) <= 0;
+    }).length;
+    const laterBeslissen = sellOffUnits.filter((u) => ((u as unknown as Record<string, unknown>).strategy as string | null) === 'later_beslissen').length;
+    if (sellMissingValue > 0) out.push({ level: 'warning', message: `${sellMissingValue} verkoopcomponent(en) zonder verkoopwaarde. Vul verkoopprijs (totaal of per m²) in.` });
+    if (holdMissingRent > 0) out.push({ level: 'warning', message: `${holdMissingRent} aanhoudcomponent(en) zonder huur of waarderingsbron. Vul huur of handmatige waarde in.` });
+    if (laterBeslissen > 0) out.push({ level: 'info', message: `${laterBeslissen} component(en) op "Later beslissen". Deze tellen niet mee in de scenariowaarde.` });
+  }
+
+  // --- Huurbron-conflicten ---
+  const rentSource = (scenario.rent_source as string | null) ?? 'handmatig';
+  const hasComponentRent = components.some((x) => Number(x.current_annual_rent ?? 0) > 0 || Number(x.current_monthly_rent ?? 0) > 0);
+  const hasScenarioRent = Number(scenario.current_monthly_rent ?? 0) > 0 || Number(scenario.market_monthly_rent ?? 0) > 0;
+  if (hasComponentRent && rentSource === 'handmatig' && hasScenarioRent) {
+    out.push({ level: 'warning', message: 'Componenten bevatten huur, maar huurbron staat op "Handmatig in huuranalyse". Kies welke bron leidend is om dubbele telling te voorkomen.' });
+  }
+  if (rentSource === 'componenten' && !hasComponentRent) {
+    out.push({ level: 'warning', message: 'Huurbron staat op "Som van componenten" maar geen enkel component heeft huurgegevens.' });
+  }
+  if (rentSource === 'wws' && wwsUnits.length === 0) {
+    out.push({ level: 'warning', message: 'Huurbron staat op "WWS-gecorrigeerd" maar er zijn geen WWS-units aangemaakt.' });
   }
 
   if (objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component') {
@@ -75,8 +135,8 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     || (Number(rec.sale_price_per_m2 ?? 0) > 0 && Number(rec.sale_sellable_m2 ?? 0) > 0)
     || (Number(rec.sale_price_per_unit ?? 0) > 0 && Number(rec.sale_units_count ?? 0) > 0);
 
-  if (isSaleFocusedStrategy && !hasGrossSale) {
-    out.push({ level: 'warning', message: 'Verkoopscenario zonder verkoopopbrengst. Vul verkoopprijs (totaal, per m² of per unit) in.' });
+  if (isSaleFocusedStrategy && !hasGrossSale && sellOffUnits.length === 0) {
+    out.push({ level: 'warning', message: 'Verkoopscenario zonder verkoopopbrengst. Vul verkoopprijs (totaal, per m² of per unit) in, of gebruik componentstrategie.' });
   }
   if (isSaleFocusedStrategy && Number(rec.sale_costs_percentage ?? 0) === 0 && Number(rec.sale_other_costs ?? 0) === 0) {
     out.push({ level: 'info', message: 'Verkoopkosten ontbreken — voeg makelaars-/verkoopkosten % en/of overige verkoopkosten toe.' });
@@ -92,8 +152,17 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     out.push({ level: 'warning', message: 'Maximale bieding op basis van verkoop, maar geen gewenste marge/ROI/exitwaarde ingevuld.' });
   }
 
+  // --- Dubbele exit-bron ---
+  if (hasGrossSale && sellOffUnits.some((u) => {
+    const strat = (u as unknown as Record<string, unknown>).strategy as string | null;
+    return strat != null && SALE_STRATS.has(strat);
+  })) {
+    out.push({ level: 'warning', message: 'Zowel scenario-verkoopwaarde als componentstrategie met verkoopcomponenten zijn ingevuld. Kies één bron om dubbele telling te voorkomen.' });
+  }
+
   return out;
 }
+
 
 /** Aanname-waarschuwingen volgens §15. */
 export function buildAannameWaarschuwingen(c: ValidationContext, totalCorrectionPct: number): ValidationItem[] {
