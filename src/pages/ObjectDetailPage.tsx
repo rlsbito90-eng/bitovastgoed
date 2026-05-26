@@ -2134,17 +2134,17 @@ export default function ObjectDetailPage() {
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            {activeSection === 'vastgoedrekenen' ? (
+            {activeTab === 'vastgoedrekenen' ? (
               <div
                 aria-current="true"
                 className="w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm rounded-md bg-accent/10 text-accent border border-accent/20"
               >
-                <Calculator className="h-3.5 w-3.5" /> Huidige sectie: Vastgoedrekenen
+                <Calculator className="h-3.5 w-3.5" /> Huidige tab: Vastgoedrekenen
               </div>
             ) : (
               <button
                 type="button"
-                onClick={() => scrollToSection('vastgoedrekenen')}
+                onClick={() => setActiveTab('vastgoedrekenen')}
                 className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
               >
                 <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Vastgoedrekenen openen
