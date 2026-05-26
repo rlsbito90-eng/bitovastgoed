@@ -656,13 +656,26 @@ export default function ObjectDetailPage() {
     }
   }, [visibleTabs, activeTab]);
 
-  // Numbering voor eyebrows — gebruikt tab-volgorde (Documenten ongenummerd)
+  // Nummering alleen op hoofdworkspace-niveau: één NN per tab op de primaire sectie.
+  // Sub-secties binnen dezelfde tab tonen alleen de suffix-label (geen herhaald nummer).
+  const PRIMARY_ANCHOR_FOR_TAB: Record<WorkspaceTabId, string> = {
+    overzicht: 'overzicht',
+    dealflow: 'dealflow',
+    kandidaten: 'kandidaten',
+    vastgoedrekenen: 'vastgoedrekenen',
+    financieel: 'financieel',
+    dossier: 'dossier',
+    pand: 'pand',
+    meer: 'juridisch',
+    cockpit: 'deal-cockpit',
+  };
   const UNNUMBERED_SECTIONS = new Set(['documenten']);
   const eyebrowFor = (id: string, suffix?: string): string | undefined => {
     if (UNNUMBERED_SECTIONS.has(id)) return suffix;
-    // Gebruik de tab-volgorde voor nummering (overzicht=01, dealflow=02, ...)
     const tabForId = ANCHOR_TO_TAB[id];
     if (!tabForId) return suffix;
+    // Geen nummer als dit niet de primaire sectie van de tab is
+    if (PRIMARY_ANCHOR_FOR_TAB[tabForId] !== id) return suffix;
     const idx = visibleTabs.filter(t => !t.mobileOnly).findIndex(t => t.id === tabForId);
     if (idx === -1) return suffix;
     const nn = String(idx + 1).padStart(2, '0');
