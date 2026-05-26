@@ -46,6 +46,7 @@ export function computeScenarioOvb(
   scenario: Pick<Scenario, 'purchase_price' | 'ovb_mode' | 'ovb_classification' | 'transfer_tax_percentage' | 'transfer_tax_amount'>,
   components: Component[],
   settings: TaxSettings | null,
+  objectType?: 'residentieel' | 'commercieel' | 'mixed_use' | null,
 ): { totalOvb: number; perComponent: { id: string; amount: number; pct: number }[]; method: 'scenario' | 'per_component' | 'manual' } {
   const purchase = Number(scenario.purchase_price ?? 0);
 
@@ -65,7 +66,7 @@ export function computeScenarioOvb(
       }
       const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
         ? Number(c.transfer_tax_percentage)
-        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings);
+        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings, null, objectType);
       const amount = Math.round((basis * pct) / 100);
       return { id: c.id, amount, pct };
     });
@@ -75,6 +76,6 @@ export function computeScenarioOvb(
   // auto / fallback
   const pct = scenario.transfer_tax_percentage != null
     ? Number(scenario.transfer_tax_percentage)
-    : getOvbPercentage(scenario.ovb_classification as OvbClassification | null, settings);
+    : getOvbPercentage(scenario.ovb_classification as OvbClassification | null, settings, null, objectType);
   return { totalOvb: Math.round((purchase * pct) / 100), perComponent: [], method: 'scenario' };
 }
