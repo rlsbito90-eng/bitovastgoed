@@ -1139,7 +1139,12 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ 2. FINANCIEEL ============ */}
+          {/* ============ DEALFLOW (direct onder Overzicht voor snelle workflow) ============ */}
+          <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
+            <ObjectPipelineFaseSectie object={object} />
+          </SectionAnchor>
+
+          {/* ============ FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow={eyebrowFor("financieel", "Financials")} title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
