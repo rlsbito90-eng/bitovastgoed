@@ -1390,7 +1390,7 @@ export default function ObjectDetailPage() {
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
                 <span>
                   Voor scenario-analyse en gevoeligheid:&nbsp;
-                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
+                  <button type="button" onClick={() => goToAnchor('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
                 </span>
               </div>
             </div>
