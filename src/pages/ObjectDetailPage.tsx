@@ -1808,6 +1808,7 @@ export default function ObjectDetailPage() {
               openTabRequest={dossierOpenRequest}
             />
           </SectionAnchor>
+          )}
 
           {/* ============ KANDIDATEN ============ */}
           {activeTab === 'kandidaten' && (
