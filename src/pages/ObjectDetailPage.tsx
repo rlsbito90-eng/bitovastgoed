@@ -1402,6 +1402,8 @@ export default function ObjectDetailPage() {
 
             {/* Referentieanalyse staat verderop in eigen sectie 'Referenties' */}
           </SectionAnchor>
+          )}
+
 
 
           {/* ============ VERHUUR ============ */}
