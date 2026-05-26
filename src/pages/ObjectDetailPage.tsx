@@ -1809,6 +1809,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ KANDIDATEN ============ */}
+          {activeTab === 'kandidaten' && (
           <SectionAnchor
             id="kandidaten"
             eyebrow={eyebrowFor("kandidaten", "Candidates")}
