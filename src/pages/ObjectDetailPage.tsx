@@ -237,6 +237,7 @@ type SectionDef = { id: string; label: string; icon: any };
 
 const BASE_SECTIONS: SectionDef[] = [
   { id: 'overzicht', label: 'Overzicht', icon: Info },
+  { id: 'dealflow', label: 'Dealflow', icon: Target },
   { id: 'financieel', label: 'Financieel', icon: LineChart },
   { id: 'verhuur', label: 'Verhuur', icon: Users },
   { id: 'pand', label: 'Pand', icon: Building2 },
@@ -246,8 +247,7 @@ const BASE_SECTIONS: SectionDef[] = [
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
-  { id: 'dealflow', label: 'Dealflow', icon: Target },
-  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst
+  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst (na 'kandidaten')
   { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
@@ -268,10 +268,43 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const programmaticUntilRef = useRef<number>(0);
   const lastCenteredRef = useRef<string>('');
+  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
 
   const prefersReduced = () =>
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  const updateEdges = () => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const max = sc.scrollWidth - sc.clientWidth;
+    setEdges({ left: sc.scrollLeft > 2, right: sc.scrollLeft < max - 2 });
+  };
+
+  // Wheel → horizontaal scrollen op desktop (verticale wheel mapt naar horizontale scroll)
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const onWheel = (e: WheelEvent) => {
+      // Trackpad horizontale swipe levert deltaX → niets doen, browser regelt het al
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const max = sc.scrollWidth - sc.clientWidth;
+      if (max <= 0) return;
+      // Voorkom dat de page meescrollt wanneer we horizontaal kunnen scrollen
+      e.preventDefault();
+      sc.scrollLeft += e.deltaY;
+      updateEdges();
+    };
+    sc.addEventListener('wheel', onWheel, { passive: false });
+    sc.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', updateEdges);
+    updateEdges();
+    return () => {
+      sc.removeEventListener('wheel', onWheel as any);
+      sc.removeEventListener('scroll', updateEdges as any);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
 
   const isTabFullyVisible = (el: HTMLElement, scroller: HTMLElement, pad = 24) => {
     const left = el.offsetLeft;
@@ -363,50 +396,58 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
       data-object-section-nav="true"
       className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
     >
-      <div
-        ref={scrollerRef}
-        className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {sections.map((s) => {
-          const isActive = active === s.id;
-          return (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => handleClick(e, s.id)}
-              ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
-                isActive
-                  ? 'glass-pill-active text-accent'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-              }`}
-            >
-              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
-              {s.label}
-            </a>
-          );
-        })}
-        <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
-        {MOBILE_ONLY_SECTIONS.map((s) => {
-          const isActive = active === s.id;
-          return (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => handleClick(e, s.id)}
-              ref={(el) => { tabRefs.current[s.id] = el; }}
-              className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
-                isActive
-                  ? 'glass-pill-active text-accent'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-              }`}
-            >
-              <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
-              {s.label}
-            </a>
-          );
-        })}
+      <div className="relative">
+        {edges.left && (
+          <div aria-hidden className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-background/95 to-transparent rounded-l-xl" />
+        )}
+        {edges.right && (
+          <div aria-hidden className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l from-background/95 to-transparent rounded-r-xl" />
+        )}
+        <div
+          ref={scrollerRef}
+          className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {sections.map((s) => {
+            const isActive = active === s.id;
+            return (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => handleClick(e, s.id)}
+                ref={(el) => { tabRefs.current[s.id] = el; }}
+                className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {s.label}
+              </a>
+            );
+          })}
+          <span aria-hidden className="lg:hidden shrink-0 self-center h-5 w-px bg-border/60 mx-1" />
+          {MOBILE_ONLY_SECTIONS.map((s) => {
+            const isActive = active === s.id;
+            return (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => handleClick(e, s.id)}
+                ref={(el) => { tabRefs.current[s.id] = el; }}
+                className={`lg:hidden group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <s.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {s.label}
+              </a>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
@@ -466,7 +507,7 @@ export default function ObjectDetailPage() {
       if (s.id === 'dossier' && hasDocumentenSectie) {
         out.push({ id: 'documenten', label: 'Documenten', icon: FolderOpen });
       }
-      if (s.id === 'dealflow') {
+      if (s.id === 'kandidaten') {
         if (object && object.referentieanalyseZichtbaar !== false) {
           out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
         }
@@ -989,50 +1030,79 @@ export default function ObjectDetailPage() {
       })()}
 
       {/* =================================================
-          HERO KPI STRIP — institutional underwriting overview
+          HERO KPI STRIP — dynamisch: alleen relevante tiles
           ================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
-        <MetricTile
-          label="Vraagprijs"
-          value={
-            object.vraagprijs != null
-              ? formatCurrency(object.vraagprijs)
-              : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
-          }
-          hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
-          accent
-        />
-        <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
-        <MetricTile
-          label="BAR"
-          value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
-          tone={barEffect != null && barEffect >= 6 ? 'positive' : 'default'}
-          badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
-        />
-        <MetricTile
-          label="Factor"
-          value={factor != null ? `${factor.toFixed(1)}×` : '—'}
-          badge={factor != null ? 'auto' : undefined}
-        />
-        <MetricTile
-          label="Huur / jr"
-          value={object.huurinkomsten ? formatCurrencyCompact(object.huurinkomsten) : '—'}
-          hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
-        />
-        <MetricTile
-          label="Oppervlakte"
-          value={object.oppervlakte ? formatM2(object.oppervlakte) : '—'}
-        />
-      </div>
+      {(() => {
+        const tiles: ReactNode[] = [];
+        if (object.vraagprijs != null || object.prijsindicatie) {
+          tiles.push(
+            <MetricTile
+              key="vraagprijs"
+              label="Vraagprijs"
+              value={
+                object.vraagprijs != null
+                  ? formatCurrency(object.vraagprijs)
+                  : <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span>
+              }
+              hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+              accent
+            />,
+          );
+        }
+        if (object.vraagprijs != null && m2VoorBerekening) {
+          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" />);
+        }
+        if (barEffect != null) {
+          tiles.push(
+            <MetricTile
+              key="bar"
+              label="BAR"
+              value={formatPercent(barEffect, 2)}
+              tone={barEffect >= 6 ? 'positive' : 'default'}
+              badge={barIsHandmatig ? 'handmatig' : 'auto'}
+            />,
+          );
+        }
+        if (factor != null) {
+          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.toFixed(1)}×`} badge="auto" />);
+        }
+        if (object.huurinkomsten) {
+          tiles.push(
+            <MetricTile
+              key="huur"
+              label="Huur / jr"
+              value={formatCurrencyCompact(object.huurinkomsten)}
+              hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
+            />,
+          );
+        }
+        if (object.oppervlakte) {
+          tiles.push(<MetricTile key="opp" label="Oppervlakte" value={formatM2(object.oppervlakte)} />);
+        }
+        if (tiles.length === 0) return null;
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+            {tiles}
+          </div>
+        );
+      })()}
 
-      {/* Huurders + WALT/WALB strip (bron: huurdersregels indien aanwezig, anders object-fallback) */}
-      {verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0 && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-          <MetricTile label="Huurders" value={verhuur.aantalHuurders.toString()} />
-          <MetricTile label="WALT" value={verhuur.waltJaren != null ? `${verhuur.waltJaren.toFixed(1)} jr` : '—'} />
-          <MetricTile label="WALB" value={verhuur.walbJaren != null ? `${verhuur.walbJaren.toFixed(1)} jr` : '—'} />
-        </div>
-      )}
+      {/* Huurders + WALT/WALB strip — alleen relevante tiles */}
+      {(() => {
+        const tiles: ReactNode[] = [];
+        if (verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0) {
+          tiles.push(<MetricTile key="h" label="Huurders" value={verhuur.aantalHuurders.toString()} />);
+        }
+        if (verhuur.waltJaren != null) {
+          tiles.push(<MetricTile key="walt" label="WALT" value={`${verhuur.waltJaren.toFixed(1)} jr`} />);
+        }
+        if (verhuur.walbJaren != null) {
+          tiles.push(<MetricTile key="walb" label="WALB" value={`${verhuur.walbJaren.toFixed(1)} jr`} />);
+        }
+        if (tiles.length === 0) return null;
+        const cols = tiles.length === 1 ? 'grid-cols-1' : tiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+        return <div className={`grid ${cols} gap-2 sm:gap-2.5`}>{tiles}</div>;
+      })()}
 
       {/* =================================================
           STICKY SECTION NAV
@@ -1110,7 +1180,12 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ 2. FINANCIEEL ============ */}
+          {/* ============ DEALFLOW (direct onder Overzicht voor snelle workflow) ============ */}
+          <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
+            <ObjectPipelineFaseSectie object={object} />
+          </SectionAnchor>
+
+          {/* ============ FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow={eyebrowFor("financieel", "Financials")} title="Financieel">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
@@ -1713,10 +1788,6 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ DEALFLOW ============ */}
-          <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
-            <ObjectPipelineFaseSectie object={object} />
-          </SectionAnchor>
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
           {object.referentieanalyseZichtbaar !== false && (
@@ -1860,15 +1931,15 @@ export default function ObjectDetailPage() {
                 {leadDeal.commissieBedrag != null && (
                   <div className="hairline pt-3 space-y-2">
                     <div>
-                      <p className="field-label">Verwachte fee (gewogen)</p>
+                      <p className="field-label">Potentiële commissie</p>
                       <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                        {formatCurrency(leadDealVerwachteFee)}
+                        {formatCurrency(leadDeal.commissieBedrag)}
                       </p>
                     </div>
                     <div>
-                      <p className="field-label">Potentiële commissie</p>
+                      <p className="field-label">Verwachte fee (gewogen)</p>
                       <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
-                        {formatCurrency(leadDeal.commissieBedrag)}
+                        {formatCurrency(leadDealVerwachteFee)}
                       </p>
                     </div>
                   </div>
