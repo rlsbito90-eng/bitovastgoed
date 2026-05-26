@@ -1863,6 +1863,7 @@ export default function ObjectDetailPage() {
               <ObjectPipelineSectie objectId={object.id} />
             </div>
           </SectionAnchor>
+          )}
 
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
