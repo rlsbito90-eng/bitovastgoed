@@ -237,6 +237,7 @@ type SectionDef = { id: string; label: string; icon: any };
 
 const BASE_SECTIONS: SectionDef[] = [
   { id: 'overzicht', label: 'Overzicht', icon: Info },
+  { id: 'dealflow', label: 'Dealflow', icon: Target },
   { id: 'financieel', label: 'Financieel', icon: LineChart },
   { id: 'verhuur', label: 'Verhuur', icon: Users },
   { id: 'pand', label: 'Pand', icon: Building2 },
@@ -246,8 +247,7 @@ const BASE_SECTIONS: SectionDef[] = [
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
-  { id: 'dealflow', label: 'Dealflow', icon: Target },
-  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst
+  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst (na 'kandidaten')
   { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
