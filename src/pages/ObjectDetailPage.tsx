@@ -1865,7 +1865,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
-          {object.referentieanalyseZichtbaar !== false && (
+          {activeTab === 'kandidaten' && object.referentieanalyseZichtbaar !== false && (
             <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
               <ObjectReferentieAnalyseSectie object={object} />
             </SectionAnchor>
