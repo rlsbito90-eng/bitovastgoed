@@ -29,6 +29,8 @@ import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import AuditDialog from './audit/AuditDialog';
+import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 
 type Props = {
   scenario: Scenario;
@@ -540,6 +542,16 @@ export default function ScenarioEditor(props: Props) {
               <Button variant="default" onClick={save} disabled={!dirty} className="w-full lg:w-auto">
                 <Save className="h-4 w-4 mr-1" />Opslaan
               </Button>
+              <AuditDialog
+                buildInput={(): AuditInput => ({
+                  scenario: s, components, costs: draftCosts, wwsUnits, strategyUnits: sellOffUnits,
+                  taxSettings, objectType, objectArea,
+                  objectWoz: props.objectWoz, objectEnergyLabel: props.objectEnergyLabel, objectBouwjaar: props.objectBouwjaar,
+                  objectTitle: null, objectAddress: null, objectAskingPrice: null,
+                  propertyType, dirty, hasUnsavedCosts: costDraftDirtyRef.current,
+                  uiOutputs: outputs,
+                })}
+              />
               <Button variant="outline" size="icon" onClick={() => onDelete(s.id)} className="justify-self-end"><Trash2 className="h-4 w-4" /></Button>
             </div>
           </div>
