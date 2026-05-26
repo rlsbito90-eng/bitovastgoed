@@ -989,50 +989,79 @@ export default function ObjectDetailPage() {
       })()}
 
       {/* =================================================
-          HERO KPI STRIP — institutional underwriting overview
+          HERO KPI STRIP — dynamisch: alleen relevante tiles
           ================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
-        <MetricTile
-          label="Vraagprijs"
-          value={
-            object.vraagprijs != null
-              ? formatCurrency(object.vraagprijs)
-              : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
-          }
-          hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
-          accent
-        />
-        <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
-        <MetricTile
-          label="BAR"
-          value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
-          tone={barEffect != null && barEffect >= 6 ? 'positive' : 'default'}
-          badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
-        />
-        <MetricTile
-          label="Factor"
-          value={factor != null ? `${factor.toFixed(1)}×` : '—'}
-          badge={factor != null ? 'auto' : undefined}
-        />
-        <MetricTile
-          label="Huur / jr"
-          value={object.huurinkomsten ? formatCurrencyCompact(object.huurinkomsten) : '—'}
-          hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
-        />
-        <MetricTile
-          label="Oppervlakte"
-          value={object.oppervlakte ? formatM2(object.oppervlakte) : '—'}
-        />
-      </div>
+      {(() => {
+        const tiles: ReactNode[] = [];
+        if (object.vraagprijs != null || object.prijsindicatie) {
+          tiles.push(
+            <MetricTile
+              key="vraagprijs"
+              label="Vraagprijs"
+              value={
+                object.vraagprijs != null
+                  ? formatCurrency(object.vraagprijs)
+                  : <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span>
+              }
+              hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
+              accent
+            />,
+          );
+        }
+        if (object.vraagprijs != null && m2VoorBerekening) {
+          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" />);
+        }
+        if (barEffect != null) {
+          tiles.push(
+            <MetricTile
+              key="bar"
+              label="BAR"
+              value={formatPercent(barEffect, 2)}
+              tone={barEffect >= 6 ? 'positive' : 'default'}
+              badge={barIsHandmatig ? 'handmatig' : 'auto'}
+            />,
+          );
+        }
+        if (factor != null) {
+          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.toFixed(1)}×`} badge="auto" />);
+        }
+        if (object.huurinkomsten) {
+          tiles.push(
+            <MetricTile
+              key="huur"
+              label="Huur / jr"
+              value={formatCurrencyCompact(object.huurinkomsten)}
+              hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
+            />,
+          );
+        }
+        if (object.oppervlakte) {
+          tiles.push(<MetricTile key="opp" label="Oppervlakte" value={formatM2(object.oppervlakte)} />);
+        }
+        if (tiles.length === 0) return null;
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+            {tiles}
+          </div>
+        );
+      })()}
 
-      {/* Huurders + WALT/WALB strip (bron: huurdersregels indien aanwezig, anders object-fallback) */}
-      {verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0 && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-          <MetricTile label="Huurders" value={verhuur.aantalHuurders.toString()} />
-          <MetricTile label="WALT" value={verhuur.waltJaren != null ? `${verhuur.waltJaren.toFixed(1)} jr` : '—'} />
-          <MetricTile label="WALB" value={verhuur.walbJaren != null ? `${verhuur.walbJaren.toFixed(1)} jr` : '—'} />
-        </div>
-      )}
+      {/* Huurders + WALT/WALB strip — alleen relevante tiles */}
+      {(() => {
+        const tiles: ReactNode[] = [];
+        if (verhuur.aantalHuurders != null && verhuur.aantalHuurders > 0) {
+          tiles.push(<MetricTile key="h" label="Huurders" value={verhuur.aantalHuurders.toString()} />);
+        }
+        if (verhuur.waltJaren != null) {
+          tiles.push(<MetricTile key="walt" label="WALT" value={`${verhuur.waltJaren.toFixed(1)} jr`} />);
+        }
+        if (verhuur.walbJaren != null) {
+          tiles.push(<MetricTile key="walb" label="WALB" value={`${verhuur.walbJaren.toFixed(1)} jr`} />);
+        }
+        if (tiles.length === 0) return null;
+        const cols = tiles.length === 1 ? 'grid-cols-1' : tiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+        return <div className={`grid ${cols} gap-2 sm:gap-2.5`}>{tiles}</div>;
+      })()}
 
       {/* =================================================
           STICKY SECTION NAV
