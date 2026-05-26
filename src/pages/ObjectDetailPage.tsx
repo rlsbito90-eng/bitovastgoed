@@ -1742,10 +1742,6 @@ export default function ObjectDetailPage() {
             </div>
           </SectionAnchor>
 
-          {/* ============ DEALFLOW ============ */}
-          <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
-            <ObjectPipelineFaseSectie object={object} />
-          </SectionAnchor>
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
           {object.referentieanalyseZichtbaar !== false && (
