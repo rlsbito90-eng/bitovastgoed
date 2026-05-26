@@ -1653,7 +1653,7 @@ export default function ObjectDetailPage() {
           })()}
 
           {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
-          {hasJuridischData(object) && (
+          {activeTab === 'meer' && hasJuridischData(object) && (
             <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
               <div className="section-card p-5 sm:p-6 space-y-3">
                 {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
