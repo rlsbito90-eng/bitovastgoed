@@ -1873,7 +1873,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ DOCUMENTEN (ondersteunend, zonder hoofdnummer) ============ */}
-          {documenten.length > 0 && (
+          {activeTab === 'dossier' && documenten.length > 0 && (
             <SectionAnchor
               id="documenten"
               eyebrow={eyebrowFor("documenten", "Data room")}
