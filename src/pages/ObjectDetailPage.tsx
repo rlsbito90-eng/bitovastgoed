@@ -1890,15 +1890,15 @@ export default function ObjectDetailPage() {
                 {leadDeal.commissieBedrag != null && (
                   <div className="hairline pt-3 space-y-2">
                     <div>
-                      <p className="field-label">Verwachte fee (gewogen)</p>
+                      <p className="field-label">Potentiële commissie</p>
                       <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                        {formatCurrency(leadDealVerwachteFee)}
+                        {formatCurrency(leadDeal.commissieBedrag)}
                       </p>
                     </div>
                     <div>
-                      <p className="field-label">Potentiële commissie</p>
+                      <p className="field-label">Verwachte fee (gewogen)</p>
                       <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
-                        {formatCurrency(leadDeal.commissieBedrag)}
+                        {formatCurrency(leadDealVerwachteFee)}
                       </p>
                     </div>
                   </div>
