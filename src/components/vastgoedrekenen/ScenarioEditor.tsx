@@ -659,6 +659,17 @@ export default function ScenarioEditor(props: Props) {
             {/* 3. Huur & exploitatie */}
             <Section title="Huur & exploitatie" status={huurStatus} defaultOpen={exploitatie}>
               <div className="pt-3 space-y-3">
+                {(() => {
+                  const hasComponentRent = components.some((cc) => Number(cc.current_annual_rent ?? 0) > 0 || Number(cc.current_monthly_rent ?? 0) > 0);
+                  const hasScenarioRent = Number(s.current_monthly_rent ?? 0) > 0 || Number(s.market_monthly_rent ?? 0) > 0;
+                  const conflict = hasComponentRent && rentSource === 'handmatig' && hasScenarioRent;
+                  return (
+                    <div className={`rounded-md border px-3 py-2 text-xs ${conflict ? 'border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200' : 'border-border bg-muted/30 text-muted-foreground'}`}>
+                      <strong className="font-medium">Actieve huurbron:</strong> {RENT_SOURCE_LABELS[rentSource] ?? rentSource}
+                      {conflict && <div className="mt-1">⚠ Zowel componenthuren als handmatige huur ingevuld. Kies welke huurbron leidend is om dubbele telling te voorkomen.</div>}
+                    </div>
+                  );
+                })()}
                 <NoiOpbouw scenario={s} o={outputs} />
                 <p className="text-xs text-muted-foreground">
                   Deze percentages zijn quickscan-aannames. Controleer ze vóór bieding op basis van huurcontracten, onderhoudsstaat, servicekosten, VvE, objecttype, locatie en marktdata.
