@@ -115,6 +115,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const bid = computeBidAdvice({
     correctedAnnualRent: correctedAnnual,
     targetBar: Number(scenario.target_bar ?? 6),
+    totalOvb: ovb.totalOvb,
     totalAcquisitionCosts: acq.totalAcquisitionCosts,
     totalCosts: totals.total,
     financingCosts: financing,
