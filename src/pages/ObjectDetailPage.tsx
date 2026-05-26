@@ -1572,6 +1572,7 @@ export default function ObjectDetailPage() {
               )}
             </div>
           </SectionAnchor>
+          )}
 
           {/* ============ POTENTIE & MOGELIJKHEDEN (conditioneel) ============ */}
           {activeTab === 'pand' && hasPotentieData(object) && (() => {
