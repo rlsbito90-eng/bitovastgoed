@@ -466,7 +466,7 @@ export default function ObjectDetailPage() {
       if (s.id === 'dossier' && hasDocumentenSectie) {
         out.push({ id: 'documenten', label: 'Documenten', icon: FolderOpen });
       }
-      if (s.id === 'dealflow') {
+      if (s.id === 'kandidaten') {
         if (object && object.referentieanalyseZichtbaar !== false) {
           out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
         }
