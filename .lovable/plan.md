@@ -1,162 +1,137 @@
+# Plan: Audit & Diagnostics Mode voor Vastgoedrekenen
 
-# Prompt 3.5 — Matchinglogica gecentraliseerd (afgerond)
+## Doel
 
-- Sterke-match drempel centraal: `STRONG_MATCH_THRESHOLD = 70` (0–100 schaal) in `src/lib/derivations/matching.ts`.
-- `isStrongMatch(score)` gebruikt in: `MatchAlertBadge`, `NotificationsBell`, `DashboardPage` (top kandidaten), `ObjectDetailPage` (sterke matches), `StatusBadges.MatchScoreBadge`.
-- Kandidaten-teller via `countKandidaten({ matches, pipelineRows, threshold })` in `src/lib/derivations/deal.ts` — telt unieke relaties uit matches ∪ pipeline, geen dubbeltelling.
-- Top kandidaten en kandidaten-in-traject blijven inhoudelijk gescheiden.
-- NotificationsBell init markeert bestaande matches als gezien → geen overload.
-- Geen schema-/datawijziging; legacy taxonomie-fallback ongemoeid (cleanup later in 3.8/3.9).
-- Tests: `src/test/derivations/matching.test.ts` + `src/test/derivations/deal.test.ts`.
+Een controle- en diagnoselaag bovenop de bestaande Vastgoedrekenen-module. **Geen** wijzigingen aan rekenlogica (tenzij een evidente bug). Alleen lezen, vergelijken en rapporteren. Per scenario kun je met één klik een auditrapport genereren dat datakwaliteit, mapping, save-state, bron-van-waarheid, dubbele tellingen en outputconsistentie controleert.
 
-# Prompt 3.7 — Notificaties gecontroleerd en gecentraliseerd (afgerond)
+## Wat de gebruiker krijgt
 
-Toegestane triggers (geen nieuwe types toegevoegd):
-- **Taken**: verlopen (kritiek), vandaag (hoog), nieuw met hoog/urgent prio (hoog).
-- **Biedingen**: bod verloopt vandaag of morgen, alleen actieve statussen (hoog).
-- **Matching**: sterke match score ≥ 70 (centrale `isStrongMatch`) — normaal.
-- **Datakwaliteit**: dubbele relatie / dubbele objectinvoer (kritiek).
+1. Knop **"Controleer scenario"** in iedere `ScenarioEditor`.
+2. Een **AuditDialog** met:
+   - Totaalscore (OK / Waarschuwing / Fout).
+   - Tabbladen per categorie (A t/m T uit de opdracht).
+   - Per check: status, sectie, record, probleem, advies, technische details.
+   - **Bron-van-waarheid tabel** (huur, OVB, oppervlakte, exit, etc.).
+   - **Stap-voor-stap berekening** van maximale aankoopprijs.
+   - **Consistentiecheck** tussen `ScenarioEditor` / `DealSnapshot` / `ScenarioVergelijking` outputs.
+   - **Hinthamerstraat testcase** check (alleen actief als scenario matcht op naam/heuristiek).
+3. Knop **"Exporteer auditrapport"** → kopieert Markdown naar klembord + download `.md` bestand.
 
-Centrale bronnen:
-- `isStrongMatch` / `STRONG_MATCH_THRESHOLD` uit `@/lib/derivations`.
-- `useBiedingen({ all: true })` voor bieding-verloop.
-- `isTaakTeLaat` / `isTaakVandaag` uit `taakHelpers`.
-- Duplicate-detectie inline in `NotificationsBell` (geen losse bron nodig).
+## Architectuur
 
-Init / dedupe / persistentie:
-- `INIT_FLAG = bito-notifications-initialized-v3`: bij eerste init worden alle bestaande kandidaten als 'created' opgeslagen → geen historische backfill in de bel.
-- `CREATED_IDS_KEY` (cap 2000) houdt stabiele dedupe-keys bij: bv. `taak-vandaag::${id}::${yyyy-mm-dd}`, `bod-verloop::${id}::${datum}`, `match-sterk::${objId}::${zpId}`, `dupe-relatie::${key}`, `dupe-object::${key}`.
-- Gewiste meldingen komen niet terug voor dezelfde trigger (id blijft in `created`).
-- Read/wis-state in `STORAGE_KEY = bito-notifications-v2`, cross-tab sync via `storage` event + custom `bito:notifications-updated`.
+### Nieuwe bestanden (uitsluitend audit-laag, niet aangeraakt door rekenengine)
 
-Geen schema-/datamigratie. Geen bestaande meldingen verwijderd. Geen nieuwe types.
+```
+src/lib/vastgoedrekenen/audit/
+  types.ts              # AuditCheck, AuditCategory, AuditReport types
+  runAudit.ts           # Hoofdfunctie: runScenarioAudit(scenario, children, calc, object)
+  checks/
+    saveState.ts        # A. Dirty state, niet-opgeslagen wijzigingen
+    objectData.ts       # B. Objectvelden (vraagprijs, oppervlakte, type)
+    scenarioSettings.ts # C. Scenario-instellingen (strategy, rekenbasis)
+    components.ts       # D. Componenten/units aanwezig en compleet
+    wwsMapping.ts       # E. Componenten → WWS
+    strategyMapping.ts  # F. Componenten → Componentstrategie
+    rentSource.ts       # G+H. Huurbron + WWS gecorrigeerde huur
+    ovb.ts              # I. OVB
+    costs.ts            # J. Kosten/bouwkosten
+    exit.ts             # K. Verkoop/exit
+    strategyMix.ts      # L. Componentstrategie mix
+    engine.ts           # M. Centrale engine outputs aanwezig
+    snapshotConsistency.ts # N+O. Deal Snapshot vs Vergelijking vs Editor
+    maxBid.ts           # P. Maximale aankoopprijs stap-voor-stap
+    doable.ts           # Q. Rond te rekenen
+    doubleCounting.ts   # R. Mogelijke dubbele tellingen
+    onderbouwing.ts     # S. Ontbrekende onderbouwing
+    formatting.ts       # T. NL nummerformat (steekproef op opgeslagen strings)
+  sourcesOfTruth.ts     # Tabel "actieve bron" per onderdeel
+  maxBidExplain.ts      # Stap-voor-stap uitleg
+  hinthamerstraat.ts    # Vaste testcase-check
+  exportMarkdown.ts     # Render AuditReport → Markdown
+```
 
-Open punten (later):
-- Eventueel notificaties cross-device synchroniseren via Supabase tabel (nu localStorage-only).
-- "Taak aan mij gekoppeld" trigger zodra gebruikersrol-toewijzing aan taken bestaat.
+### Nieuwe UI-componenten
 
+```
+src/components/vastgoedrekenen/audit/
+  AuditButton.tsx       # Knop in ScenarioEditor header
+  AuditDialog.tsx       # Dialog met tabbladen
+  AuditSummary.tsx      # Totaalscore bovenaan
+  AuditCheckRow.tsx     # Individuele check rendering
+  SourcesOfTruthTable.tsx
+  MaxBidExplain.tsx
+```
 
-# Prompt 3.6 — Dealflow/pipeline/biedingen/cockpit gecentraliseerd (afgerond)
+### Minimale wijzigingen aan bestaande code
 
-Bron van waarheid per domein:
-- **Top kandidaten / matches** → `getMatchesForObjectFromData` + `isStrongMatch` (≥70).
-- **Kandidaten in traject** → `object_pipeline` rows via `getPipelineVoorObject` / `getActivePipelineCandidates`.
-- **Kandidaatcount (hoofdteller)** → `countKandidaten({ matches, pipelineRows, objectId })` — unieke union, geen dubbeltelling.
-- **Lead deal** → `selectLeadDeal(deals, objectId)` (actief > hoogste FASE_KANS > recentste contact).
-- **Verwachte fee (gewogen)** → `calculateExpectedFee(deals)` = Σ commissieBedrag × FASE_KANS, alleen actieve fases.
-- **Potentiële commissie** → `deal.commissieBedrag` ongewogen (apart label in cockpit).
-- **Dealflowfase** → object pipeline / deal.fase (bestaande logica ongemoeid).
-- **Biedingen** → biedingen-module/tabel (`useBiedingen`), notificatie-verloop uit dezelfde bron.
-- **Deal Cockpit** → samenvatting via bovenstaande selectors, geen eigen logica.
+- `ScenarioEditor.tsx`: één import + `<AuditButton scenario={...} />` in de header.
+- **Geen** wijzigingen aan `compute.ts`, `bieding.ts`, `huur.ts`, `ovb.ts`, `verkoop.ts`, `wws.ts`, `componentStrategy.ts`, `validation.ts`, hooks of database.
 
-Wijzigingen:
-- `ObjectDetailPage`: lokale lead-deal-sortering vervangen door `selectLeadDeal`.
-- Cockpit toont nu expliciet "Verwachte fee (gewogen)" + "Potentiële commissie" — geen verwarring meer.
-- `DashboardPage` / `DealsPage` / `DealDetailPage` / `DealFormDialog` blijven `FASE_KANS` direct gebruiken (consistent met `calculateExpectedFee`).
+## Technische details
 
-Geen schema-/datamigratie. Geen records verwijderd/overschreven.
+### AuditCheck shape
 
-Open punten (later):
-- `DashboardPage` zou `calculateExpectedFee` rechtstreeks kunnen aanroepen i.p.v. `commissieStats.pipelineBedragGewogen` (semantisch identiek, cosmetische refactor).
-- Bieding-verloop notificaties centraliseren in `src/lib/biedingen` helper (3.7+).
+```ts
+type AuditStatus = 'ok' | 'warning' | 'error' | 'na';
 
+interface AuditCheck {
+  id: string;                // stable key
+  category: AuditCategory;   // 'save_state' | 'object_data' | ...
+  status: AuditStatus;
+  section: string;           // bv. "WWS", "Componentstrategie"
+  record?: string;           // bv. "Woning 92A"
+  field?: string;
+  problem: string;           // korte NL uitleg
+  advice?: string;
+  technical?: string;        // bv. "wws_unit.living_area_m2 = null"
+}
 
+interface AuditReport {
+  scenarioId: string;
+  scenarioName: string;
+  generatedAt: string;
+  checks: AuditCheck[];
+  sourcesOfTruth: SourceOfTruthRow[];
+  maxBidExplain: MaxBidExplainStep[];
+  summary: { ok: number; warning: number; error: number; na: number };
+  conclusion: string;
+}
+```
 
-# Componentstrategie per scenario
+### Save-state detectie
 
-Doel: per scenario kunnen kiezen wat er met elke component/unit gebeurt (verkopen, aanhouden, renoveren, splitsen, transformeren, handmatig, later beslissen) en de scenariowaarde + maximale aankoopprijs samenstellen uit deze mix. Geïntegreerd binnen de bestaande `computeScenario`-engine.
+`ScenarioEditor` houdt al een lokale `draft` bij. We voegen een **prop** `dirty: boolean` toe aan `AuditButton` zodat de audit weet of er onopgeslagen wijzigingen zijn. Geen wijziging aan rekenflow.
 
-## 1. Datamigratie — uitbreiden `sell_off_units`
+### Consistentie-check (Deal Snapshot vs Vergelijking vs Editor)
 
-Toegevoegd via migration (geen rename — UI noemt het "Componentstrategie"):
+Alle drie roepen `computeScenario` aan. De audit roept `computeScenario` **één keer** aan met de opgeslagen scenariodata en vergelijkt belangrijke outputs (`totalInvestment`, `noi`, `bar`, `nar`, `maxBid`, `scenarioValue`) op gelijkheid binnen €1 tolerantie. Verschil → fout met vermoedelijke oorzaak (meestal: niet-opgeslagen draft of stale prop).
 
-- `component_id uuid` (optioneel, voor import-link naar `calculation_components`)
-- `unit_label text`, `unit_type text`, `surface_gbo numeric`, `surface_vvo numeric`, `surface_bvo numeric`
-- `strategy text` (nieuwe enum-achtige tekstkolom) met values:
-  `verkopen_leeg | verkopen_verhuurd | aanhouden | renoveren_verkopen | renoveren_aanhouden | splitsen_verkopen | transformeren_verkopen | transformeren_aanhouden | handmatige_waarde | later_beslissen`
-- Verkoop: `sale_price_total bigint`, `sale_price_per_m2 numeric`, `sale_price_source text`, `sale_costs_pct numeric`, `sale_costs_amount bigint`, `legal_costs bigint`, `renovation_costs bigint`, `splitting_costs bigint`, `transformation_costs bigint`, `net_sale_proceeds bigint`
-- Aanhouden: `hold_monthly_rent bigint`, `hold_annual_rent bigint`, `hold_rent_source text`, `hold_valuation_method text`, `hold_bar numeric`, `hold_nar numeric`, `hold_factor numeric`, `hold_value_manual bigint`, `hold_value_calculated bigint`
-- Algemeen: `contribution_to_scenario_value bigint`, `notes text`, `sort_order int default 0`
+### Stap-voor-stap maxBid
 
-Bestaande rijen blijven werken (alle nieuwe kolommen nullable). RLS-policies blijven gelijk aan huidige `sell_off_units`.
+`maxBidExplain.ts` re-runt `computeBidAdvice` met logging van tussenstappen: bruto huur → NOI → kapitalisatie → scenario-waarde → -OVB → -aankoopkosten → -kosten → -veiligheidsmarge → -gewenste marge → maxBid → vergelijk met vraagprijs → "rond te rekenen ja/nee".
 
-## 2. Centrale rekenlogica
+### Hinthamerstraat testcase
 
-Nieuwe pure module `src/lib/vastgoedrekenen/componentStrategy.ts`:
+Heuristiek: object.adres of titel bevat "Hinthamer". Controleert: 8 componenten, 6 woningen + 2 commercieel, strategie-mix (woningen=verkopen, winkels=aanhouden), benodigde velden gevuld. Niet matchend → `status='na'`.
 
-- `computeComponentStrategy(unit, scenarioCtx)` → `{ contribution, breakdown, warnings }`.
-  - Verkoopvarianten → bruto verkoopwaarde (`per_m2` of `totaal`) min verkoopkosten, juridisch, renovatie, splitsing, transformatie.
-  - Aanhouden-varianten → waarde via BAR / NAR / factor / handmatig op gekozen huurbron (huidig / markt / wws-gecorrigeerd / handmatig).
-  - `handmatige_waarde` → manual value.
-  - `later_beslissen` → 0 + warning.
-- `aggregateStrategy(units)` → totalen voor: behoudwaarde, netto verkoopopbrengst, extra kosten die niet al in opbrengst zaten, strategy-mix tekst.
+### Export
 
-`computeScenario` (`compute.ts`) uitgebreid:
+`exportMarkdown.ts` produceert volledig Markdown rapport met 15 secties (Scenario-info t/m Actiepunten). Knop in `AuditDialog`:
+- Kopieer naar klembord (`navigator.clipboard.writeText`)
+- Download als `.md` bestand (`Blob` + `<a download>`)
 
-- Accepteert `strategyUnits: SellOffUnit[]` in `ComputeContext`.
-- Als er units zijn:
-  - `scenarioWaarde = behoudwaarde + nettoVerkoopopbrengstUnits`
-  - `totalInvestment` voegt component-renovatie/splits/transformatiekosten toe (alleen voor *aanhouden*-varianten — verkoopkosten worden al in netto opbrengst verwerkt).
-  - `maxAankoopprijs = scenarioWaarde − OVB − aankoopkosten − scenariobrede kosten − financiering − safetyMargin − gewenste marge`. OVB wordt iteratief opgelost via bestaande OVB-helper (2 passes) i.p.v. hardcoded %.
-  - `scenarioResultaatBijVraagprijs = scenarioWaarde − totalInvestment(asking)`.
-- Resultaten toegevoegd aan `ComputedOutputs`: `strategyEnabled`, `strategyMix`, `holdValue`, `saleNetProceedsUnits`, `scenarioValue`, `scenarioResultAtAsking`, `scenarioMarginPct`, `maxPurchasePrice`, `roundsAtAsking`.
-- Wanneer geen units → bestaande gedraging ongewijzigd (backwards compatible).
+### Geen breaking changes
 
-## 3. UI binnen ScenarioEditor
+- Geen wijziging aan DB-schema, migraties of types.
+- Geen wijziging aan bestaande compute-functies. De audit-laag gebruikt alléén bestaande publieke functies (`computeScenario`, `computeBidAdvice`, `computeOvb`, etc.) en leest scenariokinderen.
+- `validation.ts` blijft ongemoeid; de auditlaag is een uitbreiding (rijker en op verzoek), niet een vervanger.
 
-Nieuwe sectie **Componentstrategie** (boven of na "Componenten"):
+## Acceptatie
 
-- Knoppen: *Importeer uit componenten*, *Maak hybride scenario (woningen verkopen, commercieel houden)*, *Unit toevoegen*.
-- Tabel per unit: naam, type, m², strategie (select), huur/verkoopwaarde, kosten, bijdrage, waarschuwing.
-- Per rij detail-paneel met alleen de relevante velden afhankelijk van strategie.
-- Bovenaan scenario een mini-samenvatting: strategie-mix, behoudwaarde, netto verkoopopbrengst, scenariowaarde, max aankoopprijs, verschil vraagprijs, rond te rekenen ja/nee.
-
-Mapping import (componenttype → strategie):
-- `woning`/`appartement` → `verkopen_leeg`
-- `winkel`/`kantoor`/`bedrijfsruimte` → `aanhouden`
-- overig → `later_beslissen`
-
-Hybride knop overschrijft alleen units waar strategie nog `later_beslissen` of leeg is (geen data verlies).
-
-## 4. ScenarioVergelijking & DealSnapshot
-
-Beide componenten lezen de nieuwe `ComputedOutputs`-velden en tonen extra rijen: strategie-mix, behoudwaarde, netto verkoopopbrengst, scenariowaarde, scenarioresultaat, marge %, max aankoopprijs, verschil vraagprijs, rond te rekenen.
-
-Wanneer `strategyEnabled = false` blijven huidige weergaves ongewijzigd.
-
-## 5. Hook & data fetch
-
-`useScenarioChildren` haalt al `sellOffUnits` op — alleen CRUD-helpers toevoegen (`createUnit`, `updateUnit`, `deleteUnit`, `importFromComponents(componentIds)`, `applyHybridPreset()`).
-
-## 6. Validatie
-
-Centraal in `componentStrategy.ts` per unit:
-- ontbrekende strategie, verkoopwaarde, huur, BAR/NAR/factor, WWS, verkoop-/splits-/transformatiekosten, handmatige waarde zonder toelichting, "later beslissen" telt niet mee.
-
-Warnings worden opgeteld bij `ComputedOutputs.warnings`.
-
-## 7. Tests
-
-Nieuwe unit tests `src/test/vastgoedrekenen/componentStrategy.test.ts`:
-- per strategie de berekening,
-- aggregaten,
-- `computeScenario` met units (Hinthamerstraat-case): 6 woningen verkoop + 2 winkels aanhouden → max aankoopprijs vs vraagprijs €2.300.000.
-
-## Buiten scope
-
-Bouwkostenbibliotheek, PDF/CSV-export, WWS V2.
-
-## Bestanden
-
-- migration (nieuwe kolommen op `sell_off_units`)
-- `src/lib/vastgoedrekenen/componentStrategy.ts` (nieuw)
-- `src/lib/vastgoedrekenen/compute.ts` (uitgebreid)
-- `src/lib/vastgoedrekenen/types.ts` (uitgebreid)
-- `src/hooks/useVastgoedrekenen.tsx` (CRUD helpers)
-- `src/components/vastgoedrekenen/ScenarioEditor.tsx` (UI-sectie)
-- `src/components/vastgoedrekenen/ComponentStrategyTable.tsx` (nieuw)
-- `src/components/vastgoedrekenen/ScenarioVergelijking.tsx` (uitbreidingen)
-- `src/components/vastgoedrekenen/DealSnapshot.tsx` (uitbreidingen)
-- `src/test/vastgoedrekenen/componentStrategy.test.ts` (nieuw)
-
-Werkvolgorde: migration → types/engine → tests → UI → vergelijking/snapshot.
+- Eén klik = volledig rapport in dialog.
+- Alle 20 categorieën (A–T) hebben minimaal één concrete check.
+- Bron-van-waarheid tabel toont actieve + alternatieve bron + risico.
+- MaxBid stap-voor-stap zichtbaar in dialog en export.
+- Markdown export downloadbaar en kopieerbaar.
+- Hinthamerstraat-check werkt op het bestaande object zodra het scenario "woningen verkopen, winkels houden" is.
+- TypeScript build groen, geen wijziging aan bestaande tests.
