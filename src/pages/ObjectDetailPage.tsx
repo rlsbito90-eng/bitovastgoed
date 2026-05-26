@@ -260,6 +260,138 @@ const MOBILE_ONLY_SECTIONS: SectionDef[] = [
   { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
 ];
 
+/* ============================================================
+ * Workspace tabs (Optie C — hybride layout V1)
+ * ============================================================ */
+
+type WorkspaceTabId =
+  | 'overzicht' | 'dealflow' | 'kandidaten' | 'vastgoedrekenen'
+  | 'financieel' | 'dossier' | 'pand' | 'meer' | 'cockpit';
+
+const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobileOnly?: boolean }> = [
+  { id: 'overzicht',       label: 'Overzicht',       icon: Info },
+  { id: 'dealflow',        label: 'Dealflow',        icon: Target },
+  { id: 'kandidaten',      label: 'Kandidaten',      icon: Users },
+  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
+  { id: 'financieel',      label: 'Financieel',      icon: LineChart },
+  { id: 'dossier',         label: 'Dossier',         icon: ClipboardCheck },
+  { id: 'pand',            label: 'Pand',            icon: Building2 },
+  { id: 'meer',            label: 'Meer',            icon: MoreHorizontal },
+  { id: 'cockpit',         label: 'Cockpit',         icon: Target, mobileOnly: true },
+];
+
+/** Map van anchor-id (deep links blijven werken) naar tab waarop het anchor leeft */
+const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
+  overzicht: 'overzicht',
+  dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
+  kandidaten: 'kandidaten', referenties: 'kandidaten',
+  vastgoedrekenen: 'vastgoedrekenen',
+  financieel: 'financieel', verhuur: 'financieel',
+  dossier: 'dossier', aanbieding: 'dossier', documenten: 'dossier',
+  pand: 'pand', potentie: 'pand',
+  juridisch: 'meer', verkoper: 'meer',
+  'deal-cockpit': 'cockpit', 'next-action': 'cockpit', 'quick-actions': 'cockpit',
+};
+
+const WORKSPACE_TAB_STORAGE_KEY = 'object-detail:last-tab';
+
+/** Workspace tabs nav — vereenvoudigde versie van SectionNav voor tab-state */
+function WorkspaceTabsNav({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: Array<{ id: WorkspaceTabId; label: string; icon: any; mobileOnly?: boolean }>;
+  active: WorkspaceTabId;
+  onSelect: (id: WorkspaceTabId) => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+
+  const updateEdges = () => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const max = sc.scrollWidth - sc.clientWidth;
+    setEdges({ left: sc.scrollLeft > 2, right: sc.scrollLeft < max - 2 });
+  };
+
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const max = sc.scrollWidth - sc.clientWidth;
+      if (max <= 0) return;
+      e.preventDefault();
+      sc.scrollLeft += e.deltaY;
+      updateEdges();
+    };
+    sc.addEventListener('wheel', onWheel, { passive: false });
+    sc.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', updateEdges);
+    updateEdges();
+    return () => {
+      sc.removeEventListener('wheel', onWheel as any);
+      sc.removeEventListener('scroll', updateEdges as any);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
+
+  // Centreer actieve tab indien buiten beeld
+  useEffect(() => {
+    const el = tabRefs.current[active];
+    const sc = scrollerRef.current;
+    if (!el || !sc) return;
+    const left = el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2;
+    const max = sc.scrollWidth - sc.clientWidth;
+    sc.scrollTo({ left: Math.max(0, Math.min(max, left)), behavior: 'smooth' });
+  }, [active]);
+
+  return (
+    <nav
+      data-object-section-nav="true"
+      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
+    >
+      <div className="relative">
+        {edges.left && (
+          <div aria-hidden className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-background/95 to-transparent rounded-l-xl" />
+        )}
+        {edges.right && (
+          <div aria-hidden className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l from-background/95 to-transparent rounded-r-xl" />
+        )}
+        <div
+          ref={scrollerRef}
+          className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {tabs.map((t) => {
+            const isActive = active === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelect(t.id)}
+                ref={(el) => { tabRefs.current[t.id] = el; }}
+                className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${t.mobileOnly ? 'lg:hidden' : ''} ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <t.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+
+
 
 
 function SectionNav({ active, sections }: { active: string; sections: SectionDef[] }) {
@@ -475,123 +607,143 @@ export default function ObjectDetailPage() {
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
-  const [activeSection, setActiveSection] = useState<string>('overzicht');
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
-  const scrollLockRef = useRef<number>(0);
 
-  // Conditioneel zichtbare secties → ook gebruikt door scrollspy en sectiebar.
-  const sections = useMemo<SectionDef[]>(() => {
-    const out: SectionDef[] = [];
-    const hasDeals = object ? store.getDealsByObject(object.id).length > 0 : false;
-    const documentenCount = object ? store.getDocumentenVoorObject(object.id).length : 0;
-    // Documenten-sectie is alleen zichtbaar als er daadwerkelijk documenten of plattegronden zijn.
-    // Een gewone hero-foto (of zelfs een fotogalerij) activeert deze sectie niet — media-beheer
-    // gebeurt via Object bewerken → Media-tab. Dit voorkomt een grote lege Documenten-sectie.
-    const hasDocumentenSectie = documentenCount > 0;
-    for (const s of BASE_SECTIONS) {
-      // Verkoper-sectie wordt vóór 'aanbieding' ingevoegd (conditioneel)
-      if (s.id === 'aanbieding') {
-        if (object && (hasContactenData(object) || hasDeals)) {
-          out.push({ id: 'verkoper', label: 'Verkoper', icon: ContactIcon });
-        }
-      }
-      out.push(s);
-      if (s.id === 'pand') {
-        if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
-        if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
-      }
-      if (s.id === 'dossier' && hasDocumentenSectie) {
-        out.push({ id: 'documenten', label: 'Documenten', icon: FolderOpen });
-      }
-      if (s.id === 'kandidaten') {
-        if (object && object.referentieanalyseZichtbaar !== false) {
-          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
-        }
-      }
-    }
-    return out;
+  // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
+  const visibleTabs = useMemo(() => {
+    const hasMeer = !!object && (
+      hasJuridischData(object) ||
+      hasContactenData(object) ||
+      store.getDealsByObject(object.id).length > 0
+    );
+    return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
   }, [object, store]);
 
+  // ── Tab-state: prioriteit URL (?tab=) → hash-shim → localStorage → 'overzicht' ──
+  const readInitialTab = (): WorkspaceTabId => {
+    if (typeof window === 'undefined') return 'overzicht';
+    const url = new URL(window.location.href);
+    const fromQuery = url.searchParams.get('tab');
+    if (fromQuery && WORKSPACE_TABS.some(t => t.id === fromQuery)) return fromQuery as WorkspaceTabId;
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && ANCHOR_TO_TAB[hash]) return ANCHOR_TO_TAB[hash];
+    try {
+      const stored = window.localStorage.getItem(WORKSPACE_TAB_STORAGE_KEY);
+      if (stored && WORKSPACE_TABS.some(t => t.id === stored)) return stored as WorkspaceTabId;
+    } catch { /* ignore */ }
+    return 'overzicht';
+  };
+  const [activeTab, setActiveTabState] = useState<WorkspaceTabId>(readInitialTab);
 
-  // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
-  // als sectiebar/scrollspy/anchors. Ondersteunende secties (Documenten) tellen
-  // niet mee in de hoofdnummering zodat ze geen "gat" veroorzaken.
+  const setActiveTab = (id: WorkspaceTabId) => {
+    setActiveTabState(id);
+    try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, id); } catch { /* ignore */ }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', id);
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* ignore */ }
+  };
+
+  // Zorg dat actieve tab geldig blijft als visibleTabs verandert (bv. 'meer' verdwijnt)
+  useEffect(() => {
+    if (!visibleTabs.some(t => t.id === activeTab)) {
+      setActiveTabState('overzicht');
+    }
+  }, [visibleTabs, activeTab]);
+
+  // Numbering voor eyebrows — gebruikt tab-volgorde (Documenten ongenummerd)
   const UNNUMBERED_SECTIONS = new Set(['documenten']);
   const eyebrowFor = (id: string, suffix?: string): string | undefined => {
-    if (UNNUMBERED_SECTIONS.has(id)) return suffix; // titel zonder nummer
-    const numbered = sections.filter(s => !UNNUMBERED_SECTIONS.has(s.id));
-    const idx = numbered.findIndex(s => s.id === id);
-    if (idx === -1) return suffix; // sectie niet in centrale lijst → geen nummer
+    if (UNNUMBERED_SECTIONS.has(id)) return suffix;
+    // Gebruik de tab-volgorde voor nummering (overzicht=01, dealflow=02, ...)
+    const tabForId = ANCHOR_TO_TAB[id];
+    if (!tabForId) return suffix;
+    const idx = visibleTabs.filter(t => !t.mobileOnly).findIndex(t => t.id === tabForId);
+    if (idx === -1) return suffix;
     const nn = String(idx + 1).padStart(2, '0');
     return suffix ? `${nn} — ${suffix}` : nn;
   };
 
-
-
-
+  // Scroll naar een element binnen huidige tab (gebruikt door deep-links en quick actions)
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return false;
-
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
     const buffer = 12;
-
-    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
-      let el: HTMLElement | null = node?.parentElement ?? null;
-      while (el) {
-        const style = getComputedStyle(el);
-        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
-        el = el.parentElement;
-      }
-      return window;
+    const rootStyles = getComputedStyle(document.documentElement);
+    const parsePx = (v: string, fb: number) => {
+      const n = parseFloat(v);
+      if (!n) return fb;
+      return v.trim().endsWith('rem') ? n * 16 : n;
     };
-    const scrollParent = getScrollParent(target);
-
-    if (scrollParent === window) {
-      const rootStyles = getComputedStyle(document.documentElement);
-      const parsePx = (v: string, fb: number) => {
-        const n = parseFloat(v);
-        if (!n) return fb;
-        return v.trim().endsWith('rem') ? n * 16 : n;
-      };
-      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-      const topbar = isDesktop
-        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
-        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
-      const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    } else {
-      const parent = scrollParent as HTMLElement;
-      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
-      parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    }
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const topbar = isDesktop
+      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     return true;
   };
 
-  const scrollToSection = (id: string) => {
-    setActiveSection(id);
-    scrollLockRef.current = Date.now() + 700; // lock scrollspy briefly
-    // Voer scroll meerdere keren uit zodat layout-shifts (tab-switch, lazy mount)
-    // niet leiden tot een halve scroll → één klik is altijd genoeg.
-    requestAnimationFrame(() => {
-      performScroll(id);
-      requestAnimationFrame(() => performScroll(id));
-      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 500; }, 180);
-      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 300; }, 420);
-    });
-    if (history.replaceState) history.replaceState(null, '', `#${id}`);
+  /**
+   * Navigeer naar een anchor (deep link compat).
+   * Schakelt eerst naar de juiste tab, scrollt daarna binnen die tab naar het anchor.
+   */
+  const goToAnchor = (anchorId: string) => {
+    const tab = ANCHOR_TO_TAB[anchorId];
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+      // Wacht tot tab-content gemount is, dan scrollen
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => performScroll(anchorId));
+        setTimeout(() => performScroll(anchorId), 180);
+      });
+    } else {
+      requestAnimationFrame(() => performScroll(anchorId));
+    }
+    if (history.replaceState) {
+      try {
+        const url = new URL(window.location.href);
+        url.hash = anchorId;
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      } catch { /* ignore */ }
+    }
   };
 
   const openDossierTab = (tab: DossierTab) => {
     setDossierOpenRequest({ tab, token: Date.now() });
-    scrollToSection('documenten');
+    goToAnchor('documenten');
   };
 
+  // Reageer op externe hash-wijzigingen (bv. browser back/forward met #anchor)
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash && ANCHOR_TO_TAB[hash]) {
+        const tab = ANCHOR_TO_TAB[hash];
+        if (tab !== activeTab) setActiveTab(tab);
+        requestAnimationFrame(() => performScroll(hash));
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Bij eerste mount: als URL al een hash heeft, scroll ernaartoe na render
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && ANCHOR_TO_TAB[hash]) {
+      setTimeout(() => performScroll(hash), 120);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -604,84 +756,7 @@ export default function ObjectDetailPage() {
     return () => { cancelled = true; };
   }, [fotos.map(f => f.storagePath).join('|')]);
 
-  // Scroll-spy: kies de sectie wiens top het dichtst onder de sticky sectiebar ligt.
-  // Wanneer near bottom: forceer laatste zichtbare sectie. Respecteert scrollLockRef.
-  useEffect(() => {
-    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-    const sectionsToObserve = isDesktop ? sections : [...sections, ...MOBILE_ONLY_SECTIONS];
 
-    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
-      let el: HTMLElement | null = node?.parentElement ?? null;
-      while (el) {
-        const style = getComputedStyle(el);
-        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
-        el = el.parentElement;
-      }
-      return window;
-    };
-
-    const compute = () => {
-      if (Date.now() < scrollLockRef.current) return;
-      const subNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
-      const subNavBottom = subNav?.getBoundingClientRect().bottom ?? 60;
-      const offsetLine = subNavBottom + 16;
-
-      // Verzamel alle bestaande secties met hun rect
-      const present = sectionsToObserve
-        .map(s => {
-          const el = document.getElementById(s.id);
-          if (!el) return null;
-          const rect = el.getBoundingClientRect();
-          return { id: s.id, top: rect.top, bottom: rect.bottom };
-        })
-        .filter((x): x is { id: string; top: number; bottom: number } => x !== null);
-
-      if (present.length === 0) return;
-
-      // Detect near-bottom → forceer laatste sectie
-      const firstEl = document.getElementById(present[0].id);
-      const parent = firstEl ? getScrollParent(firstEl) : window;
-      const nearBottom = parent === window
-        ? window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24
-        : (() => {
-            const p = parent as HTMLElement;
-            return p.scrollTop + p.clientHeight >= p.scrollHeight - 24;
-          })();
-
-      if (nearBottom) {
-        setActiveSection(present[present.length - 1].id);
-        return;
-      }
-
-      // 1) Sectie die offsetLine bevat → kies de laatste (meest recente in DOM-volgorde)
-      const containing = present.filter(s => s.top <= offsetLine && s.bottom > offsetLine);
-      if (containing.length > 0) {
-        setActiveSection(containing[containing.length - 1].id);
-        return;
-      }
-
-      // 2) Anders: laatste sectie wiens top de offsetLine al gepasseerd is
-      const passed = present.filter(s => s.top <= offsetLine);
-      if (passed.length > 0) {
-        setActiveSection(passed[passed.length - 1].id);
-        return;
-      }
-
-      // 3) Anders: eerste sectie (we zitten boven alles)
-      setActiveSection(present[0].id);
-    };
-
-    const firstEl = document.getElementById(sectionsToObserve[0]?.id);
-    const parent = firstEl ? getScrollParent(firstEl) : window;
-    const target: HTMLElement | Window = parent;
-    target.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute);
-    compute();
-    return () => {
-      target.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [object?.id]);
 
   if (!object) {
     return (
@@ -1107,7 +1182,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           STICKY SECTION NAV
           ================================================= */}
-      <SectionNav active={activeSection} sections={sections} />
+      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
@@ -1117,6 +1192,7 @@ export default function ObjectDetailPage() {
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
           {/* ============ 1. OVERZICHT — Identificatie + Locatie + Classificatie ============ */}
+          {activeTab === 'overzicht' && (
           <SectionAnchor id="overzicht" eyebrow={eyebrowFor("overzicht", "Asset")} title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <ClassificatieRij
@@ -1179,11 +1255,14 @@ export default function ObjectDetailPage() {
               </div>
             </div>
           </SectionAnchor>
+          )}
 
-          {/* ============ DEALFLOW (direct onder Overzicht voor snelle workflow) ============ */}
+          {/* ============ DEALFLOW ============ */}
+          {activeTab === 'dealflow' && (
           <SectionAnchor id="dealflow" eyebrow={eyebrowFor("dealflow", "Pipeline")} title="Dealflow">
             <ObjectPipelineFaseSectie object={object} />
           </SectionAnchor>
+          )}
 
           {/* ============ FINANCIEEL ============ */}
           <SectionAnchor id="financieel" eyebrow={eyebrowFor("financieel", "Financials")} title="Financieel">
@@ -1315,7 +1394,7 @@ export default function ObjectDetailPage() {
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
                 <span>
                   Voor scenario-analyse en gevoeligheid:&nbsp;
-                  <button type="button" onClick={() => scrollToSection('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
+                  <button type="button" onClick={() => goToAnchor('vastgoedrekenen')} className="text-accent hover:underline font-medium">open vastgoedrekenen →</button>
                 </span>
               </div>
             </div>
@@ -1325,6 +1404,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ VERHUUR ============ */}
+          {activeTab === 'financieel' && (
           <SectionAnchor id="verhuur" eyebrow={eyebrowFor("verhuur", "Verhuur")} title="Verhuur">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
@@ -1404,8 +1484,10 @@ export default function ObjectDetailPage() {
               </div>
             )}
           </SectionAnchor>
+          )}
 
           {/* ============ PAND & TECHNISCHE STAAT ============ */}
+          {activeTab === 'pand' && (
           <SectionAnchor id="pand" eyebrow={eyebrowFor("pand", "Pand")} title="Pand & technische staat">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
@@ -1492,9 +1574,10 @@ export default function ObjectDetailPage() {
               )}
             </div>
           </SectionAnchor>
+          )}
 
           {/* ============ POTENTIE & MOGELIJKHEDEN (conditioneel) ============ */}
-          {hasPotentieData(object) && (() => {
+          {activeTab === 'pand' && hasPotentieData(object) && (() => {
             const huidigeM2 = object.oppervlakteVvo ?? object.oppervlakteBvo ?? object.oppervlakteGbo ?? null;
             const extraM2 = object.potentieExtraM2 ?? null;
             const totaalM2 = (huidigeM2 != null || extraM2 != null) ? ((huidigeM2 ?? 0) + (extraM2 ?? 0)) : null;
@@ -1574,7 +1657,7 @@ export default function ObjectDetailPage() {
           })()}
 
           {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
-          {hasJuridischData(object) && (
+          {activeTab === 'meer' && hasJuridischData(object) && (
             <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
               <div className="section-card p-5 sm:p-6 space-y-3">
                 {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
@@ -1590,7 +1673,7 @@ export default function ObjectDetailPage() {
           )}
 
           {/* ============ CONTACTEN (conditioneel) ============ */}
-          {(hasContactenData(object) || deals.length > 0) && (
+          {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (
             <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1658,6 +1741,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ AANBIEDING & PROCES ============ */}
+          {activeTab === 'dossier' && (
           <SectionAnchor id="aanbieding" eyebrow={eyebrowFor("aanbieding", "Offering")} title="Aanbieding & proces">
             {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
               object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
@@ -1723,8 +1807,10 @@ export default function ObjectDetailPage() {
               </div>
             )}
           </SectionAnchor>
+          )}
 
           {/* ============ DOSSIERSTATUS ============ */}
+          {activeTab === 'dossier' && (
           <SectionAnchor id="dossier" eyebrow={eyebrowFor("dossier", "Readiness")} title="Dossierstatus">
             <ObjectDossierCard
               objectId={object.id}
@@ -1732,8 +1818,10 @@ export default function ObjectDetailPage() {
               openTabRequest={dossierOpenRequest}
             />
           </SectionAnchor>
+          )}
 
           {/* ============ KANDIDATEN ============ */}
+          {activeTab === 'kandidaten' && (
           <SectionAnchor
             id="kandidaten"
             eyebrow={eyebrowFor("kandidaten", "Candidates")}
@@ -1787,10 +1875,11 @@ export default function ObjectDetailPage() {
               <ObjectPipelineSectie objectId={object.id} />
             </div>
           </SectionAnchor>
+          )}
 
 
           {/* ============ REFERENTIES (conditioneel) ============ */}
-          {object.referentieanalyseZichtbaar !== false && (
+          {activeTab === 'kandidaten' && object.referentieanalyseZichtbaar !== false && (
             <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
               <ObjectReferentieAnalyseSectie object={object} />
             </SectionAnchor>
@@ -1798,7 +1887,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ DOCUMENTEN (ondersteunend, zonder hoofdnummer) ============ */}
-          {documenten.length > 0 && (
+          {activeTab === 'dossier' && documenten.length > 0 && (
             <SectionAnchor
               id="documenten"
               eyebrow={eyebrowFor("documenten", "Data room")}
@@ -1871,7 +1960,8 @@ export default function ObjectDetailPage() {
           )}
 
 
-          {/* ============ 7. UNDERWRITING / VASTGOEDREKENEN ============ */}
+          {/* ============ VASTGOEDREKENEN ============ */}
+          {activeTab === 'vastgoedrekenen' && (
           <SectionAnchor
             id="vastgoedrekenen"
             eyebrow={eyebrowFor("vastgoedrekenen", "Underwriting")}
@@ -1888,8 +1978,10 @@ export default function ObjectDetailPage() {
               />
             </div>
           </SectionAnchor>
+          )}
 
-          {/* ============ 8. BIEDINGEN ============ */}
+          {/* ============ BIEDINGEN ============ */}
+          {activeTab === 'dealflow' && (
           <SectionAnchor id="biedingen" eyebrow={eyebrowFor("biedingen", "Negotiations")} title="Biedingen">
             <BiedingenSection
               scope={{ objectId: object.id }}
@@ -1898,15 +1990,18 @@ export default function ObjectDetailPage() {
               toonObject={false}
             />
           </SectionAnchor>
+          )}
 
-          {/* ============ 9. ACTIVITEIT ============ */}
+          {/* ============ ACTIVITEIT ============ */}
+          {activeTab === 'dealflow' && (
           <SectionAnchor id="activiteit" eyebrow={eyebrowFor("activiteit", "Activity")} title="Activiteit & notities">
             <Timeline objectId={object.id} />
           </SectionAnchor>
+          )}
         </div>
 
         {/* RIGHT — sticky deal cockpit */}
-        <aside className="lg:sticky lg:top-[88px] space-y-3 min-w-0">
+        <aside className={`${activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
           {/* Deal status cockpit */}
           <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
@@ -2059,17 +2154,17 @@ export default function ObjectDetailPage() {
               <Upload className="h-3.5 w-3.5 text-muted-foreground" /> Document uploaden
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
-            {activeSection === 'vastgoedrekenen' ? (
+            {activeTab === 'vastgoedrekenen' ? (
               <div
                 aria-current="true"
                 className="w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm rounded-md bg-accent/10 text-accent border border-accent/20"
               >
-                <Calculator className="h-3.5 w-3.5" /> Huidige sectie: Vastgoedrekenen
+                <Calculator className="h-3.5 w-3.5" /> Huidige tab: Vastgoedrekenen
               </div>
             ) : (
               <button
                 type="button"
-                onClick={() => scrollToSection('vastgoedrekenen')}
+                onClick={() => setActiveTab('vastgoedrekenen')}
                 className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
               >
                 <Calculator className="h-3.5 w-3.5 text-muted-foreground" /> Vastgoedrekenen openen
