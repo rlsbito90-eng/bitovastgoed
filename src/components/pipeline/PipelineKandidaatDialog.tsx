@@ -42,7 +42,20 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updatePipelineKandidaat(kandidaat.id, form);
+      // Normaliseer optionele velden: undefined (leeggemaakt) → null,
+      // zodat de DB-mapper de waarde daadwerkelijk leegmaakt i.p.v. overslaat.
+      const OPTIONAL_NULLABLE_KEYS: (keyof PipelineKandidaat)[] = [
+        'redenAfgevallen', 'notities',
+        'teaserVerstuurdOp', 'ndaVerstuurdOp', 'ndaGetekendOp', 'informatieGedeeldOp',
+        'bezichtigingDatum', 'biedingBedrag', 'biedingVoorwaarden', 'gewensteLevering',
+        'laatsteContactdatum', 'volgendeActie', 'volgendeActieOmschrijving', 'volgendeActieDatum',
+        'zoekprofielId',
+      ];
+      const patch: any = { ...form };
+      for (const k of OPTIONAL_NULLABLE_KEYS) {
+        if (patch[k] === undefined || patch[k] === '') patch[k] = null;
+      }
+      await updatePipelineKandidaat(kandidaat.id, patch);
       toast.success('Pipeline bijgewerkt');
       onOpenChange(false);
     } catch (err: any) {
