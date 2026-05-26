@@ -260,6 +260,138 @@ const MOBILE_ONLY_SECTIONS: SectionDef[] = [
   { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
 ];
 
+/* ============================================================
+ * Workspace tabs (Optie C — hybride layout V1)
+ * ============================================================ */
+
+type WorkspaceTabId =
+  | 'overzicht' | 'dealflow' | 'kandidaten' | 'vastgoedrekenen'
+  | 'financieel' | 'dossier' | 'pand' | 'meer' | 'cockpit';
+
+const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobileOnly?: boolean }> = [
+  { id: 'overzicht',       label: 'Overzicht',       icon: Info },
+  { id: 'dealflow',        label: 'Dealflow',        icon: Target },
+  { id: 'kandidaten',      label: 'Kandidaten',      icon: Users },
+  { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
+  { id: 'financieel',      label: 'Financieel',      icon: LineChart },
+  { id: 'dossier',         label: 'Dossier',         icon: ClipboardCheck },
+  { id: 'pand',            label: 'Pand',            icon: Building2 },
+  { id: 'meer',            label: 'Meer',            icon: MoreHorizontal },
+  { id: 'cockpit',         label: 'Cockpit',         icon: Target, mobileOnly: true },
+];
+
+/** Map van anchor-id (deep links blijven werken) naar tab waarop het anchor leeft */
+const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
+  overzicht: 'overzicht',
+  dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
+  kandidaten: 'kandidaten', referenties: 'kandidaten',
+  vastgoedrekenen: 'vastgoedrekenen',
+  financieel: 'financieel', verhuur: 'financieel',
+  dossier: 'dossier', aanbieding: 'dossier', documenten: 'dossier',
+  pand: 'pand', potentie: 'pand',
+  juridisch: 'meer', verkoper: 'meer',
+  'deal-cockpit': 'cockpit', 'next-action': 'cockpit', 'quick-actions': 'cockpit',
+};
+
+const WORKSPACE_TAB_STORAGE_KEY = 'object-detail:last-tab';
+
+/** Workspace tabs nav — vereenvoudigde versie van SectionNav voor tab-state */
+function WorkspaceTabsNav({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: Array<{ id: WorkspaceTabId; label: string; icon: any; mobileOnly?: boolean }>;
+  active: WorkspaceTabId;
+  onSelect: (id: WorkspaceTabId) => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+
+  const updateEdges = () => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const max = sc.scrollWidth - sc.clientWidth;
+    setEdges({ left: sc.scrollLeft > 2, right: sc.scrollLeft < max - 2 });
+  };
+
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const max = sc.scrollWidth - sc.clientWidth;
+      if (max <= 0) return;
+      e.preventDefault();
+      sc.scrollLeft += e.deltaY;
+      updateEdges();
+    };
+    sc.addEventListener('wheel', onWheel, { passive: false });
+    sc.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', updateEdges);
+    updateEdges();
+    return () => {
+      sc.removeEventListener('wheel', onWheel as any);
+      sc.removeEventListener('scroll', updateEdges as any);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
+
+  // Centreer actieve tab indien buiten beeld
+  useEffect(() => {
+    const el = tabRefs.current[active];
+    const sc = scrollerRef.current;
+    if (!el || !sc) return;
+    const left = el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2;
+    const max = sc.scrollWidth - sc.clientWidth;
+    sc.scrollTo({ left: Math.max(0, Math.min(max, left)), behavior: 'smooth' });
+  }, [active]);
+
+  return (
+    <nav
+      data-object-section-nav="true"
+      className="sticky top-0 z-20 -mx-3 sm:-mx-8 lg:-mx-10 px-3 sm:px-8 lg:px-10 pt-2 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40"
+    >
+      <div className="relative">
+        {edges.left && (
+          <div aria-hidden className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-background/95 to-transparent rounded-l-xl" />
+        )}
+        {edges.right && (
+          <div aria-hidden className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l from-background/95 to-transparent rounded-r-xl" />
+        )}
+        <div
+          ref={scrollerRef}
+          className="glass-topbar rounded-xl border border-border/60 shadow-sm px-2 py-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap flex items-stretch gap-1 scrollbar-none"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {tabs.map((t) => {
+            const isActive = active === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelect(t.id)}
+                ref={(el) => { tabRefs.current[t.id] = el; }}
+                className={`group relative inline-flex shrink-0 items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-[13px] sm:text-sm font-medium transition-all ${t.mobileOnly ? 'lg:hidden' : ''} ${
+                  isActive
+                    ? 'glass-pill-active text-accent'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <t.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+
+
 
 
 function SectionNav({ active, sections }: { active: string; sections: SectionDef[] }) {
