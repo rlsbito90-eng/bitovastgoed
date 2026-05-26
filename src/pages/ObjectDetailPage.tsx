@@ -275,7 +275,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobi
   { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'financieel',      label: 'Financieel',      icon: LineChart },
   { id: 'dossier',         label: 'Dossier',         icon: ClipboardCheck },
-  { id: 'pand',            label: 'Pand',            icon: Building2 },
+  { id: 'pand',            label: 'Pand & Techniek', icon: Building2 },
   { id: 'meer',            label: 'Meer',            icon: MoreHorizontal },
   { id: 'cockpit',         label: 'Cockpit',         icon: Target, mobileOnly: true },
 ];
