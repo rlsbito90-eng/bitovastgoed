@@ -1404,6 +1404,7 @@ export default function ObjectDetailPage() {
 
 
           {/* ============ VERHUUR ============ */}
+          {activeTab === 'financieel' && (
           <SectionAnchor id="verhuur" eyebrow={eyebrowFor("verhuur", "Verhuur")} title="Verhuur">
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-4">
