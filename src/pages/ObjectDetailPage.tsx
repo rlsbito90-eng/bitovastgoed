@@ -1182,7 +1182,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           STICKY SECTION NAV
           ================================================= */}
-      <SectionNav active={activeSection} sections={sections} />
+      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
