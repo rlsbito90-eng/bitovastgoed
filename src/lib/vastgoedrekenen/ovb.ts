@@ -19,6 +19,7 @@ export function getOvbPercentage(
     'transfer_tax_residential_investment_percentage' |
     'transfer_tax_non_residential_percentage'> | null,
   manualPct?: number | null,
+  objectType?: 'residentieel' | 'commercieel' | 'mixed_use' | null,
 ): number {
   if (classification === 'handmatig' && typeof manualPct === 'number') return manualPct;
   if (classification === 'vrijgesteld') return 0;
@@ -32,7 +33,12 @@ export function getOvbPercentage(
     case 'woning_belegging': return Number(s.transfer_tax_residential_investment_percentage);
     case 'niet_woning': return Number(s.transfer_tax_non_residential_percentage);
     case 'mixed_use': return Number(s.transfer_tax_non_residential_percentage); // fallback bij niet-toegerekend
-    default: return Number(s.transfer_tax_residential_investment_percentage);
+    default:
+      // Geen classificatie: kies default op basis van objecttype.
+      // Residentieel → woning_belegging (8%), commercieel/BOG → niet_woning (10,4%).
+      if (objectType === 'commercieel') return Number(s.transfer_tax_non_residential_percentage);
+      if (objectType === 'mixed_use') return Number(s.transfer_tax_non_residential_percentage);
+      return Number(s.transfer_tax_residential_investment_percentage);
   }
 }
 
