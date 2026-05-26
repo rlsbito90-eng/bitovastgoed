@@ -14,6 +14,7 @@ export type BidAdvice = {
 export function computeBidAdvice(args: {
   correctedAnnualRent: number;
   targetBar: number; // %
+  totalOvb: number;
   totalAcquisitionCosts: number;
   totalCosts: number;
   financingCosts: number;
@@ -23,7 +24,9 @@ export function computeBidAdvice(args: {
   const safe = (bar: number) => (bar > 0 ? Math.round((correctedAnnualRent / bar) * 100) : 0);
 
   const maxAllInValue = safe(targetBar);
-  const overhead = args.totalAcquisitionCosts + args.totalCosts + args.financingCosts + args.safetyMargin;
+  // Symmetrisch met exit-tak: OVB + aankoopkosten (incl. safety_margin) + kosten + financiering.
+  // safetyMargin zit al in totalAcquisitionCosts via computeAcquisitionCosts — niet dubbel optellen.
+  const overhead = args.totalOvb + args.totalAcquisitionCosts + args.totalCosts + args.financingCosts;
   const toBid = (allIn: number) => Math.max(0, allIn - overhead);
 
   return {

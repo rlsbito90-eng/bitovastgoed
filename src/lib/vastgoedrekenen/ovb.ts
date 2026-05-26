@@ -19,6 +19,7 @@ export function getOvbPercentage(
     'transfer_tax_residential_investment_percentage' |
     'transfer_tax_non_residential_percentage'> | null,
   manualPct?: number | null,
+  objectType?: 'residentieel' | 'commercieel' | 'mixed_use' | null,
 ): number {
   if (classification === 'handmatig' && typeof manualPct === 'number') return manualPct;
   if (classification === 'vrijgesteld') return 0;
@@ -32,7 +33,12 @@ export function getOvbPercentage(
     case 'woning_belegging': return Number(s.transfer_tax_residential_investment_percentage);
     case 'niet_woning': return Number(s.transfer_tax_non_residential_percentage);
     case 'mixed_use': return Number(s.transfer_tax_non_residential_percentage); // fallback bij niet-toegerekend
-    default: return Number(s.transfer_tax_residential_investment_percentage);
+    default:
+      // Geen classificatie: kies default op basis van objecttype.
+      // Residentieel → woning_belegging (8%), commercieel/BOG → niet_woning (10,4%).
+      if (objectType === 'commercieel') return Number(s.transfer_tax_non_residential_percentage);
+      if (objectType === 'mixed_use') return Number(s.transfer_tax_non_residential_percentage);
+      return Number(s.transfer_tax_residential_investment_percentage);
   }
 }
 
@@ -40,6 +46,7 @@ export function computeScenarioOvb(
   scenario: Pick<Scenario, 'purchase_price' | 'ovb_mode' | 'ovb_classification' | 'transfer_tax_percentage' | 'transfer_tax_amount'>,
   components: Component[],
   settings: TaxSettings | null,
+  objectType?: 'residentieel' | 'commercieel' | 'mixed_use' | null,
 ): { totalOvb: number; perComponent: { id: string; amount: number; pct: number }[]; method: 'scenario' | 'per_component' | 'manual' } {
   const purchase = Number(scenario.purchase_price ?? 0);
 
@@ -59,7 +66,7 @@ export function computeScenarioOvb(
       }
       const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
         ? Number(c.transfer_tax_percentage)
-        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings);
+        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings, null, objectType);
       const amount = Math.round((basis * pct) / 100);
       return { id: c.id, amount, pct };
     });
@@ -69,6 +76,6 @@ export function computeScenarioOvb(
   // auto / fallback
   const pct = scenario.transfer_tax_percentage != null
     ? Number(scenario.transfer_tax_percentage)
-    : getOvbPercentage(scenario.ovb_classification as OvbClassification | null, settings);
+    : getOvbPercentage(scenario.ovb_classification as OvbClassification | null, settings, null, objectType);
   return { totalOvb: Math.round((purchase * pct) / 100), perComponent: [], method: 'scenario' };
 }

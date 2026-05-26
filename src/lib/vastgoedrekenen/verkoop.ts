@@ -97,15 +97,23 @@ export function computeSaleCosts(gross: number | null, s: Scenario): number | nu
 
 export function computeSale(s: Scenario, totalInvestment: number, purchasePrice: number): SaleComputation {
   const rec = s as Record<string, unknown>;
-  const hasAnySaleInput = [
-    'sale_strategy', 'sale_price_total', 'sale_price_per_m2', 'sale_price_per_unit',
-    'sale_units_count', 'sale_sellable_m2', 'sale_costs_percentage', 'sale_other_costs',
-    'sale_exit_value_manual', 'sale_target_margin_amount', 'sale_target_margin_percentage',
+  const saleStrategy = rec.sale_strategy as string | null | undefined;
+  const hasStrategy = saleStrategy != null && saleStrategy !== '' && saleStrategy !== 'geen_verkoop';
+  const hasPriceInput = n(rec.sale_price_total) > 0
+    || n(rec.sale_price_per_m2) > 0
+    || (n(rec.sale_price_per_unit) > 0 && n(rec.sale_units_count) > 0)
+    || n(rec.sale_exit_value_manual) > 0;
+  const hasOtherInput = [
+    'sale_costs_percentage', 'sale_other_costs',
+    'sale_target_margin_amount', 'sale_target_margin_percentage',
     'sale_target_roi_percentage', 'sale_target_exit_value',
   ].some((k) => {
     const v = rec[k];
     return v != null && v !== '' && !(typeof v === 'number' && v === 0);
-  }) || (rec.sale_strategy != null && rec.sale_strategy !== 'geen_verkoop');
+  });
+  // Alleen een strategie kiezen (zonder bedrag) volstaat NIET — anders triggert scoring in schetsfase.
+  // Vereist concrete prijsinput óf overige verkoopinput.
+  const hasAnySaleInput = hasPriceInput || (hasStrategy && hasOtherInput);
 
   const gross = computeGrossSaleProceeds(s);
   const costs = computeSaleCosts(gross, s);
