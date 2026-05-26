@@ -1981,7 +1981,7 @@ export default function ObjectDetailPage() {
         </div>
 
         {/* RIGHT — sticky deal cockpit */}
-        <aside className="lg:sticky lg:top-[88px] space-y-3 min-w-0">
+        <aside className={`${activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
           {/* Deal status cockpit */}
           <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
