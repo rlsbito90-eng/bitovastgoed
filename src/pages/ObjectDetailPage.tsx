@@ -607,123 +607,143 @@ export default function ObjectDetailPage() {
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
-  const [activeSection, setActiveSection] = useState<string>('overzicht');
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
-  const scrollLockRef = useRef<number>(0);
 
-  // Conditioneel zichtbare secties → ook gebruikt door scrollspy en sectiebar.
-  const sections = useMemo<SectionDef[]>(() => {
-    const out: SectionDef[] = [];
-    const hasDeals = object ? store.getDealsByObject(object.id).length > 0 : false;
-    const documentenCount = object ? store.getDocumentenVoorObject(object.id).length : 0;
-    // Documenten-sectie is alleen zichtbaar als er daadwerkelijk documenten of plattegronden zijn.
-    // Een gewone hero-foto (of zelfs een fotogalerij) activeert deze sectie niet — media-beheer
-    // gebeurt via Object bewerken → Media-tab. Dit voorkomt een grote lege Documenten-sectie.
-    const hasDocumentenSectie = documentenCount > 0;
-    for (const s of BASE_SECTIONS) {
-      // Verkoper-sectie wordt vóór 'aanbieding' ingevoegd (conditioneel)
-      if (s.id === 'aanbieding') {
-        if (object && (hasContactenData(object) || hasDeals)) {
-          out.push({ id: 'verkoper', label: 'Verkoper', icon: ContactIcon });
-        }
-      }
-      out.push(s);
-      if (s.id === 'pand') {
-        if (object && hasPotentieData(object))  out.push({ id: 'potentie',  label: 'Potentie',  icon: Sparkles });
-        if (object && hasJuridischData(object)) out.push({ id: 'juridisch', label: 'Juridisch', icon: Scale });
-      }
-      if (s.id === 'dossier' && hasDocumentenSectie) {
-        out.push({ id: 'documenten', label: 'Documenten', icon: FolderOpen });
-      }
-      if (s.id === 'kandidaten') {
-        if (object && object.referentieanalyseZichtbaar !== false) {
-          out.push({ id: 'referenties', label: 'Referenties', icon: LineChart });
-        }
-      }
-    }
-    return out;
+  // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
+  const visibleTabs = useMemo(() => {
+    const hasMeer = !!object && (
+      hasJuridischData(object) ||
+      hasContactenData(object) ||
+      store.getDealsByObject(object.id).length > 0
+    );
+    return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
   }, [object, store]);
 
+  // ── Tab-state: prioriteit URL (?tab=) → hash-shim → localStorage → 'overzicht' ──
+  const readInitialTab = (): WorkspaceTabId => {
+    if (typeof window === 'undefined') return 'overzicht';
+    const url = new URL(window.location.href);
+    const fromQuery = url.searchParams.get('tab');
+    if (fromQuery && WORKSPACE_TABS.some(t => t.id === fromQuery)) return fromQuery as WorkspaceTabId;
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && ANCHOR_TO_TAB[hash]) return ANCHOR_TO_TAB[hash];
+    try {
+      const stored = window.localStorage.getItem(WORKSPACE_TAB_STORAGE_KEY);
+      if (stored && WORKSPACE_TABS.some(t => t.id === stored)) return stored as WorkspaceTabId;
+    } catch { /* ignore */ }
+    return 'overzicht';
+  };
+  const [activeTab, setActiveTabState] = useState<WorkspaceTabId>(readInitialTab);
 
-  // Dynamische sectienummering — gebruikt dezelfde zichtbare `sections`-lijst
-  // als sectiebar/scrollspy/anchors. Ondersteunende secties (Documenten) tellen
-  // niet mee in de hoofdnummering zodat ze geen "gat" veroorzaken.
+  const setActiveTab = (id: WorkspaceTabId) => {
+    setActiveTabState(id);
+    try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, id); } catch { /* ignore */ }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', id);
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* ignore */ }
+  };
+
+  // Zorg dat actieve tab geldig blijft als visibleTabs verandert (bv. 'meer' verdwijnt)
+  useEffect(() => {
+    if (!visibleTabs.some(t => t.id === activeTab)) {
+      setActiveTabState('overzicht');
+    }
+  }, [visibleTabs, activeTab]);
+
+  // Numbering voor eyebrows — gebruikt tab-volgorde (Documenten ongenummerd)
   const UNNUMBERED_SECTIONS = new Set(['documenten']);
   const eyebrowFor = (id: string, suffix?: string): string | undefined => {
-    if (UNNUMBERED_SECTIONS.has(id)) return suffix; // titel zonder nummer
-    const numbered = sections.filter(s => !UNNUMBERED_SECTIONS.has(s.id));
-    const idx = numbered.findIndex(s => s.id === id);
-    if (idx === -1) return suffix; // sectie niet in centrale lijst → geen nummer
+    if (UNNUMBERED_SECTIONS.has(id)) return suffix;
+    // Gebruik de tab-volgorde voor nummering (overzicht=01, dealflow=02, ...)
+    const tabForId = ANCHOR_TO_TAB[id];
+    if (!tabForId) return suffix;
+    const idx = visibleTabs.filter(t => !t.mobileOnly).findIndex(t => t.id === tabForId);
+    if (idx === -1) return suffix;
     const nn = String(idx + 1).padStart(2, '0');
     return suffix ? `${nn} — ${suffix}` : nn;
   };
 
-
-
-
+  // Scroll naar een element binnen huidige tab (gebruikt door deep-links en quick actions)
   const performScroll = (id: string) => {
     const target = document.getElementById(id);
     if (!target) return false;
-
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
     const buffer = 12;
-
-    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
-      let el: HTMLElement | null = node?.parentElement ?? null;
-      while (el) {
-        const style = getComputedStyle(el);
-        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
-        el = el.parentElement;
-      }
-      return window;
+    const rootStyles = getComputedStyle(document.documentElement);
+    const parsePx = (v: string, fb: number) => {
+      const n = parseFloat(v);
+      if (!n) return fb;
+      return v.trim().endsWith('rem') ? n * 16 : n;
     };
-    const scrollParent = getScrollParent(target);
-
-    if (scrollParent === window) {
-      const rootStyles = getComputedStyle(document.documentElement);
-      const parsePx = (v: string, fb: number) => {
-        const n = parseFloat(v);
-        if (!n) return fb;
-        return v.trim().endsWith('rem') ? n * 16 : n;
-      };
-      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-      const topbar = isDesktop
-        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
-        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
-      const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    } else {
-      const parent = scrollParent as HTMLElement;
-      const top = target.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - (sectionNavHeight + buffer);
-      parent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    }
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const topbar = isDesktop
+      ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+      : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     return true;
   };
 
-  const scrollToSection = (id: string) => {
-    setActiveSection(id);
-    scrollLockRef.current = Date.now() + 700; // lock scrollspy briefly
-    // Voer scroll meerdere keren uit zodat layout-shifts (tab-switch, lazy mount)
-    // niet leiden tot een halve scroll → één klik is altijd genoeg.
-    requestAnimationFrame(() => {
-      performScroll(id);
-      requestAnimationFrame(() => performScroll(id));
-      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 500; }, 180);
-      setTimeout(() => { performScroll(id); scrollLockRef.current = Date.now() + 300; }, 420);
-    });
-    if (history.replaceState) history.replaceState(null, '', `#${id}`);
+  /**
+   * Navigeer naar een anchor (deep link compat).
+   * Schakelt eerst naar de juiste tab, scrollt daarna binnen die tab naar het anchor.
+   */
+  const goToAnchor = (anchorId: string) => {
+    const tab = ANCHOR_TO_TAB[anchorId];
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+      // Wacht tot tab-content gemount is, dan scrollen
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => performScroll(anchorId));
+        setTimeout(() => performScroll(anchorId), 180);
+      });
+    } else {
+      requestAnimationFrame(() => performScroll(anchorId));
+    }
+    if (history.replaceState) {
+      try {
+        const url = new URL(window.location.href);
+        url.hash = anchorId;
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      } catch { /* ignore */ }
+    }
   };
 
   const openDossierTab = (tab: DossierTab) => {
     setDossierOpenRequest({ tab, token: Date.now() });
-    scrollToSection('documenten');
+    goToAnchor('documenten');
   };
 
+  // Reageer op externe hash-wijzigingen (bv. browser back/forward met #anchor)
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash && ANCHOR_TO_TAB[hash]) {
+        const tab = ANCHOR_TO_TAB[hash];
+        if (tab !== activeTab) setActiveTab(tab);
+        requestAnimationFrame(() => performScroll(hash));
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Bij eerste mount: als URL al een hash heeft, scroll ernaartoe na render
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && ANCHOR_TO_TAB[hash]) {
+      setTimeout(() => performScroll(hash), 120);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -736,84 +756,7 @@ export default function ObjectDetailPage() {
     return () => { cancelled = true; };
   }, [fotos.map(f => f.storagePath).join('|')]);
 
-  // Scroll-spy: kies de sectie wiens top het dichtst onder de sticky sectiebar ligt.
-  // Wanneer near bottom: forceer laatste zichtbare sectie. Respecteert scrollLockRef.
-  useEffect(() => {
-    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-    const sectionsToObserve = isDesktop ? sections : [...sections, ...MOBILE_ONLY_SECTIONS];
 
-    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
-      let el: HTMLElement | null = node?.parentElement ?? null;
-      while (el) {
-        const style = getComputedStyle(el);
-        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
-        el = el.parentElement;
-      }
-      return window;
-    };
-
-    const compute = () => {
-      if (Date.now() < scrollLockRef.current) return;
-      const subNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
-      const subNavBottom = subNav?.getBoundingClientRect().bottom ?? 60;
-      const offsetLine = subNavBottom + 16;
-
-      // Verzamel alle bestaande secties met hun rect
-      const present = sectionsToObserve
-        .map(s => {
-          const el = document.getElementById(s.id);
-          if (!el) return null;
-          const rect = el.getBoundingClientRect();
-          return { id: s.id, top: rect.top, bottom: rect.bottom };
-        })
-        .filter((x): x is { id: string; top: number; bottom: number } => x !== null);
-
-      if (present.length === 0) return;
-
-      // Detect near-bottom → forceer laatste sectie
-      const firstEl = document.getElementById(present[0].id);
-      const parent = firstEl ? getScrollParent(firstEl) : window;
-      const nearBottom = parent === window
-        ? window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24
-        : (() => {
-            const p = parent as HTMLElement;
-            return p.scrollTop + p.clientHeight >= p.scrollHeight - 24;
-          })();
-
-      if (nearBottom) {
-        setActiveSection(present[present.length - 1].id);
-        return;
-      }
-
-      // 1) Sectie die offsetLine bevat → kies de laatste (meest recente in DOM-volgorde)
-      const containing = present.filter(s => s.top <= offsetLine && s.bottom > offsetLine);
-      if (containing.length > 0) {
-        setActiveSection(containing[containing.length - 1].id);
-        return;
-      }
-
-      // 2) Anders: laatste sectie wiens top de offsetLine al gepasseerd is
-      const passed = present.filter(s => s.top <= offsetLine);
-      if (passed.length > 0) {
-        setActiveSection(passed[passed.length - 1].id);
-        return;
-      }
-
-      // 3) Anders: eerste sectie (we zitten boven alles)
-      setActiveSection(present[0].id);
-    };
-
-    const firstEl = document.getElementById(sectionsToObserve[0]?.id);
-    const parent = firstEl ? getScrollParent(firstEl) : window;
-    const target: HTMLElement | Window = parent;
-    target.addEventListener('scroll', compute, { passive: true });
-    window.addEventListener('resize', compute);
-    compute();
-    return () => {
-      target.removeEventListener('scroll', compute);
-      window.removeEventListener('resize', compute);
-    };
-  }, [object?.id]);
 
   if (!object) {
     return (
