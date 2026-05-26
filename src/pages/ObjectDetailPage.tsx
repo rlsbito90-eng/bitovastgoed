@@ -1573,7 +1573,7 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
 
           {/* ============ POTENTIE & MOGELIJKHEDEN (conditioneel) ============ */}
-          {hasPotentieData(object) && (() => {
+          {activeTab === 'pand' && hasPotentieData(object) && (() => {
             const huidigeM2 = object.oppervlakteVvo ?? object.oppervlakteBvo ?? object.oppervlakteGbo ?? null;
             const extraM2 = object.potentieExtraM2 ?? null;
             const totaalM2 = (huidigeM2 != null || extraM2 != null) ? ((huidigeM2 ?? 0) + (extraM2 ?? 0)) : null;
