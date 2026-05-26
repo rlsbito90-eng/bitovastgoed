@@ -411,7 +411,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1.5 truncate" title="Weighted fee">
-                    fee ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
+                    fee gew. ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span>
                   </p>
                 </Link>
               );
