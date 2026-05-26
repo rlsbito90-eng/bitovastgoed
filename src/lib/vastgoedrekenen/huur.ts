@@ -24,7 +24,11 @@ export function pickCorrectedAnnualRent(
   switch (scenario.rent_choice) {
     case 'huidig': return current;
     case 'markt': return market;
-    case 'wws': return wwsAnnual > 0 ? wwsAnnual : Math.min(current || market, market || current);
+    case 'wws':
+      if (wwsAnnual > 0) return wwsAnnual;
+      // Geen WWS-units aangemaakt: val terug op laagste beschikbare van huidig/markt.
+      if (current > 0 && market > 0) return Math.min(current, market);
+      return current || market || 0;
     case 'handmatig': return manual;
     default:
       // Standaard: voorzichtigste positieve waarde
