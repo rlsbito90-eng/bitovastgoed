@@ -125,9 +125,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   // --- Verkoop / exit ---
   const sale = computeSale(scenario, totalInvestment, purchase);
 
-  // Exit-gebaseerde max bieding: trek overhead (aankoopkosten, kosten, financiering, marge) af
-  // van de max toegestane totale investering die door verkoop wordt gedragen.
-  const overhead = acq.totalAcquisitionCosts + totals.total + financing + Number(scenario.safety_margin ?? 0) + ovb.totalOvb;
+  // Exit-gebaseerde max bieding: trek overhead af van de max toegestane totale investering.
+  // Symmetrisch met huur-tak: OVB + aankoopkosten (incl. safety_margin) + kosten + financiering.
+  // safetyMargin zit al in totalAcquisitionCosts via computeAcquisitionCosts — niet dubbel optellen.
+  const overhead = ovb.totalOvb + acq.totalAcquisitionCosts + totals.total + financing;
   const exitBasedMaxBidNet = sale.exitBasedMaxBid != null
     ? Math.max(0, sale.exitBasedMaxBid - overhead)
     : null;
