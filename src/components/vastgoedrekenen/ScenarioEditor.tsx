@@ -447,6 +447,37 @@ export default function ScenarioEditor(props: Props) {
     await supabase.from('residential_wws_units').update({ ...p, ...extra }).eq('id', id);
     refetch();
   }
+  // Veilige bulk-recompute: vult ontbrekende wws_points op basis van V1-logica.
+  // Slaat units met handmatig overschreven punten (stored != computed > 1)
+  // bewust over zodat geen expliciete keuze van de gebruiker verloren gaat.
+  async function recomputeAllWwsUnits() {
+    if (wwsUnits.length === 0) { toast.info('Geen WWS-units om te herberekenen.'); return; }
+    let recomputed = 0;
+    let skippedManual = 0;
+    let missingInput = 0;
+    const failures: string[] = [];
+    for (const u of wwsUnits) {
+      const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+      if (status.source === 'handmatig') { skippedManual += 1; continue; }
+      const extras = wwsExtras(u);
+      const { error } = await supabase.from('residential_wws_units').update(extras as never).eq('id', u.id);
+      if (error) { failures.push(u.unit_name ?? u.id); continue; }
+      recomputed += 1;
+      // Tel units waarbij ondersteunende velden ontbreken (excl. de "punten" missing zelf).
+      const stillMissing = status.missing.filter((m) => m !== 'punten');
+      if (stillMissing.length > 0) missingInput += 1;
+    }
+    const parts = [
+      `${recomputed} herberekend`,
+      skippedManual > 0 ? `${skippedManual} overgeslagen (handmatig)` : null,
+      missingInput > 0 ? `${missingInput} met ontbrekende input` : null,
+    ].filter(Boolean).join(' · ');
+    if (recomputed > 0) toast.success(`WWS-units bijgewerkt: ${parts}`);
+    else toast.info(`Geen units bijgewerkt: ${parts}`);
+    for (const f of failures) toast.error(`WWS-unit ${f}: bijwerken mislukt`);
+    refetch();
+  }
+
   async function deleteWwsUnit(id: string) {
     await supabase.from('residential_wws_units').delete().eq('id', id); refetch();
   }
@@ -1216,6 +1247,9 @@ export default function ScenarioEditor(props: Props) {
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end">
                   {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
                     <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto">Maak WWS-units uit wooncomponenten</Button>
+                  )}
+                  {wwsUnits.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={recomputeAllWwsUnits} className="w-full sm:w-auto">Herbereken WWS-units</Button>
                   )}
                   <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
                 </div>
