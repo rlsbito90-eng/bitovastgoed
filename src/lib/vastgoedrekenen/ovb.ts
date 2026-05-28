@@ -4,6 +4,30 @@
 import type { Component, Scenario, TaxSettings } from './types';
 import { VR_DEFAULTS } from './defaults';
 
+/** Jaar waarvoor de meegeleverde standaard-OVB-tarieven gelden. */
+export const OVB_RATES_YEAR = 2026;
+
+const RESIDENTIAL_COMPONENT_TYPES = new Set<string>(['woning', 'appartement']);
+const COMMERCIAL_COMPONENT_TYPES = new Set<string>([
+  'winkel', 'winkelruimte', 'kantoor', 'kantoorruimte',
+  'bedrijfsruimte', 'bedrijfsunit', 'horeca', 'opslagruimte',
+  'garagebox', 'maatschappelijk', 'ontwikkelgrond',
+]);
+
+/**
+ * Leid OVB-classificatie af uit component_type wanneer expliciete
+ * classificatie ontbreekt. Voorkomt dat woon-componenten in een
+ * mixed-use object stilletjes 10,4% krijgen via de objectType-fallback.
+ */
+export function inferOvbClassificationFromComponentType(
+  componentType: string | null | undefined,
+): OvbClassification | null {
+  const t = String(componentType ?? '').toLowerCase();
+  if (RESIDENTIAL_COMPONENT_TYPES.has(t)) return 'woning_belegging';
+  if (COMMERCIAL_COMPONENT_TYPES.has(t)) return 'niet_woning';
+  return null;
+}
+
 export type OvbClassification =
   | 'eigen_woning'
   | 'woning_belegging'
