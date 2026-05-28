@@ -8,6 +8,7 @@ import { Trash2, Plus, Save, CheckCircle2 } from 'lucide-react';
 import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/lib/vastgoedrekenen/types';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
+import { getWwsUnitStatus, WWS_SOURCE_LABEL, WWS_SCHEME_LABEL, WWS_RELIABILITY_LABEL, WWS_MISSING_LABEL } from '@/lib/vastgoedrekenen/wws/source';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS, VR_OVB_CLASSIFICATION_LABELS, VR_COMPONENT_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { SALE_STRATEGY_LABELS, SALE_FOCUSED_STRATEGIES, SALE_FOCUSED_SALE_STRATEGIES } from '@/lib/vastgoedrekenen/verkoop';
 import {
@@ -414,8 +415,20 @@ export default function ScenarioEditor(props: Props) {
   }
 
   // --- WWS Unit CRUD ---
+  // Helper: bereken WWS-puntenpayload voor een (deels) gevulde unit, zodat
+  // geen unit zonder stille NULL-punten in de database belandt.
+  function wwsExtras(u: Partial<WwsUnit>): Partial<WwsUnit> {
+    const res = computeWwsPoints(u as WwsUnit, Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6));
+    return {
+      wws_points: res.punten,
+      wws_max_monthly_rent: res.maxMonthlyRent,
+      wws_max_annual_rent: res.maxAnnualRent,
+      rent_segment: res.segment,
+    };
+  }
   async function addWwsUnit() {
-    await supabase.from('residential_wws_units').insert({ scenario_id: s.id, unit_name: 'Nieuwe woonunit' });
+    const base: Partial<WwsUnit> = { scenario_id: s.id, unit_name: 'Nieuwe woonunit', independent_unit: true };
+    await supabase.from('residential_wws_units').insert({ ...base, ...wwsExtras(base) } as never);
     refetch();
   }
   async function updateWwsUnit(id: string, p: Partial<WwsUnit>) {
@@ -500,9 +513,12 @@ export default function ScenarioEditor(props: Props) {
         current_monthly_rent: monthlyRent,
         woz_value: woz,
         energy_label: energyLabel,
+        independent_unit: true,
         floor,
         notes,
       };
+      // Bereken meteen WWS-punten zodat de unit niet als stille NULL in de DB belandt.
+      Object.assign(payload, wwsExtras(payload as Partial<WwsUnit>));
 
       const { error } = await supabase.from('residential_wws_units').insert(payload as never);
       if (error) {
@@ -1204,7 +1220,14 @@ export default function ScenarioEditor(props: Props) {
                   <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
                 </div>
                 {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
-                {wwsUnits.map((u) => (
+                {wwsUnits.map((u) => {
+                  const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+                  const reliabilityColor =
+                    status.reliability === 'volledig' ? 'text-emerald-700 dark:text-emerald-300'
+                    : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-destructive';
+                  const independentVal = (u as unknown as { independent_unit?: boolean | null }).independent_unit;
+                  return (
                   <div key={u.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-medium text-muted-foreground">Woonunit</p>
@@ -1223,9 +1246,40 @@ export default function ScenarioEditor(props: Props) {
                         <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
                         <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
                       </div>
+                      <MobileFieldGroup label="Stelsel">
+                        <Select
+                          value={independentVal == null ? '' : independentVal ? 'zelfstandig' : 'onzelfstandig'}
+                          onValueChange={(v) => updateWwsUnit(u.id, { independent_unit: v === 'zelfstandig' } as Partial<WwsUnit>)}
+                        >
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Kies stelsel" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="zelfstandig">Zelfstandig</SelectItem>
+                            <SelectItem value="onzelfstandig">Onzelfstandig (kamer)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </MobileFieldGroup>
+                    </div>
+
+                    {/* Bron- / status-regel — transparantie over herkomst en betrouwbaarheid */}
+                    <div className="rounded-md bg-muted/30 border border-muted px-3 py-2 text-xs text-muted-foreground space-y-1">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        <span><span className="font-medium text-foreground">Bron punten:</span> {WWS_SOURCE_LABEL[status.source]}{status.source === 'handmatig' && status.computedPoints != null ? ` (CRM zou ${status.computedPoints} berekenen)` : ''}</span>
+                        <span><span className="font-medium text-foreground">Stelsel:</span> {WWS_SCHEME_LABEL[status.scheme]}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        <span><span className="font-medium text-foreground">Beleidsversie:</span> {status.policyVersion}</span>
+                        <span className={reliabilityColor}><span className="font-medium">Betrouwbaarheid:</span> {WWS_RELIABILITY_LABEL[status.reliability]}</span>
+                      </div>
+                      {status.missing.length > 0 && (
+                        <div className="text-amber-700 dark:text-amber-300">
+                          <span className="font-medium">Ontbrekend:</span> {status.missing.map((m) => WWS_MISSING_LABEL[m]).join(', ')}
+                          {status.source === 'ontbreekt' && ' — vul WWS-punten in of voer een volledige Huurcommissie-check uit.'}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {showHelp && (
                   <BerekeningUitleg>
                     WWS-puntenberekening is in V1 indicatief. Officiële WWS-toetsing blijft nodig. Segmenten: ≤143 punten sociaal, 144–186 middenhuur, ≥187 vrije sector.
