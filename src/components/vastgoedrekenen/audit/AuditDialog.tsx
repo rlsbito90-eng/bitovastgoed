@@ -58,6 +58,37 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
     return m;
   }, [report]);
 
+  // Rekenketen + casustype + betrouwbaarheid worden lokaal afgeleid uit dezelfde input.
+  const derived = useMemo(() => {
+    if (!open || !report) return null;
+    const input = buildInput();
+    const computed = computeScenario({
+      scenario: input.scenario,
+      components: input.components,
+      costs: input.costs,
+      wwsUnits: input.wwsUnits,
+      strategyUnits: input.strategyUnits,
+      taxSettings: input.taxSettings,
+      objectType: input.objectType,
+      objectArea: input.objectArea,
+      objectWoz: input.objectWoz,
+      objectEnergyLabel: input.objectEnergyLabel,
+      objectBouwjaar: input.objectBouwjaar,
+      propertyType: input.propertyType,
+    });
+    const chain = buildCalcChain(input.scenario, computed);
+    const caseType = detectCaseType(input.scenario, input.components, input.strategyUnits, input.objectType);
+    const requirement = getCaseRequirement(caseType);
+    const reliability = computeReliability({
+      validation: [],
+      audit: report,
+      requirement,
+      manualWithoutSource: !!input.scenario.assumptions_manual && !input.scenario.assumptions_source,
+    });
+    return { chain, requirement, reliability };
+  }, [open, tick, report, buildInput]);
+
+
   async function copyMd() {
     if (!report) return;
     const md = exportAuditMarkdown(report);
