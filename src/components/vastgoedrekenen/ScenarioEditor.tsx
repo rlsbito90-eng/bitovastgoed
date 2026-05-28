@@ -213,6 +213,24 @@ export default function ScenarioEditor(props: Props) {
     setDirty((prev) => (prev ? prev : true));
   };
 
+  // Lijst met velden die door de gebruiker bewust op € 0 zijn gezet.
+  // Bron: scenario.manual_zero_fields (jsonb-array). Gebruikt voor expliciete
+  // statusbepaling (leeg vs. bewust nul) in audit & validatie.
+  const manualZeroSet = useMemo(
+    () => readManualZeroFields({ manual_zero_fields: (s as unknown as Record<string, unknown>).manual_zero_fields }),
+    [s],
+  );
+  const isZero = (field: string) => manualZeroSet.has(field);
+  const toggleZero = (field: keyof Scenario) => (on: boolean) => {
+    const cur = new Set(manualZeroSet);
+    if (on) cur.add(String(field)); else cur.delete(String(field));
+    const next: Record<string, unknown> = {
+      manual_zero_fields: Array.from(cur),
+      [field]: on ? 0 : null,
+    };
+    patch(next as Partial<Scenario>);
+  };
+
   const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[], forceDirty = false) => {
     costDraftDirtyRef.current = true;
     setDraftCosts((prev) => {
