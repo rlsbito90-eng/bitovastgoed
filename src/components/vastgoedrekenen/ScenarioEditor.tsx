@@ -339,6 +339,7 @@ export default function ScenarioEditor(props: Props) {
         sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
         bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
         sale_price_source: (s as Record<string, unknown>).sale_price_source ?? null,
+        leading_valuation_track: (s as Record<string, unknown>).leading_valuation_track ?? 'auto',
       }) as Partial<Scenario>,
 
     });
