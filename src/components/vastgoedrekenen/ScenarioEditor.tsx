@@ -167,6 +167,17 @@ export default function ScenarioEditor(props: Props) {
 
   const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
 
+  // Selectie + bulk-fill state voor WWS-units (UX-helpers, geen rekenlogica).
+  const [selectedWwsIds, setSelectedWwsIds] = useState<Set<string>>(new Set());
+  const [wwsBulkOpen, setWwsBulkOpen] = useState(false);
+  function toggleWwsSelect(id: string) {
+    setSelectedWwsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   useEffect(() => {
     if (childrenLoading || costDraftDirtyRef.current) return;
     baselineCostsRef.current = costs;
