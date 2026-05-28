@@ -12,6 +12,7 @@ import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
 import { getWwsUnitStatus, WWS_SOURCE_LABEL, WWS_SCHEME_LABEL, WWS_RELIABILITY_LABEL, WWS_MISSING_LABEL } from '@/lib/vastgoedrekenen/wws/source';
+import { suggestWwsMode, getEffectiveWwsMode, WWS_MODE_LABEL, WWS_MODE_DESCRIPTION, type WwsMode } from '@/lib/vastgoedrekenen/wws/mode';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS, VR_OVB_CLASSIFICATION_LABELS, VR_COMPONENT_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { SALE_STRATEGY_LABELS, SALE_FOCUSED_STRATEGIES, SALE_FOCUSED_SALE_STRATEGIES } from '@/lib/vastgoedrekenen/verkoop';
 import {
