@@ -1332,8 +1332,11 @@ export default function ScenarioEditor(props: Props) {
                           <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
                             <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="value">Op waarde</SelectItem>
+                              <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
                               <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
+                              <SelectItem value="strategy" disabled={sellOffUnits.length === 0}>
+                                Uit componentstrategie{sellOffUnits.length === 0 ? ' — geen units' : ''}
+                              </SelectItem>
                               <SelectItem value="manual">Handmatig bedrag</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1341,6 +1344,27 @@ export default function ScenarioEditor(props: Props) {
                         <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
                       </div>
                     )}
+                    {ovbMode === 'per_component' && (() => {
+                      const diag = outputs.ovbPerComponent.find((p) => p.id === c.id);
+                      if (!diag) return null;
+                      const missing = diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount;
+                      return (
+                        <div className={`text-[11px] rounded-md border px-2 py-1.5 ${
+                          missing
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                            : 'border-dashed bg-muted/30 text-muted-foreground'
+                        }`}>
+                          <span className="font-medium">OVB:</span>{' '}
+                          methode <span className="font-mono-data">{diag.basisMethod}</span> ·{' '}
+                          grondslag <span className="font-mono-data">€ {diag.basisValue.toLocaleString('nl-NL')}</span> ·{' '}
+                          {diag.pct.toFixed(2)}% ·{' '}
+                          bedrag <span className="font-mono-data">€ {diag.amount.toLocaleString('nl-NL')}</span>
+                          {diag.missingValueBasis && <div>⚠ Toegerekende waarde ontbreekt — OVB komt op € 0. Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer handmatig bedrag in.</div>}
+                          {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden voor dit component — koppel het component aan een sell_off_unit of kies een andere methode.</div>}
+                          {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
