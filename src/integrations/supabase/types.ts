@@ -522,6 +522,7 @@ export type Database = {
           financing_costs: number | null
           id: string
           incentive_reserve: boolean | null
+          leading_valuation_track: string
           maintenance_reserve_percentage: number | null
           management_cost_percentage: number | null
           manual_corrected_monthly_rent: number | null
@@ -593,6 +594,7 @@ export type Database = {
           financing_costs?: number | null
           id?: string
           incentive_reserve?: boolean | null
+          leading_valuation_track?: string
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
@@ -664,6 +666,7 @@ export type Database = {
           financing_costs?: number | null
           id?: string
           incentive_reserve?: boolean | null
+          leading_valuation_track?: string
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
@@ -3778,7 +3781,12 @@ export type Database = {
       vr_huurtype_voor_bieding: "huidig" | "markt" | "wws" | "handmatig"
       vr_input_reliability: "laag" | "middel" | "hoog"
       vr_object_type: "enkelvoudig" | "mixed_use"
-      vr_ovb_allocation_method: "value" | "m2" | "manual" | "extern"
+      vr_ovb_allocation_method:
+        | "value"
+        | "m2"
+        | "manual"
+        | "extern"
+        | "strategy"
       vr_ovb_classification:
         | "eigen_woning"
         | "woning_belegging"
@@ -4219,7 +4227,7 @@ export const Constants = {
       vr_huurtype_voor_bieding: ["huidig", "markt", "wws", "handmatig"],
       vr_input_reliability: ["laag", "middel", "hoog"],
       vr_object_type: ["enkelvoudig", "mixed_use"],
-      vr_ovb_allocation_method: ["value", "m2", "manual", "extern"],
+      vr_ovb_allocation_method: ["value", "m2", "manual", "extern", "strategy"],
       vr_ovb_classification: [
         "eigen_woning",
         "woning_belegging",
