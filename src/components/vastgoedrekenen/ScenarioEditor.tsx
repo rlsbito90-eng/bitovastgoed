@@ -848,7 +848,19 @@ export default function ScenarioEditor(props: Props) {
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_costs_percentage as number | null} onChange={(v) => setSale('sale_costs_percentage', v)} placeholder="bijv. 1.5" suffix="%" />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Overige verkoopkosten (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
+                        <div className="space-y-1">
+                          <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
+                          <ManualZeroToggle
+                            active={isZero('sale_other_costs')}
+                            value={sr.sale_other_costs as number | null}
+                            onToggle={(on) => {
+                              const cur = new Set(manualZeroSet);
+                              if (on) cur.add('sale_other_costs'); else cur.delete('sale_other_costs');
+                              setSale('sale_other_costs', on ? 0 : null);
+                              patch({ ...({ manual_zero_fields: Array.from(cur) } as unknown as Partial<Scenario>) });
+                            }}
+                          />
+                        </div>
                       </MobileFieldGroup>
 
                     </div>
