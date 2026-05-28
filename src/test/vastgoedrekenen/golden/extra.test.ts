@@ -264,6 +264,9 @@ describe('OVB-modi — totalTransferTax verschilt correct per modus', () => {
       expect(comm.pct).toBe(10.4);
       expect(ovb.totalOvb).toBe(300_000 * 0.08 + 200_000 * 0.104);
     });
+  });
+
+
 
   it('totalInvestment volgt OVB-keuze (delta = OVB-delta)', () => {
     const a = computeScenario(baseCtx({
