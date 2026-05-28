@@ -1,18 +1,20 @@
 // Componentstrategie per scenario — UI.
 // Per unit kan strategie + bijbehorende velden worden ingevuld.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Sparkles, Download } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Download, ListChecks } from 'lucide-react';
 import type { Component, SellOffUnit } from '@/lib/vastgoedrekenen/types';
 import { RawNumberInput, RawTextInput, RawTextarea, numberToRaw, parseRawNumber } from './RawInputs';
 import { fmtEur } from './format';
 import {
   STRATEGY_LABELS, SALE_STRATEGIES, HOLD_STRATEGIES,
-  aggregateStrategy,
+  aggregateStrategy, computeComponentStrategy,
   type ComponentStrategyKey,
 } from '@/lib/vastgoedrekenen/componentStrategy';
+import UnitNavigator from './UnitNavigator';
+import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 
 type Props = {
   units: SellOffUnit[];
