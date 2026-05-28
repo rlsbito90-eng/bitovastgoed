@@ -166,7 +166,7 @@ function Tile({ label, value, accent, tone }: { label: string; value: string; ac
   );
 }
 
-function UnitRow({ unit, onUpdate, onDelete }: { unit: SellOffUnit; onUpdate: Props['onUpdate']; onDelete: Props['onDelete'] }) {
+function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index: number; onUpdate: Props['onUpdate']; onDelete: Props['onDelete'] }) {
   const r = f(unit);
   const strategy = (r.strategy as ComponentStrategyKey | null) ?? 'later_beslissen';
   const isSale = SALE_STRATEGIES.includes(strategy);
@@ -174,11 +174,53 @@ function UnitRow({ unit, onUpdate, onDelete }: { unit: SellOffUnit; onUpdate: Pr
   const isManual = strategy === 'handmatige_waarde';
   const saleSrc = (r.sale_price_source as string | null) ?? 'totaal';
   const valMethod = (r.hold_valuation_method as string | null) ?? 'BAR';
+  const label = (r.unit_label as string | null) ?? (unit as unknown as { unit_name?: string }).unit_name ?? 'Unit';
+  const type = (r.unit_type as string | null) ?? null;
+  const surface = num(r.surface_gbo) ?? num(r.surface_vvo) ?? null;
+  const calc = computeComponentStrategy(unit);
+  const indexStr = String(index + 1).padStart(2, '0');
+
+  // Bouw compacte cijfer-chips voor in de header.
+  const chips: { label: string; tone?: 'warning' | 'positive' | 'muted' }[] = [];
+  if (surface && surface > 0) chips.push({ label: `${surface} m²` });
+  chips.push({ label: STRATEGY_LABELS[strategy] ?? '—', tone: r.strategy ? undefined : 'warning' });
+  if (isSale) {
+    const gross = calc.breakdown.grossSaleValue;
+    if (gross > 0) chips.push({ label: `bruto ${fmtEur(gross)}` });
+    else chips.push({ label: 'verkoopwaarde ontbreekt', tone: 'warning' });
+    if (calc.breakdown.netSaleProceeds > 0) chips.push({ label: `netto ${fmtEur(calc.breakdown.netSaleProceeds)}`, tone: 'positive' });
+  }
+  if (isHold) {
+    const monthly = num(r.hold_monthly_rent);
+    const annual = num(r.hold_annual_rent) ?? (monthly != null ? monthly * 12 : null);
+    if (annual && annual > 0) chips.push({ label: `huur ${fmtEur(annual)}/jr` });
+    else chips.push({ label: 'huur ontbreekt', tone: 'warning' });
+    if (valMethod === 'BAR' && num(r.hold_bar)) chips.push({ label: `BAR ${num(r.hold_bar)}%` });
+    if (valMethod === 'NAR' && num(r.hold_nar)) chips.push({ label: `NAR ${num(r.hold_nar)}%` });
+    if (valMethod === 'factor' && num(r.hold_factor)) chips.push({ label: `×${num(r.hold_factor)}` });
+    if (calc.breakdown.holdValue > 0) chips.push({ label: `waarde ${fmtEur(calc.breakdown.holdValue)}`, tone: 'positive' });
+  }
+  if (isManual) {
+    const m = num(r.hold_value_manual);
+    chips.push({ label: m && m > 0 ? `handm. ${fmtEur(m)}` : 'handmatige waarde ontbreekt', tone: m && m > 0 ? 'positive' : 'warning' });
+  }
+
+  const chipCls = (tone?: string) =>
+    tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
+    : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
+    : 'border-border text-muted-foreground bg-muted/30';
 
   return (
-    <div className="border rounded-md p-3 sm:p-4 space-y-3">
+    <div id={`strategy-unit-${unit.id}`} className="border rounded-md p-3 sm:p-4 space-y-3 scroll-mt-20">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Component</p>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{indexStr}</span>
+          <span className="text-sm font-semibold truncate">{label}</span>
+          {type && <span className="text-xs text-muted-foreground">· {type}</span>}
+          {chips.map((c, i) => (
+            <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
+          ))}
+        </div>
         <Button size="sm" variant="ghost" onClick={() => onDelete(unit.id)} className="h-8 px-2 text-muted-foreground hover:text-destructive">
           <Trash2 className="h-4 w-4" />
         </Button>
