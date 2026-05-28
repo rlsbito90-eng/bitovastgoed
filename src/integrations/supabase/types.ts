@@ -2962,7 +2962,10 @@ export type Database = {
             | null
           scenario_id: string
           updated_at: string
+          vat_amount_manual: number | null
           vat_applicable: boolean | null
+          vat_percentage: number | null
+          vat_treatment: string
         }
         Insert: {
           amount?: number
@@ -2979,7 +2982,10 @@ export type Database = {
             | null
           scenario_id: string
           updated_at?: string
+          vat_amount_manual?: number | null
           vat_applicable?: boolean | null
+          vat_percentage?: number | null
+          vat_treatment?: string
         }
         Update: {
           amount?: number
@@ -2996,7 +3002,10 @@ export type Database = {
             | null
           scenario_id?: string
           updated_at?: string
+          vat_amount_manual?: number | null
           vat_applicable?: boolean | null
+          vat_percentage?: number | null
+          vat_treatment?: string
         }
         Relationships: []
       }
