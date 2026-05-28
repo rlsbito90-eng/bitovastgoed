@@ -125,14 +125,18 @@ function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: s
         </div>
 
         <div className={`rounded-md border p-3 ${toneCls}`}>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Maximale bieding</p>
-          <p className="text-xl font-semibold font-mono-data mt-0.5">{fmtEur(o.maximumBid)}</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Leidende max prijs</p>
+          <p className="text-xl font-semibold font-mono-data mt-0.5">{fmtEur(o.leadingMaxValue)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{o.leadingMaxBasisLabel}</p>
           <div className="mt-2 text-xs">
             <p className="text-muted-foreground">Verschil met vraagprijs</p>
-            <DiffBlock diff={o.differenceWithAskingPrice} asking={asking} />
-            <p className="mt-1 text-[11px] text-muted-foreground">{vp.label}</p>
+            <DiffBlock diff={o.leadingDifferenceWithAskingPrice} asking={asking} />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {o.leadingRoundsAtAsking == null ? vp.label : o.leadingRoundsAtAsking ? 'Rond te rekenen: Ja' : 'Rond te rekenen: Nee'}
+            </p>
           </div>
         </div>
+
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div><p className="text-muted-foreground">Totale investering</p><p className="font-mono-data">{fmtEur(o.totalInvestment)}</p></div>
