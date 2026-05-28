@@ -1457,6 +1457,23 @@ export default function ScenarioEditor(props: Props) {
                           {status.source === 'ontbreekt' && ' — vul WWS-punten in of voer een volledige Huurcommissie-check uit.'}
                         </div>
                       )}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-muted/60">
+                        <span className="font-medium text-foreground">WWS-modus:</span>
+                        <Select
+                          value={unitModeRaw ?? '__auto__'}
+                          onValueChange={(v) => updateWwsUnit(u.id, { wws_mode: v === '__auto__' ? null : v } as unknown as Partial<WwsUnit>)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestWwsMode(wwsModeCtxUnit).mode]}</SelectItem>
+                            <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
+                            <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
+                            <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">({unitModeEff.source})</span>
+                        <span className="text-[11px] opacity-80 basis-full">{unitModeEff.reasons.join(' ')}</span>
+                      </div>
                     </div>
                   </div>
                   );
