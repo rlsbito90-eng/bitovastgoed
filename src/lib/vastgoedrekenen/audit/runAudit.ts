@@ -428,6 +428,85 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     }
   }
 
+  // ===== H2. WWS-MODUS PER UNIT =====
+  {
+    const modeCtx = { scenario, components, strategyUnits, wwsUnits };
+    const scenarioSuggestion = suggestWwsMode(modeCtx);
+    add(checks, {
+      id: 'wws-mode-suggested',
+      category: 'wws',
+      status: 'ok',
+      section: SECTIONS.wws,
+      problem: `Voorgestelde WWS-modus voor dit scenario: ${WWS_MODE_LABEL[scenarioSuggestion.mode]}.`,
+      advice: scenarioSuggestion.reasons.join(' '),
+    });
+
+    const rentSourceForMode = String(scenario.rent_source ?? 'handmatig');
+    if (rentSourceForMode === 'wws_gecorrigeerd') {
+      for (const u of wwsUnits) {
+        const eff = getEffectiveWwsMode(u, modeCtx);
+        if (eff.mode !== 'volledig_vereist') {
+          add(checks, {
+            id: `wws-mode-wwscorr-${u.id}`,
+            category: 'wws',
+            status: 'error',
+            section: SECTIONS.wws,
+            record: u.unit_name?.trim() || 'Woonunit',
+            problem: 'WWS-gecorrigeerde huur gekozen, maar deze unit staat niet op "Volledig vereist".',
+            advice: 'Zet WWS-modus op "Volledig vereist" of kies een andere huurbron.',
+          });
+        }
+      }
+    }
+
+    for (const u of wwsUnits) {
+      const eff = getEffectiveWwsMode(u, modeCtx);
+      const r = u as unknown as Record<string, unknown>;
+      const label = u.unit_name?.trim() || 'Woonunit';
+      const missingFull: string[] = [];
+      if (!num(u.woz_value)) missingFull.push('WOZ');
+      if (!u.energy_label) missingFull.push('energielabel');
+      if (u.wws_points == null) missingFull.push('WWS-punten');
+      if (r.independent_unit == null) missingFull.push('stelsel');
+
+      if (eff.mode === 'volledig_vereist' && missingFull.length > 0) {
+        add(checks, {
+          id: `wws-mode-full-missing-${u.id}`,
+          category: 'wws',
+          status: 'error',
+          section: SECTIONS.wws,
+          record: label,
+          problem: `WWS-modus "Volledig vereist", maar ${missingFull.join(', ')} ontbreekt.`,
+          advice: 'Vul de ontbrekende velden of voer een officiële Huurcommissie-check uit.',
+        });
+      }
+      if (eff.mode === 'indicatief') {
+        const missingInd = missingFull.filter((m) => m === 'WOZ' || m === 'energielabel');
+        if (missingInd.length > 0) {
+          add(checks, {
+            id: `wws-mode-ind-missing-${u.id}`,
+            category: 'wws',
+            status: 'warning',
+            section: SECTIONS.wws,
+            record: label,
+            problem: `WWS-modus "Indicatief", maar ${missingInd.join(', ')} ontbreekt — segmentindicatie kan afwijken.`,
+          });
+        }
+      }
+      if (eff.mode === 'niet_nodig' && num(u.current_monthly_rent) > 0) {
+        add(checks, {
+          id: `wws-mode-na-rent-${u.id}`,
+          category: 'wws',
+          status: 'warning',
+          section: SECTIONS.wws,
+          record: label,
+          problem: 'WWS-modus staat op "Niet nodig", maar er wordt wel woonhuur ingevuld op deze unit.',
+          advice: 'Zet de modus op "Indicatief" of "Volledig vereist" als deze huur meegerekend moet worden.',
+        });
+      }
+    }
+  }
+
   // ===== I. OVB =====
   const ovbMode = scenario.ovb_mode ?? 'auto';
   add(checks, {
