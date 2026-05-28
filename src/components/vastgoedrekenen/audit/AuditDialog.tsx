@@ -183,6 +183,98 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
                   )}
                 </TabsContent>
 
+                <TabsContent value="betrouwbaarheid" className="m-0 space-y-3">
+                  {derived?.reliability && (
+                    <>
+                      <div className={`rounded-md border p-3 ${reliabilityBadgeClass(derived.reliability.level)}`}>
+                        <p className="font-semibold text-sm">{derived.reliability.label}</p>
+                        <p className="text-xs mt-1">
+                          {derived.reliability.blockerCount} blokkerend · {derived.reliability.warningCount} waarschuwingen · {derived.reliability.infoCount} info
+                        </p>
+                      </div>
+                      {derived.reliability.reasons.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Redenen</p>
+                          <ul className="text-sm space-y-1">
+                            {derived.reliability.reasons.map((r, i) => (
+                              <li key={i}>• {r}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {derived.requirement && (
+                        <div className="rounded border p-3 text-xs space-y-2">
+                          <p className="font-semibold text-sm">{derived.requirement.label}</p>
+                          <p className="text-muted-foreground">{derived.requirement.notes}</p>
+                          <div>
+                            <p className="font-medium mt-2">Verplicht ({derived.requirement.requiredFields.length})</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.requiredFields.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium mt-2">Optioneel ({derived.requirement.optionalFields.length})</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.optionalFields.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium mt-2">Systeemdefaults</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.defaults.length === 0 ? <li>—</li> : derived.requirement.defaults.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="rekenketen" className="m-0">
+                  {derived?.chain && (
+                    <div className="space-y-3">
+                      {(Object.keys(CALC_CHAIN_FASE_LABEL) as Array<CalcChainStep['fase']>).map((fase) => {
+                        const rows = derived.chain.filter((s) => s.fase === fase);
+                        if (rows.length === 0) return null;
+                        return (
+                          <div key={fase}>
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                              {CALC_CHAIN_FASE_LABEL[fase]}
+                            </h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-left text-muted-foreground border-b">
+                                    <th className="py-1.5 pr-3">Stap</th>
+                                    <th className="py-1.5 pr-3 text-right">Waarde</th>
+                                    <th className="py-1.5 pr-3">Bron / status</th>
+                                    <th className="py-1.5">Formule / toelichting</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map((s, i) => (
+                                    <tr key={i} className="border-b last:border-0 align-top">
+                                      <td className="py-1.5 pr-3">{s.label}</td>
+                                      <td className="py-1.5 pr-3 text-right font-mono">{s.value ?? '—'}</td>
+                                      <td className="py-1.5 pr-3 text-muted-foreground">
+                                        {s.source ?? '—'}
+                                        {s.status && (
+                                          <span className="ml-1 text-[10px] uppercase">· {FIELD_STATUS_LABEL[s.status]}</span>
+                                        )}
+                                      </td>
+                                      <td className="py-1.5 text-muted-foreground">{s.formula ?? s.note ?? ''}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+
                 <TabsContent value="bronnen" className="m-0">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
