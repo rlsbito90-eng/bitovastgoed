@@ -11,11 +11,15 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
   const strategyLeading = o.leadingMaxBasis === 'strategie';
-  const headlineValue = strategyLeading ? o.leadingMaxValue : o.maximumBid;
+  const verkoopLeading = o.leadingMaxBasis === 'verkoop';
+  // Headline volgt ALTIJD de leidende waarde — geen stille fallback naar maximumBid.
+  const headlineValue = o.leadingMaxValue;
   const headlineLabel = strategyLeading
     ? 'Maximale aankoopprijs (componentstrategie)'
-    : 'Maximale bieding';
-  const diff = strategyLeading ? o.leadingDifferenceWithAskingPrice : o.differenceWithAskingPrice;
+    : verkoopLeading
+      ? 'Maximale bieding (verkoop / exit)'
+      : 'Maximale bieding (huur / BAR)';
+  const diff = o.leadingDifferenceWithAskingPrice;
   const pct = asking > 0 ? (diff / asking) * 100 : null;
   const diffPos = diff >= 0;
   const diffSign = diffPos ? '+' : '−';
@@ -23,12 +27,15 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
     ? 'text-emerald-700 dark:text-emerald-300'
     : 'text-amber-700 dark:text-amber-300';
   const exploitatie = o.assessmentType === 'exploitatie';
-  // Detecteer tegenstrijdig signaal: leidend zegt korting nodig, maximumBid zegt ruimte (of omgekeerd).
+  const rounds = o.leadingRoundsAtAsking;
+  // Tegenstrijdig signaal: leidende waarde geeft ander signaal (ja/nee) dan algemene max bieding.
+  const generalDiff = o.differenceWithAskingPrice;
   const showConflict =
-    strategyLeading &&
+    !verkoopLeading &&
     asking > 0 &&
-    Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice) &&
-    (o.leadingDifferenceWithAskingPrice < 0) !== (o.differenceWithAskingPrice < 0);
+    Math.round(o.leadingMaxValue) !== Math.round(o.maximumBid) &&
+    (diff < 0) !== (generalDiff < 0);
+
 
   return (
     <Card className="border-primary/40">
