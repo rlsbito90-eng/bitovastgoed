@@ -203,17 +203,18 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
 
         {showConflict && (
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-            <p className="font-medium mb-1">Let op: signalen lijken tegenstrijdig</p>
+            <p className="font-medium mb-1">Let op: signalen zijn tegenstrijdig</p>
             <p>
-              De algemene maximale bieding (BAR/exit ={' '}
-              <span className="font-mono-data">{fmtEur(o.maximumBid)}</span>) suggereert{' '}
-              {o.differenceWithAskingPrice >= 0 ? 'ruimte boven' : 'korting onder'} de vraagprijs,
-              maar de componentstrategie is leidend (maxPurchasePrice ={' '}
-              <span className="font-mono-data">{fmtEur(o.maxPurchasePrice ?? 0)}</span>) en geeft
-              het tegenovergestelde signaal. Voor "rond te rekenen" telt de componentstrategie.
+              Het leidende spoor ({o.leadingMaxBasisLabel}) geeft{' '}
+              <span className="font-mono-data">{fmtEur(headlineValue)}</span> en{' '}
+              {diff >= 0 ? 'rekent rond' : 'rekent niet rond'} bij de vraagprijs, terwijl de
+              algemene max bieding (
+              <span className="font-mono-data">{fmtEur(o.maximumBid)}</span>) het
+              tegenovergestelde signaal geeft. Voor "rond te rekenen" telt het leidende spoor.
             </p>
           </div>
         )}
+
 
         <div className="text-sm text-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
           <p className="font-medium mb-1">Conclusie</p>
