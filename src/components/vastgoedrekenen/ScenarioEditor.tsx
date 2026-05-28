@@ -1365,6 +1365,9 @@ export default function ScenarioEditor(props: Props) {
                 )}
                 {wwsUnits.map((u, idx) => {
                   const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+                  const wwsModeCtxUnit = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
+                  const unitModeRaw = (u as unknown as { wws_mode?: WwsMode | null }).wws_mode ?? null;
+                  const unitModeEff = getEffectiveWwsMode(u, wwsModeCtxUnit);
                   const reliabilityColor =
                     status.reliability === 'volledig' ? 'text-emerald-700 dark:text-emerald-300'
                     : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
