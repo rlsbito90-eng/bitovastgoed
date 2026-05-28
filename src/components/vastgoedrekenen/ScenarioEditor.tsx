@@ -31,6 +31,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AuditDialog from './audit/AuditDialog';
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
+import ManualZeroToggle from './ManualZeroToggle';
+import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 
 type Props = {
   scenario: Scenario;
@@ -58,6 +60,16 @@ function NumInput({ value, onChange, onRawChange, placeholder, suffix }: { value
       onRawChange={onRawChange}
       onCommit={(raw) => onChange(parseRawNumber(raw))}
     />
+  );
+}
+
+/** Numeriek invoerveld + checkbox "Bewust € 0" voor optionele kostenvelden. */
+function NumZero({ value, onChange, onRawChange, placeholder, suffix, zeroActive, onZeroToggle }: { value: number | null | undefined; onChange: (n: number | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; suffix?: Suffix; zeroActive: boolean; onZeroToggle: (next: boolean) => void }) {
+  return (
+    <div className="space-y-1">
+      <NumInput value={value} onChange={onChange} onRawChange={onRawChange} placeholder={placeholder} suffix={suffix} />
+      <ManualZeroToggle active={zeroActive} value={value} onToggle={onZeroToggle} />
+    </div>
   );
 }
 
@@ -201,6 +213,24 @@ export default function ScenarioEditor(props: Props) {
     setDirty((prev) => (prev ? prev : true));
   };
 
+  // Lijst met velden die door de gebruiker bewust op € 0 zijn gezet.
+  // Bron: scenario.manual_zero_fields (jsonb-array). Gebruikt voor expliciete
+  // statusbepaling (leeg vs. bewust nul) in audit & validatie.
+  const manualZeroSet = useMemo(
+    () => readManualZeroFields({ manual_zero_fields: (s as unknown as Record<string, unknown>).manual_zero_fields }),
+    [s],
+  );
+  const isZero = (field: string) => manualZeroSet.has(field);
+  const toggleZero = (field: keyof Scenario) => (on: boolean) => {
+    const cur = new Set(manualZeroSet);
+    if (on) cur.add(String(field)); else cur.delete(String(field));
+    const next: Record<string, unknown> = {
+      manual_zero_fields: Array.from(cur),
+      [field]: on ? 0 : null,
+    };
+    patch(next as Partial<Scenario>);
+  };
+
   const setCostDrafts = (updater: (prev: ScenarioCost[]) => ScenarioCost[], forceDirty = false) => {
     costDraftDirtyRef.current = true;
     setDraftCosts((prev) => {
@@ -268,6 +298,7 @@ export default function ScenarioEditor(props: Props) {
       notes: s.notes,
       assumption_profile: s.assumption_profile, assumption_profile_reason: s.assumption_profile_reason,
       assumptions_manual: s.assumptions_manual, assumptions_source: s.assumptions_source, assumptions_reliability: s.assumptions_reliability,
+      ...({ manual_zero_fields: (s as unknown as Record<string, unknown>).manual_zero_fields ?? [] } as Partial<Scenario>),
       cost_structure: s.cost_structure, incentive_reserve: s.incentive_reserve,
       mjop_present: s.mjop_present, contract_checked: s.contract_checked, service_costs_checked: s.service_costs_checked,
       rent_source: s.rent_source,
@@ -617,7 +648,7 @@ export default function ScenarioEditor(props: Props) {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
                 <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Veiligheidsmarge (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup label="Veiligheidsmarge (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" zeroActive={isZero('safety_margin')} onZeroToggle={toggleZero('safety_margin')} /></MobileFieldGroup>
 
                 <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
                   <Select value={s.ovb_classification} onValueChange={(v) => patch({ ovb_classification: v as Scenario['ovb_classification'] })}>
@@ -651,12 +682,12 @@ export default function ScenarioEditor(props: Props) {
                   <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
                 )}
 
-                <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
-                <MobileFieldGroup label="Notariskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Advieskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Due diligence (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Financieringskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumZero onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" zeroActive={isZero('buyer_fee_percentage')} onZeroToggle={toggleZero('buyer_fee_percentage')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Notariskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" zeroActive={isZero('notary_costs')} onZeroToggle={toggleZero('notary_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Advieskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" zeroActive={isZero('advisory_costs')} onZeroToggle={toggleZero('advisory_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Due diligence (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" zeroActive={isZero('due_diligence_costs')} onZeroToggle={toggleZero('due_diligence_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Overige aankoopkosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" zeroActive={isZero('other_acquisition_costs')} onZeroToggle={toggleZero('other_acquisition_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Financieringskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" zeroActive={isZero('financing_costs')} onZeroToggle={toggleZero('financing_costs')} /></MobileFieldGroup>
               </div>
               {showHelp && (
                 <div className="pt-3">
@@ -817,7 +848,19 @@ export default function ScenarioEditor(props: Props) {
                         <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_costs_percentage as number | null} onChange={(v) => setSale('sale_costs_percentage', v)} placeholder="bijv. 1.5" suffix="%" />
                       </MobileFieldGroup>
                       <MobileFieldGroup label="Overige verkoopkosten (€)">
-                        <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
+                        <div className="space-y-1">
+                          <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_other_costs as number | null} onChange={(v) => setSale('sale_other_costs', v)} suffix="€" />
+                          <ManualZeroToggle
+                            active={isZero('sale_other_costs')}
+                            value={sr.sale_other_costs as number | null}
+                            onToggle={(on) => {
+                              const cur = new Set(manualZeroSet);
+                              if (on) cur.add('sale_other_costs'); else cur.delete('sale_other_costs');
+                              setSale('sale_other_costs', on ? 0 : null);
+                              patch({ ...({ manual_zero_fields: Array.from(cur) } as unknown as Partial<Scenario>) });
+                            }}
+                          />
+                        </div>
                       </MobileFieldGroup>
 
                     </div>
@@ -1205,6 +1248,11 @@ export default function ScenarioEditor(props: Props) {
             <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
+                {manualZeroSet.size > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{manualZeroSet.size}</span> veld(en) bewust op € 0 gezet: <span className="font-mono">{Array.from(manualZeroSet).join(', ')}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
                   <MobileFieldGroup label="MJOP aanwezig">
                     <Select value={s.mjop_present ?? 'onbekend'} onValueChange={(v) => patch({ mjop_present: v })}>
