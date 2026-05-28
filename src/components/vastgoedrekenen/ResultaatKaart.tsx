@@ -25,6 +25,15 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{o.scoreLabel}</span>
           <span className={`text-xs px-2 py-1 rounded-full border ${risk.cls}`}>{risk.label}</span>
+          <span className={`text-xs px-2 py-1 rounded-full border ${
+            o.inputReliability === 'hoog'
+              ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-200'
+              : o.inputReliability === 'middel'
+                ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200'
+                : 'bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200'
+          }`}>
+            Input {o.inputReliability}
+          </span>
           <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
             Bod o.b.v. {o.bidBasisUsed === 'verkoop' ? 'verkoop / exit' : 'huur / BAR'}
           </span>

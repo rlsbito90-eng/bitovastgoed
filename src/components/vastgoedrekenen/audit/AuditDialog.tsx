@@ -13,6 +13,11 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import { runScenarioAudit } from '@/lib/vastgoedrekenen/audit/runAudit';
 import { exportAuditMarkdown } from '@/lib/vastgoedrekenen/audit/exportMarkdown';
 import { CATEGORY_LABELS, type AuditCategory, type AuditCheck } from '@/lib/vastgoedrekenen/audit/types';
+import { buildCalcChain, CALC_CHAIN_FASE_LABEL, type CalcChainStep } from '@/lib/vastgoedrekenen/audit/calcChain';
+import { computeReliability, reliabilityBadgeClass } from '@/lib/vastgoedrekenen/validation/reliability';
+import { detectCaseType, getCaseRequirement } from '@/lib/vastgoedrekenen/validation/caseRequirements';
+import { computeScenario } from '@/lib/vastgoedrekenen/compute';
+import { FIELD_STATUS_LABEL } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 
 type Props = {
   buildInput: () => AuditInput;
@@ -52,6 +57,37 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
     }
     return m;
   }, [report]);
+
+  // Rekenketen + casustype + betrouwbaarheid worden lokaal afgeleid uit dezelfde input.
+  const derived = useMemo(() => {
+    if (!open || !report) return null;
+    const input = buildInput();
+    const computed = computeScenario({
+      scenario: input.scenario,
+      components: input.components,
+      costs: input.costs,
+      wwsUnits: input.wwsUnits,
+      strategyUnits: input.strategyUnits,
+      taxSettings: input.taxSettings,
+      objectType: input.objectType,
+      objectArea: input.objectArea,
+      objectWoz: input.objectWoz,
+      objectEnergyLabel: input.objectEnergyLabel,
+      objectBouwjaar: input.objectBouwjaar,
+      propertyType: input.propertyType,
+    });
+    const chain = buildCalcChain(input.scenario, computed);
+    const caseType = detectCaseType(input.scenario, input.components, input.strategyUnits, input.objectType);
+    const requirement = getCaseRequirement(caseType);
+    const reliability = computeReliability({
+      validation: [],
+      audit: report,
+      requirement,
+      manualWithoutSource: !!input.scenario.assumptions_manual && !input.scenario.assumptions_source,
+    });
+    return { chain, requirement, reliability };
+  }, [open, tick, report, buildInput]);
+
 
   async function copyMd() {
     if (!report) return;
@@ -97,6 +133,14 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
         {report && (
           <>
             <div className="flex flex-wrap items-center gap-2 text-xs">
+              {derived?.reliability && (
+                <span className={`px-2 py-1 rounded-full border ${reliabilityBadgeClass(derived.reliability.level)}`}>
+                  {derived.reliability.label}
+                </span>
+              )}
+              {derived?.requirement && (
+                <Badge variant="outline" className="bg-muted">Casustype: {derived.requirement.label}</Badge>
+              )}
               <Badge variant="outline" className="bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">{report.summary.ok} OK</Badge>
               <Badge variant="outline" className="bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">{report.summary.warning} waarschuwingen</Badge>
               <Badge variant="outline" className="bg-destructive/10 text-destructive">{report.summary.error} fouten</Badge>
@@ -108,6 +152,8 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
             <Tabs defaultValue="overzicht" className="flex-1 flex flex-col min-h-0">
               <TabsList className="flex-wrap h-auto justify-start">
                 <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+                <TabsTrigger value="betrouwbaarheid">Betrouwbaarheid</TabsTrigger>
+                <TabsTrigger value="rekenketen">Rekenketen</TabsTrigger>
                 <TabsTrigger value="bronnen">Bron van waarheid</TabsTrigger>
                 <TabsTrigger value="maxbid">Maximale bieding</TabsTrigger>
                 <TabsTrigger value="categorieen">Per categorie</TabsTrigger>
@@ -134,6 +180,98 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
                     ))}
                   {report.summary.error === 0 && report.summary.warning === 0 && (
                     <p className="text-sm text-muted-foreground">Geen openstaande aandachtspunten.</p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="betrouwbaarheid" className="m-0 space-y-3">
+                  {derived?.reliability && (
+                    <>
+                      <div className={`rounded-md border p-3 ${reliabilityBadgeClass(derived.reliability.level)}`}>
+                        <p className="font-semibold text-sm">{derived.reliability.label}</p>
+                        <p className="text-xs mt-1">
+                          {derived.reliability.blockerCount} blokkerend · {derived.reliability.warningCount} waarschuwingen · {derived.reliability.infoCount} info
+                        </p>
+                      </div>
+                      {derived.reliability.reasons.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Redenen</p>
+                          <ul className="text-sm space-y-1">
+                            {derived.reliability.reasons.map((r, i) => (
+                              <li key={i}>• {r}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {derived.requirement && (
+                        <div className="rounded border p-3 text-xs space-y-2">
+                          <p className="font-semibold text-sm">{derived.requirement.label}</p>
+                          <p className="text-muted-foreground">{derived.requirement.notes}</p>
+                          <div>
+                            <p className="font-medium mt-2">Verplicht ({derived.requirement.requiredFields.length})</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.requiredFields.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium mt-2">Optioneel ({derived.requirement.optionalFields.length})</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.optionalFields.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium mt-2">Systeemdefaults</p>
+                            <ul className="text-muted-foreground ml-3 list-disc">
+                              {derived.requirement.defaults.length === 0 ? <li>—</li> : derived.requirement.defaults.map((f) => <li key={f}>{f}</li>)}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="rekenketen" className="m-0">
+                  {derived?.chain && (
+                    <div className="space-y-3">
+                      {(Object.keys(CALC_CHAIN_FASE_LABEL) as Array<CalcChainStep['fase']>).map((fase) => {
+                        const rows = derived.chain.filter((s) => s.fase === fase);
+                        if (rows.length === 0) return null;
+                        return (
+                          <div key={fase}>
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                              {CALC_CHAIN_FASE_LABEL[fase]}
+                            </h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-left text-muted-foreground border-b">
+                                    <th className="py-1.5 pr-3">Stap</th>
+                                    <th className="py-1.5 pr-3 text-right">Waarde</th>
+                                    <th className="py-1.5 pr-3">Bron / status</th>
+                                    <th className="py-1.5">Formule / toelichting</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map((s, i) => (
+                                    <tr key={i} className="border-b last:border-0 align-top">
+                                      <td className="py-1.5 pr-3">{s.label}</td>
+                                      <td className="py-1.5 pr-3 text-right font-mono">{s.value ?? '—'}</td>
+                                      <td className="py-1.5 pr-3 text-muted-foreground">
+                                        {s.source ?? '—'}
+                                        {s.status && (
+                                          <span className="ml-1 text-[10px] uppercase">· {FIELD_STATUS_LABEL[s.status]}</span>
+                                        )}
+                                      </td>
+                                      <td className="py-1.5 text-muted-foreground">{s.formula ?? s.note ?? ''}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </TabsContent>
 
