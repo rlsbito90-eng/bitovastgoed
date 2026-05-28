@@ -686,13 +686,19 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
 
   // ===== R. DUBBELE TELLINGEN =====
   if (sStrat && sStrat !== 'geen_verkoop' && strategyUnits.length > 0) {
+    const trackChoice = computed.leadingValuationTrackChoice;
+    const resolved = trackChoice !== 'auto';
     add(checks, {
       id: 'dub-exit',
       category: 'double_counting',
-      status: 'warning',
+      status: resolved ? 'ok' : 'warning',
       section: SECTIONS.dub,
-      problem: 'Scenario-level exit én componentstrategie zijn beide actief.',
-      advice: 'Kies één spoor: óf scenario-brede verkoop, óf per-unit strategie.',
+      problem: resolved
+        ? `Scenario-level exit én componentstrategie zijn beide gevuld, maar leidend spoor is expliciet gekozen: ${computed.leadingMaxBasisLabel}.`
+        : 'Scenario-level exit én componentstrategie zijn beide actief zonder gekozen leidend spoor.',
+      advice: resolved
+        ? undefined
+        : 'Kies "Leidend waarderingsspoor" in Verkoop / exit, of zet sale_strategy op "geen_verkoop" als componentstrategie leidend moet zijn.',
     });
   }
   if (rentSource === 'componenten' && manualRent > 0) {
