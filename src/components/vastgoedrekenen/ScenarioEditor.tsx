@@ -492,7 +492,44 @@ export default function ScenarioEditor(props: Props) {
     refetch();
   }
 
-  async function deleteWwsUnit(id: string) {
+  // Herbereken één specifieke unit. Skipt unit als punten handmatig zijn overschreven.
+  async function recomputeWwsUnit(id: string): Promise<'updated' | 'skipped' | 'error'> {
+    const u = wwsUnits.find((x) => x.id === id);
+    if (!u) return 'error';
+    const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+    if (status.source === 'handmatig') { toast.info(`${u.unit_name}: handmatige punten — niet automatisch overschreven.`); return 'skipped'; }
+    const { error } = await supabase.from('residential_wws_units').update(wwsExtras(u) as never).eq('id', id);
+    if (error) { toast.error(`${u.unit_name}: bijwerken mislukt`); return 'error'; }
+    toast.success(`${u.unit_name} herberekend.`);
+    refetch();
+    return 'updated';
+  }
+
+  // Herbereken alleen geselecteerde units.
+  async function recomputeSelectedWwsUnits() {
+    if (selectedWwsIds.size === 0) { toast.info('Geen units geselecteerd.'); return; }
+    const epp = Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6);
+    let updated = 0, skipped = 0, missing = 0, errors = 0;
+    for (const id of selectedWwsIds) {
+      const u = wwsUnits.find((x) => x.id === id);
+      if (!u) continue;
+      const status = getWwsUnitStatus(u, { euroPerPoint: epp });
+      if (status.source === 'handmatig') { skipped += 1; continue; }
+      const { error } = await supabase.from('residential_wws_units').update(wwsExtras(u) as never).eq('id', id);
+      if (error) { errors += 1; continue; }
+      updated += 1;
+      if (status.missing.filter((m) => m !== 'punten').length > 0) missing += 1;
+    }
+    const parts = [
+      `${updated} herberekend`,
+      skipped > 0 ? `${skipped} overgeslagen (handmatig)` : null,
+      missing > 0 ? `${missing} met ontbrekende input` : null,
+      errors > 0 ? `${errors} fout(en)` : null,
+    ].filter(Boolean).join(' · ');
+    if (updated > 0) toast.success(`Geselecteerd: ${parts}`);
+    else toast.info(`Geselecteerd: ${parts}`);
+    refetch();
+  }
     await supabase.from('residential_wws_units').delete().eq('id', id); refetch();
   }
 
