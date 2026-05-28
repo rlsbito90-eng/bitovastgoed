@@ -24,7 +24,7 @@ export function computeAcquisitionCosts(scenario: Scenario): AcquisitionBreakdow
   return { buyerFeeBase, buyerFeeVat, totalAcquisitionCosts };
 }
 
-/** Bereken effectief bedrag van een kostenpost: per_m2 × m2_basis óf totaalbedrag. */
+/** Bereken effectief bedrag van een kostenpost (excl. btw): per_m2 × m2_basis óf totaalbedrag. */
 export function effectiveCostAmount(c: ScenarioCost): number {
   const rec = c as unknown as Record<string, unknown>;
   const mode = (rec.calc_mode as string | null) ?? 'totaal';
@@ -36,10 +36,47 @@ export function effectiveCostAmount(c: ScenarioCost): number {
   return Number(c.amount ?? 0);
 }
 
-export function computeTotalCosts(costs: ScenarioCost[], unforeseenPct: number): { totalDirect: number; unforeseen: number; total: number } {
+export type VatTreatment = 'geen' | 'pct_21' | 'pct_9' | 'handmatig' | 'verrekenbaar';
+
+/**
+ * Btw-bedrag per kostenpost, berekend over (effectief excl. btw + zijn aandeel onvoorzien).
+ * Bij 'handmatig' wordt het opgegeven btw-bedrag gebruikt indien gevuld,
+ * anders vat_percentage × subtotaal. Bij 'verrekenbaar' / 'geen' = 0.
+ */
+export function effectiveCostVatAmount(c: ScenarioCost, unforeseenPct: number): number {
+  const rec = c as unknown as Record<string, unknown>;
+  const treatment = ((rec.vat_treatment as string | null) ?? 'geen') as VatTreatment;
+  if (treatment === 'geen' || treatment === 'verrekenbaar') return 0;
+  const base = effectiveCostAmount(c);
+  const subtotal = base + Math.round((base * Number(unforeseenPct ?? 0)) / 100);
+  if (treatment === 'handmatig') {
+    const manual = rec.vat_amount_manual as number | null | undefined;
+    if (manual != null && Number(manual) !== 0) return Number(manual);
+    const pct = Number(rec.vat_percentage ?? 0);
+    return Math.round((subtotal * pct) / 100);
+  }
+  const pct = treatment === 'pct_21' ? 21 : 9;
+  return Math.round((subtotal * pct) / 100);
+}
+
+export function computeTotalCosts(
+  costs: ScenarioCost[],
+  unforeseenPct: number,
+): {
+  totalDirect: number;
+  unforeseen: number;
+  /** Subtotaal (alle posten + onvoorzien) excl. btw. */
+  subtotalExVat: number;
+  /** Totaal meegenomen btw over alle posten. */
+  vatTotal: number;
+  /** Totaal incl. onvoorzien en incl. btw — feed naar totale investering. */
+  total: number;
+} {
   const totalDirect = costs.reduce((s, c) => s + effectiveCostAmount(c), 0);
   const unforeseen = Math.round((totalDirect * Number(unforeseenPct ?? 0)) / 100);
-  return { totalDirect, unforeseen, total: totalDirect + unforeseen };
+  const subtotalExVat = totalDirect + unforeseen;
+  const vatTotal = costs.reduce((s, c) => s + effectiveCostVatAmount(c, unforeseenPct), 0);
+  return { totalDirect, unforeseen, subtotalExVat, vatTotal, total: subtotalExVat + vatTotal };
 }
 
 
