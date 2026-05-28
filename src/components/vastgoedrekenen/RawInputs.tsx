@@ -138,13 +138,23 @@ export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRaw
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValue]);
 
-  const handleFocus = () => {
+  const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
     setFocused(true);
     // Toon editbare vorm bij focus zodat gebruiker eenvoudig kan typen.
+    let nextRaw = raw;
     if (kind) {
       const n = parseDutchNumber(raw);
-      if (n != null) setRaw(toEditableNL(n));
+      if (n != null) {
+        nextRaw = toEditableNL(n);
+        setRaw(nextRaw);
+      }
     }
+    // Selecteer de volledige inhoud zodat typen direct overschrijft
+    // (vooral handig bij default-0 of bestaande waarden).
+    const el = event.currentTarget;
+    requestAnimationFrame(() => {
+      try { el.select(); } catch { /* noop */ }
+    });
   };
 
   const handleChange = (value: string) => {
