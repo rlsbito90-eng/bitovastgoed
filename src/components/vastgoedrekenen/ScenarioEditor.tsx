@@ -530,6 +530,8 @@ export default function ScenarioEditor(props: Props) {
     else toast.info(`Geselecteerd: ${parts}`);
     refetch();
   }
+
+  async function deleteWwsUnit(id: string) {
     await supabase.from('residential_wws_units').delete().eq('id', id); refetch();
   }
 
