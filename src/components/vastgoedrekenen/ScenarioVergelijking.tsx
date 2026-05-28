@@ -345,7 +345,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                   const barAsking = asking > 0 ? Number(((o.correctedAnnualRent / asking) * 100).toFixed(2)) : null;
                   const factorAsking = asking > 0 && o.correctedAnnualRent > 0 ? asking / o.correctedAnnualRent : null;
                   const expl = o.operatingCostsEur + o.maintenanceCostsEur + o.managementCostsEur + o.otherCostsEur;
-                  const diffPurchase = purchase > 0 ? o.maximumBid - purchase : 0;
+                  const diffPurchase = purchase > 0 ? o.leadingMaxValue - purchase : 0;
                   const isBestBid = best?.byBid.scenario.id === s.id;
                   const saleStrategyKey = ((s as unknown as Record<string, unknown>).sale_strategy as string | null) ?? null;
                   const saleStrategyLabel = saleStrategyKey ? (SALE_STRATEGY_LABELS[saleStrategyKey] ?? saleStrategyKey) : '—';
