@@ -153,6 +153,14 @@ export type ComputedOutputs = {
   leadingMaxValue: number;
   /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraag). */
   leadingDifferenceWithAskingPrice: number;
+  /** Door de gebruiker gekozen waarderingsspoor (auto = heuristiek). */
+  leadingValuationTrackChoice: LeadingValuationTrackChoice;
+  /** True als de leidende basis door de gebruiker is overschreven. */
+  leadingMaxBasisOverridden: boolean;
+  // --- OVB-diagnostiek per component (alleen bij ovb_mode='per_component') ---
+  ovbPerComponent: OvbPerComponentDiag[];
+  /** Aantal componenten waarvan de OVB-grondslag ontbreekt. */
+  ovbMissingBasisCount: number;
   /** Per-unit detailregels voor weergave. */
   strategyPerUnit: Array<{
     unitId: string;
