@@ -131,6 +131,15 @@ export type ComputedOutputs = {
   maxPurchasePrice: number | null;
   /** Of het scenario rond te rekenen is bij de vraagprijs. */
   roundsAtAsking: boolean | null;
+  // --- Leidende maximale prijs (voor UI/audit, scheidt strategie vs BAR/exit) ---
+  /** Welke basis is leidend voor "rond te rekenen" en de getoonde maximale prijs. */
+  leadingMaxBasis: 'strategie' | 'huur' | 'verkoop';
+  /** Mensleesbare uitleg van de leidende basis. */
+  leadingMaxBasisLabel: string;
+  /** Leidende maximale aankoopprijs (strategie als actief, anders maximumBid). */
+  leadingMaxValue: number;
+  /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraag). */
+  leadingDifferenceWithAskingPrice: number;
   /** Per-unit detailregels voor weergave. */
   strategyPerUnit: Array<{
     unitId: string;

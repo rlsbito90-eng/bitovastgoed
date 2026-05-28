@@ -649,17 +649,24 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
 
   // ===== Q. ROND TE REKENEN =====
   if (computed.strategyEnabled && computed.roundsAtAsking != null) {
+    const diffLead = Math.round(computed.leadingDifferenceWithAskingPrice);
+    const diffBid = Math.round(computed.differenceWithAskingPrice);
+    const conflict = (diffLead < 0) !== (diffBid < 0);
     add(checks, {
       id: 'doable-asking',
       category: 'doable',
       status: computed.roundsAtAsking ? 'ok' : 'warning',
       section: SECTIONS.doable,
       problem: computed.roundsAtAsking
-        ? 'Scenario is rond te rekenen op vraagprijs (componentstrategie).'
-        : `Scenario rekent NIET rond op vraagprijs. Verschil: € ${Math.round((computed.maxPurchasePrice ?? 0) - num(scenario.asking_price)).toLocaleString('nl-NL')}.`,
+        ? `Scenario is rond te rekenen op vraagprijs (leidend: componentstrategie maxPurchasePrice = € ${Math.round(computed.maxPurchasePrice ?? 0).toLocaleString('nl-NL')}).`
+        : `Scenario rekent NIET rond op vraagprijs. Leidend (componentstrategie): verschil € ${diffLead.toLocaleString('nl-NL')}. Algemene maximumBid (informatief): verschil € ${diffBid.toLocaleString('nl-NL')}.`,
+      advice: conflict
+        ? 'Let op: maximumBid (BAR/exit) toont ruimte boven vraagprijs, maar componentstrategie is leidend en toont het tegenovergestelde. Gebruik de leidende waarde.'
+        : undefined,
+      technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(computed.leadingMaxValue)} · maxPurchasePrice=${computed.maxPurchasePrice} · maximumBid=${computed.maximumBid}`,
     });
   } else {
-    add(checks, { id: 'doable-bar', category: 'doable', status: 'ok', section: SECTIONS.doable, problem: `Verschil met vraagprijs: € ${Math.round(computed.differenceWithAskingPrice).toLocaleString('nl-NL')}.` });
+    add(checks, { id: 'doable-bar', category: 'doable', status: 'ok', section: SECTIONS.doable, problem: `Verschil met vraagprijs: € ${Math.round(computed.leadingDifferenceWithAskingPrice).toLocaleString('nl-NL')} (leidend: ${computed.leadingMaxBasisLabel}).` });
   }
 
   // ===== R. DUBBELE TELLINGEN =====
