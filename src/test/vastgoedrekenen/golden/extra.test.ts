@@ -399,12 +399,12 @@ describe('WWS — gecorrigeerde jaarhuur wordt gebruikt', () => {
     expect(o.correctedAnnualRent).toBe(21_600);
   });
 
-  it('lagere WWS-huur → lagere maxBid t.o.v. markthuur', () => {
+  it('lagere WWS-huur (21.600) → lagere maxBid dan markthuur (24.000)', () => {
     const wws = computeScenario(baseCtx({
       scenario: scen({
         purchase_price: 400_000, asking_price: 450_000,
         rent_source: 'wws_gecorrigeerd', rent_choice: 'huidig',
-        current_monthly_rent: 1400, target_bar: 6,
+        current_monthly_rent: 2000, target_bar: 6,
       }),
       wwsUnits,
     }));
@@ -412,9 +412,11 @@ describe('WWS — gecorrigeerde jaarhuur wordt gebruikt', () => {
       scenario: scen({
         purchase_price: 400_000, asking_price: 450_000,
         rent_source: 'handmatig', rent_choice: 'huidig',
-        current_monthly_rent: 1400, target_bar: 6,
+        current_monthly_rent: 2000, target_bar: 6,
       }),
     }));
+    expect(wws.correctedAnnualRent).toBe(21_600);
+    expect(markt.correctedAnnualRent).toBe(24_000);
     expect(wws.maximumBid).toBeLessThan(markt.maximumBid);
   });
 });
