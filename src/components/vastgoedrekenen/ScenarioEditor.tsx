@@ -1313,7 +1313,7 @@ export default function ScenarioEditor(props: Props) {
                         <span className="font-medium">Scenario-modus WWS:</span>
                         <Select
                           value={scenarioOverride ?? '__auto__'}
-                          onValueChange={(v) => setS({ ...s, wws_mode_default: v === '__auto__' ? null : v } as unknown as Scenario)}
+                          onValueChange={(v) => patch({ wws_mode_default: v === '__auto__' ? null : v } as unknown as Partial<Scenario>)}
                         >
                           <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
