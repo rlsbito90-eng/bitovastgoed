@@ -67,14 +67,33 @@ export function buildMaxBidExplain(scenario: Scenario, outputs: ComputedOutputs)
     steps.push({
       label: 'Rond te rekenen bij vraagprijs?',
       value: outputs.roundsAtAsking == null ? '—' : outputs.roundsAtAsking ? 'Ja' : 'Nee',
+      note: 'Leidend: maxPurchasePrice ≥ vraagprijs.',
     });
   }
 
   steps.push({
-    label: 'Verschil met vraagprijs',
-    value: eur(outputs.differenceWithAskingPrice),
-    note: outputs.differenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+    label: 'Leidende basis voor maximale prijs',
+    value: outputs.leadingMaxBasisLabel,
+    note: outputs.strategyEnabled
+      ? 'Bij componentstrategie is maxPurchasePrice leidend; maximumBid is informatief.'
+      : 'Geen componentstrategie — maximumBid is leidend.',
   });
+  steps.push({
+    label: 'Leidende maximale prijs',
+    value: eur(outputs.leadingMaxValue),
+  });
+  steps.push({
+    label: 'Verschil met vraagprijs (leidend)',
+    value: eur(outputs.leadingDifferenceWithAskingPrice),
+    note: outputs.leadingDifferenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+  });
+  if (outputs.strategyEnabled) {
+    steps.push({
+      label: 'Verschil met vraagprijs (informatief, maximumBid)',
+      value: eur(outputs.differenceWithAskingPrice),
+      note: 'Niet leidend bij componentstrategie.',
+    });
+  }
   steps.push({
     label: 'Sale_target inputs',
     value: [
