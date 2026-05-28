@@ -185,18 +185,39 @@ export function buildCalcChain(scenario: Scenario, o: ComputedOutputs): CalcChai
   // === VERGELIJKING ===
   steps.push({
     fase: 'vergelijking',
-    label: 'Verschil met vraagprijs',
-    formula: 'maximale bieding − vraagprijs',
-    value: eur(o.differenceWithAskingPrice),
-    note: o.differenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+    label: 'Leidende maximale prijs',
+    value: `${eur(o.leadingMaxValue)} (${o.leadingMaxBasisLabel})`,
+    note: o.strategyEnabled
+      ? 'Bij actieve componentstrategie is maxPurchasePrice leidend; maximumBid (BAR/exit) is informatief.'
+      : 'Geen componentstrategie actief — maximumBid is leidend.',
+    source: 'computeScenario',
   });
+  steps.push({
+    fase: 'vergelijking',
+    label: 'Verschil met vraagprijs (leidend)',
+    formula: 'leidende max prijs − vraagprijs',
+    value: eur(o.leadingDifferenceWithAskingPrice),
+    note: o.leadingDifferenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+  });
+  if (o.strategyEnabled && Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice)) {
+    steps.push({
+      fase: 'vergelijking',
+      label: 'Verschil met vraagprijs (informatief, o.b.v. maximumBid)',
+      formula: 'maximumBid − vraagprijs',
+      value: eur(o.differenceWithAskingPrice),
+      note: 'Niet leidend bij componentstrategie — gebruik de leidende waarde.',
+    });
+  }
 
   // === DOABLE ===
   steps.push({
     fase: 'doable',
     label: 'Rond te rekenen bij vraagprijs?',
     value: o.roundsAtAsking == null ? '—' : o.roundsAtAsking ? 'Ja' : 'Nee',
-    source: 'Componentstrategie',
+    source: o.strategyEnabled ? 'Componentstrategie (maxPurchasePrice)' : 'Niet van toepassing zonder strategie',
+    note: o.strategyEnabled
+      ? 'Gebaseerd op maxPurchasePrice ≥ vraagprijs.'
+      : undefined,
   });
 
   return steps;
