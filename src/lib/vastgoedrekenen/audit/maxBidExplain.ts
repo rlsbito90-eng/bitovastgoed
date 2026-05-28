@@ -39,7 +39,7 @@ export function buildMaxBidExplain(scenario: Scenario, outputs: ComputedOutputs)
   });
   steps.push({ label: '− OVB', value: eur(outputs.totalTransferTax) });
   steps.push({ label: '− Aankoopkosten (incl. safety_margin)', value: eur(outputs.totalAcquisitionCosts) });
-  steps.push({ label: '− Bouw-/projectkosten (incl. onvoorzien)', value: eur(outputs.totalCosts) });
+  steps.push({ label: '− Bouw-/projectkosten (incl. onvoorzien & meegenomen btw)', value: eur(outputs.totalCosts) });
   steps.push({ label: '− Financieringskosten', value: eur(Number(scenario.financing_costs ?? 0)) });
   steps.push({
     label: 'Maximale bieding (BAR-tak)',
