@@ -478,7 +478,7 @@ export default function ScenarioEditor(props: Props) {
     refetch();
   }
 
-
+  async function deleteWwsUnit(id: string) {
     await supabase.from('residential_wws_units').delete().eq('id', id); refetch();
   }
 
