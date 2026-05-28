@@ -569,6 +569,7 @@ export type Database = {
           unforeseen_percentage: number | null
           updated_at: string
           vacancy_percentage: number | null
+          wws_mode_default: string | null
         }
         Insert: {
           advisory_costs?: number | null
@@ -639,6 +640,7 @@ export type Database = {
           unforeseen_percentage?: number | null
           updated_at?: string
           vacancy_percentage?: number | null
+          wws_mode_default?: string | null
         }
         Update: {
           advisory_costs?: number | null
@@ -709,6 +711,7 @@ export type Database = {
           unforeseen_percentage?: number | null
           updated_at?: string
           vacancy_percentage?: number | null
+          wws_mode_default?: string | null
         }
         Relationships: []
       }
@@ -2812,6 +2815,7 @@ export type Database = {
           woz_value: number | null
           wws_max_annual_rent: number | null
           wws_max_monthly_rent: number | null
+          wws_mode: string | null
           wws_points: number | null
         }
         Insert: {
@@ -2859,6 +2863,7 @@ export type Database = {
           woz_value?: number | null
           wws_max_annual_rent?: number | null
           wws_max_monthly_rent?: number | null
+          wws_mode?: string | null
           wws_points?: number | null
         }
         Update: {
@@ -2906,6 +2911,7 @@ export type Database = {
           woz_value?: number | null
           wws_max_annual_rent?: number | null
           wws_max_monthly_rent?: number | null
+          wws_mode?: string | null
           wws_points?: number | null
         }
         Relationships: []
