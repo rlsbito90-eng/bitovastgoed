@@ -525,6 +525,7 @@ export type Database = {
           maintenance_reserve_percentage: number | null
           management_cost_percentage: number | null
           manual_corrected_monthly_rent: number | null
+          manual_zero_fields: Json
           market_monthly_rent: number | null
           mjop_present: string | null
           notary_costs: number | null
@@ -594,6 +595,7 @@ export type Database = {
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
+          manual_zero_fields?: Json
           market_monthly_rent?: number | null
           mjop_present?: string | null
           notary_costs?: number | null
@@ -663,6 +665,7 @@ export type Database = {
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
           manual_corrected_monthly_rent?: number | null
+          manual_zero_fields?: Json
           market_monthly_rent?: number | null
           mjop_present?: string | null
           notary_costs?: number | null
