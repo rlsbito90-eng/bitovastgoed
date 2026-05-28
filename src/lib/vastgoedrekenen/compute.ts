@@ -54,10 +54,23 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const mgmtPct = profileSet ? profileSet.management_cost_percentage : Number(scenario.management_cost_percentage ?? 0);
   const otherPct = profileSet ? profileSet.other_percentage : 0;
 
+  // --- Componentstrategie vooraf zodat OVB met allocation_method='strategy' kan rekenen ---
+  const strategy = aggregateStrategy(ctx.strategyUnits ?? []);
+  const strategyValueByComponentId = new Map<string, number>();
+  for (const u of (ctx.strategyUnits ?? [])) {
+    const compId = (u as unknown as { component_id?: string | null }).component_id;
+    if (!compId) continue;
+    const res = strategy.perUnit.find((p) => p.unitId === u.id);
+    if (!res) continue;
+    // Grondslag = bijdrage uit strategie (netto verkoop of holdwaarde).
+    const v = Math.max(0, Math.round(res.contribution));
+    strategyValueByComponentId.set(compId, (strategyValueByComponentId.get(compId) ?? 0) + v);
+  }
+
   // --- OVB ---
   const ovbObjectType: 'residentieel' | 'commercieel' | 'mixed_use' =
     propertyType === 'residentieel' ? 'residentieel' : propertyType === 'mixed_use' ? 'mixed_use' : 'commercieel';
-  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType);
+  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType, strategyValueByComponentId);
 
   // --- Aankoopkosten ---
   const acq = computeAcquisitionCosts(scenario);
