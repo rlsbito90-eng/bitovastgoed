@@ -298,6 +298,7 @@ export default function ScenarioEditor(props: Props) {
       notes: s.notes,
       assumption_profile: s.assumption_profile, assumption_profile_reason: s.assumption_profile_reason,
       assumptions_manual: s.assumptions_manual, assumptions_source: s.assumptions_source, assumptions_reliability: s.assumptions_reliability,
+      ...({ manual_zero_fields: (s as unknown as Record<string, unknown>).manual_zero_fields ?? [] } as Partial<Scenario>),
       cost_structure: s.cost_structure, incentive_reserve: s.incentive_reserve,
       mjop_present: s.mjop_present, contract_checked: s.contract_checked, service_costs_checked: s.service_costs_checked,
       rent_source: s.rent_source,
