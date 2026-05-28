@@ -4,6 +4,30 @@
 import type { Component, Scenario, TaxSettings } from './types';
 import { VR_DEFAULTS } from './defaults';
 
+/** Jaar waarvoor de meegeleverde standaard-OVB-tarieven gelden. */
+export const OVB_RATES_YEAR = 2026;
+
+const RESIDENTIAL_COMPONENT_TYPES = new Set<string>(['woning', 'appartement']);
+const COMMERCIAL_COMPONENT_TYPES = new Set<string>([
+  'winkel', 'winkelruimte', 'kantoor', 'kantoorruimte',
+  'bedrijfsruimte', 'bedrijfsunit', 'horeca', 'opslagruimte',
+  'garagebox', 'maatschappelijk', 'ontwikkelgrond',
+]);
+
+/**
+ * Leid OVB-classificatie af uit component_type wanneer expliciete
+ * classificatie ontbreekt. Voorkomt dat woon-componenten in een
+ * mixed-use object stilletjes 10,4% krijgen via de objectType-fallback.
+ */
+export function inferOvbClassificationFromComponentType(
+  componentType: string | null | undefined,
+): OvbClassification | null {
+  const t = String(componentType ?? '').toLowerCase();
+  if (RESIDENTIAL_COMPONENT_TYPES.has(t)) return 'woning_belegging';
+  if (COMMERCIAL_COMPONENT_TYPES.has(t)) return 'niet_woning';
+  return null;
+}
+
 export type OvbClassification =
   | 'eigen_woning'
   | 'woning_belegging'
@@ -117,9 +141,11 @@ export function computeScenarioOvb(
         if (basis <= 0) missingValueBasis = true;
       }
 
+      const effectiveClassification = (c.transfer_tax_classification as OvbClassification | null)
+        ?? inferOvbClassificationFromComponentType(c.component_type);
       const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
         ? Number(c.transfer_tax_percentage)
-        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings, null, objectType);
+        : getOvbPercentage(effectiveClassification, settings, null, objectType);
       const amount = Math.round((basis * pct) / 100);
       return {
         id: c.id,

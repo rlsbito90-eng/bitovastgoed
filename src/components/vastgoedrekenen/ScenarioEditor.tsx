@@ -798,7 +798,7 @@ export default function ScenarioEditor(props: Props) {
                 <div className="pt-3">
                   <BerekeningUitleg>
                     OVB = aankoopprijs (of componentwaarde) × OVB-percentage. Bij mixed-use wordt de OVB bij voorkeur per component toegerekend op basis van waarde.
-                    Standaardtarieven: 2% / 8% / 10,4%. Aanpasbaar via Gebruikersbeheer → Vastgoedrekenen-instellingen.
+                    Standaardtarieven OVB 2026: hoofdverblijf 2%, woning-belegging 8%, niet-woning 10,4%. Aanpasbaar via Gebruikersbeheer → Vastgoedrekenen-instellingen.
                   </BerekeningUitleg>
                 </div>
               )}
