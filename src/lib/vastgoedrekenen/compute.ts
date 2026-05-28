@@ -256,8 +256,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? safeDiv(sale.netMargin, sellableM2)
     : null;
 
-  // --- Componentstrategie (optioneel) ---
-  const strategy = aggregateStrategy(ctx.strategyUnits ?? []);
+  // --- Componentstrategie totals (strategy is hierboven al berekend t.b.v. OVB-grondslag) ---
   // Bij actieve strategie: investering inclusief extra reno/transformatiekosten van hold-componenten.
   const totalInvestmentWithStrategy = strategy.enabled
     ? totalInvestment + strategy.extraInvestmentCosts
