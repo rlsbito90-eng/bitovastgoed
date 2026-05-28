@@ -280,6 +280,20 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? maxPurchasePrice >= asking
     : null;
 
+  // Leidende maximale prijs: bij actieve componentstrategie is maxPurchasePrice leidend
+  // voor "rond te rekenen"; anders valt het terug op de algemene maximumBid (BAR/exit).
+  const leadingMaxBasis: 'strategie' | 'huur' | 'verkoop' =
+    strategy.enabled && maxPurchasePrice != null ? 'strategie' : bidBasisUsed;
+  const leadingMaxBasisLabel =
+    leadingMaxBasis === 'strategie'
+      ? 'Componentstrategie (max aankoopprijs)'
+      : leadingMaxBasis === 'verkoop'
+        ? 'Verkoop / exit-tak (max bieding)'
+        : 'Huur / BAR-tak (max bieding)';
+  const leadingMaxValue =
+    leadingMaxBasis === 'strategie' ? (maxPurchasePrice as number) : effectiveMaxBid;
+  const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
+
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
 
   return {
