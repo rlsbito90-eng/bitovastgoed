@@ -153,6 +153,8 @@ export type ComputedOutputs = {
   leadingMaxValue: number;
   /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraag). */
   leadingDifferenceWithAskingPrice: number;
+  /** Rond te rekenen op vraagprijs volgens het LEIDENDE spoor (asking==0 → null). */
+  leadingRoundsAtAsking: boolean | null;
   /** Door de gebruiker gekozen waarderingsspoor (auto = heuristiek). */
   leadingValuationTrackChoice: LeadingValuationTrackChoice;
   /** True als de leidende basis door de gebruiker is overschreven. */

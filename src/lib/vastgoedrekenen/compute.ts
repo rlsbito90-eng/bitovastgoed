@@ -293,9 +293,13 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     : null;
 
   // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
-  // via scenario.leading_valuation_track.
+  // via scenario.leading_valuation_track. Per spoor kiezen we de juiste onderliggende
+  // waarde, zodat een handmatige keuze altijd zichtbaar doorwerkt — ook als die afwijkt
+  // van de automatisch gekozen bid-basis.
   const trackChoice = ((scenario as unknown as Record<string, unknown>).leading_valuation_track as
     | 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie' | null | undefined) ?? 'auto';
+  const huurMaxBid = bid.maxBid;
+  const verkoopMaxBid = exitBasedMaxBidNet != null ? exitBasedMaxBidNet : effectiveMaxBid;
   let leadingMaxBasis: 'strategie' | 'huur' | 'verkoop';
   let leadingMaxBasisOverridden = false;
   if (trackChoice === 'componentstrategie' && strategy.enabled && maxPurchasePrice != null) {
@@ -320,8 +324,12 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const leadingMaxValue =
     leadingMaxBasis === 'strategie'
       ? (maxPurchasePrice ?? effectiveMaxBid)
-      : effectiveMaxBid;
+      : leadingMaxBasis === 'verkoop'
+        ? verkoopMaxBid
+        : huurMaxBid;
   const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
+  const leadingRoundsAtAsking = asking > 0 ? leadingMaxValue >= asking : null;
+
 
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
 
@@ -404,6 +412,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     leadingMaxBasisLabel,
     leadingMaxValue,
     leadingDifferenceWithAskingPrice,
+    leadingRoundsAtAsking,
     leadingValuationTrackChoice: trackChoice,
     leadingMaxBasisOverridden,
     ovbPerComponent: ovb.perComponent,

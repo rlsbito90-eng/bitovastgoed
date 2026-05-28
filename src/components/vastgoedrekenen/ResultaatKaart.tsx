@@ -11,11 +11,15 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
   const strategyLeading = o.leadingMaxBasis === 'strategie';
-  const headlineValue = strategyLeading ? o.leadingMaxValue : o.maximumBid;
+  const verkoopLeading = o.leadingMaxBasis === 'verkoop';
+  // Headline volgt ALTIJD de leidende waarde — geen stille fallback naar maximumBid.
+  const headlineValue = o.leadingMaxValue;
   const headlineLabel = strategyLeading
     ? 'Maximale aankoopprijs (componentstrategie)'
-    : 'Maximale bieding';
-  const diff = strategyLeading ? o.leadingDifferenceWithAskingPrice : o.differenceWithAskingPrice;
+    : verkoopLeading
+      ? 'Maximale bieding (verkoop / exit)'
+      : 'Maximale bieding (huur / BAR)';
+  const diff = o.leadingDifferenceWithAskingPrice;
   const pct = asking > 0 ? (diff / asking) * 100 : null;
   const diffPos = diff >= 0;
   const diffSign = diffPos ? '+' : '−';
@@ -23,16 +27,48 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
     ? 'text-emerald-700 dark:text-emerald-300'
     : 'text-amber-700 dark:text-amber-300';
   const exploitatie = o.assessmentType === 'exploitatie';
-  // Detecteer tegenstrijdig signaal: leidend zegt korting nodig, maximumBid zegt ruimte (of omgekeerd).
+  const rounds = o.leadingRoundsAtAsking;
+  // Tegenstrijdig signaal: leidende waarde geeft ander signaal (ja/nee) dan algemene max bieding.
+  const generalDiff = o.differenceWithAskingPrice;
   const showConflict =
-    strategyLeading &&
+    !verkoopLeading &&
     asking > 0 &&
-    Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice) &&
-    (o.leadingDifferenceWithAskingPrice < 0) !== (o.differenceWithAskingPrice < 0);
+    Math.round(o.leadingMaxValue) !== Math.round(o.maximumBid) &&
+    (diff < 0) !== (generalDiff < 0);
+
 
   return (
     <Card className="border-primary/40">
       <CardContent className="p-4 space-y-4">
+        {/* Prominente leidende uitkomst-balk */}
+        {asking > 0 && (
+          <div
+            className={`rounded-md border-2 p-3 ${
+              rounds
+                ? 'border-emerald-500/60 bg-emerald-500/10'
+                : 'border-amber-500/60 bg-amber-500/10'
+            }`}
+          >
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Rond te rekenen
+              </span>
+              <span
+                className={`text-xl font-bold ${
+                  rounds
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-amber-700 dark:text-amber-300'
+                }`}
+              >
+                {rounds ? 'Ja' : 'Nee'}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                · Gebaseerd op: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span>
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{o.scoreLabel}</span>
           <span className={`text-xs px-2 py-1 rounded-full border ${risk.cls}`}>{risk.label}</span>
@@ -45,7 +81,7 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
           }`}>
             Input {o.inputReliability}
           </span>
-          <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
+          <span className="text-xs px-2 py-1 rounded-full border bg-primary/10 text-primary border-primary/30">
             Leidend: {o.leadingMaxBasisLabel}
           </span>
           {!strategyLeading && (
@@ -71,21 +107,22 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
                 </span>
               </p>
             )}
-            {strategyLeading && (
+            {!verkoopLeading && Math.round(o.maximumBid) !== Math.round(headlineValue) && (
               <p className="text-[11px] text-muted-foreground mt-1 leading-snug break-words">
-                Algemene max bieding (informatief, BAR/exit):{' '}
+                Informatief — algemene max bieding ({o.bidBasisUsed === 'verkoop' ? 'verkoop/exit' : 'huur/BAR'}):{' '}
                 <span className="font-mono-data text-foreground">{fmtEur(o.maximumBid)}</span>
                 {asking > 0 && (
                   <>
                     {' '}· Verschil{' '}
                     <span className="font-mono-data">
-                      {o.differenceWithAskingPrice >= 0 ? '+' : '−'} {fmtEur(Math.abs(o.differenceWithAskingPrice))}
+                      {generalDiff >= 0 ? '+' : '−'} {fmtEur(Math.abs(generalDiff))}
                     </span>
                   </>
                 )}
               </p>
             )}
           </div>
+
           <div className="rounded-md border p-3 min-w-0">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Totale investering</p>
             <p className="text-base font-semibold font-mono-data mt-0.5 break-words">{fmtEur(o.totalInvestment)}</p>
@@ -166,17 +203,18 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
 
         {showConflict && (
           <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-            <p className="font-medium mb-1">Let op: signalen lijken tegenstrijdig</p>
+            <p className="font-medium mb-1">Let op: signalen zijn tegenstrijdig</p>
             <p>
-              De algemene maximale bieding (BAR/exit ={' '}
-              <span className="font-mono-data">{fmtEur(o.maximumBid)}</span>) suggereert{' '}
-              {o.differenceWithAskingPrice >= 0 ? 'ruimte boven' : 'korting onder'} de vraagprijs,
-              maar de componentstrategie is leidend (maxPurchasePrice ={' '}
-              <span className="font-mono-data">{fmtEur(o.maxPurchasePrice ?? 0)}</span>) en geeft
-              het tegenovergestelde signaal. Voor "rond te rekenen" telt de componentstrategie.
+              Het leidende spoor ({o.leadingMaxBasisLabel}) geeft{' '}
+              <span className="font-mono-data">{fmtEur(headlineValue)}</span> en{' '}
+              {diff >= 0 ? 'rekent rond' : 'rekent niet rond'} bij de vraagprijs, terwijl de
+              algemene max bieding (
+              <span className="font-mono-data">{fmtEur(o.maximumBid)}</span>) het
+              tegenovergestelde signaal geeft. Voor "rond te rekenen" telt het leidende spoor.
             </p>
           </div>
         )}
+
 
         <div className="text-sm text-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
           <p className="font-medium mb-1">Conclusie</p>

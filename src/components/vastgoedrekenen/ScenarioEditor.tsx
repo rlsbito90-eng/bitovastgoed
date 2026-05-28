@@ -745,8 +745,38 @@ export default function ScenarioEditor(props: Props) {
 
         return (
           <div className="space-y-3">
+            {/* Prominente leidende-spoor selector — direct boven het resultaat zichtbaar */}
+            {(() => {
+              const sr = s as unknown as Record<string, unknown>;
+              const trackChoice = (sr.leading_valuation_track as string | null) ?? 'auto';
+              const strategyActive = sellOffUnits.length > 0;
+              return (
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-foreground">Scenario-uitkomst gebaseerd op:</span>
+                  <Select
+                    value={trackChoice}
+                    onValueChange={(v) => patch({ leading_valuation_track: v } as unknown as Partial<Scenario>)}
+                  >
+                    <SelectTrigger className="h-7 w-auto min-w-[240px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
+                      <SelectItem value="huur_bar">Huur / BAR</SelectItem>
+                      <SelectItem value="scenario_exit">Scenario-level verkoop / exit</SelectItem>
+                      <SelectItem value="componentstrategie" disabled={!strategyActive}>
+                        Componentstrategie (per unit){!strategyActive ? ' — geen units' : ''}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[11px] text-muted-foreground">
+                    Huidig leidend: <span className="text-foreground font-medium">{outputs.leadingMaxBasisLabel}</span>
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* 1. Resultaat & biedingsadvies — altijd zichtbaar bovenaan */}
             <ResultaatKaart o={outputs} s={s} />
+
 
             {/* 2. Aankoop & investering */}
             <Section title="Aankoop & investering" status={aankoopStatus} defaultOpen>

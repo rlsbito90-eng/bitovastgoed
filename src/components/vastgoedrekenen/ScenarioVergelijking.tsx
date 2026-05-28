@@ -52,7 +52,7 @@ function ScenarioComputer({
 
 function bidVsAsking(o: ComputedOutputs, asking: number): { label: string; tone: 'positive' | 'negative' | 'neutral' } {
   if (!asking || asking <= 0) return { label: 'Vraagprijs onbekend', tone: 'neutral' };
-  const diff = o.maximumBid - asking;
+  const diff = o.leadingMaxValue - asking;
   const pct = (diff / asking) * 100;
   if (Math.abs(pct) < 2) return { label: 'Rond vraagprijs', tone: 'neutral' };
   if (diff > 0) return { label: 'Boven vraagprijs', tone: 'positive' };
@@ -65,7 +65,7 @@ function pickBest(rows: RowData[]) {
   const valid = rows.filter((r) => r.outputs.dealScore !== 'reject');
   const pool = valid.length > 0 ? valid : rows;
 
-  const byBid = [...pool].sort((a, b) => (b.outputs.maximumBid ?? 0) - (a.outputs.maximumBid ?? 0))[0];
+  const byBid = [...pool].sort((a, b) => (b.outputs.leadingMaxValue ?? 0) - (a.outputs.leadingMaxValue ?? 0))[0];
   const byBar = [...pool].sort((a, b) => (b.outputs.barTotalInvestment ?? 0) - (a.outputs.barTotalInvestment ?? 0))[0];
   const byInvestment = [...pool].sort((a, b) => (a.outputs.totalInvestment ?? Infinity) - (b.outputs.totalInvestment ?? Infinity))[0];
   const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
@@ -125,14 +125,18 @@ function ScenarioCardMobile({ row, onSelect }: { row: RowData; onSelect?: (id: s
         </div>
 
         <div className={`rounded-md border p-3 ${toneCls}`}>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Maximale bieding</p>
-          <p className="text-xl font-semibold font-mono-data mt-0.5">{fmtEur(o.maximumBid)}</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Leidende max prijs</p>
+          <p className="text-xl font-semibold font-mono-data mt-0.5">{fmtEur(o.leadingMaxValue)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{o.leadingMaxBasisLabel}</p>
           <div className="mt-2 text-xs">
             <p className="text-muted-foreground">Verschil met vraagprijs</p>
-            <DiffBlock diff={o.differenceWithAskingPrice} asking={asking} />
-            <p className="mt-1 text-[11px] text-muted-foreground">{vp.label}</p>
+            <DiffBlock diff={o.leadingDifferenceWithAskingPrice} asking={asking} />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {o.leadingRoundsAtAsking == null ? vp.label : o.leadingRoundsAtAsking ? 'Rond te rekenen: Ja' : 'Rond te rekenen: Nee'}
+            </p>
           </div>
         </div>
+
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div><p className="text-muted-foreground">Totale investering</p><p className="font-mono-data">{fmtEur(o.totalInvestment)}</p></div>
@@ -341,7 +345,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                   const barAsking = asking > 0 ? Number(((o.correctedAnnualRent / asking) * 100).toFixed(2)) : null;
                   const factorAsking = asking > 0 && o.correctedAnnualRent > 0 ? asking / o.correctedAnnualRent : null;
                   const expl = o.operatingCostsEur + o.maintenanceCostsEur + o.managementCostsEur + o.otherCostsEur;
-                  const diffPurchase = purchase > 0 ? o.maximumBid - purchase : 0;
+                  const diffPurchase = purchase > 0 ? o.leadingMaxValue - purchase : 0;
                   const isBestBid = best?.byBid.scenario.id === s.id;
                   const saleStrategyKey = ((s as unknown as Record<string, unknown>).sale_strategy as string | null) ?? null;
                   const saleStrategyLabel = saleStrategyKey ? (SALE_STRATEGY_LABELS[saleStrategyKey] ?? saleStrategyKey) : '—';
@@ -363,9 +367,9 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                       <td className="px-3 py-2 border-b">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.scoreLabel}</span>
                       </td>
-                      <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.maximumBid)}</td>
+                      <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.leadingMaxValue)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.maximumBidPerM2)}</td>
-                      <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.differenceWithAskingPrice} asking={asking} /></td>
+                      <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.leadingDifferenceWithAskingPrice} asking={asking} /></td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.totalInvestment)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.totalInvestmentPerM2)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">
