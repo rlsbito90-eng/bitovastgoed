@@ -367,9 +367,9 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                       <td className="px-3 py-2 border-b">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{o.scoreLabel}</span>
                       </td>
-                      <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.maximumBid)}</td>
+                      <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{fmtEur(o.leadingMaxValue)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.maximumBidPerM2)}</td>
-                      <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.differenceWithAskingPrice} asking={asking} /></td>
+                      <td className="px-3 py-2 text-right border-b text-xs"><DiffBlock diff={o.leadingDifferenceWithAskingPrice} asking={asking} /></td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">{fmtEur(o.totalInvestment)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b text-xs">{fmtEurPerM2(o.totalInvestmentPerM2)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">
