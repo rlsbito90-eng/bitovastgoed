@@ -30,6 +30,19 @@ export type ScenarioScoreLabel =
   | 'Onvoldoende data'
   | 'Niet haalbaar';
 
+export type LeadingValuationTrackChoice = 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie';
+
+export type OvbPerComponentDiag = {
+  id: string;
+  amount: number;
+  pct: number;
+  basisMethod: 'value' | 'm2' | 'manual' | 'strategy' | 'extern';
+  basisValue: number;
+  missingValueBasis: boolean;
+  missingStrategyBasis: boolean;
+  missingManualAmount: boolean;
+};
+
 export type ComputedOutputs = {
   totalTransferTax: number;
   totalAcquisitionCosts: number;
