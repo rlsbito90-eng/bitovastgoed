@@ -512,9 +512,12 @@ export default function ScenarioEditor(props: Props) {
         current_monthly_rent: monthlyRent,
         woz_value: woz,
         energy_label: energyLabel,
+        independent_unit: true,
         floor,
         notes,
       };
+      // Bereken meteen WWS-punten zodat de unit niet als stille NULL in de DB belandt.
+      Object.assign(payload, wwsExtras(payload as Partial<WwsUnit>));
 
       const { error } = await supabase.from('residential_wws_units').insert(payload as never);
       if (error) {
