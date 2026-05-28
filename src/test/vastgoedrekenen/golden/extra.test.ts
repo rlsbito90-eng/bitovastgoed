@@ -357,12 +357,13 @@ describe('Bouwkosten btw — geen / 21% / verrekenbaar / handmatig', () => {
   });
 
   it('totalInvestment in scenario stijgt 1:1 met btw-bedrag', () => {
+    // scenario.unforeseen_percentage=10 zodat onvoorzien meegerekend wordt
     const ctxGeen = baseCtx({
-      scenario: scen({ purchase_price: 500_000, asking_price: 550_000, current_monthly_rent: 3000, target_bar: 6 }),
+      scenario: scen({ purchase_price: 500_000, asking_price: 550_000, current_monthly_rent: 3000, target_bar: 6, unforeseen_percentage: 10 }),
       costs: mk({ vat_treatment: 'geen' }),
     });
     const ctx21 = baseCtx({
-      scenario: scen({ purchase_price: 500_000, asking_price: 550_000, current_monthly_rent: 3000, target_bar: 6 }),
+      scenario: scen({ purchase_price: 500_000, asking_price: 550_000, current_monthly_rent: 3000, target_bar: 6, unforeseen_percentage: 10 }),
       costs: mk({ vat_treatment: 'pct_21' }),
     });
     const a = computeScenario(ctxGeen);
