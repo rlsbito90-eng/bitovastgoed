@@ -412,6 +412,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     leadingMaxBasisLabel,
     leadingMaxValue,
     leadingDifferenceWithAskingPrice,
+    leadingRoundsAtAsking,
     leadingValuationTrackChoice: trackChoice,
     leadingMaxBasisOverridden,
     ovbPerComponent: ovb.perComponent,
