@@ -1248,6 +1248,11 @@ export default function ScenarioEditor(props: Props) {
             <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
+                {manualZeroSet.size > 0 && (
+                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{manualZeroSet.size}</span> veld(en) bewust op € 0 gezet: <span className="font-mono">{Array.from(manualZeroSet).join(', ')}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
                   <MobileFieldGroup label="MJOP aanwezig">
                     <Select value={s.mjop_present ?? 'onbekend'} onValueChange={(v) => patch({ mjop_present: v })}>
