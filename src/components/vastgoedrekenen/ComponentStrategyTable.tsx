@@ -39,6 +39,28 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
   const totals = useMemo(() => aggregateStrategy(units), [units]);
   const hasUnits = units.length > 0;
   const askingPrice = Number(asking ?? 0);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const navUnits = useMemo(
+    () => units.map((u) => {
+      const r = u as unknown as Record<string, unknown>;
+      const label = (r.unit_label as string | null) ?? (u as unknown as { unit_name?: string }).unit_name ?? 'Unit';
+      const res = computeComponentStrategy(u);
+      return { id: u.id, label, warning: res.warnings.length > 0 || !r.strategy };
+    }),
+    [units],
+  );
+
+  const bulkFields: BulkField[] = [
+    { key: 'strategy', label: 'Strategie', kind: 'select', options: Object.entries(STRATEGY_LABELS).map(([v, l]) => ({ value: v, label: l })) },
+    { key: 'sale_costs_pct', label: 'Verkoopkosten (%)', kind: 'number', suffix: '%' },
+    { key: 'sale_price_per_m2', label: 'Verkoopprijs per m² (€)', kind: 'number', suffix: '€' },
+    { key: 'hold_bar', label: 'BAR (%)', kind: 'number', suffix: '%' },
+    { key: 'hold_factor', label: 'Factor (×)', kind: 'number' },
+    { key: 'hold_valuation_method', label: 'Waarderingsmethode', kind: 'select', options: [
+      { value: 'BAR', label: 'BAR' }, { value: 'NAR', label: 'NAR' }, { value: 'factor', label: 'Factor' }, { value: 'handmatige_waarde', label: 'Handmatige waarde' },
+    ] },
+  ];
 
   return (
     <div className="space-y-3 pt-3">
@@ -47,6 +69,11 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
           Kies per component wat ermee gebeurt: verkopen, aanhouden, renoveren, splitsen, transformeren of later beslissen. De scenariowaarde wordt opgebouwd uit deze mix.
         </p>
         <div className="flex flex-wrap gap-2">
+          {hasUnits && (
+            <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)}>
+              <ListChecks className="h-3.5 w-3.5 mr-1" /> Bulk invullen
+            </Button>
+          )}
           {components.length > 0 && (
             <>
               <Button size="sm" variant="outline" onClick={() => onImport('default')}>
@@ -62,6 +89,8 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
           </Button>
         </div>
       </div>
+
+      {hasUnits && <UnitNavigator units={navUnits} anchorPrefix="strategy-unit" />}
 
       {hasUnits && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -84,8 +113,8 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
       )}
 
       <div className="space-y-3">
-        {units.map((u) => (
-          <UnitRow key={u.id} unit={u} onUpdate={onUpdate} onDelete={onDelete} />
+        {units.map((u, idx) => (
+          <UnitRow key={u.id} unit={u} index={idx} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
       </div>
 
@@ -94,6 +123,29 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
           {totals.warnings.slice(0, 8).map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
+
+      <BulkFillDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        title="Bulk invullen — Componentstrategie"
+        fields={bulkFields}
+        units={units.map((u) => {
+          const r = u as unknown as Record<string, unknown>;
+          return {
+            id: u.id,
+            label: (r.unit_label as string | null) ?? (u as unknown as { unit_name?: string }).unit_name ?? 'Unit',
+            type: (r.unit_type as string | null) ?? null,
+          };
+        })}
+        selectedIds={new Set()}
+        scopes={['all', 'empty', 'residential', 'commercial']}
+        getValue={(unitId, key) => {
+          const u = units.find((x) => x.id === unitId);
+          if (!u) return null;
+          return (u as unknown as Record<string, unknown>)[key];
+        }}
+        apply={(unitId, key, value) => onUpdate(unitId, { [key]: value as never })}
+      />
     </div>
   );
 }
