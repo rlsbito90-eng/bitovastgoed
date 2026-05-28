@@ -414,8 +414,20 @@ export default function ScenarioEditor(props: Props) {
   }
 
   // --- WWS Unit CRUD ---
+  // Helper: bereken WWS-puntenpayload voor een (deels) gevulde unit, zodat
+  // geen unit zonder stille NULL-punten in de database belandt.
+  function wwsExtras(u: Partial<WwsUnit>): Partial<WwsUnit> {
+    const res = computeWwsPoints(u as WwsUnit, Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6));
+    return {
+      wws_points: res.punten,
+      wws_max_monthly_rent: res.maxMonthlyRent,
+      wws_max_annual_rent: res.maxAnnualRent,
+      rent_segment: res.segment,
+    };
+  }
   async function addWwsUnit() {
-    await supabase.from('residential_wws_units').insert({ scenario_id: s.id, unit_name: 'Nieuwe woonunit' });
+    const base: Partial<WwsUnit> = { scenario_id: s.id, unit_name: 'Nieuwe woonunit', independent_unit: true };
+    await supabase.from('residential_wws_units').insert({ ...base, ...wwsExtras(base) } as never);
     refetch();
   }
   async function updateWwsUnit(id: string, p: Partial<WwsUnit>) {
