@@ -63,11 +63,14 @@ function NumInput({ value, onChange, onRawChange, placeholder, suffix }: { value
   );
 }
 
-/** Numeriek invoerveld + checkbox "Bewust € 0" voor optionele kostenvelden. */
+/** Numeriek invoerveld + checkbox "Bewust € 0" voor optionele kostenvelden.
+ *  Toont leeg wanneer waarde 0 is zonder "Bewust € 0"-marker, zodat default-0
+ *  en bewuste 0 niet door elkaar gehaald worden. */
 function NumZero({ value, onChange, onRawChange, placeholder, suffix, zeroActive, onZeroToggle }: { value: number | null | undefined; onChange: (n: number | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; suffix?: Suffix; zeroActive: boolean; onZeroToggle: (next: boolean) => void }) {
+  const displayValue = Number(value ?? NaN) === 0 && !zeroActive ? null : value;
   return (
     <div className="space-y-1">
-      <NumInput value={value} onChange={onChange} onRawChange={onRawChange} placeholder={placeholder} suffix={suffix} />
+      <NumInput value={displayValue} onChange={onChange} onRawChange={onRawChange} placeholder={placeholder ?? 'bijv. — leeg laten of bewust € 0'} suffix={suffix} />
       <ManualZeroToggle active={zeroActive} value={value} onToggle={onZeroToggle} />
     </div>
   );
