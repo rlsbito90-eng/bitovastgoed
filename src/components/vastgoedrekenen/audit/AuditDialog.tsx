@@ -13,6 +13,11 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import { runScenarioAudit } from '@/lib/vastgoedrekenen/audit/runAudit';
 import { exportAuditMarkdown } from '@/lib/vastgoedrekenen/audit/exportMarkdown';
 import { CATEGORY_LABELS, type AuditCategory, type AuditCheck } from '@/lib/vastgoedrekenen/audit/types';
+import { buildCalcChain, CALC_CHAIN_FASE_LABEL, type CalcChainStep } from '@/lib/vastgoedrekenen/audit/calcChain';
+import { computeReliability, reliabilityBadgeClass } from '@/lib/vastgoedrekenen/validation/reliability';
+import { detectCaseType, getCaseRequirement } from '@/lib/vastgoedrekenen/validation/caseRequirements';
+import { computeScenario } from '@/lib/vastgoedrekenen/compute';
+import { FIELD_STATUS_LABEL } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 
 type Props = {
   buildInput: () => AuditInput;
