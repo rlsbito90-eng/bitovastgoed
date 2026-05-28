@@ -4,7 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Save, CheckCircle2 } from 'lucide-react';
+import { Trash2, Plus, Save, CheckCircle2, RotateCw, ListChecks } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import UnitNavigator from './UnitNavigator';
+import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/lib/vastgoedrekenen/types';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
@@ -163,6 +166,17 @@ export default function ScenarioEditor(props: Props) {
   }, [scenario]);
 
   const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
+
+  // Selectie + bulk-fill state voor WWS-units (UX-helpers, geen rekenlogica).
+  const [selectedWwsIds, setSelectedWwsIds] = useState<Set<string>>(new Set());
+  const [wwsBulkOpen, setWwsBulkOpen] = useState(false);
+  function toggleWwsSelect(id: string) {
+    setSelectedWwsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (childrenLoading || costDraftDirtyRef.current) return;
@@ -475,6 +489,45 @@ export default function ScenarioEditor(props: Props) {
     if (recomputed > 0) toast.success(`WWS-units bijgewerkt: ${parts}`);
     else toast.info(`Geen units bijgewerkt: ${parts}`);
     for (const f of failures) toast.error(`WWS-unit ${f}: bijwerken mislukt`);
+    refetch();
+  }
+
+  // Herbereken één specifieke unit. Skipt unit als punten handmatig zijn overschreven.
+  async function recomputeWwsUnit(id: string): Promise<'updated' | 'skipped' | 'error'> {
+    const u = wwsUnits.find((x) => x.id === id);
+    if (!u) return 'error';
+    const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+    if (status.source === 'handmatig') { toast.info(`${u.unit_name}: handmatige punten — niet automatisch overschreven.`); return 'skipped'; }
+    const { error } = await supabase.from('residential_wws_units').update(wwsExtras(u) as never).eq('id', id);
+    if (error) { toast.error(`${u.unit_name}: bijwerken mislukt`); return 'error'; }
+    toast.success(`${u.unit_name} herberekend.`);
+    refetch();
+    return 'updated';
+  }
+
+  // Herbereken alleen geselecteerde units.
+  async function recomputeSelectedWwsUnits() {
+    if (selectedWwsIds.size === 0) { toast.info('Geen units geselecteerd.'); return; }
+    const epp = Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6);
+    let updated = 0, skipped = 0, missing = 0, errors = 0;
+    for (const id of selectedWwsIds) {
+      const u = wwsUnits.find((x) => x.id === id);
+      if (!u) continue;
+      const status = getWwsUnitStatus(u, { euroPerPoint: epp });
+      if (status.source === 'handmatig') { skipped += 1; continue; }
+      const { error } = await supabase.from('residential_wws_units').update(wwsExtras(u) as never).eq('id', id);
+      if (error) { errors += 1; continue; }
+      updated += 1;
+      if (status.missing.filter((m) => m !== 'punten').length > 0) missing += 1;
+    }
+    const parts = [
+      `${updated} herberekend`,
+      skipped > 0 ? `${skipped} overgeslagen (handmatig)` : null,
+      missing > 0 ? `${missing} met ontbrekende input` : null,
+      errors > 0 ? `${errors} fout(en)` : null,
+    ].filter(Boolean).join(' · ');
+    if (updated > 0) toast.success(`Geselecteerd: ${parts}`);
+    else toast.info(`Geselecteerd: ${parts}`);
     refetch();
   }
 
@@ -1244,31 +1297,75 @@ export default function ScenarioEditor(props: Props) {
             {/* 7. WWS / huursegmentanalyse */}
             <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={false} hidden={!hasResidential && wwsUnits.length === 0}>
               <div className="pt-3 space-y-3">
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end flex-wrap">
                   {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
                     <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto">Maak WWS-units uit wooncomponenten</Button>
                   )}
                   {wwsUnits.length > 0 && (
-                    <Button size="sm" variant="outline" onClick={recomputeAllWwsUnits} className="w-full sm:w-auto">Herbereken WWS-units</Button>
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => setWwsBulkOpen(true)} className="w-full sm:w-auto">
+                        <ListChecks className="h-3.5 w-3.5 mr-1" /> Bulk invullen
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={recomputeSelectedWwsUnits} disabled={selectedWwsIds.size === 0} className="w-full sm:w-auto">
+                        <RotateCw className="h-3.5 w-3.5 mr-1" /> Herbereken geselecteerd ({selectedWwsIds.size})
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={recomputeAllWwsUnits} className="w-full sm:w-auto">Herbereken WWS-units</Button>
+                    </>
                   )}
                   <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
                 </div>
                 {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
-                {wwsUnits.map((u) => {
+                {wwsUnits.length > 0 && (
+                  <UnitNavigator
+                    anchorPrefix="wws-unit"
+                    units={wwsUnits.map((u) => {
+                      const st = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+                      return { id: u.id, label: u.unit_name || 'Woonunit', warning: st.reliability !== 'volledig' };
+                    })}
+                  />
+                )}
+                {wwsUnits.map((u, idx) => {
                   const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
                   const reliabilityColor =
                     status.reliability === 'volledig' ? 'text-emerald-700 dark:text-emerald-300'
                     : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
                     : 'text-destructive';
                   const independentVal = (u as unknown as { independent_unit?: boolean | null }).independent_unit;
+                  const indexStr = String(idx + 1).padStart(2, '0');
+                  const isSelected = selectedWwsIds.has(u.id);
+                  // Bouw header chips
+                  const chips: { label: string; tone?: 'positive' | 'warning' | 'muted' }[] = [];
+                  if (u.living_area_m2) chips.push({ label: `${u.living_area_m2} m²` });
+                  if (u.energy_label) chips.push({ label: `Label ${u.energy_label}` });
+                  if (u.wws_points != null) chips.push({ label: `${u.wws_points} punten`, tone: 'positive' });
+                  else chips.push({ label: 'punten ontbreken', tone: 'warning' });
+                  if (u.rent_segment) chips.push({ label: String(u.rent_segment) });
+                  if (status.source === 'handmatig') chips.push({ label: 'handmatig', tone: 'warning' });
+                  const chipCls = (tone?: string) =>
+                    tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
+                    : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
+                    : 'border-border text-muted-foreground bg-muted/30';
                   return (
-                  <div key={u.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-xs font-medium text-muted-foreground">Woonunit</p>
-                      <Button size="sm" variant="ghost" onClick={() => deleteWwsUnit(u.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Woonunit verwijderen</span>
-                      </Button>
+                  <div key={u.id} id={`wws-unit-${u.id}`} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden scroll-mt-20">
+                    <div className="flex items-start justify-between gap-3 sticky top-0 z-10 bg-card -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 px-3 sm:px-4 pt-3 sm:pt-4 pb-2 border-b">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleWwsSelect(u.id)} aria-label="Selecteer unit" />
+                        <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{indexStr}</span>
+                        <span className="text-sm font-semibold truncate">{u.unit_name || 'Woonunit'}</span>
+                        {chips.map((c, i) => (
+                          <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button size="sm" variant="ghost" onClick={() => recomputeWwsUnit(u.id)} className="h-8 px-2 text-muted-foreground" title="Herbereken deze unit">
+                          <RotateCw className="h-4 w-4" />
+                          <span className="sr-only">Herbereken deze unit</span>
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteWwsUnit(u.id)} className="h-8 px-2 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Woonunit verwijderen</span>
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
                       <MobileFieldGroup label="Naam"><RawTextInput className="h-9" initialValue={u.unit_name} onCommit={(raw) => updateWwsUnit(u.id, { unit_name: raw.trim() || 'Woonunit' })} /></MobileFieldGroup>
@@ -1278,7 +1375,10 @@ export default function ScenarioEditor(props: Props) {
                       <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
                       <div className="min-w-0 w-full space-y-1.5">
                         <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
-                        <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">{u.wws_points ?? '—'} / {u.rent_segment ?? '—'}</div>
+                        <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">
+                          {u.wws_points ?? '—'} / {u.rent_segment ?? '—'}
+                          {status.source === 'handmatig' && <span className="ml-2 text-[10px] text-amber-700 dark:text-amber-300">Handmatig — niet automatisch overschreven</span>}
+                        </div>
                       </div>
                       <MobileFieldGroup label="Stelsel">
                         <Select
@@ -1319,6 +1419,33 @@ export default function ScenarioEditor(props: Props) {
                     WWS-puntenberekening is in V1 indicatief. Officiële WWS-toetsing blijft nodig. Segmenten: ≤143 punten sociaal, 144–186 middenhuur, ≥187 vrije sector.
                   </BerekeningUitleg>
                 )}
+
+                <BulkFillDialog
+                  open={wwsBulkOpen}
+                  onOpenChange={setWwsBulkOpen}
+                  title="Bulk invullen — WWS-units"
+                  fields={[
+                    { key: 'energy_label', label: 'Energielabel', kind: 'select', options: ['A++++','A+++','A++','A+','A','B','C','D','E','F','G'].map((v) => ({ value: v, label: v })) },
+                    { key: 'independent_unit', label: 'Stelsel', kind: 'select', options: [{ value: 'zelfstandig', label: 'Zelfstandig' }, { value: 'onzelfstandig', label: 'Onzelfstandig (kamer)' }] },
+                    { key: 'woz_value', label: 'WOZ-waarde (€)', kind: 'number', suffix: '€' },
+                    { key: 'current_monthly_rent', label: 'Maandhuur (€)', kind: 'number', suffix: '€' },
+                    { key: 'living_area_m2', label: 'Woonoppervlakte (m²)', kind: 'number', suffix: 'm²' },
+                  ] as BulkField[]}
+                  units={wwsUnits.map((u) => ({ id: u.id, label: u.unit_name || 'Woonunit' }))}
+                  selectedIds={selectedWwsIds}
+                  scopes={['all', 'selected', 'empty']}
+                  getValue={(unitId, key) => {
+                    const u = wwsUnits.find((x) => x.id === unitId);
+                    if (!u) return null;
+                    return (u as unknown as Record<string, unknown>)[key];
+                  }}
+                  apply={async (unitId, key, value) => {
+                    let patch: Partial<WwsUnit> = {};
+                    if (key === 'independent_unit') patch = { independent_unit: value === 'zelfstandig' } as Partial<WwsUnit>;
+                    else patch = { [key]: value } as Partial<WwsUnit>;
+                    await updateWwsUnit(unitId, patch);
+                  }}
+                />
               </div>
             </Section>
 
