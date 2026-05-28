@@ -539,6 +539,21 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
         advice: 'Vul classificatie of allocated_component_value in per component, anders valt OVB terug op m²-verdeling.',
       });
     }
+    if (computed.ovbMissingBasisCount > 0) {
+      const isMixed = objectType === 'mixed_use';
+      add(checks, {
+        id: 'ovb-basis-missing',
+        category: 'ovb',
+        status: isMixed ? 'error' : 'warning',
+        section: SECTIONS.ovb,
+        problem: `OVB per component: ${computed.ovbMissingBasisCount} component(en) zonder bruikbare grondslag — OVB komt daar stilletjes op € 0.`,
+        advice: 'Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer een handmatig OVB-bedrag in.',
+        technical: computed.ovbPerComponent
+          .filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount)
+          .map((p) => `${p.id}: ${p.basisMethod}${p.missingValueBasis ? ' (waarde ontbreekt)' : ''}${p.missingStrategyBasis ? ' (strategie ontbreekt)' : ''}${p.missingManualAmount ? ' (bedrag ontbreekt)' : ''}`)
+          .join(' · '),
+      });
+    }
   }
   if (ovbMode !== 'manual' && num(scenario.transfer_tax_amount) > 0) {
     add(checks, {
