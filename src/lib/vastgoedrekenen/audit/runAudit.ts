@@ -11,6 +11,7 @@ import type { AuditCheck, AuditReport, AuditStatus, AuditCategory } from './type
 import { buildSourcesOfTruth } from './sourcesOfTruth';
 import { buildMaxBidExplain } from './maxBidExplain';
 import { runHinthamerCheck } from './hinthamerstraat';
+import { suggestWwsMode, getEffectiveWwsMode, WWS_MODE_LABEL } from '../wws/mode';
 
 const num = (v: unknown): number => {
   const x = Number(v ?? 0);
