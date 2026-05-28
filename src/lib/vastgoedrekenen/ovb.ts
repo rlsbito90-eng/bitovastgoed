@@ -141,9 +141,11 @@ export function computeScenarioOvb(
         if (basis <= 0) missingValueBasis = true;
       }
 
+      const effectiveClassification = (c.transfer_tax_classification as OvbClassification | null)
+        ?? inferOvbClassificationFromComponentType(c.component_type);
       const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
         ? Number(c.transfer_tax_percentage)
-        : getOvbPercentage(c.transfer_tax_classification as OvbClassification | null, settings, null, objectType);
+        : getOvbPercentage(effectiveClassification, settings, null, objectType);
       const amount = Math.round((basis * pct) / 100);
       return {
         id: c.id,
