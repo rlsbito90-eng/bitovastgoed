@@ -63,6 +63,16 @@ function NumInput({ value, onChange, onRawChange, placeholder, suffix }: { value
   );
 }
 
+/** Numeriek invoerveld + checkbox "Bewust € 0" voor optionele kostenvelden. */
+function NumZero({ value, onChange, onRawChange, placeholder, suffix, zeroActive, onZeroToggle }: { value: number | null | undefined; onChange: (n: number | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; suffix?: Suffix; zeroActive: boolean; onZeroToggle: (next: boolean) => void }) {
+  return (
+    <div className="space-y-1">
+      <NumInput value={value} onChange={onChange} onRawChange={onRawChange} placeholder={placeholder} suffix={suffix} />
+      <ManualZeroToggle active={zeroActive} value={value} onToggle={onZeroToggle} />
+    </div>
+  );
+}
+
 function TextInput({ value, onChange, onRawChange, placeholder, className }: { value: string | null | undefined; onChange: (value: string | null) => void; onRawChange?: (raw: string) => void; placeholder?: string; className?: string }) {
   return (
     <RawTextInput
