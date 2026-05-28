@@ -371,6 +371,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     scenarioMarginPct,
     maxPurchasePrice,
     roundsAtAsking,
+    leadingMaxBasis,
+    leadingMaxBasisLabel,
+    leadingMaxValue,
+    leadingDifferenceWithAskingPrice,
     strategyPerUnit: strategy.perUnit.map((p) => ({
       unitId: p.unitId, label: p.label, type: p.type, strategy: p.strategy,
       contribution: p.contribution, warnings: p.warnings,
