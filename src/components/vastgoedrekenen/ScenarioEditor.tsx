@@ -1298,7 +1298,45 @@ export default function ScenarioEditor(props: Props) {
             {/* 7. WWS / huursegmentanalyse */}
             <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={false} hidden={!hasResidential && wwsUnits.length === 0}>
               <div className="pt-3 space-y-3">
+                {(() => {
+                  const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
+                  const suggestion = suggestWwsMode(wwsModeCtx);
+                  const scenarioOverride = (s as unknown as { wws_mode_default?: WwsMode | null }).wws_mode_default ?? null;
+                  const effective = scenarioOverride ?? suggestion.mode;
+                  const tone =
+                    effective === 'volledig_vereist' ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                    : effective === 'indicatief' ? 'border-amber-500/40 bg-amber-500/5 text-amber-800 dark:text-amber-200'
+                    : 'border-muted bg-muted/40 text-muted-foreground';
+                  return (
+                    <div className={`rounded-md border px-3 py-2 text-xs space-y-2 ${tone}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Scenario-modus WWS:</span>
+                        <Select
+                          value={scenarioOverride ?? '__auto__'}
+                          onValueChange={(v) => setS({ ...s, wws_mode_default: v === '__auto__' ? null : v } as unknown as Scenario)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestion.mode]}</SelectItem>
+                            <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
+                            <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
+                            <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">({scenarioOverride ? 'handmatig' : 'voorgesteld'})</span>
+                      </div>
+                      <div className="opacity-90">{WWS_MODE_DESCRIPTION[effective]}</div>
+                      {suggestion.reasons.length > 0 && (
+                        <div className="text-[11px] opacity-80">Reden voorstel: {suggestion.reasons.join(' ')}</div>
+                      )}
+                      {effective !== 'volledig_vereist' && (
+                        <div className="text-[11px] opacity-80">De huidige WWS V1-berekening is altijd indicatief. Voor harde biedingen op verhuur is een Huurcommissie-check vereist.</div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end flex-wrap">
+
                   {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
                     <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto">Maak WWS-units uit wooncomponenten</Button>
                   )}
