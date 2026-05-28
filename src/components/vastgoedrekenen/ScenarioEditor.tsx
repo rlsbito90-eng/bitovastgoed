@@ -1248,6 +1248,9 @@ export default function ScenarioEditor(props: Props) {
                   {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
                     <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto">Maak WWS-units uit wooncomponenten</Button>
                   )}
+                  {wwsUnits.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={recomputeAllWwsUnits} className="w-full sm:w-auto">Herbereken WWS-units</Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
                 </div>
                 {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
