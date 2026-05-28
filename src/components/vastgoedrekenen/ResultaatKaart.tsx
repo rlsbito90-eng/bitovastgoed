@@ -10,7 +10,12 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
   const deal = DEAL_BADGE[o.dealScore];
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
-  const diff = o.differenceWithAskingPrice;
+  const strategyLeading = o.leadingMaxBasis === 'strategie';
+  const headlineValue = strategyLeading ? o.leadingMaxValue : o.maximumBid;
+  const headlineLabel = strategyLeading
+    ? 'Maximale aankoopprijs (componentstrategie)'
+    : 'Maximale bieding';
+  const diff = strategyLeading ? o.leadingDifferenceWithAskingPrice : o.differenceWithAskingPrice;
   const pct = asking > 0 ? (diff / asking) * 100 : null;
   const diffPos = diff >= 0;
   const diffSign = diffPos ? '+' : '−';
@@ -18,6 +23,12 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
     ? 'text-emerald-700 dark:text-emerald-300'
     : 'text-amber-700 dark:text-amber-300';
   const exploitatie = o.assessmentType === 'exploitatie';
+  // Detecteer tegenstrijdig signaal: leidend zegt korting nodig, maximumBid zegt ruimte (of omgekeerd).
+  const showConflict =
+    strategyLeading &&
+    asking > 0 &&
+    Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice) &&
+    (o.leadingDifferenceWithAskingPrice < 0) !== (o.differenceWithAskingPrice < 0);
 
   return (
     <Card className="border-primary/40">
@@ -35,15 +46,20 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
             Input {o.inputReliability}
           </span>
           <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
-            Bod o.b.v. {o.bidBasisUsed === 'verkoop' ? 'verkoop / exit' : 'huur / BAR'}
+            Leidend: {o.leadingMaxBasisLabel}
           </span>
+          {!strategyLeading && (
+            <span className="text-xs px-2 py-1 rounded-full border bg-muted text-muted-foreground">
+              Bod o.b.v. {o.bidBasisUsed === 'verkoop' ? 'verkoop / exit' : 'huur / BAR'}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 min-w-0">
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 sm:col-span-2 lg:col-span-2 min-w-0">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Maximale bieding</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{headlineLabel}</p>
             <p className="text-2xl sm:text-3xl font-semibold font-mono-data mt-0.5 leading-tight text-primary break-words">
-              {fmtEur(o.maximumBid)}
+              {fmtEur(headlineValue)}
             </p>
             {asking > 0 && (
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed break-words">
@@ -53,6 +69,20 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
                   {diffSign} {fmtEur(Math.abs(diff))}
                   {pct != null ? ` (${diffSign}${Math.abs(pct).toFixed(1)}%)` : ''}
                 </span>
+              </p>
+            )}
+            {strategyLeading && (
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug break-words">
+                Algemene max bieding (informatief, BAR/exit):{' '}
+                <span className="font-mono-data text-foreground">{fmtEur(o.maximumBid)}</span>
+                {asking > 0 && (
+                  <>
+                    {' '}· Verschil{' '}
+                    <span className="font-mono-data">
+                      {o.differenceWithAskingPrice >= 0 ? '+' : '−'} {fmtEur(Math.abs(o.differenceWithAskingPrice))}
+                    </span>
+                  </>
+                )}
               </p>
             )}
           </div>
