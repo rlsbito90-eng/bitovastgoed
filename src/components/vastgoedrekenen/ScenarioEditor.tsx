@@ -682,12 +682,12 @@ export default function ScenarioEditor(props: Props) {
                   <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
                 )}
 
-                <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumInput onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" /></MobileFieldGroup>
-                <MobileFieldGroup label="Notariskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Advieskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Due diligence (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Overige aankoopkosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" /></MobileFieldGroup>
-                <MobileFieldGroup label="Financieringskosten (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumZero onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" zeroActive={isZero('buyer_fee_percentage')} onZeroToggle={toggleZero('buyer_fee_percentage')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Notariskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" zeroActive={isZero('notary_costs')} onZeroToggle={toggleZero('notary_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Advieskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" zeroActive={isZero('advisory_costs')} onZeroToggle={toggleZero('advisory_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Due diligence (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" zeroActive={isZero('due_diligence_costs')} onZeroToggle={toggleZero('due_diligence_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Overige aankoopkosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" zeroActive={isZero('other_acquisition_costs')} onZeroToggle={toggleZero('other_acquisition_costs')} /></MobileFieldGroup>
+                <MobileFieldGroup label="Financieringskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.financing_costs} onChange={(v) => patch({ financing_costs: v })} suffix="€" zeroActive={isZero('financing_costs')} onZeroToggle={toggleZero('financing_costs')} /></MobileFieldGroup>
               </div>
               {showHelp && (
                 <div className="pt-3">
