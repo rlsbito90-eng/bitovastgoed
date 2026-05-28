@@ -52,7 +52,7 @@ function ScenarioComputer({
 
 function bidVsAsking(o: ComputedOutputs, asking: number): { label: string; tone: 'positive' | 'negative' | 'neutral' } {
   if (!asking || asking <= 0) return { label: 'Vraagprijs onbekend', tone: 'neutral' };
-  const diff = o.maximumBid - asking;
+  const diff = o.leadingMaxValue - asking;
   const pct = (diff / asking) * 100;
   if (Math.abs(pct) < 2) return { label: 'Rond vraagprijs', tone: 'neutral' };
   if (diff > 0) return { label: 'Boven vraagprijs', tone: 'positive' };
@@ -65,7 +65,7 @@ function pickBest(rows: RowData[]) {
   const valid = rows.filter((r) => r.outputs.dealScore !== 'reject');
   const pool = valid.length > 0 ? valid : rows;
 
-  const byBid = [...pool].sort((a, b) => (b.outputs.maximumBid ?? 0) - (a.outputs.maximumBid ?? 0))[0];
+  const byBid = [...pool].sort((a, b) => (b.outputs.leadingMaxValue ?? 0) - (a.outputs.leadingMaxValue ?? 0))[0];
   const byBar = [...pool].sort((a, b) => (b.outputs.barTotalInvestment ?? 0) - (a.outputs.barTotalInvestment ?? 0))[0];
   const byInvestment = [...pool].sort((a, b) => (a.outputs.totalInvestment ?? Infinity) - (b.outputs.totalInvestment ?? Infinity))[0];
   const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
