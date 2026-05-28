@@ -1,137 +1,124 @@
-## Aanbeveling: Optie C (Hybride) — Workspace Layout V1
+## Doel
 
-Optie A (alles inklapbaar) lost het probleem niet op: pagina blijft één lange DOM, scroll-state blijft rommelig, en gebruikers moeten elke sessie opnieuw open/dicht klikken. Optie B (pure tabs) is rustig maar verbergt context die je vaak naast elkaar nodig hebt (bv. Dealflow + Kandidaten + Cockpit). **Optie C** combineert het beste: minder DOM tegelijk gerenderd, vaste cockpit-context, en deep links blijven werken.
+Vastgoedrekenen rekenkundig en vastgoedkundig betrouwbaarder maken — zonder nieuwe rekenfeatures. We versterken validatie, uitlegbaarheid en testdekking. Bestaande rekenlogica (`computeScenario`, `investering.ts`, `huur.ts`, `verkoop.ts`, `bieding.ts`) blijft ongewijzigd.
 
-### Evaluatie kort
+## Aanpak in 7 stappen
 
-| Criterium | A inklapbaar | B tabs | **C hybride** |
-|---|---|---|---|
-| Gebruiksvriendelijk | matig | goed | **best** |
-| Rustig beeld | matig | best | **best** |
-| Dagelijks gebruik | matig | goed | **best** |
-| Technisch risico | laag | hoog | **midden** |
-| Deep links | best | risico | **goed (met shim)** |
-| Geen scroll-marathon | nee | ja | **ja** |
-| Desktop + mobiel | matig | goed | **best** |
+### 1. Casustype-matrix (`src/lib/vastgoedrekenen/validation/caseRequirements.ts` — nieuw)
 
----
+Eén centrale tabel `CASE_REQUIREMENTS` per casustype met:
+- `requiredFields` — blokkerend
+- `optionalFields` — info
+- `defaults` — wat het systeem invult als leeg
+- `outputs` — relevante eindvelden
+- `notes` — vastgoedkundige aandachtspunten
 
-## Workspace Layout V1
+Casustypes (aansluitend op bestaande `strategy_type` + `sale_strategy` + componentmix):
+verhuurde_belegging, leegstand, mixed_use, uitponden, woningen_verkopen_winkels_houden, alles_houden, alles_verkopen, renovatie_verkoop, renovatie_verhuur, transformatie_verkoop, transformatie_verhuur, bedrijfsunits, woon_winkel.
 
-### Vaste structuur (altijd zichtbaar, niet in tab)
-- **PageHeader** (titel, status, acties)
-- **KPI-strip** (BAR, factor, €/m², WALT/WALB — bestaand)
-- **Workspace tabs** (sticky, horizontaal scrollbaar — bestaande `SectionNav` hergebruikt)
-- **Rechterkolom desktop**: Deal Cockpit + Next action + Quick actions blijven sticky náást de tab-content (zoals nu). Op mobiel verschijnen ze als laatste tab "Cockpit".
+Functie `detectCaseType(scenario, components, strategyUnits)` mapt huidige data naar één casustype zodat de juiste vereistenlijst geactiveerd wordt.
 
-### Tabindeling (7 hoofdtabs + Meer)
+### 2. Expliciete veldstatus (`src/lib/vastgoedrekenen/validation/fieldStatus.ts` — nieuw)
 
-1. **Overzicht** — `overzicht` (asset-info, beschrijving, foto's-thumb)
-2. **Dealflow** — `dealflow` + `biedingen` + `activiteit`
-3. **Kandidaten** — `kandidaten` + (conditioneel) `referenties`
-4. **Vastgoedrekenen** — `vastgoedrekenen` (audit dialog blijft binnen tab)
-5. **Financieel** — `financieel` + (conditioneel) `verhuur` als subsectie
-6. **Dossier** — `dossier` + `aanbieding` + `documenten`
-7. **Pand** — `pand` + (conditioneel) `potentie`
-8. **Meer** (dropdown) — `juridisch`, `verkoper`, eventueel `activiteit` als losse view
+Helper `fieldStatus(value, { hasManualMarker?, defaultUsed? })` → `'ingevuld' | 'leeg' | 'bewust_nul' | 'default' | 'handmatig'`.
 
-### Tab badges
-- Dealflow: aantal actieve deals
-- Kandidaten: aantal sterke matches + pipeline-rijen (gededupliceerd, hergebruik `countKandidaten`)
-- Dossier: readiness-percentage of rode dot bij ontbrekende kerngegevens
-- Biedingen (in Dealflow): klein subscript bij sectiekop
-- Vastgoedrekenen: dot wanneer audit warnings/errors
+Regels:
+- `null`/`undefined`/`''` → `leeg`
+- `0` met expliciete marker (bv. `*_manually_zero` flag of veld zit in `manual_zero_fields[]`) → `bewust_nul`
+- `0` zonder marker → `leeg` (waarschuwing) i.p.v. stil 0
+- default-aanname uit profiel → `default`
+- handmatige override (`assumptions_manual`, `*_manual_override`) → `handmatig`
 
-### Binnen-tab inklapbaar
-Alleen subkaarten die echt lang zijn én vaak overgeslagen:
-- Financieel → "Volledige NOI-opbouw" inklapbaar
-- Dossier → per categorie collapsible (bestaat al)
-- Pand → "Technische staat detail" inklapbaar
-- Activiteit → standaard laatste 10, "Toon meer" knop
+In `validation.ts` en `runAudit.ts` vervangen we `Number(x ?? 0) > 0`-checks door `fieldStatus()` zodat lege velden niet onzichtbaar als 0 doortellen.
 
-Top-level secties (h2) zijn **niet** inklapbaar — die zijn nu tabs.
+Voor bewust-0 voegen we per kritisch veld een eenvoudige UI-marker toe (checkbox "bewust 0") in `ScenarioEditor.tsx` voor: bouwkosten, verkoopkosten, overige verkoopkosten, financieringskosten. Geen nieuwe DB-kolommen; we hergebruiken bestaande `*_manual_override`-velden waar mogelijk, en slaan losse markers op in `scenario.assumptions_source` (JSON-veld al aanwezig).
 
----
+### 3. Rekenketen-uitleg uitbreiden (`src/lib/vastgoedrekenen/audit/maxBidExplain.ts` + nieuwe `calcChain.ts`)
 
-## Deep links & migratie
+Nieuwe helper `buildCalcChain(input, computed)` levert stap-voor-stap regels:
 
-### Anchors blijven werken (kritisch)
-Huidige URL's: `/objecten/:id#kandidaten`, `#vastgoedrekenen`, `#deal-cockpit` etc.
-
-**Shim-mechanisme:**
-```ts
-const ANCHOR_TO_TAB: Record<string, TabId> = {
-  overzicht: 'overzicht',
-  dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
-  kandidaten: 'kandidaten', referenties: 'kandidaten',
-  vastgoedrekenen: 'vastgoedrekenen',
-  financieel: 'financieel', verhuur: 'financieel',
-  dossier: 'dossier', aanbieding: 'dossier', documenten: 'dossier',
-  pand: 'pand', potentie: 'pand',
-  juridisch: 'meer', verkoper: 'meer',
-};
+```text
+Input → bruto opbrengst → kosten → netto opbrengst →
+scenariowaarde → totale investering → marge/ROI →
+max aankoopprijs → verschil vraagprijs → rond te rekenen
 ```
 
-Bij mount: lees `location.hash`, kies tab via map, scroll na render naar het anchor-id binnen die tab. Anchors blijven in DOM op zelfde id's → externe links blijven werken.
+Per stap: `gebruikte velden`, `formule`, `uitkomst`, `bron`, `status (ingevuld/default/ontbreekt/handmatig)`. Toegevoegd als nieuwe tab "Rekenketen" in `AuditDialog.tsx`.
 
-### Tab-state in URL
-- Primaire bron: `?tab=dealflow` query param (shareable, terug-knop werkt).
-- Fallback: hash naar tab-map.
-- Geen tab in URL: gebruik laatst-geopende tab uit `localStorage` key `object-detail:last-tab`, anders `overzicht`.
+### 4. Betrouwbaarheidsscore (`src/lib/vastgoedrekenen/validation/reliability.ts` — nieuw)
 
-### Laatst geopende tab
-- `localStorage.setItem('object-detail:last-tab', tabId)` bij tab-switch.
-- Niet per object onthouden (te onvoorspelbaar); één globale voorkeur.
+`computeReliability(ctx, computed)` → `'hoog' | 'middel' | 'laag' | 'niet_betrouwbaar'` + lijst van redenen.
 
----
+Regels:
+- Blokkerende vereiste leeg → `niet_betrouwbaar`
+- ≥3 warnings of belangrijke handmatige waarde zonder onderbouwing of dubbele bron → `laag`
+- 1–2 warnings of defaults op niet-kritieke velden → `middel`
+- Alle vereisten ingevuld, geen warnings → `hoog`
 
-## Technische aanpak
+Tonen in:
+- `ResultaatKaart.tsx` (badge)
+- `AuditDialog.tsx` overzicht
+- `DealSnapshot.tsx`
 
-### Bestanden
-- **`src/pages/ObjectDetailPage.tsx`** — alleen layout/routing van content per tab. Tab-state hook + URL sync.
-- **Geen splitsing** van JSX-blokken naar nieuwe componenten in V1 (te risicovol). Tabs worden gerenderd via conditionele `{activeTab === 'dealflow' && <>…</>}` om DOM-kost te verlagen. Inhoud van elk anchor-blok blijft 1-op-1 gelijk.
+Bestaande `inputReliability` in `ComputedOutputs` blijft; nieuwe score is rijker en vervangt het in de UI-badge maar we mappen oude waarde door voor backcompat.
 
-### Performance winst
-Niet-actieve tabs worden niet gerenderd → grote winst bij Vastgoedrekenen en Dossier (zware sub-trees). Forms/dialogs binnen tabs hoeven niet meer onnodig te mounten.
+### 5. Blokkerend vs niet-blokkerend (`validation.ts` + `runAudit.ts`)
 
-### Mobiel
-- Tabs scrollen horizontaal (bestaand mechanisme met edges/wheel).
-- Cockpit/Next action/Quick actions verschijnen als laatste tab "Cockpit" i.p.v. sticky kolom.
+`ValidationItem.level` blijft `blocker | warning | info`. We mappen volgens specificatie van de gebruiker:
 
-### Risico's & mitigatie
-- **Risico**: deep links breken → mitigatie via shim + smoke-test van bestaande hashes.
-- **Risico**: tab-renders verliezen scroll-positie binnen sectie → bewust `scroll-mt-24` + `scrollIntoView` alleen bij hash-navigatie, niet bij tab-switch.
-- **Risico**: dirty form state in Vastgoedrekenen verloren bij tab-switch → audit/dirty-state check tonen `confirm` voordat tab wisselt (zoals al bestaat bij navigate-away).
-- **Risico**: `SectionNav` was scroll-spy → wordt simpele tab-list (geen IntersectionObserver meer nodig).
+Blokkerend: verkoopwaarde-ontbreekt-bij-verkoop, huur-ontbreekt-bij-aanhouden, BAR/NAR/factor-ontbreekt-bij-aanhouden, aankoopprijs leeg, OVB onbekend bij niet-manual, scenario zonder waardebron.
 
----
+Niet-blokkerend: WOZ, energielabel, btw-bouwkosten niet beoordeeld, verkoopkosten op default, bouwkosten indicatief, handmatig zonder onderbouwing.
 
-## Migratieplan (3 stappen, los te shippen)
+`ResultaatKaart` toont een `Niet betrouwbaar — blokkerende issues` banner zolang er blockers zijn.
 
-**Stap 1 — Workspace skeleton (deze ronde)**
-- Tab-state + URL sync + localStorage memo.
-- Anchor-shim map.
-- Bestaande `BASE_SECTIONS` herbenoemd naar tabs.
-- Render alleen actieve tab-content.
-- Cockpit-kolom op desktop blijft sticky; op mobiel als "Cockpit" tab.
+### 6. Golden testcases (`src/test/vastgoedrekenen/golden/` — nieuw)
 
-**Stap 2 — Badges & polish**
-- Badge-counts per tab (deals, kandidaten, audit-warnings).
-- Dirty-state guard bij tab-switch in Vastgoedrekenen.
-- "Meer" dropdown voor juridisch/verkoper.
+Vitest-suite met 8 fixtures:
+1. Simpele verhuurde belegging
+2. Retailbelegging
+3. Mixed-use woon-/winkelpand
+4. Hinthamerstraat (woningen verkopen, winkels houden) — leidend
+5. Alles verkopen per unit
+6. Renovatie + verkoop
+7. Transformatie naar wonen
+8. Bedrijfsunits
 
-**Stap 3 — Binnen-tab collapsibles** (later, optioneel)
-- Inklapbare subkaarten in Financieel, Pand, Activiteit "toon meer".
+Elke fixture: `{ scenario, components, costs, wwsUnits, strategyUnits }` + `expected: { grossSale, costs, totalInvestment, maxBid, diffAsking, rounds }`.
 
----
+Tests gebruiken `computeScenario` direct en vergelijken numeriek (`±€1`). Faalt zodra rekenlogica afwijkt.
 
-## Acceptatie V1
+### 7. Hinthamerstraat als hoofdtest
 
-- Geen scroll-marathon meer: max 1 tab content tegelijk zichtbaar.
-- Cockpit altijd zichtbaar (desktop sticky, mobiel laatste tab).
-- Alle bestaande `#anchor` links openen juiste tab + scrollen ernaartoe.
-- Tab-keuze overleeft refresh (via URL of localStorage).
-- Geen bestaande functionaliteit gebroken; alle dialogs/forms werken identiek.
-- Werkt 1280px desktop én 375px mobiel.
+Bestaande `audit/hinthamerstraat.ts` blijft als runtime-check. Aanvullend: de golden fixture in stap 6 dekt dezelfde casus end-to-end zodat regressies in CI worden gepakt.
 
-Niet bouwen — wacht op akkoord voor Stap 1.
+## Bestanden
+
+Nieuw:
+- `src/lib/vastgoedrekenen/validation/caseRequirements.ts`
+- `src/lib/vastgoedrekenen/validation/fieldStatus.ts`
+- `src/lib/vastgoedrekenen/validation/reliability.ts`
+- `src/lib/vastgoedrekenen/audit/calcChain.ts`
+- `src/test/vastgoedrekenen/golden/fixtures.ts`
+- `src/test/vastgoedrekenen/golden/compute.test.ts`
+
+Aangepast:
+- `src/lib/vastgoedrekenen/validation.ts` — gebruikt fieldStatus + caseRequirements
+- `src/lib/vastgoedrekenen/audit/runAudit.ts` — voegt rekenketen + betrouwbaarheidsscore toe
+- `src/components/vastgoedrekenen/audit/AuditDialog.tsx` — nieuwe tabs "Rekenketen" en "Betrouwbaarheid"
+- `src/components/vastgoedrekenen/ResultaatKaart.tsx` — betrouwbaarheidsbadge + blocker-banner
+- `src/components/vastgoedrekenen/ScenarioEditor.tsx` — "bewust 0"-markers voor kritieke kostenvelden
+- `src/components/vastgoedrekenen/NogTeControleren.tsx` — toont casustype-header en gesplitste blockers/warnings
+
+Niet aangeraakt:
+- `compute.ts`, `investering.ts`, `huur.ts`, `verkoop.ts`, `bieding.ts`, `ovb.ts`, `wws.ts` (geen rekenwijzigingen)
+
+## Acceptatiecriteria gecontroleerd
+
+1. Verplichte velden per casustype centraal → caseRequirements
+2. Gat zichtbaar bij missende velden → blocker-banner + fieldStatus
+3. Geen stille 0 → fieldStatus onderscheid leeg vs bewust_nul
+4. Max bieding herleidbaar → calcChain tab
+5. Audit toont leidende bron → bestaande `sourcesOfTruth` + nieuwe rekenketen
+6. Testcases bewijzen logica → 8 golden fixtures, Hinthamerstraat leidend
+7. Gebruiker is niet enige controleur → betrouwbaarheidsscore + blockers
