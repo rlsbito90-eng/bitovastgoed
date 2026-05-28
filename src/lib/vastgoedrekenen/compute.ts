@@ -404,6 +404,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     leadingMaxBasisLabel,
     leadingMaxValue,
     leadingDifferenceWithAskingPrice,
+    leadingValuationTrackChoice: trackChoice,
+    leadingMaxBasisOverridden,
+    ovbPerComponent: ovb.perComponent,
+    ovbMissingBasisCount: ovb.missingBasisCount,
     strategyPerUnit: strategy.perUnit.map((p) => ({
       unitId: p.unitId, label: p.label, type: p.type, strategy: p.strategy,
       contribution: p.contribution, warnings: p.warnings,
