@@ -133,6 +133,14 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
         {report && (
           <>
             <div className="flex flex-wrap items-center gap-2 text-xs">
+              {derived?.reliability && (
+                <span className={`px-2 py-1 rounded-full border ${reliabilityBadgeClass(derived.reliability.level)}`}>
+                  {derived.reliability.label}
+                </span>
+              )}
+              {derived?.requirement && (
+                <Badge variant="outline" className="bg-muted">Casustype: {derived.requirement.label}</Badge>
+              )}
               <Badge variant="outline" className="bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">{report.summary.ok} OK</Badge>
               <Badge variant="outline" className="bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">{report.summary.warning} waarschuwingen</Badge>
               <Badge variant="outline" className="bg-destructive/10 text-destructive">{report.summary.error} fouten</Badge>
@@ -144,6 +152,8 @@ export default function AuditDialog({ buildInput, triggerLabel = 'Controleer sce
             <Tabs defaultValue="overzicht" className="flex-1 flex flex-col min-h-0">
               <TabsList className="flex-wrap h-auto justify-start">
                 <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+                <TabsTrigger value="betrouwbaarheid">Betrouwbaarheid</TabsTrigger>
+                <TabsTrigger value="rekenketen">Rekenketen</TabsTrigger>
                 <TabsTrigger value="bronnen">Bron van waarheid</TabsTrigger>
                 <TabsTrigger value="maxbid">Maximale bieding</TabsTrigger>
                 <TabsTrigger value="categorieen">Per categorie</TabsTrigger>
