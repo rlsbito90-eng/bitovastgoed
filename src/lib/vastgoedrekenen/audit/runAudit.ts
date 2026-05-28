@@ -539,6 +539,21 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
         advice: 'Vul classificatie of allocated_component_value in per component, anders valt OVB terug op m²-verdeling.',
       });
     }
+    if (computed.ovbMissingBasisCount > 0) {
+      const isMixed = objectType === 'mixed_use';
+      add(checks, {
+        id: 'ovb-basis-missing',
+        category: 'ovb',
+        status: isMixed ? 'error' : 'warning',
+        section: SECTIONS.ovb,
+        problem: `OVB per component: ${computed.ovbMissingBasisCount} component(en) zonder bruikbare grondslag — OVB komt daar stilletjes op € 0.`,
+        advice: 'Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer een handmatig OVB-bedrag in.',
+        technical: computed.ovbPerComponent
+          .filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount)
+          .map((p) => `${p.id}: ${p.basisMethod}${p.missingValueBasis ? ' (waarde ontbreekt)' : ''}${p.missingStrategyBasis ? ' (strategie ontbreekt)' : ''}${p.missingManualAmount ? ' (bedrag ontbreekt)' : ''}`)
+          .join(' · '),
+      });
+    }
   }
   if (ovbMode !== 'manual' && num(scenario.transfer_tax_amount) > 0) {
     add(checks, {
@@ -671,13 +686,19 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
 
   // ===== R. DUBBELE TELLINGEN =====
   if (sStrat && sStrat !== 'geen_verkoop' && strategyUnits.length > 0) {
+    const trackChoice = computed.leadingValuationTrackChoice;
+    const resolved = trackChoice !== 'auto';
     add(checks, {
       id: 'dub-exit',
       category: 'double_counting',
-      status: 'warning',
+      status: resolved ? 'ok' : 'warning',
       section: SECTIONS.dub,
-      problem: 'Scenario-level exit én componentstrategie zijn beide actief.',
-      advice: 'Kies één spoor: óf scenario-brede verkoop, óf per-unit strategie.',
+      problem: resolved
+        ? `Scenario-level exit én componentstrategie zijn beide gevuld, maar leidend spoor is expliciet gekozen: ${computed.leadingMaxBasisLabel}.`
+        : 'Scenario-level exit én componentstrategie zijn beide actief zonder gekozen leidend spoor.',
+      advice: resolved
+        ? undefined
+        : 'Kies "Leidend waarderingsspoor" in Verkoop / exit, of zet sale_strategy op "geen_verkoop" als componentstrategie leidend moet zijn.',
     });
   }
   if (rentSource === 'componenten' && manualRent > 0) {

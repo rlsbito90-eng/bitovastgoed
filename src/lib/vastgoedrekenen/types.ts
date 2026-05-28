@@ -30,6 +30,19 @@ export type ScenarioScoreLabel =
   | 'Onvoldoende data'
   | 'Niet haalbaar';
 
+export type LeadingValuationTrackChoice = 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie';
+
+export type OvbPerComponentDiag = {
+  id: string;
+  amount: number;
+  pct: number;
+  basisMethod: 'value' | 'm2' | 'manual' | 'strategy' | 'extern';
+  basisValue: number;
+  missingValueBasis: boolean;
+  missingStrategyBasis: boolean;
+  missingManualAmount: boolean;
+};
+
 export type ComputedOutputs = {
   totalTransferTax: number;
   totalAcquisitionCosts: number;
@@ -140,6 +153,14 @@ export type ComputedOutputs = {
   leadingMaxValue: number;
   /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraag). */
   leadingDifferenceWithAskingPrice: number;
+  /** Door de gebruiker gekozen waarderingsspoor (auto = heuristiek). */
+  leadingValuationTrackChoice: LeadingValuationTrackChoice;
+  /** True als de leidende basis door de gebruiker is overschreven. */
+  leadingMaxBasisOverridden: boolean;
+  // --- OVB-diagnostiek per component (alleen bij ovb_mode='per_component') ---
+  ovbPerComponent: OvbPerComponentDiag[];
+  /** Aantal componenten waarvan de OVB-grondslag ontbreekt. */
+  ovbMissingBasisCount: number;
   /** Per-unit detailregels voor weergave. */
   strategyPerUnit: Array<{
     unitId: string;

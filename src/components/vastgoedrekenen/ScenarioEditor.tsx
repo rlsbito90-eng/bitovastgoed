@@ -339,6 +339,7 @@ export default function ScenarioEditor(props: Props) {
         sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
         bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
         sale_price_source: (s as Record<string, unknown>).sale_price_source ?? null,
+        leading_valuation_track: (s as Record<string, unknown>).leading_valuation_track ?? 'auto',
       }) as Partial<Scenario>,
 
     });
@@ -885,13 +886,63 @@ export default function ScenarioEditor(props: Props) {
               const sr = s as unknown as Record<string, unknown>;
               const saleStrategy = (sr.sale_strategy as string | null) ?? 'geen_verkoop';
               const bidBasis = (sr.bid_basis as string | null) ?? 'huur';
+              const trackChoice = (sr.leading_valuation_track as string | null) ?? 'auto';
               const setSale = (key: string, value: unknown) => patch({ [key]: value } as unknown as Partial<Scenario>);
+              const strategyActive = sellOffUnits.length > 0;
+              const scenarioExitActive = saleStrategy !== 'geen_verkoop';
+              const dualTrackConflict = strategyActive && scenarioExitActive && trackChoice === 'auto';
+              const TRACK_LABELS: Record<string, string> = {
+                auto: 'Automatisch bepalen',
+                huur_bar: 'Huur / BAR',
+                scenario_exit: 'Scenario-level verkoop / exit',
+                componentstrategie: 'Componentstrategie (per unit)',
+              };
               return (
                 <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoop}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
                     </p>
+
+                    {/* Leidend waarderingsspoor */}
+                    <div className={`rounded-md border px-3 py-2 text-xs space-y-2 ${
+                      dualTrackConflict
+                        ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                        : 'border-primary/30 bg-primary/5'
+                    }`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Leidend waarderingsspoor:</span>
+                        <Select value={trackChoice} onValueChange={(v) => setSale('leading_valuation_track', v)}>
+                          <SelectTrigger className="h-7 w-auto min-w-[220px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
+                            <SelectItem value="huur_bar">Huur / BAR</SelectItem>
+                            <SelectItem value="scenario_exit">Scenario-level verkoop / exit</SelectItem>
+                            <SelectItem value="componentstrategie" disabled={!strategyActive}>
+                              Componentstrategie (per unit){!strategyActive ? ' — geen units' : ''}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">
+                          Huidig leidend: {outputs.leadingMaxBasisLabel}
+                        </span>
+                      </div>
+                      <p className="text-[11px] opacity-90 leading-snug">
+                        Bepaalt welke waarde leidend is voor "maximale aankoopprijs" en "rond te rekenen". Andere sporen blijven informatief zichtbaar in het scenario.
+                      </p>
+                      {dualTrackConflict && (
+                        <p className="text-[11px] leading-snug">
+                          ⚠ Scenario-level exit ({saleStrategy}) én componentstrategie ({sellOffUnits.length} unit{sellOffUnits.length === 1 ? '' : 's'}) zijn beide actief. Kies expliciet welk spoor leidend is — of zet de verkoopstrategie op "Geen verkoop" als componentstrategie leidend moet zijn.
+                        </p>
+                      )}
+                      {trackChoice !== 'auto' && (
+                        <p className="text-[11px] opacity-80">
+                          Handmatige keuze actief: {TRACK_LABELS[trackChoice]}. Zet op "Automatisch" om de heuristiek te herstellen.
+                        </p>
+                      )}
+                    </div>
+
+
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
                       <MobileFieldGroup label="Verkoopstrategie">
@@ -1281,8 +1332,11 @@ export default function ScenarioEditor(props: Props) {
                           <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
                             <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="value">Op waarde</SelectItem>
+                              <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
                               <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
+                              <SelectItem value="strategy" disabled={sellOffUnits.length === 0}>
+                                Uit componentstrategie{sellOffUnits.length === 0 ? ' — geen units' : ''}
+                              </SelectItem>
                               <SelectItem value="manual">Handmatig bedrag</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1290,6 +1344,27 @@ export default function ScenarioEditor(props: Props) {
                         <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
                       </div>
                     )}
+                    {ovbMode === 'per_component' && (() => {
+                      const diag = outputs.ovbPerComponent.find((p) => p.id === c.id);
+                      if (!diag) return null;
+                      const missing = diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount;
+                      return (
+                        <div className={`text-[11px] rounded-md border px-2 py-1.5 ${
+                          missing
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                            : 'border-dashed bg-muted/30 text-muted-foreground'
+                        }`}>
+                          <span className="font-medium">OVB:</span>{' '}
+                          methode <span className="font-mono-data">{diag.basisMethod}</span> ·{' '}
+                          grondslag <span className="font-mono-data">€ {diag.basisValue.toLocaleString('nl-NL')}</span> ·{' '}
+                          {diag.pct.toFixed(2)}% ·{' '}
+                          bedrag <span className="font-mono-data">€ {diag.amount.toLocaleString('nl-NL')}</span>
+                          {diag.missingValueBasis && <div>⚠ Toegerekende waarde ontbreekt — OVB komt op € 0. Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer handmatig bedrag in.</div>}
+                          {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden voor dit component — koppel het component aan een sell_off_unit of kies een andere methode.</div>}
+                          {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

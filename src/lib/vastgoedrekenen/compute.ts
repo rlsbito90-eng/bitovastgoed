@@ -54,10 +54,23 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const mgmtPct = profileSet ? profileSet.management_cost_percentage : Number(scenario.management_cost_percentage ?? 0);
   const otherPct = profileSet ? profileSet.other_percentage : 0;
 
+  // --- Componentstrategie vooraf zodat OVB met allocation_method='strategy' kan rekenen ---
+  const strategy = aggregateStrategy(ctx.strategyUnits ?? []);
+  const strategyValueByComponentId = new Map<string, number>();
+  for (const u of (ctx.strategyUnits ?? [])) {
+    const compId = (u as unknown as { component_id?: string | null }).component_id;
+    if (!compId) continue;
+    const res = strategy.perUnit.find((p) => p.unitId === u.id);
+    if (!res) continue;
+    // Grondslag = bijdrage uit strategie (netto verkoop of holdwaarde).
+    const v = Math.max(0, Math.round(res.contribution));
+    strategyValueByComponentId.set(compId, (strategyValueByComponentId.get(compId) ?? 0) + v);
+  }
+
   // --- OVB ---
   const ovbObjectType: 'residentieel' | 'commercieel' | 'mixed_use' =
     propertyType === 'residentieel' ? 'residentieel' : propertyType === 'mixed_use' ? 'mixed_use' : 'commercieel';
-  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType);
+  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType, strategyValueByComponentId);
 
   // --- Aankoopkosten ---
   const acq = computeAcquisitionCosts(scenario);
@@ -243,8 +256,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? safeDiv(sale.netMargin, sellableM2)
     : null;
 
-  // --- Componentstrategie (optioneel) ---
-  const strategy = aggregateStrategy(ctx.strategyUnits ?? []);
+  // --- Componentstrategie totals (strategy is hierboven al berekend t.b.v. OVB-grondslag) ---
   // Bij actieve strategie: investering inclusief extra reno/transformatiekosten van hold-componenten.
   const totalInvestmentWithStrategy = strategy.enabled
     ? totalInvestment + strategy.extraInvestmentCosts
@@ -280,18 +292,35 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? maxPurchasePrice >= asking
     : null;
 
-  // Leidende maximale prijs: bij actieve componentstrategie is maxPurchasePrice leidend
-  // voor "rond te rekenen"; anders valt het terug op de algemene maximumBid (BAR/exit).
-  const leadingMaxBasis: 'strategie' | 'huur' | 'verkoop' =
-    strategy.enabled && maxPurchasePrice != null ? 'strategie' : bidBasisUsed;
+  // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
+  // via scenario.leading_valuation_track.
+  const trackChoice = ((scenario as unknown as Record<string, unknown>).leading_valuation_track as
+    | 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie' | null | undefined) ?? 'auto';
+  let leadingMaxBasis: 'strategie' | 'huur' | 'verkoop';
+  let leadingMaxBasisOverridden = false;
+  if (trackChoice === 'componentstrategie' && strategy.enabled && maxPurchasePrice != null) {
+    leadingMaxBasis = 'strategie';
+    leadingMaxBasisOverridden = true;
+  } else if (trackChoice === 'scenario_exit') {
+    leadingMaxBasis = 'verkoop';
+    leadingMaxBasisOverridden = true;
+  } else if (trackChoice === 'huur_bar') {
+    leadingMaxBasis = 'huur';
+    leadingMaxBasisOverridden = true;
+  } else {
+    // auto
+    leadingMaxBasis = strategy.enabled && maxPurchasePrice != null ? 'strategie' : bidBasisUsed;
+  }
   const leadingMaxBasisLabel =
     leadingMaxBasis === 'strategie'
-      ? 'Componentstrategie (max aankoopprijs)'
+      ? `Componentstrategie (max aankoopprijs)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`
       : leadingMaxBasis === 'verkoop'
-        ? 'Verkoop / exit-tak (max bieding)'
-        : 'Huur / BAR-tak (max bieding)';
+        ? `Verkoop / exit-tak (max bieding)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`
+        : `Huur / BAR-tak (max bieding)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`;
   const leadingMaxValue =
-    leadingMaxBasis === 'strategie' ? (maxPurchasePrice as number) : effectiveMaxBid;
+    leadingMaxBasis === 'strategie'
+      ? (maxPurchasePrice ?? effectiveMaxBid)
+      : effectiveMaxBid;
   const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
 
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
@@ -375,6 +404,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     leadingMaxBasisLabel,
     leadingMaxValue,
     leadingDifferenceWithAskingPrice,
+    leadingValuationTrackChoice: trackChoice,
+    leadingMaxBasisOverridden,
+    ovbPerComponent: ovb.perComponent,
+    ovbMissingBasisCount: ovb.missingBasisCount,
     strategyPerUnit: strategy.perUnit.map((p) => ({
       unitId: p.unitId, label: p.label, type: p.type, strategy: p.strategy,
       contribution: p.contribution, warnings: p.warnings,
