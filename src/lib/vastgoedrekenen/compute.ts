@@ -292,18 +292,35 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? maxPurchasePrice >= asking
     : null;
 
-  // Leidende maximale prijs: bij actieve componentstrategie is maxPurchasePrice leidend
-  // voor "rond te rekenen"; anders valt het terug op de algemene maximumBid (BAR/exit).
-  const leadingMaxBasis: 'strategie' | 'huur' | 'verkoop' =
-    strategy.enabled && maxPurchasePrice != null ? 'strategie' : bidBasisUsed;
+  // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
+  // via scenario.leading_valuation_track.
+  const trackChoice = ((scenario as unknown as Record<string, unknown>).leading_valuation_track as
+    | 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie' | null | undefined) ?? 'auto';
+  let leadingMaxBasis: 'strategie' | 'huur' | 'verkoop';
+  let leadingMaxBasisOverridden = false;
+  if (trackChoice === 'componentstrategie' && strategy.enabled && maxPurchasePrice != null) {
+    leadingMaxBasis = 'strategie';
+    leadingMaxBasisOverridden = true;
+  } else if (trackChoice === 'scenario_exit') {
+    leadingMaxBasis = 'verkoop';
+    leadingMaxBasisOverridden = true;
+  } else if (trackChoice === 'huur_bar') {
+    leadingMaxBasis = 'huur';
+    leadingMaxBasisOverridden = true;
+  } else {
+    // auto
+    leadingMaxBasis = strategy.enabled && maxPurchasePrice != null ? 'strategie' : bidBasisUsed;
+  }
   const leadingMaxBasisLabel =
     leadingMaxBasis === 'strategie'
-      ? 'Componentstrategie (max aankoopprijs)'
+      ? `Componentstrategie (max aankoopprijs)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`
       : leadingMaxBasis === 'verkoop'
-        ? 'Verkoop / exit-tak (max bieding)'
-        : 'Huur / BAR-tak (max bieding)';
+        ? `Verkoop / exit-tak (max bieding)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`
+        : `Huur / BAR-tak (max bieding)${leadingMaxBasisOverridden ? ' · handmatig gekozen' : ''}`;
   const leadingMaxValue =
-    leadingMaxBasis === 'strategie' ? (maxPurchasePrice as number) : effectiveMaxBid;
+    leadingMaxBasis === 'strategie'
+      ? (maxPurchasePrice ?? effectiveMaxBid)
+      : effectiveMaxBid;
   const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
 
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
