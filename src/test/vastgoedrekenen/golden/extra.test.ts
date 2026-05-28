@@ -224,6 +224,47 @@ describe('OVB-modi — totalTransferTax verschilt correct per modus', () => {
     expect(ovb.perComponent).toHaveLength(2);
   });
 
+  // OVB 2026-tarieven — regressie tegen verkeerd 10,4% voor belegging.
+  describe('OVB-tarieven 2026', () => {
+    const purchase2 = 500_000;
+    it('eigen woning / hoofdverblijf → 2%', () => {
+      const ovb = computeScenarioOvb(
+        scen({ purchase_price: purchase2, ovb_mode: 'auto', ovb_classification: 'eigen_woning' }),
+        [], null, 'residentieel',
+      );
+      expect(ovb.totalOvb).toBe(10_000);
+    });
+    it('woning niet-hoofdverblijf / belegging → 8%', () => {
+      const ovb = computeScenarioOvb(
+        scen({ purchase_price: purchase2, ovb_mode: 'auto', ovb_classification: 'woning_belegging' }),
+        [], null, 'residentieel',
+      );
+      expect(ovb.totalOvb).toBe(40_000);
+    });
+    it('niet-woning / commercieel → 10,4%', () => {
+      const ovb = computeScenarioOvb(
+        scen({ purchase_price: purchase2, ovb_mode: 'auto', ovb_classification: 'niet_woning' }),
+        [], null, 'commercieel',
+      );
+      expect(ovb.totalOvb).toBe(52_000);
+    });
+    it('mixed-use per_component: wonen 8%, commercieel 10,4% — ook zonder expliciete classificatie', () => {
+      const components = [
+        // Geen expliciete classificatie → moet uit component_type worden afgeleid.
+        comp({ id: 'w', component_type: 'woning', allocated_component_value: 300_000, transfer_tax_classification: null }),
+        comp({ id: 'c', component_type: 'winkelruimte', allocated_component_value: 200_000, transfer_tax_classification: null }),
+      ];
+      const ovb = computeScenarioOvb(
+        scen({ purchase_price: 500_000, ovb_mode: 'per_component' }),
+        components, null, 'mixed_use',
+      );
+      const woon = ovb.perComponent.find((p) => p.id === 'w')!;
+      const comm = ovb.perComponent.find((p) => p.id === 'c')!;
+      expect(woon.pct).toBe(8);
+      expect(comm.pct).toBe(10.4);
+      expect(ovb.totalOvb).toBe(300_000 * 0.08 + 200_000 * 0.104);
+    });
+
   it('totalInvestment volgt OVB-keuze (delta = OVB-delta)', () => {
     const a = computeScenario(baseCtx({
       scenario: baseScen({ ovb_mode: 'manual', transfer_tax_amount: 50_000 }),
