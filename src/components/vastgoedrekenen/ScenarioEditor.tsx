@@ -1383,6 +1383,11 @@ export default function ScenarioEditor(props: Props) {
                   else chips.push({ label: 'punten ontbreken', tone: 'warning' });
                   if (u.rent_segment) chips.push({ label: String(u.rent_segment) });
                   if (status.source === 'handmatig') chips.push({ label: 'handmatig', tone: 'warning' });
+                  const modeChipTone: 'positive' | 'warning' | undefined =
+                    unitModeEff.mode === 'volledig_vereist' ? 'warning'
+                    : unitModeEff.mode === 'niet_nodig' ? undefined
+                    : 'positive';
+                  chips.push({ label: `WWS: ${WWS_MODE_LABEL[unitModeEff.mode]}`, tone: modeChipTone });
                   const chipCls = (tone?: string) =>
                     tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
                     : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
