@@ -599,7 +599,7 @@ export default function ScenarioEditor(props: Props) {
         const verkoopStatus = outputs.netSaleProceeds != null
           ? `Netto opbr. ${fmtEur(outputs.netSaleProceeds)}${outputs.roi != null ? ` · ROI ${outputs.roi.toFixed(1)}%` : ''}`
           : 'Geen verkoopdata';
-        const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien`;
+        const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien & btw`;
         const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)}`;
         const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · betrouwbaarheid ${outputs.inputReliability}`;
         const compStatus = `${components.length} component(en)`;
