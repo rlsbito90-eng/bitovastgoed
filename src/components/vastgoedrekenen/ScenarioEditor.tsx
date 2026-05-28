@@ -447,7 +447,38 @@ export default function ScenarioEditor(props: Props) {
     await supabase.from('residential_wws_units').update({ ...p, ...extra }).eq('id', id);
     refetch();
   }
-  async function deleteWwsUnit(id: string) {
+  // Veilige bulk-recompute: vult ontbrekende wws_points op basis van V1-logica.
+  // Slaat units met handmatig overschreven punten (stored != computed > 1)
+  // bewust over zodat geen expliciete keuze van de gebruiker verloren gaat.
+  async function recomputeAllWwsUnits() {
+    if (wwsUnits.length === 0) { toast.info('Geen WWS-units om te herberekenen.'); return; }
+    let recomputed = 0;
+    let skippedManual = 0;
+    let missingInput = 0;
+    const failures: string[] = [];
+    for (const u of wwsUnits) {
+      const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+      if (status.source === 'handmatig') { skippedManual += 1; continue; }
+      const extras = wwsExtras(u);
+      const { error } = await supabase.from('residential_wws_units').update(extras as never).eq('id', u.id);
+      if (error) { failures.push(u.unit_name ?? u.id); continue; }
+      recomputed += 1;
+      // Tel units waarbij ondersteunende velden ontbreken (excl. de "punten" missing zelf).
+      const stillMissing = status.missing.filter((m) => m !== 'punten');
+      if (stillMissing.length > 0) missingInput += 1;
+    }
+    const parts = [
+      `${recomputed} herberekend`,
+      skippedManual > 0 ? `${skippedManual} overgeslagen (handmatig)` : null,
+      missingInput > 0 ? `${missingInput} met ontbrekende input` : null,
+    ].filter(Boolean).join(' · ');
+    if (recomputed > 0) toast.success(`WWS-units bijgewerkt: ${parts}`);
+    else toast.info(`Geen units bijgewerkt: ${parts}`);
+    for (const f of failures) toast.error(`WWS-unit ${f}: bijwerken mislukt`);
+    refetch();
+  }
+
+
     await supabase.from('residential_wws_units').delete().eq('id', id); refetch();
   }
 
