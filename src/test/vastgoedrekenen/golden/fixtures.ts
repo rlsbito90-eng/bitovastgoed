@@ -12,7 +12,7 @@ import type { Scenario, Component, ScenarioCost, WwsUnit, SellOffUnit } from '@/
 
 type AnyRec = Record<string, unknown>;
 
-function scen(overrides: AnyRec): Scenario {
+export function scen(overrides: AnyRec): Scenario {
   return {
     id: 's1',
     calculation_id: 'c1',
@@ -66,7 +66,7 @@ function scen(overrides: AnyRec): Scenario {
   } as unknown as Scenario;
 }
 
-function comp(overrides: AnyRec): Component {
+export function comp(overrides: AnyRec): Component {
   return {
     id: 'k1',
     scenario_id: 's1',
@@ -90,7 +90,7 @@ function comp(overrides: AnyRec): Component {
   } as unknown as Component;
 }
 
-function cost(overrides: AnyRec): ScenarioCost {
+export function cost(overrides: AnyRec): ScenarioCost {
   return {
     id: 'k-c1',
     scenario_id: 's1',
@@ -108,7 +108,7 @@ function cost(overrides: AnyRec): ScenarioCost {
   } as unknown as ScenarioCost;
 }
 
-function unit(overrides: AnyRec): SellOffUnit {
+export function unit(overrides: AnyRec): SellOffUnit {
   return {
     id: 'u1',
     scenario_id: 's1',
