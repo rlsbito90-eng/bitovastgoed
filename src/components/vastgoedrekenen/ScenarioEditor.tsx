@@ -885,13 +885,63 @@ export default function ScenarioEditor(props: Props) {
               const sr = s as unknown as Record<string, unknown>;
               const saleStrategy = (sr.sale_strategy as string | null) ?? 'geen_verkoop';
               const bidBasis = (sr.bid_basis as string | null) ?? 'huur';
+              const trackChoice = (sr.leading_valuation_track as string | null) ?? 'auto';
               const setSale = (key: string, value: unknown) => patch({ [key]: value } as unknown as Partial<Scenario>);
+              const strategyActive = sellOffUnits.length > 0;
+              const scenarioExitActive = saleStrategy !== 'geen_verkoop';
+              const dualTrackConflict = strategyActive && scenarioExitActive && trackChoice === 'auto';
+              const TRACK_LABELS: Record<string, string> = {
+                auto: 'Automatisch bepalen',
+                huur_bar: 'Huur / BAR',
+                scenario_exit: 'Scenario-level verkoop / exit',
+                componentstrategie: 'Componentstrategie (per unit)',
+              };
               return (
                 <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoop}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
                     </p>
+
+                    {/* Leidend waarderingsspoor */}
+                    <div className={`rounded-md border px-3 py-2 text-xs space-y-2 ${
+                      dualTrackConflict
+                        ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                        : 'border-primary/30 bg-primary/5'
+                    }`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Leidend waarderingsspoor:</span>
+                        <Select value={trackChoice} onValueChange={(v) => setSale('leading_valuation_track', v)}>
+                          <SelectTrigger className="h-7 w-auto min-w-[220px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
+                            <SelectItem value="huur_bar">Huur / BAR</SelectItem>
+                            <SelectItem value="scenario_exit">Scenario-level verkoop / exit</SelectItem>
+                            <SelectItem value="componentstrategie" disabled={!strategyActive}>
+                              Componentstrategie (per unit){!strategyActive ? ' — geen units' : ''}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">
+                          Huidig leidend: {outputs.leadingMaxBasisLabel}
+                        </span>
+                      </div>
+                      <p className="text-[11px] opacity-90 leading-snug">
+                        Bepaalt welke waarde leidend is voor "maximale aankoopprijs" en "rond te rekenen". Andere sporen blijven informatief zichtbaar in het scenario.
+                      </p>
+                      {dualTrackConflict && (
+                        <p className="text-[11px] leading-snug">
+                          ⚠ Scenario-level exit ({saleStrategy}) én componentstrategie ({sellOffUnits.length} unit{sellOffUnits.length === 1 ? '' : 's'}) zijn beide actief. Kies expliciet welk spoor leidend is — of zet de verkoopstrategie op "Geen verkoop" als componentstrategie leidend moet zijn.
+                        </p>
+                      )}
+                      {trackChoice !== 'auto' && (
+                        <p className="text-[11px] opacity-80">
+                          Handmatige keuze actief: {TRACK_LABELS[trackChoice]}. Zet op "Automatisch" om de heuristiek te herstellen.
+                        </p>
+                      )}
+                    </div>
+
+
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
                       <MobileFieldGroup label="Verkoopstrategie">
