@@ -12,6 +12,7 @@ import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
 import { getWwsUnitStatus, WWS_SOURCE_LABEL, WWS_SCHEME_LABEL, WWS_RELIABILITY_LABEL, WWS_MISSING_LABEL } from '@/lib/vastgoedrekenen/wws/source';
+import { suggestWwsMode, getEffectiveWwsMode, WWS_MODE_LABEL, WWS_MODE_DESCRIPTION, type WwsMode } from '@/lib/vastgoedrekenen/wws/mode';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS, VR_OVB_CLASSIFICATION_LABELS, VR_COMPONENT_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { SALE_STRATEGY_LABELS, SALE_FOCUSED_STRATEGIES, SALE_FOCUSED_SALE_STRATEGIES } from '@/lib/vastgoedrekenen/verkoop';
 import {
@@ -1297,7 +1298,45 @@ export default function ScenarioEditor(props: Props) {
             {/* 7. WWS / huursegmentanalyse */}
             <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={false} hidden={!hasResidential && wwsUnits.length === 0}>
               <div className="pt-3 space-y-3">
+                {(() => {
+                  const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
+                  const suggestion = suggestWwsMode(wwsModeCtx);
+                  const scenarioOverride = (s as unknown as { wws_mode_default?: WwsMode | null }).wws_mode_default ?? null;
+                  const effective = scenarioOverride ?? suggestion.mode;
+                  const tone =
+                    effective === 'volledig_vereist' ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                    : effective === 'indicatief' ? 'border-amber-500/40 bg-amber-500/5 text-amber-800 dark:text-amber-200'
+                    : 'border-muted bg-muted/40 text-muted-foreground';
+                  return (
+                    <div className={`rounded-md border px-3 py-2 text-xs space-y-2 ${tone}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Scenario-modus WWS:</span>
+                        <Select
+                          value={scenarioOverride ?? '__auto__'}
+                          onValueChange={(v) => patch({ wws_mode_default: v === '__auto__' ? null : v } as unknown as Partial<Scenario>)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestion.mode]}</SelectItem>
+                            <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
+                            <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
+                            <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">({scenarioOverride ? 'handmatig' : 'voorgesteld'})</span>
+                      </div>
+                      <div className="opacity-90">{WWS_MODE_DESCRIPTION[effective]}</div>
+                      {suggestion.reasons.length > 0 && (
+                        <div className="text-[11px] opacity-80">Reden voorstel: {suggestion.reasons.join(' ')}</div>
+                      )}
+                      {effective !== 'volledig_vereist' && (
+                        <div className="text-[11px] opacity-80">De huidige WWS V1-berekening is altijd indicatief. Voor harde biedingen op verhuur is een Huurcommissie-check vereist.</div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end flex-wrap">
+
                   {components.some((c) => c.component_type === 'woning' || c.component_type === 'appartement') && wwsUnits.length === 0 && (
                     <Button size="sm" variant="outline" onClick={createWwsFromComponents} className="w-full sm:w-auto">Maak WWS-units uit wooncomponenten</Button>
                   )}
@@ -1326,6 +1365,9 @@ export default function ScenarioEditor(props: Props) {
                 )}
                 {wwsUnits.map((u, idx) => {
                   const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
+                  const wwsModeCtxUnit = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
+                  const unitModeRaw = (u as unknown as { wws_mode?: WwsMode | null }).wws_mode ?? null;
+                  const unitModeEff = getEffectiveWwsMode(u, wwsModeCtxUnit);
                   const reliabilityColor =
                     status.reliability === 'volledig' ? 'text-emerald-700 dark:text-emerald-300'
                     : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
@@ -1341,6 +1383,11 @@ export default function ScenarioEditor(props: Props) {
                   else chips.push({ label: 'punten ontbreken', tone: 'warning' });
                   if (u.rent_segment) chips.push({ label: String(u.rent_segment) });
                   if (status.source === 'handmatig') chips.push({ label: 'handmatig', tone: 'warning' });
+                  const modeChipTone: 'positive' | 'warning' | undefined =
+                    unitModeEff.mode === 'volledig_vereist' ? 'warning'
+                    : unitModeEff.mode === 'niet_nodig' ? undefined
+                    : 'positive';
+                  chips.push({ label: `WWS: ${WWS_MODE_LABEL[unitModeEff.mode]}`, tone: modeChipTone });
                   const chipCls = (tone?: string) =>
                     tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
                     : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
@@ -1410,6 +1457,23 @@ export default function ScenarioEditor(props: Props) {
                           {status.source === 'ontbreekt' && ' — vul WWS-punten in of voer een volledige Huurcommissie-check uit.'}
                         </div>
                       )}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-muted/60">
+                        <span className="font-medium text-foreground">WWS-modus:</span>
+                        <Select
+                          value={unitModeRaw ?? '__auto__'}
+                          onValueChange={(v) => updateWwsUnit(u.id, { wws_mode: v === '__auto__' ? null : v } as unknown as Partial<WwsUnit>)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestWwsMode(wwsModeCtxUnit).mode]}</SelectItem>
+                            <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
+                            <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
+                            <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] opacity-80">({unitModeEff.source})</span>
+                        <span className="text-[11px] opacity-80 basis-full">{unitModeEff.reasons.join(' ')}</span>
+                      </div>
                     </div>
                   </div>
                   );
