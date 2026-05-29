@@ -1491,6 +1491,20 @@ export default function ScenarioEditor(props: Props) {
               </div>
             </Section>
 
+            {/* Componentstrategie per scenario — onderdeel van het Componenten-hoofdstuk */}
+            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} {...sectionProps('sec-strategie')} source="Componentstrategie" relevance={strategyRelevance}>
+              <ComponentStrategyTable
+                units={sellOffUnits}
+                components={components}
+                asking={s.asking_price}
+                onCreate={createStrategyUnit}
+                onUpdate={updateStrategyUnit}
+                onDelete={deleteStrategyUnit}
+                onImport={importStrategyFromComponents}
+              />
+            </Section>
+
+
 
             {/* 7. WWS / huursegmentanalyse */}
             <SectionGroup step={num('wws')} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
