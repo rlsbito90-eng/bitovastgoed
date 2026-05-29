@@ -1519,7 +1519,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 7. WWS / huursegmentanalyse */}
             <SectionGroup step={6} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
-            <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
+            <Section id="sec-wws" title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
                   const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
