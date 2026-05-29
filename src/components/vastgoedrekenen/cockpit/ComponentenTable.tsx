@@ -1,17 +1,20 @@
 // Compacte componententabel met detail-drawer (sub-fase 4C).
 // Gebruikt bestaande update/delete-handlers — geen rekenlogica.
+// Mobiele UX: tap-vs-scroll (geen open bij scrollen), read-only-first met "Bewerken"-knop.
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Pencil } from 'lucide-react';
 import { RawNumberInput, RawTextInput, numberToRaw, parseRawNumber } from '../RawInputs';
 import { fmtEur, fmtM2 } from '../format';
 import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
 import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import type { Component, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { Chip, DrawerField } from './tableShared';
+import { useIsTouch } from '@/hooks/useIsTouch';
+import { useTapVsScroll } from '@/hooks/useTapVsScroll';
 
 type Props = {
   components: Component[];
@@ -22,10 +25,23 @@ type Props = {
   deleteComponent: (id: string) => Promise<void> | void;
 };
 
+function RowTapWrapper({ children, onTap }: { children: React.ReactNode; onTap: () => void }) {
+  const handlers = useTapVsScroll(() => onTap());
+  return <>{/* handlers worden via clone toegevoegd in parent */}{children}</>;
+}
+
 export default function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const isTouch = useIsTouch();
+  // Op touch starten we read-only; op desktop direct bewerkbaar.
+  const [editMode, setEditMode] = useState(false);
   const perComp = ovbMode === 'per_component';
   const openComp = openId ? components.find((c) => c.id === openId) ?? null : null;
+
+  const openRow = (id: string) => {
+    setOpenId(id);
+    setEditMode(!isTouch);
+  };
 
   const totalM2 = components.reduce((s, c) => s + Number(c.surface_gbo ?? 0), 0);
   const totalRent = components.reduce((s, c) => s + Number(c.current_monthly_rent ?? 0), 0);
@@ -55,42 +71,17 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
             </TableRow>
           </TableHeader>
           <TableBody>
-            {components.map((c, idx) => {
-              const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
-              const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) : null;
-              const missing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
-              const monthly = Number(c.current_monthly_rent ?? 0);
-              const markt = Number(c.market_monthly_rent ?? 0);
-              const m2 = Number(c.surface_gbo ?? 0);
-              return (
-                <TableRow
-                  key={c.id}
-                  id={`componenten-unit-${c.id}`}
-                  className="cursor-pointer hover:bg-muted/40 scroll-mt-24"
-                  onClick={() => setOpenId(c.id)}
-                >
-                  <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                  <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:group-hover:bg-muted/40">{ident.primary}</TableCell>
-                  <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
-                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
-                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
-                  <TableCell>
-                    {missing
-                      ? <Chip label="Niet compleet" tone="warning" />
-                      : <Chip label="OK" tone="positive" />}
-                  </TableCell>
-
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="ghost" onClick={() => deleteComponent(c.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Component verwijderen">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {components.map((c, idx) => (
+              <ComponentRow
+                key={c.id}
+                c={c}
+                idx={idx}
+                perComp={perComp}
+                diag={perComp ? ovbPerComponent.find((p) => p.id === c.id) ?? null : null}
+                onOpen={() => openRow(c.id)}
+                onDelete={() => deleteComponent(c.id)}
+              />
+            ))}
             <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell colSpan={2} className="break-words whitespace-normal">
@@ -107,7 +98,7 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
         </Table>
       </div>
 
-      <Sheet open={openId !== null} onOpenChange={(o) => !o && setOpenId(null)}>
+      <Sheet open={openId !== null} onOpenChange={(o) => { if (!o) { setOpenId(null); setEditMode(false); } }}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
           {openComp && (() => {
             const c = openComp;
@@ -115,17 +106,28 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
             const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
             const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) : null;
             const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+            const readOnly = !editMode;
             return (
               <>
                 <SheetHeader>
                   <SheetTitle className="break-words">{ident.indexStr} — {ident.primary}</SheetTitle>
                   <SheetDescription className="break-words">{ident.meta.join(' · ') || 'Componentdetails'}</SheetDescription>
                 </SheetHeader>
-                <div className="mt-4 space-y-4">
+
+                {readOnly && (
+                  <div className="mt-3 flex items-center justify-between rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs">
+                    <span className="text-muted-foreground">Alleen-lezen weergave — tik op "Bewerken" om wijzigingen te maken.</span>
+                    <Button size="sm" variant="outline" onClick={() => setEditMode(true)} className="ml-2 shrink-0">
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Bewerken
+                    </Button>
+                  </div>
+                )}
+
+                <div className={`mt-4 space-y-4 ${readOnly ? 'pointer-events-none opacity-90 [&_input]:bg-muted/40' : ''}`}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <DrawerField label="Naam"><RawTextInput className="h-9" initialValue={c.component_name} onCommit={(raw) => updateComponent(c.id, { component_name: raw.trim() || 'Component' })} /></DrawerField>
                     <DrawerField label="Type">
-                      <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })}>
+                      <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })} disabled={readOnly}>
                         <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                         <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                       </Select>
@@ -138,13 +140,13 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                     <div className="border-t pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <DrawerField label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></DrawerField>
                       <DrawerField label="OVB-classificatie">
-                        <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
+                        <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                         </Select>
                       </DrawerField>
                       <DrawerField label="Toerekeningsmethode">
-                        <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
+                        <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
@@ -169,10 +171,19 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                       {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
                     </div>
                   )}
-                  <div className="border-t pt-3 flex justify-end">
-                    <Button variant="ghost" onClick={() => { void deleteComponent(c.id); setOpenId(null); }} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-1" /> Verwijderen
-                    </Button>
+                </div>
+
+                <div className="border-t mt-4 pt-3 flex flex-wrap justify-between gap-2">
+                  <Button variant="ghost" onClick={() => { void deleteComponent(c.id); setOpenId(null); setEditMode(false); }} className="text-destructive" disabled={readOnly}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Verwijderen
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setOpenId(null); setEditMode(false); }}>Sluiten</Button>
+                    {readOnly && (
+                      <Button onClick={() => setEditMode(true)}>
+                        <Pencil className="h-4 w-4 mr-1" /> Bewerken
+                      </Button>
+                    )}
                   </div>
                 </div>
               </>
@@ -181,5 +192,49 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+/** Aparte rij-component zodat tap-vs-scroll hook per rij gebruikt kan worden. */
+function ComponentRow({ c, idx, perComp, diag, onOpen, onDelete }: {
+  c: Component;
+  idx: number;
+  perComp: boolean;
+  diag: ComputedOutputs['ovbPerComponent'][number] | null;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
+  const missing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+  const monthly = Number(c.current_monthly_rent ?? 0);
+  const markt = Number(c.market_monthly_rent ?? 0);
+  const m2 = Number(c.surface_gbo ?? 0);
+  const tap = useTapVsScroll(() => onOpen());
+  return (
+    <TableRow
+      id={`componenten-unit-${c.id}`}
+      className="cursor-pointer hover:bg-muted/40 scroll-mt-24"
+      onClick={onOpen}
+      onTouchStart={tap.onTouchStart}
+      onTouchMove={tap.onTouchMove}
+      onTouchEnd={tap.onTouchEnd}
+    >
+      <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
+      <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:group-hover:bg-muted/40">{ident.primary}</TableCell>
+      <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
+      {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
+      {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
+      <TableCell>
+        {missing ? <Chip label="Niet compleet" tone="warning" /> : <Chip label="OK" tone="positive" />}
+      </TableCell>
+      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+        <Button size="sm" variant="ghost" onClick={onDelete} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Component verwijderen">
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </TableCell>
+    </TableRow>
   );
 }
