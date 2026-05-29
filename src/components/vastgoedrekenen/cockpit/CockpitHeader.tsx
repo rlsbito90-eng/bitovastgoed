@@ -67,7 +67,7 @@ export default function CockpitHeader({
       {/* Meta-regel */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-2.5 border-b border-primary/15 bg-primary/5">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
-          <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-primary whitespace-nowrap">BITO · Vastgoedrekenen</span>
+          <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-primary whitespace-nowrap">Vastgoedrekenen</span>
           {scenarioName && (
             <span className="text-sm text-foreground/90 break-words">· {scenarioName}</span>
           )}
