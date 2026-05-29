@@ -99,28 +99,28 @@ export function SectionRail({ items }: { items: RailItem[] }) {
       {/* Desktop: sticky linker rail */}
       <aside className="hidden lg:block self-start sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto pr-1">
         <div className="space-y-2">
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="px-3 py-2.5 border-b bg-muted/30">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Werkstroom</p>
+          <div className="rounded-xl border border-border/70 bg-card/95 overflow-hidden shadow-[0_1px_2px_0_hsl(var(--shadow-color)/0.04)]">
+            <div className="px-3.5 py-3 border-b border-border/60 bg-gradient-to-b from-muted/40 to-muted/10">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-primary/70 font-semibold">Werkstroom</p>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-sm font-semibold font-mono-data tabular-nums">{okCount}</span>
+                <span className="text-[15px] font-semibold font-mono-data tabular-nums text-foreground">{okCount}</span>
                 <span className="text-[11px] text-muted-foreground">/ {relevant.length} compleet</span>
               </div>
-              <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="mt-2 h-1 rounded-full bg-muted/70 overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all"
+                  className="h-full bg-gradient-to-r from-accent/80 to-accent transition-all duration-500"
                   style={{ width: `${pct}%` }}
                   aria-label={`${pct}% compleet`}
                 />
               </div>
               {(blockerCount > 0 || warnCount > 0) && (
-                <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  {blockerCount > 0 && <span className="text-destructive">{blockerCount} blocker · </span>}
-                  {warnCount > 0 && <span className="text-amber-600 dark:text-amber-300">{warnCount} aandacht</span>}
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  {blockerCount > 0 && <span className="text-destructive font-medium">{blockerCount} blocker · </span>}
+                  {warnCount > 0 && <span className="text-amber-700 dark:text-amber-300 font-medium">{warnCount} aandacht</span>}
                 </p>
               )}
             </div>
-            <ol className="py-1">
+            <ol className="py-1.5">
               {items.map((it) => (
                 <li key={`${it.level}-${it.id}-${it.number}`}>
                   <RailButton item={it} />
@@ -133,6 +133,7 @@ export function SectionRail({ items }: { items: RailItem[] }) {
     </>
   );
 }
+
 
 function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
   const cfg = STATUS_CFG[item.status];
