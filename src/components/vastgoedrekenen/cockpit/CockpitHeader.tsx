@@ -74,7 +74,7 @@ export default function CockpitHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="text-muted-foreground">Rekenspoor</span>
-          <span className={`px-2 py-0.5 rounded-full border ${TRACK_MODE_CLS[trackMode]}`}>{TRACK_MODE_LABEL[trackMode]}</span>
+          <span className={`px-2 py-0.5 rounded-full border font-semibold text-[11px] ${TRACK_MODE_CLS[trackMode]}`}>{TRACK_MODE_LABEL[trackMode]}</span>
         </div>
       </div>
 
