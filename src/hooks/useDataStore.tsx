@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { guardObjectPatch, type GuardedObjectPatch } from '@/lib/dataIntegrity/objectPayload';
 import type {
   Relatie,
   RelatieContactpersoon,
@@ -322,7 +323,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   imSectiesZichtbaar: o.im_secties_zichtbaar && typeof o.im_secties_zichtbaar === 'object' ? o.im_secties_zichtbaar : {},
 });
 
-const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
+export const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   objectnaam: o.titel !== undefined ? (o.titel || 'Onbekend object') : undefined,
   intern_referentienummer: o.internReferentienummer !== undefined ? (o.internReferentienummer || null) : undefined,
   anoniem: o.anoniem,
@@ -343,17 +344,17 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   beschikbaar_vanaf: o.beschikbaarVanaf !== undefined ? (o.beschikbaarVanaf || null) : undefined,
   bron: o.bron !== undefined ? (o.bron || null) : undefined,
   exclusief: o.exclusief,
-  vraagprijs: o.vraagprijs ?? null,
+  vraagprijs: o.vraagprijs !== undefined ? o.vraagprijs : undefined,
   prijsindicatie: o.prijsindicatie !== undefined ? (o.prijsindicatie || null) : undefined,
-  huurinkomsten: o.huurinkomsten ?? null,
-  huur_per_m2: o.huurPerM2 ?? null,
-  bruto_aanvangsrendement: o.brutoAanvangsrendement ?? null,
-  netto_aanvangsrendement: o.nettoAanvangsrendement ?? null,
-  noi: o.noi ?? null,
-  servicekosten_jaar: o.servicekostenJaar ?? null,
-  woz_waarde: o.wozWaarde ?? null,
+  huurinkomsten: o.huurinkomsten !== undefined ? o.huurinkomsten : undefined,
+  huur_per_m2: o.huurPerM2 !== undefined ? o.huurPerM2 : undefined,
+  bruto_aanvangsrendement: o.brutoAanvangsrendement !== undefined ? o.brutoAanvangsrendement : undefined,
+  netto_aanvangsrendement: o.nettoAanvangsrendement !== undefined ? o.nettoAanvangsrendement : undefined,
+  noi: o.noi !== undefined ? o.noi : undefined,
+  servicekosten_jaar: o.servicekostenJaar !== undefined ? o.servicekostenJaar : undefined,
+  woz_waarde: o.wozWaarde !== undefined ? o.wozWaarde : undefined,
   woz_peildatum: o.wozPeildatum !== undefined ? (o.wozPeildatum || null) : undefined,
-  taxatiewaarde: o.taxatiewaarde ?? null,
+  taxatiewaarde: o.taxatiewaarde !== undefined ? o.taxatiewaarde : undefined,
   taxatiedatum: o.taxatiedatum !== undefined ? (o.taxatiedatum || null) : undefined,
   verhuurstatus: o.verhuurStatus,
   aantal_huurders: o.aantalHuurders ?? null,
