@@ -112,7 +112,7 @@ export function SectionGroup({
         </span>
       )}
       <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
-      {hint && <span className="text-[11px] text-muted-foreground truncate">— {hint}</span>}
+      {hint && <span className="text-[11px] text-muted-foreground break-words">— {hint}</span>}
     </div>
   );
 }
