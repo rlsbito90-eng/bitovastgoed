@@ -8,6 +8,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { guardObjectPatch, type GuardedObjectPatch } from '@/lib/dataIntegrity/objectPayload';
+import { toast } from 'sonner';
 import type {
   Relatie,
   RelatieContactpersoon,
@@ -322,7 +324,7 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   imSectiesZichtbaar: o.im_secties_zichtbaar && typeof o.im_secties_zichtbaar === 'object' ? o.im_secties_zichtbaar : {},
 });
 
-const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
+export const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   objectnaam: o.titel !== undefined ? (o.titel || 'Onbekend object') : undefined,
   intern_referentienummer: o.internReferentienummer !== undefined ? (o.internReferentienummer || null) : undefined,
   anoniem: o.anoniem,
@@ -343,32 +345,32 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   beschikbaar_vanaf: o.beschikbaarVanaf !== undefined ? (o.beschikbaarVanaf || null) : undefined,
   bron: o.bron !== undefined ? (o.bron || null) : undefined,
   exclusief: o.exclusief,
-  vraagprijs: o.vraagprijs ?? null,
+  vraagprijs: o.vraagprijs !== undefined ? o.vraagprijs : undefined,
   prijsindicatie: o.prijsindicatie !== undefined ? (o.prijsindicatie || null) : undefined,
-  huurinkomsten: o.huurinkomsten ?? null,
-  huur_per_m2: o.huurPerM2 ?? null,
-  bruto_aanvangsrendement: o.brutoAanvangsrendement ?? null,
-  netto_aanvangsrendement: o.nettoAanvangsrendement ?? null,
-  noi: o.noi ?? null,
-  servicekosten_jaar: o.servicekostenJaar ?? null,
-  woz_waarde: o.wozWaarde ?? null,
+  huurinkomsten: o.huurinkomsten !== undefined ? o.huurinkomsten : undefined,
+  huur_per_m2: o.huurPerM2 !== undefined ? o.huurPerM2 : undefined,
+  bruto_aanvangsrendement: o.brutoAanvangsrendement !== undefined ? o.brutoAanvangsrendement : undefined,
+  netto_aanvangsrendement: o.nettoAanvangsrendement !== undefined ? o.nettoAanvangsrendement : undefined,
+  noi: o.noi !== undefined ? o.noi : undefined,
+  servicekosten_jaar: o.servicekostenJaar !== undefined ? o.servicekostenJaar : undefined,
+  woz_waarde: o.wozWaarde !== undefined ? o.wozWaarde : undefined,
   woz_peildatum: o.wozPeildatum !== undefined ? (o.wozPeildatum || null) : undefined,
-  taxatiewaarde: o.taxatiewaarde ?? null,
+  taxatiewaarde: o.taxatiewaarde !== undefined ? o.taxatiewaarde : undefined,
   taxatiedatum: o.taxatiedatum !== undefined ? (o.taxatiedatum || null) : undefined,
   verhuurstatus: o.verhuurStatus,
-  aantal_huurders: o.aantalHuurders ?? null,
-  leegstand_pct: o.leegstandPct ?? null,
-  oppervlakte: o.oppervlakte ?? null,
-  oppervlakte_vvo: o.oppervlakteVvo ?? null,
-  oppervlakte_bvo: o.oppervlakteBvo ?? null,
-  oppervlakte_gbo: o.oppervlakteGbo ?? null,
-  perceel_oppervlakte: o.perceelOppervlakte ?? null,
-  bouwjaar: o.bouwjaar ?? null,
+  aantal_huurders: o.aantalHuurders !== undefined ? o.aantalHuurders : undefined,
+  leegstand_pct: o.leegstandPct !== undefined ? o.leegstandPct : undefined,
+  oppervlakte: o.oppervlakte !== undefined ? o.oppervlakte : undefined,
+  oppervlakte_vvo: o.oppervlakteVvo !== undefined ? o.oppervlakteVvo : undefined,
+  oppervlakte_bvo: o.oppervlakteBvo !== undefined ? o.oppervlakteBvo : undefined,
+  oppervlakte_gbo: o.oppervlakteGbo !== undefined ? o.oppervlakteGbo : undefined,
+  perceel_oppervlakte: o.perceelOppervlakte !== undefined ? o.perceelOppervlakte : undefined,
+  bouwjaar: o.bouwjaar !== undefined ? o.bouwjaar : undefined,
   energielabel: o.energielabel !== undefined ? (o.energielabel || null) : undefined,
   energielabel_v2: o.energielabelV2 !== undefined ? (o.energielabelV2 || null) : undefined,
   huidig_gebruik: o.huidigGebruik !== undefined ? (o.huidigGebruik || null) : undefined,
-  aantal_verdiepingen: o.aantalVerdiepingen ?? null,
-  aantal_units: o.aantalUnits ?? null,
+  aantal_verdiepingen: o.aantalVerdiepingen !== undefined ? o.aantalVerdiepingen : undefined,
+  aantal_units: o.aantalUnits !== undefined ? o.aantalUnits : undefined,
   onderhoudsstaat: o.onderhoudsstaat !== undefined ? (o.onderhoudsstaat || null) : undefined,
   onderhoudsstaat_niveau: o.onderhoudsstaatNiveau !== undefined ? (o.onderhoudsstaatNiveau || null) : undefined,
   recente_investeringen: o.recenteInvesteringen !== undefined ? (o.recenteInvesteringen || null) : undefined,
@@ -384,8 +386,8 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   transformatiepotentie: o.transformatiePotentie,
   potentie_omschrijving: o.potentieOmschrijving !== undefined ? (o.potentieOmschrijving || null) : undefined,
   potentie_strategie: o.potentieStrategie !== undefined ? (o.potentieStrategie || null) : undefined,
-  potentie_extra_m2: o.potentieExtraM2 ?? null,
-  potentie_extra_units: o.potentieExtraUnits ?? null,
+  potentie_extra_m2: o.potentieExtraM2 !== undefined ? o.potentieExtraM2 : undefined,
+  potentie_extra_units: o.potentieExtraUnits !== undefined ? o.potentieExtraUnits : undefined,
   potentie_onderbouwing_status: o.potentieOnderbouwingStatus !== undefined ? (o.potentieOnderbouwingStatus || null) : undefined,
   potentie_afhankelijkheden: o.potentieAfhankelijkheden !== undefined ? (o.potentieAfhankelijkheden || null) : undefined,
   potentie_bron: o.potentieBron !== undefined ? (o.potentieBron || null) : undefined,
@@ -417,7 +419,7 @@ const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   technische_staat_omschrijving: o.technischeStaatOmschrijving !== undefined ? (o.technischeStaatOmschrijving || null) : undefined,
   proces_voorwaarden: o.procesVoorwaarden !== undefined ? (o.procesVoorwaarden || null) : undefined,
   dataroom_url: o.dataroomUrl !== undefined ? (o.dataroomUrl || null) : undefined,
-  marktwaarde_indicatie: o.marktwaardeIndicatie ?? null,
+  marktwaarde_indicatie: o.marktwaardeIndicatie !== undefined ? o.marktwaardeIndicatie : undefined,
   marktwaarde_bron: o.marktwaardeBron !== undefined ? (o.marktwaardeBron || null) : undefined,
   contact_naam: o.contactNaam !== undefined ? (o.contactNaam || null) : undefined,
   contact_functie: o.contactFunctie !== undefined ? (o.contactFunctie || null) : undefined,
@@ -868,7 +870,7 @@ interface DataStore {
 
   // Objecten
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
-  updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
+  updateObject: (id: string, o: GuardedObjectPatch) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
   archiveObject: (id: string, reason?: string, note?: string) => Promise<void>;
   unarchiveObject: (id: string) => Promise<void>;
@@ -1145,8 +1147,13 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     return nieuw;
   }, []);
 
-  const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
-    const payload: Partial<ObjectVastgoed> = { ...o };
+  const updateObject = useCallback(async (id: string, o: GuardedObjectPatch) => {
+    const current = objecten.find((x) => x.id === id);
+    const payload: Partial<ObjectVastgoed> = guardObjectPatch({ ...o }, current, (field) => {
+      const msg = `Waarschuwing: poging om ${String(field)} te wissen zonder expliciete leegmaakactie.`;
+      console.warn(msg);
+      toast.warning(msg);
+    });
     // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
     if (o.status === 'verkocht' || o.status === 'ingetrokken' || o.status === 'afgevallen') {
       if (payload.isArchived === undefined) payload.isArchived = true;
@@ -1162,7 +1169,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
-  }, []);
+  }, [objecten]);
 
   const archiveObject = useCallback(async (id: string, reason?: string, note?: string) => {
     const { data, error } = await supabase.from('objecten').update({

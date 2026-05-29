@@ -9,6 +9,7 @@ import type {
   Calculation, Scenario, Component, ScenarioCost, WwsUnit,
   SellOffUnit, RiskItem, CalcOutput, TaxSettings,
 } from '@/lib/vastgoedrekenen/types';
+import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
 import { toast } from 'sonner';
 
 export function useTaxSettings() {
@@ -148,11 +149,18 @@ export function useQuickscanDetail(calculationId: string | undefined) {
     return data as Scenario;
   }, [calculation, fetchAll]);
 
-  const updateScenario = useCallback(async (id: string, patch: Partial<Scenario>) => {
-    const { error } = await supabase.from('calculation_scenarios').update(patch).eq('id', id);
+  const updateScenario = useCallback(async (id: string, patch: GuardedScenarioPatch) => {
+    const current = scenarios.find((s) => s.id === id) ?? null;
+    const guarded = guardScenarioUpdatePatch(patch, current, (field) => {
+      const msg = `Waarschuwing: poging om ${field} te wissen zonder expliciete leegmaakactie.`;
+      console.warn(msg);
+      toast.warning(msg);
+    }).patch;
+    if (Object.keys(guarded).length === 0) return;
+    const { error } = await supabase.from('calculation_scenarios').update(guarded).eq('id', id);
     if (error) toast.error('Opslaan mislukt');
     else await fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, scenarios]);
 
   const deleteScenario = useCallback(async (id: string) => {
     const { error } = await supabase.from('calculation_scenarios').delete().eq('id', id);
@@ -227,7 +235,7 @@ export function useScenarioChildren(scenarioId: string | undefined) {
   }, [scenarioId, fetchAll]);
 
   const updateStrategyUnit = useCallback(async (id: string, patch: Record<string, unknown>) => {
-    const { error } = await supabase.from('sell_off_units').update(patch as never).eq('id', id);
+    const { error } = await supabase.from('sell_off_units').update(stripUndefinedEntries(patch) as never).eq('id', id);
     if (error) showAppErrorToast(error, { module: 'Vastgoedrekenen', section: 'Componentstrategie', action: 'Controleer ingevulde waarden.' });
     else await fetchAll();
   }, [fetchAll]);
