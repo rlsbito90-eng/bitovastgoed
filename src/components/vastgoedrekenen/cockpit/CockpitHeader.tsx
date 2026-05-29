@@ -190,14 +190,18 @@ const TONE_VALUE_CLS: Record<Tone, string> = {
   neutral: 'text-foreground',
 };
 
-function Kpi({ label, value, sub, tone, customValueCls }: { label: string; value: string; sub?: string; tone: Tone; customValueCls?: string }) {
+function Kpi({ label, value, compactValue, sub, tone, customValueCls }: { label: string; value: string; compactValue?: string; sub?: string; tone: Tone; customValueCls?: string }) {
   return (
     <div className="bg-card px-3 py-2.5 min-w-0">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-      <p className={`mt-0.5 text-lg sm:text-xl font-semibold font-mono-data leading-tight truncate ${customValueCls ?? TONE_VALUE_CLS[tone]}`}>
-        {value}
+      <p
+        className={`mt-0.5 font-semibold font-mono-data leading-tight whitespace-nowrap tabular-nums text-base xl:text-lg 2xl:text-xl ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
+        title={value}
+      >
+        <span className="hidden 2xl:inline">{value}</span>
+        <span className="2xl:hidden">{compactValue ?? value}</span>
       </p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{sub}</p>}
     </div>
   );
 }
