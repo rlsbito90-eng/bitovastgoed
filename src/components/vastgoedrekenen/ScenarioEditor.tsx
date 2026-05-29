@@ -1067,7 +1067,7 @@ export default function ScenarioEditor(props: Props) {
                 componentstrategie: 'Componentstrategie (per unit)',
               };
               return (
-                <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoop}>
+                <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoopOpen} source="Scenario-level verkoop" relevance={verkoopRelevance}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
