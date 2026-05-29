@@ -137,27 +137,28 @@ export function SectionGroup({
     ? (typeof step === 'number' ? String(step).padStart(2, '0') : step)
     : null;
   return (
-    <section className="pt-10 pb-3 first:pt-3" aria-label={title}>
+    <section className="pt-10 pb-3 first:pt-3 scroll-mt-32 lg:scroll-mt-36" aria-label={title}>
       <div className="flex items-center gap-3 min-w-0">
         {stepLabel && (
-          <span className="text-[11px] uppercase tracking-[0.22em] text-primary font-mono-data font-semibold tabular-nums">
+          <span className="text-[11px] uppercase tracking-[0.22em] text-primary font-mono-data font-bold tabular-nums">
             {stepLabel}
           </span>
         )}
         {stepLabel && <span className="text-primary/40 select-none" aria-hidden>—</span>}
-        <h3 className="text-[13px] sm:text-[14px] font-semibold uppercase tracking-[0.14em] text-primary min-w-0 truncate">
+        <h3 className="text-[14px] sm:text-[15px] font-bold uppercase tracking-[0.13em] text-primary min-w-0 truncate">
           {title}
         </h3>
         <span className="flex-1 h-px bg-gradient-to-r from-accent/60 via-accent/25 to-transparent ml-2" aria-hidden />
       </div>
       {hint && (
-        <p className="mt-2 ml-[2px] text-[12px] leading-relaxed text-muted-foreground/90 break-words max-w-[68ch]">
+        <p className="mt-2 ml-[2px] text-[12px] leading-relaxed text-muted-foreground/95 break-words max-w-[68ch]">
           {hint}
         </p>
       )}
     </section>
   );
 }
+
 
 
 
