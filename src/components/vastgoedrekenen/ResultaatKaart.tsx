@@ -66,6 +66,13 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
                 · Gebaseerd op: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span>
               </span>
             </div>
+            {/* Resultaatgerichte één-zin uitleg */}
+            <p className="text-xs mt-1.5 leading-snug text-foreground/90">
+              {rounds
+                ? <>Ruimte boven vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt boven de vraagprijs.</>
+                : <>Tekort t.o.v. vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt onder de vraagprijs.</>
+              }
+            </p>
           </div>
         )}
 
