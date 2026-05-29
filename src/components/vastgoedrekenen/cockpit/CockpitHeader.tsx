@@ -78,8 +78,11 @@ export default function CockpitHeader({
         </div>
       </div>
 
-      {/* KPI-strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-px bg-border/40">
+      {/* KPI-strip — auto-fit zodat lange eurobedragen niet afbreken */}
+      <div
+        className="grid gap-px bg-border/40"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
+      >
         <Kpi
           label="Rond te rekenen"
           value={asking > 0 ? (rounds ? 'Ja' : 'Nee') : '—'}
@@ -93,12 +96,14 @@ export default function CockpitHeader({
         <Kpi
           label={o.leadingMaxBasis === 'strategie' ? 'Max. aankoopprijs' : 'Max. bieding'}
           value={fmtEur(o.leadingMaxValue)}
+          compactValue={fmtEurCompact(o.leadingMaxValue)}
           tone="primary"
           sub={`Bron: ${o.leadingMaxBasisLabel}`}
         />
         <Kpi
           label="Vraagprijs"
           value={asking > 0 ? fmtEur(asking) : '—'}
+          compactValue={asking > 0 ? fmtEurCompact(asking) : '—'}
           tone="neutral"
           sub={asking > 0 && diff !== 0 ? `${diff >= 0 ? '+' : '−'} ${fmtEur(Math.abs(diff))} verschil` : undefined}
         />
@@ -111,6 +116,7 @@ export default function CockpitHeader({
         <Kpi
           label="Netto marge"
           value={o.netMargin != null ? fmtEur(o.netMargin) : '—'}
+          compactValue={o.netMargin != null ? fmtEurCompact(o.netMargin) : '—'}
           tone={o.netMargin != null && o.netMargin < 0 ? 'danger' : 'neutral'}
           sub={o.netMarginPerM2 != null ? `${fmtEur(o.netMarginPerM2)} / m²` : undefined}
         />
@@ -124,6 +130,7 @@ export default function CockpitHeader({
         <Kpi
           label="Commissie"
           value={fmtEur(commissie)}
+          compactValue={fmtEurCompact(commissie)}
           tone="neutral"
           sub={`Gewogen ${fmtEur(commissieGewogen)}`}
         />
