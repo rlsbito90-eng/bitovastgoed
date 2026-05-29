@@ -75,7 +75,7 @@ export default function AuditSidePanel({
             {[...blockers, ...warnings].slice(0, 4).map((it, i) => (
               <li key={i} className="leading-snug break-words">
                 <span className="font-medium">{it.level === 'blocker' ? '■' : '▲'}</span>{' '}
-                {it.title}
+                {it.message}
               </li>
             ))}
           </ul>
