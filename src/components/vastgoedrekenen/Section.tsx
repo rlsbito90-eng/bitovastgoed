@@ -34,6 +34,7 @@ export function Section({
   id,
   source,
   relevance,
+  numberLabel,
 }: {
   title: string;
   status?: ReactNode;
