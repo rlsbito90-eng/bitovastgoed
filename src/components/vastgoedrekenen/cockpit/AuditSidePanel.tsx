@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import type { ControlItem } from '@/lib/vastgoedrekenen/validation';
+import type { ValidationItem } from '@/lib/vastgoedrekenen/validation';
 import ValueField from './ValueField';
 
 /**
@@ -24,7 +24,7 @@ export default function AuditSidePanel({
   auditAction,
 }: {
   outputs: ComputedOutputs;
-  items: ControlItem[];
+  items: ValidationItem[];
   sources: SourceCounts;
   /** Optionele knop/element (bv. <AuditDialog />) voor de "open audit" actie. */
   auditAction?: ReactNode;
