@@ -7,6 +7,7 @@ import {
   formatNumberForKind,
   type FormatKind,
 } from '@/lib/format/nl';
+import { useIsTouch } from '@/hooks/useIsTouch';
 
 type RawInputProps = {
   initialValue: string;
@@ -117,6 +118,7 @@ function inferKindFromSuffix(suffix: string | undefined, explicit?: FormatKind):
 
 export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRawChange, onCommit, placeholder, className, suffix, format, decimals }: NumberFormatProps) {
   const kind = inferKindFromSuffix(suffix, format);
+  const isTouch = useIsTouch();
 
   // Bepaal weergavewaarde: tijdens focus de editbare string, daarbuiten geformatteerd.
   const computeDisplay = (rawStr: string, focused: boolean): string => {
@@ -149,8 +151,10 @@ export const RawNumberInput = memo(function RawNumberInput({ initialValue, onRaw
         setRaw(nextRaw);
       }
     }
-    // Selecteer de volledige inhoud zodat typen direct overschrijft
-    // (vooral handig bij default-0 of bestaande waarden).
+    // Op desktop: selecteer de volledige inhoud zodat typen direct overschrijft.
+    // Op touch-devices NIET selecteren — voorkomt dat per ongeluk aantikken
+    // bestaande data overschrijft bij eerste keystroke.
+    if (isTouch) return;
     const el = event.currentTarget;
     requestAnimationFrame(() => {
       try { el.select(); } catch { /* noop */ }

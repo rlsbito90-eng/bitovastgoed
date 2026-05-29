@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,8 +69,10 @@ export default function AcquisitieCampagneFormDialog({ open, onOpenChange, campa
     }
   };
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Campagne bewerken' : 'Nieuwe campagne'}</DialogTitle>

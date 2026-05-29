@@ -15,6 +15,7 @@
 // (oftewel: eerst één keer opslaan, daarna upload).
 
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
 import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -378,8 +379,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
     : refKwaliteit.qualityScore >= 60 ? 'text-warning'
     : 'text-destructive';
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-5xl w-[95vw] h-[85vh] max-h-[95dvh] p-0 gap-0 flex flex-col overflow-hidden overflow-x-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4 flex-wrap">
