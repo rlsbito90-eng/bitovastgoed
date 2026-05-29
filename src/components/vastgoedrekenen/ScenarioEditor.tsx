@@ -28,6 +28,7 @@ import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
 import CockpitHeader from './cockpit/CockpitHeader';
+import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRail';
 import ComponentStrategyTable from './ComponentStrategyTable';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
@@ -813,6 +814,26 @@ export default function ScenarioEditor(props: Props) {
         const strategyOpen = strategyActive;
         const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
 
+        // Rail-status helper: SectionRelevance + tellingen → RailStatus
+        const relToRailStatus = (r: SectionRelevance | undefined, extraBlocker = false, extraWarn = false): RailStatus => {
+          if (extraBlocker) return 'blocker';
+          if (r === 'niet_relevant') return 'niet_relevant';
+          if (r === 'aandacht' || extraWarn) return 'aandacht';
+          return 'ok';
+        };
+        const railItems: RailItem[] = [
+          { id: 'sec-aankoop', step: 2, title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
+          { id: 'sec-componenten', step: 3, title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
+          { id: 'sec-strategie', step: 3, title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
+          { id: 'sec-huur', step: 4, title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
+          { id: 'sec-verkoop', step: 4, title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
+          { id: 'sec-kosten', step: 5, title: 'Kosten & OVB', status: 'ok', hint: kostenStatus },
+          { id: 'sec-wws', step: 6, title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          { id: 'sec-onderbouwing', step: 7, title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
+          { id: 'sec-score', step: 7, title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
+        ];
+
+
 
 
         return (
@@ -851,6 +872,10 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-3 items-start">
+              <SectionRail items={railItems} />
+              <div className="space-y-3 min-w-0">
+
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
             <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
@@ -858,7 +883,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 2. Aankoop & investering */}
             <SectionGroup step={2} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
-            <Section title="Aankoop & investering" status={aankoopStatus} defaultOpen={aankoopOpen} source="Scenario" relevance="leidend">
+            <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} defaultOpen={aankoopOpen} source="Scenario" relevance="leidend">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
                 <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
@@ -915,7 +940,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 3. Huur & exploitatie */}
             <SectionGroup step={4} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
-            <Section title="Huur & exploitatie" status={huurStatus} defaultOpen={huurOpen} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
+            <Section id="sec-huur" title="Huur & exploitatie" status={huurStatus} defaultOpen={huurOpen} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
                   const hasComponentRent = components.some((cc) => Number(cc.current_annual_rent ?? 0) > 0 || Number(cc.current_monthly_rent ?? 0) > 0);
@@ -1008,7 +1033,7 @@ export default function ScenarioEditor(props: Props) {
                 componentstrategie: 'Componentstrategie (per unit)',
               };
               return (
-                <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoopOpen} source="Scenario-level verkoop" relevance={verkoopRelevance}>
+                <Section id="sec-verkoop" title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoopOpen} source="Scenario-level verkoop" relevance={verkoopRelevance}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
@@ -1213,7 +1238,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 5. Kosten & bouwkosten */}
             <SectionGroup step={5} title="Kosten & OVB" hint="Bouwkosten, btw en overdrachtsbelasting" />
-            <Section title="Kosten & bouwkosten" status={kostenStatus} defaultOpen={kostenOpen} source="Kostenposten" relevance="informatief">
+            <Section id="sec-kosten" title="Kosten & bouwkosten" status={kostenStatus} defaultOpen={kostenOpen} source="Kostenposten" relevance="informatief">
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-48">
@@ -1401,7 +1426,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 6. Componenten / units */}
             <SectionGroup step={3} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
-            <Section title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={compOpen} source="Componenten" relevance={compRelevance}>
+            <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={compOpen} source="Componenten" relevance={compRelevance}>
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <p className="text-xs text-muted-foreground max-w-xl">
@@ -1519,7 +1544,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 7. WWS / huursegmentanalyse */}
             <SectionGroup step={6} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
-            <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
+            <Section id="sec-wws" title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
                   const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
@@ -1747,7 +1772,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 7b. Componentstrategie per scenario */}
-            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
+            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
               <ComponentStrategyTable
                 units={sellOffUnits}
                 components={components}
@@ -1761,7 +1786,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
             <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
-            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
+            <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 {manualZeroSet.size > 0 && (
@@ -1805,7 +1830,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 9. Score-uitleg */}
-            <Section title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
+            <Section id="sec-score" title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
               <div className="pt-3 text-xs leading-relaxed space-y-3">
                 <div>
                   <p className="font-medium text-foreground">{outputs.scoreLabel}</p>
@@ -1843,6 +1868,8 @@ export default function ScenarioEditor(props: Props) {
                 <RawTextarea initialValue={s.notes ?? ''} onRawChange={markDirtyFromRaw} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
               </div>
             </Section>
+              </div>
+            </div>
           </div>
         );
       })()}
