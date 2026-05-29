@@ -1,12 +1,10 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Plus, Save, CheckCircle2, RotateCw, ListChecks } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import UnitNavigator from './UnitNavigator';
 import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/lib/vastgoedrekenen/types';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
@@ -42,7 +40,7 @@ import AuditDialog from './audit/AuditDialog';
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
-import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
+
 
 type Props = {
   scenario: Scenario;
