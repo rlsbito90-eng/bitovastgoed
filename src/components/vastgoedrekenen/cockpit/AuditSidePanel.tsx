@@ -82,21 +82,21 @@ export default function AuditSidePanel({
         </div>
       )}
 
-      {/* Bronverdeling — compacte chip-rij */}
+      {/* Bronverdeling — compacte key-value lijst met getallen rechts uitgelijnd */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
           Gebruikte bronnen
         </p>
         {totalSources === 0 ? (
           <p className="text-xs text-muted-foreground">Nog geen bronnen geregistreerd.</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            <SourceChip label="Componenten" count={sources.componenten} />
-            <SourceChip label="Strategie" count={sources.strategie} />
-            <SourceChip label="WWS" count={sources.wws} />
-            <SourceChip label="Handmatig" count={sources.handmatig} />
-            <SourceChip label="Scenario" count={sources.scenario} />
-          </div>
+          <dl className="rounded-md border bg-muted/20 divide-y divide-border/60 text-xs">
+            <SourceRow label="Componenten" count={sources.componenten} />
+            <SourceRow label="Strategie" count={sources.strategie} />
+            <SourceRow label="WWS" count={sources.wws} />
+            <SourceRow label="Handmatig" count={sources.handmatig} />
+            <SourceRow label="Scenario" count={sources.scenario} />
+          </dl>
         )}
       </div>
 
@@ -124,19 +124,14 @@ export default function AuditSidePanel({
   );
 }
 
-function SourceChip({ label, count }: { label: string; count: number }) {
+function SourceRow({ label, count }: { label: string; count: number }) {
   const has = count > 0;
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap ${
-        has
-          ? 'border-primary/30 bg-primary/5 text-foreground'
-          : 'border-border bg-muted/30 text-muted-foreground'
-      }`}
-    >
-      <span>{label}</span>
-      <span className={`font-mono-data tabular-nums text-[10px] ${has ? 'text-primary' : 'text-muted-foreground'}`}>{count}</span>
-    </span>
+    <div className="grid grid-cols-[1fr_auto] items-center gap-2 px-2 py-1">
+      <dt className={has ? 'text-foreground' : 'text-muted-foreground'}>{label}</dt>
+      <dd className={`font-mono-data tabular-nums text-[11px] ${has ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{count}</dd>
+    </div>
   );
 }
+
 
