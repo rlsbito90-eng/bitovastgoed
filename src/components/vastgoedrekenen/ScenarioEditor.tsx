@@ -1819,7 +1819,8 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
+            <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
+            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 {manualZeroSet.size > 0 && (
