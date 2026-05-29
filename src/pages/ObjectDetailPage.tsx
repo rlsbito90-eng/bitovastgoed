@@ -923,9 +923,10 @@ export default function ObjectDetailPage() {
         </Link>
         <ListNavigator
           info={getListNavigation('objecten', object.id, store.objecten.map(o => o.id))}
-          buildHref={(id) => `/objecten/${id}`}
+          buildHref={(id) => `/objecten/${id}${activeTab && activeTab !== 'overzicht' ? `?tab=${activeTab}` : ''}`}
           itemLabel="object"
         />
+
       </div>
 
       {/* =================================================
