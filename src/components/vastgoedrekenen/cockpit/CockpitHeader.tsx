@@ -2,6 +2,7 @@
 // Toont scenario-meta, KPI-strip en de globale "scenario-uitkomst gebaseerd op"-selector.
 // 100% presentatie — leest bestaande ComputedOutputs en patcht alleen leading_valuation_track.
 
+import { memo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, DEAL_BADGE } from '../format';
