@@ -43,7 +43,7 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">#</TableHead>
-              <TableHead className="min-w-[120px] sticky left-0 bg-card z-10">Unit</TableHead>
+              <TableHead className="min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:z-10">Unit</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">m²</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
