@@ -70,7 +70,7 @@ export function Section({
   return (
     <div
       id={id}
-      className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
+      className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 scroll-mt-32 lg:scroll-mt-36 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
     >
       <button
         type="button"
@@ -82,31 +82,31 @@ export function Section({
             className={`h-4 w-4 mt-0.5 sm:mt-0 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${open ? 'rotate-90 text-accent' : ''}`}
           />
           {numberLabel && (
-            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/80 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none mt-0.5 sm:mt-0">
+            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/90 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none mt-0.5 sm:mt-0">
               {numberLabel}
             </span>
           )}
           <span
-            className="font-semibold text-[13.5px] text-foreground min-w-0 flex-1 tracking-[-0.005em] leading-snug [overflow-wrap:normal] [word-break:normal] hyphens-none line-clamp-2 sm:line-clamp-none sm:break-words"
+            className="font-semibold text-[14px] sm:text-[14.5px] text-foreground min-w-0 flex-1 tracking-[-0.005em] leading-snug [overflow-wrap:normal] [word-break:normal] hyphens-none line-clamp-2 sm:line-clamp-none sm:break-words"
           >
             {title}
           </span>
           {relevance && (
             <span
-              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-medium ${RELEVANCE_CLS[relevance]}`}
+              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-semibold ${RELEVANCE_CLS[relevance]}`}
             >
               {relevance === 'aandacht' && <AlertTriangle className="h-3 w-3" />}
               {RELEVANCE_LABEL[relevance]}
             </span>
           )}
           {source && (
-            <span className="hidden md:inline text-[10px] text-muted-foreground/70 break-words">
+            <span className="hidden md:inline text-[10px] text-muted-foreground/80 break-words">
               · {source}
             </span>
           )}
         </div>
         {status && (
-          <span className="text-[11px] sm:text-[11.5px] text-muted-foreground sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[55%] md:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums pl-6 sm:pl-0">
+          <span className="text-[11px] sm:text-[11.5px] text-muted-foreground/90 sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[55%] md:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums pl-6 sm:pl-0">
             {status}
           </span>
         )}
@@ -115,6 +115,7 @@ export function Section({
     </div>
   );
 }
+
 
 
 
