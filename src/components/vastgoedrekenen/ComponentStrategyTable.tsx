@@ -264,7 +264,7 @@ function Tile({ label, value, accent, tone }: { label: string; value: string; ac
   );
 }
 
-function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index: number; onUpdate: Props['onUpdate']; onDelete: Props['onDelete'] }) {
+function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOffUnit; index: number; onUpdate: Props['onUpdate']; onDelete: Props['onDelete']; hideHeader?: boolean }) {
   const r = f(unit);
   const strategy = (r.strategy as ComponentStrategyKey | null) ?? 'later_beslissen';
   const isSale = SALE_STRATEGIES.includes(strategy);
@@ -280,9 +280,7 @@ function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index
   }, index);
   const calc = computeComponentStrategy(unit);
 
-  // Strategie-tone: groen = leidt tot waarde, amber = ontbreekt/later
   const stratTone: 'positive' | 'warning' | undefined = !r.strategy || strategy === 'later_beslissen' ? 'warning' : 'positive';
-
   const chips: { label: string; tone?: 'warning' | 'positive' | 'muted' }[] = [];
   chips.push({ label: STRATEGY_LABELS[strategy] ?? '—', tone: stratTone });
   if (isSale) {
@@ -305,29 +303,29 @@ function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index
     const m = num(r.hold_value_manual);
     chips.push({ label: m && m > 0 ? `handm. ${fmtEur(m)}` : 'handmatige waarde ontbreekt', tone: m && m > 0 ? 'positive' : 'warning' });
   }
-  const hasWarning = chips.some((c) => c.tone === 'warning') || calc.warnings.length > 0;
 
-  const chipCls = (tone?: string) =>
-    tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
-    : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
-    : 'border-border text-muted-foreground bg-muted/30';
-
+  const wrapperCls = hideHeader ? 'space-y-3' : 'border rounded-md p-3 sm:p-4 space-y-3 scroll-mt-20';
   return (
-    <div id={`strategy-unit-${unit.id}`} className="border rounded-md p-3 sm:p-4 space-y-3 scroll-mt-20">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
-          <span className="text-sm font-semibold truncate">{ident.primary}</span>
-          {ident.meta.length > 0 && <span className="text-xs text-muted-foreground">· {ident.meta.join(' · ')}</span>}
-          {hasWarning && <span className="text-amber-600 dark:text-amber-300" title="Ontbrekende invoer of waarschuwing">⚠</span>}
-          {chips.map((c, i) => (
-            <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
-          ))}
+    <div id={hideHeader ? undefined : `strategy-unit-${unit.id}`} className={wrapperCls}>
+      {!hideHeader && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
+            <span className="text-sm font-semibold break-words">{ident.primary}</span>
+            {ident.meta.length > 0 && <span className="text-xs text-muted-foreground break-words">· {ident.meta.join(' · ')}</span>}
+            {chips.map((c, i) => <Chip key={i} label={c.label} tone={c.tone} />)}
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => onDelete(unit.id)} className="h-8 px-2 text-muted-foreground hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => onDelete(unit.id)} className="h-8 px-2 text-muted-foreground hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+      )}
+      {hideHeader && chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c, i) => <Chip key={i} label={c.label} tone={c.tone} />)}
+        </div>
+      )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         <Field label="Label" className="lg:col-span-2">
