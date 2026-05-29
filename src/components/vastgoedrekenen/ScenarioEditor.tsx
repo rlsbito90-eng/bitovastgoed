@@ -730,19 +730,88 @@ export default function ScenarioEditor(props: Props) {
           || propertyType === 'residentieel' || propertyType === 'mixed_use';
         
 
+        // === Status- + relevance/source-helpers per sectie (presentatie only) ===
+        const rec = s as unknown as Record<string, unknown>;
+        const saleStrategyRaw = (rec.sale_strategy as string | null) ?? 'geen_verkoop';
+        const scenarioExitActive = saleStrategyRaw !== 'geen_verkoop';
+        const strategyActive = sellOffUnits.length > 0;
+        const leadingBasis = outputs.leadingMaxBasis; // 'huur' | 'verkoop' | 'strategie'
+        const blockerCount = nogTeControleren.filter((i) => i.level === 'blocker').length;
+        const warningCount = nogTeControleren.filter((i) => i.level === 'warning').length;
+
+        // Sectie-relevance
+        const huurRelevance: SectionRelevance =
+          leadingBasis === 'huur' ? 'leidend' : exploitatie ? 'informatief' : 'niet_relevant';
+        const verkoopRelevance: SectionRelevance =
+          leadingBasis === 'verkoop' ? 'leidend' : scenarioExitActive ? 'informatief' : 'niet_relevant';
+        const strategyRelevance: SectionRelevance =
+          leadingBasis === 'strategie' ? 'leidend' : strategyActive ? 'informatief' : 'niet_relevant';
+        const wwsHasWarnings = wwsUnits.length > 0 && (() => {
+          // Tel units waarvan WWS-status indicatief/incompleet is.
+          let warn = 0;
+          for (const u of wwsUnits) {
+            const st = getWwsUnitStatus(u as unknown as WwsUnit);
+            if (st.reliability !== 'volledig') warn++;
+          }
+          return warn;
+        })();
+        const wwsRelevance: SectionRelevance =
+          (hasResidential || wwsUnits.length > 0)
+            ? (wwsHasWarnings ? 'aandacht' : 'informatief')
+            : 'niet_relevant';
+        const compRelevance: SectionRelevance =
+          components.length > 0 ? (isMixed ? 'leidend' : 'informatief') : 'niet_relevant';
+
+        // OVB samenvatting voor Aankoop-header
+        const ovbPctTxt = (() => {
+          const mode = (rec.ovb_mode as string | null) ?? 'auto';
+          if (mode === 'per_component') return 'per component';
+          if (mode === 'manual') return 'handmatig';
+          const pct = Number(s.transfer_tax_percentage ?? 0);
+          return pct > 0 ? `${pct.toFixed(1)}%` : '—';
+        })();
+
+        // Componenten-samenvatting (woningen vs commercieel)
+        const compWonen = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement').length;
+        const compCommercieel = components.filter((c) => c.component_type && c.component_type !== 'woning' && c.component_type !== 'appartement').length;
+        const compWarnings = outputs.ovbPerComponent.filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount).length;
+
+        // Strategie netto contributie
+        const strategyNet = outputs.scenarioValue || 0;
+
+        // Statuses
+        const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)} · OVB ${fmtEur(outputs.totalTransferTax)} (${ovbPctTxt})`;
         const huurStatus = exploitatie
           ? `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`
           : 'Niet leidend voor dit verkoopscenario';
         const verkoopStatus = outputs.netSaleProceeds != null
           ? `Netto opbr. ${fmtEur(outputs.netSaleProceeds)}${outputs.roi != null ? ` · ROI ${outputs.roi.toFixed(1)}%` : ''}`
-          : 'Geen verkoopdata';
+          : (scenarioExitActive ? 'Strategie gekozen, geen bedrag' : 'Geen verkoopdata');
         const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien & btw`;
-        const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)}`;
         const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · betrouwbaarheid ${outputs.inputReliability}`;
-        const compStatus = `${components.length} component(en)`;
-        const wwsStatus = `${wwsUnits.length} woonunit(s)`;
+        const compStatus = components.length === 0
+          ? 'Geen componenten'
+          : `${components.length} unit(s)${compWonen ? ` · ${compWonen} wonen` : ''}${compCommercieel ? ` · ${compCommercieel} commercieel` : ''}${compWarnings ? ` · ${compWarnings} waarschuwing${compWarnings === 1 ? '' : 'en'}` : ''}`;
+        const wwsStatus = wwsUnits.length === 0
+          ? 'Geen woonunits'
+          : `${wwsUnits.length} woonunit(s)${wwsHasWarnings ? ` · ${wwsHasWarnings} indicatief/onvolledig` : ' · volledig'}`;
+        const strategyStatus = sellOffUnits.length === 0
+          ? 'Geen units'
+          : `${sellOffUnits.length} unit(s) · netto ${fmtEur(strategyNet)}${outputs.roundsAtAsking != null ? (outputs.roundsAtAsking ? ' · OK' : ' · tekort') : ''}`;
         const scoreStatus = `${outputs.scoreLabel}`;
         const notitiesStatus = s.notes ? '1 notitie' : 'Geen notities';
+
+        // Default open-heuristiek: open bij waarschuwingen/blockers of als de sectie leidend is
+        const aankoopOpen = true; // altijd open — kerninvoer
+        const huurOpen = exploitatie || huurRelevance === 'leidend';
+        const verkoopOpen = verkoop || verkoopRelevance === 'leidend' || verkoopRelevance === 'aandacht';
+        const kostenOpen = draftCosts.length > 0 || outputs.totalCosts > 0;
+        const compOpen = isMixed || compWarnings > 0 || compRelevance === 'leidend';
+        const wwsOpen = wwsRelevance === 'aandacht';
+        const strategyOpen = strategyActive;
+        const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
+
+
 
         return (
           <div className="space-y-3">
