@@ -315,7 +315,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
     } else if (leadingRoundsAtAsking === false && (dealScore === 'A' || dealScore === 'B')) {
       dealScore = 'C';
-      scoreLabel = 'Te duur volgens leidend spoor';
+      scoreLabel = 'Te duur';
       scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) rekent niet rond op de vraagprijs. Alternatieve sporen kunnen positief zijn, maar bepalen niet de uitkomst.`;
       scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
     }
