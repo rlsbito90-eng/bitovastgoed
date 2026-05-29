@@ -129,13 +129,19 @@ export default function InvesteringsWaterfall({
   return (
     <div className="rounded-md border bg-card p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-        <h4 className="text-sm font-semibold">Investerings-waterfall</h4>
+        <h4 className="text-sm font-semibold">
+          Investerings-waterfall
+          <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+            — vraagprijs → investering → opbrengst → marge
+          </span>
+        </h4>
         <p className="text-[11px] text-muted-foreground">
           {exploitatie
             ? 'Opbouw totale investering (exploitatie-scenario).'
             : 'Van vraagprijs naar nettomarge (verkoop-scenario).'}
         </p>
       </div>
+
       <div className="overflow-x-auto">
         <svg
           width="100%"
