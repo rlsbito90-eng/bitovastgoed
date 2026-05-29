@@ -192,9 +192,9 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       hasIndicativeCosts: costs.some((c) => c.reliability_status !== 'hoog'),
     })
     : null;
-  const dealScore = saleScore?.dealScore ?? baseDealScore;
-  const scoreLabel = saleScore?.label ?? (dealScore === 'A' ? 'Kansrijk' : dealScore === 'B' ? 'Acceptabel' : dealScore === 'C' ? 'Onzeker' : 'Niet haalbaar');
-  const scoreReason = saleScore?.reason ?? (dealScore === 'reject'
+  let dealScore = saleScore?.dealScore ?? baseDealScore;
+  let scoreLabel = saleScore?.label ?? (dealScore === 'A' ? 'Kansrijk' : dealScore === 'B' ? 'Acceptabel' : dealScore === 'C' ? 'Onzeker' : 'Niet haalbaar');
+  let scoreReason = saleScore?.reason ?? (dealScore === 'reject'
     ? 'De huur-/rendementsbasis is onvoldoende voor een exploitatiecase.'
     : 'Score gebaseerd op huur, NOI, BAR en rendement op totale investering.');
   const scorePositivePoints = saleScore?.positivePoints ?? [
@@ -202,40 +202,13 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     `NOI: ${eur(noi)}`,
     `BAR op totale investering: ${barTotal != null ? `${barTotal.toFixed(2)}%` : 'n.v.t.'}`,
   ];
-  const scoreAttentionPoints = saleScore?.attentionPoints ?? [
+  let scoreAttentionPoints = saleScore?.attentionPoints ?? [
     ...(dealScore === 'reject' ? ['BAR/huurinkomsten zijn onvoldoende voor de gewenste rendementseis.'] : []),
     ...risk.flags,
   ];
 
-  // --- Conclusie ---
-  const conclusion = buildConclusion({
-    dealScore,
-    barTotalInvestment: barTotal,
-    maximumBid: effectiveMaxBid,
-    differenceWithAskingPrice: differenceWithAsking,
-    requiredDiscount,
-    inputReliability,
-    riskScore: risk.level,
-    complexityScore: complexity,
-    askingPrice: asking,
-    assessmentType,
-    scoreLabel,
-    netSaleProceeds: sale.netSaleProceeds,
-    netMargin: sale.netMargin,
-    roi: sale.roi,
-    exitValue: sale.exitValue,
-  });
-  const nextStep = assessmentType === 'verkoop'
-    ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
-    : buildNextStep({
-    inputReliability,
-    missingWoz: !ctx.objectWoz,
-    missingLabel: !ctx.objectEnergyLabel,
-    missingContracts: !components.some((c) => c.has_contract),
-    hasWwsRisk: wwsUnits.some((u) => (u.wws_points ?? 0) > 0 && (u.wws_points ?? 0) < 187),
-    isMixedUseWithoutAlloc: objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component',
-    dealScore,
-  });
+  // Conclusie + next step worden hieronder berekend, ná de leading-aware override.
+
 
   // --- €/m² afgeleide KPI's ---
   const safeDiv = (num: number | null | undefined, den: number | null | undefined): number | null => {
@@ -330,8 +303,56 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
   const leadingRoundsAtAsking = asking > 0 ? leadingMaxValue >= asking : null;
 
+  // --- Leading-aware score-override ---
+  // De score moet hetzelfde leidende spoor weerspiegelen als de cockpit/ResultaatKaart.
+  // Een informatief alternatief mag niet leiden tot een "Kansrijk" terwijl het leidende
+  // spoor geen waarde heeft of niet rond rekent.
+  if (asking > 0) {
+    if (leadingMaxValue <= 0) {
+      dealScore = 'reject';
+      scoreLabel = 'Onvoldoende data';
+      scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) heeft geen bruikbare maximum waarde. Vul de bijbehorende invoer aan of kies een ander spoor.`;
+      scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
+    } else if (leadingRoundsAtAsking === false && (dealScore === 'A' || dealScore === 'B')) {
+      dealScore = 'C';
+      scoreLabel = 'Te duur';
+      scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) rekent niet rond op de vraagprijs. Alternatieve sporen kunnen positief zijn, maar bepalen niet de uitkomst.`;
+      scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
+    }
+  }
+
+  // --- Conclusie + next step (op basis van de uiteindelijke leading-aware score) ---
+  const conclusion = buildConclusion({
+    dealScore,
+    barTotalInvestment: barTotal,
+    maximumBid: leadingMaxValue,
+    differenceWithAskingPrice: leadingDifferenceWithAskingPrice,
+    requiredDiscount: asking > 0 && leadingMaxValue < asking ? asking - leadingMaxValue : 0,
+    inputReliability,
+    riskScore: risk.level,
+    complexityScore: complexity,
+    askingPrice: asking,
+    assessmentType,
+    scoreLabel,
+    netSaleProceeds: sale.netSaleProceeds,
+    netMargin: sale.netMargin,
+    roi: sale.roi,
+    exitValue: sale.exitValue,
+  });
+  const nextStep = assessmentType === 'verkoop'
+    ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
+    : buildNextStep({
+      inputReliability,
+      missingWoz: !ctx.objectWoz,
+      missingLabel: !ctx.objectEnergyLabel,
+      missingContracts: !components.some((c) => c.has_contract),
+      hasWwsRisk: wwsUnits.some((u) => (u.wws_points ?? 0) > 0 && (u.wws_points ?? 0) < 187),
+      isMixedUseWithoutAlloc: objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component',
+      dealScore,
+    });
 
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
+
 
   return {
     totalTransferTax: ovb.totalOvb,
