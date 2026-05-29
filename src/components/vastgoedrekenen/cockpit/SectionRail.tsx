@@ -160,21 +160,18 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
       <button
         type="button"
         onClick={() => scrollToId(item.id)}
-        className="w-full flex items-baseline gap-2 px-3 pt-2.5 pb-1 text-left group min-w-0 border-t first:border-t-0 border-border/60"
+        className="w-full flex items-center gap-2.5 px-3 pt-3 pb-1.5 text-left group min-w-0 border-t first:border-t-0 border-border/50 hover:bg-muted/30 transition-colors"
       >
-        <span className="text-[11px] font-mono-data tabular-nums text-primary/80 font-semibold w-6 shrink-0">
+        <span className="text-[10.5px] font-mono-data tabular-nums text-primary font-semibold w-6 shrink-0">
           {item.number}
         </span>
+        <span className="text-primary/30 text-[10px] select-none -mx-0.5" aria-hidden>—</span>
         <span className="flex-1 min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-foreground truncate">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-primary truncate">
             {item.title}
           </span>
-          {item.hint && (
-            <span className="block text-[10px] text-muted-foreground truncate font-normal normal-case tracking-normal">
-              {item.hint}
-            </span>
-          )}
         </span>
+        <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent max-w-[24px] shrink-0" aria-hidden />
       </button>
     );
   }
@@ -182,26 +179,28 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
     <button
       type="button"
       onClick={() => scrollToId(item.id)}
-      className="w-full flex items-center gap-2 pl-6 pr-3 py-1.5 hover:bg-muted/40 text-left group min-w-0"
+      className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 hover:bg-accent/[0.06] hover:border-l-accent border-l-2 border-l-transparent text-left group min-w-0 transition-colors"
     >
-      <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground w-8 shrink-0">
+      <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground/80 w-8 shrink-0">
         {item.number}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-xs font-medium truncate group-hover:text-foreground">{item.title}</span>
+        <span className="block text-[12px] font-medium text-foreground/85 truncate group-hover:text-foreground">{item.title}</span>
         {item.hint && (
-          <span className="block text-[10px] text-muted-foreground truncate">{item.hint}</span>
+          <span className="block text-[10px] text-muted-foreground/80 truncate">{item.hint}</span>
         )}
       </span>
       {item.count != null && item.count > 0 && (
-        <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">{item.count}</span>
+        <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0">{item.count}</span>
       )}
       <span
         className={`inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wide ${cfg.chip}`}
         aria-label={cfg.label}
+        title={cfg.label}
       >
         <Icon className="h-2.5 w-2.5" />
       </span>
     </button>
   );
 }
+
