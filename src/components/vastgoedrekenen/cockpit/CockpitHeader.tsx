@@ -4,7 +4,7 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, DEAL_BADGE } from '../format';
+import { fmtEur, fmtEurCompact, DEAL_BADGE } from '../format';
 import { toast } from 'sonner';
 
 type Props = {
@@ -78,8 +78,11 @@ export default function CockpitHeader({
         </div>
       </div>
 
-      {/* KPI-strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-px bg-border/40">
+      {/* KPI-strip — auto-fit zodat lange eurobedragen niet afbreken */}
+      <div
+        className="grid gap-px bg-border/40"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
+      >
         <Kpi
           label="Rond te rekenen"
           value={asking > 0 ? (rounds ? 'Ja' : 'Nee') : '—'}
@@ -93,12 +96,14 @@ export default function CockpitHeader({
         <Kpi
           label={o.leadingMaxBasis === 'strategie' ? 'Max. aankoopprijs' : 'Max. bieding'}
           value={fmtEur(o.leadingMaxValue)}
+          compactValue={fmtEurCompact(o.leadingMaxValue)}
           tone="primary"
           sub={`Bron: ${o.leadingMaxBasisLabel}`}
         />
         <Kpi
           label="Vraagprijs"
           value={asking > 0 ? fmtEur(asking) : '—'}
+          compactValue={asking > 0 ? fmtEurCompact(asking) : '—'}
           tone="neutral"
           sub={asking > 0 && diff !== 0 ? `${diff >= 0 ? '+' : '−'} ${fmtEur(Math.abs(diff))} verschil` : undefined}
         />
@@ -111,6 +116,7 @@ export default function CockpitHeader({
         <Kpi
           label="Netto marge"
           value={o.netMargin != null ? fmtEur(o.netMargin) : '—'}
+          compactValue={o.netMargin != null ? fmtEurCompact(o.netMargin) : '—'}
           tone={o.netMargin != null && o.netMargin < 0 ? 'danger' : 'neutral'}
           sub={o.netMarginPerM2 != null ? `${fmtEur(o.netMarginPerM2)} / m²` : undefined}
         />
@@ -124,6 +130,7 @@ export default function CockpitHeader({
         <Kpi
           label="Commissie"
           value={fmtEur(commissie)}
+          compactValue={fmtEurCompact(commissie)}
           tone="neutral"
           sub={`Gewogen ${fmtEur(commissieGewogen)}`}
         />
@@ -183,14 +190,18 @@ const TONE_VALUE_CLS: Record<Tone, string> = {
   neutral: 'text-foreground',
 };
 
-function Kpi({ label, value, sub, tone, customValueCls }: { label: string; value: string; sub?: string; tone: Tone; customValueCls?: string }) {
+function Kpi({ label, value, compactValue, sub, tone, customValueCls }: { label: string; value: string; compactValue?: string; sub?: string; tone: Tone; customValueCls?: string }) {
   return (
     <div className="bg-card px-3 py-2.5 min-w-0">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-      <p className={`mt-0.5 text-lg sm:text-xl font-semibold font-mono-data leading-tight truncate ${customValueCls ?? TONE_VALUE_CLS[tone]}`}>
-        {value}
+      <p
+        className={`mt-0.5 font-semibold font-mono-data leading-tight whitespace-nowrap tabular-nums text-base lg:text-lg ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
+        title={value}
+      >
+        <span className="hidden sm:inline">{value}</span>
+        <span className="sm:hidden">{compactValue ?? value}</span>
       </p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{sub}</p>}
     </div>
   );
 }
