@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur } from '../format';
 
