@@ -64,7 +64,7 @@ export function Section({
           <ChevronRight
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
           />
-          <span className="font-medium text-sm truncate">{title}</span>
+          <span className="font-medium text-sm break-words min-w-0">{title}</span>
           {relevance && (
             <span
               className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${RELEVANCE_CLS[relevance]}`}
