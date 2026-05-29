@@ -43,21 +43,20 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
   const hasUnits = units.length > 0;
   const askingPrice = Number(asking ?? 0);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openUnit = openId ? units.find((u) => u.id === openId) ?? null : null;
+  const openIdx = openUnit ? units.findIndex((u) => u.id === openUnit.id) : -1;
 
-  const navUnits = useMemo(
-    () => units.map((u, idx) => {
-      const r = u as unknown as Record<string, unknown>;
-      const ident = formatUnitIdentity({
-        label: r.unit_label as string | null,
-        name: (u as unknown as { unit_name?: string }).unit_name,
-        type: r.unit_type as string | null,
-        surface: (r.surface_gbo as number | null) ?? (r.surface_vvo as number | null),
-      }, idx);
-      const res = computeComponentStrategy(u);
-      return { id: u.id, label: ident.primary, meta: ident.meta.join(' · '), warning: res.warnings.length > 0 || !r.strategy };
-    }),
-    [units],
-  );
+  const totalM2 = units.reduce((s, u) => {
+    const r = u as unknown as Record<string, unknown>;
+    return s + (num(r.surface_gbo) ?? num(r.surface_vvo) ?? 0);
+  }, 0);
+  const stratCounts = units.reduce<Record<string, number>>((acc, u) => {
+    const k = ((u as unknown as Record<string, unknown>).strategy as string | null) ?? 'later_beslissen';
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+  const warningsCount = units.filter((u) => computeComponentStrategy(u).warnings.length > 0).length;
 
   const bulkFields: BulkField[] = [
     { key: 'strategy', label: 'Strategie', kind: 'select', options: Object.entries(STRATEGY_LABELS).map(([v, l]) => ({ value: v, label: l })) },
@@ -98,8 +97,6 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
         </div>
       </div>
 
-      {hasUnits && <UnitNavigator units={navUnits} anchorPrefix="strategy-unit" />}
-
       {hasUnits && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Tile label="Behoudwaarde" value={fmtEur(totals.holdValue)} />
@@ -113,24 +110,117 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
         </div>
       )}
       {hasUnits && totals.mix && (
-        <p className="text-xs text-muted-foreground">Mix: {totals.mix}</p>
+        <p className="text-xs text-muted-foreground break-words">Mix: {totals.mix}</p>
       )}
 
       {!hasUnits && (
         <p className="text-xs text-muted-foreground">Nog geen componentstrategie. Voeg units toe of importeer ze uit de scenario-componenten.</p>
       )}
 
-      <div className="space-y-3">
-        {units.map((u, idx) => (
-          <UnitRow key={u.id} unit={u} index={idx} onUpdate={onUpdate} onDelete={onDelete} />
-        ))}
-      </div>
+      {hasUnits && (
+        <div className="rounded-md border overflow-x-auto">
+          <Table className="text-xs min-w-[760px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Unit</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">m²</TableHead>
+                <TableHead>Strategie</TableHead>
+                <TableHead className="text-right">Bijdrage</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {units.map((u, idx) => {
+                const r = u as unknown as Record<string, unknown>;
+                const ident = formatUnitIdentity({
+                  label: r.unit_label as string | null,
+                  name: (u as unknown as { unit_name?: string }).unit_name,
+                  type: r.unit_type as string | null,
+                  surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+                }, idx);
+                const strategy = (r.strategy as ComponentStrategyKey | null) ?? 'later_beslissen';
+                const calc = computeComponentStrategy(u);
+                const m2 = num(r.surface_gbo) ?? num(r.surface_vvo) ?? 0;
+                const isSale = SALE_STRATEGIES.includes(strategy);
+                const isHold = HOLD_STRATEGIES.includes(strategy);
+                const contribution = isSale ? calc.breakdown.netSaleProceeds : isHold ? calc.breakdown.holdValue : (num(r.hold_value_manual) ?? 0);
+                const hasWarning = calc.warnings.length > 0 || !r.strategy || strategy === 'later_beslissen';
+                return (
+                  <TableRow
+                    key={u.id}
+                    id={`strategy-unit-${u.id}`}
+                    className="cursor-pointer hover:bg-muted/40 scroll-mt-24"
+                    onClick={() => setOpenId(u.id)}
+                  >
+                    <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
+                    <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
+                    <TableCell className="break-words">{(r.unit_type as string | null) ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
+                    <TableCell className="break-words">{STRATEGY_LABELS[strategy] ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{contribution > 0 ? fmtEur(contribution) : '—'}</TableCell>
+                    <TableCell>
+                      {hasWarning
+                        ? <Chip label={calc.warnings[0] ?? (strategy === 'later_beslissen' ? 'strategie ontbreekt' : 'aandacht')} tone="warning" />
+                        : <Chip label="OK" tone="positive" />}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="ghost" onClick={() => onDelete(u.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Verwijderen">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow className="bg-muted/40 font-medium">
+                <TableCell />
+                <TableCell colSpan={2} className="break-words whitespace-normal">
+                  Totaal {units.length} units · {Object.entries(stratCounts).map(([k, n]) => `${n}× ${STRATEGY_LABELS[k as ComponentStrategyKey] ?? k}`).join(' · ')}
+                  {warningsCount > 0 ? ` · ${warningsCount} aandacht` : ''}
+                </TableCell>
+                <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
+                <TableCell />
+                <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totals.scenarioValue)}</TableCell>
+                <TableCell colSpan={2} />
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Sheet open={openId !== null} onOpenChange={(o) => !o && setOpenId(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {openUnit && (() => {
+            const r = openUnit as unknown as Record<string, unknown>;
+            const ident = formatUnitIdentity({
+              label: r.unit_label as string | null,
+              name: (openUnit as unknown as { unit_name?: string }).unit_name,
+              type: r.unit_type as string | null,
+              surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+            }, openIdx);
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="break-words">{ident.indexStr} — {ident.primary}</SheetTitle>
+                  <SheetDescription className="break-words">{ident.meta.join(' · ') || 'Strategie-unit'}</SheetDescription>
+                </SheetHeader>
+                <div className="mt-4">
+                  <UnitRow unit={openUnit} index={openIdx} onUpdate={onUpdate} onDelete={async (id) => { await onDelete(id); setOpenId(null); }} hideHeader />
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
 
       {hasUnits && totals.warnings.length > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1 break-words leading-snug">
           {totals.warnings.slice(0, 8).map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
+
 
       <BulkFillDialog
         open={bulkOpen}
