@@ -38,7 +38,7 @@ import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import AuditDialog from './audit/AuditDialog';
+const AuditDialog = lazy(() => import('./audit/AuditDialog'));
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
