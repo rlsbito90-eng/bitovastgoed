@@ -54,22 +54,23 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs min-w-[820px]">
+        <Table className="text-xs w-full min-w-[820px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10" />
-              <TableHead className="w-10">#</TableHead>
-              <TableHead>Unit</TableHead>
+              <TableHead className="w-8" />
+              <TableHead className="w-8">#</TableHead>
+              <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Unit</TableHead>
               <TableHead className="text-right">Woon m²</TableHead>
-              <TableHead className="text-right">WOZ</TableHead>
-              <TableHead>Label</TableHead>
+              <TableHead className="text-right hidden md:table-cell">WOZ</TableHead>
+              <TableHead className="hidden lg:table-cell">Label</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
               <TableHead className="text-right">Punten</TableHead>
-              <TableHead>Segment</TableHead>
-              <TableHead>WWS-status</TableHead>
-              <TableHead className="w-24" />
+              <TableHead className="hidden md:table-cell">Segment</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {wwsUnits.map((u, idx) => {
               const status = getWwsUnitStatus(u, { euroPerPoint });
