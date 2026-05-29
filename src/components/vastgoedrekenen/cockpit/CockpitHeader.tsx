@@ -2,6 +2,7 @@
 // Toont scenario-meta, KPI-strip en de globale "scenario-uitkomst gebaseerd op"-selector.
 // 100% presentatie — leest bestaande ComputedOutputs en patcht alleen leading_valuation_track.
 
+import { memo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, DEAL_BADGE } from '../format';
@@ -35,7 +36,7 @@ const TRACK_MODE_CLS: Record<Props['trackMode'], string> = {
   component: 'bg-emerald-200 text-emerald-950 border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50 dark:border-emerald-500',
 };
 
-export default function CockpitHeader({
+function CockpitHeader({
   scenario,
   outputs: o,
   scenarioName,
@@ -201,3 +202,6 @@ function Kpi({ label, value, sub, tone, customValueCls }: { label: string; value
   );
 }
 
+
+
+export default memo(CockpitHeader);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useDirtyGuard } from './useDirtyGuard';
 
 /**
@@ -8,9 +8,8 @@ import { useDirtyGuard } from './useDirtyGuard';
  * via JSON-serialisatie. Geeft een gewrapte `guardedOnOpenChange` terug die bij
  * sluiten met wijzigingen om bevestiging vraagt.
  *
- * Gebruik:
- *   const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
- *   <Dialog open={open} onOpenChange={guardedOnOpenChange}> ... </Dialog>
+ * Performance: `JSON.stringify(value)` wordt gememoized op referentie van `value`
+ * om kosten bij grote form-objecten te beperken.
  */
 export function useFormDirtyGuard<T>(
   open: boolean,
@@ -20,16 +19,18 @@ export function useFormDirtyGuard<T>(
   const baselineRef = useRef<string>('');
   const wasOpenRef = useRef(false);
 
+  const current = useMemo(() => {
+    try { return JSON.stringify(value); } catch { return ''; }
+  }, [value]);
+
   useEffect(() => {
     if (open && !wasOpenRef.current) {
-      try { baselineRef.current = JSON.stringify(value); } catch { baselineRef.current = ''; }
+      baselineRef.current = current;
     }
     wasOpenRef.current = open;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  let current = '';
-  try { current = JSON.stringify(value); } catch { current = ''; }
   const isDirty = open && baselineRef.current !== '' && current !== baselineRef.current;
 
   const { confirmDiscard } = useDirtyGuard(isDirty);

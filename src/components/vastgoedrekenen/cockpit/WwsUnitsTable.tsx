@@ -1,6 +1,6 @@
 // Compacte WWS-units tabel met detail-drawer (sub-fase 4C).
 // Hergebruikt bestaande update/delete/recompute-handlers — geen rekenlogica.
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,7 @@ type Props = {
   recomputeWwsUnit: (id: string) => unknown;
 };
 
-export default function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerPoint, selectedIds, toggleSelect, updateWwsUnit, deleteWwsUnit, recomputeWwsUnit }: Props) {
+function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerPoint, selectedIds, toggleSelect, updateWwsUnit, deleteWwsUnit, recomputeWwsUnit }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const openUnit = openId ? wwsUnits.find((u) => u.id === openId) ?? null : null;
 
@@ -242,3 +242,6 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
     </>
   );
 }
+
+
+export default memo(WwsUnitsTable);

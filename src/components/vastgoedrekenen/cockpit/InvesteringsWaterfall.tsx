@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur } from '../format';
 
@@ -18,7 +19,7 @@ type Step = {
   tone: 'base' | 'cost' | 'result' | 'positive' | 'negative';
 };
 
-export default function InvesteringsWaterfall({
+function InvesteringsWaterfall({
   scenario,
   outputs,
 }: {
@@ -200,3 +201,6 @@ export default function InvesteringsWaterfall({
     </div>
   );
 }
+
+
+export default memo(InvesteringsWaterfall);

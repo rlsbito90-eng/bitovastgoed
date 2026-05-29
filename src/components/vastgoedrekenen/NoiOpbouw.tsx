@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur } from './format';
@@ -12,7 +13,7 @@ function Row({ label, pct, eur, bold }: { label: string; pct?: number; eur: numb
   );
 }
 
-export default function NoiOpbouw({ scenario, o }: { scenario: Scenario; o: ComputedOutputs }) {
+function NoiOpbouw({ scenario, o }: { scenario: Scenario; o: ComputedOutputs }) {
   // Bereken effectieve percentages t.o.v. correctedAnnualRent
   const base = o.correctedAnnualRent || 1;
   const vacPct = (o.vacancyCorrectionEur / base) * 100;
@@ -53,3 +54,6 @@ export default function NoiOpbouw({ scenario, o }: { scenario: Scenario; o: Comp
     </Card>
   );
 }
+
+
+export default memo(NoiOpbouw);

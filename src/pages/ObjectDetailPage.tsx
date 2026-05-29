@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -72,7 +72,7 @@ import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
-import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
+const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/VastgoedrekenenTab'));
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
 import { buildMapsUrl } from '@/lib/maps';
@@ -1989,15 +1989,17 @@ export default function ObjectDetailPage() {
                 waardoor position:sticky van de werkstroomrail breekt. */}
             <div className="rounded-2xl lg:rounded-xl border border-border/70 bg-card p-3 sm:p-5 min-w-0">
 
-              <VastgoedrekenenTab
-                objectId={object.id}
-                objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
-                objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
-                objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
-                objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
-                objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
-                objectVraagprijs={object.vraagprijs ?? null}
-              />
+              <Suspense fallback={<p className="text-sm text-muted-foreground py-4">Vastgoedrekenen laden…</p>}>
+                <VastgoedrekenenTab
+                  objectId={object.id}
+                  objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
+                  objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
+                  objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
+                  objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
+                  objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
+                  objectVraagprijs={object.vraagprijs ?? null}
+                />
+              </Suspense>
 
             </div>
           </SectionAnchor>

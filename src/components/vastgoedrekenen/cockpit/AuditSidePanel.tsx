@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import type { ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import type { ValidationItem } from '@/lib/vastgoedrekenen/validation';
 import ValueField from './ValueField';
@@ -17,7 +17,7 @@ type SourceCounts = {
   scenario: number;
 };
 
-export default function AuditSidePanel({
+function AuditSidePanel({
   outputs,
   items,
   sources,
@@ -135,3 +135,6 @@ function SourceRow({ label, count }: { label: string; count: number }) {
 }
 
 
+
+
+export default memo(AuditSidePanel);

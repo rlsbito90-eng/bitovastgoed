@@ -1,5 +1,5 @@
 // Componentstrategie per scenario — compacte tabel + detail-drawer (sub-fase 4C).
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,7 +38,7 @@ function num(v: unknown): number | null | undefined {
   return Number.isFinite(n) ? n : null;
 }
 
-export default function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate, onDelete, onImport }: Props) {
+function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate, onDelete, onImport }: Props) {
   const totals = useMemo(() => aggregateStrategy(units), [units]);
   const hasUnits = units.length > 0;
   const askingPrice = Number(asking ?? 0);
@@ -432,3 +432,6 @@ function Field({ label, children, className }: { label: string; children: React.
     </div>
   );
 }
+
+
+export default memo(ComponentStrategyTable);
