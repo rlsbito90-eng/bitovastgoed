@@ -99,8 +99,16 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
                   <TableCell className="text-right font-mono-data tabular-nums">{u.wws_points ?? '—'}</TableCell>
                   <TableCell className="break-words">{u.rent_segment ?? '—'}</TableCell>
                   <TableCell>
-                    <Chip label={`WWS ${WWS_RELIABILITY_LABEL[status.reliability].toLowerCase()}`} tone={reliabilityTone} />
+                    <Chip
+                      label={
+                        status.reliability === 'volledig' ? 'OK'
+                        : status.reliability === 'indicatief' ? 'Indicatief'
+                        : 'Niet compleet'
+                      }
+                      tone={reliabilityTone}
+                    />
                   </TableCell>
+
                   <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Button size="sm" variant="ghost" onClick={() => recomputeWwsUnit(u.id)} className="h-7 w-7 p-0 text-muted-foreground" aria-label="Herbereken">
                       <RotateCw className="h-3.5 w-3.5" />
@@ -112,10 +120,10 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
                 </TableRow>
               );
             })}
-            <TableRow className="bg-muted/40 font-medium">
+            <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell />
-              <TableCell className="break-words whitespace-normal" colSpan={2}>
+              <TableCell className="break-words whitespace-normal">
                 Totaal {wwsUnits.length} woonunits{warnings > 0 ? ` · ${warnings} aandacht` : ''}
               </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
@@ -124,6 +132,7 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
               <TableCell colSpan={4} />
             </TableRow>
+
           </TableBody>
         </Table>
       </div>

@@ -79,9 +79,10 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                   {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
                   <TableCell>
                     {missing
-                      ? <Chip label="OVB-grondslag ontbreekt" tone="warning" />
+                      ? <Chip label="Niet compleet" tone="warning" />
                       : <Chip label="OK" tone="positive" />}
                   </TableCell>
+
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <Button size="sm" variant="ghost" onClick={() => deleteComponent(c.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Component verwijderen">
                       <Trash2 className="h-3.5 w-3.5" />

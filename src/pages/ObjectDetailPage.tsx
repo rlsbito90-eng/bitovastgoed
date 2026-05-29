@@ -1983,7 +1983,10 @@ export default function ObjectDetailPage() {
             eyebrow={eyebrowFor("vastgoedrekenen", "Underwriting")}
             title="Vastgoedrekenen"
           >
-            <div className="section-card p-3 sm:p-5">
+            {/* Geen .section-card hier: die zet overflow-hidden + backdrop-filter,
+                waardoor position:sticky van de werkstroomrail breekt. */}
+            <div className="rounded-2xl lg:rounded-xl border border-border/70 bg-card p-3 sm:p-5 min-w-0">
+
               <VastgoedrekenenTab
                 objectId={object.id}
                 objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
