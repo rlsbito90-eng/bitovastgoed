@@ -39,19 +39,19 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs min-w-[760px]">
+        <Table className="text-xs w-full min-w-[640px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">#</TableHead>
-              <TableHead>Unit</TableHead>
+              <TableHead className="w-8">#</TableHead>
+              <TableHead className="min-w-[120px] sticky left-0 bg-card z-10">Unit</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">m² GBO</TableHead>
+              <TableHead className="text-right">m²</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
-              <TableHead className="text-right">Markthuur</TableHead>
-              {perComp && <TableHead className="text-right">OVB-%</TableHead>}
-              {perComp && <TableHead className="text-right">OVB-bedrag</TableHead>}
+              <TableHead className="text-right hidden md:table-cell">Markthuur</TableHead>
+              {perComp && <TableHead className="text-right hidden lg:table-cell">OVB-%</TableHead>}
+              {perComp && <TableHead className="text-right">OVB</TableHead>}
               <TableHead>Status</TableHead>
-              <TableHead className="w-10" />
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
