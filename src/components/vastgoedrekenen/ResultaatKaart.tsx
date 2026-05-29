@@ -7,7 +7,7 @@ import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
  * Toont het belangrijkste in één oogopslag — variant per scenario-type.
  */
-export default function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scenario; compact?: boolean }) {
+function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scenario; compact?: boolean }) {
   const deal = DEAL_BADGE[o.dealScore];
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
