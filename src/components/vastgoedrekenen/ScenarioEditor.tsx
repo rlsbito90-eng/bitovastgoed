@@ -47,6 +47,8 @@ import {
   CHAPTERS,
   ALL_SUB_SECTION_KEYS,
   chapterNumber,
+  subNumber,
+  SUB_SECTION_TITLES,
   buildStrategieOpenState,
   buildUniformOpenState,
   type SubSectionKey,
