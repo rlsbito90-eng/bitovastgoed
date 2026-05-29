@@ -66,49 +66,52 @@ export function Section({
       ? 'border-amber-500/50'
       : tone === 'primary' || relevance === 'leidend'
       ? 'border-primary/40'
-      : '';
+      : 'border-border/70';
   return (
-    <div id={id} className={`rounded-lg border bg-card overflow-hidden ${borderCls}`}>
+    <div
+      id={id}
+      className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
+    >
       <button
         type="button"
         onClick={toggle}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
+        className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-left min-w-0 ${open ? 'bg-accent/[0.04]' : 'hover:bg-muted/40'}`}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <ChevronRight
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
+            className={`h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${open ? 'rotate-90 text-accent' : ''}`}
           />
           {numberLabel && (
-            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground bg-muted/50 border border-border rounded px-1.5 py-0.5">
+            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/80 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none">
               {numberLabel}
             </span>
           )}
-          <span className="font-medium text-sm break-words min-w-0">{title}</span>
+          <span className="font-semibold text-[13.5px] text-foreground break-words min-w-0 tracking-[-0.005em]">{title}</span>
           {relevance && (
-
             <span
-              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${RELEVANCE_CLS[relevance]}`}
+              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-medium ${RELEVANCE_CLS[relevance]}`}
             >
               {relevance === 'aandacht' && <AlertTriangle className="h-3 w-3" />}
               {RELEVANCE_LABEL[relevance]}
             </span>
           )}
           {source && (
-            <span className="hidden md:inline text-[10px] text-muted-foreground break-words">
-              Bron: {source}
+            <span className="hidden md:inline text-[10px] text-muted-foreground/70 break-words">
+              · {source}
             </span>
           )}
         </div>
         {status && (
-          <span className="text-xs text-muted-foreground text-right shrink-0 max-w-[55%] sm:max-w-[60%] leading-snug whitespace-normal break-words">
+          <span className="text-[11.5px] text-muted-foreground text-right shrink-0 max-w-[55%] sm:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums">
             {status}
           </span>
         )}
       </button>
-      {open && <div className="px-4 pb-4 pt-1 border-t bg-card">{children}</div>}
+      {open && <div className="px-4 pb-4 pt-2 border-t border-border/50 bg-card">{children}</div>}
     </div>
   );
 }
+
 
 
 /**
