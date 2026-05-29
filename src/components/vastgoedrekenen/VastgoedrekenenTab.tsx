@@ -35,7 +35,7 @@ function MobileFieldGroup({ label, children, className }: { label: ReactNode; ch
 }
 
 
-function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType }: {
+function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType, objectVraagprijs }: {
   calculationId: string;
   taxSettings: ReturnType<typeof useTaxSettings>['settings'];
   objectArea: number | null;
@@ -44,7 +44,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   objectBouwjaar?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
 }) {
+
 
   const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
