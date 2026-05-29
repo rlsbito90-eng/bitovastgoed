@@ -4,7 +4,7 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtEurCompact, DEAL_BADGE } from '../format';
+import { fmtEur, DEAL_BADGE } from '../format';
 import { toast } from 'sonner';
 
 type Props = {
