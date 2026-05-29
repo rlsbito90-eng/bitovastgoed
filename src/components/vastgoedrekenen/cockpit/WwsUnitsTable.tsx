@@ -36,7 +36,7 @@ type Props = {
   toggleSelect: (id: string) => void;
   updateWwsUnit: (id: string, patch: Partial<WwsUnit>) => Promise<void> | void;
   deleteWwsUnit: (id: string) => Promise<void> | void;
-  recomputeWwsUnit: (id: string) => Promise<void> | void;
+  recomputeWwsUnit: (id: string) => unknown;
 };
 
 export default function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerPoint, selectedIds, toggleSelect, updateWwsUnit, deleteWwsUnit, recomputeWwsUnit }: Props) {
