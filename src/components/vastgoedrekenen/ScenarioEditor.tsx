@@ -30,6 +30,8 @@ import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRa
 import ComponentStrategyTable from './ComponentStrategyTable';
 import ComponentenTable from './cockpit/ComponentenTable';
 import WwsUnitsTable from './cockpit/WwsUnitsTable';
+import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
+import AuditSidePanel from './cockpit/AuditSidePanel';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
@@ -848,6 +850,20 @@ export default function ScenarioEditor(props: Props) {
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
             <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
+
+            {/* 4D: Investerings-waterfall — pure SVG, geen rekenlogica */}
+            <Section
+              id="sec-waterfall"
+              title="Investerings-waterfall"
+              status={outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge'}
+              defaultOpen={false}
+              source="Berekening"
+              relevance="informatief"
+            >
+              <div className="pt-3">
+                <InvesteringsWaterfall scenario={s} outputs={outputs} />
+              </div>
+            </Section>
 
 
             {/* 2. Aankoop & investering */}
