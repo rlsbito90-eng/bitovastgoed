@@ -894,8 +894,15 @@ export default function ScenarioEditor(props: Props) {
               <SectionRail items={railItems} />
               <div className="space-y-3 min-w-0">
 
+            {/* Accordion-toolbar: snel alle secties open/dicht of strategie-focus. */}
+            <AccordionToolbar
+              onExpandAll={() => setOpenSections(buildUniformOpenState(true))}
+              onCollapseAll={() => setOpenSections(buildUniformOpenState(false))}
+              onStrategieView={() => setOpenSections(buildStrategieOpenState())}
+            />
+
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
-            <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
+            <SectionGroup step={num('cockpit')} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
 
             {/* 4D: Investerings-waterfall — pure SVG, geen rekenlogica */}
@@ -903,7 +910,7 @@ export default function ScenarioEditor(props: Props) {
               id="sec-waterfall"
               title="Investerings-waterfall"
               status={outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge'}
-              defaultOpen={false}
+              {...sectionProps('sec-waterfall')}
               source="Berekening"
               relevance="informatief"
             >
@@ -911,6 +918,7 @@ export default function ScenarioEditor(props: Props) {
                 <InvesteringsWaterfall scenario={s} outputs={outputs} />
               </div>
             </Section>
+
 
 
             {/* 2. Aankoop & investering */}
