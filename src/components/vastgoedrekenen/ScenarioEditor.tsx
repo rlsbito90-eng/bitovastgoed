@@ -40,7 +40,7 @@ import AuditDialog from './audit/AuditDialog';
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
-import { buildScenarioSavePatch } from '@/lib/vastgoedrekenen/saveGuards';
+import { buildScenarioSavePatch, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
 
 
 type Props = {
@@ -53,7 +53,7 @@ type Props = {
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
-  onUpdate: (id: string, patch: Partial<Scenario>) => Promise<void>;
+  onUpdate: (id: string, patch: GuardedScenarioPatch) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 };
 
