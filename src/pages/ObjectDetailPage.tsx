@@ -72,7 +72,7 @@ import ObjectPdfButton from '@/components/pdf/ObjectPdfButton';
 
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
-import VastgoedrekenenTab from '@/components/vastgoedrekenen/VastgoedrekenenTab';
+const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/VastgoedrekenenTab'));
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
 import { buildMapsUrl } from '@/lib/maps';
