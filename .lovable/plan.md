@@ -1,80 +1,110 @@
-## Doel
+# Plan: Mobiele UX & Dataveiligheid app-breed
 
-Vastgoedrekenen herstructureren naar een rustige, premium "underwriting cockpit" volgens Concept 1 (Premium Deal Cockpit) + Concept 2 (Analyst Workspace tabellen). Geen rekenlogica wijzigen, alle 165 tests groen houden.
+Grote, app-brede UX-ronde. Geen rekenlogica of businesslogica wijzigen. Focus op het veilig maken van mobiel bewerken en het beschermen van bestaande data tegen ongewenst overschrijven.
 
-## Aanpak in volgorde
+## Aanpak in 5 fases
 
-### 1. Centrale sectieconfiguratie (lost #3 nummering + #5 bedieningsstructuur op)
-Nieuwe module `src/components/vastgoedrekenen/cockpit/sectionConfig.ts`:
-- Eén `SectionKey` union (`cockpit`, `aankoop`, `componenten`, `componentstrategie`, `opbrengsten`, `bouwkosten`, `wws`, `waterfall`, `onderbouwing`).
-- Vaste volgorde + labels + relevantie-functie per strategie/spoor.
-- `numberSections(visibleKeys)` levert dynamische `01..NN` op basis van daadwerkelijk gerenderde keys — geen hardcoded nummers meer.
-- Strategie-presets: `verkoop`, `huur_bar`, `componentstrategie` → set van keys die "Strategie-view" open zet.
+### Fase 1 — Infrastructuur (nieuwe helpers/hooks)
 
-### 2. Hoofdstuk- vs. accordion-hiërarchie (lost #2 op)
-- Nieuwe `ChapterHeader` component: grote uppercase titel met nummer (`01 — SCENARIO-COCKPIT`), navy accent, subtiele divider, ruime top-spacing. Niet klikbaar.
-- Bestaande `Section` blijft de accordion-card (witte card, border, radius, statuschip + samenvatting rechts), maar krijgt geen eigen nummer meer — nummer komt uit `ChapterHeader` erboven.
-- Groepering: één `ChapterHeader` per hoofdstuk, daaronder 1+ `Section`-cards waar zinvol. Voor hoofdstukken met één card vervalt de accordion-wrapper niet, maar de visuele scheiding komt van de header.
+Nieuwe bestanden:
+- `src/hooks/useIsTouch.tsx` — detecteert touch-only devices via `(hover: none) and (pointer: coarse)` media query. Aparter dan `useIsMobile` (die alleen op breedte kijkt) zodat ook tablets in touch-mode correct gedetecteerd worden.
+- `src/hooks/useDirtyGuard.tsx` — centrale dirty-state hook:
+  - `markDirty()` / `markClean()`
+  - `confirmDiscard(): Promise<boolean>` — toont native `confirm()` dialog met NL tekst "Je hebt niet-opgeslagen wijzigingen. Wil je deze verwerpen?"
+  - `beforeunload`-listener voor browser refresh/close
+- `src/hooks/useTapVsScroll.tsx` — geeft `onTouchStart/onTouchMove/onTouchEnd` handlers terug die een callback alleen vuren als er een echte tap is (movement < 10px, duur < 500ms). Voorkomt dat scrollen een card opent.
 
-### 3. Accordion-bediening (lost #5 + #9 op)
-- Boven de hoofdcontent een compacte toolbar: `Alles uitklappen` / `Alles inklappen` / `Strategie-view` (split-button met huidige strategie als label).
-- `ScenarioEditor` krijgt `openSections: Record<SectionKey, boolean>` state; bestaande per-sectie open/dicht-logica blijft als initial state.
-- `Strategie-view` past preset uit sectionConfig toe; aandacht/blocker secties blijven altijd open.
-- Waterfall opgenomen in deze bediening; standaard open bij verkoop/exit + strategie-view.
+### Fase 2 — App-breed: select-on-focus uitschakelen op touch
 
-### 4. Sticky werkstroomrail echt fixen (lost #6 op)
-- Audit parent chain (`ObjectDetailPage`, `VastgoedrekenenTab`, tab-container) op `overflow-hidden`, `transform`, vaste height — root cause is meestal een `overflow-x-hidden` op een tussenliggende wrapper.
-- Layout in `ScenarioEditor` herzien: rail in eigen grid-kolom met `position: sticky; top: 88px; align-self: start;` op het direct kind van de grid. Geen `h-full` parents.
-- Interne scroll op rail blijft (`max-h-[calc(100vh-104px)] overflow-y-auto`).
+Bestanden te patchen:
+- `src/components/vastgoedrekenen/RawInputs.tsx` — `RawNumberInput`/`RawTextInput`: in de `onFocus` handler `e.target.select()` overslaan als touch-device.
+- `src/components/ui/input.tsx` — geen auto-select aanwezig, maar voor de zekerheid wrapper-comment. (geen wijziging nodig tenzij we het centraal willen toevoegen).
+- Eventueel `src/components/vastgoedrekenen/cockpit/ValueField.tsx` als die select-on-focus heeft.
 
-### 5. Hernoeming + structuurfix (lost #4 op)
-- "Kosten & OVB" / "Kosten & bouwkosten" → **"Bouw-/renovatiekosten"**. OVB-velden + ovb-mode blijven exclusief in hoofdstuk "Aankoop & uitgangspunten".
-- Sectie-key/label hernoemen in `sectionConfig`, alle referenties (rail, header, anchors) volgen automatisch.
+### Fase 3 — Dirty-state bescherming op modals/drawers
 
-### 6. Statuschips uniformeren (lost #7 op)
-- Centrale `chipLabel(kind)` helper met set: `OK | LET OP | INFO | NVT | INCOMPLEET | HANDMATIG`.
-- Bestaande lange labels ("WWS indicatief — niet alle velden compleet", "OVB-grondslag ontbreekt", "Niet compleet") vervangen door korte chip + lange uitleg naar `title`/tooltip of detail-drawer.
+Componenten met `Sheet`/`Dialog`/`Drawer` die bestaande data bewerken:
+- `src/components/vastgoedrekenen/cockpit/ComponentenTable.tsx` (Sheet)
+- `src/components/forms/ObjectFormDialog.tsx`
+- `src/components/forms/RelatieFormDialog.tsx`
+- `src/components/forms/DealFormDialog.tsx`
+- `src/components/forms/ContactMomentFormDialog.tsx`
+- `src/components/forms/TaakFormDialog.tsx`
+- `src/components/forms/ZoekprofielFormDialog.tsx`
+- `src/components/forms/ReferentieObjectFormDialog.tsx`
+- `src/components/forms/AcquisitieTargetFormDialog.tsx`
+- `src/components/forms/AcquisitieCampagneFormDialog.tsx`
+- `src/components/biedingen/OfferFormDialog.tsx`
 
-### 7. Tabellen consistent maken (lost #8 op)
-- `ComponentenTable` is referentie. `WwsUnitsTable` en `ComponentStrategyTable` krijgen:
-  - zelfde rijhoogtes (`text-xs`, `[&_th]:px-2 [&_td]:px-2`),
-  - zelfde sticky unit-kolom (`sticky left-0 bg-card`),
-  - zelfde totalenrij-stijl (`bg-muted/60 font-semibold border-t-2`, totals onder juiste kolommen),
-  - zelfde chip-set (#6).
+Patroon per dialog:
+1. Hou `baselineRef` bij van originele waarden bij open
+2. `isDirty = !shallowEqual(form, baseline)`
+3. `onOpenChange(false)` → als dirty, eerst `confirmDiscard()`; zo nee, sluiten reset naar baseline
+4. Duidelijke "Annuleren" knop = baseline herstellen + sluiten; "Opslaan" = bestaande save flow
 
-### 8. Audit-summary compacter (lost #10 op)
-- `AuditSidePanel`: "Gebruikte bronnen" → strakke key-value rij (`grid grid-cols-[1fr_auto]` met dunne dividers), kleinere `gap-1`. Top aandachtspunten ongewijzigd qua prominentie.
+### Fase 4 — Mobiel: tap vs scroll + read-only preview
 
-### 9. Notitieveld vergroten (lost #11 op)
-- `RawTextarea` voor scenario-notities: `rows={7}`, `min-h-[200px]`, full-width binnen card, `leading-relaxed`.
+Risicovolle tabellen waar een row-click direct in edit-mode opent:
+- `src/components/vastgoedrekenen/cockpit/ComponentenTable.tsx` — rij `onClick` → `useTapVsScroll`. Op mobiel: drawer opent in **read-only mode** met "Bewerken"-knop bovenin. Op desktop: huidig gedrag (direct bewerkbaar).
+- `src/components/vastgoedrekenen/cockpit/WwsUnitsTable.tsx` — zelfde patroon
+- `src/components/vastgoedrekenen/ComponentStrategyTable.tsx` — zelfde patroon
+- `src/components/object/HuurdersPanel.tsx` — read-only-first op mobiel
+- `src/components/relatie/ContactpersonenPanel.tsx` — read-only-first op mobiel
 
-### 10. Bito-huisstijl gerichter (lost #12 op)
-- `ChapterHeader` gebruikt navy tekst + dunne gouden accent-lijn.
-- Cockpit-header behoudt huidige tokens.
-- Statuschips: groen alleen voor `OK`, amber voor `LET OP`, neutraal grijs voor `INFO/NVT`, destructive voor `INCOMPLEET (blocker)`. Geen extra kleur op rustige inhoud.
+Patroon in drawer:
+```tsx
+const [editMode, setEditMode] = useState(!isTouch);
+// Velden disabled={!editMode}
+// Op mobiel: <Button onClick={() => setEditMode(true)}>Bewerken</Button>
+```
 
-## Bestanden (toevoegen)
-- `src/components/vastgoedrekenen/cockpit/sectionConfig.ts`
-- `src/components/vastgoedrekenen/cockpit/ChapterHeader.tsx`
-- `src/components/vastgoedrekenen/cockpit/AccordionToolbar.tsx`
-- `src/components/vastgoedrekenen/cockpit/statusChips.ts`
+### Fase 5 — Verificatie
 
-## Bestanden (wijzigen)
-- `src/components/vastgoedrekenen/ScenarioEditor.tsx` (hoofdstuk-wrapping, toolbar, controlled open-state, sticky grid)
-- `src/components/vastgoedrekenen/Section.tsx` (controlled `open`-prop accepteren, nummer-prop optioneel, geen eigen telling)
-- `src/components/vastgoedrekenen/cockpit/SectionRail.tsx` (sectie-keys uit sectionConfig)
-- `src/components/vastgoedrekenen/cockpit/AuditSidePanel.tsx` (compact bronnen)
-- `src/components/vastgoedrekenen/cockpit/WwsUnitsTable.tsx`, `ComponentStrategyTable.tsx` (chip-set + sticky kolom + totals)
-- `src/components/vastgoedrekenen/cockpit/InvesteringsWaterfall.tsx` (header-tekst uitgebreid)
-- `src/components/vastgoedrekenen/VastgoedrekenenTab.tsx` + `src/pages/ObjectDetailPage.tsx` (parent overflow/sticky audit)
+- `bunx vitest run` — alle 165 tests groen
+- Spot-check `useDirtyGuard` met een mini-test
+- Visuele check niet nodig in CI
 
-## Niet doen
-- Geen wijzigingen aan `compute.ts`, `wws.ts`, `investering.ts`, `verkoop.ts`, `huur.ts`, `ovb.ts`, `componentStrategy.ts`, `bieding.ts`, `scores.ts`, `validation.ts`, `saveGuards.ts`.
-- Geen DB-migraties.
-- Geen nieuwe features buiten bovenstaande UX-scope.
+## Buiten scope
 
-## Tests
-- Alle bestaande 165 tests moeten groen blijven.
-- Smoke-check: rendering ScenarioEditor met de bestaande golden fixtures (verkoop / huur / componentstrategie) — geen prop-API-breuk voor `onUpdate`/`onDelete`.
+- Geen wijzigingen in `compute.ts`, `financialCalc.ts`, derivations, of audit-logica
+- Geen wijzigingen in DB-schema of save-guards
+- Inline-edit op desktop blijft ongewijzigd
+- Mobile-first redesign van forms zelf (alleen het bescherm-laagje)
 
-Akkoord? Dan voer ik dit in één implementatieronde uit en bevestig met test-output.
+## Technische details
+
+`useIsTouch`:
+```ts
+export function useIsTouch() {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(hover: none) and (pointer: coarse)');
+    setTouch(mql.matches);
+    const h = (e: MediaQueryListEvent) => setTouch(e.matches);
+    mql.addEventListener('change', h);
+    return () => mql.removeEventListener('change', h);
+  }, []);
+  return touch;
+}
+```
+
+`useTapVsScroll`:
+```ts
+const start = useRef<{x:number;y:number;t:number}|null>(null);
+const onTouchStart = (e) => { const t = e.touches[0]; start.current = {x:t.clientX,y:t.clientY,t:Date.now()}; };
+const onTouchEnd = (e) => {
+  const s = start.current; if (!s) return;
+  const t = e.changedTouches[0];
+  const dx = Math.abs(t.clientX - s.x), dy = Math.abs(t.clientY - s.y);
+  if (dx < 10 && dy < 10 && Date.now() - s.t < 500) onTap();
+};
+```
+
+Dirty-guard gebruikt `window.confirm()` voor minimale dependency-impact (geen extra dialog-state in elke parent).
+
+## Impact
+
+- Nieuwe bestanden: 3 hooks
+- Gewijzigde bestanden: ~12 (form-dialogs + 5 tabellen + RawInputs)
+- Geen migraties, geen schema-wijzigingen
+- Verwachte tijdsbesteding: 1 ronde
