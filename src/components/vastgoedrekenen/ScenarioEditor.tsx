@@ -1619,7 +1619,7 @@ export default function ScenarioEditor(props: Props) {
 
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
+            <SectionGroup step={num('onderbouwing')} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
 
             {/* 4D: Audit-zijpaneel — compacte samenvatting + bronnen */}
             <AuditSidePanel
