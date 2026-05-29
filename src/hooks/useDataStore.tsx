@@ -869,7 +869,7 @@ interface DataStore {
 
   // Objecten
   addObject: (o: Omit<ObjectVastgoed, 'id'>) => Promise<ObjectVastgoed | null>;
-  updateObject: (id: string, o: Partial<ObjectVastgoed>) => Promise<void>;
+  updateObject: (id: string, o: GuardedObjectPatch) => Promise<void>;
   deleteObject: (id: string) => Promise<void>;
   archiveObject: (id: string, reason?: string, note?: string) => Promise<void>;
   unarchiveObject: (id: string) => Promise<void>;
@@ -1146,8 +1146,13 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     return nieuw;
   }, []);
 
-  const updateObject = useCallback(async (id: string, o: Partial<ObjectVastgoed>) => {
-    const payload: Partial<ObjectVastgoed> = { ...o };
+  const updateObject = useCallback(async (id: string, o: GuardedObjectPatch) => {
+    const current = objecten.find((x) => x.id === id);
+    const payload: Partial<ObjectVastgoed> = guardObjectPatch({ ...o }, current, (field) => {
+      const msg = `Waarschuwing: poging om ${String(field)} te wissen zonder expliciete leegmaakactie.`;
+      console.warn(msg);
+      toast.warning(msg);
+    });
     // Auto-archief: bij status verkocht/ingetrokken automatisch archiveren
     if (o.status === 'verkocht' || o.status === 'ingetrokken' || o.status === 'afgevallen') {
       if (payload.isArchived === undefined) payload.isArchived = true;
@@ -1163,7 +1168,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.from('objecten').update(objectToDb(payload) as any).eq('id', id).select().single();
     throwIfError(error);
     setObjecten(prev => prev.map(x => x.id === id ? objectFromDb(data) : x));
-  }, []);
+  }, [objecten]);
 
   const archiveObject = useCallback(async (id: string, reason?: string, note?: string) => {
     const { data, error } = await supabase.from('objecten').update({
