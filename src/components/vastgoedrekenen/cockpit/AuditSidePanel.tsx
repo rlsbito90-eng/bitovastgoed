@@ -82,23 +82,24 @@ export default function AuditSidePanel({
         </div>
       )}
 
-      {/* Bronverdeling */}
+      {/* Bronverdeling — compacte chip-rij */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
           Gebruikte bronnen
         </p>
         {totalSources === 0 ? (
           <p className="text-xs text-muted-foreground">Nog geen bronnen geregistreerd.</p>
         ) : (
-          <ul className="text-xs space-y-1">
-            <SourceRow label="Componenten" count={sources.componenten} />
-            <SourceRow label="Strategie" count={sources.strategie} />
-            <SourceRow label="WWS-units" count={sources.wws} />
-            <SourceRow label="Handmatig" count={sources.handmatig} />
-            <SourceRow label="Scenario-level" count={sources.scenario} />
-          </ul>
+          <div className="flex flex-wrap gap-1.5">
+            <SourceChip label="Componenten" count={sources.componenten} />
+            <SourceChip label="Strategie" count={sources.strategie} />
+            <SourceChip label="WWS" count={sources.wws} />
+            <SourceChip label="Handmatig" count={sources.handmatig} />
+            <SourceChip label="Scenario" count={sources.scenario} />
+          </div>
         )}
       </div>
+
 
       {/* Betrouwbaarheid */}
       <ValueField
