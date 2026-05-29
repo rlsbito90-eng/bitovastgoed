@@ -9,6 +9,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { guardObjectPatch, type GuardedObjectPatch } from '@/lib/dataIntegrity/objectPayload';
+import { toast } from 'sonner';
 import type {
   Relatie,
   RelatieContactpersoon,
