@@ -120,10 +120,10 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
                 </TableRow>
               );
             })}
-            <TableRow className="bg-muted/40 font-medium">
+            <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell />
-              <TableCell className="break-words whitespace-normal" colSpan={2}>
+              <TableCell className="break-words whitespace-normal">
                 Totaal {wwsUnits.length} woonunits{warnings > 0 ? ` · ${warnings} aandacht` : ''}
               </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
@@ -132,6 +132,7 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
               <TableCell colSpan={4} />
             </TableRow>
+
           </TableBody>
         </Table>
       </div>
