@@ -30,6 +30,8 @@ import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRa
 import ComponentStrategyTable from './ComponentStrategyTable';
 import ComponentenTable from './cockpit/ComponentenTable';
 import WwsUnitsTable from './cockpit/WwsUnitsTable';
+import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
+import AuditSidePanel from './cockpit/AuditSidePanel';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
@@ -849,6 +851,20 @@ export default function ScenarioEditor(props: Props) {
             <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
 
+            {/* 4D: Investerings-waterfall — pure SVG, geen rekenlogica */}
+            <Section
+              id="sec-waterfall"
+              title="Investerings-waterfall"
+              status={outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge'}
+              defaultOpen={false}
+              source="Berekening"
+              relevance="informatief"
+            >
+              <div className="pt-3">
+                <InvesteringsWaterfall scenario={s} outputs={outputs} />
+              </div>
+            </Section>
+
 
             {/* 2. Aankoop & investering */}
             <SectionGroup step={2} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
@@ -1540,6 +1556,19 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
             <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
+
+            {/* 4D: Audit-zijpaneel — compacte samenvatting + bronnen */}
+            <AuditSidePanel
+              outputs={outputs}
+              items={nogTeControleren}
+              sources={{
+                componenten: components.length,
+                strategie: sellOffUnits.length,
+                wws: wwsUnits.length,
+                handmatig: manualZeroSet.size,
+                scenario: 1,
+              }}
+            />
             <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
