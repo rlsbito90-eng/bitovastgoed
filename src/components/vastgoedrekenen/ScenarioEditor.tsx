@@ -941,7 +941,9 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
             <SectionGroup step={num('cockpit')} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
-            <ResultaatKaart o={outputs} s={s} compact />
+            <div id="sec-resultaat" className="scroll-mt-24">
+              <ResultaatKaart o={outputs} s={s} compact />
+            </div>
 
             {/* 4D: Investerings-waterfall — pure SVG, geen rekenlogica */}
             <Section
