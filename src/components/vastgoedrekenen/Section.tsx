@@ -50,6 +50,8 @@ export function Section({
   source?: string;
   /** Rol van de sectie binnen het huidige scenario. */
   relevance?: SectionRelevance;
+  /** Subnummer (bv. "03.2") subtiel getoond vóór de titel. */
+  numberLabel?: string;
 }) {
   const [innerOpen, setInnerOpen] = useState(!!defaultOpen);
   const isControlled = openProp !== undefined;
