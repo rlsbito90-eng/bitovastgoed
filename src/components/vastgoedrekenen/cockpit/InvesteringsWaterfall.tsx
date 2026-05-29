@@ -18,7 +18,7 @@ type Step = {
   tone: 'base' | 'cost' | 'result' | 'positive' | 'negative';
 };
 
-export default function InvesteringsWaterfall({
+function InvesteringsWaterfall({
   scenario,
   outputs,
 }: {
@@ -200,3 +200,6 @@ export default function InvesteringsWaterfall({
     </div>
   );
 }
+
+
+export default memo(InvesteringsWaterfall);

@@ -17,7 +17,7 @@ type SourceCounts = {
   scenario: number;
 };
 
-export default function AuditSidePanel({
+function AuditSidePanel({
   outputs,
   items,
   sources,
@@ -135,3 +135,6 @@ function SourceRow({ label, count }: { label: string; count: number }) {
 }
 
 
+
+
+export default memo(AuditSidePanel);

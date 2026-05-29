@@ -1,7 +1,7 @@
 // Compacte componententabel met detail-drawer (sub-fase 4C).
 // Gebruikt bestaande update/delete-handlers — geen rekenlogica.
 // Mobiele UX: tap-vs-scroll (geen open bij scrollen), read-only-first met "Bewerken"-knop.
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ type Props = {
 };
 
 
-export default function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent }: Props) {
+function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const isTouch = useIsTouch();
   // Op touch starten we read-only; op desktop direct bewerkbaar.
@@ -234,3 +234,6 @@ function ComponentRow({ c, idx, perComp, diag, onOpen, onDelete }: {
     </TableRow>
   );
 }
+
+
+export default memo(ComponentenTable);
