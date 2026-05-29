@@ -450,7 +450,7 @@
 
   /* Page shells */
   .page-shell-narrow { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1000px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
-  .page-shell-detail { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1440px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
+  .page-shell-detail { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-8 lg:py-10 xl:px-10 max-w-[1440px] xl:max-w-[1680px] 2xl:max-w-[1880px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
   .page-shell        { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1320px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
   .page-shell-wide   { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1480px] mx-auto space-y-3 sm:space-y-5 lg:space-y-6 fade-in overflow-x-clip; }
   .page-shell-full   { @apply px-3 py-4 sm:px-8 sm:py-6 lg:px-10 lg:py-10 max-w-[1640px] mx-auto space-y-3 sm:space-y-6 lg:space-y-8 fade-in overflow-x-clip; }
