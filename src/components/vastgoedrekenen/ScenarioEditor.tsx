@@ -68,10 +68,12 @@ type Props = {
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
   onUpdate: (id: string, patch: GuardedScenarioPatch) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 };
+
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
 
