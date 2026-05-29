@@ -250,3 +250,6 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
     </Card>
   );
 }
+
+
+export default memo(ResultaatKaart);
