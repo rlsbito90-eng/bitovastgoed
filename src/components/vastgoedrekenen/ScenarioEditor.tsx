@@ -164,6 +164,12 @@ export default function ScenarioEditor(props: Props) {
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
+  // Controlled open-state per sub-sectie. Wordt geïnitialiseerd uit
+  // de bestaande defaultOpen-heuristieken bij scenario-load.
+  const [openSections, setOpenSections] = useState<Record<SubSectionKey, boolean>>(() => buildUniformOpenState(false));
+  const openInitRef = useRef<string | null>(null);
+
+
   // Baseline = laatst opgeslagen / geladen scenario. Wordt gebruikt om te bepalen
   // of het formulier dirty is na een commit (zo wordt revert naar origineel ook gedetecteerd).
   const baselineRef = useRef<Scenario>(scenario);
