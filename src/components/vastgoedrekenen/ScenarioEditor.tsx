@@ -1868,6 +1868,8 @@ export default function ScenarioEditor(props: Props) {
                 <RawTextarea initialValue={s.notes ?? ''} onRawChange={markDirtyFromRaw} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
               </div>
             </Section>
+              </div>
+            </div>
           </div>
         );
       })()}
