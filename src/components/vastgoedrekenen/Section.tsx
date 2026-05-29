@@ -75,18 +75,22 @@ export function Section({
       <button
         type="button"
         onClick={toggle}
-        className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-left min-w-0 ${open ? 'bg-accent/[0.04]' : 'hover:bg-muted/40'}`}
+        className={`w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 transition-colors text-left min-w-0 ${open ? 'bg-accent/[0.04]' : 'hover:bg-muted/40'}`}
       >
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-start sm:items-center gap-2 sm:gap-2.5 min-w-0 flex-1 w-full">
           <ChevronRight
-            className={`h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${open ? 'rotate-90 text-accent' : ''}`}
+            className={`h-4 w-4 mt-0.5 sm:mt-0 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${open ? 'rotate-90 text-accent' : ''}`}
           />
           {numberLabel && (
-            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/80 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none">
+            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/80 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none mt-0.5 sm:mt-0">
               {numberLabel}
             </span>
           )}
-          <span className="font-semibold text-[13.5px] text-foreground break-words min-w-0 tracking-[-0.005em]">{title}</span>
+          <span
+            className="font-semibold text-[13.5px] text-foreground min-w-0 flex-1 tracking-[-0.005em] leading-snug [overflow-wrap:normal] [word-break:normal] hyphens-none line-clamp-2 sm:line-clamp-none sm:break-words"
+          >
+            {title}
+          </span>
           {relevance && (
             <span
               className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-medium ${RELEVANCE_CLS[relevance]}`}
@@ -102,12 +106,12 @@ export function Section({
           )}
         </div>
         {status && (
-          <span className="text-[11.5px] text-muted-foreground text-right shrink-0 max-w-[55%] sm:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums">
+          <span className="text-[11px] sm:text-[11.5px] text-muted-foreground sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[55%] md:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums pl-6 sm:pl-0">
             {status}
           </span>
         )}
       </button>
-      {open && <div className="px-4 pb-4 pt-2 border-t border-border/50 bg-card">{children}</div>}
+      {open && <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-2 border-t border-border/50 bg-card">{children}</div>}
     </div>
   );
 }
