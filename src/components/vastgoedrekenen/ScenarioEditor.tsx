@@ -745,31 +745,98 @@ export default function ScenarioEditor(props: Props) {
 
         return (
           <div className="space-y-3">
-            {/* Prominente leidende-spoor selector — direct boven het resultaat zichtbaar */}
+            {/* Scenario-cockpit: rekenspoor-indicator + leidende-spoor selector — direct boven het resultaat */}
             {(() => {
               const sr = s as unknown as Record<string, unknown>;
               const trackChoice = (sr.leading_valuation_track as string | null) ?? 'auto';
               const strategyActive = sellOffUnits.length > 0;
+              const saleStrategyRaw = (sr.sale_strategy as string | null) ?? 'geen_verkoop';
+              const scenarioExitActive = saleStrategyRaw !== 'geen_verkoop';
+
+              // Rekenspoor (A scenario-level / B componentgedreven / C hybride).
+              // Heuristiek puur visueel — geen rekenlogica.
+              const sellStrats = new Set(['verkopen_leeg', 'verkopen_verhuurd', 'renoveren_verkopen', 'splitsen_verkopen', 'transformeren_verkopen']);
+              const holdStrats = new Set(['aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden']);
+              let hasSell = false, hasHold = false;
+              for (const u of sellOffUnits) {
+                const st = String((u as unknown as Record<string, unknown>).strategy ?? '');
+                if (sellStrats.has(st)) hasSell = true;
+                if (holdStrats.has(st)) hasHold = true;
+              }
+              const trackMode: 'scenario' | 'component' | 'hybride' =
+                !strategyActive ? 'scenario' : (hasSell && hasHold) ? 'hybride' : 'component';
+              const trackModeLabel = trackMode === 'scenario'
+                ? 'Scenario-level rekenen'
+                : trackMode === 'hybride' ? 'Hybride (sell + hold)' : 'Componentgedreven';
+              const trackModeHint = trackMode === 'scenario'
+                ? 'Geen componentstrategie ingericht — uitkomst komt uit scenario-velden (huur/BAR of verkoop/exit).'
+                : trackMode === 'hybride'
+                  ? 'Sommige units worden verkocht, andere aangehouden — componentstrategie is meestal leidend.'
+                  : 'Units worden uniform behandeld — componentstrategie kan leidend zijn.';
+              const trackModeCls = trackMode === 'scenario'
+                ? 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200'
+                : trackMode === 'hybride'
+                  ? 'bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/30 dark:text-violet-200'
+                  : 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-200';
+
+              const conflictUnresolved = trackChoice === 'auto' && strategyActive && scenarioExitActive;
+              const containerCls = conflictUnresolved
+                ? 'rounded-md border-2 border-amber-500/70 bg-amber-500/10 p-3 space-y-2'
+                : 'rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2';
+
               return (
-                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-foreground">Scenario-uitkomst gebaseerd op:</span>
-                  <Select
-                    value={trackChoice}
-                    onValueChange={(v) => patch({ leading_valuation_track: v } as unknown as Partial<Scenario>)}
-                  >
-                    <SelectTrigger className="h-7 w-auto min-w-[240px] text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
-                      <SelectItem value="huur_bar">Huur / BAR</SelectItem>
-                      <SelectItem value="scenario_exit">Scenario-level verkoop / exit</SelectItem>
-                      <SelectItem value="componentstrategie" disabled={!strategyActive}>
-                        Componentstrategie (per unit){!strategyActive ? ' — geen units' : ''}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-[11px] text-muted-foreground">
-                    Huidig leidend: <span className="text-foreground font-medium">{outputs.leadingMaxBasisLabel}</span>
-                  </span>
+                <div className={containerCls}>
+                  {/* Regel 1: rekenspoor-indicator */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Rekenspoor</span>
+                    <span className={`px-2 py-0.5 rounded-full border ${trackModeCls}`}>{trackModeLabel}</span>
+                    <span className="text-[11px] text-muted-foreground">{trackModeHint}</span>
+                  </div>
+
+                  {/* Regel 2: leidend-spoor selector */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-medium text-foreground">Scenario-uitkomst gebaseerd op:</span>
+                    <Select
+                      value={trackChoice}
+                      onValueChange={(v) => {
+                        patch({ leading_valuation_track: v } as unknown as Partial<Scenario>);
+                        const label = v === 'huur_bar' ? 'Huur / BAR'
+                          : v === 'scenario_exit' ? 'Scenario-level verkoop / exit'
+                          : v === 'componentstrategie' ? 'Componentstrategie'
+                          : 'Automatisch';
+                        toast.success(`Scenario-uitkomst bijgewerkt op basis van ${label}.`);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-auto min-w-[260px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
+                        <SelectItem value="huur_bar">Huur / BAR</SelectItem>
+                        <SelectItem value="scenario_exit" disabled={!scenarioExitActive}>
+                          Scenario-level verkoop / exit{!scenarioExitActive ? ' — geen exit ingevuld' : ''}
+                        </SelectItem>
+                        <SelectItem value="componentstrategie" disabled={!strategyActive}>
+                          Componentstrategie (per unit){!strategyActive ? ' — geen units' : ''}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[11px] text-muted-foreground">
+                      Huidig leidend: <span className="text-foreground font-medium">{outputs.leadingMaxBasisLabel}</span>
+                    </span>
+                  </div>
+
+                  {/* Regel 3 (alleen bij conflict): expliciete keuze vragen */}
+                  {conflictUnresolved && (
+                    <div className="text-[11px] text-amber-900 dark:text-amber-200 leading-snug">
+                      <p className="font-medium mb-1">Kies expliciet welk spoor leidend is</p>
+                      <p>
+                        Zowel scenario-level verkoop/exit ({saleStrategyRaw}) als componentstrategie
+                        ({sellOffUnits.length} unit{sellOffUnits.length === 1 ? '' : 's'}) zijn ingevuld.
+                        De automatische heuristiek kan misleidend zijn — kies hierboven het leidende
+                        spoor, of zet de verkoopstrategie op "Geen verkoop" als componentstrategie
+                        leidend moet zijn.
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })()}
