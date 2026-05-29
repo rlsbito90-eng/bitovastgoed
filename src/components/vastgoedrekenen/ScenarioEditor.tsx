@@ -30,6 +30,8 @@ import ResultaatKaart from './ResultaatKaart';
 import CockpitHeader from './cockpit/CockpitHeader';
 import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRail';
 import ComponentStrategyTable from './ComponentStrategyTable';
+import ComponentenTable from './cockpit/ComponentenTable';
+import WwsUnitsTable from './cockpit/WwsUnitsTable';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
