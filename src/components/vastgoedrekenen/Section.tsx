@@ -34,6 +34,7 @@ export function Section({
   id,
   source,
   relevance,
+  numberLabel,
 }: {
   title: string;
   status?: ReactNode;
@@ -49,6 +50,8 @@ export function Section({
   source?: string;
   /** Rol van de sectie binnen het huidige scenario. */
   relevance?: SectionRelevance;
+  /** Subnummer (bv. "03.2") subtiel getoond vóór de titel. */
+  numberLabel?: string;
 }) {
   const [innerOpen, setInnerOpen] = useState(!!defaultOpen);
   const isControlled = openProp !== undefined;
@@ -75,8 +78,14 @@ export function Section({
           <ChevronRight
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
           />
+          {numberLabel && (
+            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground bg-muted/50 border border-border rounded px-1.5 py-0.5">
+              {numberLabel}
+            </span>
+          )}
           <span className="font-medium text-sm break-words min-w-0">{title}</span>
           {relevance && (
+
             <span
               className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${RELEVANCE_CLS[relevance]}`}
             >
