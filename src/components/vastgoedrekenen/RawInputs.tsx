@@ -7,6 +7,7 @@ import {
   formatNumberForKind,
   type FormatKind,
 } from '@/lib/format/nl';
+import { useIsTouch } from '@/hooks/useIsTouch';
 
 type RawInputProps = {
   initialValue: string;
