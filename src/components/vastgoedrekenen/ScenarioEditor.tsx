@@ -808,6 +808,7 @@ export default function ScenarioEditor(props: Props) {
         const waterfallOpen = scenarioExitActive || strategyActive || leadingBasis !== 'huur';
 
         const defaultOpenMap: Record<SubSectionKey, boolean> = {
+          'sec-resultaat': true,
           'sec-waterfall': waterfallOpen,
           'sec-aankoop': aankoopOpen,
           'sec-huur': huurOpen,
@@ -829,6 +830,7 @@ export default function ScenarioEditor(props: Props) {
           open: openSections[key] ?? defaultOpenMap[key] ?? false,
           onOpenChange: (next: boolean) =>
             setOpenSections((prev) => ({ ...prev, [key]: next })),
+          numberLabel: subNumber(key),
         });
         const num = (key: SectionKey) => chapterNumber(key);
 
@@ -839,18 +841,52 @@ export default function ScenarioEditor(props: Props) {
           if (r === 'aandacht' || extraWarn) return 'aandacht';
           return 'ok';
         };
-        // Rail items in EXACT dezelfde volgorde als de hoofdcontent (sectionConfig).
-        const railItems: RailItem[] = [
-          { id: 'sec-aankoop', step: Number(num('aankoop')), title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
-          { id: 'sec-huur', step: Number(num('opbrengsten')), title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
-          { id: 'sec-verkoop', step: Number(num('opbrengsten')), title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          { id: 'sec-kosten', step: Number(num('bouwkosten')), title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
-          { id: 'sec-componenten', step: Number(num('componenten')), title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
-          { id: 'sec-strategie', step: Number(num('componenten')), title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
-          { id: 'sec-wws', step: Number(num('wws')), title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
-          { id: 'sec-onderbouwing', step: Number(num('onderbouwing')), title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
-          { id: 'sec-score', step: Number(num('onderbouwing')), title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
-        ];
+
+        // Status/hint/count per sub-sectie — gebruikt om de werkstroomrail op te bouwen.
+        const cockpitStatus = `${outputs.assessmentType === 'exploitatie' ? 'Exploitatie' : 'Vraagprijs → marge'} · score ${outputs.scoreLabel}`;
+        const waterfallHint = outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge';
+        const resultaatStatus: RailStatus = blockerCount > 0 ? 'blocker' : (warningCount > 0 ? 'aandacht' : 'ok');
+
+        const subMeta: Record<SubSectionKey, { status: RailStatus; hint?: string; count?: number | null }> = {
+          'sec-resultaat': { status: resultaatStatus, hint: cockpitStatus },
+          'sec-waterfall': { status: 'ok', hint: waterfallHint },
+          'sec-aankoop': { status: 'ok', hint: aankoopStatus },
+          'sec-huur': { status: relToRailStatus(huurRelevance), hint: huurStatus },
+          'sec-verkoop': { status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
+          'sec-kosten': { status: 'ok', hint: kostenStatus },
+          'sec-componenten': { status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
+          'sec-strategie': { status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
+          'sec-wws': { status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          'sec-onderbouwing': { status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
+          'sec-score': { status: 'ok', hint: scoreStatus },
+          'sec-notities': { status: 'ok', hint: notitiesStatus },
+        };
+
+        // Rail items: per hoofdstuk een chapter-header + ingesprongen sub-items.
+        const railItems: RailItem[] = [];
+        for (const ch of CHAPTERS) {
+          railItems.push({
+            id: ch.subs[0] ?? `chapter-${ch.key}`,
+            number: num(ch.key),
+            level: 'chapter',
+            title: ch.title,
+            status: 'ok',
+            hint: ch.hint,
+          });
+          for (const sk of ch.subs) {
+            const meta = subMeta[sk];
+            railItems.push({
+              id: sk,
+              number: subNumber(sk),
+              level: 'sub',
+              title: SUB_SECTION_TITLES[sk],
+              status: meta.status,
+              hint: meta.hint,
+              count: meta.count ?? null,
+            });
+          }
+        }
+
 
 
 
