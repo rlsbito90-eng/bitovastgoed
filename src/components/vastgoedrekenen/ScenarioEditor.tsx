@@ -1747,7 +1747,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 7b. Componentstrategie per scenario */}
-            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
+            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
               <ComponentStrategyTable
                 units={sellOffUnits}
                 components={components}
