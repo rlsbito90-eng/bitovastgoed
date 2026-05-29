@@ -195,11 +195,11 @@ function Kpi({ label, value, compactValue, sub, tone, customValueCls }: { label:
     <div className="bg-card px-3 py-2.5 min-w-0">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
       <p
-        className={`mt-0.5 font-semibold font-mono-data leading-tight whitespace-nowrap tabular-nums text-base xl:text-lg 2xl:text-xl ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
+        className={`mt-0.5 font-semibold font-mono-data leading-tight whitespace-nowrap tabular-nums text-base lg:text-lg ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
         title={value}
       >
-        <span className="hidden 2xl:inline">{value}</span>
-        <span className="2xl:hidden">{compactValue ?? value}</span>
+        <span className="hidden sm:inline">{value}</span>
+        <span className="sm:hidden">{compactValue ?? value}</span>
       </p>
       {sub && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{sub}</p>}
     </div>
