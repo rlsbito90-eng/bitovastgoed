@@ -26,6 +26,8 @@ export function Section({
   title,
   status,
   defaultOpen,
+  open: openProp,
+  onOpenChange,
   hidden,
   children,
   tone,
@@ -36,6 +38,9 @@ export function Section({
   title: string;
   status?: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open-state (optioneel). Wanneer gezet wordt interne state genegeerd. */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
   hidden?: boolean;
   children: ReactNode;
   tone?: 'default' | 'primary';
@@ -45,7 +50,13 @@ export function Section({
   /** Rol van de sectie binnen het huidige scenario. */
   relevance?: SectionRelevance;
 }) {
-  const [open, setOpen] = useState(!!defaultOpen);
+  const [innerOpen, setInnerOpen] = useState(!!defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? !!openProp : innerOpen;
+  const toggle = () => {
+    if (isControlled) onOpenChange?.(!open);
+    else { setInnerOpen((v) => !v); onOpenChange?.(!open); }
+  };
   if (hidden) return null;
   const borderCls =
     relevance === 'aandacht'
@@ -57,7 +68,7 @@ export function Section({
     <div id={id} className={`rounded-lg border bg-card overflow-hidden ${borderCls}`}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -90,6 +101,7 @@ export function Section({
   );
 }
 
+
 /**
  * Visuele groep-heading boven een reeks Sections. Geen wrapper — render
  * direct als sibling tussen Sections, zodat IIFE-blokken niet hoeven te
@@ -104,16 +116,26 @@ export function SectionGroup({
   title: string;
   hint?: string;
 }) {
+  const stepLabel = step != null
+    ? (typeof step === 'number' ? String(step).padStart(2, '0') : step)
+    : null;
   return (
-    <div className="flex items-baseline gap-2 px-1 pt-3 pb-1 border-b border-border/40">
-      {step != null && (
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono-data">
-          {typeof step === 'number' ? String(step).padStart(2, '0') : step}
-        </span>
-      )}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
-      {hint && <span className="text-[11px] text-muted-foreground break-words">— {hint}</span>}
+    <div className="pt-8 pb-2 first:pt-2">
+      <div className="flex items-baseline gap-3 border-b border-primary/30">
+        {stepLabel && (
+          <span className="text-[11px] uppercase tracking-[0.18em] text-primary/80 font-mono-data font-semibold">
+            {stepLabel}
+          </span>
+        )}
+        <h3 className="text-sm sm:text-[15px] font-semibold uppercase tracking-[0.08em] text-foreground pb-1.5 flex-1 min-w-0">
+          {title}
+        </h3>
+        {/* dunne gouden accent-streep onder de divider */}
+      </div>
+      <div className="h-[2px] w-12 bg-accent/70 -mt-px" aria-hidden />
+      {hint && <p className="mt-2 text-xs text-muted-foreground break-words">{hint}</p>}
     </div>
   );
 }
+
 

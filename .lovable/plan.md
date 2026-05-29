@@ -1,75 +1,80 @@
+## Doel
 
-# Fase 4 — Premium Deal Cockpit
+Vastgoedrekenen herstructureren naar een rustige, premium "underwriting cockpit" volgens Concept 1 (Premium Deal Cockpit) + Concept 2 (Analyst Workspace tabellen). Geen rekenlogica wijzigen, alle 165 tests groen houden.
 
-Dit is een grote UI/UX-herindeling van Vastgoedrekenen die ik in **vier veilige sub-fasen** wil uitvoeren. Geen nieuwe rekenlogica; alleen presentatie van bestaande outputs. Alle 160 tests blijven groen tussen elke sub-fase door.
+## Aanpak in volgorde
 
-## Uitgangspunten
+### 1. Centrale sectieconfiguratie (lost #3 nummering + #5 bedieningsstructuur op)
+Nieuwe module `src/components/vastgoedrekenen/cockpit/sectionConfig.ts`:
+- Eén `SectionKey` union (`cockpit`, `aankoop`, `componenten`, `componentstrategie`, `opbrengsten`, `bouwkosten`, `wws`, `waterfall`, `onderbouwing`).
+- Vaste volgorde + labels + relevantie-functie per strategie/spoor.
+- `numberSections(visibleKeys)` levert dynamische `01..NN` op basis van daadwerkelijk gerenderde keys — geen hardcoded nummers meer.
+- Strategie-presets: `verkoop`, `huur_bar`, `componentstrategie` → set van keys die "Strategie-view" open zet.
 
-- Dezelfde data-pipeline: `ComputedOutputs` (incl. `leadingMax*`, `roundsAtAsking`), `ScenarioEditor` blijft de orkestrator.
-- Bito huisstijl (donker, ingetogen goud/oranje accent) — bestaande semantic tokens uit `index.css`/`tailwind.config.ts` uitbreiden waar nodig, geen nieuwe rauwe kleuren in componenten.
-- Geen breaking changes voor `ScenarioVergelijking`, `AuditDialog`, `BulkFillDialog`, scoring of `compute.ts`.
+### 2. Hoofdstuk- vs. accordion-hiërarchie (lost #2 op)
+- Nieuwe `ChapterHeader` component: grote uppercase titel met nummer (`01 — SCENARIO-COCKPIT`), navy accent, subtiele divider, ruime top-spacing. Niet klikbaar.
+- Bestaande `Section` blijft de accordion-card (witte card, border, radius, statuschip + samenvatting rechts), maar krijgt geen eigen nummer meer — nummer komt uit `ChapterHeader` erboven.
+- Groepering: één `ChapterHeader` per hoofdstuk, daaronder 1+ `Section`-cards waar zinvol. Voor hoofdstukken met één card vervalt de accordion-wrapper niet, maar de visuele scheiding komt van de header.
 
-## Sub-fase 4A — Cockpit shell + KPI-balk + globale selector
+### 3. Accordion-bediening (lost #5 + #9 op)
+- Boven de hoofdcontent een compacte toolbar: `Alles uitklappen` / `Alles inklappen` / `Strategie-view` (split-button met huidige strategie als label).
+- `ScenarioEditor` krijgt `openSections: Record<SectionKey, boolean>` state; bestaande per-sectie open/dicht-logica blijft als initial state.
+- `Strategie-view` past preset uit sectionConfig toe; aandacht/blocker secties blijven altijd open.
+- Waterfall opgenomen in deze bediening; standaard open bij verkoop/exit + strategie-view.
 
-- Nieuwe `CockpitShell` component met:
-  - Header (object/scenario/relatie/deal/status + opslaan/delen).
-  - 7-KPI strip op basis van `leadingMax*`: Rond te rekenen, Max. aankoopprijs, Vraagprijs, Verschil, ROI, Netto marge, Score, Commissie.
-  - "Scenario-uitkomst gebaseerd op" selector promoten naar cockpit-niveau (bovenaan, sticky onder header) — synced met bestaande `leading_valuation_track`.
-  - Informatieve secundaire regel: alternatieve sporen ("Verkoop/exit: …", "Huur/BAR: …").
-- `ResultaatKaart` blijft bestaan voor scenariovergelijking-context maar wordt visueel slanker; de cockpit is de nieuwe hoofdbron.
+### 4. Sticky werkstroomrail echt fixen (lost #6 op)
+- Audit parent chain (`ObjectDetailPage`, `VastgoedrekenenTab`, tab-container) op `overflow-hidden`, `transform`, vaste height — root cause is meestal een `overflow-x-hidden` op een tussenliggende wrapper.
+- Layout in `ScenarioEditor` herzien: rail in eigen grid-kolom met `position: sticky; top: 88px; align-self: start;` op het direct kind van de grid. Geen `h-full` parents.
+- Interne scroll op rail blijft (`max-h-[calc(100vh-104px)] overflow-y-auto`).
 
-## Sub-fase 4B — Linker workflow-nav + voortgangsbalk
+### 5. Hernoeming + structuurfix (lost #4 op)
+- "Kosten & OVB" / "Kosten & bouwkosten" → **"Bouw-/renovatiekosten"**. OVB-velden + ovb-mode blijven exclusief in hoofdstuk "Aankoop & uitgangspunten".
+- Sectie-key/label hernoemen in `sectionConfig`, alle referenties (rail, header, anchors) volgen automatisch.
 
-- Nieuwe `SectionRail` (linker kolom op desktop ≥lg, accordion bovenaan op mobiel):
-  - 9 secties: Resultaat & cockpit, Aankoop & uitgangspunten, Componenten/units, Strategie per component, Opbrengsten, Kosten & OVB, WWS-analyse, Onderbouwing & audit, Scenario's vergelijken.
-  - Statuschip per sectie (OK / aandacht / blocker / niet relevant) afgeleid van bestaande relevance/warning-logica uit fase 3.
-  - Tellers van aandachtspunten.
-  - Klik scrollt naar anchor + opent sectie (gebruik bestaande Section `defaultOpen` infra).
-  - Voortgangsbalk "X / 9 secties compleet".
+### 6. Statuschips uniformeren (lost #7 op)
+- Centrale `chipLabel(kind)` helper met set: `OK | LET OP | INFO | NVT | INCOMPLEET | HANDMATIG`.
+- Bestaande lange labels ("WWS indicatief — niet alle velden compleet", "OVB-grondslag ontbreekt", "Niet compleet") vervangen door korte chip + lange uitleg naar `title`/tooltip of detail-drawer.
 
-## Sub-fase 4C — Compacte componententabel + detail-drawer
+### 7. Tabellen consistent maken (lost #8 op)
+- `ComponentenTable` is referentie. `WwsUnitsTable` en `ComponentStrategyTable` krijgen:
+  - zelfde rijhoogtes (`text-xs`, `[&_th]:px-2 [&_td]:px-2`),
+  - zelfde sticky unit-kolom (`sticky left-0 bg-card`),
+  - zelfde totalenrij-stijl (`bg-muted/60 font-semibold border-t-2`, totals onder juiste kolommen),
+  - zelfde chip-set (#6).
 
-- Nieuwe `ComponentTable` als standaardweergave (vervangt repeterende kaarten):
-  - Kolommen: Unit, Type, Gebruik, GBO, Strategie, Markthuur, OVB-tarief, OVB-grondslag, OVB-bedrag, WWS, Status.
-  - Totalenregel + warnings ("2 units zonder markthuur").
-  - Klik op rij → `UnitDetailDrawer` met de bestaande invoer-card hergebruikt (geen logica-duplicatie).
-  - Toggle "Kaartweergave" behoudt fallback voor wie dat prefereert.
-- Bulk-invullen / herberekenen blijft werken; chip-navigatie uit fase 2 wijst nu naar tabelrijen.
+### 8. Audit-summary compacter (lost #10 op)
+- `AuditSidePanel`: "Gebruikte bronnen" → strakke key-value rij (`grid grid-cols-[1fr_auto]` met dunne dividers), kleinere `gap-1`. Top aandachtspunten ongewijzigd qua prominentie.
 
-## Sub-fase 4D — Waterfall + audit-zijpaneel + bron-affordances
+### 9. Notitieveld vergroten (lost #11 op)
+- `RawTextarea` voor scenario-notities: `rows={7}`, `min-h-[200px]`, full-width binnen card, `leading-relaxed`.
 
-- Nieuwe `InvesteringsWaterfall` (pure SVG, geen libs) met bestaande waarden: vraagprijs → kosten → OVB → verkoopkosten → netto opbrengst → netto marge.
-- Nieuw `AuditSidePanel` (rechts op ≥xl, collapsible):
-  - Aantal aandachtspunten, top blockers/warnings, gebruikte bronnen (Componenten/Strategie/WWS/Handmatig/Scenario-level), betrouwbaarheid, knop naar bestaande `AuditDialog`.
-- Visueel onderscheid invoer vs berekend systematisch toepassen via een kleine helper (`<ValueField variant="input|computed|derived|info|missing" source="…" />`) — generaliseert wat nu ad-hoc met dashed borders gebeurt.
+### 10. Bito-huisstijl gerichter (lost #12 op)
+- `ChapterHeader` gebruikt navy tekst + dunne gouden accent-lijn.
+- Cockpit-header behoudt huidige tokens.
+- Statuschips: groen alleen voor `OK`, amber voor `LET OP`, neutraal grijs voor `INFO/NVT`, destructive voor `INCOMPLEET (blocker)`. Geen extra kleur op rustige inhoud.
 
-## Bestandsplan (indicatief)
+## Bestanden (toevoegen)
+- `src/components/vastgoedrekenen/cockpit/sectionConfig.ts`
+- `src/components/vastgoedrekenen/cockpit/ChapterHeader.tsx`
+- `src/components/vastgoedrekenen/cockpit/AccordionToolbar.tsx`
+- `src/components/vastgoedrekenen/cockpit/statusChips.ts`
 
-```
-src/components/vastgoedrekenen/cockpit/
-  CockpitShell.tsx           (4A)
-  CockpitHeader.tsx          (4A)
-  KpiStrip.tsx               (4A)
-  TrackSelector.tsx          (4A — extractie uit ScenarioEditor)
-  SectionRail.tsx            (4B)
-  ComponentTable.tsx         (4C)
-  UnitDetailDrawer.tsx       (4C)
-  InvesteringsWaterfall.tsx  (4D)
-  AuditSidePanel.tsx         (4D)
-  ValueField.tsx             (4D)
-edits:
-  ScenarioEditor.tsx         (alle sub-fasen — wrap in CockpitShell, secties krijgen anchors)
-  ResultaatKaart.tsx         (4A — afslanken / hergebruik in vergelijking)
-  ComponentStrategyTable.tsx (4C — gedeelde unit-row stijl)
-index.css / tailwind.config  (4A — eventueel extra tokens voor cockpit-surface)
-```
+## Bestanden (wijzigen)
+- `src/components/vastgoedrekenen/ScenarioEditor.tsx` (hoofdstuk-wrapping, toolbar, controlled open-state, sticky grid)
+- `src/components/vastgoedrekenen/Section.tsx` (controlled `open`-prop accepteren, nummer-prop optioneel, geen eigen telling)
+- `src/components/vastgoedrekenen/cockpit/SectionRail.tsx` (sectie-keys uit sectionConfig)
+- `src/components/vastgoedrekenen/cockpit/AuditSidePanel.tsx` (compact bronnen)
+- `src/components/vastgoedrekenen/cockpit/WwsUnitsTable.tsx`, `ComponentStrategyTable.tsx` (chip-set + sticky kolom + totals)
+- `src/components/vastgoedrekenen/cockpit/InvesteringsWaterfall.tsx` (header-tekst uitgebreid)
+- `src/components/vastgoedrekenen/VastgoedrekenenTab.tsx` + `src/pages/ObjectDetailPage.tsx` (parent overflow/sticky audit)
 
-## Test-strategie
+## Niet doen
+- Geen wijzigingen aan `compute.ts`, `wws.ts`, `investering.ts`, `verkoop.ts`, `huur.ts`, `ovb.ts`, `componentStrategy.ts`, `bieding.ts`, `scores.ts`, `validation.ts`, `saveGuards.ts`.
+- Geen DB-migraties.
+- Geen nieuwe features buiten bovenstaande UX-scope.
 
-- Geen UI-tests toevoegen.
-- Bestaande 160 golden/unit tests draaien na elke sub-fase.
-- Alleen nieuwe pure helpers (bv. status-aggregatie voor SectionRail) krijgen kleine unit tests indien gedeelde logica wordt uitgepakt.
+## Tests
+- Alle bestaande 165 tests moeten groen blijven.
+- Smoke-check: rendering ScenarioEditor met de bestaande golden fixtures (verkoop / huur / componentstrategie) — geen prop-API-breuk voor `onUpdate`/`onDelete`.
 
-## Aanpak
-
-Ik begin met **sub-fase 4A** zodra je akkoord bent, en stop daarna kort om je het resultaat te laten zien voordat ik 4B start. Zo blijft de scope per ronde behapbaar en kun je per stap bijsturen.
+Akkoord? Dan voer ik dit in één implementatieronde uit en bevestig met test-output.

@@ -94,9 +94,9 @@ export function SectionRail({ items }: { items: RailItem[] }) {
         )}
       </div>
 
-      {/* Desktop: sticky linker rail */}
-      <aside className="hidden lg:block">
-        <div className="sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto space-y-2 pr-1">
+      {/* Desktop: sticky linker rail (sticky direct op grid-child om containing-block issues te voorkomen) */}
+      <aside className="hidden lg:block self-start sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto pr-1">
+        <div className="space-y-2">
           <div className="rounded-lg border bg-card overflow-hidden">
             <div className="px-3 py-2.5 border-b bg-muted/30">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Werkstroom</p>
@@ -128,6 +128,7 @@ export function SectionRail({ items }: { items: RailItem[] }) {
           </div>
         </div>
       </aside>
+
     </>
   );
 }

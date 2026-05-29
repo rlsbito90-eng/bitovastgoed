@@ -119,19 +119,20 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
 
       {hasUnits && (
         <div className="rounded-md border overflow-x-auto">
-          <Table className="text-xs min-w-[760px]">
+          <Table className="text-xs w-full min-w-[760px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Unit</TableHead>
+                <TableHead className="hidden md:table-cell">Type</TableHead>
                 <TableHead className="text-right">m²</TableHead>
                 <TableHead>Strategie</TableHead>
                 <TableHead className="text-right">Bijdrage</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {units.map((u, idx) => {
                 const r = u as unknown as Record<string, unknown>;
@@ -156,14 +157,14 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
                     onClick={() => setOpenId(u.id)}
                   >
                     <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                    <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
-                    <TableCell className="break-words">{(r.unit_type as string | null) ?? '—'}</TableCell>
+                    <TableCell className="font-medium break-words min-w-[140px] sticky left-0 bg-card">{ident.primary}</TableCell>
+                    <TableCell className="break-words hidden md:table-cell">{(r.unit_type as string | null) ?? '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
                     <TableCell className="break-words">{STRATEGY_LABELS[strategy] ?? '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{contribution > 0 ? fmtEur(contribution) : '—'}</TableCell>
                     <TableCell>
                       {hasWarning
-                        ? <Chip label={strategy === 'later_beslissen' ? 'Niet compleet' : 'Aandacht'} tone="warning" />
+                        ? <Chip label={strategy === 'later_beslissen' ? 'INCOMPLEET' : 'LET OP'} tone="warning" />
                         : <Chip label="OK" tone="positive" />}
                     </TableCell>
 
@@ -177,15 +178,16 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
               })}
               <TableRow className="bg-muted/60 font-semibold border-t-2">
                 <TableCell />
-                <TableCell colSpan={2} className="break-words whitespace-normal">
-                  Totaal {units.length} units · {Object.entries(stratCounts).map(([k, n]) => `${n}× ${STRATEGY_LABELS[k as ComponentStrategyKey] ?? k}`).join(' · ')}
-                  {warningsCount > 0 ? ` · ${warningsCount} aandacht` : ''}
+                <TableCell className="break-words whitespace-normal sticky left-0 bg-muted/60">
+                  Totaal {units.length} units{warningsCount > 0 ? ` · ${warningsCount} aandacht` : ''}
                 </TableCell>
+                <TableCell className="hidden md:table-cell" />
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totals.scenarioValue)}</TableCell>
                 <TableCell colSpan={2} />
               </TableRow>
+
 
             </TableBody>
           </Table>

@@ -54,22 +54,23 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs min-w-[820px]">
+        <Table className="text-xs w-full min-w-[820px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10" />
-              <TableHead className="w-10">#</TableHead>
-              <TableHead>Unit</TableHead>
+              <TableHead className="w-8" />
+              <TableHead className="w-8">#</TableHead>
+              <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Unit</TableHead>
               <TableHead className="text-right">Woon m²</TableHead>
-              <TableHead className="text-right">WOZ</TableHead>
-              <TableHead>Label</TableHead>
+              <TableHead className="text-right hidden md:table-cell">WOZ</TableHead>
+              <TableHead className="hidden lg:table-cell">Label</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
               <TableHead className="text-right">Punten</TableHead>
-              <TableHead>Segment</TableHead>
-              <TableHead>WWS-status</TableHead>
-              <TableHead className="w-24" />
+              <TableHead className="hidden md:table-cell">Segment</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {wwsUnits.map((u, idx) => {
               const status = getWwsUnitStatus(u, { euroPerPoint });
@@ -91,19 +92,19 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
                     <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(u.id)} aria-label="Selecteer unit" />
                   </TableCell>
                   <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                  <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
+                  <TableCell className="font-medium break-words min-w-[140px] sticky left-0 bg-card">{ident.primary}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{woz > 0 ? fmtEur(woz) : '—'}</TableCell>
-                  <TableCell className="font-mono-data">{u.energy_label ?? '—'}</TableCell>
+                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{woz > 0 ? fmtEur(woz) : '—'}</TableCell>
+                  <TableCell className="font-mono-data hidden lg:table-cell">{u.energy_label ?? '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums">{u.wws_points ?? '—'}</TableCell>
-                  <TableCell className="break-words">{u.rent_segment ?? '—'}</TableCell>
+                  <TableCell className="break-words hidden md:table-cell">{u.rent_segment ?? '—'}</TableCell>
                   <TableCell>
                     <Chip
                       label={
                         status.reliability === 'volledig' ? 'OK'
-                        : status.reliability === 'indicatief' ? 'Indicatief'
-                        : 'Niet compleet'
+                        : status.reliability === 'indicatief' ? 'LET OP'
+                        : 'INCOMPLEET'
                       }
                       tone={reliabilityTone}
                     />
@@ -123,15 +124,19 @@ export default function WwsUnitsTable({ scenario, components, strategyUnits, wws
             <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell />
-              <TableCell className="break-words whitespace-normal">
+              <TableCell className="break-words whitespace-normal sticky left-0 bg-muted/60">
                 Totaal {wwsUnits.length} woonunits{warnings > 0 ? ` · ${warnings} aandacht` : ''}
               </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
-              <TableCell />
-              <TableCell />
+              <TableCell className="hidden md:table-cell" />
+              <TableCell className="hidden lg:table-cell" />
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
-              <TableCell colSpan={4} />
+              <TableCell />
+              <TableCell className="hidden md:table-cell" />
+              <TableCell />
+              <TableCell />
             </TableRow>
+
 
           </TableBody>
         </Table>
