@@ -171,7 +171,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType }: Props) {
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs }: Props) {
   const { calculations, create, remove } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
@@ -221,8 +221,10 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
           objectEnergyLabel={objectEnergyLabel}
           objectBouwjaar={objectBouwjaar}
           objectRawType={objectRawType}
+          objectVraagprijs={objectVraagprijs}
           viewMode={viewMode}
         />
+
 
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
