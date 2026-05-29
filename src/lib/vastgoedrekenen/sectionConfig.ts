@@ -12,6 +12,7 @@ export type SectionKey =
   | 'onderbouwing';
 
 export type SubSectionKey =
+  | 'sec-resultaat'
   | 'sec-waterfall'
   | 'sec-aankoop'
   | 'sec-huur'
@@ -43,7 +44,7 @@ export const CHAPTERS: ChapterConfig[] = [
     key: 'cockpit',
     title: 'Scenario-cockpit / resultaat',
     hint: 'Detail: conclusie, aandachtspunten en €/m²-kengetallen',
-    subs: ['sec-waterfall'],
+    subs: ['sec-resultaat', 'sec-waterfall'],
     strategieRelevant: true,
   },
   {
@@ -92,6 +93,22 @@ export const CHAPTERS: ChapterConfig[] = [
 
 export const ALL_SUB_SECTION_KEYS: SubSectionKey[] = CHAPTERS.flatMap((c) => c.subs);
 
+/** Korte titels per sub-sectie zoals getoond in workflowrail en accordion-header. */
+export const SUB_SECTION_TITLES: Record<SubSectionKey, string> = {
+  'sec-resultaat': 'Resultaatkaart',
+  'sec-waterfall': 'Investerings-waterfall',
+  'sec-aankoop': 'Aankoop & investering',
+  'sec-huur': 'Huur & exploitatie',
+  'sec-verkoop': 'Verkoop / exit',
+  'sec-kosten': 'Bouw-/renovatiekosten',
+  'sec-componenten': 'Componenten / units',
+  'sec-strategie': 'Componentstrategie',
+  'sec-wws': 'WWS / huursegmentanalyse',
+  'sec-onderbouwing': 'Onderbouwing & betrouwbaarheid',
+  'sec-score': 'Score-uitleg',
+  'sec-notities': 'Notities',
+};
+
 /** Dynamische numbering op basis van zichtbare hoofdstukken in rendervolgorde. */
 export function chapterNumber(
   key: SectionKey,
@@ -99,6 +116,19 @@ export function chapterNumber(
 ): string {
   const idx = visibleKeys.indexOf(key);
   return idx >= 0 ? String(idx + 1).padStart(2, '0') : '';
+}
+
+/** Sub-nummering "NN.M" op basis van positie van de sub binnen het hoofdstuk. */
+export function subNumber(
+  key: SubSectionKey,
+  visibleChapters: ChapterConfig[] = CHAPTERS,
+): string {
+  const visibleKeys = visibleChapters.map((c) => c.key);
+  for (const ch of visibleChapters) {
+    const idx = ch.subs.indexOf(key);
+    if (idx >= 0) return `${chapterNumber(ch.key, visibleKeys)}.${idx + 1}`;
+  }
+  return '';
 }
 
 /** Sub-secties die in de Strategie-view standaard open zijn. */
