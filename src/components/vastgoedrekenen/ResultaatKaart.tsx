@@ -6,7 +6,7 @@ import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
  * Toont het belangrijkste in één oogopslag — variant per scenario-type.
  */
-export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenario }) {
+export default function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scenario; compact?: boolean }) {
   const deal = DEAL_BADGE[o.dealScore];
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
@@ -40,8 +40,8 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
   return (
     <Card className="border-primary/40">
       <CardContent className="p-4 space-y-4">
-        {/* Prominente leidende uitkomst-balk */}
-        {asking > 0 && (
+        {/* Prominente leidende uitkomst-balk — verborgen in compact-modus (cockpit toont dit al) */}
+        {!compact && asking > 0 && (
           <div
             className={`rounded-md border-2 p-3 ${
               rounds
@@ -66,7 +66,6 @@ export default function ResultaatKaart({ o, s }: { o: ComputedOutputs; s: Scenar
                 · Gebaseerd op: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span>
               </span>
             </div>
-            {/* Resultaatgerichte één-zin uitleg */}
             <p className="text-xs mt-1.5 leading-snug text-foreground/90">
               {rounds
                 ? <>Ruimte boven vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt boven de vraagprijs.</>
