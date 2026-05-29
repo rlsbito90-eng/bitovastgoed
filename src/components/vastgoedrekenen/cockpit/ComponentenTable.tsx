@@ -25,10 +25,6 @@ type Props = {
   deleteComponent: (id: string) => Promise<void> | void;
 };
 
-function RowTapWrapper({ children, onTap }: { children: React.ReactNode; onTap: () => void }) {
-  const handlers = useTapVsScroll(() => onTap());
-  return <>{/* handlers worden via clone toegevoegd in parent */}{children}</>;
-}
 
 export default function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
