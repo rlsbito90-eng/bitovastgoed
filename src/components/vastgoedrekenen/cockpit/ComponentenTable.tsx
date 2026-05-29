@@ -39,7 +39,7 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs w-full min-w-[640px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
+        <Table className="text-xs w-full min-w-[520px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">#</TableHead>
