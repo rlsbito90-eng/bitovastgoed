@@ -1805,7 +1805,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 9. Score-uitleg */}
-            <Section title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
+            <Section id="sec-score" title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
               <div className="pt-3 text-xs leading-relaxed space-y-3">
                 <div>
                   <p className="font-medium text-foreground">{outputs.scoreLabel}</p>
