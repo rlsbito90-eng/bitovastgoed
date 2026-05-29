@@ -120,9 +120,9 @@ export default function InvesteringsWaterfall({
   // Layout-parameters
   const barH = 28;
   const gap = 10;
-  const labelW = 220;
-  const valueW = 160;
-  const chartW = 480;
+  const labelW = 160;
+  const valueW = 120;
+  const chartW = 320;
   const totalW = labelW + chartW + valueW + 16;
   const totalH = steps.length * (barH + gap) + gap;
 
@@ -142,13 +142,14 @@ export default function InvesteringsWaterfall({
         </p>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="w-full">
         <svg
           width="100%"
           viewBox={`0 0 ${totalW} ${totalH}`}
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Investerings-waterfall"
-          className="min-w-[640px]"
+          className="block mx-auto max-w-full h-auto"
         >
           {steps.map((step, i) => {
             const y = gap + i * (barH + gap);

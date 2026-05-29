@@ -1121,16 +1121,16 @@ export default function ScenarioEditor(props: Props) {
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
                     </p>
 
-                    {/* Leidend waarderingsspoor */}
+                    {/* Leidend waarderingsspoor — compact op mobiel (toelichting achter "Meer info") */}
                     <div className={`rounded-md border px-3 py-2 text-xs space-y-2 ${
                       dualTrackConflict
                         ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
                         : 'border-primary/30 bg-primary/5'
                     }`}>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">Leidend waarderingsspoor:</span>
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 sm:gap-2">
+                        <span className="font-medium shrink-0">Leidend spoor</span>
                         <Select value={trackChoice} onValueChange={(v) => setSale('leading_valuation_track', v)}>
-                          <SelectTrigger className="h-7 w-auto min-w-[220px] text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 w-full sm:w-auto sm:min-w-[220px] text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
                             <SelectItem value="huur_bar">Huur / BAR</SelectItem>
@@ -1140,23 +1140,26 @@ export default function ScenarioEditor(props: Props) {
                             </SelectItem>
                           </SelectContent>
                         </Select>
-                        <span className="text-[11px] opacity-80">
-                          Huidig leidend: {outputs.leadingMaxBasisLabel}
+                        <span className="text-[11px] opacity-80 sm:ml-auto truncate">
+                          Huidig: <span className="font-medium">{outputs.leadingMaxBasisLabel}</span>
                         </span>
                       </div>
-                      <p className="text-[11px] opacity-90 leading-snug">
-                        Bepaalt welke waarde leidend is voor "maximale aankoopprijs" en "rond te rekenen". Andere sporen blijven informatief zichtbaar in het scenario.
-                      </p>
                       {dualTrackConflict && (
                         <p className="text-[11px] leading-snug">
-                          ⚠ Scenario-level exit ({saleStrategy}) én componentstrategie ({sellOffUnits.length} unit{sellOffUnits.length === 1 ? '' : 's'}) zijn beide actief. Kies expliciet welk spoor leidend is — of zet de verkoopstrategie op "Geen verkoop" als componentstrategie leidend moet zijn.
+                          ⚠ Scenario-exit én componentstrategie zijn beide actief. Kies expliciet welk spoor leidend is — of zet de verkoopstrategie op "Geen verkoop".
                         </p>
                       )}
-                      {trackChoice !== 'auto' && (
-                        <p className="text-[11px] opacity-80">
-                          Handmatige keuze actief: {TRACK_LABELS[trackChoice]}. Zet op "Automatisch" om de heuristiek te herstellen.
-                        </p>
-                      )}
+                      <details className="group/info">
+                        <summary className="cursor-pointer text-[11px] opacity-80 hover:opacity-100 select-none list-none [&::-webkit-details-marker]:hidden">
+                          <span className="underline decoration-dotted underline-offset-2">Meer info</span>
+                        </summary>
+                        <div className="mt-1.5 space-y-1 text-[11px] opacity-90 leading-snug">
+                          <p>Bepaalt welke waarde leidend is voor "maximale aankoopprijs" en "rond te rekenen". Andere sporen blijven informatief zichtbaar.</p>
+                          {trackChoice !== 'auto' && (
+                            <p>Handmatige keuze actief: {TRACK_LABELS[trackChoice]}. Zet op "Automatisch" om de heuristiek te herstellen.</p>
+                          )}
+                        </div>
+                      </details>
                     </div>
 
 

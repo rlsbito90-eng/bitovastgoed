@@ -39,11 +39,11 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs w-full min-w-[640px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
+        <Table className="text-xs w-full min-w-[520px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">#</TableHead>
-              <TableHead className="min-w-[120px] sticky left-0 bg-card z-10">Unit</TableHead>
+              <TableHead className="min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:z-10">Unit</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">m²</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
@@ -70,7 +70,7 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                   onClick={() => setOpenId(c.id)}
                 >
                   <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                  <TableCell className="font-medium break-words min-w-[120px] sticky left-0 bg-card group-hover:bg-muted/40">{ident.primary}</TableCell>
+                  <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:group-hover:bg-muted/40">{ident.primary}</TableCell>
                   <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
