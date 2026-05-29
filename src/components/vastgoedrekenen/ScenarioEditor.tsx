@@ -43,6 +43,18 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 import { buildScenarioSavePatch, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import {
+  CHAPTERS,
+  ALL_SUB_SECTION_KEYS,
+  chapterNumber,
+  buildStrategieOpenState,
+  buildUniformOpenState,
+  type SubSectionKey,
+  type SectionKey,
+} from '@/lib/vastgoedrekenen/sectionConfig';
+import AccordionToolbar from './cockpit/AccordionToolbar';
+
+
 
 
 type Props = {
