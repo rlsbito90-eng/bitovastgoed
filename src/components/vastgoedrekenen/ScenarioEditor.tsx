@@ -304,6 +304,29 @@ export default function ScenarioEditor(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyType]);
 
+  // Vraagprijs automatisch overnemen uit objectdata (Financieel-tab) als er nog
+  // geen waarde is ingevuld in dit scenario. Wordt niet als dirty gemarkeerd —
+  // pas bij volgende save wordt de waarde gepersisteerd.
+  const objectVraagprijs = props.objectVraagprijs ?? null;
+  useEffect(() => {
+    if ((s.asking_price == null || Number(s.asking_price) === 0) && objectVraagprijs != null && objectVraagprijs > 0) {
+      setS((prev) => ({ ...prev, asking_price: objectVraagprijs }));
+      baselineRef.current = { ...baselineRef.current, asking_price: objectVraagprijs };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectVraagprijs, s.id]);
+  const vraagprijsBron: 'financieel' | 'override' | 'leeg' = (() => {
+    if (objectVraagprijs == null || objectVraagprijs <= 0) return 'leeg';
+    if (s.asking_price == null) return 'financieel';
+    return Number(s.asking_price) === Number(objectVraagprijs) ? 'financieel' : 'override';
+  })();
+  const resetVraagprijsNaarFinancieel = () => {
+    if (objectVraagprijs != null && objectVraagprijs > 0) {
+      patch({ asking_price: objectVraagprijs });
+    }
+  };
+
+
   async function save() {
     const savedCosts: ScenarioCost[] = [];
     for (const costId of deletedCostIdsRef.current) {
