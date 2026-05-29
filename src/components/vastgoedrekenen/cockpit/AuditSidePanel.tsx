@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import type { ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import type { ValidationItem } from '@/lib/vastgoedrekenen/validation';
 import ValueField from './ValueField';
