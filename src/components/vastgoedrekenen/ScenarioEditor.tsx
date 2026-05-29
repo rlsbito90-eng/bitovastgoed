@@ -27,6 +27,7 @@ import RekenbasisBar from './RekenbasisBar';
 import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
+import CockpitHeader from './cockpit/CockpitHeader';
 import ComponentStrategyTable from './ComponentStrategyTable';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
