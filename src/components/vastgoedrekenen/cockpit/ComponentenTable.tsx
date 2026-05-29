@@ -90,15 +90,15 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                 </TableRow>
               );
             })}
-            <TableRow className="bg-muted/40 font-medium">
+            <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell colSpan={2} className="break-words whitespace-normal">
                 Totaal {components.length} units · {woon} woon · {comm} commercieel{warnings > 0 ? ` · ${warnings} aandacht` : ''}
               </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
-              <TableCell />
-              {perComp && <TableCell />}
+              <TableCell className="hidden md:table-cell" />
+              {perComp && <TableCell className="hidden lg:table-cell" />}
               {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalOvb)}</TableCell>}
               <TableCell colSpan={2} />
             </TableRow>
