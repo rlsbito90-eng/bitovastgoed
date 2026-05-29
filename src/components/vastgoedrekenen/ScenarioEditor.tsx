@@ -922,8 +922,9 @@ export default function ScenarioEditor(props: Props) {
 
 
             {/* 2. Aankoop & investering */}
-            <SectionGroup step={2} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
-            <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} defaultOpen={aankoopOpen} source="Scenario" relevance="leidend">
+            <SectionGroup step={num('aankoop')} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
+            <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} {...sectionProps('sec-aankoop')} source="Scenario" relevance="leidend">
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
                 <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
