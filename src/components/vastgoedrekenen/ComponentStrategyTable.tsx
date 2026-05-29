@@ -174,7 +174,7 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
                   </TableRow>
                 );
               })}
-              <TableRow className="bg-muted/40 font-medium">
+              <TableRow className="bg-muted/60 font-semibold border-t-2">
                 <TableCell />
                 <TableCell colSpan={2} className="break-words whitespace-normal">
                   Totaal {units.length} units · {Object.entries(stratCounts).map(([k, n]) => `${n}× ${STRATEGY_LABELS[k as ComponentStrategyKey] ?? k}`).join(' · ')}
@@ -185,6 +185,7 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totals.scenarioValue)}</TableCell>
                 <TableCell colSpan={2} />
               </TableRow>
+
             </TableBody>
           </Table>
         </div>
