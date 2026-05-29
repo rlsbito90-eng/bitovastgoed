@@ -147,7 +147,7 @@ export default function CockpitHeader({
             toast.success(`Scenario-uitkomst bijgewerkt op basis van ${label}.`);
           }}
         >
-          <SelectTrigger className="h-7 w-auto min-w-[260px] text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-auto min-h-7 w-full sm:w-auto sm:min-w-[260px] text-xs py-1"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
             <SelectItem value="huur_bar">Huur / BAR</SelectItem>
