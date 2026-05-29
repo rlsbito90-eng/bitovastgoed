@@ -1710,15 +1710,16 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 10. Notities */}
-            <Section title="Notities" status={notitiesStatus} defaultOpen={false} source="Handmatig" relevance="informatief">
+            <Section id="sec-notities" title="Notities" status={notitiesStatus} {...sectionProps('sec-notities')} source="Handmatig" relevance="informatief">
               <div className="pt-3">
                 <RawTextarea
                   initialValue={s.notes ?? ''}
                   onRawChange={markDirtyFromRaw}
                   onCommit={(value) => patch({ notes: value || null })}
                   placeholder="Eigen aantekeningen bij dit scenario..."
-                  rows={7}
-                  className="min-h-[180px] resize-y leading-relaxed"
+                  rows={8}
+                  className="min-h-[200px] resize-y leading-relaxed"
+
                 />
               </div>
 
