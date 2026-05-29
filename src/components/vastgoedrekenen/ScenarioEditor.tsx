@@ -872,6 +872,10 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-3 items-start">
+              <SectionRail items={railItems} />
+              <div className="space-y-3 min-w-0">
+
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
             <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
