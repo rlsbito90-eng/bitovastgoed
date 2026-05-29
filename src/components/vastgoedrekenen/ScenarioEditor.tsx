@@ -196,6 +196,7 @@ export default function ScenarioEditor(props: Props) {
   const outputs = useMemo(() => computeScenario({
     scenario: s,
     components, costs: draftCosts, wwsUnits,
+    strategyUnits: sellOffUnits,
     taxSettings,
     objectType,
     objectArea,
@@ -203,7 +204,7 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, draftCosts, wwsUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  }), [s, components, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
     scenario: s, components, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
