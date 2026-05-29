@@ -303,8 +303,56 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const leadingDifferenceWithAskingPrice = asking > 0 ? leadingMaxValue - asking : 0;
   const leadingRoundsAtAsking = asking > 0 ? leadingMaxValue >= asking : null;
 
+  // --- Leading-aware score-override ---
+  // De score moet hetzelfde leidende spoor weerspiegelen als de cockpit/ResultaatKaart.
+  // Een informatief alternatief mag niet leiden tot een "Kansrijk" terwijl het leidende
+  // spoor geen waarde heeft of niet rond rekent.
+  if (asking > 0) {
+    if (leadingMaxValue <= 0) {
+      dealScore = 'reject';
+      scoreLabel = 'Onvoldoende data';
+      scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) heeft geen bruikbare maximum waarde. Vul de bijbehorende invoer aan of kies een ander spoor.`;
+      scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
+    } else if (leadingRoundsAtAsking === false && (dealScore === 'A' || dealScore === 'B')) {
+      dealScore = 'C';
+      scoreLabel = 'Te duur volgens leidend spoor';
+      scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) rekent niet rond op de vraagprijs. Alternatieve sporen kunnen positief zijn, maar bepalen niet de uitkomst.`;
+      scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
+    }
+  }
+
+  // --- Conclusie + next step (op basis van de uiteindelijke leading-aware score) ---
+  const conclusion = buildConclusion({
+    dealScore,
+    barTotalInvestment: barTotal,
+    maximumBid: leadingMaxValue,
+    differenceWithAskingPrice: leadingDifferenceWithAskingPrice,
+    requiredDiscount: asking > 0 && leadingMaxValue < asking ? asking - leadingMaxValue : 0,
+    inputReliability,
+    riskScore: risk.level,
+    complexityScore: complexity,
+    askingPrice: asking,
+    assessmentType,
+    scoreLabel,
+    netSaleProceeds: sale.netSaleProceeds,
+    netMargin: sale.netMargin,
+    roi: sale.roi,
+    exitValue: sale.exitValue,
+  });
+  const nextStep = assessmentType === 'verkoop'
+    ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
+    : buildNextStep({
+      inputReliability,
+      missingWoz: !ctx.objectWoz,
+      missingLabel: !ctx.objectEnergyLabel,
+      missingContracts: !components.some((c) => c.has_contract),
+      hasWwsRisk: wwsUnits.some((u) => (u.wws_points ?? 0) > 0 && (u.wws_points ?? 0) < 187),
+      isMixedUseWithoutAlloc: objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component',
+      dealScore,
+    });
 
   const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
+
 
   return {
     totalTransferTax: ovb.totalOvb,
