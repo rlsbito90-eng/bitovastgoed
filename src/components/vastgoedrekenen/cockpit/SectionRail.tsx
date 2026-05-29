@@ -99,28 +99,28 @@ export function SectionRail({ items }: { items: RailItem[] }) {
       {/* Desktop: sticky linker rail */}
       <aside className="hidden lg:block self-start sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto pr-1">
         <div className="space-y-2">
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="px-3 py-2.5 border-b bg-muted/30">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Werkstroom</p>
+          <div className="rounded-xl border border-border/70 bg-card/95 overflow-hidden shadow-[0_1px_2px_0_hsl(var(--shadow-color)/0.04)]">
+            <div className="px-3.5 py-3 border-b border-border/60 bg-gradient-to-b from-muted/40 to-muted/10">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-primary/70 font-semibold">Werkstroom</p>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-sm font-semibold font-mono-data tabular-nums">{okCount}</span>
+                <span className="text-[15px] font-semibold font-mono-data tabular-nums text-foreground">{okCount}</span>
                 <span className="text-[11px] text-muted-foreground">/ {relevant.length} compleet</span>
               </div>
-              <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="mt-2 h-1 rounded-full bg-muted/70 overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all"
+                  className="h-full bg-gradient-to-r from-accent/80 to-accent transition-all duration-500"
                   style={{ width: `${pct}%` }}
                   aria-label={`${pct}% compleet`}
                 />
               </div>
               {(blockerCount > 0 || warnCount > 0) && (
-                <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  {blockerCount > 0 && <span className="text-destructive">{blockerCount} blocker · </span>}
-                  {warnCount > 0 && <span className="text-amber-600 dark:text-amber-300">{warnCount} aandacht</span>}
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  {blockerCount > 0 && <span className="text-destructive font-medium">{blockerCount} blocker · </span>}
+                  {warnCount > 0 && <span className="text-amber-700 dark:text-amber-300 font-medium">{warnCount} aandacht</span>}
                 </p>
               )}
             </div>
-            <ol className="py-1">
+            <ol className="py-1.5">
               {items.map((it) => (
                 <li key={`${it.level}-${it.id}-${it.number}`}>
                   <RailButton item={it} />
@@ -133,6 +133,7 @@ export function SectionRail({ items }: { items: RailItem[] }) {
     </>
   );
 }
+
 
 function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
   const cfg = STATUS_CFG[item.status];
@@ -159,21 +160,18 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
       <button
         type="button"
         onClick={() => scrollToId(item.id)}
-        className="w-full flex items-baseline gap-2 px-3 pt-2.5 pb-1 text-left group min-w-0 border-t first:border-t-0 border-border/60"
+        className="w-full flex items-center gap-2.5 px-3 pt-3 pb-1.5 text-left group min-w-0 border-t first:border-t-0 border-border/50 hover:bg-muted/30 transition-colors"
       >
-        <span className="text-[11px] font-mono-data tabular-nums text-primary/80 font-semibold w-6 shrink-0">
+        <span className="text-[10.5px] font-mono-data tabular-nums text-primary font-semibold w-6 shrink-0">
           {item.number}
         </span>
+        <span className="text-primary/30 text-[10px] select-none -mx-0.5" aria-hidden>—</span>
         <span className="flex-1 min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-foreground truncate">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-primary truncate">
             {item.title}
           </span>
-          {item.hint && (
-            <span className="block text-[10px] text-muted-foreground truncate font-normal normal-case tracking-normal">
-              {item.hint}
-            </span>
-          )}
         </span>
+        <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent max-w-[24px] shrink-0" aria-hidden />
       </button>
     );
   }
@@ -181,26 +179,28 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
     <button
       type="button"
       onClick={() => scrollToId(item.id)}
-      className="w-full flex items-center gap-2 pl-6 pr-3 py-1.5 hover:bg-muted/40 text-left group min-w-0"
+      className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 hover:bg-accent/[0.06] hover:border-l-accent border-l-2 border-l-transparent text-left group min-w-0 transition-colors"
     >
-      <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground w-8 shrink-0">
+      <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground/80 w-8 shrink-0">
         {item.number}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-xs font-medium truncate group-hover:text-foreground">{item.title}</span>
+        <span className="block text-[12px] font-medium text-foreground/85 truncate group-hover:text-foreground">{item.title}</span>
         {item.hint && (
-          <span className="block text-[10px] text-muted-foreground truncate">{item.hint}</span>
+          <span className="block text-[10px] text-muted-foreground/80 truncate">{item.hint}</span>
         )}
       </span>
       {item.count != null && item.count > 0 && (
-        <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">{item.count}</span>
+        <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0">{item.count}</span>
       )}
       <span
         className={`inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wide ${cfg.chip}`}
         aria-label={cfg.label}
+        title={cfg.label}
       >
         <Icon className="h-2.5 w-2.5" />
       </span>
     </button>
   );
 }
+
