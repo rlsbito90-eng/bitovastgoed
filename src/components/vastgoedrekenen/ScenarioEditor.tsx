@@ -1468,8 +1468,9 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 6. Componenten / units */}
-            <SectionGroup step={3} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
-            <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={compOpen} source="Componenten" relevance={compRelevance}>
+            <SectionGroup step={num('componenten')} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
+            <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} {...sectionProps('sec-componenten')} source="Componenten" relevance={compRelevance}>
+
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <p className="text-xs text-muted-foreground max-w-xl">
