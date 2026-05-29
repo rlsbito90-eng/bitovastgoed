@@ -74,7 +74,7 @@ export function Section({
             </span>
           )}
           {source && (
-            <span className="hidden md:inline text-[10px] text-muted-foreground shrink-0 truncate">
+            <span className="hidden md:inline text-[10px] text-muted-foreground break-words">
               Bron: {source}
             </span>
           )}
