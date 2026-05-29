@@ -26,6 +26,8 @@ export function Section({
   title,
   status,
   defaultOpen,
+  open: openProp,
+  onOpenChange,
   hidden,
   children,
   tone,
@@ -36,6 +38,9 @@ export function Section({
   title: string;
   status?: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open-state (optioneel). Wanneer gezet wordt interne state genegeerd. */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
   hidden?: boolean;
   children: ReactNode;
   tone?: 'default' | 'primary';
@@ -45,7 +50,13 @@ export function Section({
   /** Rol van de sectie binnen het huidige scenario. */
   relevance?: SectionRelevance;
 }) {
-  const [open, setOpen] = useState(!!defaultOpen);
+  const [innerOpen, setInnerOpen] = useState(!!defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? !!openProp : innerOpen;
+  const toggle = () => {
+    if (isControlled) onOpenChange?.(!open);
+    else { setInnerOpen((v) => !v); onOpenChange?.(!open); }
+  };
   if (hidden) return null;
   const borderCls =
     relevance === 'aandacht'
@@ -57,7 +68,7 @@ export function Section({
     <div id={id} className={`rounded-lg border bg-card overflow-hidden ${borderCls}`}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -89,6 +100,7 @@ export function Section({
     </div>
   );
 }
+
 
 /**
  * Visuele groep-heading boven een reeks Sections. Geen wrapper — render
