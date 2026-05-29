@@ -802,6 +802,33 @@ export default function ScenarioEditor(props: Props) {
         const wwsOpen = wwsRelevance === 'aandacht';
         const strategyOpen = strategyActive;
         const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
+        // Waterfall standaard open bij verkoop/exit-focus of als de strategie leidend is.
+        const waterfallOpen = scenarioExitActive || strategyActive || leadingBasis !== 'huur';
+
+        const defaultOpenMap: Record<SubSectionKey, boolean> = {
+          'sec-waterfall': waterfallOpen,
+          'sec-aankoop': aankoopOpen,
+          'sec-huur': huurOpen,
+          'sec-verkoop': verkoopOpen,
+          'sec-kosten': kostenOpen,
+          'sec-componenten': compOpen,
+          'sec-strategie': strategyOpen,
+          'sec-wws': wwsOpen,
+          'sec-onderbouwing': onderbouwingOpen,
+          'sec-score': false,
+          'sec-notities': false,
+        };
+        // Initialiseer controlled open-state één keer per scenario.
+        if (openInitRef.current !== s.id) {
+          openInitRef.current = s.id;
+          setOpenSections(defaultOpenMap);
+        }
+        const sectionProps = (key: SubSectionKey) => ({
+          open: openSections[key] ?? defaultOpenMap[key] ?? false,
+          onOpenChange: (next: boolean) =>
+            setOpenSections((prev) => ({ ...prev, [key]: next })),
+        });
+        const num = (key: SectionKey) => chapterNumber(key);
 
         // Rail-status helper: SectionRelevance + tellingen → RailStatus
         const relToRailStatus = (r: SectionRelevance | undefined, extraBlocker = false, extraWarn = false): RailStatus => {
@@ -810,17 +837,19 @@ export default function ScenarioEditor(props: Props) {
           if (r === 'aandacht' || extraWarn) return 'aandacht';
           return 'ok';
         };
+        // Rail items in EXACT dezelfde volgorde als de hoofdcontent (sectionConfig).
         const railItems: RailItem[] = [
-          { id: 'sec-aankoop', step: 2, title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
-          { id: 'sec-componenten', step: 3, title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
-          { id: 'sec-strategie', step: 3, title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
-          { id: 'sec-huur', step: 4, title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
-          { id: 'sec-verkoop', step: 4, title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          { id: 'sec-kosten', step: 5, title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
-          { id: 'sec-wws', step: 6, title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
-          { id: 'sec-onderbouwing', step: 7, title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
-          { id: 'sec-score', step: 7, title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
+          { id: 'sec-aankoop', step: Number(num('aankoop')), title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
+          { id: 'sec-huur', step: Number(num('opbrengsten')), title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
+          { id: 'sec-verkoop', step: Number(num('opbrengsten')), title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
+          { id: 'sec-kosten', step: Number(num('bouwkosten')), title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
+          { id: 'sec-componenten', step: Number(num('componenten')), title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
+          { id: 'sec-strategie', step: Number(num('componenten')), title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
+          { id: 'sec-wws', step: Number(num('wws')), title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          { id: 'sec-onderbouwing', step: Number(num('onderbouwing')), title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
+          { id: 'sec-score', step: Number(num('onderbouwing')), title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
         ];
+
 
 
 
