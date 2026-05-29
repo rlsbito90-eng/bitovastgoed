@@ -1510,140 +1510,19 @@ export default function ScenarioEditor(props: Props) {
                   <Button size="sm" variant="outline" onClick={addWwsUnit} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Woonunit</Button>
                 </div>
                 {wwsUnits.length === 0 && <p className="text-xs text-muted-foreground">Voeg een woonunit toe om indicatieve WWS-punten en het huursegment te bepalen.</p>}
-                {wwsUnits.length > 0 && (
-                  <UnitNavigator
-                    anchorPrefix="wws-unit"
-                    units={wwsUnits.map((u, idx) => {
-                      const st = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
-                      const ident = formatUnitIdentity({ name: u.unit_name, type: 'woonunit', surface: u.living_area_m2 }, idx);
-                      return { id: u.id, label: ident.primary, meta: ident.meta.join(' · '), warning: st.reliability !== 'volledig' };
-                    })}
-                  />
-                )}
-                {wwsUnits.map((u, idx) => {
-                  const status = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
-                  const wwsModeCtxUnit = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
-                  const unitModeRaw = (u as unknown as { wws_mode?: WwsMode | null }).wws_mode ?? null;
-                  const unitModeEff = getEffectiveWwsMode(u, wwsModeCtxUnit);
-                  const reliabilityColor =
-                    status.reliability === 'volledig' ? 'text-emerald-700 dark:text-emerald-300'
-                    : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-destructive';
-                  const independentVal = (u as unknown as { independent_unit?: boolean | null }).independent_unit;
-                  const ident = formatUnitIdentity({ name: u.unit_name, type: 'woonunit', surface: u.living_area_m2 }, idx);
-                  const isSelected = selectedWwsIds.has(u.id);
-                  // Reliability-chip voor WWS: indicatief / volledig / ontbreekt
-                  const reliabilityChip: { label: string; tone?: 'positive' | 'warning' | 'muted' } =
-                    status.reliability === 'volledig' ? { label: 'WWS volledig', tone: 'positive' }
-                    : status.reliability === 'indicatief' ? { label: 'WWS indicatief', tone: 'warning' }
-                    : { label: 'WWS ontbreekt', tone: 'warning' };
-                  // Bouw header chips
-                  const chips: { label: string; tone?: 'positive' | 'warning' | 'muted' }[] = [];
-                  if (u.energy_label) chips.push({ label: `Label ${u.energy_label}` });
-                  if (u.wws_points != null) chips.push({ label: `${u.wws_points} punten`, tone: 'positive' });
-                  else chips.push({ label: 'punten ontbreken', tone: 'warning' });
-                  if (u.rent_segment) chips.push({ label: String(u.rent_segment) });
-                  chips.push(reliabilityChip);
-                  if (status.source === 'handmatig') chips.push({ label: 'handmatig', tone: 'warning' });
-                  const modeChipTone: 'positive' | 'warning' | undefined =
-                    unitModeEff.mode === 'volledig_vereist' ? 'warning'
-                    : unitModeEff.mode === 'niet_nodig' ? undefined
-                    : 'positive';
-                  chips.push({ label: `Modus: ${WWS_MODE_LABEL[unitModeEff.mode]}`, tone: modeChipTone });
-                  const hasWarning = chips.some((c) => c.tone === 'warning');
-                  const chipCls = (tone?: string) =>
-                    tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
-                    : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
-                    : 'border-border text-muted-foreground bg-muted/30';
-                  return (
-                  <div key={u.id} id={`wws-unit-${u.id}`} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden scroll-mt-20">
-                    <div className="flex items-start justify-between gap-3 sticky top-0 z-10 bg-card -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 px-3 sm:px-4 pt-3 sm:pt-4 pb-2 border-b">
-                      <div className="flex flex-wrap items-center gap-2 min-w-0">
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleWwsSelect(u.id)} aria-label="Selecteer unit" />
-                        <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
-                        <span className="text-sm font-semibold truncate">{ident.primary}</span>
-                        {ident.meta.length > 0 && <span className="text-xs text-muted-foreground">· {ident.meta.join(' · ')}</span>}
-                        {hasWarning && <span className="text-amber-600 dark:text-amber-300" title="Ontbrekende invoer of waarschuwing">⚠</span>}
-                        {chips.map((c, i) => (
-                          <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
-                        ))}
-                      </div>
+                <WwsUnitsTable
+                  scenario={s}
+                  components={components}
+                  strategyUnits={sellOffUnits}
+                  wwsUnits={wwsUnits}
+                  euroPerPoint={Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6)}
+                  selectedIds={selectedWwsIds}
+                  toggleSelect={toggleWwsSelect}
+                  updateWwsUnit={updateWwsUnit}
+                  deleteWwsUnit={deleteWwsUnit}
+                  recomputeWwsUnit={recomputeWwsUnit}
+                />
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button size="sm" variant="ghost" onClick={() => recomputeWwsUnit(u.id)} className="h-8 px-2 text-muted-foreground" title="Herbereken deze unit">
-                          <RotateCw className="h-4 w-4" />
-                          <span className="sr-only">Herbereken deze unit</span>
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => deleteWwsUnit(u.id)} className="h-8 px-2 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Woonunit verwijderen</span>
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
-                      <MobileFieldGroup label="Naam"><RawTextInput className="h-9" initialValue={u.unit_name} onCommit={(raw) => updateWwsUnit(u.id, { unit_name: raw.trim() || 'Woonunit' })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Woon m²"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="WOZ (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Energielabel"><RawTextInput className="h-9" initialValue={u.energy_label ?? ''} onCommit={(raw) => updateWwsUnit(u.id, { energy_label: raw.trim() || null })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <div className="min-w-0 w-full space-y-1.5">
-                        <Label className="block text-xs font-medium leading-snug text-foreground whitespace-normal break-words">Punten / segment</Label>
-                        <div className="min-h-9 flex items-center rounded-md border bg-muted/30 px-3 py-2 text-sm font-mono-data min-w-0 break-words">
-                          {u.wws_points ?? '—'} / {u.rent_segment ?? '—'}
-                          {status.source === 'handmatig' && <span className="ml-2 text-[10px] text-amber-700 dark:text-amber-300">Handmatig — niet automatisch overschreven</span>}
-                        </div>
-                      </div>
-                      <MobileFieldGroup label="Stelsel">
-                        <Select
-                          value={independentVal == null ? '' : independentVal ? 'zelfstandig' : 'onzelfstandig'}
-                          onValueChange={(v) => updateWwsUnit(u.id, { independent_unit: v === 'zelfstandig' } as Partial<WwsUnit>)}
-                        >
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Kies stelsel" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="zelfstandig">Zelfstandig</SelectItem>
-                            <SelectItem value="onzelfstandig">Onzelfstandig (kamer)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </MobileFieldGroup>
-                    </div>
-
-                    {/* Bron- / status-regel — transparantie over herkomst en betrouwbaarheid */}
-                    <div className="rounded-md bg-muted/30 border border-muted px-3 py-2 text-xs text-muted-foreground space-y-1">
-                      <div className="flex flex-wrap gap-x-4 gap-y-1">
-                        <span><span className="font-medium text-foreground">Bron punten:</span> {WWS_SOURCE_LABEL[status.source]}{status.source === 'handmatig' && status.computedPoints != null ? ` (CRM zou ${status.computedPoints} berekenen)` : ''}</span>
-                        <span><span className="font-medium text-foreground">Stelsel:</span> {WWS_SCHEME_LABEL[status.scheme]}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1">
-                        <span><span className="font-medium text-foreground">Beleidsversie:</span> {status.policyVersion}</span>
-                        <span className={reliabilityColor}><span className="font-medium">Betrouwbaarheid:</span> {WWS_RELIABILITY_LABEL[status.reliability]}</span>
-                      </div>
-                      {status.missing.length > 0 && (
-                        <div className="text-amber-700 dark:text-amber-300">
-                          <span className="font-medium">Ontbrekend:</span> {status.missing.map((m) => WWS_MISSING_LABEL[m]).join(', ')}
-                          {status.source === 'ontbreekt' && ' — vul WWS-punten in of voer een volledige Huurcommissie-check uit.'}
-                        </div>
-                      )}
-                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-muted/60">
-                        <span className="font-medium text-foreground">WWS-modus:</span>
-                        <Select
-                          value={unitModeRaw ?? '__auto__'}
-                          onValueChange={(v) => updateWwsUnit(u.id, { wws_mode: v === '__auto__' ? null : v } as unknown as Partial<WwsUnit>)}
-                        >
-                          <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestWwsMode(wwsModeCtxUnit).mode]}</SelectItem>
-                            <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
-                            <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
-                            <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <span className="text-[11px] opacity-80">({unitModeEff.source})</span>
-                        <span className="text-[11px] opacity-80 basis-full">{unitModeEff.reasons.join(' ')}</span>
-                      </div>
-                    </div>
-                  </div>
-                  );
-                })}
                 {showHelp && (
                   <BerekeningUitleg>
                     WWS-puntenberekening is in V1 indicatief. Officiële WWS-toetsing blijft nodig. Segmenten: ≤143 punten sociaal, 144–186 middenhuur, ≥187 vrije sector.
