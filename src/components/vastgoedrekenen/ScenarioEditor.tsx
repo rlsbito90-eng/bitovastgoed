@@ -911,7 +911,8 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
-            {/* 1. Resultaat & biedingsadvies — altijd zichtbaar bovenaan */}
+            {/* 1. Scenario-cockpit / resultaat */}
+            <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Leidend spoor, maximale bieding en rond te rekenen" />
             <ResultaatKaart o={outputs} s={s} />
 
 
