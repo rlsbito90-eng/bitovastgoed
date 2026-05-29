@@ -1565,9 +1565,10 @@ export default function ScenarioEditor(props: Props) {
                 {wwsUnits.length > 0 && (
                   <UnitNavigator
                     anchorPrefix="wws-unit"
-                    units={wwsUnits.map((u) => {
+                    units={wwsUnits.map((u, idx) => {
                       const st = getWwsUnitStatus(u, { euroPerPoint: Number((taxSettings as { wws_euro_per_point?: number } | null)?.wws_euro_per_point ?? 6) });
-                      return { id: u.id, label: u.unit_name || 'Woonunit', warning: st.reliability !== 'volledig' };
+                      const ident = formatUnitIdentity({ name: u.unit_name, type: 'woonunit', surface: u.living_area_m2 }, idx);
+                      return { id: u.id, label: ident.primary, meta: ident.meta.join(' · '), warning: st.reliability !== 'volledig' };
                     })}
                   />
                 )}
@@ -1581,21 +1582,27 @@ export default function ScenarioEditor(props: Props) {
                     : status.reliability === 'indicatief' ? 'text-amber-700 dark:text-amber-300'
                     : 'text-destructive';
                   const independentVal = (u as unknown as { independent_unit?: boolean | null }).independent_unit;
-                  const indexStr = String(idx + 1).padStart(2, '0');
+                  const ident = formatUnitIdentity({ name: u.unit_name, type: 'woonunit', surface: u.living_area_m2 }, idx);
                   const isSelected = selectedWwsIds.has(u.id);
+                  // Reliability-chip voor WWS: indicatief / volledig / ontbreekt
+                  const reliabilityChip: { label: string; tone?: 'positive' | 'warning' | 'muted' } =
+                    status.reliability === 'volledig' ? { label: 'WWS volledig', tone: 'positive' }
+                    : status.reliability === 'indicatief' ? { label: 'WWS indicatief', tone: 'warning' }
+                    : { label: 'WWS ontbreekt', tone: 'warning' };
                   // Bouw header chips
                   const chips: { label: string; tone?: 'positive' | 'warning' | 'muted' }[] = [];
-                  if (u.living_area_m2) chips.push({ label: `${u.living_area_m2} m²` });
                   if (u.energy_label) chips.push({ label: `Label ${u.energy_label}` });
                   if (u.wws_points != null) chips.push({ label: `${u.wws_points} punten`, tone: 'positive' });
                   else chips.push({ label: 'punten ontbreken', tone: 'warning' });
                   if (u.rent_segment) chips.push({ label: String(u.rent_segment) });
+                  chips.push(reliabilityChip);
                   if (status.source === 'handmatig') chips.push({ label: 'handmatig', tone: 'warning' });
                   const modeChipTone: 'positive' | 'warning' | undefined =
                     unitModeEff.mode === 'volledig_vereist' ? 'warning'
                     : unitModeEff.mode === 'niet_nodig' ? undefined
                     : 'positive';
-                  chips.push({ label: `WWS: ${WWS_MODE_LABEL[unitModeEff.mode]}`, tone: modeChipTone });
+                  chips.push({ label: `Modus: ${WWS_MODE_LABEL[unitModeEff.mode]}`, tone: modeChipTone });
+                  const hasWarning = chips.some((c) => c.tone === 'warning');
                   const chipCls = (tone?: string) =>
                     tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
                     : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
@@ -1605,12 +1612,15 @@ export default function ScenarioEditor(props: Props) {
                     <div className="flex items-start justify-between gap-3 sticky top-0 z-10 bg-card -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 px-3 sm:px-4 pt-3 sm:pt-4 pb-2 border-b">
                       <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <Checkbox checked={isSelected} onCheckedChange={() => toggleWwsSelect(u.id)} aria-label="Selecteer unit" />
-                        <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{indexStr}</span>
-                        <span className="text-sm font-semibold truncate">{u.unit_name || 'Woonunit'}</span>
+                        <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
+                        <span className="text-sm font-semibold truncate">{ident.primary}</span>
+                        {ident.meta.length > 0 && <span className="text-xs text-muted-foreground">· {ident.meta.join(' · ')}</span>}
+                        {hasWarning && <span className="text-amber-600 dark:text-amber-300" title="Ontbrekende invoer of waarschuwing">⚠</span>}
                         {chips.map((c, i) => (
                           <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
                         ))}
                       </div>
+
                       <div className="flex items-center gap-1 shrink-0">
                         <Button size="sm" variant="ghost" onClick={() => recomputeWwsUnit(u.id)} className="h-8 px-2 text-muted-foreground" title="Herbereken deze unit">
                           <RotateCw className="h-4 w-4" />
