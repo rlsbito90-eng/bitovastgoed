@@ -163,9 +163,10 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{contribution > 0 ? fmtEur(contribution) : '—'}</TableCell>
                     <TableCell>
                       {hasWarning
-                        ? <Chip label={calc.warnings[0] ?? (strategy === 'later_beslissen' ? 'strategie ontbreekt' : 'aandacht')} tone="warning" />
+                        ? <Chip label={strategy === 'later_beslissen' ? 'Niet compleet' : 'Aandacht'} tone="warning" />
                         : <Chip label="OK" tone="positive" />}
                     </TableCell>
+
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="ghost" onClick={() => onDelete(u.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Verwijderen">
                         <Trash2 className="h-3.5 w-3.5" />
