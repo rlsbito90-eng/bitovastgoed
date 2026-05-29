@@ -1,21 +1,23 @@
-// Componentstrategie per scenario — UI.
-// Per unit kan strategie + bijbehorende velden worden ingevuld.
+// Componentstrategie per scenario — compacte tabel + detail-drawer (sub-fase 4C).
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Trash2, Plus, Sparkles, Download, ListChecks } from 'lucide-react';
 import type { Component, SellOffUnit } from '@/lib/vastgoedrekenen/types';
 import { RawNumberInput, RawTextInput, RawTextarea, numberToRaw, parseRawNumber } from './RawInputs';
-import { fmtEur } from './format';
+import { fmtEur, fmtM2 } from './format';
 import {
   STRATEGY_LABELS, SALE_STRATEGIES, HOLD_STRATEGIES,
   aggregateStrategy, computeComponentStrategy,
   type ComponentStrategyKey,
 } from '@/lib/vastgoedrekenen/componentStrategy';
-import UnitNavigator from './UnitNavigator';
 import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
+import { Chip } from './cockpit/tableShared';
+
 
 type Props = {
   units: SellOffUnit[];
