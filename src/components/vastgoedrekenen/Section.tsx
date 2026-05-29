@@ -116,16 +116,26 @@ export function SectionGroup({
   title: string;
   hint?: string;
 }) {
+  const stepLabel = step != null
+    ? (typeof step === 'number' ? String(step).padStart(2, '0') : step)
+    : null;
   return (
-    <div className="flex items-baseline gap-2 px-1 pt-3 pb-1 border-b border-border/40">
-      {step != null && (
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono-data">
-          {typeof step === 'number' ? String(step).padStart(2, '0') : step}
-        </span>
-      )}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
-      {hint && <span className="text-[11px] text-muted-foreground break-words">— {hint}</span>}
+    <div className="pt-8 pb-2 first:pt-2">
+      <div className="flex items-baseline gap-3 border-b border-primary/30">
+        {stepLabel && (
+          <span className="text-[11px] uppercase tracking-[0.18em] text-primary/80 font-mono-data font-semibold">
+            {stepLabel}
+          </span>
+        )}
+        <h3 className="text-sm sm:text-[15px] font-semibold uppercase tracking-[0.08em] text-foreground pb-1.5 flex-1 min-w-0">
+          {title}
+        </h3>
+        {/* dunne gouden accent-streep onder de divider */}
+      </div>
+      <div className="h-[2px] w-12 bg-accent/70 -mt-px" aria-hidden />
+      {hint && <p className="mt-2 text-xs text-muted-foreground break-words">{hint}</p>}
     </div>
   );
 }
+
 
