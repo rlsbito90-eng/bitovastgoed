@@ -18,7 +18,9 @@ type Props = {
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
 };
+
 
 
 function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
