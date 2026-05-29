@@ -30,9 +30,9 @@ const TRACK_MODE_LABEL: Record<Props['trackMode'], string> = {
 };
 
 const TRACK_MODE_CLS: Record<Props['trackMode'], string> = {
-  scenario: 'bg-slate-500/15 text-slate-200 border-slate-400/30',
-  hybride: 'bg-violet-500/15 text-violet-200 border-violet-400/40',
-  component: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/40',
+  scenario: 'bg-slate-200 text-slate-900 border-slate-400 dark:bg-slate-700 dark:text-slate-50 dark:border-slate-500',
+  hybride: 'bg-violet-200 text-violet-950 border-violet-500 dark:bg-violet-900/70 dark:text-violet-50 dark:border-violet-500',
+  component: 'bg-emerald-200 text-emerald-950 border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50 dark:border-emerald-500',
 };
 
 export default function CockpitHeader({
@@ -74,7 +74,7 @@ export default function CockpitHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="text-muted-foreground">Rekenspoor</span>
-          <span className={`px-2 py-0.5 rounded-full border ${TRACK_MODE_CLS[trackMode]}`}>{TRACK_MODE_LABEL[trackMode]}</span>
+          <span className={`px-2 py-0.5 rounded-full border font-semibold text-[11px] ${TRACK_MODE_CLS[trackMode]}`}>{TRACK_MODE_LABEL[trackMode]}</span>
         </div>
       </div>
 

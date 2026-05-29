@@ -39,19 +39,19 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
   return (
     <>
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs min-w-[760px]">
+        <Table className="text-xs w-full min-w-[640px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">#</TableHead>
-              <TableHead>Unit</TableHead>
+              <TableHead className="w-8">#</TableHead>
+              <TableHead className="min-w-[120px] sticky left-0 bg-card z-10">Unit</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">m² GBO</TableHead>
+              <TableHead className="text-right">m²</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
-              <TableHead className="text-right">Markthuur</TableHead>
-              {perComp && <TableHead className="text-right">OVB-%</TableHead>}
-              {perComp && <TableHead className="text-right">OVB-bedrag</TableHead>}
+              <TableHead className="text-right hidden md:table-cell">Markthuur</TableHead>
+              {perComp && <TableHead className="text-right hidden lg:table-cell">OVB-%</TableHead>}
+              {perComp && <TableHead className="text-right">OVB</TableHead>}
               <TableHead>Status</TableHead>
-              <TableHead className="w-10" />
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -70,12 +70,12 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                   onClick={() => setOpenId(c.id)}
                 >
                   <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                  <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
+                  <TableCell className="font-medium break-words min-w-[120px] sticky left-0 bg-card group-hover:bg-muted/40">{ident.primary}</TableCell>
                   <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
-                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
+                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
+                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
                   {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
                   <TableCell>
                     {missing
@@ -90,15 +90,15 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                 </TableRow>
               );
             })}
-            <TableRow className="bg-muted/40 font-medium">
+            <TableRow className="bg-muted/60 font-semibold border-t-2">
               <TableCell />
               <TableCell colSpan={2} className="break-words whitespace-normal">
                 Totaal {components.length} units · {woon} woon · {comm} commercieel{warnings > 0 ? ` · ${warnings} aandacht` : ''}
               </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
-              <TableCell />
-              {perComp && <TableCell />}
+              <TableCell className="hidden md:table-cell" />
+              {perComp && <TableCell className="hidden lg:table-cell" />}
               {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalOvb)}</TableCell>}
               <TableCell colSpan={2} />
             </TableRow>
