@@ -70,12 +70,12 @@ export default function ComponentenTable({ components, ovbPerComponent, ovbMode,
                   onClick={() => setOpenId(c.id)}
                 >
                   <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                  <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
+                  <TableCell className="font-medium break-words min-w-[120px] sticky left-0 bg-card group-hover:bg-muted/40">{ident.primary}</TableCell>
                   <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
-                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
+                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
+                  {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
                   {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
                   <TableCell>
                     {missing
