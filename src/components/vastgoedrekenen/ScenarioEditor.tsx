@@ -804,7 +804,7 @@ export default function ScenarioEditor(props: Props) {
         // Default open-heuristiek: open bij waarschuwingen/blockers of als de sectie leidend is
         const aankoopOpen = true; // altijd open — kerninvoer
         const huurOpen = exploitatie || huurRelevance === 'leidend';
-        const verkoopOpen = verkoop || verkoopRelevance === 'leidend' || verkoopRelevance === 'aandacht';
+        const verkoopOpen = verkoop || verkoopRelevance === 'leidend';
         const kostenOpen = draftCosts.length > 0 || outputs.totalCosts > 0;
         const compOpen = isMixed || compWarnings > 0 || compRelevance === 'leidend';
         const wwsOpen = wwsRelevance === 'aandacht';
