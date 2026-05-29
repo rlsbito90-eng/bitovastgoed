@@ -798,7 +798,7 @@ export default function ScenarioEditor(props: Props) {
           { id: 'sec-strategie', step: 3, title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
           { id: 'sec-huur', step: 4, title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
           { id: 'sec-verkoop', step: 4, title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          { id: 'sec-kosten', step: 5, title: 'Kosten & OVB', status: 'ok', hint: kostenStatus },
+          { id: 'sec-kosten', step: 5, title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
           { id: 'sec-wws', step: 6, title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
           { id: 'sec-onderbouwing', step: 7, title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
           { id: 'sec-score', step: 7, title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
