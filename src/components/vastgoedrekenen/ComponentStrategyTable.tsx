@@ -119,19 +119,20 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
 
       {hasUnits && (
         <div className="rounded-md border overflow-x-auto">
-          <Table className="text-xs min-w-[760px]">
+          <Table className="text-xs w-full min-w-[760px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Unit</TableHead>
+                <TableHead className="hidden md:table-cell">Type</TableHead>
                 <TableHead className="text-right">m²</TableHead>
                 <TableHead>Strategie</TableHead>
                 <TableHead className="text-right">Bijdrage</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {units.map((u, idx) => {
                 const r = u as unknown as Record<string, unknown>;
