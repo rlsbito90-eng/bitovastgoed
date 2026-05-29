@@ -15,6 +15,7 @@ import {
 } from '@/lib/vastgoedrekenen/componentStrategy';
 import UnitNavigator from './UnitNavigator';
 import BulkFillDialog, { type BulkField } from './BulkFillDialog';
+import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
 
 type Props = {
   units: SellOffUnit[];
@@ -42,11 +43,16 @@ export default function ComponentStrategyTable({ units, components, asking, onCr
   const [bulkOpen, setBulkOpen] = useState(false);
 
   const navUnits = useMemo(
-    () => units.map((u) => {
+    () => units.map((u, idx) => {
       const r = u as unknown as Record<string, unknown>;
-      const label = (r.unit_label as string | null) ?? (u as unknown as { unit_name?: string }).unit_name ?? 'Unit';
+      const ident = formatUnitIdentity({
+        label: r.unit_label as string | null,
+        name: (u as unknown as { unit_name?: string }).unit_name,
+        type: r.unit_type as string | null,
+        surface: (r.surface_gbo as number | null) ?? (r.surface_vvo as number | null),
+      }, idx);
       const res = computeComponentStrategy(u);
-      return { id: u.id, label, warning: res.warnings.length > 0 || !r.strategy };
+      return { id: u.id, label: ident.primary, meta: ident.meta.join(' · '), warning: res.warnings.length > 0 || !r.strategy };
     }),
     [units],
   );
@@ -174,16 +180,19 @@ function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index
   const isManual = strategy === 'handmatige_waarde';
   const saleSrc = (r.sale_price_source as string | null) ?? 'totaal';
   const valMethod = (r.hold_valuation_method as string | null) ?? 'BAR';
-  const label = (r.unit_label as string | null) ?? (unit as unknown as { unit_name?: string }).unit_name ?? 'Unit';
-  const type = (r.unit_type as string | null) ?? null;
-  const surface = num(r.surface_gbo) ?? num(r.surface_vvo) ?? null;
+  const ident = formatUnitIdentity({
+    label: r.unit_label as string | null,
+    name: (unit as unknown as { unit_name?: string }).unit_name,
+    type: r.unit_type as string | null,
+    surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+  }, index);
   const calc = computeComponentStrategy(unit);
-  const indexStr = String(index + 1).padStart(2, '0');
 
-  // Bouw compacte cijfer-chips voor in de header.
+  // Strategie-tone: groen = leidt tot waarde, amber = ontbreekt/later
+  const stratTone: 'positive' | 'warning' | undefined = !r.strategy || strategy === 'later_beslissen' ? 'warning' : 'positive';
+
   const chips: { label: string; tone?: 'warning' | 'positive' | 'muted' }[] = [];
-  if (surface && surface > 0) chips.push({ label: `${surface} m²` });
-  chips.push({ label: STRATEGY_LABELS[strategy] ?? '—', tone: r.strategy ? undefined : 'warning' });
+  chips.push({ label: STRATEGY_LABELS[strategy] ?? '—', tone: stratTone });
   if (isSale) {
     const gross = calc.breakdown.grossSaleValue;
     if (gross > 0) chips.push({ label: `bruto ${fmtEur(gross)}` });
@@ -204,6 +213,7 @@ function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index
     const m = num(r.hold_value_manual);
     chips.push({ label: m && m > 0 ? `handm. ${fmtEur(m)}` : 'handmatige waarde ontbreekt', tone: m && m > 0 ? 'positive' : 'warning' });
   }
+  const hasWarning = chips.some((c) => c.tone === 'warning') || calc.warnings.length > 0;
 
   const chipCls = (tone?: string) =>
     tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
@@ -214,9 +224,10 @@ function UnitRow({ unit, index, onUpdate, onDelete }: { unit: SellOffUnit; index
     <div id={`strategy-unit-${unit.id}`} className="border rounded-md p-3 sm:p-4 space-y-3 scroll-mt-20">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{indexStr}</span>
-          <span className="text-sm font-semibold truncate">{label}</span>
-          {type && <span className="text-xs text-muted-foreground">· {type}</span>}
+          <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
+          <span className="text-sm font-semibold truncate">{ident.primary}</span>
+          {ident.meta.length > 0 && <span className="text-xs text-muted-foreground">· {ident.meta.join(' · ')}</span>}
+          {hasWarning && <span className="text-amber-600 dark:text-amber-300" title="Ontbrekende invoer of waarschuwing">⚠</span>}
           {chips.map((c, i) => (
             <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(c.tone)}`}>{c.label}</span>
           ))}
