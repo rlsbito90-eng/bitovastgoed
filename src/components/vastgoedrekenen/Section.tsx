@@ -91,32 +91,29 @@ export function Section({
 }
 
 /**
- * Visuele groepering van meerdere Sections onder één hoofd-titel.
- * Voegt geen logica toe — alleen rustigere hiërarchie.
+ * Visuele groep-heading boven een reeks Sections. Geen wrapper — render
+ * direct als sibling tussen Sections, zodat IIFE-blokken niet hoeven te
+ * worden herstructureerd.
  */
 export function SectionGroup({
   step,
   title,
   hint,
-  children,
 }: {
   step?: number | string;
   title: string;
   hint?: string;
-  children: ReactNode;
 }) {
   return (
-    <section className="space-y-2">
-      <div className="flex items-baseline gap-2 px-1 pt-2">
-        {step != null && (
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono-data">
-            {typeof step === 'number' ? String(step).padStart(2, '0') : step}
-          </span>
-        )}
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
-        {hint && <span className="text-[11px] text-muted-foreground truncate">— {hint}</span>}
-      </div>
-      <div className="space-y-2">{children}</div>
-    </section>
+    <div className="flex items-baseline gap-2 px-1 pt-3 pb-1 border-b border-border/40">
+      {step != null && (
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono-data">
+          {typeof step === 'number' ? String(step).padStart(2, '0') : step}
+        </span>
+      )}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
+      {hint && <span className="text-[11px] text-muted-foreground truncate">— {hint}</span>}
+    </div>
   );
 }
+
