@@ -1396,77 +1396,112 @@ export default function ScenarioEditor(props: Props) {
                   <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
                 </div>
                 {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
-                {components.map((c) => (
-                  <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-xs font-medium text-muted-foreground">Component</p>
-                      <Button size="sm" variant="ghost" onClick={() => deleteComponent(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Component verwijderen</span>
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
-                      <MobileFieldGroup label="Naam" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.component_name} onCommit={(raw) => updateComponent(c.id, { component_name: raw.trim() || 'Component' })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Type">
-                        <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })}>
-                          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                          <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </MobileFieldGroup>
-                      <MobileFieldGroup label="GBO (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
-                      <MobileFieldGroup label="Markthuur/maand (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
-                    </div>
-                    {ovbMode === 'per_component' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
-                        <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
-                        <MobileFieldGroup label="OVB-classificatie">
-                          <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
-                            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                            <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </MobileFieldGroup>
-                        <MobileFieldGroup label="Toerekeningsmethode">
-                          <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
-                            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
-                              <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
-                              <SelectItem value="strategy" disabled={sellOffUnits.length === 0}>
-                                Uit componentstrategie{sellOffUnits.length === 0 ? ' — geen units' : ''}
-                              </SelectItem>
-                              <SelectItem value="manual">Handmatig bedrag</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </MobileFieldGroup>
-                        <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
-                      </div>
-                    )}
-                    {ovbMode === 'per_component' && (() => {
+                {components.length > 0 && (
+                  <UnitNavigator
+                    anchorPrefix="componenten-unit"
+                    units={components.map((c, idx) => {
+                      const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
                       const diag = outputs.ovbPerComponent.find((p) => p.id === c.id);
-                      if (!diag) return null;
-                      const missing = diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount;
-                      return (
-                        <div className={`text-[11px] rounded-md border px-2 py-1.5 ${
-                          missing
-                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
-                            : 'border-dashed bg-muted/30 text-muted-foreground'
-                        }`}>
-                          <span className="font-medium">OVB:</span>{' '}
-                          methode <span className="font-mono-data">{diag.basisMethod}</span> ·{' '}
-                          grondslag <span className="font-mono-data">€ {diag.basisValue.toLocaleString('nl-NL')}</span> ·{' '}
-                          {diag.pct.toFixed(2)}% ·{' '}
-                          bedrag <span className="font-mono-data">€ {diag.amount.toLocaleString('nl-NL')}</span>
-                          {diag.missingValueBasis && <div>⚠ Toegerekende waarde ontbreekt — OVB komt op € 0. Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer handmatig bedrag in.</div>}
-                          {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden voor dit component — koppel het component aan een sell_off_unit of kies een andere methode.</div>}
-                          {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
+                      const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+                      return { id: c.id, label: ident.primary, meta: ident.meta.join(' · '), warning: ovbMissing };
+                    })}
+                  />
+                )}
+                {components.map((c, idx) => {
+                  const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
+                  const diag = ovbMode === 'per_component' ? outputs.ovbPerComponent.find((p) => p.id === c.id) : null;
+                  const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+                  // Header chips
+                  const chipCls = (tone?: 'warning' | 'positive' | 'muted') =>
+                    tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
+                    : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
+                    : 'border-border text-muted-foreground bg-muted/30';
+                  const chips: { label: string; tone?: 'warning' | 'positive' | 'muted' }[] = [];
+                  const monthly = Number(c.current_monthly_rent ?? 0);
+                  if (monthly > 0) chips.push({ label: `huur ${fmtEur(monthly)}/mnd` });
+                  if (diag) {
+                    chips.push({ label: `OVB ${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%`, tone: ovbMissing ? 'warning' : undefined });
+                    if (ovbMissing) chips.push({ label: 'OVB-grondslag ontbreekt', tone: 'warning' });
+                  }
+                  return (
+                    <div key={c.id} id={`componenten-unit-${c.id}`} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden scroll-mt-20">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <span className="text-xs font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</span>
+                          <span className="text-sm font-semibold truncate">{ident.primary}</span>
+                          {ident.meta.length > 0 && <span className="text-xs text-muted-foreground">· {ident.meta.join(' · ')}</span>}
+                          {ovbMissing && <span className="text-amber-600 dark:text-amber-300" title="Ontbrekende invoer">⚠</span>}
+                          {chips.map((cc, i) => (
+                            <span key={i} className={`text-[11px] rounded-full border px-2 py-0.5 ${chipCls(cc.tone)}`}>{cc.label}</span>
+                          ))}
                         </div>
-                      );
-                    })()}
-                  </div>
-                ))}
+                        <Button size="sm" variant="ghost" onClick={() => deleteComponent(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Component verwijderen</span>
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-w-0">
+                        <MobileFieldGroup label="Naam" className="lg:col-span-2"><RawTextInput className="h-9" initialValue={c.component_name} onCommit={(raw) => updateComponent(c.id, { component_name: raw.trim() || 'Component' })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="Type">
+                          <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })}>
+                            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </MobileFieldGroup>
+                        <MobileFieldGroup label="GBO (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                        <MobileFieldGroup label="Markthuur/maand (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></MobileFieldGroup>
+                      </div>
+                      {ovbMode === 'per_component' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3 min-w-0">
+                          <MobileFieldGroup label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></MobileFieldGroup>
+                          <MobileFieldGroup label="OVB-classificatie">
+                            <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })}>
+                              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                              <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="Toerekeningsmethode">
+                            <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })}>
+                              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
+                                <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
+                                <SelectItem value="strategy" disabled={sellOffUnits.length === 0}>
+                                  Uit componentstrategie{sellOffUnits.length === 0 ? ' — geen units' : ''}
+                                </SelectItem>
+                                <SelectItem value="manual">Handmatig bedrag</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </MobileFieldGroup>
+                          <MobileFieldGroup label="OVB-% (override)"><RawNumberInput className="h-9" format="percent" initialValue={numberToRaw(c.transfer_tax_percentage)} onCommit={(raw) => updateComponent(c.id, { transfer_tax_percentage: parseRawNumber(raw), transfer_tax_manual_override: raw.trim() !== '' })} /></MobileFieldGroup>
+                        </div>
+                      )}
+                      {diag && (() => {
+                        const missing = ovbMissing;
+                        return (
+                          <div className={`text-[11px] rounded-md border px-2 py-1.5 ${
+                            missing
+                              ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                              : 'border-dashed bg-muted/30 text-muted-foreground'
+                          }`}>
+                            <span className="font-medium">OVB:</span>{' '}
+                            methode <span className="font-mono-data">{diag.basisMethod}</span> ·{' '}
+                            grondslag <span className="font-mono-data">€ {diag.basisValue.toLocaleString('nl-NL')}</span> ·{' '}
+                            {diag.pct.toFixed(2)}% ·{' '}
+                            bedrag <span className="font-mono-data">€ {diag.amount.toLocaleString('nl-NL')}</span>
+                            {diag.missingValueBasis && <div>⚠ Toegerekende waarde ontbreekt — OVB komt op € 0. Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer handmatig bedrag in.</div>}
+                            {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden voor dit component — koppel het component aan een sell_off_unit of kies een andere methode.</div>}
+                            {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })}
               </div>
             </Section>
+
 
             {/* 7. WWS / huursegmentanalyse */}
             <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={false} hidden={!hasResidential && wwsUnits.length === 0}>
