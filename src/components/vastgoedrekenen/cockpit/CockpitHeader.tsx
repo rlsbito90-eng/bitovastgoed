@@ -4,7 +4,7 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
-import { fmtEur, fmtEurCompact, DEAL_BADGE } from '../format';
+import { fmtEur, DEAL_BADGE } from '../format';
 import { toast } from 'sonner';
 
 type Props = {
@@ -65,23 +65,23 @@ export default function CockpitHeader({
   return (
     <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-[hsl(var(--primary)/0.08)] via-card to-card overflow-hidden">
       {/* Meta-regel */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-primary/15 bg-primary/5">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-primary">BITO · Vastgoedrekenen</span>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-2.5 border-b border-primary/15 bg-primary/5">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
+          <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-primary whitespace-nowrap">BITO · Vastgoedrekenen</span>
           {scenarioName && (
-            <span className="text-sm text-foreground/90 truncate">· {scenarioName}</span>
+            <span className="text-sm text-foreground/90 break-words">· {scenarioName}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="text-muted-foreground">Rekenspoor</span>
           <span className={`px-2 py-0.5 rounded-full border ${TRACK_MODE_CLS[trackMode]}`}>{TRACK_MODE_LABEL[trackMode]}</span>
         </div>
       </div>
 
-      {/* KPI-strip — auto-fit zodat lange eurobedragen niet afbreken */}
+      {/* KPI-strip — auto-fit zodat lange eurobedragen volledig blijven */}
       <div
         className="grid gap-px bg-border/40"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
       >
         <Kpi
           label="Rond te rekenen"
@@ -96,14 +96,12 @@ export default function CockpitHeader({
         <Kpi
           label={o.leadingMaxBasis === 'strategie' ? 'Max. aankoopprijs' : 'Max. bieding'}
           value={fmtEur(o.leadingMaxValue)}
-          compactValue={fmtEurCompact(o.leadingMaxValue)}
           tone="primary"
           sub={`Bron: ${o.leadingMaxBasisLabel}`}
         />
         <Kpi
           label="Vraagprijs"
           value={asking > 0 ? fmtEur(asking) : '—'}
-          compactValue={asking > 0 ? fmtEurCompact(asking) : '—'}
           tone="neutral"
           sub={asking > 0 && diff !== 0 ? `${diff >= 0 ? '+' : '−'} ${fmtEur(Math.abs(diff))} verschil` : undefined}
         />
@@ -116,7 +114,6 @@ export default function CockpitHeader({
         <Kpi
           label="Netto marge"
           value={o.netMargin != null ? fmtEur(o.netMargin) : '—'}
-          compactValue={o.netMargin != null ? fmtEurCompact(o.netMargin) : '—'}
           tone={o.netMargin != null && o.netMargin < 0 ? 'danger' : 'neutral'}
           sub={o.netMarginPerM2 != null ? `${fmtEur(o.netMarginPerM2)} / m²` : undefined}
         />
@@ -130,11 +127,11 @@ export default function CockpitHeader({
         <Kpi
           label="Commissie"
           value={fmtEur(commissie)}
-          compactValue={fmtEurCompact(commissie)}
           tone="neutral"
           sub={`Gewogen ${fmtEur(commissieGewogen)}`}
         />
       </div>
+
 
       {/* Globale track-selector */}
       <div className={`flex flex-wrap items-center gap-2 px-4 py-2.5 text-xs border-t ${conflictUnresolved ? 'border-amber-500/50 bg-amber-500/10' : 'border-border/60 bg-card'}`}>
@@ -150,7 +147,7 @@ export default function CockpitHeader({
             toast.success(`Scenario-uitkomst bijgewerkt op basis van ${label}.`);
           }}
         >
-          <SelectTrigger className="h-7 w-auto min-w-[260px] text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-auto min-h-7 w-full sm:w-auto sm:min-w-[260px] text-xs py-1"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">Automatisch (heuristiek)</SelectItem>
             <SelectItem value="huur_bar">Huur / BAR</SelectItem>
@@ -190,18 +187,17 @@ const TONE_VALUE_CLS: Record<Tone, string> = {
   neutral: 'text-foreground',
 };
 
-function Kpi({ label, value, compactValue, sub, tone, customValueCls }: { label: string; value: string; compactValue?: string; sub?: string; tone: Tone; customValueCls?: string }) {
+function Kpi({ label, value, sub, tone, customValueCls }: { label: string; value: string; sub?: string; tone: Tone; customValueCls?: string }) {
   return (
     <div className="bg-card px-3 py-2.5 min-w-0">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium break-words">{label}</p>
       <p
-        className={`mt-0.5 font-semibold font-mono-data leading-tight whitespace-nowrap tabular-nums text-base lg:text-lg ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
-        title={value}
+        className={`mt-0.5 font-semibold font-mono-data leading-tight tabular-nums text-base lg:text-lg break-words ${customValueCls ?? TONE_VALUE_CLS[tone]}`}
       >
-        <span className="hidden sm:inline">{value}</span>
-        <span className="sm:hidden">{compactValue ?? value}</span>
+        {value}
       </p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{sub}</p>}
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 break-words">{sub}</p>}
     </div>
   );
 }
+
