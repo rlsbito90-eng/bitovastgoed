@@ -111,9 +111,9 @@ export default function InvesteringsWaterfall({
   };
   const toneText = (tone: Step['tone']) => {
     switch (tone) {
-      case 'positive': return 'text-emerald-700 dark:text-emerald-300';
-      case 'negative': return 'text-destructive';
-      default:         return 'text-foreground';
+      case 'positive': return 'fill-emerald-700 dark:fill-emerald-300';
+      case 'negative': return 'fill-destructive';
+      default:         return 'fill-foreground';
     }
   };
 
@@ -129,7 +129,7 @@ export default function InvesteringsWaterfall({
   return (
     <div className="rounded-md border bg-card p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-        <h4 className="text-sm font-semibold">
+        <h4 className="text-sm font-semibold text-foreground">
           Investerings-waterfall
           <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
             — vraagprijs → investering → opbrengst → marge
@@ -160,7 +160,7 @@ export default function InvesteringsWaterfall({
                   x={labelW - 8}
                   y={y + barH * 0.65}
                   textAnchor="end"
-                  className="fill-foreground text-[12px]"
+                  className="fill-foreground text-[12px] font-medium"
                 >
                   {step.label}
                 </text>
@@ -175,7 +175,7 @@ export default function InvesteringsWaterfall({
                 <text
                   x={labelW + chartW + 12}
                   y={y + barH * 0.65}
-                  className={`${toneText(step.tone)} text-[12px] font-mono`}
+                  className={`${toneText(step.tone)} text-[12px] font-semibold font-mono-data tabular-nums`}
                 >
                   {(step.tone === 'positive' || step.tone === 'negative') && step.value >= 0 ? '+ ' : ''}
                   {fmtEur(step.value)}
@@ -185,6 +185,7 @@ export default function InvesteringsWaterfall({
           })}
         </svg>
       </div>
+
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-primary/70" />Basis</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-amber-500/80" />Kosten / OVB</span>
