@@ -43,6 +43,18 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 import { buildScenarioSavePatch, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import {
+  CHAPTERS,
+  ALL_SUB_SECTION_KEYS,
+  chapterNumber,
+  buildStrategieOpenState,
+  buildUniformOpenState,
+  type SubSectionKey,
+  type SectionKey,
+} from '@/lib/vastgoedrekenen/sectionConfig';
+import AccordionToolbar from './cockpit/AccordionToolbar';
+
+
 
 
 type Props = {
@@ -151,6 +163,12 @@ export default function ScenarioEditor(props: Props) {
   const [draftCosts, setDraftCosts] = useState<ScenarioCost[]>([]);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  // Controlled open-state per sub-sectie. Wordt geïnitialiseerd uit
+  // de bestaande defaultOpen-heuristieken bij scenario-load.
+  const [openSections, setOpenSections] = useState<Record<SubSectionKey, boolean>>(() => buildUniformOpenState(false));
+  const openInitRef = useRef<string | null>(null);
+
 
   // Baseline = laatst opgeslagen / geladen scenario. Wordt gebruikt om te bepalen
   // of het formulier dirty is na een commit (zo wordt revert naar origineel ook gedetecteerd).
@@ -784,6 +802,33 @@ export default function ScenarioEditor(props: Props) {
         const wwsOpen = wwsRelevance === 'aandacht';
         const strategyOpen = strategyActive;
         const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
+        // Waterfall standaard open bij verkoop/exit-focus of als de strategie leidend is.
+        const waterfallOpen = scenarioExitActive || strategyActive || leadingBasis !== 'huur';
+
+        const defaultOpenMap: Record<SubSectionKey, boolean> = {
+          'sec-waterfall': waterfallOpen,
+          'sec-aankoop': aankoopOpen,
+          'sec-huur': huurOpen,
+          'sec-verkoop': verkoopOpen,
+          'sec-kosten': kostenOpen,
+          'sec-componenten': compOpen,
+          'sec-strategie': strategyOpen,
+          'sec-wws': wwsOpen,
+          'sec-onderbouwing': onderbouwingOpen,
+          'sec-score': false,
+          'sec-notities': false,
+        };
+        // Initialiseer controlled open-state één keer per scenario.
+        if (openInitRef.current !== s.id) {
+          openInitRef.current = s.id;
+          setOpenSections(defaultOpenMap);
+        }
+        const sectionProps = (key: SubSectionKey) => ({
+          open: openSections[key] ?? defaultOpenMap[key] ?? false,
+          onOpenChange: (next: boolean) =>
+            setOpenSections((prev) => ({ ...prev, [key]: next })),
+        });
+        const num = (key: SectionKey) => chapterNumber(key);
 
         // Rail-status helper: SectionRelevance + tellingen → RailStatus
         const relToRailStatus = (r: SectionRelevance | undefined, extraBlocker = false, extraWarn = false): RailStatus => {
@@ -792,17 +837,19 @@ export default function ScenarioEditor(props: Props) {
           if (r === 'aandacht' || extraWarn) return 'aandacht';
           return 'ok';
         };
+        // Rail items in EXACT dezelfde volgorde als de hoofdcontent (sectionConfig).
         const railItems: RailItem[] = [
-          { id: 'sec-aankoop', step: 2, title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
-          { id: 'sec-componenten', step: 3, title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
-          { id: 'sec-strategie', step: 3, title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
-          { id: 'sec-huur', step: 4, title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
-          { id: 'sec-verkoop', step: 4, title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          { id: 'sec-kosten', step: 5, title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
-          { id: 'sec-wws', step: 6, title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
-          { id: 'sec-onderbouwing', step: 7, title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
-          { id: 'sec-score', step: 7, title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
+          { id: 'sec-aankoop', step: Number(num('aankoop')), title: 'Aankoop & uitgangspunten', status: 'ok', hint: aankoopStatus },
+          { id: 'sec-huur', step: Number(num('opbrengsten')), title: 'Huur & exploitatie', status: relToRailStatus(huurRelevance), hint: huurStatus },
+          { id: 'sec-verkoop', step: Number(num('opbrengsten')), title: 'Verkoop / exit', status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
+          { id: 'sec-kosten', step: Number(num('bouwkosten')), title: 'Bouw-/renovatiekosten', status: 'ok', hint: kostenStatus },
+          { id: 'sec-componenten', step: Number(num('componenten')), title: 'Componenten & units', status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
+          { id: 'sec-strategie', step: Number(num('componenten')), title: 'Componentstrategie', status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
+          { id: 'sec-wws', step: Number(num('wws')), title: 'WWS / huursegment', status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          { id: 'sec-onderbouwing', step: Number(num('onderbouwing')), title: 'Onderbouwing & audit', status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
+          { id: 'sec-score', step: Number(num('onderbouwing')), title: 'Score-uitleg', status: 'ok', hint: scoreStatus },
         ];
+
 
 
 
@@ -847,8 +894,15 @@ export default function ScenarioEditor(props: Props) {
               <SectionRail items={railItems} />
               <div className="space-y-3 min-w-0">
 
+            {/* Accordion-toolbar: snel alle secties open/dicht of strategie-focus. */}
+            <AccordionToolbar
+              onExpandAll={() => setOpenSections(buildUniformOpenState(true))}
+              onCollapseAll={() => setOpenSections(buildUniformOpenState(false))}
+              onStrategieView={() => setOpenSections(buildStrategieOpenState())}
+            />
+
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
-            <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
+            <SectionGroup step={num('cockpit')} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
             <ResultaatKaart o={outputs} s={s} compact />
 
             {/* 4D: Investerings-waterfall — pure SVG, geen rekenlogica */}
@@ -856,7 +910,7 @@ export default function ScenarioEditor(props: Props) {
               id="sec-waterfall"
               title="Investerings-waterfall"
               status={outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge'}
-              defaultOpen={false}
+              {...sectionProps('sec-waterfall')}
               source="Berekening"
               relevance="informatief"
             >
@@ -866,9 +920,11 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
 
+
             {/* 2. Aankoop & investering */}
-            <SectionGroup step={2} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
-            <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} defaultOpen={aankoopOpen} source="Scenario" relevance="leidend">
+            <SectionGroup step={num('aankoop')} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
+            <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} {...sectionProps('sec-aankoop')} source="Scenario" relevance="leidend">
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
                 <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
@@ -924,8 +980,9 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 3. Huur & exploitatie */}
-            <SectionGroup step={3} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
-            <Section id="sec-huur" title="Huur & exploitatie" status={huurStatus} defaultOpen={huurOpen} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
+            <SectionGroup step={num('opbrengsten')} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
+            <Section id="sec-huur" title="Huur & exploitatie" status={huurStatus} {...sectionProps('sec-huur')} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
+
               <div className="pt-3 space-y-3">
                 {(() => {
                   const hasComponentRent = components.some((cc) => Number(cc.current_annual_rent ?? 0) > 0 || Number(cc.current_monthly_rent ?? 0) > 0);
@@ -1018,7 +1075,7 @@ export default function ScenarioEditor(props: Props) {
                 componentstrategie: 'Componentstrategie (per unit)',
               };
               return (
-                <Section id="sec-verkoop" title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoopOpen} source="Scenario-level verkoop" relevance={verkoopRelevance}>
+                <Section id="sec-verkoop" title="Verkoop / exit" status={verkoopStatus} {...sectionProps('sec-verkoop')} source="Scenario-level verkoop" relevance={verkoopRelevance}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
@@ -1222,8 +1279,9 @@ export default function ScenarioEditor(props: Props) {
             })()}
 
             {/* 5. Kosten & bouwkosten */}
-            <SectionGroup step={5} title="Kosten & OVB" hint="Bouwkosten, btw en overdrachtsbelasting" />
-            <Section id="sec-kosten" title="Kosten & bouwkosten" status={kostenStatus} defaultOpen={kostenOpen} source="Kostenposten" relevance="informatief">
+            <SectionGroup step={num('bouwkosten')} title="Bouw-/renovatiekosten" hint="Bouwkosten, onvoorzien, btw en overdrachtsbelasting" />
+            <Section id="sec-kosten" title="Bouw-/renovatiekosten" status={kostenStatus} {...sectionProps('sec-kosten')} source="Kostenposten" relevance="informatief">
+
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-48">
@@ -1410,8 +1468,9 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 6. Componenten / units */}
-            <SectionGroup step={3} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
-            <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={compOpen} source="Componenten" relevance={compRelevance}>
+            <SectionGroup step={num('componenten')} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
+            <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} {...sectionProps('sec-componenten')} source="Componenten" relevance={compRelevance}>
+
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <p className="text-xs text-muted-foreground max-w-xl">
@@ -1432,10 +1491,25 @@ export default function ScenarioEditor(props: Props) {
               </div>
             </Section>
 
+            {/* Componentstrategie per scenario — onderdeel van het Componenten-hoofdstuk */}
+            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} {...sectionProps('sec-strategie')} source="Componentstrategie" relevance={strategyRelevance}>
+              <ComponentStrategyTable
+                units={sellOffUnits}
+                components={components}
+                asking={s.asking_price}
+                onCreate={createStrategyUnit}
+                onUpdate={updateStrategyUnit}
+                onDelete={deleteStrategyUnit}
+                onImport={importStrategyFromComponents}
+              />
+            </Section>
+
+
 
             {/* 7. WWS / huursegmentanalyse */}
-            <SectionGroup step={6} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
-            <Section id="sec-wws" title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
+            <SectionGroup step={num('wws')} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
+            <Section id="sec-wws" title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} {...sectionProps('sec-wws')} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
+
               <div className="pt-3 space-y-3">
                 {(() => {
                   const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
@@ -1541,21 +1615,11 @@ export default function ScenarioEditor(props: Props) {
               </div>
             </Section>
 
-            {/* 7b. Componentstrategie per scenario */}
-            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
-              <ComponentStrategyTable
-                units={sellOffUnits}
-                components={components}
-                asking={s.asking_price}
-                onCreate={createStrategyUnit}
-                onUpdate={updateStrategyUnit}
-                onDelete={deleteStrategyUnit}
-                onImport={importStrategyFromComponents}
-              />
-            </Section>
+
+
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
+            <SectionGroup step={num('onderbouwing')} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
 
             {/* 4D: Audit-zijpaneel — compacte samenvatting + bronnen */}
             <AuditSidePanel
@@ -1569,7 +1633,7 @@ export default function ScenarioEditor(props: Props) {
                 scenario: 1,
               }}
             />
-            <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
+            <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} {...sectionProps('sec-onderbouwing')} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 {manualZeroSet.size > 0 && (
@@ -1613,7 +1677,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 9. Score-uitleg */}
-            <Section id="sec-score" title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
+            <Section id="sec-score" title="Score-uitleg" status={scoreStatus} {...sectionProps('sec-score')} source="Berekening" relevance="informatief">
               <div className="pt-3 text-xs leading-relaxed space-y-3">
                 <div>
                   <p className="font-medium text-foreground">{outputs.scoreLabel}</p>
@@ -1646,15 +1710,16 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 10. Notities */}
-            <Section title="Notities" status={notitiesStatus} defaultOpen={false} source="Handmatig" relevance="informatief">
+            <Section id="sec-notities" title="Notities" status={notitiesStatus} {...sectionProps('sec-notities')} source="Handmatig" relevance="informatief">
               <div className="pt-3">
                 <RawTextarea
                   initialValue={s.notes ?? ''}
                   onRawChange={markDirtyFromRaw}
                   onCommit={(value) => patch({ notes: value || null })}
                   placeholder="Eigen aantekeningen bij dit scenario..."
-                  rows={7}
-                  className="min-h-[180px] resize-y leading-relaxed"
+                  rows={8}
+                  className="min-h-[200px] resize-y leading-relaxed"
+
                 />
               </div>
 
