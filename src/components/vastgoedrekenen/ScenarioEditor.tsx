@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
