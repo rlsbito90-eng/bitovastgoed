@@ -40,8 +40,8 @@ export default function ResultaatKaart({ o, s, compact = false }: { o: ComputedO
   return (
     <Card className="border-primary/40">
       <CardContent className="p-4 space-y-4">
-        {/* Prominente leidende uitkomst-balk */}
-        {asking > 0 && (
+        {/* Prominente leidende uitkomst-balk — verborgen in compact-modus (cockpit toont dit al) */}
+        {!compact && asking > 0 && (
           <div
             className={`rounded-md border-2 p-3 ${
               rounds
@@ -66,7 +66,6 @@ export default function ResultaatKaart({ o, s, compact = false }: { o: ComputedO
                 · Gebaseerd op: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span>
               </span>
             </div>
-            {/* Resultaatgerichte één-zin uitleg */}
             <p className="text-xs mt-1.5 leading-snug text-foreground/90">
               {rounds
                 ? <>Ruimte boven vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt boven de vraagprijs.</>
