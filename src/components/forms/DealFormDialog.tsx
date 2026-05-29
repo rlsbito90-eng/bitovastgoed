@@ -6,6 +6,7 @@
 //   4. Notities   — afwijzingsreden, algemene notities
 
 import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -249,8 +250,10 @@ export default function DealFormDialog({
   const isAfgerond = form.fase === 'afgerond';
   const isAfgevallen = form.fase === 'afgevallen';
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle>

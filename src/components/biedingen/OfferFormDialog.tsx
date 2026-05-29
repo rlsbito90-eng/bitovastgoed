@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -231,8 +232,10 @@ export default function OfferFormDialog({
     <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-2">{children}</h3>
   );
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo ? 'Tegenvoorstel toevoegen' : 'Bieding toevoegen'}</DialogTitle>

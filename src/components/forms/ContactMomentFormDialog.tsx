@@ -1,5 +1,6 @@
 // src/components/forms/ContactMomentFormDialog.tsx
 import { useState, useEffect, useMemo } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -277,8 +278,10 @@ export default function ContactMomentFormDialog({
     }
   };
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Tijdlijnitem bewerken' : 'Contactmoment loggen'}</DialogTitle>

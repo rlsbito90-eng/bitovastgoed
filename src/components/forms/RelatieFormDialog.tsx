@@ -17,6 +17,7 @@
 //   4. Notities     — aankoop/verkoop, opvolging
 
 import { useState, useEffect, ReactNode } from 'react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -262,8 +263,10 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
   const regioOptions = REGIO_OPTIES.map(r => ({ value: r, label: r }));
   const dealstructuurOptions = Object.entries(DEALSTRUCTUUR_LABELS).map(([value, label]) => ({ value, label }));
 
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle>
