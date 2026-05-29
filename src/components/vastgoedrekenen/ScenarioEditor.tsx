@@ -28,7 +28,7 @@ import NoiOpbouw from './NoiOpbouw';
 import NogTeControleren from './NogTeControleren';
 import ResultaatKaart from './ResultaatKaart';
 import ComponentStrategyTable from './ComponentStrategyTable';
-import { Section } from './Section';
+import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
@@ -730,19 +730,88 @@ export default function ScenarioEditor(props: Props) {
           || propertyType === 'residentieel' || propertyType === 'mixed_use';
         
 
+        // === Status- + relevance/source-helpers per sectie (presentatie only) ===
+        const rec = s as unknown as Record<string, unknown>;
+        const saleStrategyRaw = (rec.sale_strategy as string | null) ?? 'geen_verkoop';
+        const scenarioExitActive = saleStrategyRaw !== 'geen_verkoop';
+        const strategyActive = sellOffUnits.length > 0;
+        const leadingBasis = outputs.leadingMaxBasis; // 'huur' | 'verkoop' | 'strategie'
+        const blockerCount = nogTeControleren.filter((i) => i.level === 'blocker').length;
+        const warningCount = nogTeControleren.filter((i) => i.level === 'warning').length;
+
+        // Sectie-relevance
+        const huurRelevance: SectionRelevance =
+          leadingBasis === 'huur' ? 'leidend' : exploitatie ? 'informatief' : 'niet_relevant';
+        const verkoopRelevance: SectionRelevance =
+          leadingBasis === 'verkoop' ? 'leidend' : scenarioExitActive ? 'informatief' : 'niet_relevant';
+        const strategyRelevance: SectionRelevance =
+          leadingBasis === 'strategie' ? 'leidend' : strategyActive ? 'informatief' : 'niet_relevant';
+        const wwsHasWarnings = wwsUnits.length > 0 && (() => {
+          // Tel units waarvan WWS-status indicatief/incompleet is.
+          let warn = 0;
+          for (const u of wwsUnits) {
+            const st = getWwsUnitStatus(u as unknown as WwsUnit);
+            if (st.reliability !== 'volledig') warn++;
+          }
+          return warn;
+        })();
+        const wwsRelevance: SectionRelevance =
+          (hasResidential || wwsUnits.length > 0)
+            ? (wwsHasWarnings ? 'aandacht' : 'informatief')
+            : 'niet_relevant';
+        const compRelevance: SectionRelevance =
+          components.length > 0 ? (isMixed ? 'leidend' : 'informatief') : 'niet_relevant';
+
+        // OVB samenvatting voor Aankoop-header
+        const ovbPctTxt = (() => {
+          const mode = (rec.ovb_mode as string | null) ?? 'auto';
+          if (mode === 'per_component') return 'per component';
+          if (mode === 'manual') return 'handmatig';
+          const pct = Number(s.transfer_tax_percentage ?? 0);
+          return pct > 0 ? `${pct.toFixed(1)}%` : '—';
+        })();
+
+        // Componenten-samenvatting (woningen vs commercieel)
+        const compWonen = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement').length;
+        const compCommercieel = components.filter((c) => c.component_type && c.component_type !== 'woning' && c.component_type !== 'appartement').length;
+        const compWarnings = outputs.ovbPerComponent.filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount).length;
+
+        // Strategie netto contributie
+        const strategyNet = outputs.scenarioValue || 0;
+
+        // Statuses
+        const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)} · OVB ${fmtEur(outputs.totalTransferTax)} (${ovbPctTxt})`;
         const huurStatus = exploitatie
           ? `NOI ${fmtEur(outputs.noi)} · BAR TI ${fmtPct(outputs.barTotalInvestment)}`
           : 'Niet leidend voor dit verkoopscenario';
         const verkoopStatus = outputs.netSaleProceeds != null
           ? `Netto opbr. ${fmtEur(outputs.netSaleProceeds)}${outputs.roi != null ? ` · ROI ${outputs.roi.toFixed(1)}%` : ''}`
-          : 'Geen verkoopdata';
+          : (scenarioExitActive ? 'Strategie gekozen, geen bedrag' : 'Geen verkoopdata');
         const kostenStatus = `${fmtEur(outputs.totalCosts)} incl. onvoorzien & btw`;
-        const aankoopStatus = `Investering ${fmtEur(outputs.totalInvestment)}`;
         const onderbouwingStatus = `${nogTeControleren.length} aandachtspunt(en) · betrouwbaarheid ${outputs.inputReliability}`;
-        const compStatus = `${components.length} component(en)`;
-        const wwsStatus = `${wwsUnits.length} woonunit(s)`;
+        const compStatus = components.length === 0
+          ? 'Geen componenten'
+          : `${components.length} unit(s)${compWonen ? ` · ${compWonen} wonen` : ''}${compCommercieel ? ` · ${compCommercieel} commercieel` : ''}${compWarnings ? ` · ${compWarnings} waarschuwing${compWarnings === 1 ? '' : 'en'}` : ''}`;
+        const wwsStatus = wwsUnits.length === 0
+          ? 'Geen woonunits'
+          : `${wwsUnits.length} woonunit(s)${wwsHasWarnings ? ` · ${wwsHasWarnings} indicatief/onvolledig` : ' · volledig'}`;
+        const strategyStatus = sellOffUnits.length === 0
+          ? 'Geen units'
+          : `${sellOffUnits.length} unit(s) · netto ${fmtEur(strategyNet)}${outputs.roundsAtAsking != null ? (outputs.roundsAtAsking ? ' · OK' : ' · tekort') : ''}`;
         const scoreStatus = `${outputs.scoreLabel}`;
         const notitiesStatus = s.notes ? '1 notitie' : 'Geen notities';
+
+        // Default open-heuristiek: open bij waarschuwingen/blockers of als de sectie leidend is
+        const aankoopOpen = true; // altijd open — kerninvoer
+        const huurOpen = exploitatie || huurRelevance === 'leidend';
+        const verkoopOpen = verkoop || verkoopRelevance === 'leidend';
+        const kostenOpen = draftCosts.length > 0 || outputs.totalCosts > 0;
+        const compOpen = isMixed || compWarnings > 0 || compRelevance === 'leidend';
+        const wwsOpen = wwsRelevance === 'aandacht';
+        const strategyOpen = strategyActive;
+        const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
+
+
 
         return (
           <div className="space-y-3">
@@ -842,12 +911,14 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
-            {/* 1. Resultaat & biedingsadvies — altijd zichtbaar bovenaan */}
+            {/* 1. Scenario-cockpit / resultaat */}
+            <SectionGroup step={1} title="Scenario-cockpit / resultaat" hint="Leidend spoor, maximale bieding en rond te rekenen" />
             <ResultaatKaart o={outputs} s={s} />
 
 
             {/* 2. Aankoop & investering */}
-            <Section title="Aankoop & investering" status={aankoopStatus} defaultOpen>
+            <SectionGroup step={2} title="Aankoop & uitgangspunten" hint="Vraagprijs, beoogde aankoop, OVB, financiering" />
+            <Section title="Aankoop & investering" status={aankoopStatus} defaultOpen={aankoopOpen} source="Scenario" relevance="leidend">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
                 <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
@@ -903,7 +974,8 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 3. Huur & exploitatie */}
-            <Section title="Huur & exploitatie" status={huurStatus} defaultOpen={exploitatie}>
+            <SectionGroup step={4} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
+            <Section title="Huur & exploitatie" status={huurStatus} defaultOpen={huurOpen} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
                   const hasComponentRent = components.some((cc) => Number(cc.current_annual_rent ?? 0) > 0 || Number(cc.current_monthly_rent ?? 0) > 0);
@@ -996,7 +1068,7 @@ export default function ScenarioEditor(props: Props) {
                 componentstrategie: 'Componentstrategie (per unit)',
               };
               return (
-                <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoop}>
+                <Section title="Verkoop / exit" status={verkoopStatus} defaultOpen={verkoopOpen} source="Scenario-level verkoop" relevance={verkoopRelevance}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
                       Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
@@ -1200,7 +1272,8 @@ export default function ScenarioEditor(props: Props) {
             })()}
 
             {/* 5. Kosten & bouwkosten */}
-            <Section title="Kosten & bouwkosten" status={kostenStatus} defaultOpen>
+            <SectionGroup step={5} title="Kosten & OVB" hint="Bouwkosten, btw en overdrachtsbelasting" />
+            <Section title="Kosten & bouwkosten" status={kostenStatus} defaultOpen={kostenOpen} source="Kostenposten" relevance="informatief">
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-48">
@@ -1387,7 +1460,8 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 6. Componenten / units */}
-            <Section title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={isMixed}>
+            <SectionGroup step={3} title="Componenten & strategie" hint="Per-unit invoer + verkoop-/houdstrategie" />
+            <Section title={`Componenten / units (${components.length})`} status={compStatus} defaultOpen={compOpen} source="Componenten" relevance={compRelevance}>
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <p className="text-xs text-muted-foreground max-w-xl">
@@ -1504,7 +1578,8 @@ export default function ScenarioEditor(props: Props) {
 
 
             {/* 7. WWS / huursegmentanalyse */}
-            <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={false} hidden={!hasResidential && wwsUnits.length === 0}>
+            <SectionGroup step={6} title="WWS / huursegment" hint="Puntentelling en huursegment per woonunit" />
+            <Section title={`WWS / huursegmentanalyse (${wwsUnits.length})`} status={wwsStatus} defaultOpen={wwsOpen} hidden={!hasResidential && wwsUnits.length === 0} source="WWS" relevance={wwsRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
                   const wwsModeCtx = { scenario: s, components, strategyUnits: sellOffUnits, wwsUnits };
@@ -1732,7 +1807,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 7b. Componentstrategie per scenario */}
-            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={sellOffUnits.length > 0 ? 'ok' : 'leeg'} defaultOpen={sellOffUnits.length > 0}>
+            <Section title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
               <ComponentStrategyTable
                 units={sellOffUnits}
                 components={components}
@@ -1745,7 +1820,8 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
-            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={false}>
+            <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
+            <Section title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} defaultOpen={onderbouwingOpen} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
                 {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
                 {manualZeroSet.size > 0 && (
@@ -1789,7 +1865,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 9. Score-uitleg */}
-            <Section title="Score-uitleg" status={scoreStatus} defaultOpen={false}>
+            <Section title="Score-uitleg" status={scoreStatus} defaultOpen={false} source="Berekening" relevance="informatief">
               <div className="pt-3 text-xs leading-relaxed space-y-3">
                 <div>
                   <p className="font-medium text-foreground">{outputs.scoreLabel}</p>
@@ -1822,7 +1898,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 10. Notities */}
-            <Section title="Notities" status={notitiesStatus} defaultOpen={false}>
+            <Section title="Notities" status={notitiesStatus} defaultOpen={false} source="Handmatig" relevance="informatief">
               <div className="pt-3">
                 <RawTextarea initialValue={s.notes ?? ''} onRawChange={markDirtyFromRaw} onCommit={(value) => patch({ notes: value || null })} placeholder="Eigen aantekeningen bij dit scenario..." rows={3} />
               </div>
