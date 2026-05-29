@@ -924,7 +924,7 @@ export default function ScenarioEditor(props: Props) {
             </Section>
 
             {/* 3. Huur & exploitatie */}
-            <SectionGroup step={4} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
+            <SectionGroup step={3} title="Opbrengsten" hint="Huur, exploitatie en verkoop / exit" />
             <Section id="sec-huur" title="Huur & exploitatie" status={huurStatus} defaultOpen={huurOpen} source={rentFromComponents ? 'Componenten' : 'Scenario (handmatig)'} relevance={huurRelevance}>
               <div className="pt-3 space-y-3">
                 {(() => {
