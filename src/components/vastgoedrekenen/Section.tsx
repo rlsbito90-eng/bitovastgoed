@@ -70,7 +70,7 @@ export function Section({
   return (
     <div
       id={id}
-      className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
+      className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 scroll-mt-32 lg:scroll-mt-36 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
     >
       <button
         type="button"
@@ -82,31 +82,31 @@ export function Section({
             className={`h-4 w-4 mt-0.5 sm:mt-0 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${open ? 'rotate-90 text-accent' : ''}`}
           />
           {numberLabel && (
-            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/80 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none mt-0.5 sm:mt-0">
+            <span className="shrink-0 text-[10px] font-mono-data tabular-nums text-muted-foreground/90 bg-muted/40 border border-border/60 rounded px-1.5 py-0.5 leading-none mt-0.5 sm:mt-0">
               {numberLabel}
             </span>
           )}
           <span
-            className="font-semibold text-[13.5px] text-foreground min-w-0 flex-1 tracking-[-0.005em] leading-snug [overflow-wrap:normal] [word-break:normal] hyphens-none line-clamp-2 sm:line-clamp-none sm:break-words"
+            className="font-semibold text-[14px] sm:text-[14.5px] text-foreground min-w-0 flex-1 tracking-[-0.005em] leading-snug [overflow-wrap:normal] [word-break:normal] hyphens-none line-clamp-2 sm:line-clamp-none sm:break-words"
           >
             {title}
           </span>
           {relevance && (
             <span
-              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-medium ${RELEVANCE_CLS[relevance]}`}
+              className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-semibold ${RELEVANCE_CLS[relevance]}`}
             >
               {relevance === 'aandacht' && <AlertTriangle className="h-3 w-3" />}
               {RELEVANCE_LABEL[relevance]}
             </span>
           )}
           {source && (
-            <span className="hidden md:inline text-[10px] text-muted-foreground/70 break-words">
+            <span className="hidden md:inline text-[10px] text-muted-foreground/80 break-words">
               · {source}
             </span>
           )}
         </div>
         {status && (
-          <span className="text-[11px] sm:text-[11.5px] text-muted-foreground sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[55%] md:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums pl-6 sm:pl-0">
+          <span className="text-[11px] sm:text-[11.5px] text-muted-foreground/90 sm:text-right shrink-0 w-full sm:w-auto sm:max-w-[55%] md:max-w-[60%] leading-snug whitespace-normal break-words tabular-nums pl-6 sm:pl-0">
             {status}
           </span>
         )}
@@ -115,6 +115,7 @@ export function Section({
     </div>
   );
 }
+
 
 
 
@@ -136,27 +137,28 @@ export function SectionGroup({
     ? (typeof step === 'number' ? String(step).padStart(2, '0') : step)
     : null;
   return (
-    <section className="pt-10 pb-3 first:pt-3" aria-label={title}>
+    <section className="pt-10 pb-3 first:pt-3 scroll-mt-32 lg:scroll-mt-36" aria-label={title}>
       <div className="flex items-center gap-3 min-w-0">
         {stepLabel && (
-          <span className="text-[11px] uppercase tracking-[0.22em] text-primary font-mono-data font-semibold tabular-nums">
+          <span className="text-[11px] uppercase tracking-[0.22em] text-primary font-mono-data font-bold tabular-nums">
             {stepLabel}
           </span>
         )}
         {stepLabel && <span className="text-primary/40 select-none" aria-hidden>—</span>}
-        <h3 className="text-[13px] sm:text-[14px] font-semibold uppercase tracking-[0.14em] text-primary min-w-0 truncate">
+        <h3 className="text-[14px] sm:text-[15px] font-bold uppercase tracking-[0.13em] text-primary min-w-0 truncate">
           {title}
         </h3>
         <span className="flex-1 h-px bg-gradient-to-r from-accent/60 via-accent/25 to-transparent ml-2" aria-hidden />
       </div>
       {hint && (
-        <p className="mt-2 ml-[2px] text-[12px] leading-relaxed text-muted-foreground/90 break-words max-w-[68ch]">
+        <p className="mt-2 ml-[2px] text-[12px] leading-relaxed text-muted-foreground/95 break-words max-w-[68ch]">
           {hint}
         </p>
       )}
     </section>
   );
 }
+
 
 
 

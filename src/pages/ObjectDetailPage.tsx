@@ -623,7 +623,11 @@ export default function ObjectDetailPage() {
     return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
   }, [object, store]);
 
-  // ── Tab-state: prioriteit URL (?tab=) → hash-shim → localStorage → 'overzicht' ──
+  // ── Tab-state: prioriteit URL (?tab=) → hash-shim → 'overzicht' ──
+  // Bewust géén localStorage-fallback: bij normaal openen van een ander
+  // object (vanuit lijst/search/matching) start je altijd op Overzicht.
+  // Tab-persistentie tussen prev/next gebeurt expliciet via ?tab= in de URL
+  // (zie ListNavigator hieronder).
   const readInitialTab = (): WorkspaceTabId => {
     if (typeof window === 'undefined') return 'overzicht';
     const url = new URL(window.location.href);
@@ -631,12 +635,9 @@ export default function ObjectDetailPage() {
     if (fromQuery && WORKSPACE_TABS.some(t => t.id === fromQuery)) return fromQuery as WorkspaceTabId;
     const hash = window.location.hash.replace(/^#/, '');
     if (hash && ANCHOR_TO_TAB[hash]) return ANCHOR_TO_TAB[hash];
-    try {
-      const stored = window.localStorage.getItem(WORKSPACE_TAB_STORAGE_KEY);
-      if (stored && WORKSPACE_TABS.some(t => t.id === stored)) return stored as WorkspaceTabId;
-    } catch { /* ignore */ }
     return 'overzicht';
   };
+
   const [activeTab, setActiveTabState] = useState<WorkspaceTabId>(readInitialTab);
 
   const setActiveTab = (id: WorkspaceTabId) => {
@@ -922,9 +923,10 @@ export default function ObjectDetailPage() {
         </Link>
         <ListNavigator
           info={getListNavigation('objecten', object.id, store.objecten.map(o => o.id))}
-          buildHref={(id) => `/objecten/${id}`}
+          buildHref={(id) => `/objecten/${id}${activeTab && activeTab !== 'overzicht' ? `?tab=${activeTab}` : ''}`}
           itemLabel="object"
         />
+
       </div>
 
       {/* =================================================
@@ -1994,7 +1996,9 @@ export default function ObjectDetailPage() {
                 objectEnergyLabel={(object as { energielabel?: string }).energielabel ?? null}
                 objectBouwjaar={(object as { bouwjaar?: number }).bouwjaar ?? null}
                 objectRawType={(object as { typeVastgoed?: string; subcategorie?: string }).typeVastgoed ?? (object as { subcategorie?: string }).subcategorie ?? null}
+                objectVraagprijs={object.vraagprijs ?? null}
               />
+
             </div>
           </SectionAnchor>
           )}

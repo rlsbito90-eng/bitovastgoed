@@ -18,7 +18,9 @@ type Props = {
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
 };
+
 
 
 function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
@@ -33,7 +35,7 @@ function MobileFieldGroup({ label, children, className }: { label: ReactNode; ch
 }
 
 
-function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType }: {
+function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType, objectVraagprijs }: {
   calculationId: string;
   taxSettings: ReturnType<typeof useTaxSettings>['settings'];
   objectArea: number | null;
@@ -42,7 +44,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   objectBouwjaar?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
 }) {
+
 
   const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
@@ -147,10 +151,12 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                     objectEnergyLabel={objectEnergyLabel}
                     objectBouwjaar={objectBouwjaar}
                     objectRawType={objectRawType}
+                    objectVraagprijs={objectVraagprijs}
                     viewMode={viewMode}
                     onUpdate={updateScenario}
                     onDelete={deleteScenario}
                   />
+
 
                 </div>
               )}
@@ -165,7 +171,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType }: Props) {
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs }: Props) {
   const { calculations, create, remove } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
@@ -215,8 +221,10 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
           objectEnergyLabel={objectEnergyLabel}
           objectBouwjaar={objectBouwjaar}
           objectRawType={objectRawType}
+          objectVraagprijs={objectVraagprijs}
           viewMode={viewMode}
         />
+
 
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">

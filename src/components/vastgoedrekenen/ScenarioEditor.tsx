@@ -68,10 +68,12 @@ type Props = {
   objectEnergyLabel?: string | null;
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
+  objectVraagprijs?: number | null;
   viewMode: 'begeleid' | 'compact' | 'expert';
   onUpdate: (id: string, patch: GuardedScenarioPatch) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 };
+
 
 type Suffix = '€' | '%' | 'm²' | 'maanden';
 
@@ -301,6 +303,29 @@ export default function ScenarioEditor(props: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyType]);
+
+  // Vraagprijs automatisch overnemen uit objectdata (Financieel-tab) als er nog
+  // geen waarde is ingevuld in dit scenario. Wordt niet als dirty gemarkeerd —
+  // pas bij volgende save wordt de waarde gepersisteerd.
+  const objectVraagprijs = props.objectVraagprijs ?? null;
+  useEffect(() => {
+    if ((s.asking_price == null || Number(s.asking_price) === 0) && objectVraagprijs != null && objectVraagprijs > 0) {
+      setS((prev) => ({ ...prev, asking_price: objectVraagprijs }));
+      baselineRef.current = { ...baselineRef.current, asking_price: objectVraagprijs };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectVraagprijs, s.id]);
+  const vraagprijsBron: 'financieel' | 'override' | 'leeg' = (() => {
+    if (objectVraagprijs == null || objectVraagprijs <= 0) return 'leeg';
+    if (s.asking_price == null) return 'financieel';
+    return Number(s.asking_price) === Number(objectVraagprijs) ? 'financieel' : 'override';
+  })();
+  const resetVraagprijsNaarFinancieel = () => {
+    if (objectVraagprijs != null && objectVraagprijs > 0) {
+      patch({ asking_price: objectVraagprijs });
+    }
+  };
+
 
   async function save() {
     const savedCosts: ScenarioCost[] = [];
@@ -941,7 +966,7 @@ export default function ScenarioEditor(props: Props) {
 
             {/* 1. Scenario-cockpit / resultaat (detailkaart — onder de cockpit) */}
             <SectionGroup step={num('cockpit')} title="Scenario-cockpit / resultaat" hint="Detail: conclusie, aandachtspunten en €/m²-kengetallen" />
-            <div id="sec-resultaat" className="scroll-mt-24">
+            <div id="sec-resultaat" className="scroll-mt-32 lg:scroll-mt-36">
               <ResultaatKaart o={outputs} s={s} compact />
             </div>
 
@@ -966,7 +991,28 @@ export default function ScenarioEditor(props: Props) {
             <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} {...sectionProps('sec-aankoop')} source="Scenario" relevance="leidend">
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
-                <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup
+                  label="Vraagprijs (€)"
+                  helper={
+                    vraagprijsBron === 'financieel' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Bron: Financieel — automatisch overgenomen uit objectgegevens
+                      </span>
+                    ) : vraagprijsBron === 'override' ? (
+                      <span className="inline-flex flex-wrap items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Handmatig overschreven (Financieel: {fmtEur(objectVraagprijs)})
+                        <button type="button" onClick={resetVraagprijsNaarFinancieel} className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200">
+                          Herstel uit Financieel
+                        </button>
+                      </span>
+                    ) : undefined
+                  }
+                >
+                  <NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" />
+                </MobileFieldGroup>
+
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Veiligheidsmarge (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" zeroActive={isZero('safety_margin')} onZeroToggle={toggleZero('safety_margin')} /></MobileFieldGroup>
 
