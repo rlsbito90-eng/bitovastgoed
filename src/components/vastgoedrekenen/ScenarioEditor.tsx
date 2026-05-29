@@ -1271,7 +1271,8 @@ export default function ScenarioEditor(props: Props) {
             })()}
 
             {/* 5. Kosten & bouwkosten */}
-            <Section title="Kosten & bouwkosten" status={kostenStatus} defaultOpen>
+            <SectionGroup step={5} title="Kosten & OVB" hint="Bouwkosten, btw en overdrachtsbelasting" />
+            <Section title="Kosten & bouwkosten" status={kostenStatus} defaultOpen={kostenOpen} source="Kostenposten" relevance="informatief">
               <div className="pt-3 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                   <div className="w-full sm:w-48">
