@@ -843,7 +843,7 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-3 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)] gap-4 xl:gap-6 items-start">
               <SectionRail items={railItems} />
               <div className="space-y-3 min-w-0">
 
