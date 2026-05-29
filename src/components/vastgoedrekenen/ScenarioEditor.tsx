@@ -1601,18 +1601,8 @@ export default function ScenarioEditor(props: Props) {
               </div>
             </Section>
 
-            {/* 7b. Componentstrategie per scenario */}
-            <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} defaultOpen={strategyOpen} source="Componentstrategie" relevance={strategyRelevance}>
-              <ComponentStrategyTable
-                units={sellOffUnits}
-                components={components}
-                asking={s.asking_price}
-                onCreate={createStrategyUnit}
-                onUpdate={updateStrategyUnit}
-                onDelete={deleteStrategyUnit}
-                onImport={importStrategyFromComponents}
-              />
-            </Section>
+
+
 
             {/* 8. Onderbouwing & betrouwbaarheid */}
             <SectionGroup step={7} title="Onderbouwing & audit" hint="Aannames, score-uitleg en notities" />
