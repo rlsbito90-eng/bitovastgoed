@@ -991,7 +991,28 @@ export default function ScenarioEditor(props: Props) {
             <Section id="sec-aankoop" title="Aankoop & investering" status={aankoopStatus} {...sectionProps('sec-aankoop')} source="Scenario" relevance="leidend">
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 pt-3">
-                <MobileFieldGroup label="Vraagprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup
+                  label="Vraagprijs (€)"
+                  helper={
+                    vraagprijsBron === 'financieel' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Bron: Financieel — automatisch overgenomen uit objectgegevens
+                      </span>
+                    ) : vraagprijsBron === 'override' ? (
+                      <span className="inline-flex flex-wrap items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Handmatig overschreven (Financieel: {fmtEur(objectVraagprijs)})
+                        <button type="button" onClick={resetVraagprijsNaarFinancieel} className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200">
+                          Herstel uit Financieel
+                        </button>
+                      </span>
+                    ) : undefined
+                  }
+                >
+                  <NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" />
+                </MobileFieldGroup>
+
                 <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
                 <MobileFieldGroup label="Veiligheidsmarge (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" zeroActive={isZero('safety_margin')} onZeroToggle={toggleZero('safety_margin')} /></MobileFieldGroup>
 
