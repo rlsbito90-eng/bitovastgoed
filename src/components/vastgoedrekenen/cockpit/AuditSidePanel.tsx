@@ -124,16 +124,19 @@ export default function AuditSidePanel({
   );
 }
 
-function SourceRow({ label, count }: { label: string; count: number }) {
+function SourceChip({ label, count }: { label: string; count: number }) {
   const has = count > 0;
   return (
-    <li className="flex items-center justify-between gap-2 min-w-0">
-      <span className={`truncate-none break-words ${has ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
-      <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded border ${
-        has ? 'bg-primary/10 text-primary border-primary/30' : 'bg-muted text-muted-foreground border-border'
-      }`}>
-        {count}
-      </span>
-    </li>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap ${
+        has
+          ? 'border-primary/30 bg-primary/5 text-foreground'
+          : 'border-border bg-muted/30 text-muted-foreground'
+      }`}
+    >
+      <span>{label}</span>
+      <span className={`font-mono-data tabular-nums text-[10px] ${has ? 'text-primary' : 'text-muted-foreground'}`}>{count}</span>
+    </span>
   );
 }
+
