@@ -40,7 +40,7 @@ import AuditDialog from './audit/AuditDialog';
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
-import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
+
 
 type Props = {
   scenario: Scenario;
