@@ -1,124 +1,75 @@
-## Doel
 
-Vastgoedrekenen rekenkundig en vastgoedkundig betrouwbaarder maken — zonder nieuwe rekenfeatures. We versterken validatie, uitlegbaarheid en testdekking. Bestaande rekenlogica (`computeScenario`, `investering.ts`, `huur.ts`, `verkoop.ts`, `bieding.ts`) blijft ongewijzigd.
+# Fase 4 — Premium Deal Cockpit
 
-## Aanpak in 7 stappen
+Dit is een grote UI/UX-herindeling van Vastgoedrekenen die ik in **vier veilige sub-fasen** wil uitvoeren. Geen nieuwe rekenlogica; alleen presentatie van bestaande outputs. Alle 160 tests blijven groen tussen elke sub-fase door.
 
-### 1. Casustype-matrix (`src/lib/vastgoedrekenen/validation/caseRequirements.ts` — nieuw)
+## Uitgangspunten
 
-Eén centrale tabel `CASE_REQUIREMENTS` per casustype met:
-- `requiredFields` — blokkerend
-- `optionalFields` — info
-- `defaults` — wat het systeem invult als leeg
-- `outputs` — relevante eindvelden
-- `notes` — vastgoedkundige aandachtspunten
+- Dezelfde data-pipeline: `ComputedOutputs` (incl. `leadingMax*`, `roundsAtAsking`), `ScenarioEditor` blijft de orkestrator.
+- Bito huisstijl (donker, ingetogen goud/oranje accent) — bestaande semantic tokens uit `index.css`/`tailwind.config.ts` uitbreiden waar nodig, geen nieuwe rauwe kleuren in componenten.
+- Geen breaking changes voor `ScenarioVergelijking`, `AuditDialog`, `BulkFillDialog`, scoring of `compute.ts`.
 
-Casustypes (aansluitend op bestaande `strategy_type` + `sale_strategy` + componentmix):
-verhuurde_belegging, leegstand, mixed_use, uitponden, woningen_verkopen_winkels_houden, alles_houden, alles_verkopen, renovatie_verkoop, renovatie_verhuur, transformatie_verkoop, transformatie_verhuur, bedrijfsunits, woon_winkel.
+## Sub-fase 4A — Cockpit shell + KPI-balk + globale selector
 
-Functie `detectCaseType(scenario, components, strategyUnits)` mapt huidige data naar één casustype zodat de juiste vereistenlijst geactiveerd wordt.
+- Nieuwe `CockpitShell` component met:
+  - Header (object/scenario/relatie/deal/status + opslaan/delen).
+  - 7-KPI strip op basis van `leadingMax*`: Rond te rekenen, Max. aankoopprijs, Vraagprijs, Verschil, ROI, Netto marge, Score, Commissie.
+  - "Scenario-uitkomst gebaseerd op" selector promoten naar cockpit-niveau (bovenaan, sticky onder header) — synced met bestaande `leading_valuation_track`.
+  - Informatieve secundaire regel: alternatieve sporen ("Verkoop/exit: …", "Huur/BAR: …").
+- `ResultaatKaart` blijft bestaan voor scenariovergelijking-context maar wordt visueel slanker; de cockpit is de nieuwe hoofdbron.
 
-### 2. Expliciete veldstatus (`src/lib/vastgoedrekenen/validation/fieldStatus.ts` — nieuw)
+## Sub-fase 4B — Linker workflow-nav + voortgangsbalk
 
-Helper `fieldStatus(value, { hasManualMarker?, defaultUsed? })` → `'ingevuld' | 'leeg' | 'bewust_nul' | 'default' | 'handmatig'`.
+- Nieuwe `SectionRail` (linker kolom op desktop ≥lg, accordion bovenaan op mobiel):
+  - 9 secties: Resultaat & cockpit, Aankoop & uitgangspunten, Componenten/units, Strategie per component, Opbrengsten, Kosten & OVB, WWS-analyse, Onderbouwing & audit, Scenario's vergelijken.
+  - Statuschip per sectie (OK / aandacht / blocker / niet relevant) afgeleid van bestaande relevance/warning-logica uit fase 3.
+  - Tellers van aandachtspunten.
+  - Klik scrollt naar anchor + opent sectie (gebruik bestaande Section `defaultOpen` infra).
+  - Voortgangsbalk "X / 9 secties compleet".
 
-Regels:
-- `null`/`undefined`/`''` → `leeg`
-- `0` met expliciete marker (bv. `*_manually_zero` flag of veld zit in `manual_zero_fields[]`) → `bewust_nul`
-- `0` zonder marker → `leeg` (waarschuwing) i.p.v. stil 0
-- default-aanname uit profiel → `default`
-- handmatige override (`assumptions_manual`, `*_manual_override`) → `handmatig`
+## Sub-fase 4C — Compacte componententabel + detail-drawer
 
-In `validation.ts` en `runAudit.ts` vervangen we `Number(x ?? 0) > 0`-checks door `fieldStatus()` zodat lege velden niet onzichtbaar als 0 doortellen.
+- Nieuwe `ComponentTable` als standaardweergave (vervangt repeterende kaarten):
+  - Kolommen: Unit, Type, Gebruik, GBO, Strategie, Markthuur, OVB-tarief, OVB-grondslag, OVB-bedrag, WWS, Status.
+  - Totalenregel + warnings ("2 units zonder markthuur").
+  - Klik op rij → `UnitDetailDrawer` met de bestaande invoer-card hergebruikt (geen logica-duplicatie).
+  - Toggle "Kaartweergave" behoudt fallback voor wie dat prefereert.
+- Bulk-invullen / herberekenen blijft werken; chip-navigatie uit fase 2 wijst nu naar tabelrijen.
 
-Voor bewust-0 voegen we per kritisch veld een eenvoudige UI-marker toe (checkbox "bewust 0") in `ScenarioEditor.tsx` voor: bouwkosten, verkoopkosten, overige verkoopkosten, financieringskosten. Geen nieuwe DB-kolommen; we hergebruiken bestaande `*_manual_override`-velden waar mogelijk, en slaan losse markers op in `scenario.assumptions_source` (JSON-veld al aanwezig).
+## Sub-fase 4D — Waterfall + audit-zijpaneel + bron-affordances
 
-### 3. Rekenketen-uitleg uitbreiden (`src/lib/vastgoedrekenen/audit/maxBidExplain.ts` + nieuwe `calcChain.ts`)
+- Nieuwe `InvesteringsWaterfall` (pure SVG, geen libs) met bestaande waarden: vraagprijs → kosten → OVB → verkoopkosten → netto opbrengst → netto marge.
+- Nieuw `AuditSidePanel` (rechts op ≥xl, collapsible):
+  - Aantal aandachtspunten, top blockers/warnings, gebruikte bronnen (Componenten/Strategie/WWS/Handmatig/Scenario-level), betrouwbaarheid, knop naar bestaande `AuditDialog`.
+- Visueel onderscheid invoer vs berekend systematisch toepassen via een kleine helper (`<ValueField variant="input|computed|derived|info|missing" source="…" />`) — generaliseert wat nu ad-hoc met dashed borders gebeurt.
 
-Nieuwe helper `buildCalcChain(input, computed)` levert stap-voor-stap regels:
+## Bestandsplan (indicatief)
 
-```text
-Input → bruto opbrengst → kosten → netto opbrengst →
-scenariowaarde → totale investering → marge/ROI →
-max aankoopprijs → verschil vraagprijs → rond te rekenen
+```
+src/components/vastgoedrekenen/cockpit/
+  CockpitShell.tsx           (4A)
+  CockpitHeader.tsx          (4A)
+  KpiStrip.tsx               (4A)
+  TrackSelector.tsx          (4A — extractie uit ScenarioEditor)
+  SectionRail.tsx            (4B)
+  ComponentTable.tsx         (4C)
+  UnitDetailDrawer.tsx       (4C)
+  InvesteringsWaterfall.tsx  (4D)
+  AuditSidePanel.tsx         (4D)
+  ValueField.tsx             (4D)
+edits:
+  ScenarioEditor.tsx         (alle sub-fasen — wrap in CockpitShell, secties krijgen anchors)
+  ResultaatKaart.tsx         (4A — afslanken / hergebruik in vergelijking)
+  ComponentStrategyTable.tsx (4C — gedeelde unit-row stijl)
+index.css / tailwind.config  (4A — eventueel extra tokens voor cockpit-surface)
 ```
 
-Per stap: `gebruikte velden`, `formule`, `uitkomst`, `bron`, `status (ingevuld/default/ontbreekt/handmatig)`. Toegevoegd als nieuwe tab "Rekenketen" in `AuditDialog.tsx`.
+## Test-strategie
 
-### 4. Betrouwbaarheidsscore (`src/lib/vastgoedrekenen/validation/reliability.ts` — nieuw)
+- Geen UI-tests toevoegen.
+- Bestaande 160 golden/unit tests draaien na elke sub-fase.
+- Alleen nieuwe pure helpers (bv. status-aggregatie voor SectionRail) krijgen kleine unit tests indien gedeelde logica wordt uitgepakt.
 
-`computeReliability(ctx, computed)` → `'hoog' | 'middel' | 'laag' | 'niet_betrouwbaar'` + lijst van redenen.
+## Aanpak
 
-Regels:
-- Blokkerende vereiste leeg → `niet_betrouwbaar`
-- ≥3 warnings of belangrijke handmatige waarde zonder onderbouwing of dubbele bron → `laag`
-- 1–2 warnings of defaults op niet-kritieke velden → `middel`
-- Alle vereisten ingevuld, geen warnings → `hoog`
-
-Tonen in:
-- `ResultaatKaart.tsx` (badge)
-- `AuditDialog.tsx` overzicht
-- `DealSnapshot.tsx`
-
-Bestaande `inputReliability` in `ComputedOutputs` blijft; nieuwe score is rijker en vervangt het in de UI-badge maar we mappen oude waarde door voor backcompat.
-
-### 5. Blokkerend vs niet-blokkerend (`validation.ts` + `runAudit.ts`)
-
-`ValidationItem.level` blijft `blocker | warning | info`. We mappen volgens specificatie van de gebruiker:
-
-Blokkerend: verkoopwaarde-ontbreekt-bij-verkoop, huur-ontbreekt-bij-aanhouden, BAR/NAR/factor-ontbreekt-bij-aanhouden, aankoopprijs leeg, OVB onbekend bij niet-manual, scenario zonder waardebron.
-
-Niet-blokkerend: WOZ, energielabel, btw-bouwkosten niet beoordeeld, verkoopkosten op default, bouwkosten indicatief, handmatig zonder onderbouwing.
-
-`ResultaatKaart` toont een `Niet betrouwbaar — blokkerende issues` banner zolang er blockers zijn.
-
-### 6. Golden testcases (`src/test/vastgoedrekenen/golden/` — nieuw)
-
-Vitest-suite met 8 fixtures:
-1. Simpele verhuurde belegging
-2. Retailbelegging
-3. Mixed-use woon-/winkelpand
-4. Hinthamerstraat (woningen verkopen, winkels houden) — leidend
-5. Alles verkopen per unit
-6. Renovatie + verkoop
-7. Transformatie naar wonen
-8. Bedrijfsunits
-
-Elke fixture: `{ scenario, components, costs, wwsUnits, strategyUnits }` + `expected: { grossSale, costs, totalInvestment, maxBid, diffAsking, rounds }`.
-
-Tests gebruiken `computeScenario` direct en vergelijken numeriek (`±€1`). Faalt zodra rekenlogica afwijkt.
-
-### 7. Hinthamerstraat als hoofdtest
-
-Bestaande `audit/hinthamerstraat.ts` blijft als runtime-check. Aanvullend: de golden fixture in stap 6 dekt dezelfde casus end-to-end zodat regressies in CI worden gepakt.
-
-## Bestanden
-
-Nieuw:
-- `src/lib/vastgoedrekenen/validation/caseRequirements.ts`
-- `src/lib/vastgoedrekenen/validation/fieldStatus.ts`
-- `src/lib/vastgoedrekenen/validation/reliability.ts`
-- `src/lib/vastgoedrekenen/audit/calcChain.ts`
-- `src/test/vastgoedrekenen/golden/fixtures.ts`
-- `src/test/vastgoedrekenen/golden/compute.test.ts`
-
-Aangepast:
-- `src/lib/vastgoedrekenen/validation.ts` — gebruikt fieldStatus + caseRequirements
-- `src/lib/vastgoedrekenen/audit/runAudit.ts` — voegt rekenketen + betrouwbaarheidsscore toe
-- `src/components/vastgoedrekenen/audit/AuditDialog.tsx` — nieuwe tabs "Rekenketen" en "Betrouwbaarheid"
-- `src/components/vastgoedrekenen/ResultaatKaart.tsx` — betrouwbaarheidsbadge + blocker-banner
-- `src/components/vastgoedrekenen/ScenarioEditor.tsx` — "bewust 0"-markers voor kritieke kostenvelden
-- `src/components/vastgoedrekenen/NogTeControleren.tsx` — toont casustype-header en gesplitste blockers/warnings
-
-Niet aangeraakt:
-- `compute.ts`, `investering.ts`, `huur.ts`, `verkoop.ts`, `bieding.ts`, `ovb.ts`, `wws.ts` (geen rekenwijzigingen)
-
-## Acceptatiecriteria gecontroleerd
-
-1. Verplichte velden per casustype centraal → caseRequirements
-2. Gat zichtbaar bij missende velden → blocker-banner + fieldStatus
-3. Geen stille 0 → fieldStatus onderscheid leeg vs bewust_nul
-4. Max bieding herleidbaar → calcChain tab
-5. Audit toont leidende bron → bestaande `sourcesOfTruth` + nieuwe rekenketen
-6. Testcases bewijzen logica → 8 golden fixtures, Hinthamerstraat leidend
-7. Gebruiker is niet enige controleur → betrouwbaarheidsscore + blockers
+Ik begin met **sub-fase 4A** zodra je akkoord bent, en stop daarna kort om je het resultaat te laten zien voordat ik 4B start. Zo blijft de scope per ronde behapbaar en kun je per stap bijsturen.
