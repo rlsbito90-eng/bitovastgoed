@@ -9,6 +9,16 @@ import {
 
 export const fmtEur = (n: number | null | undefined) =>
   n == null || isNaN(Number(n)) ? '—' : nlFormatCurrency(Number(n), 0);
+/** Compacte notatie voor zeer smalle KPI-cards: "€ 2,48 mln" / "€ 142 dzd". */
+export const fmtEurCompact = (n: number | null | undefined) => {
+  if (n == null || isNaN(Number(n))) return '—';
+  const v = Number(n);
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '−' : '';
+  if (abs >= 1_000_000) return `${sign}€ ${(abs / 1_000_000).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} mln`;
+  if (abs >= 10_000) return `${sign}€ ${(abs / 1_000).toLocaleString('nl-NL', { maximumFractionDigits: 0 })} dzd`;
+  return nlFormatCurrency(v, 0);
+};
 export const fmtPct = (n: number | null | undefined, decimals = 2) =>
   n == null ? '—' : nlFormatPercentage(Number(n), decimals);
 export const fmtNum = (n: number | null | undefined, decimals = 2) =>
