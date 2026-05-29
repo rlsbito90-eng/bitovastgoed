@@ -40,6 +40,7 @@ import AuditDialog from './audit/AuditDialog';
 import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
+import { buildScenarioSavePatch } from '@/lib/vastgoedrekenen/saveGuards';
 
 
 type Props = {
@@ -155,6 +156,7 @@ export default function ScenarioEditor(props: Props) {
   const baselineCostsRef = useRef<ScenarioCost[]>([]);
   const costDraftDirtyRef = useRef(false);
   const deletedCostIdsRef = useRef<string[]>([]);
+  const touchedScenarioFieldsRef = useRef<Set<keyof Scenario>>(new Set());
   const lastIdRef = useRef(scenario.id);
   useEffect(() => {
     if (lastIdRef.current !== scenario.id) {
@@ -164,6 +166,7 @@ export default function ScenarioEditor(props: Props) {
       baselineCostsRef.current = [];
       costDraftDirtyRef.current = false;
       deletedCostIdsRef.current = [];
+      touchedScenarioFieldsRef.current.clear();
       setDraftCosts([]);
       setDirty(false);
     }
@@ -222,6 +225,7 @@ export default function ScenarioEditor(props: Props) {
   // Patch = gecommitte wijziging (na blur / select / switch). Dirty wordt afgeleid
   // van een vergelijking met de baseline, zodat reverten naar origineel dirty wist.
   const patch = (p: Partial<Scenario>) => {
+    (Object.keys(p) as (keyof Scenario)[]).forEach((key) => touchedScenarioFieldsRef.current.add(key));
     setS((prev) => {
       const next = { ...prev, ...p } as Scenario;
       setDirty(!isScenarioShallowEqual(next, baselineRef.current) || !areScenarioCostsEqual(draftCosts, baselineCostsRef.current));
@@ -310,43 +314,7 @@ export default function ScenarioEditor(props: Props) {
       }
     }
 
-    await onUpdate(s.id, {
-      scenario_name: s.scenario_name, description: s.description, status: s.status, strategy_type: s.strategy_type,
-      asking_price: s.asking_price, purchase_price: s.purchase_price,
-      ovb_mode: s.ovb_mode, ovb_classification: s.ovb_classification, transfer_tax_percentage: s.transfer_tax_percentage, transfer_tax_amount: s.transfer_tax_amount,
-      buyer_fee_percentage: s.buyer_fee_percentage, notary_costs: s.notary_costs, advisory_costs: s.advisory_costs, due_diligence_costs: s.due_diligence_costs, other_acquisition_costs: s.other_acquisition_costs, safety_margin: s.safety_margin,
-      vacancy_percentage: s.vacancy_percentage, operating_cost_percentage: s.operating_cost_percentage, maintenance_reserve_percentage: s.maintenance_reserve_percentage, management_cost_percentage: s.management_cost_percentage,
-      other_annual_costs: s.other_annual_costs, current_monthly_rent: s.current_monthly_rent, market_monthly_rent: s.market_monthly_rent, manual_corrected_monthly_rent: s.manual_corrected_monthly_rent, rent_choice: s.rent_choice,
-      target_bar: s.target_bar, financing_costs: s.financing_costs, unforeseen_percentage: s.unforeseen_percentage,
-      notes: s.notes,
-      assumption_profile: s.assumption_profile, assumption_profile_reason: s.assumption_profile_reason,
-      assumptions_manual: s.assumptions_manual, assumptions_source: s.assumptions_source, assumptions_reliability: s.assumptions_reliability,
-      ...({ manual_zero_fields: (s as unknown as Record<string, unknown>).manual_zero_fields ?? [] } as Partial<Scenario>),
-      cost_structure: s.cost_structure, incentive_reserve: s.incentive_reserve,
-      mjop_present: s.mjop_present, contract_checked: s.contract_checked, service_costs_checked: s.service_costs_checked,
-      rent_source: s.rent_source,
-      // Verkoop / exit (nullable kolommen)
-      ...((s as Record<string, unknown>) && {
-        sale_strategy: (s as Record<string, unknown>).sale_strategy ?? null,
-        sale_price_total: (s as Record<string, unknown>).sale_price_total ?? null,
-        sale_price_per_m2: (s as Record<string, unknown>).sale_price_per_m2 ?? null,
-        sale_price_per_unit: (s as Record<string, unknown>).sale_price_per_unit ?? null,
-        sale_units_count: (s as Record<string, unknown>).sale_units_count ?? null,
-        sale_sellable_m2: (s as Record<string, unknown>).sale_sellable_m2 ?? null,
-        sale_costs_percentage: (s as Record<string, unknown>).sale_costs_percentage ?? null,
-        sale_other_costs: (s as Record<string, unknown>).sale_other_costs ?? null,
-        sale_exit_value_manual: (s as Record<string, unknown>).sale_exit_value_manual ?? null,
-        sale_target_margin_amount: (s as Record<string, unknown>).sale_target_margin_amount ?? null,
-        sale_target_margin_percentage: (s as Record<string, unknown>).sale_target_margin_percentage ?? null,
-        sale_target_roi_percentage: (s as Record<string, unknown>).sale_target_roi_percentage ?? null,
-        sale_target_exit_value: (s as Record<string, unknown>).sale_target_exit_value ?? null,
-        sale_expected_period_months: (s as Record<string, unknown>).sale_expected_period_months ?? null,
-        bid_basis: (s as Record<string, unknown>).bid_basis ?? null,
-        sale_price_source: (s as Record<string, unknown>).sale_price_source ?? null,
-        leading_valuation_track: (s as Record<string, unknown>).leading_valuation_track ?? 'auto',
-      }) as Partial<Scenario>,
-
-    });
+    await onUpdate(s.id, buildScenarioSavePatch(s, baselineRef.current, touchedScenarioFieldsRef.current));
     await upsertOutput({
       total_transfer_tax: outputs.totalTransferTax,
       total_acquisition_costs: outputs.totalAcquisitionCosts,
@@ -384,6 +352,7 @@ export default function ScenarioEditor(props: Props) {
     deletedCostIdsRef.current = [];
     costDraftDirtyRef.current = false;
     baselineRef.current = s;
+    touchedScenarioFieldsRef.current.clear();
     baselineCostsRef.current = savedCosts;
     setDraftCosts(savedCosts);
     setDirty(false);
