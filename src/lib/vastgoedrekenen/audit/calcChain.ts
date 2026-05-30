@@ -80,11 +80,40 @@ export function buildCalcChain(scenario: Scenario, o: ComputedOutputs): CalcChai
     status: fieldStatus(o.totalTransferTax),
     source: `OVB-modus: ${scenario.ovb_mode ?? 'auto'}`,
   });
+  const fee = resolveEffectiveBuyerFee(scenario);
   steps.push({
     fase: 'kosten',
-    label: 'Aankoopkosten (incl. safety margin)',
-    fields: ['scenario.notary_costs', 'scenario.broker_costs', 'scenario.due_diligence_costs', 'scenario.safety_margin'],
-    value: eur(o.totalAcquisitionCosts),
+    label: 'Aankoopfee (incl. btw)',
+    fields: ['scenario.buyer_fee_method', 'scenario.buyer_fee_amount', 'scenario.buyer_fee_percentage'],
+    formula: fee.method === 'staffel' && fee.staffel.tier
+      ? `${fee.staffel.tier.label} × basis (${fee.basisLabel}) = ${eur(fee.amountExVat)} ex. btw + ${fee.vatPct}% btw`
+      : `${fee.pctExVat}% × ${eur(fee.basis)} = ${eur(fee.amountExVat)} ex. btw + ${fee.vatPct}% btw`,
+    value: eur(fee.amountInclVat),
+    status: fieldStatus(fee.amountInclVat),
+    source: `${fee.sourceLabel} · basis: ${fee.basisLabel}`,
+    note: fee.warnings.join(' • ') || undefined,
+  });
+  const notary = resolveEffectiveNotary(scenario);
+  steps.push({
+    fase: 'kosten',
+    label: 'Notariskosten',
+    fields: ['scenario.notary_costs_method', 'scenario.notary_costs_profile', 'scenario.notary_costs'],
+    formula: notary.profile?.formula,
+    value: eur(notary.amount),
+    status: fieldStatus(notary.amount),
+    source: notary.method === 'profile' && notary.profile
+      ? `${notary.sourceLabel}: ${notary.profile.profile.label}`
+      : notary.sourceLabel,
+    note: [
+      ...notary.warnings,
+      notary.method === 'profile' ? 'Quickscan-default; controleer bij notaris/offerte vóór harde bieding.' : '',
+    ].filter(Boolean).join(' • ') || undefined,
+  });
+  steps.push({
+    fase: 'kosten',
+    label: 'Overige aankoopkosten (advies, dd, overig, safety)',
+    fields: ['scenario.advisory_costs', 'scenario.due_diligence_costs', 'scenario.other_acquisition_costs', 'scenario.safety_margin'],
+    value: eur(o.totalAcquisitionCosts - fee.amountInclVat - notary.amount),
     status: fieldStatus(o.totalAcquisitionCosts),
     source: 'Scenario',
   });
