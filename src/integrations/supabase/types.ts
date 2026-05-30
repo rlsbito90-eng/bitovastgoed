@@ -510,6 +510,7 @@ export type Database = {
           assumptions_source: string | null
           bid_basis: string | null
           buyer_fee_amount: number | null
+          buyer_fee_method: string
           buyer_fee_percentage: number | null
           buyer_fee_vat_percentage: number | null
           calculation_id: string
@@ -530,6 +531,8 @@ export type Database = {
           market_monthly_rent: number | null
           mjop_present: string | null
           notary_costs: number | null
+          notary_costs_method: string
+          notary_costs_profile: string | null
           notes: string | null
           object_id: string
           operating_cost_percentage: number | null
@@ -582,6 +585,7 @@ export type Database = {
           assumptions_source?: string | null
           bid_basis?: string | null
           buyer_fee_amount?: number | null
+          buyer_fee_method?: string
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
           calculation_id: string
@@ -602,6 +606,8 @@ export type Database = {
           market_monthly_rent?: number | null
           mjop_present?: string | null
           notary_costs?: number | null
+          notary_costs_method?: string
+          notary_costs_profile?: string | null
           notes?: string | null
           object_id: string
           operating_cost_percentage?: number | null
@@ -654,6 +660,7 @@ export type Database = {
           assumptions_source?: string | null
           bid_basis?: string | null
           buyer_fee_amount?: number | null
+          buyer_fee_method?: string
           buyer_fee_percentage?: number | null
           buyer_fee_vat_percentage?: number | null
           calculation_id?: string
@@ -674,6 +681,8 @@ export type Database = {
           market_monthly_rent?: number | null
           mjop_present?: string | null
           notary_costs?: number | null
+          notary_costs_method?: string
+          notary_costs_profile?: string | null
           notes?: string | null
           object_id?: string
           operating_cost_percentage?: number | null
