@@ -132,6 +132,8 @@ export function useQuickscanDetail(calculationId: string | undefined) {
 
   const createScenario = useCallback(async (input: Partial<Scenario>) => {
     if (!calculation) return null;
+    const { defaultNotaryProfileFor } = await import('@/lib/vastgoedrekenen/fees/notaryProfile');
+    const defaultProfile = defaultNotaryProfileFor(input.strategy_type ?? calculation.main_strategy, calculation.object_type);
     const { data, error } = await supabase
       .from('calculation_scenarios')
       .insert({
@@ -140,6 +142,9 @@ export function useQuickscanDetail(calculationId: string | undefined) {
         scenario_name: input.scenario_name ?? 'Nieuw scenario',
         strategy_type: input.strategy_type ?? calculation.main_strategy,
         status: input.status ?? 'concept',
+        buyer_fee_method: 'staffel',
+        notary_costs_method: 'profile',
+        notary_costs_profile: defaultProfile,
         ...input,
       })
       .select('*')

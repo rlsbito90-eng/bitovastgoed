@@ -43,6 +43,9 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 import { buildScenarioSavePatch, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import { Badge } from '@/components/ui/badge';
+import { resolveEffectiveBuyerFee, resolveEffectiveNotary, type BuyerFeeMethod, type NotaryCostsMethod } from '@/lib/vastgoedrekenen/fees/feeResolver';
+import { NOTARY_PROFILES, NOTARY_PROFILE_KEYS, type NotaryProfileKey } from '@/lib/vastgoedrekenen/fees/notaryProfile';
 import {
   CHAPTERS,
   ALL_SUB_SECTION_KEYS,
@@ -1050,8 +1053,139 @@ export default function ScenarioEditor(props: Props) {
                   <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
                 )}
 
-                <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumZero onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" zeroActive={isZero('buyer_fee_percentage')} onZeroToggle={toggleZero('buyer_fee_percentage')} /></MobileFieldGroup>
-                <MobileFieldGroup label="Notariskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" zeroActive={isZero('notary_costs')} onZeroToggle={toggleZero('notary_costs')} /></MobileFieldGroup>
+                {(() => {
+                  const rec = s as unknown as Record<string, unknown>;
+                  const feeMethod = ((rec.buyer_fee_method as string) ?? 'manual') as BuyerFeeMethod;
+                  const fee = resolveEffectiveBuyerFee(s);
+                  const setFeeMethod = (m: BuyerFeeMethod) => {
+                    const next: Record<string, unknown> = { buyer_fee_method: m };
+                    if (m === 'zero') {
+                      next.buyer_fee_percentage = 0;
+                      next.buyer_fee_amount = 0;
+                      const cur = new Set(manualZeroSet);
+                      cur.add('buyer_fee_percentage');
+                      next.manual_zero_fields = Array.from(cur);
+                    }
+                    if (m === 'staffel') {
+                      next.buyer_fee_amount = null;
+                    }
+                    patch(next as Partial<Scenario>);
+                  };
+                  return (
+                    <div className="col-span-full rounded-md border bg-card p-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium">Aankoopfee</span>
+                        <Badge variant="secondary" className="text-[10px]">{fee.sourceLabel}</Badge>
+                        {fee.method === 'staffel' && fee.staffel.tier && (
+                          <span className="text-[10px] text-muted-foreground">{fee.staffel.tier.label}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">Basis: {fee.basisLabel}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <MobileFieldGroup label="Methode">
+                          <Select value={feeMethod} onValueChange={(v) => setFeeMethod(v as BuyerFeeMethod)}>
+                            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="staffel">Automatische Bito-staffel</SelectItem>
+                              <SelectItem value="manual">Handmatig (% of €)</SelectItem>
+                              <SelectItem value="zero">Bewust € 0</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </MobileFieldGroup>
+                        {feeMethod === 'staffel' ? (
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="rounded bg-muted/40 p-2"><div className="text-[10px] uppercase text-muted-foreground">Ex. btw</div><div className="font-mono-data">{fmtEur(fee.amountExVat)}</div></div>
+                            <div className="rounded bg-muted/40 p-2"><div className="text-[10px] uppercase text-muted-foreground">Btw {fee.vatPct}%</div><div className="font-mono-data">{fmtEur(fee.vatAmount)}</div></div>
+                            <div className="rounded bg-muted/40 p-2"><div className="text-[10px] uppercase text-muted-foreground">Incl. btw</div><div className="font-mono-data font-semibold">{fmtEur(fee.amountInclVat)}</div></div>
+                          </div>
+                        ) : feeMethod === 'manual' ? (
+                          <>
+                            <MobileFieldGroup label="Aankoopfee (%) excl. btw"><NumZero onRawChange={markDirtyFromRaw} value={s.buyer_fee_percentage} onChange={(v) => patch({ buyer_fee_percentage: v })} placeholder="bijv. 2" suffix="%" zeroActive={isZero('buyer_fee_percentage')} onZeroToggle={toggleZero('buyer_fee_percentage')} /></MobileFieldGroup>
+                            <MobileFieldGroup label="of vast bedrag (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.buyer_fee_amount} onChange={(v) => patch({ buyer_fee_amount: v })} suffix="€" zeroActive={isZero('buyer_fee_amount')} onZeroToggle={toggleZero('buyer_fee_amount')} /></MobileFieldGroup>
+                          </>
+                        ) : null}
+                      </div>
+                      {feeMethod !== 'staffel' && (
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setFeeMethod('staffel')}>
+                          Herstel Bito-staffel
+                        </Button>
+                      )}
+                      {fee.warnings.length > 0 && (
+                        <div className="text-[11px] text-amber-700 dark:text-amber-300">⚠ {fee.warnings.join(' • ')}</div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const rec = s as unknown as Record<string, unknown>;
+                  const notaryMethod = ((rec.notary_costs_method as string) ?? 'manual') as NotaryCostsMethod;
+                  const profileKey = (rec.notary_costs_profile as NotaryProfileKey | null) ?? 'woning_belegging';
+                  const notary = resolveEffectiveNotary(s);
+                  const setMethod = (m: NotaryCostsMethod) => {
+                    const next: Record<string, unknown> = { notary_costs_method: m };
+                    if (m === 'profile' && !rec.notary_costs_profile) next.notary_costs_profile = 'woning_belegging';
+                    if (m === 'zero') {
+                      next.notary_costs = 0;
+                      const cur = new Set(manualZeroSet);
+                      cur.add('notary_costs');
+                      next.manual_zero_fields = Array.from(cur);
+                    }
+                    patch(next as Partial<Scenario>);
+                  };
+                  return (
+                    <div className="col-span-full rounded-md border bg-card p-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium">Notariskosten</span>
+                        <Badge variant="secondary" className="text-[10px]">{notary.sourceLabel}</Badge>
+                        {notary.method === 'profile' && notary.profile && (
+                          <span className="text-[10px] text-muted-foreground">{notary.profile.profile.label}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">Basis: {notary.basisLabel}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <MobileFieldGroup label="Methode">
+                          <Select value={notaryMethod} onValueChange={(v) => setMethod(v as NotaryCostsMethod)}>
+                            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="profile">Automatisch profiel</SelectItem>
+                              <SelectItem value="manual">Handmatig bedrag</SelectItem>
+                              <SelectItem value="zero">Bewust € 0</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </MobileFieldGroup>
+                        {notaryMethod === 'profile' ? (
+                          <>
+                            <MobileFieldGroup label="Profiel">
+                              <Select value={profileKey} onValueChange={(v) => patch({ notary_costs_profile: v } as Partial<Scenario>)}>
+                                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {NOTARY_PROFILE_KEYS.map((k) => (
+                                    <SelectItem key={k} value={k}>{NOTARY_PROFILES[k].label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </MobileFieldGroup>
+                            <div className="md:col-span-2 grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded bg-muted/40 p-2"><div className="text-[10px] uppercase text-muted-foreground">Formule</div><div className="text-[11px]">{notary.profile?.formula ?? '—'}</div></div>
+                              <div className="rounded bg-muted/40 p-2"><div className="text-[10px] uppercase text-muted-foreground">Bedrag</div><div className="font-mono-data font-semibold">{fmtEur(notary.amount)}</div></div>
+                            </div>
+                          </>
+                        ) : notaryMethod === 'manual' ? (
+                          <MobileFieldGroup label="Notariskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.notary_costs} onChange={(v) => patch({ notary_costs: v })} suffix="€" zeroActive={isZero('notary_costs')} onZeroToggle={toggleZero('notary_costs')} /></MobileFieldGroup>
+                        ) : null}
+                      </div>
+                      {notaryMethod !== 'profile' && (
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setMethod('profile')}>
+                          Herstel automatische default
+                        </Button>
+                      )}
+                      <div className="text-[11px] text-muted-foreground">Quickscan-default; controleer bij notaris/offerte vóór harde bieding.</div>
+                      {notary.warnings.length > 0 && (
+                        <div className="text-[11px] text-amber-700 dark:text-amber-300">⚠ {notary.warnings.join(' • ')}</div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <MobileFieldGroup label="Advieskosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.advisory_costs} onChange={(v) => patch({ advisory_costs: v })} suffix="€" zeroActive={isZero('advisory_costs')} onZeroToggle={toggleZero('advisory_costs')} /></MobileFieldGroup>
                 <MobileFieldGroup label="Due diligence (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.due_diligence_costs} onChange={(v) => patch({ due_diligence_costs: v })} suffix="€" zeroActive={isZero('due_diligence_costs')} onZeroToggle={toggleZero('due_diligence_costs')} /></MobileFieldGroup>
                 <MobileFieldGroup label="Overige aankoopkosten (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.other_acquisition_costs} onChange={(v) => patch({ other_acquisition_costs: v })} suffix="€" zeroActive={isZero('other_acquisition_costs')} onZeroToggle={toggleZero('other_acquisition_costs')} /></MobileFieldGroup>

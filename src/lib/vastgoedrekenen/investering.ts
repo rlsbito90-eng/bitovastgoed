@@ -1,6 +1,7 @@
 // Aankoopkosten, totale investering, prijs per m².
 
 import type { Scenario, ScenarioCost } from './types';
+import { resolveEffectiveBuyerFee, resolveEffectiveNotary } from './fees/feeResolver';
 
 export type AcquisitionBreakdown = {
   buyerFeeBase: number;
@@ -9,14 +10,13 @@ export type AcquisitionBreakdown = {
 };
 
 export function computeAcquisitionCosts(scenario: Scenario): AcquisitionBreakdown {
-  const purchase = Number(scenario.purchase_price ?? 0);
-  const buyerFeeBase = scenario.buyer_fee_amount != null
-    ? Number(scenario.buyer_fee_amount)
-    : Math.round((purchase * Number(scenario.buyer_fee_percentage ?? 0)) / 100);
-  const buyerFeeVat = Math.round((buyerFeeBase * Number(scenario.buyer_fee_vat_percentage ?? 0)) / 100);
+  const fee = resolveEffectiveBuyerFee(scenario);
+  const notary = resolveEffectiveNotary(scenario);
+  const buyerFeeBase = fee.amountExVat;
+  const buyerFeeVat = fee.vatAmount;
   const totalAcquisitionCosts =
     buyerFeeBase + buyerFeeVat +
-    Number(scenario.notary_costs ?? 0) +
+    notary.amount +
     Number(scenario.advisory_costs ?? 0) +
     Number(scenario.due_diligence_costs ?? 0) +
     Number(scenario.other_acquisition_costs ?? 0) +
