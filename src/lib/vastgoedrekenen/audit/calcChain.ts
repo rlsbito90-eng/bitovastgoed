@@ -5,6 +5,7 @@
 
 import type { Scenario, ComputedOutputs } from '../types';
 import { fieldStatus, type FieldStatus } from '../validation/fieldStatus';
+import { resolveEffectiveBuyerFee, resolveEffectiveNotary } from '../fees/feeResolver';
 
 export interface CalcChainStep {
   fase: 'input' | 'opbrengst' | 'kosten' | 'netto' | 'investering' | 'doel' | 'max_bod' | 'vergelijking' | 'doable';
