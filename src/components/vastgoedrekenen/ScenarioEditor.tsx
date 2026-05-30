@@ -43,6 +43,9 @@ import type { AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import ManualZeroToggle from './ManualZeroToggle';
 import { readManualZeroFields } from '@/lib/vastgoedrekenen/validation/fieldStatus';
 import { buildScenarioSavePatch, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import { Badge } from '@/components/ui/badge';
+import { resolveEffectiveBuyerFee, resolveEffectiveNotary, type BuyerFeeMethod, type NotaryCostsMethod } from '@/lib/vastgoedrekenen/fees/feeResolver';
+import { NOTARY_PROFILES, NOTARY_PROFILE_KEYS, type NotaryProfileKey } from '@/lib/vastgoedrekenen/fees/notaryProfile';
 import {
   CHAPTERS,
   ALL_SUB_SECTION_KEYS,
