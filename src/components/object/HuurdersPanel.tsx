@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatM2, INDEXATIE_BASIS_LABELS } from '@/
 import type { ObjectHuurder, IndexatieBasis } from '@/data/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Pencil, X, Check } from 'lucide-react';
@@ -209,15 +210,15 @@ function HuurderInlineForm({
         </div>
         <div className="space-y-1.5">
           <Label>Oppervlakte (m²)</Label>
-          <Input type="number" value={form.oppervlakteM2 ?? ''} onChange={e => set('oppervlakteM2', num(e.target.value))} />
+          <NumberField decimals={2} value={form.oppervlakteM2} onChange={v => set('oppervlakteM2', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Jaarhuur (€)</Label>
-          <Input type="number" value={form.jaarhuur ?? ''} onChange={e => set('jaarhuur', num(e.target.value))} />
+          <NumberField value={form.jaarhuur} onChange={v => set('jaarhuur', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Servicekosten/jr (€)</Label>
-          <Input type="number" value={form.servicekostenJaar ?? ''} onChange={e => set('servicekostenJaar', num(e.target.value))} />
+          <NumberField value={form.servicekostenJaar} onChange={v => set('servicekostenJaar', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Ingangsdatum</Label>
@@ -246,7 +247,7 @@ function HuurderInlineForm({
         {form.indexatieBasis === 'vast_pct' && (
           <div className="space-y-1.5">
             <Label>Indexatie %</Label>
-            <Input type="number" step="0.1" value={form.indexatiePct ?? ''} onChange={e => set('indexatiePct', num(e.target.value))} />
+            <NumberField decimals={1} value={form.indexatiePct} onChange={v => set('indexatiePct', v)} />
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -158,7 +159,7 @@ export default function AcquisitieTargetFormDialog({ open, onOpenChange, target,
             </div>
             <div>
               <Label>Prioriteit (1-5)</Label>
-              <Input type="number" min={1} max={5} value={form.prioriteit} onChange={e => setForm({ ...form, prioriteit: Number(e.target.value) })} />
+              <NumberField integer min={1} max={5} value={form.prioriteit} onChange={v => setForm({ ...form, prioriteit: v ?? 1 })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

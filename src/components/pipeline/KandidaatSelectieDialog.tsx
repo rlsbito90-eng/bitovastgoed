@@ -15,6 +15,7 @@ import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { parseDutchNumber } from '@/lib/format/nl';
 
 interface Props {
   open: boolean;
@@ -118,8 +119,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const gefilterd = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     const plaatsQ = filterPlaats.trim().toLowerCase();
-    const minF = budgetMinFilter ? Number(budgetMinFilter) : undefined;
-    const maxF = budgetMaxFilter ? Number(budgetMaxFilter) : undefined;
+    const minF = parseDutchNumber(budgetMinFilter) ?? undefined;
+    const maxF = parseDutchNumber(budgetMaxFilter) ?? undefined;
 
     return verrijkt.filter(item => {
       const r = item.relatie;
@@ -313,14 +314,16 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               className="h-9 text-xs"
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Budget vanaf €"
               value={budgetMinFilter}
               onChange={e => setBudgetMinFilter(e.target.value)}
               className="h-9 text-xs"
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Budget tot €"
               value={budgetMaxFilter}
               onChange={e => setBudgetMaxFilter(e.target.value)}

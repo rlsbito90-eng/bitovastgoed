@@ -10,6 +10,7 @@ import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -439,8 +440,8 @@ export default function DealFormDialog({
 
               <Sectie titel="Bod">
                 <Veld label="Indicatief bod (€)">
-                  <Input type="number" value={form.indicatiefBod ?? ''}
-                    onChange={e => set('indicatiefBod', num(e.target.value))} />
+                  <NumberField value={form.indicatiefBod}
+                    onChange={v => set('indicatiefBod', v)} />
                 </Veld>
               </Sectie>
             </TabsContent>
@@ -459,12 +460,11 @@ export default function DealFormDialog({
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Commissie-percentage (%)">
                     <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.commissiePct ?? ''}
-                        onChange={e => set('commissiePct', num(e.target.value))}
-                        placeholder="bv. 1.5"
+                      <NumberField
+                        decimals={2}
+                        value={form.commissiePct}
+                        onChange={v => set('commissiePct', v)}
+                        placeholder="bv. 1,5"
                       />
                       <Button
                         type="button"
@@ -478,11 +478,10 @@ export default function DealFormDialog({
                     </div>
                   </Veld>
                   <Veld label="Commissie-bedrag (€)">
-                    <Input
-                      type="number"
-                      value={form.commissieBedrag ?? ''}
-                      onChange={e => set('commissieBedrag', num(e.target.value))}
-                      placeholder="bv. 45000"
+                    <NumberField
+                      value={form.commissieBedrag}
+                      onChange={v => set('commissieBedrag', v)}
+                      placeholder="bv. 45.000"
                     />
                   </Veld>
                 </div>

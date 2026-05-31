@@ -20,6 +20,7 @@ import { useState, useEffect, ReactNode } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -512,17 +513,17 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
               <Sectie titel="Budget & rendement">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Budget minimum (€)">
-                    <Input type="number" value={form.budgetMin ?? ''}
-                      onChange={e => set('budgetMin', num(e.target.value))} />
+                    <NumberField value={form.budgetMin}
+                      onChange={v => set('budgetMin', v)} />
                   </Veld>
                   <Veld label="Budget maximum (€)">
-                    <Input type="number" value={form.budgetMax ?? ''}
-                      onChange={e => set('budgetMax', num(e.target.value))} />
+                    <NumberField value={form.budgetMax}
+                      onChange={v => set('budgetMax', v)} />
                   </Veld>
                   <Veld label="Rendementseis (%)">
-                    <Input type="number" step="0.01" value={form.rendementseis ?? ''}
-                      onChange={e => set('rendementseis', num(e.target.value))}
-                      placeholder="bv. 6.5" />
+                    <NumberField decimals={2} value={form.rendementseis}
+                      onChange={v => set('rendementseis', v)}
+                      placeholder="bv. 6,5" />
                   </Veld>
                 </div>
               </Sectie>
@@ -541,8 +542,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
                     </select>
                   </Veld>
                   <Veld label="Eigen vermogen (%)">
-                    <Input type="number" step="1" min="0" max="100" value={form.eigenVermogenPct ?? ''}
-                      onChange={e => set('eigenVermogenPct', num(e.target.value))}
+                    <NumberField integer min={0} max={100} value={form.eigenVermogenPct}
+                      onChange={v => set('eigenVermogenPct', v)}
                       placeholder="bv. 30" />
                   </Veld>
                 </div>

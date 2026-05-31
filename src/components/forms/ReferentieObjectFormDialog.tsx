@@ -23,6 +23,12 @@ import {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { parseDutchNumber } from '@/lib/format/nl';
+
+const toNum = (v: string): number | undefined => {
+  const n = parseDutchNumber(v);
+  return n == null ? undefined : n;
+};
 
 interface Props {
   open: boolean;
@@ -84,13 +90,13 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
     }
   }, [referentie, open]);
 
-  const m2Num = m2 ? Number(m2) : undefined;
-  const vraagprijsNum = vraagprijs ? Number(vraagprijs) : undefined;
-  const bouwjaarNum = bouwjaar ? Number(bouwjaar) : undefined;
+  const m2Num = toNum(m2);
+  const vraagprijsNum = toNum(vraagprijs);
+  const bouwjaarNum = toNum(bouwjaar);
   const prijsPerM2 = berekenPrijsPerM2(vraagprijsNum, m2Num);
 
-  const huurMaandNum = huurMaand ? Number(huurMaand) : undefined;
-  const huurJaarNum = huurJaar ? Number(huurJaar) : undefined;
+  const huurMaandNum = toNum(huurMaand);
+  const huurJaarNum = toNum(huurJaar);
   const huurPerM2Maand = berekenHuurPerM2PerMaand(huurMaandNum, m2Num);
   const huurPerM2Jaar = berekenHuurPerM2PerJaar(huurJaarNum, m2Num);
 
@@ -98,15 +104,15 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
   // Bewerkt rauwe string-state zodat de gebruiker waardes kan blijven aanpassen.
   useEffect(() => {
     if (huurMaand && !huurJaar) {
-      const v = Number(huurMaand);
-      if (!Number.isNaN(v) && v > 0) setHuurJaar(String(Math.round(v * 12)));
+      const v = toNum(huurMaand);
+      if (v != null && v > 0) setHuurJaar(String(Math.round(v * 12)));
     }
   }, [huurMaand, huurJaar]);
 
   useEffect(() => {
     if (huurJaar && !huurMaand) {
-      const v = Number(huurJaar);
-      if (!Number.isNaN(v) && v > 0) setHuurMaand(String(Math.round(v / 12)));
+      const v = toNum(huurJaar);
+      if (v != null && v > 0) setHuurMaand(String(Math.round(v / 12)));
     }
   }, [huurJaar, huurMaand]);
 
@@ -257,15 +263,15 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           </div>
           <div>
             <Label htmlFor="m2">m² <span className="text-accent">**</span></Label>
-            <Input id="m2" type="number" min={1} value={m2} onChange={e => setM2(e.target.value)} placeholder="850" />
+            <Input id="m2" type="text" inputMode="decimal" value={m2} onChange={e => setM2(e.target.value)} placeholder="850" />
           </div>
           <div>
             <Label htmlFor="vraagprijs">Vraagprijs (€) <span className="text-accent">**</span></Label>
-            <Input id="vraagprijs" type="number" min={0} value={vraagprijs} onChange={e => setVraagprijs(e.target.value)} placeholder="2500000" />
+            <Input id="vraagprijs" type="text" inputMode="decimal" value={vraagprijs} onChange={e => setVraagprijs(e.target.value)} placeholder="2.500.000" />
           </div>
           <div>
             <Label htmlFor="bouwjaar">Bouwjaar <span className="text-accent">**</span></Label>
-            <Input id="bouwjaar" type="number" min={1700} max={2100} value={bouwjaar} onChange={e => setBouwjaar(e.target.value)} placeholder="1998" />
+            <Input id="bouwjaar" type="text" inputMode="numeric" pattern="[0-9]*" value={bouwjaar} onChange={e => setBouwjaar(e.target.value)} placeholder="1998" />
           </div>
           <div>
             <Label>Prijs / m² <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
@@ -323,15 +329,15 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
             <div>
               <Label htmlFor="huurMaand">Huurprijs / maand (€)</Label>
               <Input
-                id="huurMaand" type="number" min={0} value={huurMaand}
-                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12500"
+                id="huurMaand" type="text" inputMode="decimal" value={huurMaand}
+                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12.500"
               />
             </div>
             <div>
               <Label htmlFor="huurJaar">Huurprijs / jaar (€)</Label>
               <Input
-                id="huurJaar" type="number" min={0} value={huurJaar}
-                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150000"
+                id="huurJaar" type="text" inputMode="decimal" value={huurJaar}
+                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150.000"
               />
             </div>
             <div>
