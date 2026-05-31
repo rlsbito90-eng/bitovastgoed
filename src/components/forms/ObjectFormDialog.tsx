@@ -685,8 +685,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               <Sectie titel="Prijs">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Vraagprijs (€)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" value={form.vraagprijs ?? ''}
-                      onChange={e => set('vraagprijs', num(e.target.value))} />
+                    <NumberField value={form.vraagprijs}
+                      onChange={v => set('vraagprijs', v)} placeholder="bv. 1.625.000" />
                   </Veld>
                   <Veld label="Prijsindicatie (tekstueel)">
                     <Input value={form.prijsindicatie ?? ''}
@@ -726,25 +726,25 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <Veld label="Totale huurinkomsten (€/jr)">
-                          <Input type="number" inputMode="decimal" className="min-w-0"
-                            value={form.huurinkomsten ?? ''}
-                            onChange={e => setJaarhuur(e.target.value)}
+                          <NumberField className="min-w-0"
+                            value={form.huurinkomsten}
+                            onChange={v => { setLaatstGewijzigdHuur('jaar'); set('huurinkomsten', v); setMaandhuurInput(v == null ? '' : String(maandhuurFromJaar(v) ?? '')); }}
                             placeholder="bv. 7.200" />
                           <p className="text-[11px] text-muted-foreground mt-1">Fallback/indicatie. Als huurdersregels aanwezig zijn, wordt de totale huur op detailniveau daarvan afgeleid.</p>
                         </Veld>
                         <Veld label={<>Maandelijkse huur (€/mnd) <AutoBadge show={laatstGewijzigdHuur !== 'maand' && !!form.huurinkomsten} /></>}>
-                          <Input type="number" inputMode="decimal" className="min-w-0"
-                            value={maandhuurInput}
-                            onChange={e => setMaandhuur(e.target.value)}
+                          <NumberField className="min-w-0"
+                            value={maandhuurInput === '' ? undefined : Number(maandhuurInput)}
+                            onChange={v => { setMaandhuurInput(v == null ? '' : String(v)); setLaatstGewijzigdHuur('maand'); set('huurinkomsten', jaarFromMaandhuur(v)); }}
                             placeholder="auto = jaarhuur ÷ 12" />
                         </Veld>
                         <Veld label={<>Huur per m² per jaar (€/m²/jr) <AutoBadge show={!huurPerM2Manual && autoHuurPerM2 != null} /><RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
-                          <Input type="number" step="0.01" inputMode="decimal" className="min-w-0"
-                            value={huurPerM2Display}
-                            onChange={e => {
-                              const v = e.target.value;
-                              setHuurPerM2Manual(v !== '');
-                              set('huurPerM2', num(v));
+                          <NumberField className="min-w-0"
+                            decimals={2}
+                            value={huurPerM2Display === '' ? undefined : Number(huurPerM2Display)}
+                            onChange={v => {
+                              setHuurPerM2Manual(v != null);
+                              set('huurPerM2', v);
                             }}
                             placeholder={autoHuurPerM2 != null ? fmtEuroNL(autoHuurPerM2, { decimals: 2 }) : 'onvoldoende gegevens'} />
                           {huurPerM2Manual && autoHuurPerM2 != null && (
@@ -754,27 +754,29 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                           )}
                         </Veld>
                         <Veld label="Servicekosten (€/jr)">
-                          <Input type="number" className="min-w-0" value={form.servicekostenJaar ?? ''}
-                            onChange={e => set('servicekostenJaar', num(e.target.value))} />
+                          <NumberField className="min-w-0" value={form.servicekostenJaar}
+                            onChange={v => set('servicekostenJaar', v)} />
                         </Veld>
                         <Veld label="NOI — netto operationeel inkomen (€/jr)">
-                          <Input type="number" className="min-w-0" value={form.noi ?? ''}
-                            onChange={e => set('noi', num(e.target.value))}
+                          <NumberField className="min-w-0" value={form.noi}
+                            onChange={v => set('noi', v)}
                             placeholder="handmatig — overschrijft niets" />
                         </Veld>
                         <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={form.brutoAanvangsrendement == null && autoBar != null} /></>}>
-                          <Input type="number" step="0.01" className="min-w-0"
-                            value={form.brutoAanvangsrendement ?? ''}
-                            onChange={e => set('brutoAanvangsrendement', num(e.target.value))}
+                          <NumberField className="min-w-0"
+                            decimals={2}
+                            value={form.brutoAanvangsrendement}
+                            onChange={v => set('brutoAanvangsrendement', v)}
                             placeholder={autoBar != null ? fmtPctNL(autoBar) : 'jaarhuur ÷ vraagprijs'} />
                           {form.brutoAanvangsrendement == null && autoBar != null && (
                             <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoBar)}</p>
                           )}
                         </Veld>
                         <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={form.nettoAanvangsrendement == null && autoNar != null} /></>}>
-                          <Input type="number" step="0.01" className="min-w-0"
-                            value={form.nettoAanvangsrendement ?? ''}
-                            onChange={e => set('nettoAanvangsrendement', num(e.target.value))}
+                          <NumberField className="min-w-0"
+                            decimals={2}
+                            value={form.nettoAanvangsrendement}
+                            onChange={v => set('nettoAanvangsrendement', v)}
                             placeholder={autoNar != null ? fmtPctNL(autoNar) : 'NOI ÷ vraagprijs'} />
                           {form.nettoAanvangsrendement == null && autoNar != null && (
                             <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoNar)}</p>
@@ -794,31 +796,28 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               <Sectie titel="Waarderingen">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="WOZ-waarde (€)">
-                    <Input type="number" className="min-w-0" value={form.wozWaarde ?? ''}
-                      onChange={e => set('wozWaarde', num(e.target.value))} />
+                    <NumberField className="min-w-0" value={form.wozWaarde}
+                      onChange={v => set('wozWaarde', v)} />
                   </Veld>
                   <Veld label="WOZ-peildatum (jaar)">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
+                    <NumberField
+                      integer
                       min={2000}
                       max={new Date().getFullYear() + 1}
                       className="min-w-0"
                       placeholder="bv. 2025"
-                      value={form.wozPeildatum ? new Date(form.wozPeildatum).getFullYear().toString() : ''}
-                      onChange={e => {
-                        const v = e.target.value;
-                        if (!v) { set('wozPeildatum', undefined); return; }
-                        const jaar = Number(v);
-                        if (!Number.isFinite(jaar)) return;
-                        set('wozPeildatum', `${jaar}-01-01`);
+                      value={form.wozPeildatum ? new Date(form.wozPeildatum).getFullYear() : undefined}
+                      onChange={v => {
+                        if (v == null) { set('wozPeildatum', undefined); return; }
+                        if (!Number.isFinite(v)) return;
+                        set('wozPeildatum', `${Math.trunc(v)}-01-01`);
                       }}
                     />
                     <p className="text-[11px] text-muted-foreground mt-1">Wordt opgeslagen als 1 januari van het gekozen jaar.</p>
                   </Veld>
                   <Veld label="Taxatiewaarde (€)">
-                    <Input type="number" className="min-w-0" value={form.taxatiewaarde ?? ''}
-                      onChange={e => set('taxatiewaarde', num(e.target.value))} />
+                    <NumberField className="min-w-0" value={form.taxatiewaarde}
+                      onChange={v => set('taxatiewaarde', v)} />
                   </Veld>
                   <Veld label="Taxatiedatum">
                     <Input type="date" className="min-w-0" value={form.taxatiedatum ?? ''}
@@ -830,8 +829,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               <Sectie titel="Marktwaarde-indicatie">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Marktwaarde-indicatie (€)">
-                    <Input type="number" value={form.marktwaardeIndicatie ?? ''}
-                      onChange={e => set('marktwaardeIndicatie', num(e.target.value))} />
+                    <NumberField value={form.marktwaardeIndicatie}
+                      onChange={v => set('marktwaardeIndicatie', v)} />
                   </Veld>
                   <Veld label="Bron / toelichting">
                     <Input value={form.marktwaardeBron ?? ''}
@@ -866,14 +865,14 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     />
                   </Veld>
                   <Veld label="Aantal huurders (fallback)">
-                    <Input type="number" value={form.aantalHuurders ?? ''}
-                      onChange={e => set('aantalHuurders', num(e.target.value))}
+                    <NumberField integer value={form.aantalHuurders}
+                      onChange={v => set('aantalHuurders', v)}
                       placeholder="Alleen gebruikt als er geen huurdersregels zijn" />
                     <p className="text-[11px] text-muted-foreground mt-1">Als huurdersregels aanwezig zijn, wordt het huurdersaantal op detailniveau daarvan afgeleid.</p>
                   </Veld>
                   <Veld label="Leegstand (%)">
-                    <Input type="number" step="0.1" value={form.leegstandPct ?? ''}
-                      onChange={e => set('leegstandPct', num(e.target.value))} />
+                    <NumberField decimals={1} value={form.leegstandPct}
+                      onChange={v => set('leegstandPct', v)} />
                   </Veld>
                 </div>
               </Sectie>
@@ -895,24 +894,24 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               <Sectie titel="Oppervlakten (NEN 2580)">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Oppervlakte totaal (m²)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" value={form.oppervlakte ?? ''}
-                      onChange={e => set('oppervlakte', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakte}
+                      onChange={v => set('oppervlakte', v)} />
                   </Veld>
                   <Veld label="VVO — verhuurbaar vloeroppervlak (m²)">
-                    <Input type="number" value={form.oppervlakteVvo ?? ''}
-                      onChange={e => set('oppervlakteVvo', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakteVvo}
+                      onChange={v => set('oppervlakteVvo', v)} />
                   </Veld>
                   <Veld label="BVO — bruto vloeroppervlak (m²)">
-                    <Input type="number" value={form.oppervlakteBvo ?? ''}
-                      onChange={e => set('oppervlakteBvo', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakteBvo}
+                      onChange={v => set('oppervlakteBvo', v)} />
                   </Veld>
                   <Veld label="GBO — gebruiksoppervlak (m²)">
-                    <Input type="number" value={form.oppervlakteGbo ?? ''}
-                      onChange={e => set('oppervlakteGbo', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakteGbo}
+                      onChange={v => set('oppervlakteGbo', v)} />
                   </Veld>
                   <Veld label={<>Perceeloppervlak (m²)<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" value={form.perceelOppervlakte ?? ''}
-                      onChange={e => set('perceelOppervlakte', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.perceelOppervlakte}
+                      onChange={v => set('perceelOppervlakte', v)} />
                   </Veld>
                 </div>
               </Sectie>
@@ -920,8 +919,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               <Sectie titel="Bouw">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Bouwjaar<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
-                    <Input type="number" value={form.bouwjaar ?? ''}
-                      onChange={e => set('bouwjaar', num(e.target.value))} />
+                    <NumberField integer value={form.bouwjaar}
+                      onChange={v => set('bouwjaar', v)} />
                   </Veld>
                   <Veld label={<>Energielabel<RefMark level="nuttig" show={markeerAlsReferentie} /></>}>
                     <select
@@ -934,12 +933,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     </select>
                   </Veld>
                   <Veld label="Aantal verdiepingen">
-                    <Input type="number" value={form.aantalVerdiepingen ?? ''}
-                      onChange={e => set('aantalVerdiepingen', num(e.target.value))} />
+                    <NumberField integer value={form.aantalVerdiepingen}
+                      onChange={v => set('aantalVerdiepingen', v)} />
                   </Veld>
                   <Veld label="Aantal units">
-                    <Input type="number" value={form.aantalUnits ?? ''}
-                      onChange={e => set('aantalUnits', num(e.target.value))} />
+                    <NumberField integer value={form.aantalUnits}
+                      onChange={v => set('aantalUnits', v)} />
                   </Veld>
                 </div>
               </Sectie>
@@ -1182,9 +1181,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                         </div>
                       </Veld>
                       <Veld label="Extra m² mogelijk">
-                        <Input type="number" inputMode="numeric" className="min-w-0"
-                          value={form.potentieExtraM2 ?? ''}
-                          onChange={e => set('potentieExtraM2', num(e.target.value))}
+                        <NumberField integer className="min-w-0"
+                          value={form.potentieExtraM2}
+                          onChange={v => set('potentieExtraM2', v)}
                           placeholder="bv. 75" />
                       </Veld>
                       <Veld label={<>Totaal m² na plan <AutoBadge /></>}>
@@ -1206,12 +1205,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                         </div>
                       </Veld>
                       <Veld label="Extra units mogelijk">
-                        <Input type="number" inputMode="numeric" className="min-w-0"
-                          value={form.potentieExtraUnits ?? ''}
-                          onChange={e => {
-                            const v = e.target.value;
-                            set('potentieExtraUnits', v === '' ? undefined : Math.trunc(Number(v)));
-                          }}
+                        <NumberField integer className="min-w-0"
+                          value={form.potentieExtraUnits}
+                          onChange={v => set('potentieExtraUnits', v == null ? undefined : Math.trunc(v))}
                           placeholder="bv. 3" />
                       </Veld>
                       <Veld label={<>Totaal units na plan <AutoBadge /></>}>
@@ -1567,13 +1563,13 @@ function OppervlaktenEditor({
           </div>
           <div className="col-span-4 sm:col-span-2">
             <Label className="text-xs">VVO m²</Label>
-            <Input type="number" value={r.vvo ?? ''}
-              onChange={e => updateRij(i, { vvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+            <NumberField decimals={2} value={r.vvo}
+              onChange={v => updateRij(i, { vvo: v })} />
           </div>
           <div className="col-span-4 sm:col-span-2">
             <Label className="text-xs">BVO m²</Label>
-            <Input type="number" value={r.bvo ?? ''}
-              onChange={e => updateRij(i, { bvo: e.target.value === '' ? undefined : Number(e.target.value) })} />
+            <NumberField decimals={2} value={r.bvo}
+              onChange={v => updateRij(i, { bvo: v })} />
           </div>
           <div className="col-span-4 sm:col-span-4">
             <Label className="text-xs">Bestemming / gebruik</Label>
@@ -1613,18 +1609,18 @@ function ScenarioBlok({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
           <Label className="text-xs">Jaarhuur (€)</Label>
-          <Input type="number" value={s.jaarhuur ?? ''}
-            onChange={e => update({ jaarhuur: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          <NumberField value={s.jaarhuur}
+            onChange={v => update({ jaarhuur: v })} />
         </div>
         <div>
           <Label className="text-xs">BAR (%)</Label>
-          <Input type="number" step="0.01" value={s.bar ?? ''}
-            onChange={e => update({ bar: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          <NumberField decimals={2} value={s.bar}
+            onChange={v => update({ bar: v })} />
         </div>
         <div>
           <Label className="text-xs">NOI (€/jr)</Label>
-          <Input type="number" value={s.noi ?? ''}
-            onChange={e => update({ noi: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          <NumberField value={s.noi}
+            onChange={v => update({ noi: v })} />
         </div>
       </div>
       <div>
