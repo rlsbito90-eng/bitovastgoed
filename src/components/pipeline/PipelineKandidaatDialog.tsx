@@ -163,10 +163,9 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
               </div>
               <div>
                 <Label>Bieding (€)</Label>
-                <Input
-                  type="number"
-                  value={form.biedingBedrag ?? ''}
-                  onChange={e => set('biedingBedrag', e.target.value ? Number(e.target.value) : undefined)}
+                <NumberField
+                  value={form.biedingBedrag}
+                  onChange={v => set('biedingBedrag', v)}
                 />
               </div>
             </div>

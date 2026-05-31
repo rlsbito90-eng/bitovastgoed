@@ -312,12 +312,12 @@ export default function ZoekprofielFormDialog({
               <Sectie titel="Prijs">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Minimum (€)">
-                    <Input type="number" value={form.prijsMin ?? ''}
-                      onChange={e => set('prijsMin', num(e.target.value))} />
+                    <NumberField value={form.prijsMin}
+                      onChange={v => set('prijsMin', v)} />
                   </Veld>
                   <Veld label="Maximum (€)">
-                    <Input type="number" value={form.prijsMax ?? ''}
-                      onChange={e => set('prijsMax', num(e.target.value))} />
+                    <NumberField value={form.prijsMax}
+                      onChange={v => set('prijsMax', v)} />
                   </Veld>
                 </div>
               </Sectie>
@@ -325,12 +325,12 @@ export default function ZoekprofielFormDialog({
               <Sectie titel="Oppervlakte">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Minimum (m²)">
-                    <Input type="number" value={form.oppervlakteMin ?? ''}
-                      onChange={e => set('oppervlakteMin', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakteMin}
+                      onChange={v => set('oppervlakteMin', v)} />
                   </Veld>
                   <Veld label="Maximum (m²)">
-                    <Input type="number" value={form.oppervlakteMax ?? ''}
-                      onChange={e => set('oppervlakteMax', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.oppervlakteMax}
+                      onChange={v => set('oppervlakteMax', v)} />
                   </Veld>
                 </div>
               </Sectie>
@@ -338,12 +338,12 @@ export default function ZoekprofielFormDialog({
               <Sectie titel="Bouwjaar & energielabel">
                 <div className="grid sm:grid-cols-3 gap-4">
                   <Veld label="Bouwjaar minimum">
-                    <Input type="number" value={form.bouwjaarMin ?? ''}
-                      onChange={e => set('bouwjaarMin', num(e.target.value))} />
+                    <NumberField integer value={form.bouwjaarMin}
+                      onChange={v => set('bouwjaarMin', v)} />
                   </Veld>
                   <Veld label="Bouwjaar maximum">
-                    <Input type="number" value={form.bouwjaarMax ?? ''}
-                      onChange={e => set('bouwjaarMax', num(e.target.value))} />
+                    <NumberField integer value={form.bouwjaarMax}
+                      onChange={v => set('bouwjaarMax', v)} />
                   </Veld>
                   <Veld label="Energielabel minimum">
                     <select
@@ -373,17 +373,17 @@ export default function ZoekprofielFormDialog({
                     </select>
                   </Veld>
                   <Veld label="Rendementseis min (%)">
-                    <Input type="number" step="0.01" value={form.rendementseis ?? ''}
-                      onChange={e => set('rendementseis', num(e.target.value))} />
+                    <NumberField decimals={2} value={form.rendementseis}
+                      onChange={v => set('rendementseis', v)} />
                   </Veld>
                   <Veld label="WALT minimum (jaren)">
-                    <Input type="number" step="0.1" value={form.waltMin ?? ''}
-                      onChange={e => set('waltMin', num(e.target.value))}
+                    <NumberField decimals={1} value={form.waltMin}
+                      onChange={v => set('waltMin', v)}
                       placeholder="bv. 5" />
                   </Veld>
                   <Veld label="Leegstand maximum (%)">
-                    <Input type="number" step="0.1" value={form.leegstandMaxPct ?? ''}
-                      onChange={e => set('leegstandMaxPct', num(e.target.value))} />
+                    <NumberField decimals={1} value={form.leegstandMaxPct}
+                      onChange={v => set('leegstandMaxPct', v)} />
                   </Veld>
                 </div>
               </Sectie>

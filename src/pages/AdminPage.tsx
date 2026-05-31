@@ -353,21 +353,21 @@ function JaarDoelDialog({ doel, onClose }: { doel: JaarDoel; onClose: () => void
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Jaar</Label>
-            <Input type="number" value={form.jaar}
-              onChange={e => setForm(p => ({ ...p, jaar: parseInt(e.target.value) || new Date().getFullYear() }))}
+            <NumberField integer value={form.jaar}
+              onChange={v => setForm(p => ({ ...p, jaar: v ?? new Date().getFullYear() }))}
               disabled={!isNieuw} />
           </div>
           <div className="space-y-1.5">
             <Label>Commissie-doel (€)</Label>
-            <Input type="number" value={form.commissieDoelBedrag ?? ''}
-              onChange={e => setForm(p => ({ ...p, commissieDoelBedrag: num(e.target.value) }))}
-              placeholder="bv. 300000" />
+            <NumberField value={form.commissieDoelBedrag}
+              onChange={v => setForm(p => ({ ...p, commissieDoelBedrag: v }))}
+              placeholder="bv. 300.000" />
           </div>
           <div className="space-y-1.5">
             <Label>Dealwaarde-doel (€)</Label>
-            <Input type="number" value={form.dealwaardeDoelBedrag ?? ''}
-              onChange={e => setForm(p => ({ ...p, dealwaardeDoelBedrag: num(e.target.value) }))}
-              placeholder="bv. 25000000" />
+            <NumberField value={form.dealwaardeDoelBedrag}
+              onChange={v => setForm(p => ({ ...p, dealwaardeDoelBedrag: v }))}
+              placeholder="bv. 25.000.000" />
           </div>
           <div className="space-y-1.5">
             <Label>Notities (optioneel)</Label>

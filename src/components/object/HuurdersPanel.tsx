@@ -210,15 +210,15 @@ function HuurderInlineForm({
         </div>
         <div className="space-y-1.5">
           <Label>Oppervlakte (m²)</Label>
-          <Input type="number" value={form.oppervlakteM2 ?? ''} onChange={e => set('oppervlakteM2', num(e.target.value))} />
+          <NumberField decimals={2} value={form.oppervlakteM2} onChange={v => set('oppervlakteM2', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Jaarhuur (€)</Label>
-          <Input type="number" value={form.jaarhuur ?? ''} onChange={e => set('jaarhuur', num(e.target.value))} />
+          <NumberField value={form.jaarhuur} onChange={v => set('jaarhuur', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Servicekosten/jr (€)</Label>
-          <Input type="number" value={form.servicekostenJaar ?? ''} onChange={e => set('servicekostenJaar', num(e.target.value))} />
+          <NumberField value={form.servicekostenJaar} onChange={v => set('servicekostenJaar', v)} />
         </div>
         <div className="space-y-1.5">
           <Label>Ingangsdatum</Label>
@@ -247,7 +247,7 @@ function HuurderInlineForm({
         {form.indexatieBasis === 'vast_pct' && (
           <div className="space-y-1.5">
             <Label>Indexatie %</Label>
-            <Input type="number" step="0.1" value={form.indexatiePct ?? ''} onChange={e => set('indexatiePct', num(e.target.value))} />
+            <NumberField decimals={1} value={form.indexatiePct} onChange={v => set('indexatiePct', v)} />
           </div>
         )}
       </div>
