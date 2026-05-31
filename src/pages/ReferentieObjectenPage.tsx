@@ -321,18 +321,18 @@ export default function ReferentieObjectenPage() {
         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground whitespace-nowrap">Bouwjaar</span>
-            <Input type="number" placeholder="van" className="h-10 w-24" value={bouwjaarMin} onChange={e => setBouwjaarMin(e.target.value)} />
-            <Input type="number" placeholder="tot" className="h-10 w-24" value={bouwjaarMax} onChange={e => setBouwjaarMax(e.target.value)} />
+            <Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="van" className="h-10 w-24" value={bouwjaarMin} onChange={e => setBouwjaarMin(e.target.value)} />
+            <Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="tot" className="h-10 w-24" value={bouwjaarMax} onChange={e => setBouwjaarMax(e.target.value)} />
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground whitespace-nowrap">m²</span>
-            <Input type="number" placeholder="van" className="h-10 w-24" value={m2Min} onChange={e => setM2Min(e.target.value)} />
-            <Input type="number" placeholder="tot" className="h-10 w-24" value={m2Max} onChange={e => setM2Max(e.target.value)} />
+            <Input type="text" inputMode="decimal" placeholder="van" className="h-10 w-24" value={m2Min} onChange={e => setM2Min(e.target.value)} />
+            <Input type="text" inputMode="decimal" placeholder="tot" className="h-10 w-24" value={m2Max} onChange={e => setM2Max(e.target.value)} />
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground whitespace-nowrap">Vraagprijs €</span>
-            <Input type="number" placeholder="van" className="h-10 w-32" value={prijsMin} onChange={e => setPrijsMin(e.target.value)} />
-            <Input type="number" placeholder="tot" className="h-10 w-32" value={prijsMax} onChange={e => setPrijsMax(e.target.value)} />
+            <Input type="text" inputMode="decimal" placeholder="van" className="h-10 w-32" value={prijsMin} onChange={e => setPrijsMin(e.target.value)} />
+            <Input type="text" inputMode="decimal" placeholder="tot" className="h-10 w-32" value={prijsMax} onChange={e => setPrijsMax(e.target.value)} />
           </div>
 
           <div className="sm:ml-auto">

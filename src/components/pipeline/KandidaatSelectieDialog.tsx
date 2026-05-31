@@ -313,14 +313,16 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               className="h-9 text-xs"
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Budget vanaf €"
               value={budgetMinFilter}
               onChange={e => setBudgetMinFilter(e.target.value)}
               className="h-9 text-xs"
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Budget tot €"
               value={budgetMaxFilter}
               onChange={e => setBudgetMaxFilter(e.target.value)}
