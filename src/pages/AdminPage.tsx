@@ -5,6 +5,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { ShieldCheck, User as UserIcon, Loader2, Target, Plus, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';

@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatM2, INDEXATIE_BASIS_LABELS } from '@/
 import type { ObjectHuurder, IndexatieBasis } from '@/data/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Pencil, X, Check } from 'lucide-react';
