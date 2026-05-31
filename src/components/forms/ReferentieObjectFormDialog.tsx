@@ -263,10 +263,6 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           </div>
           <div>
             <Label htmlFor="m2">m² <span className="text-accent">**</span></Label>
-            <Input id="m2" type="number" min={1} value={m2} onChange={e => setM2(e.target.value)} placeholder="850" />
-          </div>
-          <div>
-            <Label htmlFor="m2">m² <span className="text-accent">**</span></Label>
             <Input id="m2" type="text" inputMode="decimal" value={m2} onChange={e => setM2(e.target.value)} placeholder="850" />
           </div>
           <div>
@@ -333,15 +329,15 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
             <div>
               <Label htmlFor="huurMaand">Huurprijs / maand (€)</Label>
               <Input
-                id="huurMaand" type="number" min={0} value={huurMaand}
-                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12500"
+                id="huurMaand" type="text" inputMode="decimal" value={huurMaand}
+                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12.500"
               />
             </div>
             <div>
               <Label htmlFor="huurJaar">Huurprijs / jaar (€)</Label>
               <Input
-                id="huurJaar" type="number" min={0} value={huurJaar}
-                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150000"
+                id="huurJaar" type="text" inputMode="decimal" value={huurJaar}
+                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150.000"
               />
             </div>
             <div>
