@@ -12,6 +12,7 @@ import {
   type ReferentieObject,
 } from '@/data/mock-data';
 import { Input } from '@/components/ui/input';
+import { parseDutchNumber } from '@/lib/format/nl';
 import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -115,12 +116,12 @@ export default function ReferentieObjectenPage() {
 
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
-    const bjMin = bouwjaarMin ? parseInt(bouwjaarMin, 10) : undefined;
-    const bjMax = bouwjaarMax ? parseInt(bouwjaarMax, 10) : undefined;
-    const m2MinN = m2Min ? parseInt(m2Min, 10) : undefined;
-    const m2MaxN = m2Max ? parseInt(m2Max, 10) : undefined;
-    const prMin = prijsMin ? parseInt(prijsMin, 10) : undefined;
-    const prMax = prijsMax ? parseInt(prijsMax, 10) : undefined;
+    const bjMin = parseDutchNumber(bouwjaarMin) ?? undefined;
+    const bjMax = parseDutchNumber(bouwjaarMax) ?? undefined;
+    const m2MinN = parseDutchNumber(m2Min) ?? undefined;
+    const m2MaxN = parseDutchNumber(m2Max) ?? undefined;
+    const prMin = parseDutchNumber(prijsMin) ?? undefined;
+    const prMax = parseDutchNumber(prijsMax) ?? undefined;
 
     const list = store.referentieObjecten.filter(r => {
       if (assetFilter.length > 0 && !assetFilter.includes(r.assetClass)) return false;
