@@ -1,7 +1,7 @@
 // Tests voor audit-consistentie: leadingMaxBasis comparator, eng-noi "na",
 // WWS-groepering en €/m² check componentstrategie.
 import { describe, it, expect } from 'vitest';
-import { runAudit, type AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
+import { runScenarioAudit as runAudit, type AuditInput } from '@/lib/vastgoedrekenen/audit/runAudit';
 import type { Scenario, Component, WwsUnit, SellOffUnit } from '@/lib/vastgoedrekenen/types';
 
 function baseScenario(p: Partial<Scenario> = {}): Scenario {
