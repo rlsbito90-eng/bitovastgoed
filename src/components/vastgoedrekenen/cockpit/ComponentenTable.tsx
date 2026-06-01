@@ -1,14 +1,20 @@
 // Compacte componententabel met detail-drawer (sub-fase 4C).
 // Gebruikt bestaande update/delete-handlers — geen rekenlogica.
 // Mobiele UX: tap-vs-scroll (geen open bij scrollen), read-only-first met "Bewerken"-knop.
-import { memo, useState } from 'react';
+// Bulkselectie: checkboxes openen niet de drawer; verwijderen vereist bevestiging.
+import { memo, useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2, Pencil, X } from 'lucide-react';
 import { RawNumberInput, RawTextInput, numberToRaw, parseRawNumber } from '../RawInputs';
-import { fmtEur, fmtM2 } from '../format';
+import { fmtEur, fmtEurPerM2, fmtM2 } from '../format';
 import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
 import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS, isWoonComponentType } from '@/lib/vastgoedrekenen/defaults';
 import type { Component, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
@@ -23,21 +29,27 @@ type Props = {
   sellOffUnitsCount: number;
   updateComponent: (id: string, patch: Partial<Component>) => Promise<void> | void;
   deleteComponent: (id: string) => Promise<void> | void;
+  bulkDeleteComponents?: (ids: string[]) => Promise<void> | void;
 };
 
+/** Componentwaarde voor €/m²: voorkeur toegerekend → anders OVB-grondslag bij per-component. */
+function componentValueFor(c: Component, diag: ComputedOutputs['ovbPerComponent'][number] | null): number {
+  const v = Number(c.allocated_component_value ?? 0);
+  if (v > 0) return v;
+  if (diag && diag.basisValue > 0) return diag.basisValue;
+  return 0;
+}
 
-function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent }: Props) {
+function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent, bulkDeleteComponents }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const isTouch = useIsTouch();
-  // Op touch starten we read-only; op desktop direct bewerkbaar.
   const [editMode, setEditMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const perComp = ovbMode === 'per_component';
   const openComp = openId ? components.find((c) => c.id === openId) ?? null : null;
 
-  const openRow = (id: string) => {
-    setOpenId(id);
-    setEditMode(!isTouch);
-  };
+  const openRow = (id: string) => { setOpenId(id); setEditMode(!isTouch); };
 
   const totalM2 = components.reduce((s, c) => s + Number(c.surface_gbo ?? 0), 0);
   const totalRent = components.reduce((s, c) => s + Number(c.current_monthly_rent ?? 0), 0);
@@ -46,20 +58,78 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
   const comm = components.length - woon;
   const warnings = perComp ? ovbPerComponent.filter((d) => d.missingValueBasis || d.missingStrategyBasis || d.missingManualAmount).length : 0;
 
+  const { totalValue, avgEurPerM2 } = useMemo(() => {
+    let val = 0; let m2 = 0;
+    for (const c of components) {
+      const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) ?? null : null;
+      const v = componentValueFor(c, diag);
+      const a = Number(c.surface_gbo ?? 0);
+      if (v > 0 && a > 0) { val += v; m2 += a; }
+    }
+    return { totalValue: val, avgEurPerM2: m2 > 0 ? Math.round(val / m2) : 0 };
+  }, [components, ovbPerComponent, perComp]);
+
+  const allSelected = components.length > 0 && selected.size === components.length;
+  const someSelected = selected.size > 0 && !allSelected;
+  const toggle = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(components.map((c) => c.id)));
+  const clearSelection = () => setSelected(new Set());
+
+  async function doBulkDelete() {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (bulkDeleteComponents) await bulkDeleteComponents(ids);
+    else for (const id of ids) await deleteComponent(id);
+    clearSelection();
+    setConfirmOpen(false);
+  }
+
   if (components.length === 0) return null;
 
   return (
     <>
+      {(totalValue > 0 || avgEurPerM2 > 0) && (
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          <Tile label="Totale componentwaarde" value={fmtEur(totalValue)} />
+          <Tile label="Totaal GBO" value={fmtM2(totalM2, 0)} />
+          <Tile label="Gem. prijs/m²" value={avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'} accent />
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+          <span className="font-medium">{selected.size} component(en) geselecteerd</span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={clearSelection}><X className="h-3.5 w-3.5 mr-1" /> Selectie wissen</Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Verwijderen
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs w-full min-w-[520px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
+        <Table className="text-xs w-full min-w-[560px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                  onCheckedChange={toggleAll}
+                  aria-label="Alles selecteren"
+                />
+              </TableHead>
               <TableHead className="w-8">#</TableHead>
-              <TableHead className="min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:z-10">Unit</TableHead>
+              <TableHead className="min-w-[88px] sm:min-w-[120px]">Unit</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">m²</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
               <TableHead className="text-right hidden md:table-cell">Markthuur</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">€/m²</TableHead>
               {perComp && <TableHead className="text-right hidden lg:table-cell">OVB-%</TableHead>}
               {perComp && <TableHead className="text-right">OVB</TableHead>}
               <TableHead>Status</TableHead>
@@ -74,11 +144,14 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                 idx={idx}
                 perComp={perComp}
                 diag={perComp ? ovbPerComponent.find((p) => p.id === c.id) ?? null : null}
+                selected={selected.has(c.id)}
+                onToggleSelect={() => toggle(c.id)}
                 onOpen={() => openRow(c.id)}
                 onDelete={() => deleteComponent(c.id)}
               />
             ))}
             <TableRow className="bg-muted/60 font-semibold border-t-2">
+              <TableCell />
               <TableCell />
               <TableCell colSpan={2} className="break-words whitespace-normal">
                 Totaal {components.length} units · {woon} woon · {comm} commercieel{warnings > 0 ? ` · ${warnings} aandacht` : ''}
@@ -86,6 +159,7 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
               <TableCell className="hidden md:table-cell" />
+              <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</TableCell>
               {perComp && <TableCell className="hidden lg:table-cell" />}
               {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalOvb)}</TableCell>}
               <TableCell colSpan={2} />
@@ -93,6 +167,23 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selected.size} component(en) verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Je staat op het punt {selected.size} component(en) te verwijderen. Dit kan gevolgen hebben voor OVB, WWS, componentstrategie en scenario-uitkomst. Weet je het zeker?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doBulkDelete()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Sheet open={openId !== null} onOpenChange={(o) => { if (!o) { setOpenId(null); setEditMode(false); } }}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
@@ -103,6 +194,9 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
             const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) : null;
             const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
             const readOnly = !editMode;
+            const v = componentValueFor(c, diag ?? null);
+            const m2 = Number(c.surface_gbo ?? 0);
+            const epm2 = v > 0 && m2 > 0 ? Math.round(v / m2) : 0;
             return (
               <>
                 <SheetHeader>
@@ -132,6 +226,12 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                     <DrawerField label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></DrawerField>
                     <DrawerField label="Markthuur / maand (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></DrawerField>
                   </div>
+                  {(v > 0 || m2 > 0) && (
+                    <div className="text-[11px] rounded-md border border-dashed bg-muted/30 px-2 py-1.5 text-muted-foreground">
+                      Componentwaarde: <span className="font-mono-data">{v > 0 ? fmtEur(v) : '—'}</span> · GBO: <span className="font-mono-data">{m2 > 0 ? fmtM2(m2, 0) : '—'}</span> · €/m²: <span className="font-mono-data">{epm2 > 0 ? fmtEurPerM2(epm2) : '—'}</span>
+                      {v > 0 && m2 <= 0 && <span className="ml-2 text-amber-700 dark:text-amber-300">⚠ GBO ontbreekt — €/m² niet berekenbaar.</span>}
+                    </div>
+                  )}
                   {perComp && (
                     <div className="border-t pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <DrawerField label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></DrawerField>
@@ -191,12 +291,23 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
   );
 }
 
+function Tile({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-md border bg-card p-2 ${accent ? 'border-primary/40 text-primary' : ''}`}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold font-mono-data leading-snug">{value}</p>
+    </div>
+  );
+}
+
 /** Aparte rij-component zodat tap-vs-scroll hook per rij gebruikt kan worden. */
-function ComponentRow({ c, idx, perComp, diag, onOpen, onDelete }: {
+function ComponentRow({ c, idx, perComp, diag, selected, onToggleSelect, onOpen, onDelete }: {
   c: Component;
   idx: number;
   perComp: boolean;
   diag: ComputedOutputs['ovbPerComponent'][number] | null;
+  selected: boolean;
+  onToggleSelect: () => void;
   onOpen: () => void;
   onDelete: () => void;
 }) {
@@ -205,22 +316,28 @@ function ComponentRow({ c, idx, perComp, diag, onOpen, onDelete }: {
   const monthly = Number(c.current_monthly_rent ?? 0);
   const markt = Number(c.market_monthly_rent ?? 0);
   const m2 = Number(c.surface_gbo ?? 0);
+  const value = componentValueFor(c, diag);
+  const epm2 = value > 0 && m2 > 0 ? Math.round(value / m2) : 0;
   const tap = useTapVsScroll(() => onOpen());
   return (
     <TableRow
       id={`componenten-unit-${c.id}`}
-      className="cursor-pointer hover:bg-muted/40 scroll-mt-24"
+      className={`cursor-pointer hover:bg-muted/40 scroll-mt-24 ${selected ? 'bg-primary/5' : ''}`}
       onClick={onOpen}
       onTouchStart={tap.onTouchStart}
       onTouchMove={tap.onTouchMove}
       onTouchEnd={tap.onTouchEnd}
     >
+      <TableCell onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Selecteer component" />
+      </TableCell>
       <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-      <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px] sm:sticky sm:left-0 sm:bg-card sm:group-hover:bg-muted/40">{ident.primary}</TableCell>
+      <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px]">{ident.primary}</TableCell>
       <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
       <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
       <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
       <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{epm2 > 0 ? fmtEurPerM2(epm2) : (value > 0 ? <span className="text-amber-700 dark:text-amber-300" title="GBO ontbreekt">m² ?</span> : '—')}</TableCell>
       {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
       {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
       <TableCell>
@@ -234,6 +351,5 @@ function ComponentRow({ c, idx, perComp, diag, onOpen, onDelete }: {
     </TableRow>
   );
 }
-
 
 export default memo(ComponentenTable);
