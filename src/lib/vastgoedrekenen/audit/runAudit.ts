@@ -583,24 +583,33 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   }
 
   // ===== M. ENGINE =====
-  add(checks, {
-    id: 'eng-noi',
-    category: 'engine',
-    status: computed.noi > 0 ? 'ok' : 'warning',
-    section: SECTIONS.eng,
-    problem: `NOI: € ${Math.round(computed.noi).toLocaleString('nl-NL')} · BAR (TI): ${computed.barTotalInvestment != null ? `${computed.barTotalInvestment.toFixed(2)}%` : '—'} · NAR: ${computed.narTotalInvestment != null ? `${computed.narTotalInvestment.toFixed(2)}%` : '—'}.`,
-  });
+  const isSaleAssessment = computed.assessmentType === 'verkoop' || computed.leadingMaxBasis === 'verkoop' || computed.leadingMaxBasis === 'strategie';
+  if (isSaleAssessment && computed.noi <= 0 && computed.correctedAnnualRent <= 0) {
+    add(checks, {
+      id: 'eng-noi',
+      category: 'engine',
+      status: 'na',
+      section: SECTIONS.eng,
+      problem: 'NOI/BAR/NAR: niet relevant voor dit scenario (verkoop- of strategie-spoor leidend, geen huurbasis).',
+    });
+  } else {
+    add(checks, {
+      id: 'eng-noi',
+      category: 'engine',
+      status: computed.noi > 0 ? 'ok' : 'warning',
+      section: SECTIONS.eng,
+      problem: `NOI: € ${Math.round(computed.noi).toLocaleString('nl-NL')} · BAR (TI): ${computed.barTotalInvestment != null ? `${computed.barTotalInvestment.toFixed(2)}%` : '—'} · NAR: ${computed.narTotalInvestment != null ? `${computed.narTotalInvestment.toFixed(2)}%` : '—'}.`,
+    });
+  }
   add(checks, {
     id: 'eng-bid',
     category: 'engine',
-    status: computed.maximumBid > 0 ? 'ok' : 'warning',
+    status: computed.leadingMaxValue > 0 ? 'ok' : 'warning',
     section: SECTIONS.eng,
-    problem: `Maximale bieding: € ${Math.round(computed.maximumBid).toLocaleString('nl-NL')} (basis: ${computed.bidBasisUsed}).`,
+    problem: `Leidende max prijs: € ${Math.round(computed.leadingMaxValue).toLocaleString('nl-NL')} (${computed.leadingMaxBasisLabel}).`,
   });
 
   // ===== N+O. SNAPSHOT-CONSISTENTIE =====
-  // Deal Snapshot en ScenarioVergelijking gebruiken dezelfde computeScenario.
-  // Verschillen ontstaan alleen door (a) niet-opgeslagen UI-draft of (b) cached output rows.
   add(checks, {
     id: 'snap-engine',
     category: 'snapshot',
@@ -620,25 +629,31 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   });
 
   // ===== Q. ROND TE REKENEN =====
-  if (computed.strategyEnabled && computed.roundsAtAsking != null) {
+  // Eén waarheid: gebruik altijd het leidende spoor (leadingMaxBasis/leadingMaxValue/leadingRoundsAtAsking).
+  // Comparator: rondt rond → "≥ vraagprijs"; rondt niet rond → "< vraagprijs".
+  {
+    const asking = num(scenario.asking_price);
+    const lead = computed.leadingMaxValue;
     const diffLead = Math.round(computed.leadingDifferenceWithAskingPrice);
-    const diffBid = Math.round(computed.differenceWithAskingPrice);
-    const conflict = (diffLead < 0) !== (diffBid < 0);
-    add(checks, {
-      id: 'doable-asking',
-      category: 'doable',
-      status: computed.roundsAtAsking ? 'ok' : 'warning',
-      section: SECTIONS.doable,
-      problem: computed.roundsAtAsking
-        ? `Scenario is rond te rekenen op vraagprijs (leidend: componentstrategie maxPurchasePrice = € ${Math.round(computed.maxPurchasePrice ?? 0).toLocaleString('nl-NL')}).`
-        : `Scenario rekent NIET rond op vraagprijs. Leidend (componentstrategie): verschil € ${diffLead.toLocaleString('nl-NL')}. Algemene maximumBid (informatief): verschil € ${diffBid.toLocaleString('nl-NL')}.`,
-      advice: conflict
-        ? 'Let op: maximumBid (BAR/exit) toont ruimte boven vraagprijs, maar componentstrategie is leidend en toont het tegenovergestelde. Gebruik de leidende waarde.'
-        : undefined,
-      technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(computed.leadingMaxValue)} · maxPurchasePrice=${computed.maxPurchasePrice} · maximumBid=${computed.maximumBid}`,
-    });
-  } else {
-    add(checks, { id: 'doable-bar', category: 'doable', status: 'ok', section: SECTIONS.doable, problem: `Verschil met vraagprijs: € ${Math.round(computed.leadingDifferenceWithAskingPrice).toLocaleString('nl-NL')} (leidend: ${computed.leadingMaxBasisLabel}).` });
+    if (asking <= 0) {
+      add(checks, { id: 'doable-no-asking', category: 'doable', status: 'na', section: SECTIONS.doable,
+        problem: 'Geen vraagprijs ingevuld — "rond te rekenen" niet bepaalbaar.' });
+    } else if (computed.leadingRoundsAtAsking === true) {
+      add(checks, { id: 'doable-yes', category: 'doable', status: 'ok', section: SECTIONS.doable,
+        problem: `Scenario is rond te rekenen op vraagprijs. Leidende basis: ${computed.leadingMaxBasisLabel} = € ${Math.round(lead).toLocaleString('nl-NL')} (≥ vraagprijs € ${asking.toLocaleString('nl-NL')}).`,
+        technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(lead)} · ruimte=€ ${diffLead.toLocaleString('nl-NL')}`,
+      });
+    } else {
+      // Detecteer tegenstrijdige signalen tussen sporen — alleen als info, niet leidend.
+      const altMax = computed.maxPurchasePrice != null ? computed.maxPurchasePrice : computed.maximumBid;
+      const altDiff = Math.round((altMax ?? 0) - asking);
+      const conflict = computed.strategyEnabled && altMax != null && (diffLead < 0) !== (altDiff < 0);
+      add(checks, { id: 'doable-no', category: 'doable', status: 'warning', section: SECTIONS.doable,
+        problem: `Scenario rekent NIET rond op vraagprijs. Leidende basis: ${computed.leadingMaxBasisLabel} = € ${Math.round(lead).toLocaleString('nl-NL')} (< vraagprijs € ${asking.toLocaleString('nl-NL')}, tekort € ${Math.abs(diffLead).toLocaleString('nl-NL')}).`,
+        advice: conflict ? 'Informatief: een alternatief spoor toont een ander signaal, maar telt niet voor de conclusie — de leidende basis is bindend.' : undefined,
+        technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(lead)} · maxPurchasePrice=${computed.maxPurchasePrice} · maximumBid=${computed.maximumBid}`,
+      });
+    }
   }
 
   // ===== R. DUBBELE TELLINGEN =====
@@ -651,7 +666,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       status: resolved ? 'ok' : 'warning',
       section: SECTIONS.dub,
       problem: resolved
-        ? `Scenario-level exit én componentstrategie zijn beide gevuld, maar leidend spoor is expliciet gekozen: ${computed.leadingMaxBasisLabel}.`
+        ? `Scenario-level exit én componentstrategie zijn beide gevuld. Leidend spoor: ${computed.leadingMaxBasisLabel}. Alternatief spoor is informatief.`
         : 'Scenario-level exit én componentstrategie zijn beide actief zonder gekozen leidend spoor.',
       advice: resolved
         ? undefined
@@ -686,21 +701,22 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     problem: `Input-betrouwbaarheid: ${computed.inputReliability}.`,
   });
 
-  // ===== T. FORMATTERING =====
-  // Steekproef: scan op puntkomma's of niet-Europese decimaalweergave in vrije tekstvelden.
+  // ===== T. FORMATTERING (alleen info — nooit blokkerend) =====
   const fmtIssues: string[] = [];
   const checkText = (label: string, v: unknown) => {
     if (typeof v !== 'string') return;
-    if (/\d+\.\d{3}/.test(v)) fmtIssues.push(`${label}: gebruikt punt als duizendscheiding`);
+    if (/\d+\.\d{3}/.test(v)) fmtIssues.push(`${label}: punt als duizendscheiding`);
   };
   checkText('notes', scenario.notes);
   checkText('description', scenario.description);
   add(checks, {
     id: 'fmt',
     category: 'formatting',
-    status: fmtIssues.length === 0 ? 'ok' : 'warning',
+    status: 'ok', // formattering is informatief; opmerkingen worden enkel in tekst gemeld.
     section: SECTIONS.fmt,
-    problem: fmtIssues.length === 0 ? 'Geen formatteringsproblemen aangetroffen in vrije tekst.' : fmtIssues.join('; '),
+    problem: fmtIssues.length === 0
+      ? 'Geen formatteringsopmerkingen in vrije tekst.'
+      : `Tip (informatief): ${fmtIssues.join('; ')}.`,
   });
 
   // ===== TESTCASE Hinthamerstraat =====
