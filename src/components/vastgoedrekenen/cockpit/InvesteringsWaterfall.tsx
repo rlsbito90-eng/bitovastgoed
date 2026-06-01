@@ -58,7 +58,7 @@ function InvesteringsWaterfall({
     steps.push({ key: 'costs', label: 'Bouw-/renovatiekosten', value: totalCosts, cumulative: basisValue + totalCosts, tone: 'cost' });
   }
   if (ovb > 0) {
-    steps.push({ key: 'ovb', label: 'OVB', value: ovb, cumulative: asking + totalCosts + ovb, tone: 'cost' });
+    steps.push({ key: 'ovb', label: 'OVB', value: ovb, cumulative: basisValue + totalCosts + ovb, tone: 'cost' });
   }
   steps.push({
     key: 'investment',
