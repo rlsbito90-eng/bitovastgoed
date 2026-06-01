@@ -236,6 +236,8 @@ export function defaultStrategyForType(type: string | null | undefined): Compone
   switch ((type ?? '').toLowerCase()) {
     case 'woning':
     case 'appartement':
+    case 'studio':
+    case 'kamer':
       return 'verkopen_leeg';
     case 'winkel':
     case 'winkelruimte':
@@ -259,7 +261,7 @@ export function defaultStrategyForType(type: string | null | undefined): Compone
 /** Hybride preset: woningen verkopen leeg, commercieel aanhouden. */
 export function hybridStrategyForType(type: string | null | undefined): ComponentStrategyKey {
   const t = (type ?? '').toLowerCase();
-  if (t === 'woning' || t === 'appartement') return 'verkopen_leeg';
+  if (['woning', 'appartement', 'studio', 'kamer'].includes(t)) return 'verkopen_leeg';
   if (['winkel', 'winkelruimte', 'kantoor', 'kantoorruimte', 'bedrijfsruimte', 'bedrijfsunit', 'horeca'].includes(t)) return 'aanhouden';
   return 'later_beslissen';
 }

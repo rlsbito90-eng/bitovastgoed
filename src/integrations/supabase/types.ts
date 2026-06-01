@@ -3786,6 +3786,8 @@ export type Database = {
         | "maatschappelijk"
         | "ontwikkelgrond"
         | "overig"
+        | "studio"
+        | "kamer"
       vr_deal_score: "A" | "B" | "C" | "reject"
       vr_huurtype_voor_bieding: "huidig" | "markt" | "wws" | "handmatig"
       vr_input_reliability: "laag" | "middel" | "hoog"
@@ -4231,6 +4233,8 @@ export const Constants = {
         "maatschappelijk",
         "ontwikkelgrond",
         "overig",
+        "studio",
+        "kamer",
       ],
       vr_deal_score: ["A", "B", "C", "reject"],
       vr_huurtype_voor_bieding: ["huidig", "markt", "wws", "handmatig"],

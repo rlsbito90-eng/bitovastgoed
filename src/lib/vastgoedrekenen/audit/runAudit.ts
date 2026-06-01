@@ -205,7 +205,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   }
 
   // ===== E. COMPONENTEN → WWS =====
-  const woonComps = components.filter((c) => ['woning', 'appartement'].includes((c.component_type ?? '').toLowerCase()));
+  const woonComps = components.filter((c) => ['woning', 'appartement', 'studio', 'kamer'].includes((c.component_type ?? '').toLowerCase()));
   if (woonComps.length > 0) {
     add(checks, {
       id: 'wmap-count',
@@ -371,9 +371,8 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       : wwsUnits.length === 0 ? 'Geen WWS-units.' : 'WWS-units allemaal in vrije sector of zonder punten.',
   });
 
-  // Per-unit transparantie: bron / stelsel / beleidsversie / ontbrekende velden
+  // Per-unit transparantie: bron / stelsel / beleidsversie / ontbrekende velden — gegroepeerd
   if (wwsUnits.length > 0) {
-    // Beleidsversie waarschuwing: huidige formule is V1 indicatief
     add(checks, {
       id: 'wws-policy-version',
       category: 'wws',
@@ -382,50 +381,26 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       problem: 'WWS-puntenberekening gebruikt interne V1 (indicatief). Geen volledige Huurcommissie-systematiek.',
       advice: 'Gebruik dit alleen voor segmentindicatie. Voer voor harde biedingen een officiële Huurcommissie-check uit.',
     });
-    for (const u of wwsUnits) {
-      const label = u.unit_name?.trim() || 'Naamloze woonunit';
-      const r = u as unknown as Record<string, unknown>;
-      if (u.wws_points == null) {
-        add(checks, {
-          id: `wws-no-points-${u.id}`,
-          category: 'wws',
-          status: 'error',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'WWS-punten ontbreken — segment kan niet bepaald worden.',
-          advice: 'Vul punten in of bewerk een veld zodat CRM ze (her)berekent.',
-        });
-      }
-      if (!num(u.woz_value)) {
-        add(checks, {
-          id: `wws-no-woz-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'WOZ-waarde ontbreekt — punten zijn lager dan reëel.',
-        });
-      }
-      if (!u.energy_label) {
-        add(checks, {
-          id: `wws-no-label-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'Energielabel ontbreekt — labelpunten staan op 0.',
-        });
-      }
-      if (r.independent_unit == null) {
-        add(checks, {
-          id: `wws-no-scheme-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'Stelseltype (zelfstandig/onzelfstandig) niet gekozen — formule kan afwijken.',
-        });
-      }
+    const noPoints = wwsUnits.filter((u) => u.wws_points == null);
+    const noWoz = wwsUnits.filter((u) => !num(u.woz_value));
+    const noLabel = wwsUnits.filter((u) => !u.energy_label);
+    const noScheme = wwsUnits.filter((u) => (u as unknown as Record<string, unknown>).independent_unit == null);
+    if (noPoints.length > 0) {
+      add(checks, { id: 'wws-grp-points', category: 'wws', status: 'error', section: SECTIONS.wws,
+        problem: `${noPoints.length}× WWS-punten ontbreken — segment kan niet bepaald worden.`,
+        advice: 'Vul punten in of bewerk een veld zodat CRM ze (her)berekent.' });
+    }
+    if (noWoz.length > 0) {
+      add(checks, { id: 'wws-grp-woz', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noWoz.length}× WOZ-waarde ontbreekt — punten zijn lager dan reëel.` });
+    }
+    if (noLabel.length > 0) {
+      add(checks, { id: 'wws-grp-label', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noLabel.length}× energielabel ontbreekt — labelpunten staan op 0.` });
+    }
+    if (noScheme.length > 0) {
+      add(checks, { id: 'wws-grp-scheme', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noScheme.length}× stelseltype (zelfstandig/onzelfstandig) niet gekozen — formule kan afwijken.` });
     }
   }
 
@@ -444,67 +419,49 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
 
     const rentSourceForMode = String(scenario.rent_source ?? 'handmatig');
     if (rentSourceForMode === 'wws_gecorrigeerd') {
-      for (const u of wwsUnits) {
-        const eff = getEffectiveWwsMode(u, modeCtx);
-        if (eff.mode !== 'volledig_vereist') {
-          add(checks, {
-            id: `wws-mode-wwscorr-${u.id}`,
-            category: 'wws',
-            status: 'error',
-            section: SECTIONS.wws,
-            record: u.unit_name?.trim() || 'Woonunit',
-            problem: 'WWS-gecorrigeerde huur gekozen, maar deze unit staat niet op "Volledig vereist".',
-            advice: 'Zet WWS-modus op "Volledig vereist" of kies een andere huurbron.',
-          });
-        }
+      const offMode = wwsUnits.filter((u) => getEffectiveWwsMode(u, modeCtx).mode !== 'volledig_vereist');
+      if (offMode.length > 0) {
+        add(checks, { id: 'wws-mode-wwscorr-grp', category: 'wws', status: 'error', section: SECTIONS.wws,
+          problem: `${offMode.length}× WWS-gecorrigeerde huur gekozen maar unit staat niet op "Volledig vereist".`,
+          advice: 'Zet WWS-modus op "Volledig vereist" of kies een andere huurbron.' });
       }
     }
 
+    const fullMissing: string[] = [];
+    const indMissing: string[] = [];
+    let naRent = 0;
     for (const u of wwsUnits) {
       const eff = getEffectiveWwsMode(u, modeCtx);
       const r = u as unknown as Record<string, unknown>;
-      const label = u.unit_name?.trim() || 'Woonunit';
-      const missingFull: string[] = [];
-      if (!num(u.woz_value)) missingFull.push('WOZ');
-      if (!u.energy_label) missingFull.push('energielabel');
-      if (u.wws_points == null) missingFull.push('WWS-punten');
-      if (r.independent_unit == null) missingFull.push('stelsel');
-
-      if (eff.mode === 'volledig_vereist' && missingFull.length > 0) {
-        add(checks, {
-          id: `wws-mode-full-missing-${u.id}`,
-          category: 'wws',
-          status: 'error',
-          section: SECTIONS.wws,
-          record: label,
-          problem: `WWS-modus "Volledig vereist", maar ${missingFull.join(', ')} ontbreekt.`,
-          advice: 'Vul de ontbrekende velden of voer een officiële Huurcommissie-check uit.',
-        });
-      }
+      const m: string[] = [];
+      if (!num(u.woz_value)) m.push('WOZ');
+      if (!u.energy_label) m.push('energielabel');
+      if (u.wws_points == null) m.push('WWS-punten');
+      if (r.independent_unit == null) m.push('stelsel');
+      if (eff.mode === 'volledig_vereist' && m.length > 0) fullMissing.push(`${u.unit_name?.trim() || 'unit'}: ${m.join(', ')}`);
       if (eff.mode === 'indicatief') {
-        const missingInd = missingFull.filter((m) => m === 'WOZ' || m === 'energielabel');
-        if (missingInd.length > 0) {
-          add(checks, {
-            id: `wws-mode-ind-missing-${u.id}`,
-            category: 'wws',
-            status: 'warning',
-            section: SECTIONS.wws,
-            record: label,
-            problem: `WWS-modus "Indicatief", maar ${missingInd.join(', ')} ontbreekt — segmentindicatie kan afwijken.`,
-          });
-        }
+        const mi = m.filter((x) => x === 'WOZ' || x === 'energielabel');
+        if (mi.length > 0) indMissing.push(`${u.unit_name?.trim() || 'unit'}: ${mi.join(', ')}`);
       }
-      if (eff.mode === 'niet_nodig' && num(u.current_monthly_rent) > 0) {
-        add(checks, {
-          id: `wws-mode-na-rent-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'WWS-modus staat op "Niet nodig", maar er wordt wel woonhuur ingevuld op deze unit.',
-          advice: 'Zet de modus op "Indicatief" of "Volledig vereist" als deze huur meegerekend moet worden.',
-        });
-      }
+      if (eff.mode === 'niet_nodig' && num(u.current_monthly_rent) > 0) naRent++;
+    }
+    if (fullMissing.length > 0) {
+      add(checks, { id: 'wws-mode-full-missing-grp', category: 'wws', status: 'error', section: SECTIONS.wws,
+        problem: `${fullMissing.length}× modus "Volledig vereist" met ontbrekende velden.`,
+        advice: 'Vul de ontbrekende velden of voer een officiële Huurcommissie-check uit.',
+        technical: fullMissing.slice(0, 8).join(' · ') + (fullMissing.length > 8 ? ` …+${fullMissing.length - 8}` : ''),
+      });
+    }
+    if (indMissing.length > 0) {
+      add(checks, { id: 'wws-mode-ind-missing-grp', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${indMissing.length}× modus "Indicatief" mist WOZ/energielabel — segmentindicatie kan afwijken.`,
+        technical: indMissing.slice(0, 8).join(' · ') + (indMissing.length > 8 ? ` …+${indMissing.length - 8}` : ''),
+      });
+    }
+    if (naRent > 0) {
+      add(checks, { id: 'wws-mode-na-rent-grp', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${naRent}× WWS-modus "Niet nodig" met woonhuur gevuld.`,
+        advice: 'Zet de modus op "Indicatief" of "Volledig vereist" als deze huur meegerekend moet worden.' });
     }
   }
 
@@ -626,24 +583,33 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   }
 
   // ===== M. ENGINE =====
-  add(checks, {
-    id: 'eng-noi',
-    category: 'engine',
-    status: computed.noi > 0 ? 'ok' : 'warning',
-    section: SECTIONS.eng,
-    problem: `NOI: € ${Math.round(computed.noi).toLocaleString('nl-NL')} · BAR (TI): ${computed.barTotalInvestment != null ? `${computed.barTotalInvestment.toFixed(2)}%` : '—'} · NAR: ${computed.narTotalInvestment != null ? `${computed.narTotalInvestment.toFixed(2)}%` : '—'}.`,
-  });
+  const isSaleAssessment = computed.assessmentType === 'verkoop' || computed.leadingMaxBasis === 'verkoop' || computed.leadingMaxBasis === 'strategie';
+  if (isSaleAssessment && computed.noi <= 0 && computed.correctedAnnualRent <= 0) {
+    add(checks, {
+      id: 'eng-noi',
+      category: 'engine',
+      status: 'na',
+      section: SECTIONS.eng,
+      problem: 'NOI/BAR/NAR: niet relevant voor dit scenario (verkoop- of strategie-spoor leidend, geen huurbasis).',
+    });
+  } else {
+    add(checks, {
+      id: 'eng-noi',
+      category: 'engine',
+      status: computed.noi > 0 ? 'ok' : 'warning',
+      section: SECTIONS.eng,
+      problem: `NOI: € ${Math.round(computed.noi).toLocaleString('nl-NL')} · BAR (TI): ${computed.barTotalInvestment != null ? `${computed.barTotalInvestment.toFixed(2)}%` : '—'} · NAR: ${computed.narTotalInvestment != null ? `${computed.narTotalInvestment.toFixed(2)}%` : '—'}.`,
+    });
+  }
   add(checks, {
     id: 'eng-bid',
     category: 'engine',
-    status: computed.maximumBid > 0 ? 'ok' : 'warning',
+    status: computed.leadingMaxValue > 0 ? 'ok' : 'warning',
     section: SECTIONS.eng,
-    problem: `Maximale bieding: € ${Math.round(computed.maximumBid).toLocaleString('nl-NL')} (basis: ${computed.bidBasisUsed}).`,
+    problem: `Leidende max prijs: € ${Math.round(computed.leadingMaxValue).toLocaleString('nl-NL')} (${computed.leadingMaxBasisLabel}).`,
   });
 
   // ===== N+O. SNAPSHOT-CONSISTENTIE =====
-  // Deal Snapshot en ScenarioVergelijking gebruiken dezelfde computeScenario.
-  // Verschillen ontstaan alleen door (a) niet-opgeslagen UI-draft of (b) cached output rows.
   add(checks, {
     id: 'snap-engine',
     category: 'snapshot',
@@ -663,25 +629,31 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   });
 
   // ===== Q. ROND TE REKENEN =====
-  if (computed.strategyEnabled && computed.roundsAtAsking != null) {
+  // Eén waarheid: gebruik altijd het leidende spoor (leadingMaxBasis/leadingMaxValue/leadingRoundsAtAsking).
+  // Comparator: rondt rond → "≥ vraagprijs"; rondt niet rond → "< vraagprijs".
+  {
+    const asking = num(scenario.asking_price);
+    const lead = computed.leadingMaxValue;
     const diffLead = Math.round(computed.leadingDifferenceWithAskingPrice);
-    const diffBid = Math.round(computed.differenceWithAskingPrice);
-    const conflict = (diffLead < 0) !== (diffBid < 0);
-    add(checks, {
-      id: 'doable-asking',
-      category: 'doable',
-      status: computed.roundsAtAsking ? 'ok' : 'warning',
-      section: SECTIONS.doable,
-      problem: computed.roundsAtAsking
-        ? `Scenario is rond te rekenen op vraagprijs (leidend: componentstrategie maxPurchasePrice = € ${Math.round(computed.maxPurchasePrice ?? 0).toLocaleString('nl-NL')}).`
-        : `Scenario rekent NIET rond op vraagprijs. Leidend (componentstrategie): verschil € ${diffLead.toLocaleString('nl-NL')}. Algemene maximumBid (informatief): verschil € ${diffBid.toLocaleString('nl-NL')}.`,
-      advice: conflict
-        ? 'Let op: maximumBid (BAR/exit) toont ruimte boven vraagprijs, maar componentstrategie is leidend en toont het tegenovergestelde. Gebruik de leidende waarde.'
-        : undefined,
-      technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(computed.leadingMaxValue)} · maxPurchasePrice=${computed.maxPurchasePrice} · maximumBid=${computed.maximumBid}`,
-    });
-  } else {
-    add(checks, { id: 'doable-bar', category: 'doable', status: 'ok', section: SECTIONS.doable, problem: `Verschil met vraagprijs: € ${Math.round(computed.leadingDifferenceWithAskingPrice).toLocaleString('nl-NL')} (leidend: ${computed.leadingMaxBasisLabel}).` });
+    if (asking <= 0) {
+      add(checks, { id: 'doable-no-asking', category: 'doable', status: 'na', section: SECTIONS.doable,
+        problem: 'Geen vraagprijs ingevuld — "rond te rekenen" niet bepaalbaar.' });
+    } else if (computed.leadingRoundsAtAsking === true) {
+      add(checks, { id: 'doable-yes', category: 'doable', status: 'ok', section: SECTIONS.doable,
+        problem: `Scenario is rond te rekenen op vraagprijs. Leidende basis: ${computed.leadingMaxBasisLabel} = € ${Math.round(lead).toLocaleString('nl-NL')} (≥ vraagprijs € ${asking.toLocaleString('nl-NL')}).`,
+        technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(lead)} · ruimte=€ ${diffLead.toLocaleString('nl-NL')}`,
+      });
+    } else {
+      // Detecteer tegenstrijdige signalen tussen sporen — alleen als info, niet leidend.
+      const altMax = computed.maxPurchasePrice != null ? computed.maxPurchasePrice : computed.maximumBid;
+      const altDiff = Math.round((altMax ?? 0) - asking);
+      const conflict = computed.strategyEnabled && altMax != null && (diffLead < 0) !== (altDiff < 0);
+      add(checks, { id: 'doable-no', category: 'doable', status: 'warning', section: SECTIONS.doable,
+        problem: `Scenario rekent NIET rond op vraagprijs. Leidende basis: ${computed.leadingMaxBasisLabel} = € ${Math.round(lead).toLocaleString('nl-NL')} (< vraagprijs € ${asking.toLocaleString('nl-NL')}, tekort € ${Math.abs(diffLead).toLocaleString('nl-NL')}).`,
+        advice: conflict ? 'Informatief: een alternatief spoor toont een ander signaal, maar telt niet voor de conclusie — de leidende basis is bindend.' : undefined,
+        technical: `leadingMaxBasis=${computed.leadingMaxBasis} · leadingMaxValue=${Math.round(lead)} · maxPurchasePrice=${computed.maxPurchasePrice} · maximumBid=${computed.maximumBid}`,
+      });
+    }
   }
 
   // ===== R. DUBBELE TELLINGEN =====
@@ -694,7 +666,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       status: resolved ? 'ok' : 'warning',
       section: SECTIONS.dub,
       problem: resolved
-        ? `Scenario-level exit én componentstrategie zijn beide gevuld, maar leidend spoor is expliciet gekozen: ${computed.leadingMaxBasisLabel}.`
+        ? `Scenario-level exit én componentstrategie zijn beide gevuld. Leidend spoor: ${computed.leadingMaxBasisLabel}. Alternatief spoor is informatief.`
         : 'Scenario-level exit én componentstrategie zijn beide actief zonder gekozen leidend spoor.',
       advice: resolved
         ? undefined
@@ -729,21 +701,22 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     problem: `Input-betrouwbaarheid: ${computed.inputReliability}.`,
   });
 
-  // ===== T. FORMATTERING =====
-  // Steekproef: scan op puntkomma's of niet-Europese decimaalweergave in vrije tekstvelden.
+  // ===== T. FORMATTERING (alleen info — nooit blokkerend) =====
   const fmtIssues: string[] = [];
   const checkText = (label: string, v: unknown) => {
     if (typeof v !== 'string') return;
-    if (/\d+\.\d{3}/.test(v)) fmtIssues.push(`${label}: gebruikt punt als duizendscheiding`);
+    if (/\d+\.\d{3}/.test(v)) fmtIssues.push(`${label}: punt als duizendscheiding`);
   };
   checkText('notes', scenario.notes);
   checkText('description', scenario.description);
   add(checks, {
     id: 'fmt',
     category: 'formatting',
-    status: fmtIssues.length === 0 ? 'ok' : 'warning',
+    status: 'ok', // formattering is informatief; opmerkingen worden enkel in tekst gemeld.
     section: SECTIONS.fmt,
-    problem: fmtIssues.length === 0 ? 'Geen formatteringsproblemen aangetroffen in vrije tekst.' : fmtIssues.join('; '),
+    problem: fmtIssues.length === 0
+      ? 'Geen formatteringsopmerkingen in vrije tekst.'
+      : `Tip (informatief): ${fmtIssues.join('; ')}.`,
   });
 
   // ===== TESTCASE Hinthamerstraat =====
@@ -771,6 +744,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     sourcesOfTruth: buildSourcesOfTruth({
       scenario, components, costs, wwsUnits, strategyUnits,
       object: { askingPrice: input.objectAskingPrice, areaGbo: objectArea },
+      leading: { basis: computed.leadingMaxBasis, basisLabel: computed.leadingMaxBasisLabel, value: computed.leadingMaxValue },
     }),
     maxBidExplain: buildMaxBidExplain(scenario, computed),
     summary,

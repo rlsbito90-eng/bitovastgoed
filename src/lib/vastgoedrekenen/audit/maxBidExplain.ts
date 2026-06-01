@@ -64,19 +64,12 @@ export function buildMaxBidExplain(scenario: Scenario, outputs: ComputedOutputs)
   if (outputs.strategyEnabled) {
     steps.push({ label: 'Scenariowaarde (componentstrategie)', value: eur(outputs.scenarioValue) });
     steps.push({ label: 'Indicatieve maxPurchasePrice (strategie)', value: eur(outputs.maxPurchasePrice) });
-    steps.push({
-      label: 'Rond te rekenen bij vraagprijs?',
-      value: outputs.roundsAtAsking == null ? '—' : outputs.roundsAtAsking ? 'Ja' : 'Nee',
-      note: 'Leidend: maxPurchasePrice ≥ vraagprijs.',
-    });
   }
 
   steps.push({
     label: 'Leidende basis voor maximale prijs',
     value: outputs.leadingMaxBasisLabel,
-    note: outputs.strategyEnabled
-      ? 'Bij componentstrategie is maxPurchasePrice leidend; maximumBid is informatief.'
-      : 'Geen componentstrategie — maximumBid is leidend.',
+    note: 'Alle conclusies (rond te rekenen, verschil met vraagprijs, max prijs) volgen deze basis.',
   });
   steps.push({
     label: 'Leidende maximale prijs',
@@ -85,13 +78,18 @@ export function buildMaxBidExplain(scenario: Scenario, outputs: ComputedOutputs)
   steps.push({
     label: 'Verschil met vraagprijs (leidend)',
     value: eur(outputs.leadingDifferenceWithAskingPrice),
-    note: outputs.leadingDifferenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+    note: `Leidende waarde ${outputs.leadingDifferenceWithAskingPrice >= 0 ? '≥' : '<'} vraagprijs.`,
   });
-  if (outputs.strategyEnabled) {
+  steps.push({
+    label: 'Rond te rekenen bij vraagprijs?',
+    value: outputs.leadingRoundsAtAsking == null ? '—' : outputs.leadingRoundsAtAsking ? 'Ja' : 'Nee',
+    note: `Leidend: ${outputs.leadingMaxBasisLabel}.`,
+  });
+  if (Math.round(outputs.leadingDifferenceWithAskingPrice) !== Math.round(outputs.differenceWithAskingPrice)) {
     steps.push({
-      label: 'Verschil met vraagprijs (informatief, maximumBid)',
+      label: 'Verschil met vraagprijs (informatief, alternatief spoor)',
       value: eur(outputs.differenceWithAskingPrice),
-      note: 'Niet leidend bij componentstrategie.',
+      note: 'Niet leidend.',
     });
   }
   steps.push({

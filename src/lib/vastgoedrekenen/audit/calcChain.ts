@@ -213,29 +213,34 @@ export function buildCalcChain(scenario: Scenario, o: ComputedOutputs): CalcChai
   }
 
   // === VERGELIJKING ===
+  const leadIsStrat = o.leadingMaxBasis === 'strategie';
+  const leadIsSale = o.leadingMaxBasis === 'verkoop';
   steps.push({
     fase: 'vergelijking',
     label: 'Leidende maximale prijs',
     value: `${eur(o.leadingMaxValue)} (${o.leadingMaxBasisLabel})`,
-    note: o.strategyEnabled
-      ? 'Bij actieve componentstrategie is maxPurchasePrice leidend; maximumBid (BAR/exit) is informatief.'
-      : 'Geen componentstrategie actief — maximumBid is leidend.',
+    note: leadIsStrat
+      ? 'Componentstrategie is leidend; maximumBid (BAR/exit) is informatief.'
+      : leadIsSale
+        ? 'Verkoop/exit-tak is leidend; componentstrategie en huur/BAR zijn informatief.'
+        : 'Huur/BAR is leidend; componentstrategie en verkoop/exit zijn informatief.',
     source: 'computeScenario',
   });
+  const askDiffSign = o.leadingDifferenceWithAskingPrice >= 0 ? '≥' : '<';
   steps.push({
     fase: 'vergelijking',
     label: 'Verschil met vraagprijs (leidend)',
     formula: 'leidende max prijs − vraagprijs',
     value: eur(o.leadingDifferenceWithAskingPrice),
-    note: o.leadingDifferenceWithAskingPrice >= 0 ? 'Ruimte boven vraagprijs.' : 'Korting nodig.',
+    note: `Leidende waarde ${askDiffSign} vraagprijs.`,
   });
-  if (o.strategyEnabled && Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice)) {
+  if (Math.round(o.leadingDifferenceWithAskingPrice) !== Math.round(o.differenceWithAskingPrice)) {
     steps.push({
       fase: 'vergelijking',
-      label: 'Verschil met vraagprijs (informatief, o.b.v. maximumBid)',
-      formula: 'maximumBid − vraagprijs',
+      label: 'Verschil met vraagprijs (informatief, alternatief spoor)',
+      formula: 'alternatieve max bieding − vraagprijs',
       value: eur(o.differenceWithAskingPrice),
-      note: 'Niet leidend bij componentstrategie — gebruik de leidende waarde.',
+      note: 'Niet leidend — alleen ter info.',
     });
   }
 
@@ -243,11 +248,11 @@ export function buildCalcChain(scenario: Scenario, o: ComputedOutputs): CalcChai
   steps.push({
     fase: 'doable',
     label: 'Rond te rekenen bij vraagprijs?',
-    value: o.roundsAtAsking == null ? '—' : o.roundsAtAsking ? 'Ja' : 'Nee',
-    source: o.strategyEnabled ? 'Componentstrategie (maxPurchasePrice)' : 'Niet van toepassing zonder strategie',
-    note: o.strategyEnabled
-      ? 'Gebaseerd op maxPurchasePrice ≥ vraagprijs.'
-      : undefined,
+    value: o.leadingRoundsAtAsking == null ? '—' : o.leadingRoundsAtAsking ? 'Ja' : 'Nee',
+    source: `Leidend: ${o.leadingMaxBasisLabel}`,
+    note: o.leadingRoundsAtAsking == null
+      ? 'Geen vraagprijs ingevuld.'
+      : `Leidende waarde ${o.leadingRoundsAtAsking ? '≥' : '<'} vraagprijs.`,
   });
 
   return steps;

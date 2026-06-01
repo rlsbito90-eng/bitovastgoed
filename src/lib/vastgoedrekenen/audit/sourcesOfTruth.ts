@@ -16,8 +16,9 @@ export function buildSourcesOfTruth(args: {
   wwsUnits: WwsUnit[];
   strategyUnits: SellOffUnit[];
   object?: { askingPrice?: number | null; areaGbo?: number | null } | null;
+  leading?: { basis: 'strategie' | 'huur' | 'verkoop'; basisLabel: string; value: number } | null;
 }): SourceOfTruthRow[] {
-  const { scenario, components, costs, wwsUnits, strategyUnits, object } = args;
+  const { scenario, components, costs, wwsUnits, strategyUnits, object, leading } = args;
   const rec = scenario as unknown as Record<string, unknown>;
   const rows: SourceOfTruthRow[] = [];
 
@@ -110,20 +111,33 @@ export function buildSourcesOfTruth(args: {
   });
 
   // Componentstrategie
+  const leadingBasis = leading?.basis;
+  const stratLeads = leadingBasis === 'strategie';
   rows.push({
     onderdeel: 'Componentstrategie',
-    actieveBron: strategyUnits.length > 0 ? `${strategyUnits.length} unit(s)` : 'Niet gebruikt',
-    alternatieveBron: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop' ? 'Scenario-level exit ook gevuld' : undefined,
-    risico: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop' ? 'middel' : 'geen',
-    toelichting: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop' ? 'Dubbel exit-spoor — controleer welke leidend is.' : undefined,
+    actieveBron: strategyUnits.length > 0 ? `${strategyUnits.length} unit(s)${stratLeads ? ' — leidend' : ''}` : 'Niet gebruikt',
+    alternatieveBron: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop'
+      ? (stratLeads ? 'Scenario-level exit (informatief)' : 'Scenario-level exit ook gevuld')
+      : undefined,
+    risico: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop' && !leading ? 'middel' : 'geen',
+    toelichting: strategyUnits.length > 0 && sStrat && sStrat !== 'geen_verkoop'
+      ? (stratLeads ? 'Componentstrategie is leidend; scenario-level exit telt informatief.' : 'Dubbel exit-spoor — leidend spoor is gekozen via "Scenario-uitkomst gebaseerd op".')
+      : undefined,
   });
 
-  // Maximale aankoopprijs
+  // Maximale aankoopprijs — leidende bron expliciet benoemen
+  const maxBron = leading
+    ? (leading.basis === 'strategie' ? 'Componentstrategie (maxPurchasePrice)'
+      : leading.basis === 'verkoop' ? 'Verkoop / exit-tak (maximumBid)'
+      : 'Huur / BAR-tak (maximumBid)')
+    : (strategyUnits.length > 0 ? 'Componentstrategie (scenariowaarde)' : 'Biedingsadvies (BAR-tak)');
   rows.push({
     onderdeel: 'Maximale aankoopprijs',
-    actieveBron: strategyUnits.length > 0 ? 'Componentstrategie (scenariowaarde)' : 'Biedingsadvies (BAR-tak)',
+    actieveBron: maxBron,
     risico: 'geen',
-    toelichting: 'maxPurchasePrice (strategie) of maximumBid (BAR/exit) via computeScenario.',
+    toelichting: leading
+      ? `Leidende waarde: € ${Math.round(leading.value).toLocaleString('nl-NL')} (${leading.basisLabel}).`
+      : 'maxPurchasePrice (strategie) of maximumBid (BAR/exit) via computeScenario.',
   });
 
   return rows;
