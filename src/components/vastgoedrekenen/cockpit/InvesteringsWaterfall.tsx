@@ -27,10 +27,16 @@ function InvesteringsWaterfall({
   outputs: ComputedOutputs;
 }) {
   const asking = Number(scenario.asking_price ?? 0);
-  if (asking <= 0) {
+  const purchase = Number((scenario as { purchase_price?: number | null }).purchase_price ?? 0);
+  // Aankoopbasis: beoogde aankoopprijs als ingevuld, anders vraagprijs.
+  const basisValue = purchase > 0 ? purchase : asking;
+  const basisLabel = purchase > 0 ? 'Beoogde aankoopprijs' : 'Vraagprijs';
+  const basisChip = purchase > 0 ? 'beoogde aankoopprijs' : 'vraagprijs';
+
+  if (basisValue <= 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-        Vul een vraagprijs in om de investerings-waterfall te tonen.
+        Vul een vraagprijs of beoogde aankoopprijs in om de investerings-waterfall te tonen.
       </div>
     );
   }
@@ -44,15 +50,15 @@ function InvesteringsWaterfall({
   const netSale = outputs.netSaleProceeds != null ? Math.round(outputs.netSaleProceeds) : null;
   const netMargin = outputs.netMargin != null ? Math.round(outputs.netMargin) : null;
 
-  // Bouw stappenreeks
+  // Bouw stappenreeks — start op aankoopbasis (beoogde aankoopprijs of vraagprijs).
   const steps: Step[] = [
-    { key: 'asking',    label: 'Vraagprijs',         value: asking,      cumulative: asking, tone: 'base' },
+    { key: 'basis', label: basisLabel, value: basisValue, cumulative: basisValue, tone: 'base' },
   ];
   if (totalCosts > 0) {
-    steps.push({ key: 'costs', label: 'Bijkomende kosten', value: totalCosts, cumulative: asking + totalCosts, tone: 'cost' });
+    steps.push({ key: 'costs', label: 'Bouw-/renovatiekosten', value: totalCosts, cumulative: basisValue + totalCosts, tone: 'cost' });
   }
   if (ovb > 0) {
-    steps.push({ key: 'ovb', label: 'OVB', value: ovb, cumulative: asking + totalCosts + ovb, tone: 'cost' });
+    steps.push({ key: 'ovb', label: 'OVB', value: ovb, cumulative: basisValue + totalCosts + ovb, tone: 'cost' });
   }
   steps.push({
     key: 'investment',
@@ -133,14 +139,25 @@ function InvesteringsWaterfall({
         <h4 className="text-sm font-semibold text-foreground">
           Investerings-waterfall
           <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
-            — vraagprijs → investering → opbrengst → marge
+            — {basisChip} → investering → opbrengst → marge
           </span>
         </h4>
         <p className="text-[11px] text-muted-foreground">
           {exploitatie
             ? 'Opbouw totale investering (exploitatie-scenario).'
-            : 'Van vraagprijs naar nettomarge (verkoop-scenario).'}
+            : 'Van aankoopbasis naar nettomarge (verkoop-scenario).'}
         </p>
+      </div>
+
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        <span className="px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/30 font-medium">
+          Aankoopbasis: {basisChip}
+        </span>
+        {purchase > 0 && asking > 0 && Math.round(purchase) !== Math.round(asking) && (
+          <span className="text-muted-foreground">
+            Vraagprijs (informatief): <span className="font-mono-data text-foreground">{fmtEur(asking)}</span>
+          </span>
+        )}
       </div>
 
       <div className="w-full">

@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, DEAL_BADGE } from '../format';
+import { evaluateFeasibility, feasibilityLabel } from '@/lib/vastgoedrekenen/feasibility';
 import { toast } from 'sonner';
 
 type Props = {
@@ -47,11 +48,25 @@ function CockpitHeader({
   onPatch,
 }: Props) {
   const asking = Number(scenario.asking_price ?? 0);
+  const purchase = Number((scenario as { purchase_price?: number | null }).purchase_price ?? 0);
   const diff = o.leadingDifferenceWithAskingPrice;
-  const pct = asking > 0 ? (diff / asking) * 100 : null;
-  const rounds = o.leadingRoundsAtAsking;
   const deal = DEAL_BADGE[o.dealScore];
   const trackChoice = ((scenario as unknown as Record<string, unknown>).leading_valuation_track as string | null) ?? 'auto';
+
+  const feasAsking = evaluateFeasibility(o.leadingMaxValue, asking);
+  const feasPurchase = evaluateFeasibility(o.leadingMaxValue, purchase);
+
+  const feasTone = (s: 'ja' | 'bijna' | 'nee'): Tone =>
+    s === 'ja' ? 'success' : s === 'bijna' ? 'warn' : 'danger';
+
+  const feasSub = (f: { status: 'ja' | 'bijna' | 'nee'; diff: number; pct: number | null; hasReference: boolean }) => {
+    if (!f.hasReference) return 'Geen referentiebedrag';
+    const sign = f.diff >= 0 ? '+' : '−';
+    const pctTxt = f.pct != null ? ` (${sign}${Math.abs(f.pct).toFixed(1)}%)` : '';
+    return f.diff >= 0
+      ? `Ruimte ${fmtEur(Math.abs(f.diff))}${pctTxt}`
+      : `Tekort ${fmtEur(Math.abs(f.diff))}${pctTxt}`;
+  };
 
   // Informatieve alternatieven (niet leidend).
   const altExit = o.leadingMaxBasis !== 'verkoop' && o.exitBasedMaxBid != null && o.exitBasedMaxBid > 0
@@ -85,26 +100,34 @@ function CockpitHeader({
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
       >
         <Kpi
-          label="Rond te rekenen"
-          value={asking > 0 ? (rounds ? 'Ja' : 'Nee') : '—'}
-          tone={asking > 0 ? (rounds ? 'success' : 'warn') : 'neutral'}
-          sub={asking > 0
-            ? (rounds
-                ? `Ruimte ${fmtEur(Math.abs(diff))}${pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}`
-                : `Tekort ${fmtEur(Math.abs(diff))}${pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}`)
-            : 'Geen vraagprijs'}
+          label="Rond op vraagprijs"
+          value={feasAsking.hasReference ? feasibilityLabel(feasAsking.status) : '—'}
+          tone={feasAsking.hasReference ? feasTone(feasAsking.status) : 'neutral'}
+          sub={feasSub(feasAsking)}
+        />
+        <Kpi
+          label="Rond op beoogde aankoopprijs"
+          value={feasPurchase.hasReference ? feasibilityLabel(feasPurchase.status) : '—'}
+          tone={feasPurchase.hasReference ? feasTone(feasPurchase.status) : 'neutral'}
+          sub={feasPurchase.hasReference ? feasSub(feasPurchase) : 'Geen beoogde aankoopprijs'}
         />
         <Kpi
           label={o.leadingMaxBasis === 'strategie' ? 'Max. aankoopprijs' : 'Max. bieding'}
           value={fmtEur(o.leadingMaxValue)}
           tone="primary"
-          sub={`Bron: ${o.leadingMaxBasisLabel}`}
+          sub={`Leidend · ${o.leadingMaxBasisLabel}`}
         />
         <Kpi
           label="Vraagprijs"
           value={asking > 0 ? fmtEur(asking) : '—'}
           tone="neutral"
           sub={asking > 0 && diff !== 0 ? `${diff >= 0 ? '+' : '−'} ${fmtEur(Math.abs(diff))} verschil` : undefined}
+        />
+        <Kpi
+          label="Beoogde aankoopprijs"
+          value={purchase > 0 ? fmtEur(purchase) : '—'}
+          tone="neutral"
+          sub={purchase > 0 ? 'Aankoopbasis voor marge & ROI' : 'Niet ingevuld'}
         />
         <Kpi
           label="ROI totaal"
