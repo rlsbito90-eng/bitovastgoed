@@ -424,6 +424,13 @@ export default function ScenarioEditor(props: Props) {
   async function deleteComponent(id: string) {
     await supabase.from('calculation_components').delete().eq('id', id); refetch();
   }
+  async function bulkDeleteComponents(ids: string[]) {
+    if (ids.length === 0) return;
+    // Ruim eerst gekoppelde strategie-units op zodat geen orphan component_id achterblijft.
+    await supabase.from('sell_off_units').update({ component_id: null } as never).in('component_id', ids);
+    await supabase.from('calculation_components').delete().in('id', ids);
+    refetch();
+  }
 
   // --- Cost CRUD ---
   function addCost() {
@@ -1711,10 +1718,12 @@ export default function ScenarioEditor(props: Props) {
                   sellOffUnitsCount={sellOffUnits.length}
                   updateComponent={updateComponent}
                   deleteComponent={deleteComponent}
+                  bulkDeleteComponents={bulkDeleteComponents}
                 />
 
               </div>
             </Section>
+
 
             {/* Componentstrategie per scenario — onderdeel van het Componenten-hoofdstuk */}
             <Section id="sec-strategie" title={`Componentstrategie (${sellOffUnits.length})`} status={strategyStatus} {...sectionProps('sec-strategie')} source="Componentstrategie" relevance={strategyRelevance}>
