@@ -34,6 +34,7 @@ import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
 import AuditSidePanel from './cockpit/AuditSidePanel';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
+import { computeCostBreakdown, VAT_TREATMENT_LABELS, type VatTreatment } from '@/lib/vastgoedrekenen/investering';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
