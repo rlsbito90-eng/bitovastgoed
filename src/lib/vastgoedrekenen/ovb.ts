@@ -7,7 +7,8 @@ import { VR_DEFAULTS } from './defaults';
 /** Jaar waarvoor de meegeleverde standaard-OVB-tarieven gelden. */
 export const OVB_RATES_YEAR = 2026;
 
-const RESIDENTIAL_COMPONENT_TYPES = new Set<string>(['woning', 'appartement']);
+import { VR_WOON_COMPONENT_TYPES } from './defaults';
+const RESIDENTIAL_COMPONENT_TYPES = VR_WOON_COMPONENT_TYPES;
 const COMMERCIAL_COMPONENT_TYPES = new Set<string>([
   'winkel', 'winkelruimte', 'kantoor', 'kantoorruimte',
   'bedrijfsruimte', 'bedrijfsunit', 'horeca', 'opslagruimte',

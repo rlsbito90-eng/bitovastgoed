@@ -3,6 +3,7 @@
 
 import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './types';
 import type { PropertyAssumptionType } from './profiles';
+import { isWoonComponentType } from './defaults';
 
 export type ValidationItem = {
   level: 'warning' | 'info' | 'blocker';
@@ -34,7 +35,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     out.push({ level: 'warning', message: 'Er zijn niet-opgeslagen wijzigingen. Berekeningen en scenariovergelijking kunnen verouderd zijn tot je opslaat.' });
   }
 
-  const wooncomponenten = components.filter((x) => x.component_type === 'woning' || x.component_type === 'appartement');
+  const wooncomponenten = components.filter((x) => isWoonComponentType(x.component_type));
   if (wooncomponenten.length > 0 && wwsUnits.length === 0) {
     out.push({ level: 'warning', message: `Er zijn ${wooncomponenten.length} wooncomponent(en) maar nog geen WWS-units. Klik "Maak WWS-units uit wooncomponenten" of markeer WWS als niet relevant.` });
   }

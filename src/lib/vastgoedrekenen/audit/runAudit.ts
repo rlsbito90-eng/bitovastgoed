@@ -6,6 +6,7 @@
 
 import type { Scenario, Component, ScenarioCost, WwsUnit, SellOffUnit, TaxSettings, ComputedOutputs } from '../types';
 import { computeScenario } from '../compute';
+import { computeComponentStrategy } from '../componentStrategy';
 import type { PropertyAssumptionType } from '../profiles';
 import type { AuditCheck, AuditReport, AuditStatus, AuditCategory } from './types';
 import { buildSourcesOfTruth } from './sourcesOfTruth';
@@ -580,6 +581,28 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     });
   } else {
     add(checks, { id: 'strat-na', category: 'strategy_mix', status: 'na', section: SECTIONS.strat, problem: 'Geen componentstrategie aangemaakt.' });
+  }
+
+  // €/m² inzicht componentstrategie + waarschuwing bij ontbrekende m²
+  if (strategyUnits.length > 0) {
+    let totalVal = 0; let totalM2 = 0; let missM2 = 0;
+    for (const u of strategyUnits) {
+      const r = u as unknown as Record<string, unknown>;
+      const calc = computeComponentStrategy(u).contribution;
+      const m2 = num(r.surface_gbo) || num(r.surface_vvo);
+      if (calc > 0 && m2 > 0) { totalVal += calc; totalM2 += m2; }
+      else if (calc > 0 && m2 <= 0) missM2++;
+    }
+    const avg = totalM2 > 0 ? Math.round(totalVal / totalM2) : 0;
+    if (avg > 0) {
+      add(checks, { id: 'strat-eur-m2', category: 'strategy_mix', status: 'ok', section: SECTIONS.strat,
+        problem: `Gem. prijs/m² strategie: € ${avg.toLocaleString('nl-NL')}/m² (totaal € ${totalVal.toLocaleString('nl-NL')} / ${totalM2.toLocaleString('nl-NL')} m²).` });
+    }
+    if (missM2 > 0) {
+      add(checks, { id: 'strat-missing-m2', category: 'strategy_mix', status: 'warning', section: SECTIONS.strat,
+        problem: `${missM2}× unit met bijdrage maar zonder m² — €/m² niet berekenbaar.`,
+        advice: 'Vul surface_gbo/vvo aan zodat €/m² zichtbaar wordt.' });
+    }
   }
 
   // ===== M. ENGINE =====
