@@ -27,10 +27,16 @@ function InvesteringsWaterfall({
   outputs: ComputedOutputs;
 }) {
   const asking = Number(scenario.asking_price ?? 0);
-  if (asking <= 0) {
+  const purchase = Number((scenario as { purchase_price?: number | null }).purchase_price ?? 0);
+  // Aankoopbasis: beoogde aankoopprijs als ingevuld, anders vraagprijs.
+  const basisValue = purchase > 0 ? purchase : asking;
+  const basisLabel = purchase > 0 ? 'Beoogde aankoopprijs' : 'Vraagprijs';
+  const basisChip = purchase > 0 ? 'beoogde aankoopprijs' : 'vraagprijs';
+
+  if (basisValue <= 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-        Vul een vraagprijs in om de investerings-waterfall te tonen.
+        Vul een vraagprijs of beoogde aankoopprijs in om de investerings-waterfall te tonen.
       </div>
     );
   }
@@ -44,12 +50,12 @@ function InvesteringsWaterfall({
   const netSale = outputs.netSaleProceeds != null ? Math.round(outputs.netSaleProceeds) : null;
   const netMargin = outputs.netMargin != null ? Math.round(outputs.netMargin) : null;
 
-  // Bouw stappenreeks
+  // Bouw stappenreeks — start op aankoopbasis (beoogde aankoopprijs of vraagprijs).
   const steps: Step[] = [
-    { key: 'asking',    label: 'Vraagprijs',         value: asking,      cumulative: asking, tone: 'base' },
+    { key: 'basis', label: basisLabel, value: basisValue, cumulative: basisValue, tone: 'base' },
   ];
   if (totalCosts > 0) {
-    steps.push({ key: 'costs', label: 'Bijkomende kosten', value: totalCosts, cumulative: asking + totalCosts, tone: 'cost' });
+    steps.push({ key: 'costs', label: 'Bouw-/renovatiekosten', value: totalCosts, cumulative: basisValue + totalCosts, tone: 'cost' });
   }
   if (ovb > 0) {
     steps.push({ key: 'ovb', label: 'OVB', value: ovb, cumulative: asking + totalCosts + ovb, tone: 'cost' });
