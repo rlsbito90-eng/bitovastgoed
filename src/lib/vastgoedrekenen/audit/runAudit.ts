@@ -205,7 +205,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
   }
 
   // ===== E. COMPONENTEN → WWS =====
-  const woonComps = components.filter((c) => ['woning', 'appartement'].includes((c.component_type ?? '').toLowerCase()));
+  const woonComps = components.filter((c) => ['woning', 'appartement', 'studio', 'kamer'].includes((c.component_type ?? '').toLowerCase()));
   if (woonComps.length > 0) {
     add(checks, {
       id: 'wmap-count',
