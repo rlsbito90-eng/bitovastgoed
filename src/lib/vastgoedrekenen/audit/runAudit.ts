@@ -544,6 +544,61 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
         advice: 'Onderbouw of vervang met offertes voordat je hard biedt.',
       });
     }
+
+    // Btw-behandeling audit: posten met bedrag > 0 maar behandeling 'geen' (default backwards-compat).
+    const unforeseenPct = num(rec.unforeseen_percentage);
+    let totalIncludedVat = 0;
+    let totalInformationalVat = 0;
+    const undecided: string[] = [];
+    for (const cost of costs) {
+      const cr = cost as unknown as Record<string, unknown>;
+      const treatment = (cr.vat_treatment as string | null) ?? 'geen';
+      const eff = num(cost.amount);
+      if (eff > 0 && treatment === 'geen') undecided.push(cost.cost_category || 'Kostenpost');
+      const subtotal = eff + Math.round((eff * unforeseenPct) / 100);
+      const rate = treatment === 'pct_9' ? 9 : treatment === 'handmatig' ? (num(cr.vat_percentage) || 21) : 21;
+      totalInformationalVat += Math.round((subtotal * rate) / 100);
+      if (treatment === 'pct_21') totalIncludedVat += Math.round((subtotal * 21) / 100);
+      else if (treatment === 'pct_9') totalIncludedVat += Math.round((subtotal * 9) / 100);
+      else if (treatment === 'handmatig') {
+        const manual = num(cr.vat_amount_manual);
+        totalIncludedVat += manual !== 0 ? manual : Math.round((subtotal * num(cr.vat_percentage)) / 100);
+      }
+    }
+    add(checks, {
+      id: 'cost-vat-summary',
+      category: 'costs',
+      status: 'ok',
+      section: SECTIONS.cost,
+      problem: `Btw informatief: € ${totalInformationalVat.toLocaleString('nl-NL')} · Btw meegenomen in investering: € ${totalIncludedVat.toLocaleString('nl-NL')}.`,
+    });
+    if (undecided.length > 0) {
+      add(checks, {
+        id: 'cost-vat-undecided',
+        category: 'costs',
+        status: 'warning',
+        section: SECTIONS.cost,
+        problem: `${undecided.length} kostenpost(en) zonder expliciete btw-behandeling (default "geen btw").`,
+        advice: 'Kies per kostenpost: niet verrekenbaar (incl. btw), volledig verrekenbaar (excl. btw), deels of geen btw. Bij mixed-use is handmatige beoordeling vereist.',
+      });
+    }
+    if (objectType === 'mixed_use') {
+      const anyExplicit = costs.some((c) => {
+        const t = (c as unknown as Record<string, unknown>).vat_treatment as string | null;
+        return t === 'handmatig' || t === 'verrekenbaar';
+      });
+      if (!anyExplicit && costs.length > 0) {
+        add(checks, {
+          id: 'cost-vat-mixed-use',
+          category: 'costs',
+          status: 'warning',
+          section: SECTIONS.cost,
+          problem: 'Mixed-use object zonder deels-verrekenbare of verrekenbare btw-keuze.',
+          advice: 'Beoordeel fiscaal hoe btw verdeeld is over woon- en commerciële delen.',
+        });
+      }
+    }
+  }
   }
 
   // ===== K. EXIT =====
