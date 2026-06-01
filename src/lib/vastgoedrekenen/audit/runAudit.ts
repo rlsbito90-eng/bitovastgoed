@@ -599,7 +599,6 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       }
     }
   }
-  }
 
   // ===== K. EXIT =====
   const sStrat = rec.sale_strategy as string | null;
