@@ -744,6 +744,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     sourcesOfTruth: buildSourcesOfTruth({
       scenario, components, costs, wwsUnits, strategyUnits,
       object: { askingPrice: input.objectAskingPrice, areaGbo: objectArea },
+      leading: { basis: computed.leadingMaxBasis, basisLabel: computed.leadingMaxBasisLabel, value: computed.leadingMaxValue },
     }),
     maxBidExplain: buildMaxBidExplain(scenario, computed),
     summary,
