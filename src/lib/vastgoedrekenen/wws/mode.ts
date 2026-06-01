@@ -52,7 +52,8 @@ const SALE_FOCUSED_SCENARIO = new Set<string>([
   'buy_transform_sell',
 ]);
 
-const RESIDENTIAL_COMPONENT_TYPES = new Set<string>(['woning', 'appartement']);
+import { VR_WOON_COMPONENT_TYPES } from '../defaults';
+const RESIDENTIAL_COMPONENT_TYPES = VR_WOON_COMPONENT_TYPES;
 
 export interface WwsModeContext {
   scenario: Scenario;

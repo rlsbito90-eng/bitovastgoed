@@ -176,7 +176,7 @@ const SALE_STRATS = new Set(['verkopen_leeg', 'verkopen_verhuurd', 'renoveren_ve
 const HOLD_STRATS = new Set(['aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden']);
 
 const COMMERCIAL_TYPES = new Set(['winkel', 'winkelruimte', 'kantoor', 'kantoorruimte', 'bedrijfsruimte', 'horeca']);
-const RESIDENTIAL_TYPES = new Set(['woning', 'appartement']);
+const RESIDENTIAL_TYPES = new Set(['woning', 'appartement', 'studio', 'kamer']);
 
 /** Bepaalt het casustype op basis van scenario- en componentdata. */
 export function detectCaseType(
