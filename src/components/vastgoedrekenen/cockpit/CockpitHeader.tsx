@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, DEAL_BADGE } from '../format';
+import { evaluateFeasibility, feasibilityLabel } from '@/lib/vastgoedrekenen/feasibility';
 import { toast } from 'sonner';
 
 type Props = {
