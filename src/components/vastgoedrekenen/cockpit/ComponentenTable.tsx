@@ -42,7 +42,7 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
   const totalM2 = components.reduce((s, c) => s + Number(c.surface_gbo ?? 0), 0);
   const totalRent = components.reduce((s, c) => s + Number(c.current_monthly_rent ?? 0), 0);
   const totalOvb = perComp ? ovbPerComponent.reduce((s, d) => s + Number(d.amount ?? 0), 0) : 0;
-  const woon = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement').length;
+  const woon = components.filter((c) => isWoonComponentType(c.component_type)).length;
   const comm = components.length - woon;
   const warnings = perComp ? ovbPerComponent.filter((d) => d.missingValueBasis || d.missingStrategyBasis || d.missingManualAmount).length : 0;
 

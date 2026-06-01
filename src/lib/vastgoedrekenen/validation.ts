@@ -3,6 +3,7 @@
 
 import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './types';
 import type { PropertyAssumptionType } from './profiles';
+import { isWoonComponentType } from './defaults';
 
 export type ValidationItem = {
   level: 'warning' | 'info' | 'blocker';
