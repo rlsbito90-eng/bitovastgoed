@@ -354,6 +354,9 @@ export default function ScenarioEditor(props: Props) {
         calc_mode: ((rec.calc_mode as string | null) ?? 'totaal'),
         amount_per_m2: (rec.amount_per_m2 as number | null) ?? null,
         m2_basis: (rec.m2_basis as number | null) ?? null,
+        vat_treatment: ((rec.vat_treatment as string | null) ?? 'geen'),
+        vat_percentage: (rec.vat_percentage as number | null) ?? null,
+        vat_amount_manual: (rec.vat_amount_manual as number | null) ?? null,
       };
 
       if (isTempCostId(cost.id)) {
