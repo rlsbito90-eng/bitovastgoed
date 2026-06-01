@@ -455,6 +455,11 @@ export default function ScenarioEditor(props: Props) {
       calc_mode: 'totaal',
       amount_per_m2: null,
       m2_basis: objectArea ?? null,
+      // Default behandeling voor NIEUWE posten: 'pct_21' (niet verrekenbaar, 21%).
+      // Bestaande posten zonder vat_treatment behouden 'geen' (backwards compat).
+      vat_treatment: 'pct_21',
+      vat_percentage: 21,
+      vat_amount_manual: null,
     } as unknown as ScenarioCost]));
 
   }
