@@ -10,7 +10,7 @@ import { Trash2, Pencil } from 'lucide-react';
 import { RawNumberInput, RawTextInput, numberToRaw, parseRawNumber } from '../RawInputs';
 import { fmtEur, fmtM2 } from '../format';
 import { formatUnitIdentity } from '@/lib/vastgoedrekenen/unitIdentity';
-import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS, isWoonComponentType } from '@/lib/vastgoedrekenen/defaults';
 import type { Component, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { Chip, DrawerField } from './tableShared';
 import { useIsTouch } from '@/hooks/useIsTouch';
