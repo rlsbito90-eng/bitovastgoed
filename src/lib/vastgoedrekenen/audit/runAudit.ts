@@ -6,6 +6,7 @@
 
 import type { Scenario, Component, ScenarioCost, WwsUnit, SellOffUnit, TaxSettings, ComputedOutputs } from '../types';
 import { computeScenario } from '../compute';
+import { computeComponentStrategy } from '../componentStrategy';
 import type { PropertyAssumptionType } from '../profiles';
 import type { AuditCheck, AuditReport, AuditStatus, AuditCategory } from './types';
 import { buildSourcesOfTruth } from './sourcesOfTruth';
@@ -587,10 +588,7 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
     let totalVal = 0; let totalM2 = 0; let missM2 = 0;
     for (const u of strategyUnits) {
       const r = u as unknown as Record<string, unknown>;
-      const calc = ((): number => {
-        const c = (require('../componentStrategy') as typeof import('../componentStrategy')).computeComponentStrategy(u);
-        return c.contribution;
-      })();
+      const calc = computeComponentStrategy(u).contribution;
       const m2 = num(r.surface_gbo) || num(r.surface_vvo);
       if (calc > 0 && m2 > 0) { totalVal += calc; totalM2 += m2; }
       else if (calc > 0 && m2 <= 0) missM2++;
