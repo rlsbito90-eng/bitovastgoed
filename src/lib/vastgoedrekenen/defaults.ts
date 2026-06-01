@@ -66,6 +66,8 @@ export const VR_STATUS_LABELS: Record<string, string> = {
 export const VR_COMPONENT_LABELS: Record<string, string> = {
   woning: 'Woning',
   appartement: 'Appartement',
+  studio: 'Studio',
+  kamer: 'Kamer',
   winkelruimte: 'Winkelruimte',
   kantoorruimte: 'Kantoorruimte',
   bedrijfsruimte: 'Bedrijfsruimte',
