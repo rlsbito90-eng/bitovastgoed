@@ -371,9 +371,8 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       : wwsUnits.length === 0 ? 'Geen WWS-units.' : 'WWS-units allemaal in vrije sector of zonder punten.',
   });
 
-  // Per-unit transparantie: bron / stelsel / beleidsversie / ontbrekende velden
+  // Per-unit transparantie: bron / stelsel / beleidsversie / ontbrekende velden — gegroepeerd
   if (wwsUnits.length > 0) {
-    // Beleidsversie waarschuwing: huidige formule is V1 indicatief
     add(checks, {
       id: 'wws-policy-version',
       category: 'wws',
@@ -382,50 +381,26 @@ export function runScenarioAudit(input: AuditInput): AuditReport {
       problem: 'WWS-puntenberekening gebruikt interne V1 (indicatief). Geen volledige Huurcommissie-systematiek.',
       advice: 'Gebruik dit alleen voor segmentindicatie. Voer voor harde biedingen een officiële Huurcommissie-check uit.',
     });
-    for (const u of wwsUnits) {
-      const label = u.unit_name?.trim() || 'Naamloze woonunit';
-      const r = u as unknown as Record<string, unknown>;
-      if (u.wws_points == null) {
-        add(checks, {
-          id: `wws-no-points-${u.id}`,
-          category: 'wws',
-          status: 'error',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'WWS-punten ontbreken — segment kan niet bepaald worden.',
-          advice: 'Vul punten in of bewerk een veld zodat CRM ze (her)berekent.',
-        });
-      }
-      if (!num(u.woz_value)) {
-        add(checks, {
-          id: `wws-no-woz-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'WOZ-waarde ontbreekt — punten zijn lager dan reëel.',
-        });
-      }
-      if (!u.energy_label) {
-        add(checks, {
-          id: `wws-no-label-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'Energielabel ontbreekt — labelpunten staan op 0.',
-        });
-      }
-      if (r.independent_unit == null) {
-        add(checks, {
-          id: `wws-no-scheme-${u.id}`,
-          category: 'wws',
-          status: 'warning',
-          section: SECTIONS.wws,
-          record: label,
-          problem: 'Stelseltype (zelfstandig/onzelfstandig) niet gekozen — formule kan afwijken.',
-        });
-      }
+    const noPoints = wwsUnits.filter((u) => u.wws_points == null);
+    const noWoz = wwsUnits.filter((u) => !num(u.woz_value));
+    const noLabel = wwsUnits.filter((u) => !u.energy_label);
+    const noScheme = wwsUnits.filter((u) => (u as unknown as Record<string, unknown>).independent_unit == null);
+    if (noPoints.length > 0) {
+      add(checks, { id: 'wws-grp-points', category: 'wws', status: 'error', section: SECTIONS.wws,
+        problem: `${noPoints.length}× WWS-punten ontbreken — segment kan niet bepaald worden.`,
+        advice: 'Vul punten in of bewerk een veld zodat CRM ze (her)berekent.' });
+    }
+    if (noWoz.length > 0) {
+      add(checks, { id: 'wws-grp-woz', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noWoz.length}× WOZ-waarde ontbreekt — punten zijn lager dan reëel.` });
+    }
+    if (noLabel.length > 0) {
+      add(checks, { id: 'wws-grp-label', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noLabel.length}× energielabel ontbreekt — labelpunten staan op 0.` });
+    }
+    if (noScheme.length > 0) {
+      add(checks, { id: 'wws-grp-scheme', category: 'wws', status: 'warning', section: SECTIONS.wws,
+        problem: `${noScheme.length}× stelseltype (zelfstandig/onzelfstandig) niet gekozen — formule kan afwijken.` });
     }
   }
 
