@@ -1,112 +1,106 @@
-# Fase 1 — Notariskosten & Bito aankoopfee-staffel
+# Plan: App-brede decimal-proof rekenvelden
 
-Strikt fase 1. **Geen** verkoopkosten, **geen** sale_costs_basis, **geen** Admin-CRUD, **geen** rekenrefactor. Bestaande scenario's blijven 1-op-1 doorrekenen.
+## Doel
+Alle rekenkundige numerieke velden in Vastgoedrekenen, objecten, componenten, WWS en scenario’s slaan, tonen, importeren en berekenen waarden met decimalen. Afronding mag uitsluitend visueel plaatsvinden — nooit in opslag of berekening.
 
-## 0. Migratie (al uitgevoerd)
+## Diagnose (huidige situatie)
 
-`ALTER TABLE calculation_scenarios` — drie kolommen toegevoegd, allemaal `DEFAULT 'manual'` zodat bestaande rijen ongewijzigd doorrekenen:
-- `buyer_fee_method text` — CHECK `staffel|percentage|amount|manual|zero`
-- `notary_costs_method text` — CHECK `profile|percentage|amount|manual|zero`
-- `notary_costs_profile text` — CHECK `woning_simpel|woning_belegging|commercieel|mixed_use|portefeuille|NULL`
+**Database — integer-kolommen voor metrages (foutgevoelig):**
+- `objecten`: `oppervlakte`, `oppervlakte_gbo`, `oppervlakte_vvo`, `oppervlakte_bvo`, `perceel_oppervlakte`
+- `calculation_components`: `surface_gbo`, `surface_vvo`, `surface_bvo`
+- `sell_off_units`: `surface_gbo`, `surface_vvo`, `surface_bvo`
+- `residential_wws_units`: `living_area_m2`, `other_indoor_space_m2`, `outdoor_space_m2`
+- `object_huurders`: `oppervlakte_m2`
+- `object_huur_metrics`: `verhuurde_m2`
+- `referentie_objecten`: `m2`
+- `zoekprofielen`: `oppervlakte_min`, `oppervlakte_max`
 
-## 1. Nieuwe helpers (pure functions)
+**Database — bigint voor bedragen (OK, blijven in hele euro’s):**
+Alle `*_costs`, `*_price`, `*_rent`, `*_bid`, `*_amount`, `*_investment`, etc. zijn `bigint`. Dit is bewust gekozen als "hele euro’s" en is app-breed consistent. Geen schemawijziging nodig; wel handhaven dat parsing decimaal accepteert en afrondt naar hele euro vóór opslag.
 
-**`src/lib/vastgoedrekenen/fees/buyerFeeStaffel.ts`**
-- `BITO_BUYER_FEE_TIERS` constant met exacte grenzen: `[0–1.000.000 → 2,0%]`, `[1.000.001–3.000.000 → 1,5%]`, `[3.000.001–∞ → 1,0%]`.
-- `selectBuyerFeeTier(basis)` — kiest schijf; `1.000.000` → 2,0%, `3.000.000` → 1,5%, `3.000.001` → 1,0%.
-- `resolveBuyerFeeBasis(scenario)` → `{ basis, source: 'beoogde_aankoopprijs' | 'vraagprijs' | 'ontbreekt' }` (voorkeur `purchase_price`, fallback `asking_price`).
-- `computeBitoBuyerFee(scenario)` → `{ basis, basisSource, tier, pctExVat, vatPct, amountExVat, vatAmount, amountInclVat }`. Btw-pct uit `buyer_fee_vat_percentage` (default 21).
+**Database — numeric voor percentages/factors (OK):**
+Reeds `numeric` zonder vaste schaal. Geen wijziging nodig.
 
-**`src/lib/vastgoedrekenen/fees/notaryProfile.ts`**
-- `NOTARY_PROFILES`: 5 quickscan-profielen (min € + pct) volgens briefing; `portefeuille` heeft `requiresManual: true`.
-- `computeNotaryFromProfile(basis, profileKey)` → `{ amount, formula: 'max(€2.000, basis × 0,10%)', minimum, pct, requiresManual }`.
-- `defaultNotaryProfileFor(strategyType, objectType, unitsCount)` → kiest standaardprofiel voor nieuwe scenario's.
+**Code — knelpunten:**
+- `parseInt` / `Math.round` / `Math.trunc` in oppervlakte-velden in `ObjectFormDialog`, `HuurdersPanel`, componenttabellen en WWS-units → decimalen worden afgekapt.
+- `NumberField` met `integer` flag wordt op metrages gebruikt.
+- Import-/bulk-paden (`ComponentenTable`, bulkfill) ronden m² af.
 
-**`src/lib/vastgoedrekenen/fees/feeResolver.ts`** — bundelt resolutie voor compute & audit:
-- `resolveEffectiveBuyerFee(scenario)` → `{ method, baseAmount, vatAmount, totalInclVat, basis, basisSource, tier, source: 'Bito-staffel'|'Handmatig'|'Bewust €0', warnings[] }`.
-- `resolveEffectiveNotary(scenario)` → `{ method, amount, profile, basis, source, warnings[] }`.
+## Doelarchitectuur
 
-## 2. Minimale wijziging in `investering.ts`
+**Conventie per veldsoort:**
 
-`computeAcquisitionCosts(scenario)` gebruikt vanaf nu de resolver:
-- `buyer_fee_method === 'staffel'` → fee = staffel-resultaat (basis = beoogde aankoopprijs of vraagprijs).
-- `buyer_fee_method === 'zero'` → 0.
-- **Anders** (incl. `'manual'`, `'percentage'`, `'amount'`, of undefined) → **bestaande logica** (`buyer_fee_amount` of `purchase_price × buyer_fee_percentage`). Garanteert dat alle bestaande scenario's en golden tests ongewijzigd blijven.
+| Veldsoort | Opslag | Parsing | UI (detail) | UI (compact) |
+|---|---|---|---|---|
+| Metrages (m²) | `numeric(14,2)` | komma+punt, € en m² gestript | `85,40 m²` | `85 m²` (alleen visueel) |
+| Lengtes (m) | `numeric(10,2)` | idem | `2,70 m` | — |
+| Bedragen (€) | `bigint` (hele €) | decimaal toegestaan, intern `Math.round` | `€ 818.432` | `€ 818k` (visueel) |
+| Percentages | `numeric` | komma+punt, % gestript | `5,75%` | `5,8%` |
+| WWS-punten | `numeric(10,2)` waar relevant | idem | `127,5` | — |
+| Tellingen (units, kamers, bouwjaar) | `integer` | `parseInt` toegestaan | heel getal | — |
 
-Voor notariskosten:
-- `notary_costs_method === 'profile'` + geldig `notary_costs_profile` → bedrag uit `computeNotaryFromProfile(basis)`.
-- `notary_costs_method === 'zero'` → 0.
-- Anders → bestaand `scenario.notary_costs ?? 0`.
+## Werkpakketten
 
-Geen wijziging aan `computeTotalInvestment`, `computeTotalCosts`, OVB, NOI, max bod — die zien gewoon hogere/lagere `totalAcquisitionCosts` en rekenen verder identiek door.
+### Fase 1 — DB-migratie metrages naar `numeric`
+Eén migratie die alle bovengenoemde integer-metragekolommen converteert naar `numeric(14,2)`. Bestaande waarden blijven behouden (cast int→numeric is verliesvrij). `types.ts` wordt automatisch opnieuw gegenereerd.
 
-## 3. UI — Aankoop & investering (`ScenarioEditor.tsx`)
+Kolommen:
+```
+objecten.oppervlakte, oppervlakte_gbo, oppervlakte_vvo, oppervlakte_bvo, perceel_oppervlakte
+calculation_components.surface_gbo, surface_vvo, surface_bvo
+sell_off_units.surface_gbo, surface_vvo, surface_bvo
+residential_wws_units.living_area_m2, other_indoor_space_m2, outdoor_space_m2
+object_huurders.oppervlakte_m2
+object_huur_metrics.verhuurde_m2
+referentie_objecten.m2
+zoekprofielen.oppervlakte_min, oppervlakte_max
+```
+Geen datamigratie nodig (decimalen die al verloren zijn, blijven verloren — er komt een controle-query als rapport).
 
-Regels 1053-1054 vervangen door twee compacte methode-blokken. Hergebruik `Select`, `Badge` (bronchip), `ValueField`-patroon, `ManualZeroToggle`, `RawNumberInput`.
+### Fase 2 — Parser- en UI-laag
+- `NumberField`: bevestig decimaal-default (al aanwezig). Verwijder `integer`-flag op alle metrageveld-call-sites.
+- Centrale helper `parseEuroBigint(raw): number | undefined` die decimaal accepteert en afrondt vóór opslag (bigint blijft euro’s). Vervangt rauwe `parseInt`/`Number(...)` in bedragvelden.
+- `formatM2` (al aanwezig) gebruiken in alle weergaves; nooit `Math.round(m2)` vóór formattering.
 
-**Aankoopfee-blok:**
-- Methode-select: Bito-staffel / Handmatig (%) / Handmatig (€) / Bewust €0.
-- Bij staffel: read-only weergave van `basis`, `staffelregel`, `% ex. btw`, `fee ex. btw`, `btw`, `fee incl. btw` + bronchip "Bito-staffel".
-- Bij handmatig: bestaande `NumZero`-velden voor `buyer_fee_percentage` / `buyer_fee_amount`. Chip "Handmatig" + knop **"Herstel Bito-staffel"** (zet method='staffel' en wist amount/pct).
-- Waarschuwingstekst onder de regel bij fee €0 zonder bewust €0.
+### Fase 3 — Code-refactor (app-breed)
+- `src/components/forms/ObjectFormDialog.tsx`: oppervlaktes → `NumberField decimals={2}` (geen `integer`).
+- `src/components/object/HuurdersPanel.tsx`: `oppervlakte_m2` → decimal.
+- `src/components/vastgoedrekenen/cockpit/ComponentenTable.tsx` + `ComponentStrategyTable.tsx`: `surface_*` invoer + weergave decimal.
+- `src/components/vastgoedrekenen/cockpit/WwsUnitsTable.tsx`: `living_area_m2`, `other_indoor_space_m2`, `outdoor_space_m2` decimal.
+- `src/pages/ReferentieObjectenPage.tsx` + `ReferentieObjectFormDialog.tsx`: `m2` decimal.
+- `src/components/forms/ZoekprofielFormDialog.tsx`: `oppervlakte_min/max` decimal.
+- WWS-, NOI-, en investeringsberekeningen (`src/lib/vastgoedrekenen/*`): controleren dat ze al floats gebruiken (zo ja, geen wijziging). Geen rekenlogica wijzigen — alleen typecontract.
+- Sweep op `parseInt(` in `src/` voor numerieke invoer; behoud alleen bij echte tellingen (units, kamers, jaartal).
 
-**Notariskosten-blok:**
-- Methode-select: Automatisch profiel / % van koopsom / Vast bedrag / Handmatig / Bewust €0.
-- Bij profiel: profiel-select (5 opties), read-only bedrag + formule `max(€2.000, basis × 0,10%)`, bronchip "Default quickscan: Beleggingswoning".
-- Bij handmatig: bestaande `NumZero` voor `notary_costs`. Chip "Handmatig" + knop **"Herstel automatische default"**.
-- Quickscan-waarschuwing onder de regel: *"Quickscan-default; controleer bij notaris/offerte vóór harde bieding."*
+### Fase 4 — Import & bulk
+- `BulkFillDialog` en eventuele import-paden gebruiken `parseDutchNumber`; verifieer dat geen `parseInt` of `Math.round` wordt toegepast op m².
 
-**Nieuwe scenario's** (`useVastgoedrekenen.tsx → createScenario`): default `buyer_fee_method: 'staffel'`, `notary_costs_method: 'profile'`, `notary_costs_profile: 'woning_belegging'`. **Bestaande scenario's blijven 'manual'.**
+### Fase 5 — Tests
+Uitbreiden van `src/test/ui/numberField.test.ts` en toevoegen integratietest:
+- `85,40` / `85.40` / `111,81` → opslag met decimaal behoud
+- WWS-doorrekening met decimal `living_area_m2`
+- Componentstrategie totaal m² met decimalen (Hinthamerstraat-cases: 470,00 / 149,10 / 559,00)
+- Bedragparser: `€ 818.432,50` → `818433` (bigint, hele euro)
+- Percentage parser: `5,75%` → `5.75`
 
-## 4. SaveGuards
+Acceptatie: alle bestaande 200 tests blijven groen + nieuwe tests groen.
 
-`saveGuards.ts` — voeg `buyer_fee_method`, `notary_costs_method`, `notary_costs_profile` toe aan `PROTECTED_SCENARIO_FIELDS` zodat ze niet stilletjes leeglopen.
+## Buiten scope deze ronde
+- Bedragen omzetten naar cents-storage (geen netto winst, brede impact).
+- Restauratie van reeds afgekapte waarden in bestaande records (niet mogelijk uit data zelf; per object handmatig of via her-import).
+- UI-restyle, nieuwe modules.
 
-## 5. Audit (`audit/calcChain.ts`)
+## Risico’s & mitigatie
+- **Type-regeneratie**: na de migratie veranderen velden van `number` (int) naar `number` (numeric, nog steeds JS `number`). TS-impact is minimaal; rechtstreekse `parseInt(value)` op die kolommen moet weg.
+- **Stille afronding via UI**: alle aangepaste velden krijgen `decimals={2}` op `NumberField`, anders blijft `Math.trunc` actief.
+- **Bedragenveld-acceptatie**: een gebruiker die `€ 1.625.000,50` invoert wordt opgeslagen als `1625001` (hele euro). Dit is bewust en consistent met bestaande bigint-keuze; weergave blijft `€ 1.625.001`.
+- **WWS-rekenwijzigingen**: er wordt geen formule aangepast. Alleen invoer-precisie verbetert.
 
-Vervang/splits het bestaande Aankoopkosten-blok (regels 82-89):
-- **Aankoopfee-step**: methode, staffelregel, basis (`source: 'Basis: beoogde aankoopprijs'` etc), pct ex. btw, fee ex/btw/incl, bronchip; warn als fee=0 zonder bewust €0; warn als handmatige fee >5% afwijkt van Bito-staffel-uitkomst voor dezelfde basis.
-- **Notariskosten-step**: methode, profielnaam, basis, bedrag, bron; warn bij €0 zonder bewust; warn bij `commercieel`/`mixed_use` met bedrag < profiel-minimum; advies-noot "Controleer bij notaris/offerte vóór harde bieding".
-- **Overige aankoopkosten-step**: blijft bestaand pad (advies/dd/overig/safety margin) — zonder fee/notaris double-counting.
+## Rapportage na afloop
+- Lijst van geconverteerde kolommen
+- Lijst van aangepaste UI-componenten
+- Aantal weggewerkte `parseInt`-call-sites op rekenvelden
+- Hinthamerstraat-cases: 92A=85,40 / 92B=68,90 / … en totalen 470,00 / 149,10 / 559,00 in storage en UI
+- Totaal aantal tests groen
 
-## 6. Tests
-
-**`src/test/vastgoedrekenen/fees/buyerFeeStaffel.test.ts`** (nieuw):
-- staffelgrenzen: € 1, € 1.000.000 → 2,0%; € 1.000.001 → 1,5%; € 3.000.000 → 1,5%; € 3.000.001 → 1,0%.
-- voorbeeld € 2.300.000 → fee € 34.500, btw € 7.245, incl € 41.745.
-- btw 21% standaard, override via `buyer_fee_vat_percentage`.
-- `resolveBuyerFeeBasis`: purchase > 0 wint, anders asking, anders 'ontbreekt'.
-
-**`src/test/vastgoedrekenen/fees/notaryProfile.test.ts`** (nieuw):
-- simpel woning € 500k → max(2000, 500) = 2000.
-- woning_belegging € 1M → max(2500, 1200) = 2500.
-- commercieel € 4M → max(3500, 6000) = 6000.
-- mixed_use € 2M → max(5000, 4000) = 5000.
-- portefeuille → `requiresManual: true`.
-
-**`src/test/vastgoedrekenen/fees/integration.test.ts`** (nieuw):
-- `computeAcquisitionCosts` met `buyer_fee_method='staffel'` + purchase € 2,3M → buyerFeeBase 34.500, buyerFeeVat 7.245, totalAcquisitionCosts bevat 41.745.
-- `buyer_fee_method='zero'` → fee = 0.
-- bestaand scenario zonder method (treat as 'manual') → identieke uitkomst als vóór deze build.
-- `notary_costs_method='profile'` + woning_belegging € 1M → totalAcquisitionCosts bevat 2500.
-- `notary_costs_method='manual'` → bestaand `notary_costs` veld blijft leidend.
-- fee incl. btw verhoogt `computeTotalInvestment` met exact het btw-bedrag.
-
-**Bestaande 165 tests blijven groen** (default 'manual' = oude pad).
-
-## 7. Geraakte bestanden
-
-- migratie ✅ uitgevoerd
-- `src/lib/vastgoedrekenen/fees/buyerFeeStaffel.ts` (nieuw)
-- `src/lib/vastgoedrekenen/fees/notaryProfile.ts` (nieuw)
-- `src/lib/vastgoedrekenen/fees/feeResolver.ts` (nieuw)
-- `src/lib/vastgoedrekenen/investering.ts` (minimale edit `computeAcquisitionCosts`)
-- `src/lib/vastgoedrekenen/saveGuards.ts` (3 veldnamen toevoegen)
-- `src/lib/vastgoedrekenen/audit/calcChain.ts` (aankoopfee + notaris steps)
-- `src/components/vastgoedrekenen/ScenarioEditor.tsx` (regels ~1053-1054 vervangen)
-- `src/hooks/useVastgoedrekenen.tsx` (`createScenario` zet defaults voor nieuwe scenario's)
-- `src/test/vastgoedrekenen/fees/*.test.ts` (3 nieuwe testfiles)
-
-## 8. Rapportage na build
-
-Aan het einde rapporteer ik: migratie ✓, helpers, save-guards, UI-aanpassingen, hoe fee incl. btw via `totalAcquisitionCosts` → `computeTotalInvestment` doorvloeit, hoe notariskosten via dezelfde route meetellen, lijst nieuwe tests, totaal aantal tests groen.
+Bij akkoord begin ik met Fase 1 (DB-migratie) — die wordt ter goedkeuring voorgelegd voor uitvoering.
