@@ -1655,31 +1655,25 @@ export default function ScenarioEditor(props: Props) {
                 {/* Totaaloverzicht alle kostenposten */}
                 {(() => {
                   const unforeseenPct = Number(s.unforeseen_percentage ?? 0);
-                  const totalDirect = draftCosts.reduce((sum, c) => {
-                    const cr = c as unknown as Record<string, unknown>;
-                    const mode = ((cr.calc_mode as string | null) ?? 'totaal');
-                    const pm = Number(cr.amount_per_m2 ?? 0);
-                    const m2 = Number(cr.m2_basis ?? 0);
-                    const eff = mode === 'per_m2' && pm > 0 && m2 > 0 ? Math.round(pm * m2) : Number(c.amount ?? 0);
-                    return sum + eff;
-                  }, 0);
+                  let totalDirect = 0, totalInformationalVat = 0, totalInclVatInformational = 0, includedVat = 0;
+                  for (const cost of draftCosts) {
+                    const b = computeCostBreakdown(cost, unforeseenPct);
+                    totalDirect += b.exVat;
+                    totalInformationalVat += b.vatAmountInformational;
+                    totalInclVatInformational += b.totalInclVat;
+                    includedVat += b.vatAmountIncluded;
+                  }
                   const unforeseenEur = Math.round((totalDirect * unforeseenPct) / 100);
                   const subtotalExVat = totalDirect + unforeseenEur;
-                  const vatTotal = Math.max(0, outputs.totalCosts - subtotalExVat);
-                  const anyVat = draftCosts.some((c) => {
-                    const tr = ((c as unknown as Record<string, unknown>).vat_treatment as string | null) ?? 'geen';
-                    return tr !== 'geen' && tr !== 'verrekenbaar';
-                  });
                   return (
                     <div className="rounded-md border bg-card p-3 text-xs space-y-1">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotaal bouwkosten excl. btw</span><span className="font-mono-data">{fmtEur(totalDirect)}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">+ Onvoorzien ({unforeseenPct}%)</span><span className="font-mono-data">{fmtEur(unforeseenEur)}</span></div>
                       <div className="flex justify-between border-t pt-1"><span>Subtotaal incl. onvoorzien, excl. btw</span><span className="font-mono-data">{fmtEur(subtotalExVat)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">+ Btw (meegenomen als kosten)</span><span className="font-mono-data">{fmtEur(vatTotal)}</span></div>
-                      <div className="flex justify-between border-t pt-1 font-semibold"><span>Totale kosten incl. onvoorzien {anyVat || vatTotal > 0 ? '& btw' : ', excl. btw'}</span><span className="font-mono-data">{fmtEur(outputs.totalCosts)}</span></div>
-                      {!anyVat && vatTotal === 0 && (
-                        <p className="text-[11px] text-muted-foreground pt-1">Geen btw als kostenpost meegenomen. Stel "Btw over deze kostenpost" per post in om btw mee te rekenen in totale investering en maximale bieding.</p>
-                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">Btw totaal (informatief)</span><span className="font-mono-data">{fmtEur(totalInformationalVat)}</span></div>
+                      <div className="flex justify-between"><span>Bouwkosten incl. btw (informatief)</span><span className="font-mono-data">{fmtEur(totalInclVatInformational)}</span></div>
+                      <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">Btw meegenomen als kosten</span><span className="font-mono-data">{fmtEur(includedVat)}</span></div>
+                      <div className="flex justify-between border-t pt-1 font-semibold"><span>Meegenomen in totale investering</span><span className="font-mono-data">{fmtEur(outputs.totalCosts)}</span></div>
                     </div>
                   );
                 })()}
