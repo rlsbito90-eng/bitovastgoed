@@ -1181,10 +1181,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                         </div>
                       </Veld>
                       <Veld label="Extra m² mogelijk">
-                        <NumberField integer className="min-w-0"
+                        <NumberField decimals={2} className="min-w-0"
                           value={form.potentieExtraM2}
                           onChange={v => set('potentieExtraM2', v)}
-                          placeholder="bv. 75" />
+                          placeholder="bv. 75,5" />
                       </Veld>
                       <Veld label={<>Totaal m² na plan <AutoBadge /></>}>
                         <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
