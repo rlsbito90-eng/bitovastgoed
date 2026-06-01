@@ -23,4 +23,14 @@ describe('formatUnitIdentity', () => {
     const r = formatUnitIdentity({ label: 'A', type: 'winkel', surface: 0 }, 0);
     expect(r.full).toBe('01 — A · winkel');
   });
+
+  it('formats studio identity correctly', () => {
+    const r = formatUnitIdentity({ label: 'S1', type: 'studio', surface: 32 }, 4);
+    expect(r.full).toBe('05 — S1 · studio · 32 m²');
+  });
+
+  it('formats kamer identity correctly', () => {
+    const r = formatUnitIdentity({ label: 'K2', type: 'kamer', surface: 14 }, 9);
+    expect(r.full).toBe('10 — K2 · kamer · 14 m²');
+  });
 });
