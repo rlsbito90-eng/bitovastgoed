@@ -274,6 +274,24 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
         </SheetContent>
       </Sheet>
 
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selected.size} unit(s) verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Je staat op het punt {selected.size} strategie-unit(s) te verwijderen. Dit kan gevolgen hebben voor OVB-koppeling, scenariowaarde, maximale bieding en resultaatkaart. Weet je het zeker?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doBulkDelete()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       {hasUnits && totals.warnings.length > 0 && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1 break-words leading-snug">
           {totals.warnings.slice(0, 8).map((w, i) => <p key={i}>⚠ {w}</p>)}
