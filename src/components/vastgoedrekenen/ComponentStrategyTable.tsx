@@ -49,6 +49,8 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
   const askingPrice = Number(asking ?? 0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const openUnit = openId ? units.find((u) => u.id === openId) ?? null : null;
   const openIdx = openUnit ? units.findIndex((u) => u.id === openUnit.id) : -1;
 
@@ -62,6 +64,24 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
     return acc;
   }, {});
   const warningsCount = units.filter((u) => computeComponentStrategy(u).warnings.length > 0).length;
+  const avgEurPerM2 = totals.scenarioValue > 0 && totalM2 > 0 ? Math.round(totals.scenarioValue / totalM2) : 0;
+
+  const allSelected = units.length > 0 && selected.size === units.length;
+  const someSelected = selected.size > 0 && !allSelected;
+  const toggle = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(units.map((u) => u.id)));
+  const clearSelection = () => setSelected(new Set());
+
+  async function doBulkDelete() {
+    const ids = Array.from(selected);
+    for (const id of ids) await onDelete(id);
+    clearSelection();
+    setConfirmOpen(false);
+  }
 
   const bulkFields: BulkField[] = [
     { key: 'strategy', label: 'Strategie', kind: 'select', options: Object.entries(STRATEGY_LABELS).map(([v, l]) => ({ value: v, label: l })) },
