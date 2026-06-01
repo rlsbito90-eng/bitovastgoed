@@ -34,6 +34,7 @@ import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
 import AuditSidePanel from './cockpit/AuditSidePanel';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
+import { computeCostBreakdown, VAT_TREATMENT_LABELS, type VatTreatment } from '@/lib/vastgoedrekenen/investering';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { RawNumberInput, RawTextarea, RawTextInput, numberToRaw, parseRawNumber } from './RawInputs';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,6 +156,9 @@ function normalizeCost(cost: ScenarioCost) {
     calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
     amount_per_m2: rec.amount_per_m2 != null ? Number(rec.amount_per_m2) : null,
     m2_basis: rec.m2_basis != null ? Number(rec.m2_basis) : null,
+    vat_treatment: (rec.vat_treatment as string | null) ?? 'geen',
+    vat_percentage: rec.vat_percentage != null ? Number(rec.vat_percentage) : null,
+    vat_amount_manual: rec.vat_amount_manual != null ? Number(rec.vat_amount_manual) : null,
   };
 }
 
@@ -351,6 +355,9 @@ export default function ScenarioEditor(props: Props) {
         calc_mode: ((rec.calc_mode as string | null) ?? 'totaal'),
         amount_per_m2: (rec.amount_per_m2 as number | null) ?? null,
         m2_basis: (rec.m2_basis as number | null) ?? null,
+        vat_treatment: ((rec.vat_treatment as string | null) ?? 'geen'),
+        vat_percentage: (rec.vat_percentage as number | null) ?? null,
+        vat_amount_manual: (rec.vat_amount_manual as number | null) ?? null,
       };
 
       if (isTempCostId(cost.id)) {
@@ -449,6 +456,11 @@ export default function ScenarioEditor(props: Props) {
       calc_mode: 'totaal',
       amount_per_m2: null,
       m2_basis: objectArea ?? null,
+      // Default behandeling voor NIEUWE posten: 'pct_21' (niet verrekenbaar, 21%).
+      // Bestaande posten zonder vat_treatment behouden 'geen' (backwards compat).
+      vat_treatment: 'pct_21',
+      vat_percentage: 21,
+      vat_amount_manual: null,
     } as unknown as ScenarioCost]));
 
   }
@@ -1533,20 +1545,11 @@ export default function ScenarioEditor(props: Props) {
                   const derivedPerM2 = mode === 'totaal' && basis && basis > 0 && Number(c.amount ?? 0) > 0
                     ? Math.round(Number(c.amount) / basis)
                     : null;
-                  const vatTreatment = ((cr.vat_treatment as string | null) ?? 'geen');
+                  const vatTreatment = (((cr.vat_treatment as string | null) ?? 'geen') as VatTreatment);
                   const vatPctField = (cr.vat_percentage as number | null) ?? null;
                   const vatManual = (cr.vat_amount_manual as number | null) ?? null;
                   const unforeseenPct = Number(s.unforeseen_percentage ?? 0);
-                  const subtotalExVat = effective + Math.round((effective * unforeseenPct) / 100);
-                  let vatAmount = 0;
-                  if (vatTreatment === 'pct_21') vatAmount = Math.round((subtotalExVat * 21) / 100);
-                  else if (vatTreatment === 'pct_9') vatAmount = Math.round((subtotalExVat * 9) / 100);
-                  else if (vatTreatment === 'handmatig') {
-                    vatAmount = vatManual && vatManual !== 0
-                      ? Number(vatManual)
-                      : Math.round((subtotalExVat * Number(vatPctField ?? 0)) / 100);
-                  }
-                  const postTotalInclVat = subtotalExVat + vatAmount;
+                  const bd = computeCostBreakdown(c, unforeseenPct);
                   return (
                   <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
                     <div className="flex items-start justify-between gap-3">
@@ -1604,22 +1607,22 @@ export default function ScenarioEditor(props: Props) {
 
                     {/* Btw-behandeling per kostenpost */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0 border-t pt-3">
-                      <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Btw over deze kostenpost {showHelp && <HelpTooltip text="Bouwkosten worden standaard exclusief btw ingevoerd. Geef aan of btw als kosten moet worden meegenomen. Bij btw-belaste exploitatie of verrekenbare btw kan btw mogelijk niet als kostenpost worden meegenomen. Controleer dit bij twijfel fiscaal." />}</span>}>
+                      <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">Btw-behandeling {showHelp && <HelpTooltip text="Btw wordt altijd informatief getoond. De behandeling bepaalt of btw als kosten meetelt in de totale investering. Niet verrekenbaar = incl. btw; volledig verrekenbaar = excl. btw; deels = handmatig deel; geen = geen btw van toepassing." />}</span>}>
                         <Select
                           value={vatTreatment}
                           onValueChange={(v) => updateCost(c.id, {
                             vat_treatment: v,
                             vat_applicable: v !== 'geen' && v !== 'verrekenbaar',
-                            vat_percentage: v === 'pct_21' ? 21 : v === 'pct_9' ? 9 : (v === 'handmatig' ? (vatPctField ?? 21) : null),
-                          } as unknown as Partial<ScenarioCost>)}
+                            vat_percentage: v === 'pct_21' ? 21 : v === 'pct_9' ? 9 : (v === 'handmatig' ? (vatPctField ?? 21) : (vatPctField ?? null)),
+                          } as unknown as Partial<ScenarioCost>, true)}
                         >
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="geen">Niet meenemen (excl. btw)</SelectItem>
-                            <SelectItem value="pct_21">21% meenemen</SelectItem>
-                            <SelectItem value="pct_9">9% meenemen</SelectItem>
-                            <SelectItem value="handmatig">Deels meenemen / handmatig</SelectItem>
-                            <SelectItem value="verrekenbaar">Verrekenbaar (niet als kosten)</SelectItem>
+                            <SelectItem value="pct_21">{VAT_TREATMENT_LABELS.pct_21}</SelectItem>
+                            <SelectItem value="pct_9">{VAT_TREATMENT_LABELS.pct_9}</SelectItem>
+                            <SelectItem value="verrekenbaar">{VAT_TREATMENT_LABELS.verrekenbaar}</SelectItem>
+                            <SelectItem value="handmatig">{VAT_TREATMENT_LABELS.handmatig}</SelectItem>
+                            <SelectItem value="geen">{VAT_TREATMENT_LABELS.geen}</SelectItem>
                           </SelectContent>
                         </Select>
                       </MobileFieldGroup>
@@ -1635,24 +1638,15 @@ export default function ScenarioEditor(props: Props) {
                       )}
                     </div>
 
-                    {/* Btw-opbouw per kostenpost */}
-                    <div className="rounded-md border bg-muted/20 p-3 text-xs font-mono-data grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div>
-                        <p className="text-muted-foreground font-sans">Subtotaal excl. btw</p>
-                        <p>{fmtEur(effective)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground font-sans">+ Onvoorzien ({unforeseenPct}%)</p>
-                        <p>{fmtEur(Math.round((effective * unforeseenPct) / 100))}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground font-sans">+ Btw {vatTreatment === 'geen' ? '(geen)' : vatTreatment === 'verrekenbaar' ? '(verrekenbaar)' : vatTreatment === 'pct_21' ? '(21%)' : vatTreatment === 'pct_9' ? '(9%)' : '(handmatig)'}</p>
-                        <p>{fmtEur(vatAmount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground font-sans">Totaal incl. onvoorzien & btw</p>
-                        <p className="font-semibold">{fmtEur(postTotalInclVat)}</p>
-                      </div>
+                    {/* Btw-opbouw per kostenpost — altijd zichtbaar */}
+                    <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-1">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Bouwkosten excl. btw</span><span className="font-mono-data">{fmtEur(bd.exVat)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">+ Onvoorzien ({unforeseenPct}%)</span><span className="font-mono-data">{fmtEur(bd.unforeseen)}</span></div>
+                      <div className="flex justify-between border-t pt-1"><span>Subtotaal excl. btw, incl. onvoorzien</span><span className="font-mono-data">{fmtEur(bd.subtotalExVat)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Btw {bd.vatRate}% (informatief)</span><span className="font-mono-data">{fmtEur(bd.vatAmountInformational)}</span></div>
+                      <div className="flex justify-between border-t pt-1"><span>Bouwkosten incl. btw (informatief)</span><span className="font-mono-data">{fmtEur(bd.totalInclVat)}</span></div>
+                      <div className="flex justify-between pt-1"><span className="text-muted-foreground">Btw-behandeling</span><span>{VAT_TREATMENT_LABELS[bd.treatment]}</span></div>
+                      <div className="flex justify-between border-t pt-1 font-semibold"><span>Meegenomen in investering</span><span className="font-mono-data">{fmtEur(bd.includedInInvestment)}</span></div>
                     </div>
                   </div>
                   );
@@ -1661,31 +1655,25 @@ export default function ScenarioEditor(props: Props) {
                 {/* Totaaloverzicht alle kostenposten */}
                 {(() => {
                   const unforeseenPct = Number(s.unforeseen_percentage ?? 0);
-                  const totalDirect = draftCosts.reduce((sum, c) => {
-                    const cr = c as unknown as Record<string, unknown>;
-                    const mode = ((cr.calc_mode as string | null) ?? 'totaal');
-                    const pm = Number(cr.amount_per_m2 ?? 0);
-                    const m2 = Number(cr.m2_basis ?? 0);
-                    const eff = mode === 'per_m2' && pm > 0 && m2 > 0 ? Math.round(pm * m2) : Number(c.amount ?? 0);
-                    return sum + eff;
-                  }, 0);
+                  let totalDirect = 0, totalInformationalVat = 0, totalInclVatInformational = 0, includedVat = 0;
+                  for (const cost of draftCosts) {
+                    const b = computeCostBreakdown(cost, unforeseenPct);
+                    totalDirect += b.exVat;
+                    totalInformationalVat += b.vatAmountInformational;
+                    totalInclVatInformational += b.totalInclVat;
+                    includedVat += b.vatAmountIncluded;
+                  }
                   const unforeseenEur = Math.round((totalDirect * unforeseenPct) / 100);
                   const subtotalExVat = totalDirect + unforeseenEur;
-                  const vatTotal = Math.max(0, outputs.totalCosts - subtotalExVat);
-                  const anyVat = draftCosts.some((c) => {
-                    const tr = ((c as unknown as Record<string, unknown>).vat_treatment as string | null) ?? 'geen';
-                    return tr !== 'geen' && tr !== 'verrekenbaar';
-                  });
                   return (
                     <div className="rounded-md border bg-card p-3 text-xs space-y-1">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotaal bouwkosten excl. btw</span><span className="font-mono-data">{fmtEur(totalDirect)}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">+ Onvoorzien ({unforeseenPct}%)</span><span className="font-mono-data">{fmtEur(unforeseenEur)}</span></div>
                       <div className="flex justify-between border-t pt-1"><span>Subtotaal incl. onvoorzien, excl. btw</span><span className="font-mono-data">{fmtEur(subtotalExVat)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">+ Btw (meegenomen als kosten)</span><span className="font-mono-data">{fmtEur(vatTotal)}</span></div>
-                      <div className="flex justify-between border-t pt-1 font-semibold"><span>Totale kosten incl. onvoorzien {anyVat || vatTotal > 0 ? '& btw' : ', excl. btw'}</span><span className="font-mono-data">{fmtEur(outputs.totalCosts)}</span></div>
-                      {!anyVat && vatTotal === 0 && (
-                        <p className="text-[11px] text-muted-foreground pt-1">Geen btw als kostenpost meegenomen. Stel "Btw over deze kostenpost" per post in om btw mee te rekenen in totale investering en maximale bieding.</p>
-                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">Btw totaal (informatief)</span><span className="font-mono-data">{fmtEur(totalInformationalVat)}</span></div>
+                      <div className="flex justify-between"><span>Bouwkosten incl. btw (informatief)</span><span className="font-mono-data">{fmtEur(totalInclVatInformational)}</span></div>
+                      <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">Btw meegenomen als kosten</span><span className="font-mono-data">{fmtEur(includedVat)}</span></div>
+                      <div className="flex justify-between border-t pt-1 font-semibold"><span>Meegenomen in totale investering</span><span className="font-mono-data">{fmtEur(outputs.totalCosts)}</span></div>
                     </div>
                   );
                 })()}

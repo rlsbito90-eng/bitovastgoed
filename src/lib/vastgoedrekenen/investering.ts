@@ -38,10 +38,18 @@ export function effectiveCostAmount(c: ScenarioCost): number {
 
 export type VatTreatment = 'geen' | 'pct_21' | 'pct_9' | 'handmatig' | 'verrekenbaar';
 
+/** Stabiele labels voor weergave + audit. */
+export const VAT_TREATMENT_LABELS: Record<VatTreatment, string> = {
+  geen: 'Geen btw van toepassing',
+  pct_21: 'Niet verrekenbaar — 21% meenemen',
+  pct_9: 'Niet verrekenbaar — 9% meenemen',
+  handmatig: 'Deels verrekenbaar — handmatig deel',
+  verrekenbaar: 'Volledig verrekenbaar — excl. btw',
+};
+
 /**
- * Btw-bedrag per kostenpost, berekend over (effectief excl. btw + zijn aandeel onvoorzien).
- * Bij 'handmatig' wordt het opgegeven btw-bedrag gebruikt indien gevuld,
- * anders vat_percentage × subtotaal. Bij 'verrekenbaar' / 'geen' = 0.
+ * Btw-bedrag per kostenpost dat als kosten meetelt in de totale investering.
+ * Bij 'geen' / 'verrekenbaar' = 0 (informatieve btw zie computeCostBreakdown).
  */
 export function effectiveCostVatAmount(c: ScenarioCost, unforeseenPct: number): number {
   const rec = c as unknown as Record<string, unknown>;
@@ -57,6 +65,51 @@ export function effectiveCostVatAmount(c: ScenarioCost, unforeseenPct: number): 
   }
   const pct = treatment === 'pct_21' ? 21 : 9;
   return Math.round((subtotal * pct) / 100);
+}
+
+/**
+ * Volledige opbouw per kostenpost. Btw wordt ALTIJD informatief berekend
+ * (default 21% indien geen percentage gekozen), ongeacht de behandeling.
+ * `includedInInvestment` reflecteert het bedrag dat daadwerkelijk meetelt.
+ */
+export interface CostBreakdown {
+  treatment: VatTreatment;
+  exVat: number;
+  unforeseen: number;
+  subtotalExVat: number;
+  vatRate: number;
+  vatAmountInformational: number;
+  totalInclVat: number;
+  vatAmountIncluded: number;
+  includedInInvestment: number;
+}
+
+export function computeCostBreakdown(c: ScenarioCost, unforeseenPct: number): CostBreakdown {
+  const rec = c as unknown as Record<string, unknown>;
+  const treatment = ((rec.vat_treatment as string | null) ?? 'geen') as VatTreatment;
+  const exVat = effectiveCostAmount(c);
+  const unforeseen = Math.round((exVat * Number(unforeseenPct ?? 0)) / 100);
+  const subtotalExVat = exVat + unforeseen;
+
+  let vatRate = 21;
+  if (treatment === 'pct_9') vatRate = 9;
+  else if (treatment === 'handmatig') vatRate = Number(rec.vat_percentage ?? 21) || 21;
+  else if (treatment === 'pct_21') vatRate = 21;
+  else {
+    const explicit = Number(rec.vat_percentage ?? 0);
+    vatRate = explicit > 0 ? explicit : 21;
+  }
+
+  const vatAmountInformational = Math.round((subtotalExVat * vatRate) / 100);
+  const totalInclVat = subtotalExVat + vatAmountInformational;
+  const vatAmountIncluded = effectiveCostVatAmount(c, unforeseenPct);
+  const includedInInvestment = subtotalExVat + vatAmountIncluded;
+
+  return {
+    treatment, exVat, unforeseen, subtotalExVat,
+    vatRate, vatAmountInformational, totalInclVat,
+    vatAmountIncluded, includedInInvestment,
+  };
 }
 
 export function computeTotalCosts(
