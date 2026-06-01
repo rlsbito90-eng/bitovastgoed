@@ -63,6 +63,17 @@ export const VR_STATUS_LABELS: Record<string, string> = {
   afgerond: 'Afgerond',
 };
 
+/**
+ * Componenttypes die als woning/wooncomponent meetellen door de hele module.
+ * Centrale bron — voorkomt dat studio/kamer per ongeluk commercieel worden behandeld.
+ */
+export const VR_WOON_COMPONENT_TYPES: ReadonlySet<string> = new Set([
+  'woning', 'appartement', 'studio', 'kamer',
+]);
+export function isWoonComponentType(type: string | null | undefined): boolean {
+  return VR_WOON_COMPONENT_TYPES.has(String(type ?? '').toLowerCase());
+}
+
 export const VR_COMPONENT_LABELS: Record<string, string> = {
   woning: 'Woning',
   appartement: 'Appartement',
