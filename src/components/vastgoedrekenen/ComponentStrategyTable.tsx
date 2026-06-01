@@ -135,24 +135,44 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
         </div>
       )}
       {hasUnits && totals.mix && (
-        <p className="text-xs text-muted-foreground break-words">Mix: {totals.mix}</p>
+        <p className="text-xs text-muted-foreground break-words">Mix: {totals.mix} · Gem. prijs/m²: <span className="font-mono-data">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</span></p>
       )}
 
       {!hasUnits && (
         <p className="text-xs text-muted-foreground">Nog geen componentstrategie. Voeg units toe of importeer ze uit de scenario-componenten.</p>
       )}
 
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+          <span className="font-medium">{selected.size} unit(s) geselecteerd</span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={clearSelection}><X className="h-3.5 w-3.5 mr-1" /> Selectie wissen</Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Verwijderen
+            </Button>
+          </div>
+        </div>
+      )}
+
       {hasUnits && (
         <div className="rounded-md border overflow-x-auto">
-          <Table className="text-xs w-full min-w-[760px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
+          <Table className="text-xs w-full min-w-[800px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <Checkbox
+                    checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleAll}
+                    aria-label="Alles selecteren"
+                  />
+                </TableHead>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[140px] sticky left-0 bg-card z-10">Unit</TableHead>
+                <TableHead className="min-w-[140px]">Unit</TableHead>
                 <TableHead className="hidden md:table-cell">Type</TableHead>
                 <TableHead className="text-right">m²</TableHead>
                 <TableHead>Strategie</TableHead>
                 <TableHead className="text-right">Bijdrage</TableHead>
+                <TableHead className="text-right hidden md:table-cell">€/m²</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -174,19 +194,25 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
                 const isHold = HOLD_STRATEGIES.includes(strategy);
                 const contribution = isSale ? calc.breakdown.netSaleProceeds : isHold ? calc.breakdown.holdValue : (num(r.hold_value_manual) ?? 0);
                 const hasWarning = calc.warnings.length > 0 || !r.strategy || strategy === 'later_beslissen';
+                const epm2 = contribution > 0 && m2 > 0 ? Math.round(contribution / m2) : 0;
+                const isSel = selected.has(u.id);
                 return (
                   <TableRow
                     key={u.id}
                     id={`strategy-unit-${u.id}`}
-                    className="cursor-pointer hover:bg-muted/40 scroll-mt-24"
+                    className={`cursor-pointer hover:bg-muted/40 scroll-mt-24 ${isSel ? 'bg-primary/5' : ''}`}
                     onClick={() => setOpenId(u.id)}
                   >
+                    <TableCell onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+                      <Checkbox checked={isSel} onCheckedChange={() => toggle(u.id)} aria-label="Selecteer unit" />
+                    </TableCell>
                     <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
-                    <TableCell className="font-medium break-words min-w-[140px] sticky left-0 bg-card">{ident.primary}</TableCell>
+                    <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
                     <TableCell className="break-words hidden md:table-cell">{(r.unit_type as string | null) ?? '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
                     <TableCell className="break-words">{STRATEGY_LABELS[strategy] ?? '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{contribution > 0 ? fmtEur(contribution) : '—'}</TableCell>
+                    <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{epm2 > 0 ? fmtEurPerM2(epm2) : (contribution > 0 ? <span className="text-amber-700 dark:text-amber-300" title="m² ontbreekt">m² ?</span> : '—')}</TableCell>
                     <TableCell>
                       {hasWarning
                         ? <Chip label={strategy === 'later_beslissen' ? 'INCOMPLEET' : 'LET OP'} tone="warning" />
@@ -203,15 +229,19 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
               })}
               <TableRow className="bg-muted/60 font-semibold border-t-2">
                 <TableCell />
-                <TableCell className="break-words whitespace-normal sticky left-0 bg-muted/60">
+                <TableCell />
+                <TableCell className="break-words whitespace-normal">
                   Totaal {units.length} units{warningsCount > 0 ? ` · ${warningsCount} aandacht` : ''}
                 </TableCell>
                 <TableCell className="hidden md:table-cell" />
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totals.scenarioValue)}</TableCell>
+                <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</TableCell>
                 <TableCell colSpan={2} />
               </TableRow>
+
+
 
 
             </TableBody>
