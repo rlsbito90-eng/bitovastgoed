@@ -16,8 +16,9 @@ export function buildSourcesOfTruth(args: {
   wwsUnits: WwsUnit[];
   strategyUnits: SellOffUnit[];
   object?: { askingPrice?: number | null; areaGbo?: number | null } | null;
+  leading?: { basis: 'strategie' | 'huur' | 'verkoop'; basisLabel: string; value: number } | null;
 }): SourceOfTruthRow[] {
-  const { scenario, components, costs, wwsUnits, strategyUnits, object } = args;
+  const { scenario, components, costs, wwsUnits, strategyUnits, object, leading } = args;
   const rec = scenario as unknown as Record<string, unknown>;
   const rows: SourceOfTruthRow[] = [];
 
