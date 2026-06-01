@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Scenario, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
+import { evaluateFeasibility, feasibilityLabel, type FeasibilityResult } from '@/lib/vastgoedrekenen/feasibility';
 
 /**
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
@@ -11,6 +12,7 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
   const deal = DEAL_BADGE[o.dealScore];
   const risk = RISK_BADGE[o.riskScore];
   const asking = Number(s.asking_price ?? 0);
+  const purchase = Number((s as { purchase_price?: number | null }).purchase_price ?? 0);
   const strategyLeading = o.leadingMaxBasis === 'strategie';
   const verkoopLeading = o.leadingMaxBasis === 'verkoop';
   // Headline volgt ALTIJD de leidende waarde — geen stille fallback naar maximumBid.
@@ -28,7 +30,6 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
     ? 'text-emerald-700 dark:text-emerald-300'
     : 'text-amber-700 dark:text-amber-300';
   const exploitatie = o.assessmentType === 'exploitatie';
-  const rounds = o.leadingRoundsAtAsking;
   // Tegenstrijdig signaal: leidende waarde geeft ander signaal (ja/nee) dan algemene max bieding.
   const generalDiff = o.differenceWithAskingPrice;
   const showConflict =
@@ -37,44 +38,44 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
     Math.round(o.leadingMaxValue) !== Math.round(o.maximumBid) &&
     (diff < 0) !== (generalDiff < 0);
 
+  const feasAsking = evaluateFeasibility(o.leadingMaxValue, asking);
+  const feasPurchase = evaluateFeasibility(o.leadingMaxValue, purchase);
+
+  // Projectmarge bij beoogde aankoopprijs: gebruik bestaande nettomarge/ROI
+  // (gebaseerd op totale investering t.o.v. ingevulde aankoopprijs).
+  const projectMargin = o.netMargin;
+  const projectRoi = o.roi;
+  const marginBasisLabel = purchase > 0 ? 'beoogde aankoopprijs' : asking > 0 ? 'vraagprijs' : 'aankoopbasis';
 
   return (
     <Card className="border-primary/40">
       <CardContent className="p-4 space-y-4">
-        {/* Prominente leidende uitkomst-balk — verborgen in compact-modus (cockpit toont dit al) */}
-        {!compact && asking > 0 && (
-          <div
-            className={`rounded-md border-2 p-3 ${
-              rounds
-                ? 'border-emerald-500/60 bg-emerald-500/10'
-                : 'border-amber-500/60 bg-amber-500/10'
-            }`}
-          >
+        {/* Dubbele "rond te rekenen"-banner: vraagprijs + beoogde aankoopprijs */}
+        {!compact && (feasAsking.hasReference || feasPurchase.hasReference) && (
+          <div className="rounded-md border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Rond te rekenen
-              </span>
-              <span
-                className={`text-xl font-bold ${
-                  rounds
-                    ? 'text-emerald-700 dark:text-emerald-300'
-                    : 'text-amber-700 dark:text-amber-300'
-                }`}
-              >
-                {rounds ? 'Ja' : 'Nee'}
-              </span>
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Rond te rekenen</span>
               <span className="text-[11px] text-muted-foreground">
-                · Gebaseerd op: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span>
+                · Leidend voor harde conclusie: <span className="text-foreground font-medium">{o.leadingMaxBasisLabel}</span> ({fmtEur(o.leadingMaxValue)})
               </span>
             </div>
-            <p className="text-xs mt-1.5 leading-snug text-foreground/90">
-              {rounds
-                ? <>Ruimte boven vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt boven de vraagprijs.</>
-                : <>Tekort t.o.v. vraagprijs: <span className="font-mono-data font-medium">{fmtEur(Math.abs(diff))}</span>{pct != null ? ` (${Math.abs(pct).toFixed(1)}%)` : ''}. De maximale {strategyLeading ? 'aankoopprijs' : 'bieding'} op basis van {o.leadingMaxBasisLabel} ligt onder de vraagprijs.</>
-              }
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <FeasibilityBlock label="Op vraagprijs" reference={asking} f={feasAsking} strategyLeading={strategyLeading} />
+              <FeasibilityBlock label="Op beoogde aankoopprijs" reference={purchase} f={feasPurchase} strategyLeading={strategyLeading} />
+            </div>
+            {!exploitatie && (purchase > 0 || asking > 0) && projectMargin != null && (
+              <p className="text-xs text-foreground/90 leading-snug pt-1 border-t border-primary/15">
+                Bij aankoop voor <span className="font-mono-data font-medium">{fmtEur(purchase > 0 ? purchase : asking)}</span> ontstaat een nettomarge van{' '}
+                <span className={`font-mono-data font-medium ${projectMargin < 0 ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-300'}`}>{fmtEur(projectMargin)}</span>
+                {projectRoi != null && (
+                  <> en een ROI van <span className="font-mono-data font-medium">{projectRoi.toFixed(1)}%</span></>
+                )}
+                <span className="text-muted-foreground"> · aankoopbasis: {marginBasisLabel}</span>.
+              </p>
+            )}
           </div>
         )}
+
 
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs px-2 py-1 rounded-full border ${deal.cls}`}>{o.scoreLabel}</span>
