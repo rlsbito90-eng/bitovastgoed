@@ -252,5 +252,49 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
   );
 }
 
+function FeasibilityBlock({
+  label,
+  reference,
+  f,
+  strategyLeading,
+}: {
+  label: string;
+  reference: number;
+  f: FeasibilityResult;
+  strategyLeading: boolean;
+}) {
+  if (!f.hasReference) {
+    return (
+      <div className="rounded-md border border-dashed bg-muted/20 p-2">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium text-muted-foreground mt-0.5">—</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">Geen referentiebedrag ingevuld</p>
+      </div>
+    );
+  }
+  const tone =
+    f.status === 'ja'
+      ? { border: 'border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-300' }
+      : f.status === 'bijna'
+        ? { border: 'border-amber-500/60', bg: 'bg-amber-500/10', text: 'text-amber-700 dark:text-amber-300' }
+        : { border: 'border-destructive/60', bg: 'bg-destructive/10', text: 'text-destructive' };
+  const sign = f.diff >= 0 ? '+' : '−';
+  const pctTxt = f.pct != null ? ` (${sign}${Math.abs(f.pct).toFixed(1)}%)` : '';
+  const bidNoun = strategyLeading ? 'aankoopprijs' : 'bieding';
+  const verschilZin = f.diff >= 0
+    ? `Maximale ${bidNoun} ligt ${fmtEur(Math.abs(f.diff))}${pctTxt} boven het referentiebedrag.`
+    : `Maximale ${bidNoun} ligt ${fmtEur(Math.abs(f.diff))}${pctTxt} onder het referentiebedrag.`;
+  return (
+    <div className={`rounded-md border ${tone.border} ${tone.bg} p-2`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-[11px] text-muted-foreground font-mono-data">{fmtEur(reference)}</p>
+      </div>
+      <p className={`text-lg font-bold leading-tight mt-0.5 ${tone.text}`}>{feasibilityLabel(f.status)}</p>
+      <p className="text-[11px] text-foreground/90 mt-0.5 leading-snug">{verschilZin}</p>
+    </div>
+  );
+}
 
 export default memo(ResultaatKaart);
+
