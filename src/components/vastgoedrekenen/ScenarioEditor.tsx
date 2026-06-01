@@ -155,6 +155,9 @@ function normalizeCost(cost: ScenarioCost) {
     calc_mode: (rec.calc_mode as string | null) ?? 'totaal',
     amount_per_m2: rec.amount_per_m2 != null ? Number(rec.amount_per_m2) : null,
     m2_basis: rec.m2_basis != null ? Number(rec.m2_basis) : null,
+    vat_treatment: (rec.vat_treatment as string | null) ?? 'geen',
+    vat_percentage: rec.vat_percentage != null ? Number(rec.vat_percentage) : null,
+    vat_amount_manual: rec.vat_amount_manual != null ? Number(rec.vat_amount_manual) : null,
   };
 }
 
