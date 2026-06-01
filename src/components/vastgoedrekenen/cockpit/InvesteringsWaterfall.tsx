@@ -139,14 +139,25 @@ function InvesteringsWaterfall({
         <h4 className="text-sm font-semibold text-foreground">
           Investerings-waterfall
           <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
-            — vraagprijs → investering → opbrengst → marge
+            — {basisChip} → investering → opbrengst → marge
           </span>
         </h4>
         <p className="text-[11px] text-muted-foreground">
           {exploitatie
             ? 'Opbouw totale investering (exploitatie-scenario).'
-            : 'Van vraagprijs naar nettomarge (verkoop-scenario).'}
+            : 'Van aankoopbasis naar nettomarge (verkoop-scenario).'}
         </p>
+      </div>
+
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        <span className="px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/30 font-medium">
+          Aankoopbasis: {basisChip}
+        </span>
+        {purchase > 0 && asking > 0 && Math.round(purchase) !== Math.round(asking) && (
+          <span className="text-muted-foreground">
+            Vraagprijs (informatief): <span className="font-mono-data text-foreground">{fmtEur(asking)}</span>
+          </span>
+        )}
       </div>
 
       <div className="w-full">
