@@ -2,13 +2,18 @@
 import { memo, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Trash2, Plus, Sparkles, Download, ListChecks } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Download, ListChecks, X } from 'lucide-react';
 import type { Component, SellOffUnit } from '@/lib/vastgoedrekenen/types';
 import { RawNumberInput, RawTextInput, RawTextarea, numberToRaw, parseRawNumber } from './RawInputs';
-import { fmtEur, fmtM2 } from './format';
+import { fmtEur, fmtEurPerM2, fmtM2 } from './format';
 import {
   STRATEGY_LABELS, SALE_STRATEGIES, HOLD_STRATEGIES,
   aggregateStrategy, computeComponentStrategy,
