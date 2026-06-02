@@ -18,7 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Calculator,
-  
+  Radar,
   Plus,
   HelpCircle,
   ChevronDown,
@@ -51,6 +51,7 @@ const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[]
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
   { path: "/acquisitie", label: "Acquisitie", icon: Target },
+  { path: "/off-market", label: "Off-Market Radar", icon: Radar },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
