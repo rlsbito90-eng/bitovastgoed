@@ -742,6 +742,7 @@ export type Database = {
           moment_date: string
           moment_time: string | null
           object_id: string | null
+          off_market_signaal_id: string | null
           outcome: string | null
           relatie_id: string | null
           system_key: string | null
@@ -764,6 +765,7 @@ export type Database = {
           moment_date?: string
           moment_time?: string | null
           object_id?: string | null
+          off_market_signaal_id?: string | null
           outcome?: string | null
           relatie_id?: string | null
           system_key?: string | null
@@ -786,6 +788,7 @@ export type Database = {
           moment_date?: string
           moment_time?: string | null
           object_id?: string | null
+          off_market_signaal_id?: string | null
           outcome?: string | null
           relatie_id?: string | null
           system_key?: string | null
@@ -794,7 +797,15 @@ export type Database = {
           type?: Database["public"]["Enums"]["contact_moment_type"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contact_moments_off_market_signaal_id_fkey"
+            columns: ["off_market_signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deal_kandidaten: {
         Row: {
@@ -2209,6 +2220,347 @@ export type Database = {
           },
         ]
       }
+      off_market_ai_runs: {
+        Row: {
+          created_at: string
+          fout: string | null
+          id: string
+          input_hash: string | null
+          kosten: number | null
+          latentie_ms: number | null
+          model: string
+          output: Json | null
+          prompt_versie: string | null
+          run_op: string
+          signaal_id: string
+          succes: boolean
+        }
+        Insert: {
+          created_at?: string
+          fout?: string | null
+          id?: string
+          input_hash?: string | null
+          kosten?: number | null
+          latentie_ms?: number | null
+          model: string
+          output?: Json | null
+          prompt_versie?: string | null
+          run_op?: string
+          signaal_id: string
+          succes?: boolean
+        }
+        Update: {
+          created_at?: string
+          fout?: string | null
+          id?: string
+          input_hash?: string | null
+          kosten?: number | null
+          latentie_ms?: number | null
+          model?: string
+          output?: Json | null
+          prompt_versie?: string | null
+          run_op?: string
+          signaal_id?: string
+          succes?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_ai_runs_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      off_market_bronnen: {
+        Row: {
+          actief: boolean
+          auth_secret_naam: string | null
+          config: Json
+          created_at: string
+          endpoint_url: string | null
+          id: string
+          laatste_fout: string | null
+          laatste_run_op: string | null
+          laatste_run_status: string | null
+          naam: string
+          type: Database["public"]["Enums"]["off_market_bron_type"]
+          updated_at: string
+        }
+        Insert: {
+          actief?: boolean
+          auth_secret_naam?: string | null
+          config?: Json
+          created_at?: string
+          endpoint_url?: string | null
+          id?: string
+          laatste_fout?: string | null
+          laatste_run_op?: string | null
+          laatste_run_status?: string | null
+          naam: string
+          type?: Database["public"]["Enums"]["off_market_bron_type"]
+          updated_at?: string
+        }
+        Update: {
+          actief?: boolean
+          auth_secret_naam?: string | null
+          config?: Json
+          created_at?: string
+          endpoint_url?: string | null
+          id?: string
+          laatste_fout?: string | null
+          laatste_run_op?: string | null
+          laatste_run_status?: string | null
+          naam?: string
+          type?: Database["public"]["Enums"]["off_market_bron_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      off_market_signalen: {
+        Row: {
+          adres: string | null
+          ai_aanbevolen_actie: string | null
+          ai_classificatie_assettype:
+            | Database["public"]["Enums"]["off_market_assettype"]
+            | null
+          ai_dedupe_groep_id: string | null
+          ai_laatst_verrijkt_op: string | null
+          ai_model: string | null
+          ai_prompt_versie: string | null
+          ai_samenvatting: string | null
+          ai_score: number | null
+          ai_strategie_suggestie: string | null
+          ai_verkoopkans: number | null
+          archief_reden: string | null
+          assettype: Database["public"]["Enums"]["off_market_assettype"]
+          bron_datum: string | null
+          bron_id: string | null
+          bron_referentie: string | null
+          bron_type: Database["public"]["Enums"]["off_market_bron_type"]
+          bron_url: string | null
+          created_at: string
+          created_by: string | null
+          eigenaar_bekend: boolean
+          eigenaar_relatie_id: string | null
+          gearchiveerd_op: string | null
+          gekoppeld_object_id: string | null
+          gekoppelde_deal_id: string | null
+          id: string
+          indicatieve_waarde: number | null
+          lat: number | null
+          lng: number | null
+          mogelijke_fee: number | null
+          notities: string | null
+          omschrijving: string | null
+          plaats: string | null
+          postcode: string | null
+          potentiele_strategie: string | null
+          prioriteit: Database["public"]["Enums"]["off_market_prioriteit"]
+          provincie: string | null
+          regio: string | null
+          search_tsv: unknown
+          status: Database["public"]["Enums"]["off_market_status"]
+          titel: string
+          type_signaal: Database["public"]["Enums"]["off_market_signaaltype"]
+          updated_at: string
+          updated_by: string | null
+          volgende_actie_datum: string | null
+          volgende_actie_omschrijving: string | null
+        }
+        Insert: {
+          adres?: string | null
+          ai_aanbevolen_actie?: string | null
+          ai_classificatie_assettype?:
+            | Database["public"]["Enums"]["off_market_assettype"]
+            | null
+          ai_dedupe_groep_id?: string | null
+          ai_laatst_verrijkt_op?: string | null
+          ai_model?: string | null
+          ai_prompt_versie?: string | null
+          ai_samenvatting?: string | null
+          ai_score?: number | null
+          ai_strategie_suggestie?: string | null
+          ai_verkoopkans?: number | null
+          archief_reden?: string | null
+          assettype?: Database["public"]["Enums"]["off_market_assettype"]
+          bron_datum?: string | null
+          bron_id?: string | null
+          bron_referentie?: string | null
+          bron_type?: Database["public"]["Enums"]["off_market_bron_type"]
+          bron_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          eigenaar_bekend?: boolean
+          eigenaar_relatie_id?: string | null
+          gearchiveerd_op?: string | null
+          gekoppeld_object_id?: string | null
+          gekoppelde_deal_id?: string | null
+          id?: string
+          indicatieve_waarde?: number | null
+          lat?: number | null
+          lng?: number | null
+          mogelijke_fee?: number | null
+          notities?: string | null
+          omschrijving?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          potentiele_strategie?: string | null
+          prioriteit?: Database["public"]["Enums"]["off_market_prioriteit"]
+          provincie?: string | null
+          regio?: string | null
+          search_tsv?: unknown
+          status?: Database["public"]["Enums"]["off_market_status"]
+          titel: string
+          type_signaal?: Database["public"]["Enums"]["off_market_signaaltype"]
+          updated_at?: string
+          updated_by?: string | null
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+        }
+        Update: {
+          adres?: string | null
+          ai_aanbevolen_actie?: string | null
+          ai_classificatie_assettype?:
+            | Database["public"]["Enums"]["off_market_assettype"]
+            | null
+          ai_dedupe_groep_id?: string | null
+          ai_laatst_verrijkt_op?: string | null
+          ai_model?: string | null
+          ai_prompt_versie?: string | null
+          ai_samenvatting?: string | null
+          ai_score?: number | null
+          ai_strategie_suggestie?: string | null
+          ai_verkoopkans?: number | null
+          archief_reden?: string | null
+          assettype?: Database["public"]["Enums"]["off_market_assettype"]
+          bron_datum?: string | null
+          bron_id?: string | null
+          bron_referentie?: string | null
+          bron_type?: Database["public"]["Enums"]["off_market_bron_type"]
+          bron_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          eigenaar_bekend?: boolean
+          eigenaar_relatie_id?: string | null
+          gearchiveerd_op?: string | null
+          gekoppeld_object_id?: string | null
+          gekoppelde_deal_id?: string | null
+          id?: string
+          indicatieve_waarde?: number | null
+          lat?: number | null
+          lng?: number | null
+          mogelijke_fee?: number | null
+          notities?: string | null
+          omschrijving?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          potentiele_strategie?: string | null
+          prioriteit?: Database["public"]["Enums"]["off_market_prioriteit"]
+          provincie?: string | null
+          regio?: string | null
+          search_tsv?: unknown
+          status?: Database["public"]["Enums"]["off_market_status"]
+          titel?: string
+          type_signaal?: Database["public"]["Enums"]["off_market_signaaltype"]
+          updated_at?: string
+          updated_by?: string | null
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_signalen_bron_id_fkey"
+            columns: ["bron_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_bronnen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_eigenaar_relatie_id_fkey"
+            columns: ["eigenaar_relatie_id"]
+            isOneToOne: false
+            referencedRelation: "relaties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_gekoppeld_object_id_fkey"
+            columns: ["gekoppeld_object_id"]
+            isOneToOne: false
+            referencedRelation: "object_huur_metrics"
+            referencedColumns: ["object_id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_gekoppeld_object_id_fkey"
+            columns: ["gekoppeld_object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_gekoppelde_deal_id_fkey"
+            columns: ["gekoppelde_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      off_market_signalen_ruw: {
+        Row: {
+          binnengekomen_op: string
+          bron_id: string
+          created_at: string
+          dedupe_hash: string | null
+          extern_id: string
+          id: string
+          payload: Json
+          signaal_id: string | null
+          updated_at: string
+          verwerkt: boolean
+        }
+        Insert: {
+          binnengekomen_op?: string
+          bron_id: string
+          created_at?: string
+          dedupe_hash?: string | null
+          extern_id: string
+          id?: string
+          payload?: Json
+          signaal_id?: string | null
+          updated_at?: string
+          verwerkt?: boolean
+        }
+        Update: {
+          binnengekomen_op?: string
+          bron_id?: string
+          created_at?: string
+          dedupe_hash?: string | null
+          extern_id?: string
+          id?: string
+          payload?: Json
+          signaal_id?: string | null
+          updated_at?: string
+          verwerkt?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_signalen_ruw_bron_id_fkey"
+            columns: ["bron_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_bronnen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_ruw_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_stages: {
         Row: {
           color: string | null
@@ -3187,6 +3539,7 @@ export type Database = {
           id: string
           notities: string | null
           object_id: string | null
+          off_market_signaal_id: string | null
           prioriteit: Database["public"]["Enums"]["taak_prioriteit"]
           relatie_id: string | null
           soft_deleted_at: string | null
@@ -3205,6 +3558,7 @@ export type Database = {
           id?: string
           notities?: string | null
           object_id?: string | null
+          off_market_signaal_id?: string | null
           prioriteit?: Database["public"]["Enums"]["taak_prioriteit"]
           relatie_id?: string | null
           soft_deleted_at?: string | null
@@ -3223,6 +3577,7 @@ export type Database = {
           id?: string
           notities?: string | null
           object_id?: string | null
+          off_market_signaal_id?: string | null
           prioriteit?: Database["public"]["Enums"]["taak_prioriteit"]
           relatie_id?: string | null
           soft_deleted_at?: string | null
@@ -3259,6 +3614,13 @@ export type Database = {
             columns: ["object_id"]
             isOneToOne: false
             referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taken_off_market_signaal_id_fkey"
+            columns: ["off_market_signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
             referencedColumns: ["id"]
           },
           {
@@ -3521,6 +3883,18 @@ export type Database = {
         }
         Relationships: []
       }
+      view_off_market_kpi: {
+        Row: {
+          eigenaren_te_benaderen: number | null
+          fee_pipeline: number | null
+          hoge_prioriteit: number | null
+          in_gesprek: number | null
+          nieuwe_deze_week: number | null
+          objecten_ontvangen: number | null
+          te_onderzoeken: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_refnummer: { Args: never; Returns: string }
@@ -3532,6 +3906,10 @@ export type Database = {
         Returns: boolean
       }
       is_intern_gebruiker: { Args: { _user_id: string }; Returns: boolean }
+      off_market_promote_to_object: {
+        Args: { _signaal_id: string }
+        Returns: string
+      }
     }
     Enums: {
       aanbiedingswijze:
@@ -3699,6 +4077,51 @@ export type Database = {
         | "verkocht"
         | "ingetrokken"
         | "afgevallen"
+      off_market_assettype:
+        | "kantoor"
+        | "winkelpand"
+        | "woon_winkelpand"
+        | "bedrijfscomplex"
+        | "light_industrial"
+        | "logistiek"
+        | "zorgvastgoed"
+        | "transformatieobject"
+        | "ontwikkellocatie"
+        | "vastgoedportefeuille"
+        | "overig"
+      off_market_bron_type:
+        | "handmatig"
+        | "bekendmaking"
+        | "vergunning"
+        | "bag"
+        | "kvk"
+        | "nieuws"
+        | "rss"
+        | "csv"
+        | "overig"
+      off_market_prioriteit: "laag" | "midden" | "hoog" | "urgent"
+      off_market_signaaltype:
+        | "vergunning_bekendmaking"
+        | "functiewijziging"
+        | "transformatiepotentie"
+        | "leegstand"
+        | "bedrijfsbeeindiging"
+        | "lang_bezit"
+        | "onderbenutte_locatie"
+        | "vastgoednieuws"
+        | "netwerk"
+        | "handmatige_research"
+        | "overig"
+      off_market_status:
+        | "nieuw_signaal"
+        | "te_onderzoeken"
+        | "eigenaar_achterhalen"
+        | "benaderen"
+        | "in_gesprek"
+        | "object_ontvangen"
+        | "dealtraject"
+        | "niet_interessant"
+        | "archief"
       onderhoudsstaat_niveau:
         | "uitstekend"
         | "goed"
@@ -4137,6 +4560,55 @@ export const Constants = {
         "verkocht",
         "ingetrokken",
         "afgevallen",
+      ],
+      off_market_assettype: [
+        "kantoor",
+        "winkelpand",
+        "woon_winkelpand",
+        "bedrijfscomplex",
+        "light_industrial",
+        "logistiek",
+        "zorgvastgoed",
+        "transformatieobject",
+        "ontwikkellocatie",
+        "vastgoedportefeuille",
+        "overig",
+      ],
+      off_market_bron_type: [
+        "handmatig",
+        "bekendmaking",
+        "vergunning",
+        "bag",
+        "kvk",
+        "nieuws",
+        "rss",
+        "csv",
+        "overig",
+      ],
+      off_market_prioriteit: ["laag", "midden", "hoog", "urgent"],
+      off_market_signaaltype: [
+        "vergunning_bekendmaking",
+        "functiewijziging",
+        "transformatiepotentie",
+        "leegstand",
+        "bedrijfsbeeindiging",
+        "lang_bezit",
+        "onderbenutte_locatie",
+        "vastgoednieuws",
+        "netwerk",
+        "handmatige_research",
+        "overig",
+      ],
+      off_market_status: [
+        "nieuw_signaal",
+        "te_onderzoeken",
+        "eigenaar_achterhalen",
+        "benaderen",
+        "in_gesprek",
+        "object_ontvangen",
+        "dealtraject",
+        "niet_interessant",
+        "archief",
       ],
       onderhoudsstaat_niveau: [
         "uitstekend",
