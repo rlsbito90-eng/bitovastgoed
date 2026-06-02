@@ -1,6 +1,6 @@
 import { Sparkles, AlertTriangle, Search, Phone, MessageCircle, Building2, Coins } from 'lucide-react';
 import { useOffMarketKpi } from '@/hooks/useOffMarketSignalen';
-import { formatEUR } from '@/lib/format/nl';
+import { formatCurrency } from '@/lib/format/nl';
 
 interface TileProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -40,7 +40,7 @@ export default function OffMarketKpi() {
       <Tile icon={Phone} label="Eigenaar achterhalen" value={k.eigenaren_te_benaderen} />
       <Tile icon={MessageCircle} label="In gesprek" value={k.in_gesprek} />
       <Tile icon={Building2} label="Objecten ontvangen" value={k.objecten_ontvangen} />
-      <Tile icon={Coins} label="Fee-pipeline" value={formatEUR(Number(k.fee_pipeline) || 0)} hint="Som mogelijke fee" />
+      <Tile icon={Coins} label="Fee-pipeline" value={formatCurrency(Number(k.fee_pipeline) || 0)} hint="Som mogelijke fee" />
     </div>
   );
 }
