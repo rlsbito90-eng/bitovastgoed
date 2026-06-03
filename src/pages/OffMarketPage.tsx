@@ -35,7 +35,7 @@ export default function OffMarketPage() {
     const setter = (next: T) => { setV(next); try { sessionStorage.setItem(`off-market-filter:${key}`, next); } catch {} };
     return [v, setter] as const;
   };
-  const [zoek, setZoek] = useStored('zoek', '');
+  const [zoek, setZoek] = useStored<string>('zoek', '');
   const [statusFilter, setStatusFilter] = useStored<OffMarketStatus | ''>('status', '');
   const [prioFilter, setPrioFilter] = useStored<OffMarketPrioriteit | ''>('prio', '');
   const [assetFilter, setAssetFilter] = useStored<OffMarketAssettype | ''>('asset', '');
