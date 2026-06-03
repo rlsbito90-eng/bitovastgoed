@@ -28,12 +28,19 @@ export default function OffMarketPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
 
-  const [zoek, setZoek] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OffMarketStatus | ''>('');
-  const [prioFilter, setPrioFilter] = useState<OffMarketPrioriteit | ''>('');
-  const [assetFilter, setAssetFilter] = useState<OffMarketAssettype | ''>('');
-  const [regioFilter, setRegioFilter] = useState<string>('');
-  const [bronFilter, setBronFilter] = useState<OffMarketBronType | ''>('');
+  const useStored = <T extends string>(key: string, init: T) => {
+    const [v, setV] = useState<T>(() => {
+      try { return (sessionStorage.getItem(`off-market-filter:${key}`) as T) ?? init; } catch { return init; }
+    });
+    const setter = (next: T) => { setV(next); try { sessionStorage.setItem(`off-market-filter:${key}`, next); } catch {} };
+    return [v, setter] as const;
+  };
+  const [zoek, setZoek] = useStored('zoek', '');
+  const [statusFilter, setStatusFilter] = useStored<OffMarketStatus | ''>('status', '');
+  const [prioFilter, setPrioFilter] = useStored<OffMarketPrioriteit | ''>('prio', '');
+  const [assetFilter, setAssetFilter] = useStored<OffMarketAssettype | ''>('asset', '');
+  const [regioFilter, setRegioFilter] = useStored('regio', '');
+  const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
