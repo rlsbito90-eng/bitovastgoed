@@ -102,7 +102,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
           </TableHeader>
           <TableBody>
             {rows.map(s => (
-              <TableRow key={s.id}>
+              <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)}>
                 <TableCell className="max-w-[320px]">
                   <p className="text-sm font-medium text-foreground truncate">{s.titel}</p>
                   <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
