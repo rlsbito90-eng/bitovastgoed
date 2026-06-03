@@ -39,7 +39,7 @@ export default function OffMarketPage() {
   const [statusFilter, setStatusFilter] = useStored<OffMarketStatus | ''>('status', '');
   const [prioFilter, setPrioFilter] = useStored<OffMarketPrioriteit | ''>('prio', '');
   const [assetFilter, setAssetFilter] = useStored<OffMarketAssettype | ''>('asset', '');
-  const [regioFilter, setRegioFilter] = useStored('regio', '');
+  const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
