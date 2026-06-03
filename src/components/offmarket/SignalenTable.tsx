@@ -131,7 +131,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
                 <TableCell className="text-xs">
                   <span className="text-muted-foreground">{s.bron_type ? BRON_TYPE_LABEL[s.bron_type] : '—'}</span>
                   {s.bron_url && (
-                    <a href={s.bron_url} target="_blank" rel="noreferrer" className="ml-1 inline-flex text-accent hover:underline">
+                    <a href={s.bron_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="ml-1 inline-flex text-accent hover:underline">
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
