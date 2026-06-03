@@ -90,7 +90,14 @@ export default function OffMarketPage() {
       <PageHeader
         title="Off-Market Radar"
         subtitle="Vind, beoordeel en prioriteer potentiële off-market objecten en verkopers."
+        actions={
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="h-4 w-4" /> Nieuw signaal
+          </Button>
+        }
       />
+      <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+
 
       <div className="flex items-center gap-1 border-b border-border/60">
         {(['dashboard', 'signalen'] as const).map(t => (
