@@ -34,6 +34,8 @@ function regelOndertitel(s: OffMarketSignaal) {
 
 export default function SignalenTable({ signalen, laden }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
+  const navigate = useNavigate();
+  const go = (id: string) => navigate(`/off-market/${id}`);
 
   if (laden) {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Signalen laden…</p>;
