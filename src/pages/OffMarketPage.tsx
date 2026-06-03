@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
+import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
