@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
+import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
@@ -23,13 +25,22 @@ const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
   const [tab, setTab] = useState<Tab>('dashboard');
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const [zoek, setZoek] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OffMarketStatus | ''>('');
-  const [prioFilter, setPrioFilter] = useState<OffMarketPrioriteit | ''>('');
-  const [assetFilter, setAssetFilter] = useState<OffMarketAssettype | ''>('');
-  const [regioFilter, setRegioFilter] = useState<string>('');
-  const [bronFilter, setBronFilter] = useState<OffMarketBronType | ''>('');
+
+  const useStored = <T extends string>(key: string, init: T) => {
+    const [v, setV] = useState<T>(() => {
+      try { return (sessionStorage.getItem(`off-market-filter:${key}`) as T) ?? init; } catch { return init; }
+    });
+    const setter = (next: T) => { setV(next); try { sessionStorage.setItem(`off-market-filter:${key}`, next); } catch {} };
+    return [v, setter] as const;
+  };
+  const [zoek, setZoek] = useStored<string>('zoek', '');
+  const [statusFilter, setStatusFilter] = useStored<OffMarketStatus | ''>('status', '');
+  const [prioFilter, setPrioFilter] = useStored<OffMarketPrioriteit | ''>('prio', '');
+  const [assetFilter, setAssetFilter] = useStored<OffMarketAssettype | ''>('asset', '');
+  const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
+  const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
@@ -86,7 +97,14 @@ export default function OffMarketPage() {
       <PageHeader
         title="Off-Market Radar"
         subtitle="Vind, beoordeel en prioriteer potentiële off-market objecten en verkopers."
+        actions={
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="h-4 w-4" /> Nieuw signaal
+          </Button>
+        }
       />
+      <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+
 
       <div className="flex items-center gap-1 border-b border-border/60">
         {(['dashboard', 'signalen'] as const).map(t => (

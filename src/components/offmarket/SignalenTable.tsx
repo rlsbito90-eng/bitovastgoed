@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, MapPin, Calendar, ExternalLink } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -33,6 +34,8 @@ function regelOndertitel(s: OffMarketSignaal) {
 
 export default function SignalenTable({ signalen, laden }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
+  const navigate = useNavigate();
+  const go = (id: string) => navigate(`/off-market/${id}`);
 
   if (laden) {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Signalen laden…</p>;
@@ -52,7 +55,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
       {/* Mobiel: card-fallback */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => (
-          <div key={s.id} className="px-4 py-3">
+          <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{s.titel}</p>
@@ -99,7 +102,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
           </TableHeader>
           <TableBody>
             {rows.map(s => (
-              <TableRow key={s.id}>
+              <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)}>
                 <TableCell className="max-w-[320px]">
                   <p className="text-sm font-medium text-foreground truncate">{s.titel}</p>
                   <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -128,7 +131,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
                 <TableCell className="text-xs">
                   <span className="text-muted-foreground">{s.bron_type ? BRON_TYPE_LABEL[s.bron_type] : '—'}</span>
                   {s.bron_url && (
-                    <a href={s.bron_url} target="_blank" rel="noreferrer" className="ml-1 inline-flex text-accent hover:underline">
+                    <a href={s.bron_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="ml-1 inline-flex text-accent hover:underline">
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
