@@ -25,6 +25,8 @@ const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
   const [tab, setTab] = useState<Tab>('dashboard');
+  const [createOpen, setCreateOpen] = useState(false);
+
 
   const [zoek, setZoek] = useState('');
   const [statusFilter, setStatusFilter] = useState<OffMarketStatus | ''>('');
