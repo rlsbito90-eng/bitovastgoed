@@ -55,7 +55,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
       {/* Mobiel: card-fallback */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => (
-          <div key={s.id} className="px-4 py-3">
+          <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{s.titel}</p>
