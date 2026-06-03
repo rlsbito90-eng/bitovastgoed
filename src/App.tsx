@@ -30,6 +30,7 @@ import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
 import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import OffMarketPage from "@/pages/OffMarketPage";
+import OffMarketSignaalDetailPage from "@/pages/OffMarketSignaalDetailPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
