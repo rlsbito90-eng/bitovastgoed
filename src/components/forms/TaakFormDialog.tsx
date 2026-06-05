@@ -24,6 +24,7 @@ interface Props {
   defaultRelatieId?: string;
   defaultDealId?: string;
   defaultObjectId?: string;
+  defaultOffMarketSignaalId?: string;
 }
 
 const emptyForm = {
@@ -31,6 +32,7 @@ const emptyForm = {
   relatieId: '',
   dealId: '',
   objectId: '',
+  offMarketSignaalId: '',
   type: 'Algemeen',
   deadline: new Date().toISOString().split('T')[0],
   deadlineTijd: '',
