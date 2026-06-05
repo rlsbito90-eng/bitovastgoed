@@ -35,7 +35,7 @@ export function useNegeerGeskipt() {
       const payload = { ...record.payload, handmatig_genegeerd: true };
       const { error } = await supabase
         .from('off_market_signalen_ruw')
-        .update({ payload })
+        .update({ payload: payload as any })
         .eq('id', record.id);
       if (error) throw error;
     },
