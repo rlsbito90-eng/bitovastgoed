@@ -9,8 +9,10 @@ import SignaalKoppelingenSectie from '@/components/offmarket/SignaalKoppelingenS
 import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 import {
-  useOffMarketSignaal, useArchiveOffMarketSignaal,
+  useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +20,7 @@ export default function OffMarketSignaalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: signaal, isLoading, error } = useOffMarketSignaal(id);
+  const { data: alleSignalen = [] } = useOffMarketSignalen();
   const archive = useArchiveOffMarketSignaal();
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -46,6 +49,13 @@ export default function OffMarketSignaalDetailPage() {
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6 max-w-5xl">
+      <div className="flex items-center justify-end">
+        <ListNavigator
+          info={getListNavigation('off-market-signalen', signaal.id, alleSignalen.map(s => s.id))}
+          buildHref={(nid) => `/off-market/${nid}`}
+          itemLabel="signaal"
+        />
+      </div>
       <SignaalDetailHeader
         signaal={signaal}
         onEdit={() => setEditOpen(true)}

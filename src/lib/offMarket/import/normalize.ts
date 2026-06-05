@@ -109,6 +109,9 @@ export const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number
   // Onttrekking
   { re: /\bonttrekkingsvergunning\b/i, label: 'onttrekkingsvergunning', delta: 20 },
   { re: /\btweede\s+woning\b/i, label: 'tweede woning', delta: 15 },
+  // Bergingen / niet-woonruimte naar woonruimte (typische transformatie-binnen-pand)
+  { re: /\bbergingen?\s+naar\s+woonruimte[n]?\b/i, label: 'bergingen naar woonruimte', delta: 30 },
+  { re: /\b(garage|kelder|zolder|bedrijfsruimte)\s+naar\s+woonruimte[n]?\b/i, label: 'ruimte naar woonruimte', delta: 25 },
   // Grotere ontwikkeling / nieuwbouw
   { re: /\bwoningbouwproject\b/i, label: 'woningbouwproject', delta: 25 },
   // Geen leading \b zodat ook "huurappartementen" matcht

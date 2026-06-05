@@ -25,7 +25,7 @@ export default function SignaalDetailHeader({ signaal, onEdit, onArchive }: Prop
   return (
     <div className="space-y-3">
       <Link to="/off-market" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Terug naar Off-Market Radar
+        <ArrowLeft className="h-4 w-4" /> Terug naar signalen
       </Link>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { saveListContext } from '@/lib/listNavigation';
+import { compareRelevantie } from '@/lib/offMarket/relevantie';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
@@ -25,7 +27,16 @@ const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm
 
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [tab, setTabState] = useState<Tab>(() => {
+    try {
+      const t = sessionStorage.getItem('off-market-filter:tab');
+      return (t === 'signalen' || t === 'dashboard') ? t : 'dashboard';
+    } catch { return 'dashboard'; }
+  });
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    try { sessionStorage.setItem('off-market-filter:tab', t); } catch {}
+  };
   const [createOpen, setCreateOpen] = useState(false);
 
 
@@ -45,6 +56,10 @@ export default function OffMarketPage() {
   const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
+    {
+      value: 'relevantie', label: 'Vastgoedrelevantie',
+      compare: compareRelevantie,
+    },
     {
       value: 'ai_score', label: 'AI-score hoog → laag',
       compare: (a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1),
@@ -70,7 +85,7 @@ export default function OffMarketPage() {
     },
   ], []);
   const [sortValue, setSortValue] = useSortPreference(
-    'off-market-signalen', 'ai_score', sortOptions.map(o => o.value),
+    'off-market-signalen', 'relevantie', sortOptions.map(o => o.value),
   );
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
@@ -94,6 +109,11 @@ export default function OffMarketPage() {
     });
     return [...list].sort(activeSort.compare);
   }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, activeSort]);
+
+  // Bewaar de huidige gefilterde+gesorteerde volgorde voor Vorige/Volgende op de detailpagina.
+  useEffect(() => {
+    saveListContext('off-market-signalen', gefilterd.map(s => s.id));
+  }, [gefilterd]);
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
