@@ -236,6 +236,7 @@ export default function ContactMomentFormDialog({
         objectId: form.objectId || undefined,
         dealId: form.dealId || undefined,
         acquisitieTargetId: form.acquisitieTargetId || undefined,
+        offMarketSignaalId: form.offMarketSignaalId || undefined,
         followUpRequired: isEdit ? form.followUpRequired : form.makeTaak,
         followUpDate: isEdit ? (form.followUpDate || undefined) : (form.makeTaak ? (form.taakDeadline || undefined) : undefined),
       };
