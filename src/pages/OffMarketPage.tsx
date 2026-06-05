@@ -231,6 +231,36 @@ export default function OffMarketPage() {
             </div>
           </div>
 
+          {bucketTellingen.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBucketFilter(null)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  bucketFilter === null
+                    ? 'bg-accent text-accent-foreground border-accent'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                Alle ({preBucket.length})
+              </button>
+              {bucketTellingen.map(b => (
+                <button
+                  key={b.rang}
+                  type="button"
+                  onClick={() => setBucketFilter(bucketFilter === b.rang ? null : b.rang)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                    bucketFilter === b.rang
+                      ? 'bg-accent text-accent-foreground border-accent'
+                      : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                  }`}
+                >
+                  {b.label} ({b.aantal})
+                </button>
+              ))}
+            </div>
+          )}
+
           <section className="section-card overflow-hidden">
             <SignalenTable signalen={gefilterd} laden={isLoading} />
           </section>
