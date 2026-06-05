@@ -178,6 +178,7 @@ export async function logSystemContactMoment(input: {
   objectId?: string | null;
   dealId?: string | null;
   acquisitieTargetId?: string | null;
+  offMarketSignaalId?: string | null;
   taakId?: string | null;
   systemKey?: string;
 }): Promise<ContactMoment | null> {
@@ -192,6 +193,7 @@ export async function logSystemContactMoment(input: {
     object_id: input.objectId ?? null,
     deal_id: input.dealId ?? null,
     acquisitie_target_id: input.acquisitieTargetId ?? null,
+    off_market_signaal_id: input.offMarketSignaalId ?? null,
     taak_id: input.taakId ?? null,
   };
   const { data, error } = await supabase
