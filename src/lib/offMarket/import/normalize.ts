@@ -79,52 +79,68 @@ export function detectBronType(subjects: string[]): 'vergunning' | 'bekendmaking
   return /vergunning/.test(blob) ? 'vergunning' : 'bekendmaking';
 }
 
+export interface ScoreComponent {
+  label: string;
+  delta: number;
+}
+
 /**
- * Relevantiescore (0-100):
- *  +30 positief keyword in titel/samenvatting
- *  +20 adres parseerbaar
- *  +15 assettype != 'overig'
- *  +10 commercieel/mixed-use signaalwoord
- *  -40 negatief keyword
+ * Relevantiescore (0-100). Retourneert ook `componenten` met expliciete deltas
+ * zodat zichtbaar is waarom een signaal is gepromoveerd of geskipt.
  */
 export function scoreRecord(input: NormalizedInput, config: BronConfig): {
   score: number;
   redenen: string[];
+  componenten: ScoreComponent[];
 } {
   const blob = `${input.titel} ${input.samenvatting} ${input.subjects.join(' ')}`.toLowerCase();
   const redenen: string[] = [];
+  const componenten: ScoreComponent[] = [];
   let score = 0;
 
   const negHits = config.negatieve_keywords.filter(k => blob.includes(k.toLowerCase()));
   if (negHits.length > 0) {
     score -= 40;
     redenen.push(`negatief: ${negHits.join(',')}`);
+    componenten.push({ label: `onderhoud/ruis (${negHits.join(',')})`, delta: -40 });
   }
 
   const posHits = config.positieve_keywords.filter(k => blob.includes(k.toLowerCase()));
   if (posHits.length > 0) {
     score += 30;
     redenen.push(`positief: ${posHits.join(',')}`);
+    componenten.push({ label: `positief (${posHits.join(',')})`, delta: 30 });
   }
 
   const adres = parseAdres(`${input.titel} ${input.samenvatting}`);
   if (adres.adres) {
     score += 20;
     redenen.push('adres');
+    componenten.push({ label: 'adres', delta: 20 });
   }
 
   const assettype = detectAssettype(blob);
   if (assettype !== 'overig') {
     score += 15;
     redenen.push(`assettype:${assettype}`);
+    componenten.push({ label: `assettype:${assettype}`, delta: 15 });
   }
 
   if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
     score += 10;
     redenen.push('commercieel');
+    componenten.push({ label: 'commercieel', delta: 10 });
   }
 
-  return { score: Math.max(0, Math.min(100, score)), redenen };
+  return { score: Math.max(0, Math.min(100, score)), redenen, componenten };
+}
+
+/** Formatteer score-componenten als leesbare regel voor notities/debug. */
+export function formatScoreComponenten(componenten: ScoreComponent[]): string {
+  if (!componenten.length) return '(geen componenten)';
+  return componenten
+    .map(c => `${c.delta >= 0 ? '+' : ''}${c.delta} ${c.label}`)
+    .join(' · ');
 }
 
 /** YYYY-MM uit datum (of "onbekend" als geen datum). */
