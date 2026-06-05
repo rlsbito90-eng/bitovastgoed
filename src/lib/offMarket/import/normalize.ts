@@ -93,7 +93,8 @@ export interface ScoreComponent {
 export const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number }> = [
   // Splitsing / uitponding (hoogste prioriteit — waardecreatie)
   { re: /\bsplitsingsvergunning\b/i, label: 'splitsingsvergunning', delta: 40 },
-  { re: /\bsplitsing\b/i, label: 'splitsing', delta: 30 },
+  // Geen trailing \b zodat "splitsing" óók binnen "splitsingsvergunning" mag stapelen
+  { re: /\bsplitsing/i, label: 'splitsing', delta: 30 },
   { re: /\bappartementsrecht(en)?\b/i, label: 'appartementsrecht', delta: 20 },
   { re: /\b(uitponding|uitponden|kadastrale\s+splitsing|juridische\s+splitsing)\b/i, label: 'uitponding', delta: 20 },
   // Woonvorming
@@ -110,9 +111,11 @@ export const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number
   { re: /\btweede\s+woning\b/i, label: 'tweede woning', delta: 15 },
   // Grotere ontwikkeling / nieuwbouw
   { re: /\bwoningbouwproject\b/i, label: 'woningbouwproject', delta: 25 },
-  { re: /\bappartement(?:en|encomplex)?\b/i, label: 'appartementen', delta: 20 },
+  // Geen leading \b zodat ook "huurappartementen" matcht
+  { re: /appartement(?:en|encomplex)?\b/i, label: 'appartementen', delta: 20 },
   { re: /\bnieuwbouw\b/i, label: 'nieuwbouw', delta: 20 },
-  { re: /\bsociale\s+huur\b/i, label: 'sociale huur', delta: 15 },
+  // Geen trailing \b zodat ook "sociale huurappartementen" matcht
+  { re: /\bsociale\s+huur/i, label: 'sociale huur', delta: 15 },
   { re: /\b(projectontwikkeling|gebiedsontwikkeling|grotere\s+ontwikkeling)\b/i, label: 'projectontwikkeling', delta: 15 },
   // Klassieke transformatiesignalen
   { re: /\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, label: 'transformatie', delta: 25 },
