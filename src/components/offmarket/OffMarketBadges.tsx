@@ -1,8 +1,10 @@
 import {
   PRIORITEIT_LABEL,
   STATUS_LABEL,
+  AI_STATUS_LABEL,
   type OffMarketPrioriteit,
   type OffMarketStatus,
+  type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
 type Tone = 'neutral' | 'sand' | 'gold' | 'amber' | 'emerald' | 'crimson';
@@ -51,4 +53,19 @@ export function OffMarketPriorityBadge({ prioriteit }: { prioriteit: OffMarketPr
 
 export function OffMarketStatusBadge({ status }: { status: OffMarketStatus }) {
   return <Chip label={STATUS_LABEL[status]} tone={statusTone[status]} />;
+}
+
+const aiStatusTone: Record<OffMarketAiStatus, Tone> = {
+  niet_verrijkt: 'neutral',
+  in_wachtrij: 'neutral',
+  bezig: 'gold',
+  klaar: 'emerald',
+  mislukt: 'crimson',
+};
+
+export function OffMarketAiStatusBadge({ status }: { status: OffMarketAiStatus | string | null | undefined }) {
+  const s = (status ?? 'niet_verrijkt') as OffMarketAiStatus;
+  const label = AI_STATUS_LABEL[s] ?? String(status);
+  const tone = aiStatusTone[s] ?? 'neutral';
+  return <Chip label={label} tone={tone} />;
 }

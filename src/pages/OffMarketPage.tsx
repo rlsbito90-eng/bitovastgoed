@@ -14,8 +14,9 @@ import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
+  AI_STATUS_LABEL, AI_STATUS_VOLGORDE,
   type OffMarketAssettype, type OffMarketBronType, type OffMarketPrioriteit,
-  type OffMarketStatus, type OffMarketSignaal,
+  type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
 type Tab = 'dashboard' | 'signalen';
@@ -41,6 +42,7 @@ export default function OffMarketPage() {
   const [assetFilter, setAssetFilter] = useStored<OffMarketAssettype | ''>('asset', '');
   const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
+  const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
@@ -79,6 +81,7 @@ export default function OffMarketPage() {
       if (prioFilter && s.prioriteit !== prioFilter) return false;
       if (assetFilter && s.assettype !== assetFilter) return false;
       if (bronFilter && s.bron_type !== bronFilter) return false;
+      if (aiStatusFilter && (s as any).ai_status !== aiStatusFilter) return false;
       if (regioFilter) {
         const blob = `${s.provincie ?? ''} ${s.regio ?? ''}`.toLowerCase();
         if (!blob.includes(regioFilter.toLowerCase())) return false;
@@ -90,7 +93,7 @@ export default function OffMarketPage() {
       return true;
     });
     return [...list].sort(activeSort.compare);
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, activeSort]);
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, activeSort]);
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
@@ -165,6 +168,10 @@ export default function OffMarketPage() {
               {(Object.keys(BRON_TYPE_LABEL) as OffMarketBronType[]).map(b => (
                 <option key={b} value={b}>{BRON_TYPE_LABEL[b]}</option>
               ))}
+            </select>
+            <select className={selectCls} value={aiStatusFilter} onChange={e => setAiStatusFilter(e.target.value as OffMarketAiStatus | '')}>
+              <option value="">Alle AI-statussen</option>
+              {AI_STATUS_VOLGORDE.map(a => <option key={a} value={a}>{AI_STATUS_LABEL[a]}</option>)}
             </select>
             <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
               <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />

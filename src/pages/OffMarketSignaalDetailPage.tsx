@@ -8,6 +8,7 @@ import OffMarketArchiveDialog from '@/components/offmarket/OffMarketArchiveDialo
 import SignaalKoppelingenSectie from '@/components/offmarket/SignaalKoppelingenSectie';
 import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
+import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
 import {
   useOffMarketSignaal, useArchiveOffMarketSignaal,
 } from '@/hooks/useOffMarketSignalen';
@@ -50,6 +51,7 @@ export default function OffMarketSignaalDetailPage() {
         onEdit={() => setEditOpen(true)}
         onArchive={() => setArchiveOpen(true)}
       />
+      <SignaalAiAnalyse signaal={signaal} />
       <SignaalKerngegevens signaal={signaal} />
       <SignaalKoppelingenSectie signaal={signaal} />
       <SignaalTakenSectie signaalId={signaal.id} />
