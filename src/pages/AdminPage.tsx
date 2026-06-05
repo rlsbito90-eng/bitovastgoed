@@ -17,6 +17,7 @@ import { formatCurrency } from '@/data/mock-data';
 import type { JaarDoel } from '@/data/mock-data';
 import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
 import OffMarketBronnenSectie from '@/components/admin/OffMarketBronnenSectie';
+import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
 import { mapDbError } from '@/lib/errors';
 
 type Rol = 'admin' | 'medewerker';
@@ -109,6 +110,10 @@ export default function AdminPage() {
 
       {/* ---- OFF-MARKET BRONNEN ---- */}
       <OffMarketBronnenSectie />
+
+      {/* ---- AFGEKEURDE RUWE RECORDS ---- */}
+      <OffMarketGeskiptRecordsSectie />
+
 
       {/* ---- GEBRUIKERS ---- */}
       <div className="space-y-4">
