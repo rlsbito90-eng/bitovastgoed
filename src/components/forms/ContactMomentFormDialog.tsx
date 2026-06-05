@@ -68,6 +68,7 @@ const emptyForm = {
   objectId: '',
   dealId: '',
   acquisitieTargetId: '',
+  offMarketSignaalId: '',
   followUpRequired: false,
   followUpDate: '',
   // taak
