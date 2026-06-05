@@ -58,21 +58,40 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
     signaal ? signaalToFormState(signaal) : SIGNAAL_LEEG,
   );
   const [errors, setErrors] = useState<Partial<Record<keyof SignaalFormState, string>>>({});
+  const [submitError, setSubmitError] = useState('');
   const create = useCreateOffMarketSignaal();
   const update = useUpdateOffMarketSignaal();
   const isEdit = !!signaal;
   const bezig = create.isPending || update.isPending;
 
+  const logDebug = (event: string, data?: unknown) => {
+    if (!import.meta.env.DEV) return;
+    // eslint-disable-next-line no-console
+    console.debug(`[SignaalFormDialog] ${event}`, data ?? '');
+  };
+
   const upd = <K extends keyof SignaalFormState>(k: K, v: SignaalFormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
 
+  const { isDirty, guardedOnOpenChange } = useFormDirtyGuard(true, form, onOpenChange);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    logDebug('start handleSubmit', { indicatieve_waarde: form.indicatieve_waarde, type: typeof form.indicatieve_waarde, isDirty });
     const v = validateSignaal(form);
-    if (!v.ok) { setErrors(v.errors); toast.error('Vul de verplichte velden in.'); return; }
+    logDebug('resultaat validateSignaal', v);
+    if (!v.ok) {
+      setErrors(v.errors);
+      const message = Object.values(v.errors).filter(Boolean).join(' · ');
+      setSubmitError(message || 'Controleer de invoer.');
+      toast.error(message || 'Vul de verplichte velden in.');
+      return;
+    }
     setErrors({});
+    setSubmitError('');
     try {
       const payload = formStateToPayload(form);
+      logDebug('payload formStateToPayload', payload);
       const row = isEdit && signaal
         ? await update.mutateAsync({ id: signaal.id, patch: payload })
         : await create.mutateAsync(payload);
@@ -80,12 +99,14 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
       onOpenChange(false);
       onSaved?.(row.id);
     } catch (err: any) {
-      toast.error(err?.message ?? 'Opslaan mislukt.');
+      const message = err?.message ?? 'Opslaan mislukt.';
+      setSubmitError(message);
+      toast.error(message);
     }
   };
 
-  const { guardedOnOpenChange } = useFormDirtyGuard(true, form, onOpenChange);
   const err = (k: keyof SignaalFormState) => errors[k] && <p className="text-xs text-destructive mt-1">{errors[k]}</p>;
+  const hasValidationErrors = Object.keys(errors).length > 0;
 
   return (
     <Dialog open onOpenChange={guardedOnOpenChange}>
@@ -94,6 +115,11 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
           <DialogTitle>{isEdit ? 'Signaal bewerken' : 'Nieuw off-market signaal'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
+          {submitError ? (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {submitError}
+            </div>
+          ) : null}
           <div>
             <Label>Titel <span className="text-destructive">*</span></Label>
             <Input value={form.titel} onChange={e => upd('titel', e.target.value)} placeholder="Bijv. Leegstaand kantoor Stationsweg" />
@@ -184,7 +210,17 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Indicatieve waarde (€)</Label>
-              <NumberField integer min={0} value={form.indicatieve_waarde ?? undefined} onChange={v => upd('indicatieve_waarde', v ?? null)} />
+              <NumberField
+                aria-label="Indicatieve waarde"
+                integer
+                min={0}
+                value={form.indicatieve_waarde ?? undefined}
+                onChange={v => {
+                  const next = v ?? null;
+                  logDebug('NumberField indicatieve_waarde onChange', { value: next, type: typeof next });
+                  upd('indicatieve_waarde', next);
+                }}
+              />
               {err('indicatieve_waarde')}
             </div>
             <div>
@@ -218,8 +254,25 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-            <Button type="submit" disabled={bezig}>{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Aanmaken'}</Button>
+            <Button
+              type="submit"
+              disabled={bezig}
+              onClick={() => logDebug('klik op Bijwerken', { disabled: bezig, isDirty, indicatieve_waarde: form.indicatieve_waarde })}
+            >{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Aanmaken'}</Button>
           </div>
+
+          {import.meta.env.DEV ? (
+            <pre className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground whitespace-pre-wrap" data-testid="signaal-debug-output">
+              {JSON.stringify({
+                indicatieve_waarde: form.indicatieve_waarde,
+                type_indicatieve_waarde: typeof form.indicatieve_waarde,
+                isDirty,
+                validationErrors: errors,
+                hasValidationErrors,
+                isSubmitting: bezig,
+              }, null, 2)}
+            </pre>
+          ) : null}
         </form>
       </DialogContent>
     </Dialog>

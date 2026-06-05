@@ -1,8 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { signaalToFormState, SIGNAAL_LEEG } from '@/lib/offMarket/form';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
+
+const hookMocks = vi.hoisted(() => ({
+  createMutateAsync: vi.fn(),
+  updateMutateAsync: vi.fn(),
+}));
+
+vi.mock('@/hooks/useOffMarketSignalen', () => ({
+  useCreateOffMarketSignaal: () => ({ isPending: false, mutateAsync: hookMocks.createMutateAsync }),
+  useUpdateOffMarketSignaal: () => ({ isPending: false, mutateAsync: hookMocks.updateMutateAsync }),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 
 const baseSignaal = {
   id: 'sig-1',
@@ -78,5 +93,42 @@ describe('useFormDirtyGuard — Bug 1 (race bij openen bestaand signaal)', () =>
     // Zelfde inhoud, nieuwe object-referentie → niet dirty.
     act(() => rerender({ value: { ...initial } }));
     expect(result.current.isDirty).toBe(false);
+  });
+});
+
+describe('SignaalFormDialog — indicatieve_waarde submit-keten', () => {
+  beforeEach(() => {
+    hookMocks.createMutateAsync.mockReset();
+    hookMocks.updateMutateAsync.mockReset();
+    hookMocks.updateMutateAsync.mockResolvedValue({ ...baseSignaal, indicatieve_waarde: 600000 });
+  });
+
+  it('stuurt indicatieve_waarde=600000 door bij bestaand signaal en sluit na opslaan', async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <SignaalFormDialog
+        open
+        signaal={{ ...baseSignaal, indicatieve_waarde: null } as OffMarketSignaal}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    const input = screen.getByLabelText('Indicatieve waarde');
+    fireEvent.change(input, { target: { value: '600000' } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('signaal-debug-output')).toHaveTextContent('600000');
+      expect(screen.getByTestId('signaal-debug-output')).toHaveTextContent('"isDirty": true');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bijwerken' }));
+
+    await waitFor(() => {
+      expect(hookMocks.updateMutateAsync).toHaveBeenCalledWith({
+        id: 'sig-1',
+        patch: expect.objectContaining({ indicatieve_waarde: 600000 }),
+      });
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

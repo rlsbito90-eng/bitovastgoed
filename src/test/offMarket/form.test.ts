@@ -220,6 +220,14 @@ describe('indicatieve_waarde — end-to-end (NumberField → payload → DB roun
     expect(parseDutchNumber('€ 600.000')).toBe(600000);
   });
 
+  it('NumberField integer-parsing: "600000", "600.000", "600,000", "600000,00" → 600000', async () => {
+    const { parseNumberFieldInput } = await import('@/components/ui/number-field');
+    expect(parseNumberFieldInput('600000', true)).toBe(600000);
+    expect(parseNumberFieldInput('600.000', true)).toBe(600000);
+    expect(parseNumberFieldInput('600,000', true)).toBe(600000);
+    expect(parseNumberFieldInput('600000,00', true)).toBe(600000);
+  });
+
   it('payload-mapping: form met indicatieve_waarde=600000 → payload.indicatieve_waarde=600000 (number)', () => {
     const p = formStateToPayload({
       ...SIGNAAL_LEEG, titel: 'X', indicatieve_waarde: 600000,

@@ -31,6 +31,21 @@ function formatDisplay(value: number, integer: boolean | undefined, decimals: nu
   }).format(integer ? Math.trunc(value) : value);
 }
 
+export function parseNumberFieldInput(raw: string, integer?: boolean): number | null {
+  const stripped = String(raw)
+    .trim()
+    .replace(/[€%\s]/g, '')
+    .replace(/m²/gi, '')
+    .replace(/x$/i, '');
+
+  if (integer && /^-?\d{1,3}([.,]\d{3})+$/.test(stripped)) {
+    const n = Number(stripped.replace(/[.,]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  return parseDutchNumber(raw);
+}
+
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
   function NumberField({ value, onChange, integer, decimals, className, ...rest }, ref) {
     const [focused, setFocused] = React.useState(false);
@@ -69,7 +84,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         }
         return;
       }
-      const parsed = parseDutchNumber(s);
+      const parsed = parseNumberFieldInput(s, integer);
       // Tijdens typen ("2,", "1.") parseDutchNumber kan null geven → wachten op blur.
       if (parsed == null || !Number.isFinite(parsed)) return;
       const next = integer ? Math.trunc(parsed) : parsed;
@@ -89,7 +104,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         }
         setRaw('');
       } else {
-        const parsed = parseDutchNumber(trimmed);
+        const parsed = parseNumberFieldInput(trimmed, integer);
         if (parsed == null || !Number.isFinite(parsed)) {
           // Ongeldige invoer: terug naar laatste geldige waarde.
           setRaw(
@@ -115,7 +130,6 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         ref={ref}
         type="text"
         inputMode={integer ? 'numeric' : 'decimal'}
-        pattern={integer ? '[0-9]*' : undefined}
         value={raw}
         onFocus={handleFocus}
         onChange={handleChange}
