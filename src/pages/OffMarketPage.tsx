@@ -102,9 +102,10 @@ export default function OffMarketPage() {
   );
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
-  const gefilterd = useMemo(() => {
+  // Tellingen per vergunningtype (bucket) — vóór bucket-filter, ná overige filters.
+  const preBucket = useMemo(() => {
     const q = zoek.trim().toLowerCase();
-    const list = signalen.filter(s => {
+    return signalen.filter(s => {
       if (statusFilter && s.status !== statusFilter) return false;
       if (prioFilter && s.prioriteit !== prioFilter) return false;
       if (assetFilter && s.assettype !== assetFilter) return false;
@@ -120,8 +121,27 @@ export default function OffMarketPage() {
       }
       return true;
     });
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter]);
+
+  const bucketTellingen = useMemo(() => {
+    const tellingen = new Map<number, { label: string; aantal: number }>();
+    for (const s of preBucket) {
+      const b = relevantieBucket(s);
+      const cur = tellingen.get(b.rang);
+      if (cur) cur.aantal += 1;
+      else tellingen.set(b.rang, { label: b.label, aantal: 1 });
+    }
+    return Array.from(tellingen.entries())
+      .map(([rang, v]) => ({ rang, ...v }))
+      .sort((a, b) => a.rang - b.rang);
+  }, [preBucket]);
+
+  const gefilterd = useMemo(() => {
+    const list = bucketFilter === null
+      ? preBucket
+      : preBucket.filter(s => relevantieBucket(s).rang === bucketFilter);
     return [...list].sort(activeSort.compare);
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, activeSort]);
+  }, [preBucket, bucketFilter, activeSort]);
 
   // Bewaar de huidige gefilterde+gesorteerde volgorde voor Vorige/Volgende op de detailpagina.
   useEffect(() => {
