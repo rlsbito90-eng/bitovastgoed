@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
     const TIME_BUDGET_MS = 50_000;
 
     try {
-      while (opgehaald < maxRecords) {
+      while (opgehaald < maxRecords && (Date.now() - start) < TIME_BUDGET_MS) {
         const url = bouwSruUrl({
           endpoint, creator, subjects, sinceIso,
           startRecord, maximumRecords: Math.min(pageSize, maxRecords - opgehaald),
