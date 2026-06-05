@@ -1,12 +1,18 @@
+import { useState } from 'react';
 import { Loader2, Play, Radio, ListFilter, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   useOffMarketBronnen, useOnverwerkteRuwCount, useRunBron, useToggleBron, useNormalizeWachtrij,
-  type OffMarketBron,
+  useOffMarketBronStats,
+  type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
+
+const BATCH_OPTIES = [100, 250, 500, 1000] as const;
+const DEFAULT_BATCH = 250;
 
 function StatusBadge({ bron }: { bron: OffMarketBron }) {
   if (bron.laatste_fout) {
@@ -18,18 +24,23 @@ function StatusBadge({ bron }: { bron: OffMarketBron }) {
   return <Badge variant="outline" className="bg-success/10 text-success border-success/20">succes</Badge>;
 }
 
-function parseStatusSummary(raw: string | null): string | null {
+interface LaatsteRun {
+  opgehaald?: number;
+  nieuw?: number;
+  dubbel?: number;
+  totaal_server?: number;
+  max_records?: number;
+  afgebroken?: boolean;
+  duur_ms?: number;
+  test_mode?: boolean;
+}
+
+function parseLaatsteRun(raw: string | null): LaatsteRun | null {
   if (!raw) return null;
   try {
     const j = JSON.parse(raw);
-    if (typeof j !== 'object' || !j) return null;
-    const nieuw = j.nieuw ?? 0;
-    const dubbel = j.dubbel ?? 0;
-    const opgehaald = j.opgehaald ?? 0;
-    return `${opgehaald} opgehaald · ${nieuw} nieuw · ${dubbel} dubbel`;
-  } catch {
-    return null;
-  }
+    return (typeof j === 'object' && j) ? j as LaatsteRun : null;
+  } catch { return null; }
 }
 
 function formatDatum(iso: string | null): string {
@@ -38,22 +49,42 @@ function formatDatum(iso: string | null): string {
   return d.toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+function Teller({ label, value, tone }: { label: string; value: number | string; tone?: 'muted' | 'success' | 'warn' }) {
+  const cls = tone === 'success' ? 'text-success'
+    : tone === 'warn' ? 'text-warning'
+    : 'text-foreground';
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={`font-mono-data text-sm ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
 export default function OffMarketBronnenSectie() {
   const { data: bronnen = [], isLoading } = useOffMarketBronnen();
   const { data: onverwerkt = 0 } = useOnverwerkteRuwCount();
+  const { data: statsPerBron = {} } = useOffMarketBronStats();
   const runBron = useRunBron();
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
+  const [batchPerBron, setBatchPerBron] = useState<Record<string, number>>({});
+
+  const getBatch = (id: string) => batchPerBron[id] ?? DEFAULT_BATCH;
 
   const handleRun = async (b: OffMarketBron, testMode = false) => {
     if (runBron.isPending) return;
+    const maxRecords = getBatch(b.id);
     try {
       const r = await runBron.mutateAsync(
-        testMode ? { bronId: b.id, testMode: true, lookbackDays: 30 } : b.id,
+        testMode
+          ? { bronId: b.id, testMode: true, lookbackDays: 30, maxRecords }
+          : { bronId: b.id, maxRecords },
       );
       const extra = r.totaal_server !== undefined ? ` · server: ${r.totaal_server}` : '';
+      const cut = r.afgebroken ? ' · afgebroken (tijdslimiet)' : '';
       toast.success(
-        `${b.naam}${testMode ? ' [test]' : ''}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}`,
+        `${b.naam}${testMode ? ' [test]' : ''}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}${cut}`,
       );
     } catch (e) {
       toast.error(`${b.naam}: ${e instanceof Error ? e.message : 'fout'}`);
@@ -119,49 +150,88 @@ export default function OffMarketBronnenSectie() {
         ) : (
           <div className="divide-y divide-border">
             {bronnen.map(b => {
-              const samenvatting = parseStatusSummary(b.laatste_run_status);
-              const bezig = runBron.isPending && runBron.variables === b.id;
+              const last = parseLaatsteRun(b.laatste_run_status);
+              const stats: OffMarketBronStats | undefined = statsPerBron[b.id];
+              const bezig = runBron.isPending && (runBron.variables as { bronId?: string } | string | undefined) !== undefined &&
+                ((typeof runBron.variables === 'string' && runBron.variables === b.id) ||
+                 (typeof runBron.variables === 'object' && (runBron.variables as { bronId?: string })?.bronId === b.id));
+              const batch = getBatch(b.id);
               return (
-                <div key={b.id} className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-foreground">{b.naam}</p>
-                      <Badge variant="outline" className="text-xs text-muted-foreground">{b.type}</Badge>
-                      <StatusBadge bron={b} />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span>Laatste run: {formatDatum(b.laatste_run_op)}</span>
-                      {samenvatting && <span>{samenvatting}</span>}
-                    </div>
-                    {b.laatste_fout && (
-                      <div className="text-xs text-destructive mt-1 flex items-start gap-1">
-                        <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                        <span className="break-all">{b.laatste_fout}</span>
+                <div key={b.id} className="px-4 sm:px-5 py-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-foreground">{b.naam}</p>
+                        <Badge variant="outline" className="text-xs text-muted-foreground">{b.type}</Badge>
+                        <StatusBadge bron={b} />
+                        {last?.afgebroken && (
+                          <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
+                            afgebroken
+                          </Badge>
+                        )}
                       </div>
-                    )}
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Laatste run: {formatDatum(b.laatste_run_op)}
+                        {last?.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
+                      </div>
+                      {b.laatste_fout && (
+                        <div className="text-xs text-destructive mt-1 flex items-start gap-1">
+                          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span className="break-all">{b.laatste_fout}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Switch checked={b.actief}
+                          onCheckedChange={(v) => handleToggle(b, v)}
+                          disabled={toggleBron.isPending} />
+                        Actief
+                      </label>
+                      <Select
+                        value={String(batch)}
+                        onValueChange={(v) => setBatchPerBron(prev => ({ ...prev, [b.id]: Number(v) }))}
+                        disabled={bezig}
+                      >
+                        <SelectTrigger className="h-8 w-[110px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BATCH_OPTIES.map(n => (
+                            <SelectItem key={n} value={String(n)} className="text-xs">
+                              {n} records
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="ghost"
+                        disabled={!b.actief || bezig}
+                        onClick={() => handleRun(b, true)}
+                        title="Testmodus: 30 dagen lookback">
+                        Test
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        disabled={!b.actief || bezig}
+                        onClick={() => handleRun(b)}>
+                        {bezig
+                          ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          : <Play className="h-4 w-4 mr-1" />}
+                        Nu draaien
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Switch checked={b.actief}
-                        onCheckedChange={(v) => handleToggle(b, v)}
-                        disabled={toggleBron.isPending} />
-                      Actief
-                    </label>
-                    <Button size="sm" variant="ghost"
-                      disabled={!b.actief || bezig}
-                      onClick={() => handleRun(b, true)}
-                      title="Testmodus: 30 dagen, alleen brontotalen meten">
-                      Test
-                    </Button>
-                    <Button size="sm" variant="outline"
-                      disabled={!b.actief || bezig}
-                      onClick={() => handleRun(b)}>
-                      {bezig
-                        ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        : <Play className="h-4 w-4 mr-1" />}
-                      Nu draaien
-                    </Button>
-                  </div>
+
+                  {(last || stats) && (
+                    <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 pt-2 border-t border-border/60">
+                      <Teller label="server" value={last?.totaal_server ?? '—'} tone="muted" />
+                      <Teller label="opgehaald" value={last?.opgehaald ?? '—'} />
+                      <Teller label="nieuw" value={last?.nieuw ?? '—'} tone="success" />
+                      <Teller label="dubbel" value={last?.dubbel ?? '—'} tone="muted" />
+                      <Teller label="verwerkt" value={stats?.verwerkt ?? '—'} />
+                      <Teller label="gepromoveerd" value={stats?.gepromoveerd ?? '—'} tone="success" />
+                      <Teller label="geskipt" value={stats?.geskipt ?? '—'} tone="muted" />
+                    </div>
+                  )}
                 </div>
               );
             })}
