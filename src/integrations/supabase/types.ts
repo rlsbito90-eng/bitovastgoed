@@ -805,6 +805,13 @@ export type Database = {
             referencedRelation: "off_market_signalen"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_moments_off_market_signaal_id_fkey"
+            columns: ["off_market_signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
         ]
       }
       deal_kandidaten: {
@@ -2271,6 +2278,13 @@ export type Database = {
             referencedRelation: "off_market_signalen"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "off_market_ai_runs_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
         ]
       }
       off_market_bronnen: {
@@ -2326,11 +2340,15 @@ export type Database = {
             | Database["public"]["Enums"]["off_market_assettype"]
             | null
           ai_dedupe_groep_id: string | null
+          ai_feedback: number | null
           ai_laatst_verrijkt_op: string | null
           ai_model: string | null
           ai_prompt_versie: string | null
           ai_samenvatting: string | null
           ai_score: number | null
+          ai_score_componenten: Json | null
+          ai_skip_reden: string | null
+          ai_status: Database["public"]["Enums"]["off_market_ai_status"]
           ai_strategie_suggestie: string | null
           ai_verkoopkans: number | null
           archief_reden: string | null
@@ -2376,11 +2394,15 @@ export type Database = {
             | Database["public"]["Enums"]["off_market_assettype"]
             | null
           ai_dedupe_groep_id?: string | null
+          ai_feedback?: number | null
           ai_laatst_verrijkt_op?: string | null
           ai_model?: string | null
           ai_prompt_versie?: string | null
           ai_samenvatting?: string | null
           ai_score?: number | null
+          ai_score_componenten?: Json | null
+          ai_skip_reden?: string | null
+          ai_status?: Database["public"]["Enums"]["off_market_ai_status"]
           ai_strategie_suggestie?: string | null
           ai_verkoopkans?: number | null
           archief_reden?: string | null
@@ -2426,11 +2448,15 @@ export type Database = {
             | Database["public"]["Enums"]["off_market_assettype"]
             | null
           ai_dedupe_groep_id?: string | null
+          ai_feedback?: number | null
           ai_laatst_verrijkt_op?: string | null
           ai_model?: string | null
           ai_prompt_versie?: string | null
           ai_samenvatting?: string | null
           ai_score?: number | null
+          ai_score_componenten?: Json | null
+          ai_skip_reden?: string | null
+          ai_status?: Database["public"]["Enums"]["off_market_ai_status"]
           ai_strategie_suggestie?: string | null
           ai_verkoopkans?: number | null
           archief_reden?: string | null
@@ -2557,6 +2583,13 @@ export type Database = {
             columns: ["signaal_id"]
             isOneToOne: false
             referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_signalen_ruw_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
             referencedColumns: ["id"]
           },
         ]
@@ -3624,6 +3657,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "taken_off_market_signaal_id_fkey"
+            columns: ["off_market_signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "taken_relatie_id_fkey"
             columns: ["relatie_id"]
             isOneToOne: false
@@ -3883,6 +3923,60 @@ export type Database = {
         }
         Relationships: []
       }
+      view_off_market_dealpotentie: {
+        Row: {
+          ai_laatst_verrijkt_op: string | null
+          ai_score: number | null
+          ai_strategie_suggestie: string | null
+          ai_verkoopkans: number | null
+          assettype: Database["public"]["Enums"]["off_market_assettype"] | null
+          dealpotentie_score: number | null
+          id: string | null
+          mogelijke_fee: number | null
+          plaats: string | null
+          prioriteit:
+            | Database["public"]["Enums"]["off_market_prioriteit"]
+            | null
+          provincie: string | null
+          status: Database["public"]["Enums"]["off_market_status"] | null
+          titel: string | null
+        }
+        Insert: {
+          ai_laatst_verrijkt_op?: string | null
+          ai_score?: number | null
+          ai_strategie_suggestie?: string | null
+          ai_verkoopkans?: number | null
+          assettype?: Database["public"]["Enums"]["off_market_assettype"] | null
+          dealpotentie_score?: never
+          id?: string | null
+          mogelijke_fee?: number | null
+          plaats?: string | null
+          prioriteit?:
+            | Database["public"]["Enums"]["off_market_prioriteit"]
+            | null
+          provincie?: string | null
+          status?: Database["public"]["Enums"]["off_market_status"] | null
+          titel?: string | null
+        }
+        Update: {
+          ai_laatst_verrijkt_op?: string | null
+          ai_score?: number | null
+          ai_strategie_suggestie?: string | null
+          ai_verkoopkans?: number | null
+          assettype?: Database["public"]["Enums"]["off_market_assettype"] | null
+          dealpotentie_score?: never
+          id?: string | null
+          mogelijke_fee?: number | null
+          plaats?: string | null
+          prioriteit?:
+            | Database["public"]["Enums"]["off_market_prioriteit"]
+            | null
+          provincie?: string | null
+          status?: Database["public"]["Enums"]["off_market_status"] | null
+          titel?: string | null
+        }
+        Relationships: []
+      }
       view_off_market_kpi: {
         Row: {
           eigenaren_te_benaderen: number | null
@@ -4077,6 +4171,12 @@ export type Database = {
         | "verkocht"
         | "ingetrokken"
         | "afgevallen"
+      off_market_ai_status:
+        | "niet_verrijkt"
+        | "in_wachtrij"
+        | "bezig"
+        | "klaar"
+        | "mislukt"
       off_market_assettype:
         | "kantoor"
         | "winkelpand"
@@ -4560,6 +4660,13 @@ export const Constants = {
         "verkocht",
         "ingetrokken",
         "afgevallen",
+      ],
+      off_market_ai_status: [
+        "niet_verrijkt",
+        "in_wachtrij",
+        "bezig",
+        "klaar",
+        "mislukt",
       ],
       off_market_assettype: [
         "kantoor",
