@@ -94,9 +94,19 @@ export function useUpdateOffMarketSignaal() {
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: SignaalUpdate }) => {
       const { data: u } = await supabase.auth.getUser();
+      const finalPatch = { ...patch, updated_by: u.user?.id ?? null };
+      if (import.meta.env.DEV) {
+        // Tijdelijke debug-log voor Off-Market update — focus op indicatieve_waarde.
+        // eslint-disable-next-line no-console
+        console.debug('[off_market_signalen.update]', id, {
+          indicatieve_waarde: finalPatch.indicatieve_waarde,
+          mogelijke_fee: finalPatch.mogelijke_fee,
+          type_iw: typeof finalPatch.indicatieve_waarde,
+        });
+      }
       const { data, error } = await supabase
         .from('off_market_signalen')
-        .update({ ...patch, updated_by: u.user?.id ?? null })
+        .update(finalPatch)
         .eq('id', id).select('*').single();
       if (error) throw error;
       return data as OffMarketSignaal;
