@@ -1689,12 +1689,13 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setContactMoments(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => {
+  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string; offMarketSignaalId?: string }) => {
     return contactMoments.filter(cm =>
       (filter.relatieId && cm.relatieId === filter.relatieId) ||
       (filter.objectId && cm.objectId === filter.objectId) ||
       (filter.dealId && cm.dealId === filter.dealId) ||
-      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId)
+      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId) ||
+      (filter.offMarketSignaalId && cm.offMarketSignaalId === filter.offMarketSignaalId)
     );
   }, [contactMoments]);
 
