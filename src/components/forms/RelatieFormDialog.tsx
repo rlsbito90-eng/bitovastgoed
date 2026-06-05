@@ -221,6 +221,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
         if (nieuw?.id) {
           werkRelatieId = nieuw.id;
           setGemaaktId(nieuw.id);
+          try { onCreated?.(nieuw.id); } catch { /* noop */ }
         }
       }
 
