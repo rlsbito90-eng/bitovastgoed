@@ -51,6 +51,9 @@ export default function OffMarketSignaalDetailPage() {
         onArchive={() => setArchiveOpen(true)}
       />
       <SignaalKerngegevens signaal={signaal} />
+      <SignaalKoppelingenSectie signaal={signaal} />
+      <SignaalTakenSectie signaalId={signaal.id} />
+      <SignaalTijdlijnSectie signaalId={signaal.id} />
 
       <SignaalFormDialog open={editOpen} onOpenChange={setEditOpen} signaal={signaal} />
       <OffMarketArchiveDialog open={archiveOpen} onOpenChange={setArchiveOpen} onConfirm={handleArchive} />
