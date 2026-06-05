@@ -45,11 +45,16 @@ export default function OffMarketBronnenSectie() {
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
 
-  const handleRun = async (b: OffMarketBron) => {
+  const handleRun = async (b: OffMarketBron, testMode = false) => {
     if (runBron.isPending) return;
     try {
-      const r = await runBron.mutateAsync(b.id);
-      toast.success(`${b.naam}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel`);
+      const r = await runBron.mutateAsync(
+        testMode ? { bronId: b.id, testMode: true, lookbackDays: 30 } : b.id,
+      );
+      const extra = r.totaal_server !== undefined ? ` · server: ${r.totaal_server}` : '';
+      toast.success(
+        `${b.naam}${testMode ? ' [test]' : ''}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}`,
+      );
     } catch (e) {
       toast.error(`${b.naam}: ${e instanceof Error ? e.message : 'fout'}`);
     }
@@ -142,6 +147,12 @@ export default function OffMarketBronnenSectie() {
                         disabled={toggleBron.isPending} />
                       Actief
                     </label>
+                    <Button size="sm" variant="ghost"
+                      disabled={!b.actief || bezig}
+                      onClick={() => handleRun(b, true)}
+                      title="Testmodus: 30 dagen, alleen brontotalen meten">
+                      Test
+                    </Button>
                     <Button size="sm" variant="outline"
                       disabled={!b.actief || bezig}
                       onClick={() => handleRun(b)}>

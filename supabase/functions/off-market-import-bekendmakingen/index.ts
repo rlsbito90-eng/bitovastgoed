@@ -50,10 +50,10 @@ function bouwSruUrl(opts: {
   endpoint: string; creator: string; subjects: string[];
   sinceIso: string; startRecord: number; maximumRecords: number;
 }): string {
-  const subjectClause = opts.subjects.length
-    ? ' AND (' + opts.subjects.map(s => `dcterms.subject="${s}"`).join(' OR ') + ')'
-    : '';
-  const cql = `(dcterms.creator="${opts.creator}")${subjectClause} AND (dcterms.modified >= "${opts.sinceIso}")`;
+  // KOOP SRU gebruikt prefix `dt.` (dcterms-alias). Gemeenteblad = identifier "gmb-...".
+  // dt.subject is in praktijk niet doorzoekbaar → subjecten filteren we client-side in normalize.
+  const cql =
+    `(dt.identifier any "gmb") AND (dt.creator="${opts.creator}") AND (dt.modified >= "${opts.sinceIso}")`;
   const params = new URLSearchParams({
     operation: 'searchRetrieve', version: '2.0', query: cql,
     startRecord: String(opts.startRecord), maximumRecords: String(opts.maximumRecords),
@@ -148,6 +148,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const bronId = body.bron_id as string | undefined;
+    const testMode = body.test_mode === true;
+    const lookbackOverride = body.lookback_days as number | undefined;
     if (!bronId) {
       return new Response(JSON.stringify({ error: 'bron_id verplicht' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -176,12 +178,16 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const lookbackDays = bron.laatste_run_op ? lookbackDefault : lookbackFirst;
+    const lookbackDays = testMode
+      ? (lookbackOverride ?? 30)
+      : (lookbackOverride ?? (bron.laatste_run_op ? lookbackDefault : lookbackFirst));
     const since = new Date(Date.now() - lookbackDays * 86400_000);
     const sinceIso = since.toISOString().slice(0, 10);
 
     let startRecord = 1;
     let opgehaald = 0, nieuw = 0, dubbel = 0;
+    let totaalServer = 0;
+    let firstQueryUrl = '';
     const pageSize = 100;
 
     try {
@@ -190,8 +196,18 @@ Deno.serve(async (req) => {
           endpoint, creator, subjects, sinceIso,
           startRecord, maximumRecords: Math.min(pageSize, maxRecords - opgehaald),
         });
+        if (!firstQueryUrl) firstQueryUrl = url;
+        console.log(JSON.stringify({
+          fase: 'sru_fetch', bron: bron.naam, creator, sinceIso, testMode,
+          startRecord, url,
+        }));
         const xml = await fetchMetRetry(url);
         const { records, totaal } = parseSruResponse(xml);
+        if (startRecord === 1) totaalServer = totaal;
+        console.log(JSON.stringify({
+          fase: 'sru_response', bron: bron.naam,
+          totaal_server: totaal, records_in_page: records.length, startRecord,
+        }));
         if (records.length === 0) break;
 
         for (const r of records) {
@@ -215,7 +231,10 @@ Deno.serve(async (req) => {
         if (records.length < pageSize) break;
       }
 
-      const status = { opgehaald, nieuw, dubbel, duur_ms: Date.now() - start, sinceIso };
+      const status = {
+        opgehaald, nieuw, dubbel, duur_ms: Date.now() - start, sinceIso,
+        totaal_server: totaalServer, test_mode: testMode, query_url: firstQueryUrl,
+      };
       await admin.from('off_market_bronnen').update({
         laatste_run_op: new Date().toISOString(),
         laatste_run_status: JSON.stringify(status),

@@ -16,22 +16,19 @@ export interface SruRecord {
   link: string;
 }
 
-/** Bouw de SRU-query URL voor KOOP repository. */
+/** Bouw de SRU-query URL voor KOOP repository.
+ *  Subjects worden niet meegestuurd: dt.subject is in praktijk niet doorzoekbaar.
+ *  Filtering op subjecten/keywords gebeurt client-side in normalize. */
 export function bouwSruUrl(opts: {
   endpoint: string;
   creator: string;
-  subjects: string[];
+  subjects?: string[]; // genegeerd, behouden voor backwards-compat van bestaande call-sites
   sinceIso: string; // YYYY-MM-DD
   startRecord: number;
   maximumRecords: number;
 }): string {
-  const subjectClause = opts.subjects.length
-    ? ' AND (' + opts.subjects.map(s => `dcterms.subject="${s}"`).join(' OR ') + ')'
-    : '';
   const cql =
-    `(dcterms.creator="${opts.creator}")` +
-    subjectClause +
-    ` AND (dcterms.modified >= "${opts.sinceIso}")`;
+    `(dt.identifier any "gmb") AND (dt.creator="${opts.creator}") AND (dt.modified >= "${opts.sinceIso}")`;
   const params = new URLSearchParams({
     operation: 'searchRetrieve',
     version: '2.0',
