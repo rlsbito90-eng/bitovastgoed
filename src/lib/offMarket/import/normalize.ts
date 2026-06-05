@@ -108,7 +108,10 @@ export const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number
   { re: /\bvan\s+\d+\b[^.\n]{0,60}\b(?:naar|in)\s+\d+\b/i, label: 'wijziging aantal kamers', delta: 20 },
   // Onttrekking
   { re: /\bonttrekkingsvergunning\b/i, label: 'onttrekkingsvergunning', delta: 20 },
-  { re: /\btweede\s+woning\b/i, label: 'tweede woning', delta: 15 },
+  // 'tweede woning' = onttrekking voor particuliere tweede-woning-vergunning → geen acquisitiekans.
+  // Wordt expliciet negatief gescoord zodat de combinatie onttrekking + tweede woning niet promoveert,
+  // maar wel zichtbaar blijft in afgekeurde records met duidelijke skip-reden.
+  { re: /\btweede\s+woning\b/i, label: 'tweede woning (geen acquisitiekans)', delta: -40 },
   // Bergingen / niet-woonruimte naar woonruimte (typische transformatie-binnen-pand)
   { re: /\bbergingen?\s+naar\s+woonruimte[n]?\b/i, label: 'bergingen naar woonruimte', delta: 30 },
   { re: /\b(garage|kelder|zolder|bedrijfsruimte)\s+naar\s+woonruimte[n]?\b/i, label: 'ruimte naar woonruimte', delta: 25 },

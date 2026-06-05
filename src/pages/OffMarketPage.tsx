@@ -12,7 +12,7 @@ import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { saveListContext } from '@/lib/listNavigation';
-import { compareRelevantie } from '@/lib/offMarket/relevantie';
+import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
@@ -54,6 +54,19 @@ export default function OffMarketPage() {
   const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
   const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
+  const [bucketFilter, setBucketFilterRaw] = useState<number | null>(() => {
+    try {
+      const v = sessionStorage.getItem('off-market-filter:bucket');
+      return v ? Number(v) : null;
+    } catch { return null; }
+  });
+  const setBucketFilter = (r: number | null) => {
+    setBucketFilterRaw(r);
+    try {
+      if (r === null) sessionStorage.removeItem('off-market-filter:bucket');
+      else sessionStorage.setItem('off-market-filter:bucket', String(r));
+    } catch {}
+  };
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
@@ -89,9 +102,10 @@ export default function OffMarketPage() {
   );
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
-  const gefilterd = useMemo(() => {
+  // Tellingen per vergunningtype (bucket) — vóór bucket-filter, ná overige filters.
+  const preBucket = useMemo(() => {
     const q = zoek.trim().toLowerCase();
-    const list = signalen.filter(s => {
+    return signalen.filter(s => {
       if (statusFilter && s.status !== statusFilter) return false;
       if (prioFilter && s.prioriteit !== prioFilter) return false;
       if (assetFilter && s.assettype !== assetFilter) return false;
@@ -107,8 +121,27 @@ export default function OffMarketPage() {
       }
       return true;
     });
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter]);
+
+  const bucketTellingen = useMemo(() => {
+    const tellingen = new Map<number, { label: string; aantal: number }>();
+    for (const s of preBucket) {
+      const b = relevantieBucket(s);
+      const cur = tellingen.get(b.rang);
+      if (cur) cur.aantal += 1;
+      else tellingen.set(b.rang, { label: b.label, aantal: 1 });
+    }
+    return Array.from(tellingen.entries())
+      .map(([rang, v]) => ({ rang, ...v }))
+      .sort((a, b) => a.rang - b.rang);
+  }, [preBucket]);
+
+  const gefilterd = useMemo(() => {
+    const list = bucketFilter === null
+      ? preBucket
+      : preBucket.filter(s => relevantieBucket(s).rang === bucketFilter);
     return [...list].sort(activeSort.compare);
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, activeSort]);
+  }, [preBucket, bucketFilter, activeSort]);
 
   // Bewaar de huidige gefilterde+gesorteerde volgorde voor Vorige/Volgende op de detailpagina.
   useEffect(() => {
@@ -197,6 +230,36 @@ export default function OffMarketPage() {
               <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
             </div>
           </div>
+
+          {bucketTellingen.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBucketFilter(null)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  bucketFilter === null
+                    ? 'bg-accent text-accent-foreground border-accent'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                Alle ({preBucket.length})
+              </button>
+              {bucketTellingen.map(b => (
+                <button
+                  key={b.rang}
+                  type="button"
+                  onClick={() => setBucketFilter(bucketFilter === b.rang ? null : b.rang)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                    bucketFilter === b.rang
+                      ? 'bg-accent text-accent-foreground border-accent'
+                      : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                  }`}
+                >
+                  {b.label} ({b.aantal})
+                </button>
+              ))}
+            </div>
+          )}
 
           <section className="section-card overflow-hidden">
             <SignalenTable signalen={gefilterd} laden={isLoading} />
