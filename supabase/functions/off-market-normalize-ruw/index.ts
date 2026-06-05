@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
         status: 'nieuw_signaal',
         ai_status: 'niet_verrijkt',
         dedupe_hash: dedupeHash,
-        notities: `[auto-import] score=${score} · ${redenen.join(' · ')}`,
+        notities: `[auto-import] score=${score}\nscore_componenten: ${scoreComponentenStr}`,
       };
 
       const { data: nieuwSig, error: insErr } = await admin
