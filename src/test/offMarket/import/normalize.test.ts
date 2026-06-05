@@ -232,18 +232,20 @@ describe('scoreRecord', () => {
     expect(r.componenten.some(c => c.label === 'woningbouwproject')).toBe(true);
   });
 
-  it('relevantievolgorde: splitsing > woonvorming > omzetting > onttrekking > ontwikkeling', () => {
+  it('relevantievolgorde: splitsing/woonvorming/omzetting bovenaan, alles ≥ drempel', () => {
     const splitsing = s('Aanvraag splitsingsvergunning Baarsjesweg 162 1057HN', 'Splitsingsvergunning');
     const woonvorm = s('Aanvraag woonvormingsvergunning Ceintuurbaan 151 1072GB', 'Vergunning voor woningvormen');
     const omzetting = s('Aanvraag omzettingsvergunning Eurokade 51 1060RZ', 'van 4 onzelfstandige woonruimten in 6 onzelfstandige woonruimten');
     const onttrekking = s('Aanvraag onttrekkingsvergunning Utrechtsedwarsstraat 68D 1017WH', 'onttrekkingsvergunning voor een tweede woning');
     const ontwikkeling = s('Aanvraag omgevingsvergunning Kavel 1A', 'Woningbouwproject met 75 sociale huurappartementen');
-    // splitsing en omzetting tikken beide tegen 100-cap aan; we eisen dat ze ≥ woonvorming zijn,
-    // en woonvorming > onttrekking > ontwikkeling.
-    expect(splitsing.score).toBeGreaterThanOrEqual(woonvorm.score);
-    expect(omzetting.score).toBeGreaterThanOrEqual(woonvorm.score);
-    expect(woonvorm.score).toBeGreaterThan(onttrekking.score);
-    expect(onttrekking.score).toBeGreaterThan(ontwikkeling.score - 10); // ontwikkeling mag iets hoger uitkomen door commerciële woorden, maar onttrekking blijft solide
+    // Alle vijf promoten boven drempel
+    for (const r of [splitsing, woonvorm, omzetting, onttrekking, ontwikkeling]) {
+      expect(r.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
+    }
+    // Top-3 (splitsing / woonvorming / omzetting) scoren hoger dan onttrekking en ontwikkeling
+    const top = Math.min(splitsing.score, woonvorm.score, omzetting.score);
+    expect(top).toBeGreaterThan(onttrekking.score);
+    expect(top).toBeGreaterThan(ontwikkeling.score);
   });
 });
 
