@@ -21,9 +21,9 @@ const CONFIG: BronConfig = {
 
 describe('parseAdres', () => {
   it('haalt straat+huisnummer + postcode uit tekst', () => {
-    const r = parseAdres('Vergunning aan het Damrak 70, 1012 LM Amsterdam');
-    expect(r.adres).toBe('Damrak 70');
-    expect(r.postcode).toBe('1012 LM');
+    const r = parseAdres('Vergunning aan de Vondelstraat 70, 1054 GD Amsterdam');
+    expect(r.adres).toBe('Vondelstraat 70');
+    expect(r.postcode).toBe('1054 GD');
   });
   it('ondersteunt huisnummer met toevoeging', () => {
     const r = parseAdres('Prinsengracht 263A te Amsterdam');
