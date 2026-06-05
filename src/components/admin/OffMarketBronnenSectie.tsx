@@ -147,6 +147,12 @@ export default function OffMarketBronnenSectie() {
                         disabled={toggleBron.isPending} />
                       Actief
                     </label>
+                    <Button size="sm" variant="ghost"
+                      disabled={!b.actief || bezig}
+                      onClick={() => handleRun(b, true)}
+                      title="Testmodus: 30 dagen, alleen brontotalen meten">
+                      Test
+                    </Button>
                     <Button size="sm" variant="outline"
                       disabled={!b.actief || bezig}
                       onClick={() => handleRun(b)}>
