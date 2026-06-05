@@ -82,7 +82,7 @@ const emptyForm = {
 
 export default function ContactMomentFormDialog({
   open, onOpenChange, contactMoment,
-  defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId,
+  defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId, defaultOffMarketSignaalId,
 }: Props) {
   const store = useDataStore();
   const isEdit = !!contactMoment;
@@ -104,6 +104,7 @@ export default function ContactMomentFormDialog({
         objectId: contactMoment.objectId || '',
         dealId: contactMoment.dealId || '',
         acquisitieTargetId: contactMoment.acquisitieTargetId || '',
+        offMarketSignaalId: contactMoment.offMarketSignaalId || '',
         followUpRequired: contactMoment.followUpRequired,
         followUpDate: contactMoment.followUpDate || '',
         makeTaak: false,
@@ -122,9 +123,10 @@ export default function ContactMomentFormDialog({
         objectId: defaultObjectId || '',
         dealId: defaultDealId || '',
         acquisitieTargetId: defaultAcquisitieTargetId || '',
+        offMarketSignaalId: defaultOffMarketSignaalId || '',
       });
     }
-  }, [contactMoment, open, defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId]);
+  }, [contactMoment, open, defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId, defaultOffMarketSignaalId]);
 
   // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => store.relaties.map(r => {
