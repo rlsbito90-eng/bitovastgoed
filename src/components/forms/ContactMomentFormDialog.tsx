@@ -265,6 +265,7 @@ export default function ContactMomentFormDialog({
             relatieId: form.relatieId || undefined,
             objectId: form.objectId || undefined,
             dealId: form.dealId || undefined,
+            offMarketSignaalId: form.offMarketSignaalId || undefined,
           });
           toast.success('Vervolgtaak aangemaakt');
         } catch (err: any) {
