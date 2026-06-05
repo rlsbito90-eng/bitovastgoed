@@ -47,6 +47,24 @@ export interface ValidationResult {
   errors: Partial<Record<keyof SignaalFormState, string>>;
 }
 
+// Pragmatische bovengrenzen — voorkomen NaN/overflow in AI-scoring (LOG10) en UI.
+export const MAX_INDICATIEVE_WAARDE = 10_000_000_000; // €10 mld
+export const MAX_MOGELIJKE_FEE = 100_000_000; // €100 mln
+
+/** Valideer een YYYY-MM-DD datum. Lege string is toegestaan (=null). */
+export function isValidIsoDate(s: string): boolean {
+  if (!s || !s.trim()) return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) return false;
+  const [y, m, d] = s.trim().split('-').map(Number);
+  if (y < 1900 || y > 2999) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
 export function validateSignaal(f: SignaalFormState): ValidationResult {
   const errors: ValidationResult['errors'] = {};
   if (!f.titel.trim()) errors.titel = 'Titel is verplicht';
@@ -58,6 +76,35 @@ export function validateSignaal(f: SignaalFormState): ValidationResult {
   if (f.bron_url && !/^https?:\/\//i.test(f.bron_url.trim())) {
     errors.bron_url = 'URL moet beginnen met http(s)://';
   }
+
+  // Numerieke validatie
+  if (f.indicatieve_waarde != null) {
+    if (!Number.isFinite(f.indicatieve_waarde)) {
+      errors.indicatieve_waarde = 'Ongeldige waarde';
+    } else if (f.indicatieve_waarde < 0) {
+      errors.indicatieve_waarde = 'Mag niet negatief zijn';
+    } else if (f.indicatieve_waarde > MAX_INDICATIEVE_WAARDE) {
+      errors.indicatieve_waarde = `Max € ${MAX_INDICATIEVE_WAARDE.toLocaleString('nl-NL')}`;
+    }
+  }
+  if (f.mogelijke_fee != null) {
+    if (!Number.isFinite(f.mogelijke_fee)) {
+      errors.mogelijke_fee = 'Ongeldige waarde';
+    } else if (f.mogelijke_fee < 0) {
+      errors.mogelijke_fee = 'Mag niet negatief zijn';
+    } else if (f.mogelijke_fee > MAX_MOGELIJKE_FEE) {
+      errors.mogelijke_fee = `Max € ${MAX_MOGELIJKE_FEE.toLocaleString('nl-NL')}`;
+    }
+  }
+
+  // Datumvalidatie
+  if (!isValidIsoDate(f.bron_datum)) {
+    errors.bron_datum = 'Ongeldige datum (verwacht JJJJ-MM-DD)';
+  }
+  if (!isValidIsoDate(f.volgende_actie_datum)) {
+    errors.volgende_actie_datum = 'Ongeldige datum (verwacht JJJJ-MM-DD)';
+  }
+
   return { ok: Object.keys(errors).length === 0, errors };
 }
 

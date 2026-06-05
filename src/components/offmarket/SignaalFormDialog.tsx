@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,19 +29,39 @@ interface Props {
 
 const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
+/**
+ * Outer wrapper. InnerForm wordt gemount zodra de dialog opent en geremount
+ * bij wisseling van signaal-id zodat useState + dirty-guard baseline correct
+ * geïnitialiseerd worden vanuit de bestaande signaaldata (fix Bug 1).
+ */
 export default function SignaalFormDialog({ open, onOpenChange, signaal, onSaved }: Props) {
-  const [form, setForm] = useState<SignaalFormState>(SIGNAAL_LEEG);
+  if (!open) return null;
+  return (
+    <InnerForm
+      key={signaal?.id ?? 'new'}
+      signaal={signaal ?? null}
+      onOpenChange={onOpenChange}
+      onSaved={onSaved}
+    />
+  );
+}
+
+interface InnerProps {
+  signaal: OffMarketSignaal | null;
+  onOpenChange: (o: boolean) => void;
+  onSaved?: (id: string) => void;
+}
+
+function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
+  // useState-initializer: baseline matcht direct de bestaande data.
+  const [form, setForm] = useState<SignaalFormState>(() =>
+    signaal ? signaalToFormState(signaal) : SIGNAAL_LEEG,
+  );
   const [errors, setErrors] = useState<Partial<Record<keyof SignaalFormState, string>>>({});
   const create = useCreateOffMarketSignaal();
   const update = useUpdateOffMarketSignaal();
   const isEdit = !!signaal;
   const bezig = create.isPending || update.isPending;
-
-  useEffect(() => {
-    if (!open) return;
-    setForm(signaal ? signaalToFormState(signaal) : SIGNAAL_LEEG);
-    setErrors({});
-  }, [open, signaal]);
 
   const upd = <K extends keyof SignaalFormState>(k: K, v: SignaalFormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
@@ -64,11 +84,11 @@ export default function SignaalFormDialog({ open, onOpenChange, signaal, onSaved
     }
   };
 
-  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+  const { guardedOnOpenChange } = useFormDirtyGuard(true, form, onOpenChange);
   const err = (k: keyof SignaalFormState) => errors[k] && <p className="text-xs text-destructive mt-1">{errors[k]}</p>;
 
   return (
-    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
+    <Dialog open onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Signaal bewerken' : 'Nieuw off-market signaal'}</DialogTitle>
@@ -153,6 +173,7 @@ export default function SignaalFormDialog({ open, onOpenChange, signaal, onSaved
             <div>
               <Label>Brondatum</Label>
               <Input type="date" value={form.bron_datum} onChange={e => upd('bron_datum', e.target.value)} />
+              {err('bron_datum')}
             </div>
             <div className="sm:col-span-3">
               <Label>Bron-referentie</Label>
@@ -163,11 +184,13 @@ export default function SignaalFormDialog({ open, onOpenChange, signaal, onSaved
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Indicatieve waarde (€)</Label>
-              <NumberField integer value={form.indicatieve_waarde ?? undefined} onChange={v => upd('indicatieve_waarde', v ?? null)} />
+              <NumberField integer min={0} value={form.indicatieve_waarde ?? undefined} onChange={v => upd('indicatieve_waarde', v ?? null)} />
+              {err('indicatieve_waarde')}
             </div>
             <div>
               <Label>Mogelijke fee (€)</Label>
-              <NumberField integer value={form.mogelijke_fee ?? undefined} onChange={v => upd('mogelijke_fee', v ?? null)} />
+              <NumberField integer min={0} value={form.mogelijke_fee ?? undefined} onChange={v => upd('mogelijke_fee', v ?? null)} />
+              {err('mogelijke_fee')}
             </div>
           </div>
 
@@ -180,6 +203,7 @@ export default function SignaalFormDialog({ open, onOpenChange, signaal, onSaved
             <div>
               <Label>Volgende actie (datum)</Label>
               <Input type="date" value={form.volgende_actie_datum} onChange={e => upd('volgende_actie_datum', e.target.value)} />
+              {err('volgende_actie_datum')}
             </div>
             <div>
               <Label>Volgende actie</Label>
