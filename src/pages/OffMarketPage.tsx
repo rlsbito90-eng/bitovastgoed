@@ -110,6 +110,11 @@ export default function OffMarketPage() {
     return [...list].sort(activeSort.compare);
   }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, activeSort]);
 
+  // Bewaar de huidige gefilterde+gesorteerde volgorde voor Vorige/Volgende op de detailpagina.
+  useEffect(() => {
+    saveListContext('off-market-signalen', gefilterd.map(s => s.id));
+  }, [gefilterd]);
+
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
