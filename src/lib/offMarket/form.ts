@@ -77,22 +77,22 @@ export function validateSignaal(f: SignaalFormState): ValidationResult {
     errors.bron_url = 'URL moet beginnen met http(s)://';
   }
 
-  // Numerieke validatie
-  if (f.indicatieve_waarde != null) {
-    if (!Number.isFinite(f.indicatieve_waarde)) {
-      errors.indicatieve_waarde = 'Ongeldige waarde';
-    } else if (f.indicatieve_waarde < 0) {
-      errors.indicatieve_waarde = 'Mag niet negatief zijn';
-    } else if (f.indicatieve_waarde > MAX_INDICATIEVE_WAARDE) {
+  // Numerieke validatie — coerce eerst zodat een eventuele string-leak ook gevalideerd wordt.
+  const iw = coerceNumericOrNull(f.indicatieve_waarde);
+  if (f.indicatieve_waarde != null && iw == null && String(f.indicatieve_waarde).trim() !== '') {
+    errors.indicatieve_waarde = 'Ongeldige waarde';
+  } else if (iw != null) {
+    if (iw < 0) errors.indicatieve_waarde = 'Mag niet negatief zijn';
+    else if (iw > MAX_INDICATIEVE_WAARDE) {
       errors.indicatieve_waarde = `Max € ${MAX_INDICATIEVE_WAARDE.toLocaleString('nl-NL')}`;
     }
   }
-  if (f.mogelijke_fee != null) {
-    if (!Number.isFinite(f.mogelijke_fee)) {
-      errors.mogelijke_fee = 'Ongeldige waarde';
-    } else if (f.mogelijke_fee < 0) {
-      errors.mogelijke_fee = 'Mag niet negatief zijn';
-    } else if (f.mogelijke_fee > MAX_MOGELIJKE_FEE) {
+  const mf = coerceNumericOrNull(f.mogelijke_fee);
+  if (f.mogelijke_fee != null && mf == null && String(f.mogelijke_fee).trim() !== '') {
+    errors.mogelijke_fee = 'Ongeldige waarde';
+  } else if (mf != null) {
+    if (mf < 0) errors.mogelijke_fee = 'Mag niet negatief zijn';
+    else if (mf > MAX_MOGELIJKE_FEE) {
       errors.mogelijke_fee = `Max € ${MAX_MOGELIJKE_FEE.toLocaleString('nl-NL')}`;
     }
   }
@@ -111,6 +111,25 @@ export function validateSignaal(f: SignaalFormState): ValidationResult {
 type Insert = Database['public']['Tables']['off_market_signalen']['Insert'];
 const blank = (s: string) => (s.trim() ? s.trim() : null);
 
+/**
+ * Coerce numerieke veldwaarde voor DB:
+ * - null / undefined / leeg → null
+ * - string of number → Number()
+ * - NaN of Infinity → null (nooit naar Supabase sturen)
+ */
+export function coerceNumericOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === 'string') {
+    if (v.trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof v === 'number') {
+    return Number.isFinite(v) ? v : null;
+  }
+  return null;
+}
+
 export function formStateToPayload(f: SignaalFormState): Insert {
   return {
     titel: f.titel.trim(),
@@ -128,8 +147,8 @@ export function formStateToPayload(f: SignaalFormState): Insert {
     bron_url: blank(f.bron_url),
     bron_referentie: blank(f.bron_referentie),
     bron_datum: blank(f.bron_datum),
-    indicatieve_waarde: f.indicatieve_waarde,
-    mogelijke_fee: f.mogelijke_fee,
+    indicatieve_waarde: coerceNumericOrNull(f.indicatieve_waarde),
+    mogelijke_fee: coerceNumericOrNull(f.mogelijke_fee),
     potentiele_strategie: blank(f.potentiele_strategie),
     volgende_actie_datum: blank(f.volgende_actie_datum),
     volgende_actie_omschrijving: blank(f.volgende_actie_omschrijving),
@@ -156,8 +175,8 @@ export function signaalToFormState(
     bron_url: s.bron_url ?? '',
     bron_referentie: s.bron_referentie ?? '',
     bron_datum: s.bron_datum ?? '',
-    indicatieve_waarde: s.indicatieve_waarde != null ? Number(s.indicatieve_waarde) : null,
-    mogelijke_fee: s.mogelijke_fee != null ? Number(s.mogelijke_fee) : null,
+    indicatieve_waarde: coerceNumericOrNull(s.indicatieve_waarde),
+    mogelijke_fee: coerceNumericOrNull(s.mogelijke_fee),
     potentiele_strategie: s.potentiele_strategie ?? '',
     volgende_actie_datum: s.volgende_actie_datum ?? '',
     volgende_actie_omschrijving: s.volgende_actie_omschrijving ?? '',
