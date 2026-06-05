@@ -58,12 +58,18 @@ export function useToggleBron() {
 export function useRunBron() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (bronId: string) => {
+    mutationFn: async (args: string | { bronId: string; testMode?: boolean; lookbackDays?: number }) => {
+      const body = typeof args === 'string'
+        ? { bron_id: args }
+        : { bron_id: args.bronId, test_mode: args.testMode, lookback_days: args.lookbackDays };
       const { data, error } = await supabase.functions.invoke(
-        'off-market-import-bekendmakingen', { body: { bron_id: bronId } });
+        'off-market-import-bekendmakingen', { body });
       if (error) throw new Error(error.message ?? 'Import mislukt');
       if (data?.error) throw new Error(data.error);
-      return data as { ok: true; opgehaald: number; nieuw: number; dubbel: number };
+      return data as {
+        ok: true; opgehaald: number; nieuw: number; dubbel: number;
+        totaal_server?: number; query_url?: string; test_mode?: boolean;
+      };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['off-market-bronnen'] });
