@@ -136,6 +136,7 @@ export const contactMomentFromDb = (r: any): ContactMoment => ({
   objectId: r.object_id ?? undefined,
   dealId: r.deal_id ?? undefined,
   acquisitieTargetId: r.acquisitie_target_id ?? undefined,
+  offMarketSignaalId: r.off_market_signaal_id ?? undefined,
   taakId: r.taak_id ?? undefined,
   isSystem: !!r.is_system,
   systemKey: r.system_key ?? undefined,
