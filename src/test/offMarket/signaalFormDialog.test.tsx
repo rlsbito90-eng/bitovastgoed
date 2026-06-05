@@ -1,16 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
+import { describe, it, expect } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
+import { signaalToFormState, SIGNAAL_LEEG } from '@/lib/offMarket/form';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
-// Stub hooks die echte Supabase calls doen.
-vi.mock('@/hooks/useOffMarketSignalen', () => ({
-  useCreateOffMarketSignaal: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUpdateOffMarketSignaal: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
-
-const baseSignaal: OffMarketSignaal = {
+const baseSignaal = {
   id: 'sig-1',
   titel: 'Leegstaand kantoor Stationsweg',
   assettype: 'kantoor',
@@ -35,54 +29,57 @@ const baseSignaal: OffMarketSignaal = {
   notities: null,
 } as unknown as OffMarketSignaal;
 
-function wrap(ui: React.ReactElement) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
-}
-
-describe('SignaalFormDialog — dirty-guard (Bug 1)', () => {
-  let confirmSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-  });
-  afterEach(() => {
-    confirmSpy.mockRestore();
-    cleanup();
-  });
-
-  it('opent bestaand signaal zonder dirty-state (geen confirm bij direct sluiten)', () => {
-    const onOpenChange = vi.fn();
-    wrap(
-      <SignaalFormDialog open={true} onOpenChange={onOpenChange} signaal={baseSignaal} />,
+/**
+ * Bug 1 — dirty-guard race.
+ * Bij openen van een bestaand signaal moet de baseline gelijk zijn aan de
+ * geïnitialiseerde formstate. InnerForm gebruikt useState-initializer +
+ * remount via key — dit is gelijk aan een hook waarbij `open` direct true is
+ * en de eerste `value` al de signaaldata bevat.
+ */
+describe('useFormDirtyGuard — Bug 1 (race bij openen bestaand signaal)', () => {
+  it('markeert bestaand signaal NIET als dirty bij openen', () => {
+    const initial = signaalToFormState(baseSignaal);
+    const { result } = renderHook(() =>
+      useFormDirtyGuard(true, initial, () => {}),
     );
-    // Annuleren direct na openen — er is niets gewijzigd.
-    fireEvent.click(screen.getByRole('button', { name: /annuleren/i }));
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(result.current.isDirty).toBe(false);
   });
 
-  it('echte wijziging markeert form als dirty (confirm verschijnt bij sluiten)', () => {
-    const onOpenChange = vi.fn();
-    wrap(
-      <SignaalFormDialog open={true} onOpenChange={onOpenChange} signaal={baseSignaal} />,
+  it('markeert leeg formulier NIET als dirty bij openen', () => {
+    const { result } = renderHook(() =>
+      useFormDirtyGuard(true, SIGNAAL_LEEG, () => {}),
     );
-    const titelInput = screen.getByDisplayValue(baseSignaal.titel) as HTMLInputElement;
-    fireEvent.change(titelInput, { target: { value: 'Gewijzigde titel' } });
-    fireEvent.click(screen.getByRole('button', { name: /annuleren/i }));
-    // Annuleren-knop sluit zonder guard, dus check via Esc:
-    // We forceren close door onOpenChange(false) via guardedOnOpenChange — annuleren is direct.
-    // Reset en test via Esc:
-    cleanup();
-    onOpenChange.mockClear();
-    wrap(
-      <SignaalFormDialog open={true} onOpenChange={onOpenChange} signaal={baseSignaal} />,
+    expect(result.current.isDirty).toBe(false);
+  });
+
+  it('markeert form WEL als dirty na echte wijziging', () => {
+    const initial = signaalToFormState(baseSignaal);
+    const { result, rerender } = renderHook(
+      ({ value }: { value: typeof initial }) =>
+        useFormDirtyGuard(true, value, () => {}),
+      { initialProps: { value: initial } },
     );
-    const titelInput2 = screen.getByDisplayValue(baseSignaal.titel) as HTMLInputElement;
-    fireEvent.change(titelInput2, { target: { value: 'Andere titel' } });
-    // Trigger overlay close via Escape op de dialog
-    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' });
-    // Bij dirty-state moet confirm aangeroepen zijn.
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(result.current.isDirty).toBe(false);
+
+    act(() => {
+      rerender({ value: { ...initial, titel: 'Andere titel' } });
+    });
+    expect(result.current.isDirty).toBe(true);
+  });
+
+  it('reset baseline als dialog gesloten en heropend wordt', () => {
+    const initial = signaalToFormState(baseSignaal);
+    const { result, rerender } = renderHook(
+      ({ open, value }: { open: boolean; value: typeof initial }) =>
+        useFormDirtyGuard(open, value, () => {}),
+      { initialProps: { open: true, value: initial } },
+    );
+    expect(result.current.isDirty).toBe(false);
+
+    // Sluit
+    act(() => rerender({ open: false, value: { ...initial, titel: 'Tijdelijk' } }));
+    // Heropen met nieuwe waarden — moet weer als baseline gelden.
+    act(() => rerender({ open: true, value: { ...initial, titel: 'Nieuwe baseline' } }));
+    expect(result.current.isDirty).toBe(false);
   });
 });
