@@ -6,8 +6,18 @@ export type OffMarketBronType = Database['public']['Enums']['off_market_bron_typ
 export type OffMarketSignaaltype = Database['public']['Enums']['off_market_signaaltype'];
 export type OffMarketPrioriteit = Database['public']['Enums']['off_market_prioriteit'];
 export type OffMarketStatus = Database['public']['Enums']['off_market_status'];
+export type OffMarketAiStatus = 'niet_verrijkt' | 'in_wachtrij' | 'bezig' | 'klaar' | 'mislukt';
 
 export type OffMarketSignaal = Database['public']['Tables']['off_market_signalen']['Row'];
+
+export const AI_STATUS_LABEL: Record<OffMarketAiStatus, string> = {
+  niet_verrijkt: 'Niet verrijkt',
+  in_wachtrij: 'In wachtrij',
+  bezig: 'Bezig',
+  klaar: 'Verrijkt',
+  mislukt: 'Mislukt',
+};
+export const AI_STATUS_VOLGORDE: OffMarketAiStatus[] = ['klaar', 'bezig', 'in_wachtrij', 'niet_verrijkt', 'mislukt'];
 
 export const ASSETTYPE_LABEL: Record<OffMarketAssettype, string> = {
   kantoor: 'Kantoor',
