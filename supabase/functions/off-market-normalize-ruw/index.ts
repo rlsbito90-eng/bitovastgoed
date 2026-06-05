@@ -78,7 +78,8 @@ const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number }> = [
   { re: /\b(kamergewijze\s+verhuur|kamerverhuur|woningdelen)\b/i, label: 'kamerverhuur', delta: 25 },
   { re: /\bvan\s+\d+\b[^.\n]{0,60}\b(?:naar|in)\s+\d+\b/i, label: 'wijziging aantal kamers', delta: 20 },
   { re: /\bonttrekkingsvergunning\b/i, label: 'onttrekkingsvergunning', delta: 20 },
-  { re: /\btweede\s+woning\b/i, label: 'tweede woning', delta: 15 },
+  // 'tweede woning' onttrekking = particuliere tweede-woning-vergunning → geen acquisitiekans.
+  { re: /\btweede\s+woning\b/i, label: 'tweede woning (geen acquisitiekans)', delta: -40 },
   { re: /\bbergingen?\s+naar\s+woonruimte[n]?\b/i, label: 'bergingen naar woonruimte', delta: 30 },
   { re: /\b(garage|kelder|zolder|bedrijfsruimte)\s+naar\s+woonruimte[n]?\b/i, label: 'ruimte naar woonruimte', delta: 25 },
   { re: /\bwoningbouwproject\b/i, label: 'woningbouwproject', delta: 25 },
