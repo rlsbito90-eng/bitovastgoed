@@ -188,19 +188,15 @@ describe('scoreRecord', () => {
     expect(r.componenten.some(c => c.label === 'onzelfstandige woonruimte')).toBe(true);
   });
 
-  it('Utrechtsedwarsstraat 68D (onttrekking tweede woning) promoveert, lager dan Eurokade', () => {
-    const eurokade = s(
-      'Aanvraag omzettingsvergunning Eurokade 51 1060RZ Amsterdam',
-      'van 4 onzelfstandige woonruimten in 6 onzelfstandige woonruimten',
-    );
+  it('Utrechtsedwarsstraat 68D (onttrekking tweede woning) wordt NIET gepromoveerd', () => {
     const utrechtse = s(
       'Aanvraag onttrekkingsvergunning van woonruimte voor een tweede woning Utrechtsedwarsstraat 68D 1017WH Amsterdam',
       'onttrekkingsvergunning voor een tweede woning',
     );
-    expect(utrechtse.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
-    expect(utrechtse.score).toBeLessThan(eurokade.score);
+    // Tweede-woning-onttrekking levert geen acquisitiekans → score onder drempel.
+    expect(utrechtse.score).toBeLessThan(CONFIG.score_drempel);
     expect(utrechtse.componenten.some(c => c.label === 'onttrekkingsvergunning')).toBe(true);
-    expect(utrechtse.componenten.some(c => c.label === 'tweede woning')).toBe(true);
+    expect(utrechtse.componenten.some(c => c.label === 'tweede woning (geen acquisitiekans)' && c.delta === -40)).toBe(true);
   });
 
   it('Baarsjesweg 162/163 (splitsingsvergunning) promoveert en scoort hoog', () => {
