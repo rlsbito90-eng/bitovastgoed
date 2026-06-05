@@ -54,6 +54,19 @@ export default function OffMarketPage() {
   const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
   const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
+  const [bucketFilter, setBucketFilterRaw] = useState<number | null>(() => {
+    try {
+      const v = sessionStorage.getItem('off-market-filter:bucket');
+      return v ? Number(v) : null;
+    } catch { return null; }
+  });
+  const setBucketFilter = (r: number | null) => {
+    setBucketFilterRaw(r);
+    try {
+      if (r === null) sessionStorage.removeItem('off-market-filter:bucket');
+      else sessionStorage.setItem('off-market-filter:bucket', String(r));
+    } catch {}
+  };
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
