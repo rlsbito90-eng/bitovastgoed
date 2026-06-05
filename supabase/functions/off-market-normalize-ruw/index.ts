@@ -62,22 +62,34 @@ function detectSignaaltype(t: string): string {
 function detectBronType(subj: string[]): 'vergunning' | 'bekendmaking' {
   return /vergunning/.test(subj.join(' ').toLowerCase()) ? 'vergunning' : 'bekendmaking';
 }
+interface ScoreComponent { label: string; delta: number; }
 function scoreRecord(input: { titel: string; samenvatting: string; subjects: string[] }, cfg: BronConfig) {
   const blob = `${input.titel} ${input.samenvatting} ${input.subjects.join(' ')}`.toLowerCase();
   const redenen: string[] = [];
+  const componenten: ScoreComponent[] = [];
   let score = 0;
   const negHits = (cfg.negatieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
-  if (negHits.length) { score -= 40; redenen.push(`negatief:${negHits.join(',')}`); }
-  const posHits = (cfg.positieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
-  if (posHits.length) { score += 30; redenen.push(`positief:${posHits.join(',')}`); }
-  const a = parseAdres(`${input.titel} ${input.samenvatting}`);
-  if (a.adres) { score += 20; redenen.push('adres'); }
-  const at = detectAssettype(blob);
-  if (at !== 'overig') { score += 15; redenen.push(`assettype:${at}`); }
-  if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
-    score += 10; redenen.push('commercieel');
+  if (negHits.length) {
+    score -= 40; redenen.push(`negatief:${negHits.join(',')}`);
+    componenten.push({ label: `onderhoud/ruis (${negHits.join(',')})`, delta: -40 });
   }
-  return { score: Math.max(0, Math.min(100, score)), redenen };
+  const posHits = (cfg.positieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
+  if (posHits.length) {
+    score += 30; redenen.push(`positief:${posHits.join(',')}`);
+    componenten.push({ label: `positief (${posHits.join(',')})`, delta: 30 });
+  }
+  const a = parseAdres(`${input.titel} ${input.samenvatting}`);
+  if (a.adres) { score += 20; redenen.push('adres'); componenten.push({ label: 'adres', delta: 20 }); }
+  const at = detectAssettype(blob);
+  if (at !== 'overig') { score += 15; redenen.push(`assettype:${at}`); componenten.push({ label: `assettype:${at}`, delta: 15 }); }
+  if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
+    score += 10; redenen.push('commercieel'); componenten.push({ label: 'commercieel', delta: 10 });
+  }
+  return { score: Math.max(0, Math.min(100, score)), redenen, componenten };
+}
+function formatScoreComponenten(componenten: ScoreComponent[]): string {
+  if (!componenten.length) return '(geen componenten)';
+  return componenten.map(c => `${c.delta >= 0 ? '+' : ''}${c.delta} ${c.label}`).join(' · ');
 }
 function yyyymm(d: string | null): string {
   if (!d) return 'onbekend';
