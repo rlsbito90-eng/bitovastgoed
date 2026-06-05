@@ -35,6 +35,7 @@ export interface ContactMoment {
   objectId?: string;
   dealId?: string;
   acquisitieTargetId?: string;
+  offMarketSignaalId?: string;
   taakId?: string;
   isSystem: boolean;
   systemKey?: string;
