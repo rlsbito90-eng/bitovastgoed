@@ -192,7 +192,8 @@ Deno.serve(async (req) => {
     let opgehaald = 0, nieuw = 0, dubbel = 0;
     let totaalServer = 0;
     let firstQueryUrl = '';
-    const pageSize = 100;
+    const pageSize = 200;
+    const TIME_BUDGET_MS = 50_000;
 
     try {
       while (opgehaald < maxRecords) {
