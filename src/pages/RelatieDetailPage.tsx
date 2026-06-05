@@ -374,6 +374,9 @@ export default function RelatieDetailPage() {
           {/* PIPELINE */}
           <RelatiePipelineSectie relatieId={relatie.id} />
 
+          {/* OFF-MARKET SIGNALEN */}
+          <OffMarketSignalenSectie relatieId={relatie.id} />
+
           {/* DEALS */}
           {deals.length > 0 && (
             <section className="section-card">
