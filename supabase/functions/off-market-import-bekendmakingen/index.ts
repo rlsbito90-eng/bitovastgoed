@@ -150,6 +150,9 @@ Deno.serve(async (req) => {
     const bronId = body.bron_id as string | undefined;
     const testMode = body.test_mode === true;
     const lookbackOverride = body.lookback_days as number | undefined;
+    const maxRecordsOverride = typeof body.max_records === 'number' && Number.isFinite(body.max_records)
+      ? Math.max(1, Math.min(1000, Math.floor(body.max_records)))
+      : undefined;
     if (!bronId) {
       return new Response(JSON.stringify({ error: 'bron_id verplicht' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
