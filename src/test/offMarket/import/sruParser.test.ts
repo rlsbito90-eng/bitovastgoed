@@ -63,11 +63,11 @@ describe('sruParser', () => {
     expect(r.totaal).toBe(0);
   });
 
-  it('bouwt SRU-URL met CQL-query en paginatie', () => {
+  it('bouwt SRU-URL met CQL-query en paginatie (dt-prefix, gmb-filter)', () => {
     const url = bouwSruUrl({
       endpoint: 'https://repository.overheid.nl/sru',
-      creator: 'gemeente Amsterdam',
-      subjects: ['omgevingsvergunning', 'bestemmingsplan'],
+      creator: 'Amsterdam',
+      subjects: ['omgevingsvergunning', 'bestemmingsplan'], // genegeerd
       sinceIso: '2026-05-29',
       startRecord: 1,
       maximumRecords: 100,
@@ -76,8 +76,10 @@ describe('sruParser', () => {
     expect(url).toContain('startRecord=1');
     expect(url).toContain('maximumRecords=100');
     const decoded = decodeURIComponent(url).replace(/\+/g, ' ');
-    expect(decoded).toContain('dcterms.creator="gemeente Amsterdam"');
-    expect(decoded).toContain('dcterms.modified >= "2026-05-29"');
+    expect(decoded).toContain('dt.identifier any "gmb"');
+    expect(decoded).toContain('dt.creator="Amsterdam"');
+    expect(decoded).toContain('dt.modified >= "2026-05-29"');
+    expect(decoded).not.toContain('dt.subject');
   });
 
   it('bouwPermalink genereert juiste URL', () => {
