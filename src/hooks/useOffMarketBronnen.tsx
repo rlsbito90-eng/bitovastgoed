@@ -58,23 +58,62 @@ export function useToggleBron() {
 export function useRunBron() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: string | { bronId: string; testMode?: boolean; lookbackDays?: number }) => {
+    mutationFn: async (args: string | { bronId: string; testMode?: boolean; lookbackDays?: number; maxRecords?: number }) => {
       const body = typeof args === 'string'
         ? { bron_id: args }
-        : { bron_id: args.bronId, test_mode: args.testMode, lookback_days: args.lookbackDays };
+        : {
+            bron_id: args.bronId,
+            test_mode: args.testMode,
+            lookback_days: args.lookbackDays,
+            max_records: args.maxRecords,
+          };
       const { data, error } = await supabase.functions.invoke(
         'off-market-import-bekendmakingen', { body });
       if (error) throw new Error(error.message ?? 'Import mislukt');
       if (data?.error) throw new Error(data.error);
       return data as {
         ok: true; opgehaald: number; nieuw: number; dubbel: number;
-        totaal_server?: number; query_url?: string; test_mode?: boolean;
+        totaal_server?: number; max_records?: number; afgebroken?: boolean;
+        query_url?: string; test_mode?: boolean;
       };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['off-market-bronnen'] });
       qc.invalidateQueries({ queryKey: ['off-market-ruw-onverwerkt'] });
+      qc.invalidateQueries({ queryKey: ['off-market-bron-stats'] });
     },
+  });
+}
+
+export interface OffMarketBronStats {
+  bron_id: string;
+  totaal: number;
+  onverwerkt: number;
+  verwerkt: number;
+  gepromoveerd: number;
+  geskipt: number;
+}
+
+export function useOffMarketBronStats() {
+  return useQuery({
+    queryKey: ['off-market-bron-stats'],
+    queryFn: async (): Promise<Record<string, OffMarketBronStats>> => {
+      const { data, error } = await supabase.rpc('off_market_bron_stats');
+      if (error) throw error;
+      const out: Record<string, OffMarketBronStats> = {};
+      for (const row of (data ?? []) as OffMarketBronStats[]) {
+        out[row.bron_id] = {
+          bron_id: row.bron_id,
+          totaal: Number(row.totaal ?? 0),
+          onverwerkt: Number(row.onverwerkt ?? 0),
+          verwerkt: Number(row.verwerkt ?? 0),
+          gepromoveerd: Number(row.gepromoveerd ?? 0),
+          geskipt: Number(row.geskipt ?? 0),
+        };
+      }
+      return out;
+    },
+    refetchOnWindowFocus: false,
   });
 }
 
