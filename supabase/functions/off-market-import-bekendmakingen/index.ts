@@ -173,7 +173,8 @@ Deno.serve(async (req) => {
     const endpoint = bron.endpoint_url ?? 'https://repository.overheid.nl/sru';
     const creator = cfg.sru_creator as string | undefined;
     const subjects = (cfg.sru_subjects as string[] | undefined) ?? [];
-    const maxRecords = Math.min(Number(cfg.max_records_per_run ?? 200), 500);
+    const cfgMax = Number(cfg.max_records_per_run ?? 200);
+    const maxRecords = Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
     const lookbackFirst = Number(cfg.lookback_days_first_run ?? 7);
     const lookbackDefault = Number(cfg.lookback_days_default ?? 3);
     if (!creator) {
