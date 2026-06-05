@@ -160,6 +160,7 @@ export const contactMomentToDb = (c: Partial<ContactMoment>) => {
   if (c.objectId !== undefined) out.object_id = c.objectId || null;
   if (c.dealId !== undefined) out.deal_id = c.dealId || null;
   if (c.acquisitieTargetId !== undefined) out.acquisitie_target_id = c.acquisitieTargetId || null;
+  if (c.offMarketSignaalId !== undefined) out.off_market_signaal_id = c.offMarketSignaalId || null;
   if (c.taakId !== undefined) out.taak_id = c.taakId || null;
   if (c.isSystem !== undefined) out.is_system = c.isSystem;
   if (c.systemKey !== undefined) out.system_key = c.systemKey || null;
