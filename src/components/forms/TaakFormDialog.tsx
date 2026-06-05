@@ -210,6 +210,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
       objectId: form.objectId || undefined,
+      offMarketSignaalId: form.offMarketSignaalId || undefined,
       type: form.type,
       deadline: form.deadline || '',
       deadlineTijd: form.deadlineTijd || undefined,
