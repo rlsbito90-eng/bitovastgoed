@@ -48,6 +48,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   relatie?: Relatie | null;
+  /** Wordt aangeroepen direct na het aanmaken van een nieuwe relatie (niet bij edit). */
+  onCreated?: (relatieId: string) => void;
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
