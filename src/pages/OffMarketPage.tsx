@@ -12,7 +12,7 @@ import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { saveListContext } from '@/lib/listNavigation';
-import { compareRelevantie } from '@/lib/offMarket/relevantie';
+import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
