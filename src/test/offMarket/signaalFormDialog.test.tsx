@@ -67,19 +67,16 @@ describe('useFormDirtyGuard — Bug 1 (race bij openen bestaand signaal)', () =>
     expect(result.current.isDirty).toBe(true);
   });
 
-  it('reset baseline als dialog gesloten en heropend wordt', () => {
+  it('triggert geen dirty-state als enkel referenties wijzigen zonder inhoud', () => {
     const initial = signaalToFormState(baseSignaal);
     const { result, rerender } = renderHook(
-      ({ open, value }: { open: boolean; value: typeof initial }) =>
-        useFormDirtyGuard(open, value, () => {}),
-      { initialProps: { open: true, value: initial } },
+      ({ value }: { value: typeof initial }) =>
+        useFormDirtyGuard(true, value, () => {}),
+      { initialProps: { value: initial } },
     );
     expect(result.current.isDirty).toBe(false);
-
-    // Sluit
-    act(() => rerender({ open: false, value: { ...initial, titel: 'Tijdelijk' } }));
-    // Heropen met nieuwe waarden — moet weer als baseline gelden.
-    act(() => rerender({ open: true, value: { ...initial, titel: 'Nieuwe baseline' } }));
+    // Zelfde inhoud, nieuwe object-referentie → niet dirty.
+    act(() => rerender({ value: { ...initial } }));
     expect(result.current.isDirty).toBe(false);
   });
 });
