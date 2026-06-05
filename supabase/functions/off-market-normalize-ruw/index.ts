@@ -177,21 +177,18 @@ Deno.serve(async (req) => {
       // Check bestaand signaal
       const { data: bestaand } = await admin
         .from('off_market_signalen')
-        .select('id, payload_extra, ai_status')
+        .select('id, notities, ai_status')
         .eq('dedupe_hash', dedupeHash)
         .is('gearchiveerd_op', null)
         .maybeSingle();
 
       if (bestaand) {
-        // Merge: behoud AI, voeg bron toe aan payload.extra_bronnen[]
-        const { data: huidig } = await admin
-          .from('off_market_signalen').select('*').eq('id', bestaand.id).single();
-        const extra = ((huidig as any)?.payload?.extra_bronnen as any[]) ?? [];
-        extra.push({
-          bron_id: r.bron_id, extern_id: r.extern_id, link, datum, titel: titel.slice(0, 200),
-        });
+        // Merge: behoud AI, voeg extra bron-info toe in notities (append-only audit trail).
+        const stamp = new Date().toISOString().slice(0, 10);
+        const note = `[auto-import ${stamp}] extra bron: ${(cfg as any).naam ?? 'bekendmaking'} – ${r.extern_id}${link ? ` (${link})` : ''}`;
+        const nieuweNotities = bestaand.notities ? `${bestaand.notities}\n${note}` : note;
         await admin.from('off_market_signalen').update({
-          payload: { ...((huidig as any)?.payload ?? {}), extra_bronnen: extra },
+          notities: nieuweNotities,
           updated_at: new Date().toISOString(),
         }).eq('id', bestaand.id);
         await admin.from('off_market_signalen_ruw').update({
@@ -221,7 +218,7 @@ Deno.serve(async (req) => {
         status: 'nieuw_signaal',
         ai_status: 'niet_verrijkt',
         dedupe_hash: dedupeHash,
-        payload: { redenen, score, herkomst: 'auto-import', bron_naam: (cfg as any).naam },
+        notities: `[auto-import] score=${score} · ${redenen.join(' · ')}`,
       };
 
       const { data: nieuwSig, error: insErr } = await admin
