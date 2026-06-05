@@ -263,7 +263,11 @@ Deno.serve(async (req) => {
 
       await admin.from('off_market_signalen_ruw').update({
         verwerkt: true, signaal_id: nieuwSig.id,
-        payload: { ...payload, score, redenen, dedupe_hash: dedupeHash },
+        payload: {
+          ...payload, score, redenen, dedupe_hash: dedupeHash,
+          score_componenten: componenten,
+          score_componenten_tekst: scoreComponentenStr,
+        },
       }).eq('id', r.id);
       gepromoveerd++;
     }
