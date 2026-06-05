@@ -4003,6 +4003,17 @@ export type Database = {
         Returns: boolean
       }
       is_intern_gebruiker: { Args: { _user_id: string }; Returns: boolean }
+      off_market_bron_stats: {
+        Args: never
+        Returns: {
+          bron_id: string
+          gepromoveerd: number
+          geskipt: number
+          onverwerkt: number
+          totaal: number
+          verwerkt: number
+        }[]
+      }
       off_market_promote_to_object: {
         Args: { _signaal_id: string }
         Returns: string
