@@ -75,8 +75,9 @@ describe('sruParser', () => {
     expect(url).toContain('operation=searchRetrieve');
     expect(url).toContain('startRecord=1');
     expect(url).toContain('maximumRecords=100');
-    expect(decodeURIComponent(url)).toContain('dcterms.creator="gemeente Amsterdam"');
-    expect(decodeURIComponent(url)).toContain('dcterms.modified >= "2026-05-29"');
+    const decoded = decodeURIComponent(url).replace(/\+/g, ' ');
+    expect(decoded).toContain('dcterms.creator="gemeente Amsterdam"');
+    expect(decoded).toContain('dcterms.modified >= "2026-05-29"');
   });
 
   it('bouwPermalink genereert juiste URL', () => {
