@@ -111,6 +111,25 @@ export function validateSignaal(f: SignaalFormState): ValidationResult {
 type Insert = Database['public']['Tables']['off_market_signalen']['Insert'];
 const blank = (s: string) => (s.trim() ? s.trim() : null);
 
+/**
+ * Coerce numerieke veldwaarde voor DB:
+ * - null / undefined / leeg → null
+ * - string of number → Number()
+ * - NaN of Infinity → null (nooit naar Supabase sturen)
+ */
+export function coerceNumericOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === 'string') {
+    if (v.trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof v === 'number') {
+    return Number.isFinite(v) ? v : null;
+  }
+  return null;
+}
+
 export function formStateToPayload(f: SignaalFormState): Insert {
   return {
     titel: f.titel.trim(),
@@ -128,8 +147,8 @@ export function formStateToPayload(f: SignaalFormState): Insert {
     bron_url: blank(f.bron_url),
     bron_referentie: blank(f.bron_referentie),
     bron_datum: blank(f.bron_datum),
-    indicatieve_waarde: f.indicatieve_waarde,
-    mogelijke_fee: f.mogelijke_fee,
+    indicatieve_waarde: coerceNumericOrNull(f.indicatieve_waarde),
+    mogelijke_fee: coerceNumericOrNull(f.mogelijke_fee),
     potentiele_strategie: blank(f.potentiele_strategie),
     volgende_actie_datum: blank(f.volgende_actie_datum),
     volgende_actie_omschrijving: blank(f.volgende_actie_omschrijving),
