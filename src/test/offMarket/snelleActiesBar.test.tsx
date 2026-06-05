@@ -50,7 +50,7 @@ describe('SignaalSnelleActiesBar', () => {
   for (const [label, status] of cases) {
     it(`klikken op "${label}" wijzigt status naar ${status}`, async () => {
       render(<SignaalSnelleActiesBar signaal={maakSignaal('nieuw_signaal')} />);
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }));
+      fireEvent.click(screen.getByRole('button', { name: label }));
       await waitFor(() => {
         expect(hookMocks.updateMutateAsync).toHaveBeenCalledWith({
           id: 'sig-1',
@@ -62,14 +62,14 @@ describe('SignaalSnelleActiesBar', () => {
 
   it('knop is disabled en active wanneer signaal die status al heeft', () => {
     render(<SignaalSnelleActiesBar signaal={maakSignaal('interessant')} />);
-    const btn = screen.getByRole('button', { name: /Interessant/i });
+    const btn = screen.getByRole('button', { name: 'Interessant' });
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('triggert geen update als al in die status', () => {
     render(<SignaalSnelleActiesBar signaal={maakSignaal('twijfel')} />);
-    fireEvent.click(screen.getByRole('button', { name: /Twijfel/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Twijfel' }));
     expect(hookMocks.updateMutateAsync).not.toHaveBeenCalled();
   });
 });
