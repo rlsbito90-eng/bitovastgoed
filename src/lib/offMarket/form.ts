@@ -77,22 +77,22 @@ export function validateSignaal(f: SignaalFormState): ValidationResult {
     errors.bron_url = 'URL moet beginnen met http(s)://';
   }
 
-  // Numerieke validatie
-  if (f.indicatieve_waarde != null) {
-    if (!Number.isFinite(f.indicatieve_waarde)) {
-      errors.indicatieve_waarde = 'Ongeldige waarde';
-    } else if (f.indicatieve_waarde < 0) {
-      errors.indicatieve_waarde = 'Mag niet negatief zijn';
-    } else if (f.indicatieve_waarde > MAX_INDICATIEVE_WAARDE) {
+  // Numerieke validatie — coerce eerst zodat een eventuele string-leak ook gevalideerd wordt.
+  const iw = coerceNumericOrNull(f.indicatieve_waarde);
+  if (f.indicatieve_waarde != null && iw == null && String(f.indicatieve_waarde).trim() !== '') {
+    errors.indicatieve_waarde = 'Ongeldige waarde';
+  } else if (iw != null) {
+    if (iw < 0) errors.indicatieve_waarde = 'Mag niet negatief zijn';
+    else if (iw > MAX_INDICATIEVE_WAARDE) {
       errors.indicatieve_waarde = `Max € ${MAX_INDICATIEVE_WAARDE.toLocaleString('nl-NL')}`;
     }
   }
-  if (f.mogelijke_fee != null) {
-    if (!Number.isFinite(f.mogelijke_fee)) {
-      errors.mogelijke_fee = 'Ongeldige waarde';
-    } else if (f.mogelijke_fee < 0) {
-      errors.mogelijke_fee = 'Mag niet negatief zijn';
-    } else if (f.mogelijke_fee > MAX_MOGELIJKE_FEE) {
+  const mf = coerceNumericOrNull(f.mogelijke_fee);
+  if (f.mogelijke_fee != null && mf == null && String(f.mogelijke_fee).trim() !== '') {
+    errors.mogelijke_fee = 'Ongeldige waarde';
+  } else if (mf != null) {
+    if (mf < 0) errors.mogelijke_fee = 'Mag niet negatief zijn';
+    else if (mf > MAX_MOGELIJKE_FEE) {
       errors.mogelijke_fee = `Max € ${MAX_MOGELIJKE_FEE.toLocaleString('nl-NL')}`;
     }
   }
