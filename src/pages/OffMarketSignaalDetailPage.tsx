@@ -9,8 +9,10 @@ import SignaalKoppelingenSectie from '@/components/offmarket/SignaalKoppelingenS
 import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
+import ListNavigator from '@/components/ListNavigator';
+import { getListNavigation } from '@/lib/listNavigation';
 import {
-  useOffMarketSignaal, useArchiveOffMarketSignaal,
+  useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
 import { Button } from '@/components/ui/button';
 
