@@ -9,6 +9,7 @@ import SignaalKoppelingenSectie from '@/components/offmarket/SignaalKoppelingenS
 import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
+import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBar';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 import {
@@ -61,6 +62,7 @@ export default function OffMarketSignaalDetailPage() {
         onEdit={() => setEditOpen(true)}
         onArchive={() => setArchiveOpen(true)}
       />
+      <SignaalSnelleActiesBar signaal={signaal} />
       <SignaalAiAnalyse signaal={signaal} />
       <SignaalKerngegevens signaal={signaal} />
       <SignaalKoppelingenSectie signaal={signaal} />

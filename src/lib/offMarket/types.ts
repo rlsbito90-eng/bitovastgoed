@@ -71,18 +71,26 @@ export const prioriteitRang = (p: OffMarketPrioriteit) => PRIORITEIT_RANG[p];
 
 export const STATUS_LABEL: Record<OffMarketStatus, string> = {
   nieuw_signaal: 'Nieuw signaal',
+  interessant: 'Interessant',
+  twijfel: 'Twijfel',
   te_onderzoeken: 'Te onderzoeken',
   eigenaar_achterhalen: 'Eigenaar achterhalen',
+  eigenaar_gevonden: 'Eigenaar gevonden',
   benaderen: 'Benaderen',
+  benaderd: 'Benaderd',
   in_gesprek: 'In gesprek',
+  aanbod_ontvangen: 'Aanbod ontvangen',
   object_ontvangen: 'Object ontvangen',
   dealtraject: 'Dealtraject',
   niet_interessant: 'Niet interessant',
+  afgevallen: 'Afgevallen',
   archief: 'Archief',
 };
 export const STATUS_VOLGORDE: OffMarketStatus[] = [
-  'nieuw_signaal', 'te_onderzoeken', 'eigenaar_achterhalen', 'benaderen',
-  'in_gesprek', 'object_ontvangen', 'dealtraject', 'niet_interessant', 'archief',
+  'nieuw_signaal', 'interessant', 'twijfel', 'te_onderzoeken',
+  'eigenaar_achterhalen', 'eigenaar_gevonden', 'benaderen', 'benaderd',
+  'in_gesprek', 'aanbod_ontvangen', 'object_ontvangen', 'dealtraject',
+  'niet_interessant', 'afgevallen', 'archief',
 ];
 
 export const PROVINCIES = [

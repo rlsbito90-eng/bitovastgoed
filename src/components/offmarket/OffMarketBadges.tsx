@@ -37,13 +37,19 @@ const prioriteitTone: Record<OffMarketPrioriteit, Tone> = {
 
 const statusTone: Record<OffMarketStatus, Tone> = {
   nieuw_signaal: 'gold',
+  interessant: 'gold',
+  twijfel: 'sand',
   te_onderzoeken: 'sand',
   eigenaar_achterhalen: 'sand',
+  eigenaar_gevonden: 'amber',
   benaderen: 'amber',
+  benaderd: 'amber',
   in_gesprek: 'amber',
+  aanbod_ontvangen: 'emerald',
   object_ontvangen: 'emerald',
   dealtraject: 'emerald',
   niet_interessant: 'neutral',
+  afgevallen: 'crimson',
   archief: 'neutral',
 };
 

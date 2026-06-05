@@ -4236,6 +4236,12 @@ export type Database = {
         | "dealtraject"
         | "niet_interessant"
         | "archief"
+        | "interessant"
+        | "twijfel"
+        | "eigenaar_gevonden"
+        | "benaderd"
+        | "aanbod_ontvangen"
+        | "afgevallen"
       onderhoudsstaat_niveau:
         | "uitstekend"
         | "goed"
@@ -4730,6 +4736,12 @@ export const Constants = {
         "dealtraject",
         "niet_interessant",
         "archief",
+        "interessant",
+        "twijfel",
+        "eigenaar_gevonden",
+        "benaderd",
+        "aanbod_ontvangen",
+        "afgevallen",
       ],
       onderhoudsstaat_niveau: [
         "uitstekend",
