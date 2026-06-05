@@ -1060,6 +1060,7 @@ export default function ObjectDetailPage() {
               {object.internReferentienummer && (
                 <HeaderChip>{object.internReferentienummer}</HeaderChip>
               )}
+              <OffMarketOorsprongChip objectId={object.id} />
             </div>
           </div>
         );
