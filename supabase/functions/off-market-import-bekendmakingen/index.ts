@@ -50,10 +50,10 @@ function bouwSruUrl(opts: {
   endpoint: string; creator: string; subjects: string[];
   sinceIso: string; startRecord: number; maximumRecords: number;
 }): string {
-  const subjectClause = opts.subjects.length
-    ? ' AND (' + opts.subjects.map(s => `dcterms.subject="${s}"`).join(' OR ') + ')'
-    : '';
-  const cql = `(dcterms.creator="${opts.creator}")${subjectClause} AND (dcterms.modified >= "${opts.sinceIso}")`;
+  // KOOP SRU gebruikt prefix `dt.` (dcterms-alias). Gemeenteblad = identifier "gmb-...".
+  // dt.subject is in praktijk niet doorzoekbaar → subjecten filteren we client-side in normalize.
+  const cql =
+    `(dt.identifier any "gmb") AND (dt.creator="${opts.creator}") AND (dt.modified >= "${opts.sinceIso}")`;
   const params = new URLSearchParams({
     operation: 'searchRetrieve', version: '2.0', query: cql,
     startRecord: String(opts.startRecord), maximumRecords: String(opts.maximumRecords),
