@@ -116,7 +116,7 @@ const leegForm: FormState = {
 };
 
 
-export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
+export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated }: Props) {
   const store = useDataStore();
   const { addRelatie, updateRelatie } = store;
   const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
