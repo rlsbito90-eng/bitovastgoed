@@ -75,7 +75,8 @@ export function useRunBron() {
 export function useNormalizeWachtrij() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (limit = 200) => {
+    mutationFn: async (limitArg?: number) => {
+      const limit = limitArg ?? 200;
       const { data, error } = await supabase.functions.invoke(
         'off-market-normalize-ruw', { body: { limit } });
       if (error) throw new Error(error.message ?? 'Verwerken mislukt');
