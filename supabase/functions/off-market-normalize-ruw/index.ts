@@ -21,7 +21,7 @@ interface BronConfig {
   gemeente?: string;
   provincie?: string;
 }
-const STRAAT_RE = /\b([A-ZÀ-Ý][\wÀ-ÿ\-' ]{2,40}?(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg)\.?)\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
+const STRAAT_RE = /([A-ZÀ-Ý][\wÀ-ÿ\-']{2,40}(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak))\.?\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
 
 function parseAdres(text: string) {
@@ -35,15 +35,15 @@ function parseAdres(text: string) {
   };
 }
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
-  [/\b(kantoor|kantoren|office)\b/i, 'kantoor'],
-  [/\b(winkel|winkelpand|retail)\b/i, 'winkelpand'],
+  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
   [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
-  [/\b(bedrijfshal|bedrijfscomplex|bedrijfspand)\b/i, 'bedrijfscomplex'],
+  [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],
   [/\b(zorg|verpleeg|zorginstelling)\b/i, 'zorgvastgoed'],
-  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
-  [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
+  [/\b(bedrijfshal|bedrijfscomplex|bedrijfspand)\b/i, 'bedrijfscomplex'],
+  [/\b(kantoor|kantoren|office)\b/i, 'kantoor'],
+  [/\b(winkel|winkelpand|retail)\b/i, 'winkelpand'],
 ];
 function detectAssettype(t: string): string {
   for (const [re, type] of ASSETTYPE_KEYWORDS) if (re.test(t)) return type;
