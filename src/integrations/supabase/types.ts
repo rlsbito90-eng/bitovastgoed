@@ -2360,6 +2360,7 @@ export type Database = {
           bron_url: string | null
           created_at: string
           created_by: string | null
+          dedupe_hash: string | null
           eigenaar_bekend: boolean
           eigenaar_relatie_id: string | null
           gearchiveerd_op: string | null
@@ -2414,6 +2415,7 @@ export type Database = {
           bron_url?: string | null
           created_at?: string
           created_by?: string | null
+          dedupe_hash?: string | null
           eigenaar_bekend?: boolean
           eigenaar_relatie_id?: string | null
           gearchiveerd_op?: string | null
@@ -2468,6 +2470,7 @@ export type Database = {
           bron_url?: string | null
           created_at?: string
           created_by?: string | null
+          dedupe_hash?: string | null
           eigenaar_bekend?: boolean
           eigenaar_relatie_id?: string | null
           gearchiveerd_op?: string | null
