@@ -913,7 +913,7 @@ interface DataStore {
   addContactMoment: (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => Promise<ContactMoment | null>;
   updateContactMoment: (id: string, c: Partial<ContactMoment>) => Promise<void>;
   deleteContactMoment: (id: string) => Promise<void>;
-  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => ContactMoment[];
+  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string; offMarketSignaalId?: string }) => ContactMoment[];
 
 
   // Zoekprofielen
