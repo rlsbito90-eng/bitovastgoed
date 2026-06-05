@@ -56,6 +56,7 @@ import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenA
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
+import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
@@ -1059,6 +1060,7 @@ export default function ObjectDetailPage() {
               {object.internReferentienummer && (
                 <HeaderChip>{object.internReferentienummer}</HeaderChip>
               )}
+              <OffMarketOorsprongChip objectId={object.id} />
             </div>
           </div>
         );

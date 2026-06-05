@@ -24,6 +24,7 @@ interface Props {
   defaultRelatieId?: string;
   defaultDealId?: string;
   defaultObjectId?: string;
+  defaultOffMarketSignaalId?: string;
 }
 
 const emptyForm = {
@@ -31,6 +32,7 @@ const emptyForm = {
   relatieId: '',
   dealId: '',
   objectId: '',
+  offMarketSignaalId: '',
   type: 'Algemeen',
   deadline: new Date().toISOString().split('T')[0],
   deadlineTijd: '',
@@ -58,7 +60,7 @@ const pushRecent = (kind: string, id: string) => {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId }: Props) {
+export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId }: Props) {
   const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
@@ -72,6 +74,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         relatieId: taak.relatieId || '',
         dealId: taak.dealId || '',
         objectId: taak.objectId || '',
+        offMarketSignaalId: taak.offMarketSignaalId || '',
         type: taak.type,
         deadline: taak.deadline,
         deadlineTijd: taak.deadlineTijd ? taak.deadlineTijd.slice(0, 5) : '',
@@ -85,9 +88,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         relatieId: defaultRelatieId || '',
         dealId: defaultDealId || '',
         objectId: defaultObjectId || '',
+        offMarketSignaalId: defaultOffMarketSignaalId || '',
       });
     }
-  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId]);
+  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId]);
 
   // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
@@ -206,6 +210,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
       objectId: form.objectId || undefined,
+      offMarketSignaalId: form.offMarketSignaalId || undefined,
       type: form.type,
       deadline: form.deadline || '',
       deadlineTijd: form.deadlineTijd || undefined,

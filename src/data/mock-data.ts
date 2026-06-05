@@ -664,6 +664,8 @@ export interface Taak {
   relatieId?: string;
   dealId?: string;
   objectId?: string;
+  /** Optionele koppeling naar een off-market signaal */
+  offMarketSignaalId?: string;
   type: string;
   deadline: string;
   deadlineTijd?: string;

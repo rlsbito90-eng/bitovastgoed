@@ -48,6 +48,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   relatie?: Relatie | null;
+  /** Wordt aangeroepen direct na het aanmaken van een nieuwe relatie (niet bij edit). */
+  onCreated?: (relatieId: string) => void;
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
@@ -114,7 +116,7 @@ const leegForm: FormState = {
 };
 
 
-export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props) {
+export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated }: Props) {
   const store = useDataStore();
   const { addRelatie, updateRelatie } = store;
   const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
@@ -219,6 +221,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie }: Props
         if (nieuw?.id) {
           werkRelatieId = nieuw.id;
           setGemaaktId(nieuw.id);
+          try { onCreated?.(nieuw.id); } catch { /* noop */ }
         }
       }
 

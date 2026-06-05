@@ -27,6 +27,7 @@ interface Props {
   defaultObjectId?: string;
   defaultDealId?: string;
   defaultAcquisitieTargetId?: string;
+  defaultOffMarketSignaalId?: string;
 }
 
 const TYPE_OPTIONS: ContactMomentType[] = [
@@ -67,6 +68,7 @@ const emptyForm = {
   objectId: '',
   dealId: '',
   acquisitieTargetId: '',
+  offMarketSignaalId: '',
   followUpRequired: false,
   followUpDate: '',
   // taak
@@ -80,7 +82,7 @@ const emptyForm = {
 
 export default function ContactMomentFormDialog({
   open, onOpenChange, contactMoment,
-  defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId,
+  defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId, defaultOffMarketSignaalId,
 }: Props) {
   const store = useDataStore();
   const isEdit = !!contactMoment;
@@ -102,6 +104,7 @@ export default function ContactMomentFormDialog({
         objectId: contactMoment.objectId || '',
         dealId: contactMoment.dealId || '',
         acquisitieTargetId: contactMoment.acquisitieTargetId || '',
+        offMarketSignaalId: contactMoment.offMarketSignaalId || '',
         followUpRequired: contactMoment.followUpRequired,
         followUpDate: contactMoment.followUpDate || '',
         makeTaak: false,
@@ -120,9 +123,10 @@ export default function ContactMomentFormDialog({
         objectId: defaultObjectId || '',
         dealId: defaultDealId || '',
         acquisitieTargetId: defaultAcquisitieTargetId || '',
+        offMarketSignaalId: defaultOffMarketSignaalId || '',
       });
     }
-  }, [contactMoment, open, defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId]);
+  }, [contactMoment, open, defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId, defaultOffMarketSignaalId]);
 
   // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => store.relaties.map(r => {
@@ -232,6 +236,7 @@ export default function ContactMomentFormDialog({
         objectId: form.objectId || undefined,
         dealId: form.dealId || undefined,
         acquisitieTargetId: form.acquisitieTargetId || undefined,
+        offMarketSignaalId: form.offMarketSignaalId || undefined,
         followUpRequired: isEdit ? form.followUpRequired : form.makeTaak,
         followUpDate: isEdit ? (form.followUpDate || undefined) : (form.makeTaak ? (form.taakDeadline || undefined) : undefined),
       };
@@ -260,6 +265,7 @@ export default function ContactMomentFormDialog({
             relatieId: form.relatieId || undefined,
             objectId: form.objectId || undefined,
             dealId: form.dealId || undefined,
+            offMarketSignaalId: form.offMarketSignaalId || undefined,
           });
           toast.success('Vervolgtaak aangemaakt');
         } catch (err: any) {

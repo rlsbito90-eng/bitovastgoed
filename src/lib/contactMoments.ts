@@ -35,6 +35,7 @@ export interface ContactMoment {
   objectId?: string;
   dealId?: string;
   acquisitieTargetId?: string;
+  offMarketSignaalId?: string;
   taakId?: string;
   isSystem: boolean;
   systemKey?: string;
@@ -135,6 +136,7 @@ export const contactMomentFromDb = (r: any): ContactMoment => ({
   objectId: r.object_id ?? undefined,
   dealId: r.deal_id ?? undefined,
   acquisitieTargetId: r.acquisitie_target_id ?? undefined,
+  offMarketSignaalId: r.off_market_signaal_id ?? undefined,
   taakId: r.taak_id ?? undefined,
   isSystem: !!r.is_system,
   systemKey: r.system_key ?? undefined,
@@ -158,6 +160,7 @@ export const contactMomentToDb = (c: Partial<ContactMoment>) => {
   if (c.objectId !== undefined) out.object_id = c.objectId || null;
   if (c.dealId !== undefined) out.deal_id = c.dealId || null;
   if (c.acquisitieTargetId !== undefined) out.acquisitie_target_id = c.acquisitieTargetId || null;
+  if (c.offMarketSignaalId !== undefined) out.off_market_signaal_id = c.offMarketSignaalId || null;
   if (c.taakId !== undefined) out.taak_id = c.taakId || null;
   if (c.isSystem !== undefined) out.is_system = c.isSystem;
   if (c.systemKey !== undefined) out.system_key = c.systemKey || null;
@@ -175,6 +178,7 @@ export async function logSystemContactMoment(input: {
   objectId?: string | null;
   dealId?: string | null;
   acquisitieTargetId?: string | null;
+  offMarketSignaalId?: string | null;
   taakId?: string | null;
   systemKey?: string;
 }): Promise<ContactMoment | null> {
@@ -189,6 +193,7 @@ export async function logSystemContactMoment(input: {
     object_id: input.objectId ?? null,
     deal_id: input.dealId ?? null,
     acquisitie_target_id: input.acquisitieTargetId ?? null,
+    off_market_signaal_id: input.offMarketSignaalId ?? null,
     taak_id: input.taakId ?? null,
   };
   const { data, error } = await supabase

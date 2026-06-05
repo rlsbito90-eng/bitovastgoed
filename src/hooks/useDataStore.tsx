@@ -577,6 +577,7 @@ const taakFromDb = (t: any): Taak => ({
   relatieId: t.relatie_id ?? undefined,
   dealId: t.deal_id ?? undefined,
   objectId: t.object_id ?? undefined,
+  offMarketSignaalId: t.off_market_signaal_id ?? undefined,
   type: t.type_taak ?? 'Algemeen',
   deadline: t.deadline ?? '',
   deadlineTijd: t.deadline_tijd ?? undefined,
@@ -591,6 +592,7 @@ const taakToDb = (t: Partial<Taak>) => cleanPayload({
   relatie_id: t.relatieId !== undefined ? (t.relatieId || null) : undefined,
   deal_id: t.dealId !== undefined ? (t.dealId || null) : undefined,
   object_id: t.objectId !== undefined ? (t.objectId || null) : undefined,
+  off_market_signaal_id: t.offMarketSignaalId !== undefined ? (t.offMarketSignaalId || null) : undefined,
   type_taak: t.type !== undefined ? (t.type || null) : undefined,
   deadline: t.deadline !== undefined ? (t.deadline || null) : undefined,
   deadline_tijd: t.deadlineTijd !== undefined ? (t.deadlineTijd || null) : undefined,
@@ -911,7 +913,7 @@ interface DataStore {
   addContactMoment: (c: Omit<ContactMoment, 'id' | 'createdAt' | 'updatedAt' | 'isSystem'>) => Promise<ContactMoment | null>;
   updateContactMoment: (id: string, c: Partial<ContactMoment>) => Promise<void>;
   deleteContactMoment: (id: string) => Promise<void>;
-  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => ContactMoment[];
+  getContactMomentsFor: (filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string; offMarketSignaalId?: string }) => ContactMoment[];
 
 
   // Zoekprofielen
@@ -1687,12 +1689,13 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setContactMoments(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string }) => {
+  const getContactMomentsFor = useCallback((filter: { relatieId?: string; objectId?: string; dealId?: string; acquisitieTargetId?: string; offMarketSignaalId?: string }) => {
     return contactMoments.filter(cm =>
       (filter.relatieId && cm.relatieId === filter.relatieId) ||
       (filter.objectId && cm.objectId === filter.objectId) ||
       (filter.dealId && cm.dealId === filter.dealId) ||
-      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId)
+      (filter.acquisitieTargetId && cm.acquisitieTargetId === filter.acquisitieTargetId) ||
+      (filter.offMarketSignaalId && cm.offMarketSignaalId === filter.offMarketSignaalId)
     );
   }, [contactMoments]);
 
