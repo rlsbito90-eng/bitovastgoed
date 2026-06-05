@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  OffMarketPriorityBadge, OffMarketStatusBadge,
+  OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketAiStatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL,
@@ -70,6 +70,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
             <div className="flex items-center flex-wrap gap-1.5 mt-2">
               <OffMarketStatusBadge status={s.status} />
               <OffMarketPriorityBadge prioriteit={s.prioriteit} />
+              <OffMarketAiStatusBadge status={(s as any).ai_status} />
               {s.mogelijke_fee != null && (
                 <span className="text-[11px] text-muted-foreground font-mono-data">
                   Fee: {formatCurrency(Number(s.mogelijke_fee))}
@@ -94,6 +95,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
               <TableHead>Signaal</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Prioriteit</TableHead>
+              <TableHead>AI-status</TableHead>
               <TableHead className="text-right">AI-score</TableHead>
               <TableHead className="text-right">Mogelijke fee</TableHead>
               <TableHead>Volgende actie</TableHead>
@@ -112,6 +114,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
                 </TableCell>
                 <TableCell><OffMarketStatusBadge status={s.status} /></TableCell>
                 <TableCell><OffMarketPriorityBadge prioriteit={s.prioriteit} /></TableCell>
+                <TableCell><OffMarketAiStatusBadge status={(s as any).ai_status} /></TableCell>
                 <TableCell className="text-right font-mono-data text-sm">
                   {typeof s.ai_score === 'number' ? s.ai_score : '—'}
                 </TableCell>
