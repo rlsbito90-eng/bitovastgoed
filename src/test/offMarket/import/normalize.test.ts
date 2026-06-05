@@ -5,6 +5,7 @@ import {
   detectSignaaltype,
   detectBronType,
   scoreRecord,
+  formatScoreComponenten,
   yyyymm,
   dedupeHashInput,
   sha256Hex,
@@ -13,7 +14,11 @@ import {
 
 const CONFIG: BronConfig = {
   positieve_keywords: ['transformatie', 'functiewijziging', 'kantoor naar wonen', 'kamerverhuur'],
-  negatieve_keywords: ['dakkapel', 'kapvergunning', 'aanbouw', 'inrit'],
+  negatieve_keywords: [
+    'dakkapel', 'kapvergunning', 'aanbouw', 'inrit',
+    'kozijnen', 'gevelherstel', 'isolatie', 'schilderwerk',
+    'onderhoud', 'verduurzaming', 'winkelpui', 'puivernieuwing',
+  ],
   score_drempel: 40,
   gemeente: 'Amsterdam',
   provincie: 'Noord-Holland',
