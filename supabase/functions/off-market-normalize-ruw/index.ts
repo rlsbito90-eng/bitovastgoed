@@ -63,24 +63,67 @@ function detectBronType(subj: string[]): 'vergunning' | 'bekendmaking' {
   return /vergunning/.test(subj.join(' ').toLowerCase()) ? 'vergunning' : 'bekendmaking';
 }
 interface ScoreComponent { label: string; delta: number; }
+
+// Gewogen positieve patronen (gedeeld met src/lib/offMarket/import/normalize.ts).
+const WEIGHTED_POSITIVE: Array<{ re: RegExp; label: string; delta: number }> = [
+  { re: /\bsplitsingsvergunning\b/i, label: 'splitsingsvergunning', delta: 40 },
+  { re: /\bsplitsing\b/i, label: 'splitsing', delta: 30 },
+  { re: /\bappartementsrecht(en)?\b/i, label: 'appartementsrecht', delta: 20 },
+  { re: /\b(uitponding|uitponden|kadastrale\s+splitsing|juridische\s+splitsing)\b/i, label: 'uitponding', delta: 20 },
+  { re: /\bwoonvormingsvergunning\b/i, label: 'woonvormingsvergunning', delta: 35 },
+  { re: /\bwoningvorm(?:ing|en)\b/i, label: 'woningvorming', delta: 30 },
+  { re: /\b(?:nieuwe\s+)?zelfstandige\s+woonruimte[n]?\b/i, label: 'zelfstandige woonruimte', delta: 20 },
+  { re: /\bomzettingsvergunning\b/i, label: 'omzettingsvergunning', delta: 35 },
+  { re: /\bonzelfstandige\s+woonruimte[n]?\b/i, label: 'onzelfstandige woonruimte', delta: 35 },
+  { re: /\b(kamergewijze\s+verhuur|kamerverhuur|woningdelen)\b/i, label: 'kamerverhuur', delta: 25 },
+  { re: /\bvan\s+\d+\b[^.\n]{0,60}\b(?:naar|in)\s+\d+\b/i, label: 'wijziging aantal kamers', delta: 20 },
+  { re: /\bonttrekkingsvergunning\b/i, label: 'onttrekkingsvergunning', delta: 20 },
+  { re: /\btweede\s+woning\b/i, label: 'tweede woning', delta: 15 },
+  { re: /\bwoningbouwproject\b/i, label: 'woningbouwproject', delta: 25 },
+  { re: /\bappartement(?:en|encomplex)?\b/i, label: 'appartementen', delta: 20 },
+  { re: /\bnieuwbouw\b/i, label: 'nieuwbouw', delta: 20 },
+  { re: /\bsociale\s+huur\b/i, label: 'sociale huur', delta: 15 },
+  { re: /\b(projectontwikkeling|gebiedsontwikkeling|grotere\s+ontwikkeling)\b/i, label: 'projectontwikkeling', delta: 15 },
+  { re: /\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, label: 'transformatie', delta: 25 },
+  { re: /\b(functiewijziging|wijzigen\s+gebruik|gebruikswijziging)\b/i, label: 'functiewijziging', delta: 20 },
+  { re: /\bleegstand\b/i, label: 'leegstand', delta: 15 },
+  { re: /\b(bedrijfsbe[eë]indiging|opheffing|liquidatie)\b/i, label: 'bedrijfsbeeindiging', delta: 20 },
+];
+
 function scoreRecord(input: { titel: string; samenvatting: string; subjects: string[] }, cfg: BronConfig) {
-  const blob = `${input.titel} ${input.samenvatting} ${input.subjects.join(' ')}`.toLowerCase();
+  const blob = `${input.titel} ${input.samenvatting} ${input.subjects.join(' ')}`;
+  const blobLower = blob.toLowerCase();
   const redenen: string[] = [];
   const componenten: ScoreComponent[] = [];
   let score = 0;
-  const negHits = (cfg.negatieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
+
+  const negHits = (cfg.negatieve_keywords ?? []).filter(k => blobLower.includes(k.toLowerCase()));
   if (negHits.length) {
     score -= 40; redenen.push(`negatief:${negHits.join(',')}`);
     componenten.push({ label: `onderhoud/ruis (${negHits.join(',')})`, delta: -40 });
   }
-  const posHits = (cfg.positieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
-  if (posHits.length) {
-    score += 30; redenen.push(`positief:${posHits.join(',')}`);
-    componenten.push({ label: `positief (${posHits.join(',')})`, delta: 30 });
+
+  for (const w of WEIGHTED_POSITIVE) {
+    if (w.re.test(blob)) {
+      score += w.delta;
+      redenen.push(`+${w.delta} ${w.label}`);
+      componenten.push({ label: w.label, delta: w.delta });
+    }
   }
+
+  const posHits = (cfg.positieve_keywords ?? []).filter(k => {
+    const kl = k.toLowerCase();
+    if (!blobLower.includes(kl)) return false;
+    return !componenten.some(c => c.label.toLowerCase().includes(kl) || kl.includes(c.label.toLowerCase()));
+  });
+  if (posHits.length) {
+    score += 10; redenen.push(`extra config-keywords:${posHits.join(',')}`);
+    componenten.push({ label: `config-keywords (${posHits.join(',')})`, delta: 10 });
+  }
+
   const a = parseAdres(`${input.titel} ${input.samenvatting}`);
   if (a.adres) { score += 20; redenen.push('adres'); componenten.push({ label: 'adres', delta: 20 }); }
-  const at = detectAssettype(blob);
+  const at = detectAssettype(blobLower);
   if (at !== 'overig') { score += 15; redenen.push(`assettype:${at}`); componenten.push({ label: `assettype:${at}`, delta: 15 }); }
   if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
     score += 10; redenen.push('commercieel'); componenten.push({ label: 'commercieel', delta: 10 });
