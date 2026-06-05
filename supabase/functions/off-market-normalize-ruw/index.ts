@@ -168,12 +168,19 @@ Deno.serve(async (req) => {
       const link = (payload.link as string) ?? null;
 
       const drempel = Number(cfg.score_drempel ?? 40);
-      const { score, redenen } = scoreRecord({ titel, samenvatting, subjects }, cfg);
+      const { score, redenen, componenten } = scoreRecord({ titel, samenvatting, subjects }, cfg);
+      const scoreComponentenStr = formatScoreComponenten(componenten);
 
       if (score < drempel) {
         await admin.from('off_market_signalen_ruw').update({
           verwerkt: true,
-          payload: { ...payload, skip_reden: `score=${score}`, score, redenen },
+          payload: {
+            ...payload,
+            skip_reden: `score=${score} (drempel=${drempel})`,
+            score, redenen,
+            score_componenten: componenten,
+            score_componenten_tekst: scoreComponentenStr,
+          },
         }).eq('id', r.id);
         geskipt++;
         continue;
