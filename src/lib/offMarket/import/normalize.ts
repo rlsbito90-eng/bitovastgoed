@@ -23,7 +23,7 @@ export interface AdresParseResult {
 }
 
 const STRAAT_RE =
-  /\b([A-ZÀ-Ý][\wÀ-ÿ\-' ]{2,40}?(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak)\.?)\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
+  /([A-ZÀ-Ý][\wÀ-ÿ\-']{2,40}(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak))\.?\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
 
 /** Eenvoudige adres-extractor: zoek straat+huisnummer en postcode in tekst. */
