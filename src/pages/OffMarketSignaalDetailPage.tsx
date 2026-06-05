@@ -62,6 +62,7 @@ export default function OffMarketSignaalDetailPage() {
         onEdit={() => setEditOpen(true)}
         onArchive={() => setArchiveOpen(true)}
       />
+      <SignaalSnelleActiesBar signaal={signaal} />
       <SignaalAiAnalyse signaal={signaal} />
       <SignaalKerngegevens signaal={signaal} />
       <SignaalKoppelingenSectie signaal={signaal} />
