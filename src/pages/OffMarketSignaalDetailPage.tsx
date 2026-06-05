@@ -5,6 +5,9 @@ import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
 import SignaalKerngegevens from '@/components/offmarket/SignaalKerngegevens';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import OffMarketArchiveDialog from '@/components/offmarket/OffMarketArchiveDialog';
+import SignaalKoppelingenSectie from '@/components/offmarket/SignaalKoppelingenSectie';
+import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
+import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import {
   useOffMarketSignaal, useArchiveOffMarketSignaal,
 } from '@/hooks/useOffMarketSignalen';
