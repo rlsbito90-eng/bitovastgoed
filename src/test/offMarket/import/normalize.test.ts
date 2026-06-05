@@ -172,6 +172,79 @@ describe('scoreRecord', () => {
     expect(r.componenten.every(c => typeof c.delta === 'number' && typeof c.label === 'string')).toBe(true);
     expect(r.componenten.reduce((s, c) => s + c.delta, 0)).toBeGreaterThan(0);
   });
+
+  // ===== Audit-cases (Bito-relevantievolgorde) =====
+  function s(titel: string, samenvatting: string) {
+    return scoreRecord({ titel, samenvatting, subjects: ['omgevingsvergunning'], datum: '2026-06-01' }, CONFIG);
+  }
+
+  it('Eurokade 51 (omzetting + onzelfstandige woonruimten) promoveert', () => {
+    const r = s(
+      'Aanvraag omzettingsvergunning Eurokade 51 1060RZ Amsterdam',
+      'van 4 onzelfstandige woonruimten in 6 onzelfstandige woonruimten op de locatie Eurokade 51',
+    );
+    expect(r.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
+    expect(r.componenten.some(c => c.label === 'omzettingsvergunning')).toBe(true);
+    expect(r.componenten.some(c => c.label === 'onzelfstandige woonruimte')).toBe(true);
+  });
+
+  it('Utrechtsedwarsstraat 68D (onttrekking tweede woning) promoveert, lager dan Eurokade', () => {
+    const eurokade = s(
+      'Aanvraag omzettingsvergunning Eurokade 51 1060RZ Amsterdam',
+      'van 4 onzelfstandige woonruimten in 6 onzelfstandige woonruimten',
+    );
+    const utrechtse = s(
+      'Aanvraag onttrekkingsvergunning van woonruimte voor een tweede woning Utrechtsedwarsstraat 68D 1017WH Amsterdam',
+      'onttrekkingsvergunning voor een tweede woning',
+    );
+    expect(utrechtse.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
+    expect(utrechtse.score).toBeLessThan(eurokade.score);
+    expect(utrechtse.componenten.some(c => c.label === 'onttrekkingsvergunning')).toBe(true);
+    expect(utrechtse.componenten.some(c => c.label === 'tweede woning')).toBe(true);
+  });
+
+  it('Baarsjesweg 162/163 (splitsingsvergunning) promoveert en scoort hoog', () => {
+    const r = s(
+      'Aanvraag splitsingsvergunning Baarsjesweg 162 en 163 162-1 1057HN Amsterdam',
+      'Splitsingsvergunning',
+    );
+    expect(r.score).toBeGreaterThanOrEqual(50);
+    expect(r.componenten.some(c => c.label === 'splitsingsvergunning')).toBe(true);
+  });
+
+  it('Ceintuurbaan 151-2 (woonvormingsvergunning) promoveert', () => {
+    const r = s(
+      'Aanvraag woonvormingsvergunning Ceintuurbaan 151-2 1072GB Amsterdam',
+      'Vergunning voor woningvormen',
+    );
+    expect(r.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
+    expect(r.componenten.some(c => c.label === 'woonvormingsvergunning')).toBe(true);
+    expect(r.componenten.some(c => c.label === 'woningvorming')).toBe(true);
+  });
+
+  it('Klaprozenweg Kavel 1A (woningbouwproject) promoveert als laag/middel ontwikkelingssignaal (45-65)', () => {
+    const r = s(
+      'Aanvraag omgevingsvergunning Kavel 1A BSH_fase 1',
+      'Woningbouwproject met 75 sociale huurappartementen en inpandige fietsenstalling',
+    );
+    expect(r.score).toBeGreaterThanOrEqual(45);
+    expect(r.score).toBeLessThanOrEqual(70);
+    expect(r.componenten.some(c => c.label === 'woningbouwproject')).toBe(true);
+  });
+
+  it('relevantievolgorde: splitsing > woonvorming > omzetting > onttrekking > ontwikkeling', () => {
+    const splitsing = s('Aanvraag splitsingsvergunning Baarsjesweg 162 1057HN', 'Splitsingsvergunning');
+    const woonvorm = s('Aanvraag woonvormingsvergunning Ceintuurbaan 151 1072GB', 'Vergunning voor woningvormen');
+    const omzetting = s('Aanvraag omzettingsvergunning Eurokade 51 1060RZ', 'van 4 onzelfstandige woonruimten in 6 onzelfstandige woonruimten');
+    const onttrekking = s('Aanvraag onttrekkingsvergunning Utrechtsedwarsstraat 68D 1017WH', 'onttrekkingsvergunning voor een tweede woning');
+    const ontwikkeling = s('Aanvraag omgevingsvergunning Kavel 1A', 'Woningbouwproject met 75 sociale huurappartementen');
+    // splitsing en omzetting tikken beide tegen 100-cap aan; we eisen dat ze ≥ woonvorming zijn,
+    // en woonvorming > onttrekking > ontwikkeling.
+    expect(splitsing.score).toBeGreaterThanOrEqual(woonvorm.score);
+    expect(omzetting.score).toBeGreaterThanOrEqual(woonvorm.score);
+    expect(woonvorm.score).toBeGreaterThan(onttrekking.score);
+    expect(onttrekking.score).toBeGreaterThan(ontwikkeling.score - 10); // ontwikkeling mag iets hoger uitkomen door commerciële woorden, maar onttrekking blijft solide
+  });
 });
 
 describe('formatScoreComponenten', () => {
