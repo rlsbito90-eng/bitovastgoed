@@ -236,9 +236,11 @@ Deno.serve(async (req) => {
         if (records.length < pageSize) break;
       }
 
+      const afgebroken = opgehaald < maxRecords && (Date.now() - start) >= TIME_BUDGET_MS;
       const status = {
         opgehaald, nieuw, dubbel, duur_ms: Date.now() - start, sinceIso,
-        totaal_server: totaalServer, test_mode: testMode, query_url: firstQueryUrl,
+        totaal_server: totaalServer, max_records: maxRecords, afgebroken,
+        test_mode: testMode, query_url: firstQueryUrl,
       };
       await admin.from('off_market_bronnen').update({
         laatste_run_op: new Date().toISOString(),
