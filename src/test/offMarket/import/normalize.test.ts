@@ -5,6 +5,7 @@ import {
   detectSignaaltype,
   detectBronType,
   scoreRecord,
+  formatScoreComponenten,
   yyyymm,
   dedupeHashInput,
   sha256Hex,
@@ -13,7 +14,11 @@ import {
 
 const CONFIG: BronConfig = {
   positieve_keywords: ['transformatie', 'functiewijziging', 'kantoor naar wonen', 'kamerverhuur'],
-  negatieve_keywords: ['dakkapel', 'kapvergunning', 'aanbouw', 'inrit'],
+  negatieve_keywords: [
+    'dakkapel', 'kapvergunning', 'aanbouw', 'inrit',
+    'kozijnen', 'gevelherstel', 'isolatie', 'schilderwerk',
+    'onderhoud', 'verduurzaming', 'winkelpui', 'puivernieuwing',
+  ],
   score_drempel: 40,
   gemeente: 'Amsterdam',
   provincie: 'Noord-Holland',
@@ -124,6 +129,62 @@ describe('scoreRecord', () => {
     );
     expect(r.score).toBeLessThanOrEqual(100);
     expect(r.score).toBeGreaterThan(0);
+  });
+
+  it('onderhoud/gevel/kozijn-vergunning wordt geskipt (Leidsestraat-case)', () => {
+    const r = scoreRecord(
+      {
+        titel: 'Omgevingsvergunning Leidsestraat 101 vervangen kozijnen winkelpui',
+        samenvatting: 'vernieuwen winkelpui en kozijnen, na-isolatie en schilderwerk',
+        subjects: ['omgevingsvergunning'],
+        datum: '2026-06-01',
+      },
+      CONFIG,
+    );
+    expect(r.score).toBeLessThan(CONFIG.score_drempel);
+    expect(r.componenten.some(c => c.delta === -40)).toBe(true);
+  });
+
+  it('kamerverhuur-omzetting promoveert (Sarphatipark-case)', () => {
+    const r = scoreRecord(
+      {
+        titel: 'Omgevingsvergunning Sarphatipark 86-2 omzetting naar kamerverhuur',
+        samenvatting: 'wijzigen gebruik pand naar kamerverhuur',
+        subjects: ['omgevingsvergunning'],
+        datum: '2026-06-01',
+      },
+      CONFIG,
+    );
+    expect(r.score).toBeGreaterThanOrEqual(CONFIG.score_drempel);
+  });
+
+  it('retourneert componenten met deltas', () => {
+    const r = scoreRecord(
+      {
+        titel: 'Transformatie Damrak 1 kantoor naar wonen',
+        samenvatting: 'transformatie kantoorpand',
+        subjects: ['omgevingsvergunning'],
+        datum: '2026-06-01',
+      },
+      CONFIG,
+    );
+    expect(Array.isArray(r.componenten)).toBe(true);
+    expect(r.componenten.every(c => typeof c.delta === 'number' && typeof c.label === 'string')).toBe(true);
+    expect(r.componenten.reduce((s, c) => s + c.delta, 0)).toBeGreaterThan(0);
+  });
+});
+
+describe('formatScoreComponenten', () => {
+  it('formatteert met +/- prefix', () => {
+    expect(
+      formatScoreComponenten([
+        { label: 'adres', delta: 20 },
+        { label: 'onderhoud', delta: -40 },
+      ]),
+    ).toBe('+20 adres · -40 onderhoud');
+  });
+  it('fallback bij lege lijst', () => {
+    expect(formatScoreComponenten([])).toBe('(geen componenten)');
   });
 });
 

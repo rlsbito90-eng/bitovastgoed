@@ -62,22 +62,34 @@ function detectSignaaltype(t: string): string {
 function detectBronType(subj: string[]): 'vergunning' | 'bekendmaking' {
   return /vergunning/.test(subj.join(' ').toLowerCase()) ? 'vergunning' : 'bekendmaking';
 }
+interface ScoreComponent { label: string; delta: number; }
 function scoreRecord(input: { titel: string; samenvatting: string; subjects: string[] }, cfg: BronConfig) {
   const blob = `${input.titel} ${input.samenvatting} ${input.subjects.join(' ')}`.toLowerCase();
   const redenen: string[] = [];
+  const componenten: ScoreComponent[] = [];
   let score = 0;
   const negHits = (cfg.negatieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
-  if (negHits.length) { score -= 40; redenen.push(`negatief:${negHits.join(',')}`); }
-  const posHits = (cfg.positieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
-  if (posHits.length) { score += 30; redenen.push(`positief:${posHits.join(',')}`); }
-  const a = parseAdres(`${input.titel} ${input.samenvatting}`);
-  if (a.adres) { score += 20; redenen.push('adres'); }
-  const at = detectAssettype(blob);
-  if (at !== 'overig') { score += 15; redenen.push(`assettype:${at}`); }
-  if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
-    score += 10; redenen.push('commercieel');
+  if (negHits.length) {
+    score -= 40; redenen.push(`negatief:${negHits.join(',')}`);
+    componenten.push({ label: `onderhoud/ruis (${negHits.join(',')})`, delta: -40 });
   }
-  return { score: Math.max(0, Math.min(100, score)), redenen };
+  const posHits = (cfg.positieve_keywords ?? []).filter(k => blob.includes(k.toLowerCase()));
+  if (posHits.length) {
+    score += 30; redenen.push(`positief:${posHits.join(',')}`);
+    componenten.push({ label: `positief (${posHits.join(',')})`, delta: 30 });
+  }
+  const a = parseAdres(`${input.titel} ${input.samenvatting}`);
+  if (a.adres) { score += 20; redenen.push('adres'); componenten.push({ label: 'adres', delta: 20 }); }
+  const at = detectAssettype(blob);
+  if (at !== 'overig') { score += 15; redenen.push(`assettype:${at}`); componenten.push({ label: `assettype:${at}`, delta: 15 }); }
+  if (/\b(pand|gebouw|complex|portefeuille|mixed[-\s]?use)\b/i.test(blob)) {
+    score += 10; redenen.push('commercieel'); componenten.push({ label: 'commercieel', delta: 10 });
+  }
+  return { score: Math.max(0, Math.min(100, score)), redenen, componenten };
+}
+function formatScoreComponenten(componenten: ScoreComponent[]): string {
+  if (!componenten.length) return '(geen componenten)';
+  return componenten.map(c => `${c.delta >= 0 ? '+' : ''}${c.delta} ${c.label}`).join(' · ');
 }
 function yyyymm(d: string | null): string {
   if (!d) return 'onbekend';
@@ -156,12 +168,19 @@ Deno.serve(async (req) => {
       const link = (payload.link as string) ?? null;
 
       const drempel = Number(cfg.score_drempel ?? 40);
-      const { score, redenen } = scoreRecord({ titel, samenvatting, subjects }, cfg);
+      const { score, redenen, componenten } = scoreRecord({ titel, samenvatting, subjects }, cfg);
+      const scoreComponentenStr = formatScoreComponenten(componenten);
 
       if (score < drempel) {
         await admin.from('off_market_signalen_ruw').update({
           verwerkt: true,
-          payload: { ...payload, skip_reden: `score=${score}`, score, redenen },
+          payload: {
+            ...payload,
+            skip_reden: `score=${score} (drempel=${drempel})`,
+            score, redenen,
+            score_componenten: componenten,
+            score_componenten_tekst: scoreComponentenStr,
+          },
         }).eq('id', r.id);
         geskipt++;
         continue;
@@ -218,7 +237,7 @@ Deno.serve(async (req) => {
         status: 'nieuw_signaal',
         ai_status: 'niet_verrijkt',
         dedupe_hash: dedupeHash,
-        notities: `[auto-import] score=${score} · ${redenen.join(' · ')}`,
+        notities: `[auto-import] score=${score}\nscore_componenten: ${scoreComponentenStr}`,
       };
 
       const { data: nieuwSig, error: insErr } = await admin
@@ -244,7 +263,11 @@ Deno.serve(async (req) => {
 
       await admin.from('off_market_signalen_ruw').update({
         verwerkt: true, signaal_id: nieuwSig.id,
-        payload: { ...payload, score, redenen, dedupe_hash: dedupeHash },
+        payload: {
+          ...payload, score, redenen, dedupe_hash: dedupeHash,
+          score_componenten: componenten,
+          score_componenten_tekst: scoreComponentenStr,
+        },
       }).eq('id', r.id);
       gepromoveerd++;
     }
