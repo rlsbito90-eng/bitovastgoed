@@ -129,6 +129,8 @@ describe('scoreRecord', () => {
     );
     expect(r.score).toBeLessThanOrEqual(100);
     expect(r.score).toBeGreaterThan(0);
+  });
+
   it('onderhoud/gevel/kozijn-vergunning wordt geskipt (Leidsestraat-case)', () => {
     const r = scoreRecord(
       {
