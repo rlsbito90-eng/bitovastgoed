@@ -70,7 +70,7 @@ export function usePromoteGeskipt() {
       if (insErr) throw insErr;
       const { error: updErr } = await supabase
         .from('off_market_signalen_ruw')
-        .update({ signaal_id: signaal.id, payload: ruwUpdatePayload })
+        .update({ signaal_id: signaal.id, payload: ruwUpdatePayload as any })
         .eq('id', record.id);
       if (updErr) throw updErr;
       return signaal.id as string;
