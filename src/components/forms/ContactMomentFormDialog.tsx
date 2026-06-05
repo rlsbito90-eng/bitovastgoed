@@ -27,6 +27,7 @@ interface Props {
   defaultObjectId?: string;
   defaultDealId?: string;
   defaultAcquisitieTargetId?: string;
+  defaultOffMarketSignaalId?: string;
 }
 
 const TYPE_OPTIONS: ContactMomentType[] = [
