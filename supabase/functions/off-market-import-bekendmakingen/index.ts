@@ -150,6 +150,9 @@ Deno.serve(async (req) => {
     const bronId = body.bron_id as string | undefined;
     const testMode = body.test_mode === true;
     const lookbackOverride = body.lookback_days as number | undefined;
+    const maxRecordsOverride = typeof body.max_records === 'number' && Number.isFinite(body.max_records)
+      ? Math.max(1, Math.min(1000, Math.floor(body.max_records)))
+      : undefined;
     if (!bronId) {
       return new Response(JSON.stringify({ error: 'bron_id verplicht' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -170,7 +173,8 @@ Deno.serve(async (req) => {
     const endpoint = bron.endpoint_url ?? 'https://repository.overheid.nl/sru';
     const creator = cfg.sru_creator as string | undefined;
     const subjects = (cfg.sru_subjects as string[] | undefined) ?? [];
-    const maxRecords = Math.min(Number(cfg.max_records_per_run ?? 200), 500);
+    const cfgMax = Number(cfg.max_records_per_run ?? 200);
+    const maxRecords = Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
     const lookbackFirst = Number(cfg.lookback_days_first_run ?? 7);
     const lookbackDefault = Number(cfg.lookback_days_default ?? 3);
     if (!creator) {
@@ -188,10 +192,11 @@ Deno.serve(async (req) => {
     let opgehaald = 0, nieuw = 0, dubbel = 0;
     let totaalServer = 0;
     let firstQueryUrl = '';
-    const pageSize = 100;
+    const pageSize = 200;
+    const TIME_BUDGET_MS = 50_000;
 
     try {
-      while (opgehaald < maxRecords) {
+      while (opgehaald < maxRecords && (Date.now() - start) < TIME_BUDGET_MS) {
         const url = bouwSruUrl({
           endpoint, creator, subjects, sinceIso,
           startRecord, maximumRecords: Math.min(pageSize, maxRecords - opgehaald),
@@ -231,9 +236,11 @@ Deno.serve(async (req) => {
         if (records.length < pageSize) break;
       }
 
+      const afgebroken = opgehaald < maxRecords && (Date.now() - start) >= TIME_BUDGET_MS;
       const status = {
         opgehaald, nieuw, dubbel, duur_ms: Date.now() - start, sinceIso,
-        totaal_server: totaalServer, test_mode: testMode, query_url: firstQueryUrl,
+        totaal_server: totaalServer, max_records: maxRecords, afgebroken,
+        test_mode: testMode, query_url: firstQueryUrl,
       };
       await admin.from('off_market_bronnen').update({
         laatste_run_op: new Date().toISOString(),
