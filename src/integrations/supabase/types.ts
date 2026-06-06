@@ -2334,6 +2334,9 @@ export type Database = {
       }
       off_market_signalen: {
         Row: {
+          aanvraag_of_besluit:
+            | Database["public"]["Enums"]["off_market_aanvraag_besluit"]
+            | null
           adres: string | null
           ai_aanbevolen_actie: string | null
           ai_classificatie_assettype:
@@ -2385,10 +2388,16 @@ export type Database = {
           type_signaal: Database["public"]["Enums"]["off_market_signaaltype"]
           updated_at: string
           updated_by: string | null
+          vergunningtype:
+            | Database["public"]["Enums"]["off_market_vergunningtype"]
+            | null
           volgende_actie_datum: string | null
           volgende_actie_omschrijving: string | null
         }
         Insert: {
+          aanvraag_of_besluit?:
+            | Database["public"]["Enums"]["off_market_aanvraag_besluit"]
+            | null
           adres?: string | null
           ai_aanbevolen_actie?: string | null
           ai_classificatie_assettype?:
@@ -2440,10 +2449,16 @@ export type Database = {
           type_signaal?: Database["public"]["Enums"]["off_market_signaaltype"]
           updated_at?: string
           updated_by?: string | null
+          vergunningtype?:
+            | Database["public"]["Enums"]["off_market_vergunningtype"]
+            | null
           volgende_actie_datum?: string | null
           volgende_actie_omschrijving?: string | null
         }
         Update: {
+          aanvraag_of_besluit?:
+            | Database["public"]["Enums"]["off_market_aanvraag_besluit"]
+            | null
           adres?: string | null
           ai_aanbevolen_actie?: string | null
           ai_classificatie_assettype?:
@@ -2495,6 +2510,9 @@ export type Database = {
           type_signaal?: Database["public"]["Enums"]["off_market_signaaltype"]
           updated_at?: string
           updated_by?: string | null
+          vergunningtype?:
+            | Database["public"]["Enums"]["off_market_vergunningtype"]
+            | null
           volgende_actie_datum?: string | null
           volgende_actie_omschrijving?: string | null
         }
@@ -4185,6 +4203,11 @@ export type Database = {
         | "verkocht"
         | "ingetrokken"
         | "afgevallen"
+      off_market_aanvraag_besluit:
+        | "aanvraag"
+        | "besluit"
+        | "melding"
+        | "onbekend"
       off_market_ai_status:
         | "niet_verrijkt"
         | "in_wachtrij"
@@ -4242,6 +4265,15 @@ export type Database = {
         | "benaderd"
         | "aanbod_ontvangen"
         | "afgevallen"
+      off_market_vergunningtype:
+        | "splitsing"
+        | "woonvorming"
+        | "omzetting"
+        | "onttrekking"
+        | "functiewijziging"
+        | "transformatie"
+        | "ontwikkeling"
+        | "overig"
       onderhoudsstaat_niveau:
         | "uitstekend"
         | "goed"
@@ -4681,6 +4713,12 @@ export const Constants = {
         "ingetrokken",
         "afgevallen",
       ],
+      off_market_aanvraag_besluit: [
+        "aanvraag",
+        "besluit",
+        "melding",
+        "onbekend",
+      ],
       off_market_ai_status: [
         "niet_verrijkt",
         "in_wachtrij",
@@ -4742,6 +4780,16 @@ export const Constants = {
         "benaderd",
         "aanbod_ontvangen",
         "afgevallen",
+      ],
+      off_market_vergunningtype: [
+        "splitsing",
+        "woonvorming",
+        "omzetting",
+        "onttrekking",
+        "functiewijziging",
+        "transformatie",
+        "ontwikkeling",
+        "overig",
       ],
       onderhoudsstaat_niveau: [
         "uitstekend",
