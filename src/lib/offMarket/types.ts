@@ -100,3 +100,26 @@ export const PROVINCIES = [
   'Drenthe', 'Flevoland', 'Friesland', 'Gelderland', 'Groningen', 'Limburg',
   'Noord-Brabant', 'Noord-Holland', 'Overijssel', 'Utrecht', 'Zeeland', 'Zuid-Holland',
 ];
+
+export const VERGUNNINGTYPE_LABEL: Record<OffMarketVergunningtype, string> = {
+  splitsing: 'Splitsing',
+  woonvorming: 'Woonvorming',
+  omzetting: 'Omzetting',
+  onttrekking: 'Onttrekking',
+  functiewijziging: 'Functiewijziging',
+  transformatie: 'Transformatie',
+  ontwikkeling: 'Ontwikkeling',
+  overig: 'Overig',
+};
+export const VERGUNNINGTYPE_VOLGORDE: OffMarketVergunningtype[] = [
+  'splitsing', 'woonvorming', 'omzetting', 'functiewijziging',
+  'transformatie', 'ontwikkeling', 'onttrekking', 'overig',
+];
+
+export const AANVRAAG_BESLUIT_LABEL: Record<OffMarketAanvraagOfBesluit, string> = {
+  aanvraag: 'Aanvraag',
+  besluit: 'Besluit',
+  melding: 'Melding',
+  onbekend: '—',
+};
+
