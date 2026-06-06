@@ -4,10 +4,11 @@ import { Sparkles, Calendar, ExternalLink } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { OffMarketStatusBadge, OffMarketPriorityBadge, OffMarketAiStatusBadge } from '@/components/offmarket/OffMarketBadges';
+import { OffMarketStatusBadge, OffMarketPriorityBadge, OffMarketAiStatusBadge, OffMarketEigenaarstatusBadge } from '@/components/offmarket/OffMarketBadges';
 import {
   BRON_TYPE_LABEL, VERGUNNINGTYPE_LABEL, AANVRAAG_BESLUIT_LABEL, ASSETTYPE_LABEL,
   type OffMarketSignaal, type OffMarketVergunningtype, type OffMarketAanvraagOfBesluit,
+  type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -48,10 +49,8 @@ function aanvraagBesluitLabel(s: OffMarketSignaal): string {
   return AANVRAAG_BESLUIT_LABEL[ab];
 }
 
-function eigenaarChip(s: OffMarketSignaal): { label: string; tone: 'on' | 'off' | 'neutral' } {
-  if (s.eigenaar_relatie_id) return { label: 'Bekend', tone: 'on' };
-  if (s.eigenaar_bekend) return { label: 'Bekend', tone: 'on' };
-  return { label: 'Onbekend', tone: 'neutral' };
+function eigenaarstatusVan(s: OffMarketSignaal): OffMarketEigenaarstatus {
+  return ((s as any).eigenaarstatus as OffMarketEigenaarstatus | null | undefined) ?? 'onbekend';
 }
 
 function brondatumOfCreated(s: OffMarketSignaal): string | null {
@@ -155,16 +154,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
     id: 'eigenaar',
     label: 'Eigenaar',
     defaultVisible: true,
-    render: (s) => {
-      const eig = eigenaarChip(s);
-      return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${
-          eig.tone === 'on'
-            ? 'bg-success/10 text-success border-success/25'
-            : 'bg-muted/60 text-muted-foreground border-border'
-        }`}>{eig.label}</span>
-      );
-    },
+    render: (s) => <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />,
   },
   {
     id: 'relatie',
