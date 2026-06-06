@@ -48,7 +48,7 @@ export default function SignalenTable({ signalen, laden }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
   const go = (id: string) => navigate(`/off-market/${id}`);
-  const { data: relaties = [] } = useRelaties();
+  const { relaties } = useDataStore();
   const relatieNaam = (id: string | null) => {
     if (!id) return null;
     const r = relaties.find((x: any) => x.id === id);
