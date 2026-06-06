@@ -293,6 +293,7 @@ Deno.serve(async (req) => {
       }
 
       // Nieuw signaal aanmaken
+      const blobText = `${titel} ${samenvatting}`;
       const insertPayload: any = {
         titel: titel.slice(0, 200) || 'Onbekende bekendmaking',
         omschrijving: samenvatting.slice(0, 500) || null,
@@ -302,6 +303,8 @@ Deno.serve(async (req) => {
         provincie: cfg.provincie ?? null,
         assettype,
         type_signaal: signaaltype,
+        vergunningtype: detectVergunningtype(blobText),
+        aanvraag_of_besluit: detectAanvraagOfBesluit(blobText, subjects),
         bron_type: bronType,
         bron_id: r.bron_id,
         bron_url: link,
@@ -313,6 +316,7 @@ Deno.serve(async (req) => {
         dedupe_hash: dedupeHash,
         notities: `[auto-import] score=${score}\nscore_componenten: ${scoreComponentenStr}`,
       };
+
 
       const { data: nieuwSig, error: insErr } = await admin
         .from('off_market_signalen').insert(insertPayload).select('id').single();
