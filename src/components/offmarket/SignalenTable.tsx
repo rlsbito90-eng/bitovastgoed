@@ -4,10 +4,11 @@ import { Sparkles, Calendar, ExternalLink } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { OffMarketStatusBadge, OffMarketPriorityBadge, OffMarketAiStatusBadge } from '@/components/offmarket/OffMarketBadges';
+import { OffMarketStatusBadge, OffMarketPriorityBadge, OffMarketAiStatusBadge, OffMarketEigenaarstatusBadge } from '@/components/offmarket/OffMarketBadges';
 import {
   BRON_TYPE_LABEL, VERGUNNINGTYPE_LABEL, AANVRAAG_BESLUIT_LABEL, ASSETTYPE_LABEL,
   type OffMarketSignaal, type OffMarketVergunningtype, type OffMarketAanvraagOfBesluit,
+  type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -48,10 +49,8 @@ function aanvraagBesluitLabel(s: OffMarketSignaal): string {
   return AANVRAAG_BESLUIT_LABEL[ab];
 }
 
-function eigenaarChip(s: OffMarketSignaal): { label: string; tone: 'on' | 'off' | 'neutral' } {
-  if (s.eigenaar_relatie_id) return { label: 'Bekend', tone: 'on' };
-  if (s.eigenaar_bekend) return { label: 'Bekend', tone: 'on' };
-  return { label: 'Onbekend', tone: 'neutral' };
+function eigenaarstatusVan(s: OffMarketSignaal): OffMarketEigenaarstatus {
+  return ((s as any).eigenaarstatus as OffMarketEigenaarstatus | null | undefined) ?? 'onbekend';
 }
 
 function brondatumOfCreated(s: OffMarketSignaal): string | null {
@@ -155,16 +154,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
     id: 'eigenaar',
     label: 'Eigenaar',
     defaultVisible: true,
-    render: (s) => {
-      const eig = eigenaarChip(s);
-      return (
-        <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${
-          eig.tone === 'on'
-            ? 'bg-success/10 text-success border-success/25'
-            : 'bg-muted/60 text-muted-foreground border-border'
-        }`}>{eig.label}</span>
-      );
-    },
+    render: (s) => <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />,
   },
   {
     id: 'relatie',
@@ -240,7 +230,6 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
       {/* Mobiel: compacte card */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => {
-          const eig = eigenaarChip(s);
           return (
             <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
               <div className="flex items-start justify-between gap-2">
@@ -260,11 +249,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
               </div>
               <div className="flex items-center flex-wrap gap-1.5 mt-2">
                 <OffMarketStatusBadge status={s.status} />
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                  eig.tone === 'on'
-                    ? 'bg-success/10 text-success border-success/25'
-                    : 'bg-muted/60 text-muted-foreground border-border'
-                }`}>Eigenaar: {eig.label}</span>
+                <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {formatDateNL(brondatumOfCreated(s))}

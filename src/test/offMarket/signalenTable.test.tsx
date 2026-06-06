@@ -29,6 +29,7 @@ const baseSignaal = {
   mogelijke_fee: 50000,
   eigenaar_bekend: false,
   eigenaar_relatie_id: null,
+  eigenaarstatus: 'te_onderzoeken',
 } as unknown as OffMarketSignaal;
 
 function renderTable(signalen: OffMarketSignaal[], zichtbareKolommen?: string[]) {
@@ -80,6 +81,18 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
   it('rendert vergunningtype-label', () => {
     renderTable([baseSignaal]);
     expect(screen.getAllByText('Splitsing').length).toBeGreaterThan(0);
+  });
+
+  it('Eigenaar-kolom toont eigenaarstatus-label', () => {
+    renderTable([baseSignaal]);
+    // Desktop badge + mobile badge — beide tonen "Te onderzoeken"
+    expect(screen.getAllByText('Te onderzoeken').length).toBeGreaterThan(0);
+  });
+
+  it('Eigenaar-kolom toont "Onbekend" bij ontbrekende eigenaarstatus', () => {
+    const s = { ...baseSignaal, eigenaarstatus: undefined } as unknown as OffMarketSignaal;
+    renderTable([s]);
+    expect(screen.getAllByText('Onbekend').length).toBeGreaterThan(0);
   });
 
   it('toont verborgen kolom wel wanneer expliciet meegegeven', () => {

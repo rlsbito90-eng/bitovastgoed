@@ -8,6 +8,9 @@ export type OffMarketPrioriteit = Database['public']['Enums']['off_market_priori
 export type OffMarketStatus = Database['public']['Enums']['off_market_status'];
 export type OffMarketVergunningtype = Database['public']['Enums']['off_market_vergunningtype'];
 export type OffMarketAanvraagOfBesluit = Database['public']['Enums']['off_market_aanvraag_besluit'];
+export type OffMarketEigenaarstatus = Database['public']['Enums']['off_market_eigenaarstatus'];
+export type OffMarketEigenaartype = Database['public']['Enums']['off_market_eigenaartype'];
+export type OffMarketEigenaarbron = Database['public']['Enums']['off_market_eigenaarbron'];
 export type OffMarketAiStatus = 'niet_verrijkt' | 'in_wachtrij' | 'bezig' | 'klaar' | 'mislukt';
 
 
@@ -122,4 +125,37 @@ export const AANVRAAG_BESLUIT_LABEL: Record<OffMarketAanvraagOfBesluit, string> 
   melding: 'Melding',
   onbekend: '—',
 };
+
+export const EIGENAARSTATUS_LABEL: Record<OffMarketEigenaarstatus, string> = {
+  onbekend: 'Onbekend',
+  te_onderzoeken: 'Te onderzoeken',
+  gevonden: 'Gevonden',
+  benaderd: 'Benaderd',
+  in_gesprek: 'In gesprek',
+  niet_bereikbaar: 'Niet bereikbaar',
+  geen_interesse: 'Geen interesse',
+};
+export const EIGENAARSTATUS_VOLGORDE: OffMarketEigenaarstatus[] = [
+  'onbekend', 'te_onderzoeken', 'gevonden', 'benaderd',
+  'in_gesprek', 'niet_bereikbaar', 'geen_interesse',
+];
+
+export const EIGENAARTYPE_LABEL: Record<OffMarketEigenaartype, string> = {
+  particulier: 'Particulier',
+  bv: 'BV',
+  stichting: 'Stichting',
+  vve: 'VvE',
+  overheid: 'Overheid',
+  onbekend: 'Onbekend',
+};
+
+export const EIGENAARBRON_LABEL: Record<OffMarketEigenaarbron, string> = {
+  kadaster: 'Kadaster',
+  kvk: 'KVK',
+  google: 'Google',
+  linkedin: 'LinkedIn',
+  netwerk: 'Netwerk',
+  anders: 'Anders',
+};
+
 

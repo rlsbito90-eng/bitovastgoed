@@ -10,6 +10,7 @@ import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
 import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBar';
+import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 import {
@@ -65,6 +66,7 @@ export default function OffMarketSignaalDetailPage() {
       <SignaalSnelleActiesBar signaal={signaal} />
       <SignaalAiAnalyse signaal={signaal} />
       <SignaalKerngegevens signaal={signaal} />
+      <SignaalEigenaarsonderzoekSectie signaal={signaal} />
       <SignaalKoppelingenSectie signaal={signaal} />
       <SignaalTakenSectie signaalId={signaal.id} />
       <SignaalTijdlijnSectie signaalId={signaal.id} />
