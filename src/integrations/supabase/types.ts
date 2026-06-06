@@ -2364,13 +2364,30 @@ export type Database = {
           created_at: string
           created_by: string | null
           dedupe_hash: string | null
+          eigenaar_bedrijfsnaam: string | null
           eigenaar_bekend: boolean
+          eigenaar_email: string | null
+          eigenaar_kvk: string | null
+          eigenaar_linkedin: string | null
+          eigenaar_naam: string | null
+          eigenaar_onderzoek_notities: string | null
           eigenaar_relatie_id: string | null
+          eigenaar_telefoon: string | null
+          eigenaar_type:
+            | Database["public"]["Enums"]["off_market_eigenaartype"]
+            | null
+          eigenaar_website: string | null
+          eigenaarbron:
+            | Database["public"]["Enums"]["off_market_eigenaarbron"]
+            | null
+          eigenaarstatus: Database["public"]["Enums"]["off_market_eigenaarstatus"]
           gearchiveerd_op: string | null
           gekoppeld_object_id: string | null
           gekoppelde_deal_id: string | null
           id: string
           indicatieve_waarde: number | null
+          kadaster_check_op: string | null
+          kadastrale_aanduiding: string | null
           lat: number | null
           lng: number | null
           mogelijke_fee: number | null
@@ -2425,13 +2442,30 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dedupe_hash?: string | null
+          eigenaar_bedrijfsnaam?: string | null
           eigenaar_bekend?: boolean
+          eigenaar_email?: string | null
+          eigenaar_kvk?: string | null
+          eigenaar_linkedin?: string | null
+          eigenaar_naam?: string | null
+          eigenaar_onderzoek_notities?: string | null
           eigenaar_relatie_id?: string | null
+          eigenaar_telefoon?: string | null
+          eigenaar_type?:
+            | Database["public"]["Enums"]["off_market_eigenaartype"]
+            | null
+          eigenaar_website?: string | null
+          eigenaarbron?:
+            | Database["public"]["Enums"]["off_market_eigenaarbron"]
+            | null
+          eigenaarstatus?: Database["public"]["Enums"]["off_market_eigenaarstatus"]
           gearchiveerd_op?: string | null
           gekoppeld_object_id?: string | null
           gekoppelde_deal_id?: string | null
           id?: string
           indicatieve_waarde?: number | null
+          kadaster_check_op?: string | null
+          kadastrale_aanduiding?: string | null
           lat?: number | null
           lng?: number | null
           mogelijke_fee?: number | null
@@ -2486,13 +2520,30 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dedupe_hash?: string | null
+          eigenaar_bedrijfsnaam?: string | null
           eigenaar_bekend?: boolean
+          eigenaar_email?: string | null
+          eigenaar_kvk?: string | null
+          eigenaar_linkedin?: string | null
+          eigenaar_naam?: string | null
+          eigenaar_onderzoek_notities?: string | null
           eigenaar_relatie_id?: string | null
+          eigenaar_telefoon?: string | null
+          eigenaar_type?:
+            | Database["public"]["Enums"]["off_market_eigenaartype"]
+            | null
+          eigenaar_website?: string | null
+          eigenaarbron?:
+            | Database["public"]["Enums"]["off_market_eigenaarbron"]
+            | null
+          eigenaarstatus?: Database["public"]["Enums"]["off_market_eigenaarstatus"]
           gearchiveerd_op?: string | null
           gekoppeld_object_id?: string | null
           gekoppelde_deal_id?: string | null
           id?: string
           indicatieve_waarde?: number | null
+          kadaster_check_op?: string | null
+          kadastrale_aanduiding?: string | null
           lat?: number | null
           lng?: number | null
           mogelijke_fee?: number | null
@@ -4236,6 +4287,28 @@ export type Database = {
         | "rss"
         | "csv"
         | "overig"
+      off_market_eigenaarbron:
+        | "kadaster"
+        | "kvk"
+        | "google"
+        | "linkedin"
+        | "netwerk"
+        | "anders"
+      off_market_eigenaarstatus:
+        | "onbekend"
+        | "te_onderzoeken"
+        | "gevonden"
+        | "benaderd"
+        | "in_gesprek"
+        | "niet_bereikbaar"
+        | "geen_interesse"
+      off_market_eigenaartype:
+        | "particulier"
+        | "bv"
+        | "stichting"
+        | "vve"
+        | "overheid"
+        | "onbekend"
       off_market_prioriteit: "laag" | "midden" | "hoog" | "urgent"
       off_market_signaaltype:
         | "vergunning_bekendmaking"
@@ -4749,6 +4822,31 @@ export const Constants = {
         "rss",
         "csv",
         "overig",
+      ],
+      off_market_eigenaarbron: [
+        "kadaster",
+        "kvk",
+        "google",
+        "linkedin",
+        "netwerk",
+        "anders",
+      ],
+      off_market_eigenaarstatus: [
+        "onbekend",
+        "te_onderzoeken",
+        "gevonden",
+        "benaderd",
+        "in_gesprek",
+        "niet_bereikbaar",
+        "geen_interesse",
+      ],
+      off_market_eigenaartype: [
+        "particulier",
+        "bv",
+        "stichting",
+        "vve",
+        "overheid",
+        "onbekend",
       ],
       off_market_prioriteit: ["laag", "midden", "hoog", "urgent"],
       off_market_signaaltype: [
