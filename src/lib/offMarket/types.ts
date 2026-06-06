@@ -6,7 +6,10 @@ export type OffMarketBronType = Database['public']['Enums']['off_market_bron_typ
 export type OffMarketSignaaltype = Database['public']['Enums']['off_market_signaaltype'];
 export type OffMarketPrioriteit = Database['public']['Enums']['off_market_prioriteit'];
 export type OffMarketStatus = Database['public']['Enums']['off_market_status'];
+export type OffMarketVergunningtype = Database['public']['Enums']['off_market_vergunningtype'];
+export type OffMarketAanvraagOfBesluit = Database['public']['Enums']['off_market_aanvraag_besluit'];
 export type OffMarketAiStatus = 'niet_verrijkt' | 'in_wachtrij' | 'bezig' | 'klaar' | 'mislukt';
+
 
 export type OffMarketSignaal = Database['public']['Tables']['off_market_signalen']['Row'];
 
