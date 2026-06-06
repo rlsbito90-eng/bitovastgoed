@@ -126,3 +126,36 @@ export const AANVRAAG_BESLUIT_LABEL: Record<OffMarketAanvraagOfBesluit, string> 
   onbekend: '—',
 };
 
+export const EIGENAARSTATUS_LABEL: Record<OffMarketEigenaarstatus, string> = {
+  onbekend: 'Onbekend',
+  te_onderzoeken: 'Te onderzoeken',
+  gevonden: 'Gevonden',
+  benaderd: 'Benaderd',
+  in_gesprek: 'In gesprek',
+  niet_bereikbaar: 'Niet bereikbaar',
+  geen_interesse: 'Geen interesse',
+};
+export const EIGENAARSTATUS_VOLGORDE: OffMarketEigenaarstatus[] = [
+  'onbekend', 'te_onderzoeken', 'gevonden', 'benaderd',
+  'in_gesprek', 'niet_bereikbaar', 'geen_interesse',
+];
+
+export const EIGENAARTYPE_LABEL: Record<OffMarketEigenaartype, string> = {
+  particulier: 'Particulier',
+  bv: 'BV',
+  stichting: 'Stichting',
+  vve: 'VvE',
+  overheid: 'Overheid',
+  onbekend: 'Onbekend',
+};
+
+export const EIGENAARBRON_LABEL: Record<OffMarketEigenaarbron, string> = {
+  kadaster: 'Kadaster',
+  kvk: 'KVK',
+  google: 'Google',
+  linkedin: 'LinkedIn',
+  netwerk: 'Netwerk',
+  anders: 'Anders',
+};
+
+
