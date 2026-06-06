@@ -233,3 +233,46 @@ export async function sha256Hex(text: string): Promise<string> {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+// ===== Vergunningtype + aanvraag/besluit detectie (D.1.5) =====
+
+export type Vergunningtype =
+  | 'splitsing' | 'woonvorming' | 'omzetting' | 'onttrekking'
+  | 'functiewijziging' | 'transformatie' | 'ontwikkeling' | 'overig';
+
+export type AanvraagOfBesluit = 'aanvraag' | 'besluit' | 'melding' | 'onbekend';
+
+const VERGUNNINGTYPE_PATTERNS: Array<[RegExp, Vergunningtype]> = [
+  [/\bsplitsingsvergunning\b|\bsplitsing\b|appartementsrecht|uitponding|kadastrale\s+splitsing|juridische\s+splitsing/i, 'splitsing'],
+  [/woonvormingsvergunning|woningvorm(?:ing|en)/i, 'woonvorming'],
+  [/omzettingsvergunning|onzelfstandige\s+woonruimte|kamergewijze|kamerverhuur|woningdelen/i, 'omzetting'],
+  [/onttrekkingsvergunning|onttrekking/i, 'onttrekking'],
+  [/functiewijziging|wijzigen\s+gebruik|gebruikswijziging/i, 'functiewijziging'],
+  [/transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|bergingen?\s+naar\s+woonruimte/i, 'transformatie'],
+  [/woningbouwproject|nieuwbouw|projectontwikkeling|gebiedsontwikkeling|herontwikkeling|appartement/i, 'ontwikkeling'],
+];
+
+/** Bepaal vergunningtype op basis van titel + omschrijving. */
+export function detectVergunningtype(text: string): Vergunningtype {
+  if (!text) return 'overig';
+  for (const [re, type] of VERGUNNINGTYPE_PATTERNS) {
+    if (re.test(text)) return type;
+  }
+  return 'overig';
+}
+
+/** Bepaal of het om een aanvraag, besluit of melding gaat. */
+export function detectAanvraagOfBesluit(text: string, subjects: string[] = []): AanvraagOfBesluit {
+  const blob = `${text} ${subjects.join(' ')}`.toLowerCase();
+  if (/\b(verleende|verleend|besluit|besluiten|toegekend|toekenning|geweigerd|weigering|ingetrokken|intrekking)\b/.test(blob)) {
+    return 'besluit';
+  }
+  if (/\b(aanvraag|aangevraagd|ingediende?|ingediend)\b/.test(blob)) {
+    return 'aanvraag';
+  }
+  if (/\b(melding|gemeld|kennisgeving)\b/.test(blob)) {
+    return 'melding';
+  }
+  return 'onbekend';
+}
+

@@ -6,7 +6,10 @@ export type OffMarketBronType = Database['public']['Enums']['off_market_bron_typ
 export type OffMarketSignaaltype = Database['public']['Enums']['off_market_signaaltype'];
 export type OffMarketPrioriteit = Database['public']['Enums']['off_market_prioriteit'];
 export type OffMarketStatus = Database['public']['Enums']['off_market_status'];
+export type OffMarketVergunningtype = Database['public']['Enums']['off_market_vergunningtype'];
+export type OffMarketAanvraagOfBesluit = Database['public']['Enums']['off_market_aanvraag_besluit'];
 export type OffMarketAiStatus = 'niet_verrijkt' | 'in_wachtrij' | 'bezig' | 'klaar' | 'mislukt';
+
 
 export type OffMarketSignaal = Database['public']['Tables']['off_market_signalen']['Row'];
 
@@ -97,3 +100,26 @@ export const PROVINCIES = [
   'Drenthe', 'Flevoland', 'Friesland', 'Gelderland', 'Groningen', 'Limburg',
   'Noord-Brabant', 'Noord-Holland', 'Overijssel', 'Utrecht', 'Zeeland', 'Zuid-Holland',
 ];
+
+export const VERGUNNINGTYPE_LABEL: Record<OffMarketVergunningtype, string> = {
+  splitsing: 'Splitsing',
+  woonvorming: 'Woonvorming',
+  omzetting: 'Omzetting',
+  onttrekking: 'Onttrekking',
+  functiewijziging: 'Functiewijziging',
+  transformatie: 'Transformatie',
+  ontwikkeling: 'Ontwikkeling',
+  overig: 'Overig',
+};
+export const VERGUNNINGTYPE_VOLGORDE: OffMarketVergunningtype[] = [
+  'splitsing', 'woonvorming', 'omzetting', 'functiewijziging',
+  'transformatie', 'ontwikkeling', 'onttrekking', 'overig',
+];
+
+export const AANVRAAG_BESLUIT_LABEL: Record<OffMarketAanvraagOfBesluit, string> = {
+  aanvraag: 'Aanvraag',
+  besluit: 'Besluit',
+  melding: 'Melding',
+  onbekend: '—',
+};
+
