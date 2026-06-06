@@ -52,7 +52,8 @@ export default function SignalenTable({ signalen, laden }: Props) {
   const relatieNaam = (id: string | null) => {
     if (!id) return null;
     const r = relaties.find((x: any) => x.id === id);
-    return r ? (r.bedrijfsnaam ?? r.naam ?? r.volledige_naam ?? '—') : null;
+    if (!r) return null;
+    return (r as any).bedrijfsnaam ?? (r as any).contactpersoon ?? '—';
   };
 
   if (laden) {
