@@ -230,7 +230,6 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
       {/* Mobiel: compacte card */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => {
-          const eig = eigenaarChip(s);
           return (
             <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
               <div className="flex items-start justify-between gap-2">
@@ -250,11 +249,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
               </div>
               <div className="flex items-center flex-wrap gap-1.5 mt-2">
                 <OffMarketStatusBadge status={s.status} />
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                  eig.tone === 'on'
-                    ? 'bg-success/10 text-success border-success/25'
-                    : 'bg-muted/60 text-muted-foreground border-border'
-                }`}>Eigenaar: {eig.label}</span>
+                <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {formatDateNL(brondatumOfCreated(s))}
