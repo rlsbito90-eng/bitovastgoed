@@ -10,7 +10,7 @@ import {
   type OffMarketSignaal, type OffMarketVergunningtype, type OffMarketAanvraagOfBesluit,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
-import { useRelaties } from '@/hooks/useDataStore';
+import { useDataStore } from '@/hooks/useDataStore';
 
 interface Props {
   signalen: OffMarketSignaal[];
