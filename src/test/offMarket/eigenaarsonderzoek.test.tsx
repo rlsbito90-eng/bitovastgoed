@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import {
   EIGENAARSTATUS_LABEL, EIGENAARSTATUS_VOLGORDE,
@@ -86,10 +86,6 @@ describe('SignaalEigenaarsonderzoekSectie — render & acties', () => {
   it('bewerken → wijziging → opslaan stuurt patch', async () => {
     render(<SignaalEigenaarsonderzoekSectie signaal={baseSignaal} />);
     fireEvent.click(screen.getByRole('button', { name: /Bewerken/i }));
-    const tel = screen.getByDisplayValue('') as HTMLInputElement; // first empty field — fallback below
-    // robuuster: zoek op label-volgorde via getAllByRole('textbox')
-    const inputs = screen.getAllByRole('textbox') as HTMLInputElement[];
-    // form-veld voor telefoon: zoek input met type tel
     const telInput = document.querySelector('input[type="tel"]') as HTMLInputElement;
     fireEvent.change(telInput, { target: { value: '0612345678' } });
     fireEvent.click(screen.getByRole('button', { name: /^Opslaan$/i }));
