@@ -1,12 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Calendar, ExternalLink } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
+import { OffMarketStatusBadge, OffMarketPriorityBadge, OffMarketAiStatusBadge } from '@/components/offmarket/OffMarketBadges';
 import {
-  BRON_TYPE_LABEL, VERGUNNINGTYPE_LABEL, AANVRAAG_BESLUIT_LABEL,
+  BRON_TYPE_LABEL, VERGUNNINGTYPE_LABEL, AANVRAAG_BESLUIT_LABEL, ASSETTYPE_LABEL,
   type OffMarketSignaal, type OffMarketVergunningtype, type OffMarketAanvraagOfBesluit,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
@@ -15,11 +15,25 @@ import { useDataStore } from '@/hooks/useDataStore';
 interface Props {
   signalen: OffMarketSignaal[];
   laden: boolean;
+  /** Optioneel: override default-zichtbaarheid. Wanneer leeg: standaardkolommen. */
+  zichtbareKolommen?: string[];
 }
 
 function formatDateNL(d: string | null) {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('nl-NL'); } catch { return d; }
+}
+
+/** Compacte datum: dd-mm-jj */
+function formatDateCompact(d: string | null) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const yy = String(dt.getFullYear()).slice(-2);
+    return `${dd}-${mm}-${yy}`;
+  } catch { return d; }
 }
 
 function vergunningLabel(s: OffMarketSignaal): string {
@@ -44,7 +58,149 @@ function brondatumOfCreated(s: OffMarketSignaal): string | null {
   return s.bron_datum ?? s.created_at ?? null;
 }
 
-export default function SignalenTable({ signalen, laden }: Props) {
+/** Centrale kolomconfiguratie — basis voor toekomstige kolomkiezer (D.1.6). */
+export interface SignalenKolomCtx {
+  relatieNaam: (id: string | null) => string | null;
+}
+
+export interface SignalenKolom {
+  id: string;
+  label: string;
+  defaultVisible: boolean;
+  headerClassName?: string;
+  cellClassName?: string;
+  render: (s: OffMarketSignaal, ctx: SignalenKolomCtx) => ReactNode;
+}
+
+export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
+  {
+    id: 'vergunningtype',
+    label: 'Vergunningtype',
+    defaultVisible: true,
+    render: (s) => (
+      <span className="inline-flex px-1.5 py-0.5 text-[11px] font-medium rounded-full border border-accent/30 bg-accent/10 text-accent whitespace-nowrap">
+        {vergunningLabel(s)}
+      </span>
+    ),
+  },
+  {
+    id: 'aanvraag_of_besluit',
+    label: 'Aanvraag/Besluit',
+    defaultVisible: false,
+    cellClassName: 'text-xs text-muted-foreground uppercase tracking-wide',
+    render: (s) => aanvraagBesluitLabel(s),
+  },
+  {
+    id: 'adres',
+    label: 'Adres',
+    defaultVisible: true,
+    cellClassName: 'max-w-[260px]',
+    render: (s) => <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>,
+  },
+  {
+    id: 'postcode',
+    label: 'Postcode',
+    defaultVisible: false,
+    cellClassName: 'text-xs font-mono-data text-muted-foreground',
+    render: (s) => s.postcode || '—',
+  },
+  {
+    id: 'plaats',
+    label: 'Plaats',
+    defaultVisible: true,
+    cellClassName: 'text-sm text-foreground',
+    render: (s) => s.plaats || '—',
+  },
+  {
+    id: 'provincie',
+    label: 'Provincie',
+    defaultVisible: false,
+    cellClassName: 'text-xs text-muted-foreground',
+    render: (s) => s.provincie || '—',
+  },
+  {
+    id: 'assettype',
+    label: 'Assettype',
+    defaultVisible: false,
+    cellClassName: 'text-xs text-muted-foreground',
+    render: (s) => (s.assettype ? ASSETTYPE_LABEL[s.assettype] : '—'),
+  },
+  {
+    id: 'ai_score',
+    label: 'AI-score',
+    defaultVisible: true,
+    headerClassName: 'text-right',
+    cellClassName: 'text-right font-mono-data text-sm',
+    render: (s) => (typeof s.ai_score === 'number' ? s.ai_score : '—'),
+  },
+  {
+    id: 'ai_status',
+    label: 'AI-status',
+    defaultVisible: false,
+    render: (s) => <OffMarketAiStatusBadge status={s.ai_status} />,
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    defaultVisible: true,
+    render: (s) => <OffMarketStatusBadge status={s.status} />,
+  },
+  {
+    id: 'prioriteit',
+    label: 'Prioriteit',
+    defaultVisible: false,
+    render: (s) => <OffMarketPriorityBadge prioriteit={s.prioriteit} />,
+  },
+  {
+    id: 'eigenaar',
+    label: 'Eigenaar',
+    defaultVisible: true,
+    render: (s) => {
+      const eig = eigenaarChip(s);
+      return (
+        <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${
+          eig.tone === 'on'
+            ? 'bg-success/10 text-success border-success/25'
+            : 'bg-muted/60 text-muted-foreground border-border'
+        }`}>{eig.label}</span>
+      );
+    },
+  },
+  {
+    id: 'relatie',
+    label: 'Relatie',
+    defaultVisible: false,
+    cellClassName: 'text-xs text-muted-foreground max-w-[160px] truncate',
+    render: (s, ctx) => ctx.relatieNaam(s.eigenaar_relatie_id) ?? '—',
+  },
+  {
+    id: 'brondatum',
+    label: 'Brondatum',
+    defaultVisible: true,
+    cellClassName: 'text-xs font-mono-data text-foreground whitespace-nowrap',
+    render: (s) => formatDateCompact(brondatumOfCreated(s)),
+  },
+  {
+    id: 'bron',
+    label: 'Bron',
+    defaultVisible: false,
+    cellClassName: 'text-xs',
+    render: (s) => (
+      <>
+        <span className="text-muted-foreground">{s.bron_type ? BRON_TYPE_LABEL[s.bron_type] : '—'}</span>
+        {s.bron_url && (
+          <a href={s.bron_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="ml-1 inline-flex text-accent hover:underline">
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </>
+    ),
+  },
+];
+
+export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
+
+export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
   const go = (id: string) => navigate(`/off-market/${id}`);
@@ -55,6 +211,16 @@ export default function SignalenTable({ signalen, laden }: Props) {
     if (!r) return null;
     return (r as any).bedrijfsnaam ?? (r as any).contactpersoon ?? '—';
   };
+
+  const actieveKolommen = useMemo(() => {
+    const ids = zichtbareKolommen && zichtbareKolommen.length > 0
+      ? zichtbareKolommen
+      : STANDAARD_ZICHTBARE_KOLOMMEN;
+    const set = new Set(ids);
+    return SIGNALEN_KOLOMMEN.filter(k => set.has(k.id));
+  }, [zichtbareKolommen]);
+
+  const ctx: SignalenKolomCtx = { relatieNaam };
 
   if (laden) {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Signalen laden…</p>;
@@ -75,19 +241,13 @@ export default function SignalenTable({ signalen, laden }: Props) {
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => {
           const eig = eigenaarChip(s);
-          const rel = relatieNaam(s.eigenaar_relatie_id);
           return (
             <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
-                      {vergunningLabel(s)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                      {aanvraagBesluitLabel(s)}
-                    </span>
-                  </div>
+                  <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
+                    {vergunningLabel(s)}
+                  </span>
                   <p className="text-sm font-medium text-foreground mt-1 truncate">
                     {s.adres || '—'}{s.plaats ? ` · ${s.plaats}` : ''}
                   </p>
@@ -105,7 +265,6 @@ export default function SignalenTable({ signalen, laden }: Props) {
                     ? 'bg-success/10 text-success border-success/25'
                     : 'bg-muted/60 text-muted-foreground border-border'
                 }`}>Eigenaar: {eig.label}</span>
-                {rel && <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">{rel}</span>}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {formatDateNL(brondatumOfCreated(s))}
@@ -120,67 +279,21 @@ export default function SignalenTable({ signalen, laden }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Vergunningtype</TableHead>
-              <TableHead>Aanvraag/Besluit</TableHead>
-              <TableHead>Adres</TableHead>
-              <TableHead>Plaats</TableHead>
-              <TableHead className="text-right">AI-score</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Eigenaar</TableHead>
-              <TableHead>Relatie</TableHead>
-              <TableHead>Brondatum</TableHead>
-              <TableHead>Bron</TableHead>
+              {actieveKolommen.map(k => (
+                <TableHead key={k.id} className={k.headerClassName}>{k.label}</TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(s => {
-              const eig = eigenaarChip(s);
-              const rel = relatieNaam(s.eigenaar_relatie_id);
-              return (
-                <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)} title={s.titel}>
-                  <TableCell>
-                    <span className="inline-flex px-2 py-0.5 text-[11px] font-medium rounded-full border border-accent/30 bg-accent/10 text-accent whitespace-nowrap">
-                      {vergunningLabel(s)}
-                    </span>
+            {rows.map(s => (
+              <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)} title={s.titel}>
+                {actieveKolommen.map(k => (
+                  <TableCell key={k.id} className={k.cellClassName}>
+                    {k.render(s, ctx)}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground uppercase tracking-wide">
-                    {aanvraagBesluitLabel(s)}
-                  </TableCell>
-                  <TableCell className="max-w-[220px]">
-                    <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>
-                    {s.postcode && (
-                      <p className="text-[11px] text-muted-foreground font-mono-data">{s.postcode}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground">{s.plaats || '—'}</TableCell>
-                  <TableCell className="text-right font-mono-data text-sm">
-                    {typeof s.ai_score === 'number' ? s.ai_score : '—'}
-                  </TableCell>
-                  <TableCell><OffMarketStatusBadge status={s.status} /></TableCell>
-                  <TableCell>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${
-                      eig.tone === 'on'
-                        ? 'bg-success/10 text-success border-success/25'
-                        : 'bg-muted/60 text-muted-foreground border-border'
-                    }`}>{eig.label}</span>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">
-                    {rel ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono-data text-foreground">
-                    {formatDateNL(brondatumOfCreated(s))}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <span className="text-muted-foreground">{s.bron_type ? BRON_TYPE_LABEL[s.bron_type] : '—'}</span>
-                    {s.bron_url && (
-                      <a href={s.bron_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="ml-1 inline-flex text-accent hover:underline">
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                ))}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
