@@ -8,6 +8,9 @@ export type OffMarketPrioriteit = Database['public']['Enums']['off_market_priori
 export type OffMarketStatus = Database['public']['Enums']['off_market_status'];
 export type OffMarketVergunningtype = Database['public']['Enums']['off_market_vergunningtype'];
 export type OffMarketAanvraagOfBesluit = Database['public']['Enums']['off_market_aanvraag_besluit'];
+export type OffMarketEigenaarstatus = Database['public']['Enums']['off_market_eigenaarstatus'];
+export type OffMarketEigenaartype = Database['public']['Enums']['off_market_eigenaartype'];
+export type OffMarketEigenaarbron = Database['public']['Enums']['off_market_eigenaarbron'];
 export type OffMarketAiStatus = 'niet_verrijkt' | 'in_wachtrij' | 'bezig' | 'klaar' | 'mislukt';
 
 
