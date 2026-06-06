@@ -2,9 +2,11 @@ import {
   PRIORITEIT_LABEL,
   STATUS_LABEL,
   AI_STATUS_LABEL,
+  EIGENAARSTATUS_LABEL,
   type OffMarketPrioriteit,
   type OffMarketStatus,
   type OffMarketAiStatus,
+  type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 
 type Tone = 'neutral' | 'sand' | 'gold' | 'amber' | 'emerald' | 'crimson';
@@ -74,4 +76,19 @@ export function OffMarketAiStatusBadge({ status }: { status: OffMarketAiStatus |
   const label = AI_STATUS_LABEL[s] ?? String(status);
   const tone = aiStatusTone[s] ?? 'neutral';
   return <Chip label={label} tone={tone} />;
+}
+
+const eigenaarstatusTone: Record<OffMarketEigenaarstatus, Tone> = {
+  onbekend: 'neutral',
+  te_onderzoeken: 'sand',
+  gevonden: 'emerald',
+  benaderd: 'gold',
+  in_gesprek: 'amber',
+  niet_bereikbaar: 'crimson',
+  geen_interesse: 'crimson',
+};
+
+export function OffMarketEigenaarstatusBadge({ status }: { status: OffMarketEigenaarstatus | null | undefined }) {
+  const s = (status ?? 'onbekend') as OffMarketEigenaarstatus;
+  return <Chip label={EIGENAARSTATUS_LABEL[s]} tone={eigenaarstatusTone[s]} />;
 }
