@@ -48,7 +48,7 @@ import {
   type OffMarketSignaal, type OffMarketEigenaarstatus,
   type OffMarketEigenaartype, type OffMarketEigenaarbron,
 } from '@/lib/offMarket/types';
-import type { Taak } from '@/data/mock-data';
+
 
 interface Props {
   signaal: OffMarketSignaal;
