@@ -497,10 +497,14 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
       <TaakFormDialog
         open={taakOpen}
         onOpenChange={(v) => { setTaakOpen(v); if (!v) setTaakTemplate(null); }}
-        taak={taakPrefill as any}
+        defaultTitel={taakTemplate?.titel}
+        defaultType={taakTemplate?.type}
+        defaultPrioriteit={taakTemplate?.prioriteit}
+        defaultDeadline={taakTemplate ? deadlineOverDagen(taakTemplate.dagen) : undefined}
         defaultOffMarketSignaalId={signaal.id}
         defaultRelatieId={eigenaarRelatieId ?? undefined}
       />
+
 
       <ContactMomentFormDialog
         open={contactOpen}
