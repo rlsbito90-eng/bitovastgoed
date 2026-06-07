@@ -161,8 +161,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
         setPrimaireContactpersoonId(undefined);
       }
     } else {
-      setForm(leegForm);
-      setContactpersoonInput(leegPrimaireContactpersoon);
+      setForm({ ...leegForm, ...(initialValues ?? {}) });
+      setContactpersoonInput({ ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) });
       setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
     }
