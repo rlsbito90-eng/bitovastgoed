@@ -50,6 +50,10 @@ interface Props {
   relatie?: Relatie | null;
   /** Wordt aangeroepen direct na het aanmaken van een nieuwe relatie (niet bij edit). */
   onCreated?: (relatieId: string) => void;
+  /** Optionele prefill voor een nieuwe relatie (genegeerd bij edit). */
+  initialValues?: Partial<FormState>;
+  /** Optionele prefill voor de primaire contactpersoon-input (genegeerd bij edit). */
+  initialPrimaireContactpersoon?: Partial<PrimaireContactpersoonInput>;
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
@@ -116,7 +120,7 @@ const leegForm: FormState = {
 };
 
 
-export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated }: Props) {
+export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated, initialValues, initialPrimaireContactpersoon }: Props) {
   const store = useDataStore();
   const { addRelatie, updateRelatie } = store;
   const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
@@ -157,8 +161,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
         setPrimaireContactpersoonId(undefined);
       }
     } else {
-      setForm(leegForm);
-      setContactpersoonInput(leegPrimaireContactpersoon);
+      setForm({ ...leegForm, ...(initialValues ?? {}) });
+      setContactpersoonInput({ ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) });
       setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
     }

@@ -7,10 +7,36 @@ import {
 } from '@/lib/offMarket/types';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
-const hookMocks = vi.hoisted(() => ({ mutateAsync: vi.fn() }));
+const hookMocks = vi.hoisted(() => ({
+  mutateAsync: vi.fn(),
+  linkMutateAsync: vi.fn(),
+}));
 
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useUpdateOffMarketSignaal: () => ({ isPending: false, mutateAsync: hookMocks.mutateAsync }),
+}));
+
+vi.mock('@/hooks/useOffMarketLinks', () => ({
+  useLinkRelatieToSignaal: () => ({ isPending: false, mutateAsync: hookMocks.linkMutateAsync }),
+}));
+
+vi.mock('@/hooks/useDataStore', () => ({
+  useDataStore: () => ({
+    relaties: [], contactpersonen: [], deals: [], objecten: [],
+    addTaak: vi.fn(), updateTaak: vi.fn(), deleteTaak: vi.fn(),
+    addContactMoment: vi.fn(), updateContactMoment: vi.fn(),
+    addRelatie: vi.fn(), updateRelatie: vi.fn(),
+    addContactpersoon: vi.fn(), updateContactpersoon: vi.fn(), deleteContactpersoon: vi.fn(),
+    getRelatieById: () => null, getObjectById: () => null,
+  }),
+}));
+
+vi.mock('@/hooks/usePropertyTaxonomie', () => ({
+  usePropertyTaxonomie: () => ({ propertyTypes: [], dealTypes: [], subtypesForTypes: () => [] }),
+}));
+
+vi.mock('react-router-dom', () => ({
+  Link: ({ children, ...p }: any) => <a {...p}>{children}</a>,
 }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

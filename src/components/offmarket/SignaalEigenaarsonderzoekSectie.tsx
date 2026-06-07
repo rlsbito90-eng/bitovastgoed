@@ -1,8 +1,21 @@
 // Handmatige eigenaarsonderzoek-sectie. Geen autosave: bekijken-modus +
 // expliciete Bewerken/Opslaan/Annuleren met dirty-guard.
+//
+// Bevat de complete eigenaar-opvolgflow (D.2.3 t/m D.2.5):
+//  - Eigenaargegevens (read/edit)
+//  - Snelle status-acties (Kadaster check, gevonden, benaderen)
+//  - Relatie aanmaken (prefilled vanuit eigenaargegevens)
+//  - Relatie koppelen (bestaande relatie kiezen)
+//  - Gekoppelde relatie tonen + ontkoppelen/wisselen
+//  - Taak aanmaken vanuit templates
+//  - Contactmoment loggen
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { UserSearch, Pencil, FileSearch, UserCheck, Send } from 'lucide-react';
+import {
+  UserSearch, Pencil, FileSearch, UserCheck, Send,
+  UserPlus, Link2, ListPlus, MessageSquarePlus, ArrowUpRight, ChevronDown,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,15 +23,32 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { OffMarketEigenaarstatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { useUpdateOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
+import { useLinkRelatieToSignaal } from '@/hooks/useOffMarketLinks';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
+import { useDataStore } from '@/hooks/useDataStore';
+import { getRelatieNamen } from '@/lib/relatieNaam';
+import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPicker';
+import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import {
+  signaalNaarRelatiePrefill,
+  EIGENAAR_TAAK_TEMPLATES,
+  deadlineOverDagen,
+  type EigenaarTaakTemplate,
+} from '@/lib/offMarket/eigenaar';
 import {
   EIGENAARSTATUS_LABEL, EIGENAARSTATUS_VOLGORDE,
   EIGENAARTYPE_LABEL, EIGENAARBRON_LABEL,
   type OffMarketSignaal, type OffMarketEigenaarstatus,
   type OffMarketEigenaartype, type OffMarketEigenaarbron,
 } from '@/lib/offMarket/types';
+
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -66,11 +96,23 @@ function formatDateTimeNL(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+const norm = (s: string | undefined | null) =>
+  (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
 export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
   const update = useUpdateOffMarketSignaal();
+  const linkRelatie = useLinkRelatieToSignaal();
+  const { relaties, contactpersonen, getRelatieById } = useDataStore();
+
   const [editMode, setEditMode] = useState(false);
   const initial = useMemo(() => snapshot(signaal), [signaal]);
   const [form, setForm] = useState<EigenaarForm>(initial);
+
+  const [nieuwRelatieOpen, setNieuwRelatieOpen] = useState(false);
+  const [koppelOpen, setKoppelOpen] = useState(false);
+  const [taakOpen, setTaakOpen] = useState(false);
+  const [taakTemplate, setTaakTemplate] = useState<EigenaarTaakTemplate | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Sync wanneer signaal verandert en we niet aan het bewerken zijn.
   useEffect(() => {
@@ -85,6 +127,29 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
   const huidig = snapshot(signaal);
   const eigenaarstatusNu = huidig.eigenaarstatus;
   const kadasterCheckOp = (signaal as any).kadaster_check_op as string | null | undefined;
+  const eigenaarRelatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
+  const gekoppeldeRelatie = eigenaarRelatieId ? getRelatieById(eigenaarRelatieId) : null;
+  const gekoppeldeRelatieNamen = gekoppeldeRelatie
+    ? getRelatieNamen(gekoppeldeRelatie, contactpersonen)
+    : null;
+
+  // EntityPicker items voor "Koppel bestaande relatie"
+  const relatieItems = useMemo<EntityPickerItem[]>(
+    () =>
+      relaties.map((r) => {
+        const { primair, secundair } = getRelatieNamen(r, contactpersonen);
+        const cps = contactpersonen.filter((c) => c.relatieId === r.id);
+        const haystack = norm(
+          [
+            primair, secundair, r.bedrijfsnaam, r.contactpersoon, r.email,
+            r.telefoon, r.vestigingsplaats,
+            ...cps.flatMap((c) => [c.naam, c.email, c.telefoon, c.functie]),
+          ].filter(Boolean).join(' '),
+        );
+        return { id: r.id, primair, secundair, searchHaystack: haystack };
+      }),
+    [relaties, contactpersonen],
+  );
 
   const handleOpslaan = async () => {
     try {
@@ -155,6 +220,59 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
     }
   };
 
+  // === Relatie aanmaken / koppelen ================================
+  const handleRelatieAangemaakt = async (relatieId: string) => {
+    try {
+      await linkRelatie.mutateAsync({ signaalId: signaal.id, relatieId });
+      await update.mutateAsync({
+        id: signaal.id,
+        patch: {
+          eigenaar_bekend: true,
+          eigenaarstatus: 'gevonden',
+          status: 'eigenaar_gevonden',
+        } as any,
+      });
+      toast.success('Relatie aangemaakt en gekoppeld');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Koppelen mislukt');
+    }
+  };
+
+  const handleKoppelBestaand = async (relatieId: string) => {
+    if (!relatieId) return;
+    try {
+      await linkRelatie.mutateAsync({ signaalId: signaal.id, relatieId });
+      await update.mutateAsync({
+        id: signaal.id,
+        patch: {
+          eigenaar_bekend: true,
+          eigenaarstatus: 'gevonden',
+          status: 'eigenaar_gevonden',
+        } as any,
+      });
+      toast.success('Bestaande relatie gekoppeld');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Koppelen mislukt');
+    }
+  };
+
+  const handleOntkoppel = async () => {
+    try {
+      await linkRelatie.mutateAsync({ signaalId: signaal.id, relatieId: null });
+      toast.success('Relatie ontkoppeld');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Ontkoppelen mislukt');
+    }
+  };
+
+  // === Taakflow ===================================================
+  const openTaakMetTemplate = (tpl: EigenaarTaakTemplate) => {
+    setTaakTemplate(tpl);
+    setTaakOpen(true);
+  };
+
+  const prefill = useMemo(() => signaalNaarRelatiePrefill(signaal), [signaal]);
+
   return (
     <section data-testid="eigenaarsonderzoek-sectie" className="section-card p-5 space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -170,46 +288,117 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         )}
       </div>
 
+      {/* Gekoppelde relatie */}
+      {gekoppeldeRelatie && gekoppeldeRelatieNamen && (
+        <div className="rounded-md border border-border bg-card px-3 py-2.5 flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Gekoppelde relatie</p>
+            <Link
+              to={`/relaties/${gekoppeldeRelatie.id}`}
+              className="text-sm font-medium text-accent hover:underline inline-flex items-center gap-1"
+            >
+              {gekoppeldeRelatieNamen.primair}
+              <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />
+            </Link>
+            {gekoppeldeRelatieNamen.secundair && (
+              <p className="text-xs text-muted-foreground truncate">{gekoppeldeRelatieNamen.secundair}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setKoppelOpen(true)}>
+              Andere relatie koppelen
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOntkoppel}
+              disabled={linkRelatie.isPending}
+              className="text-muted-foreground"
+            >
+              Ontkoppel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
-        <button
-          type="button"
-          disabled={update.isPending}
-          onClick={setKadasterCheck}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border bg-card text-foreground border-border hover:border-accent/50 hover:text-accent disabled:opacity-50"
-        >
-          <FileSearch className="h-3.5 w-3.5" />
+        <ActieKnop onClick={setKadasterCheck} disabled={update.isPending} icon={<FileSearch className="h-3.5 w-3.5" />}>
           Kadaster check uitgevoerd
-        </button>
-        <button
-          type="button"
-          aria-pressed={eigenaarstatusNu === 'gevonden'}
-          disabled={update.isPending || eigenaarstatusNu === 'gevonden'}
+        </ActieKnop>
+        <ActieKnop
           onClick={setEigenaarGevonden}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border transition-colors ${
-            eigenaarstatusNu === 'gevonden'
-              ? 'bg-accent text-accent-foreground border-accent cursor-default'
-              : 'bg-card text-foreground border-border hover:border-accent/50 hover:text-accent disabled:opacity-50'
-          }`}
+          disabled={update.isPending || eigenaarstatusNu === 'gevonden'}
+          actief={eigenaarstatusNu === 'gevonden'}
+          icon={<UserCheck className="h-3.5 w-3.5" />}
         >
-          <UserCheck className="h-3.5 w-3.5" />
           Eigenaar gevonden
-        </button>
-        <button
-          type="button"
-          aria-pressed={eigenaarstatusNu === 'benaderd'}
-          disabled={update.isPending || eigenaarstatusNu === 'benaderd'}
+        </ActieKnop>
+        <ActieKnop
           onClick={setEigenaarBenaderen}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border transition-colors ${
-            eigenaarstatusNu === 'benaderd'
-              ? 'bg-accent text-accent-foreground border-accent cursor-default'
-              : 'bg-card text-foreground border-border hover:border-accent/50 hover:text-accent disabled:opacity-50'
-          }`}
+          disabled={update.isPending || eigenaarstatusNu === 'benaderd'}
+          actief={eigenaarstatusNu === 'benaderd'}
+          icon={<Send className="h-3.5 w-3.5" />}
         >
-          <Send className="h-3.5 w-3.5" />
           Eigenaar benaderen
-        </button>
+        </ActieKnop>
+
+        <div className="w-full h-0" />
+
+        <ActieKnop onClick={() => setNieuwRelatieOpen(true)} icon={<UserPlus className="h-3.5 w-3.5" />}>
+          Relatie aanmaken
+        </ActieKnop>
+        <ActieKnop onClick={() => setKoppelOpen(true)} icon={<Link2 className="h-3.5 w-3.5" />}>
+          {gekoppeldeRelatie ? 'Andere relatie koppelen' : 'Koppel bestaande relatie'}
+        </ActieKnop>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border bg-card text-foreground border-border hover:border-accent/50 hover:text-accent"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              Taak aanmaken
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            {EIGENAAR_TAAK_TEMPLATES.map(tpl => (
+              <DropdownMenuItem key={tpl.id} onClick={() => openTaakMetTemplate(tpl)}>
+                {tpl.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <ActieKnop onClick={() => setContactOpen(true)} icon={<MessageSquarePlus className="h-3.5 w-3.5" />}>
+          Contactmoment loggen
+        </ActieKnop>
       </div>
+
+      {/* Inline-koppelpicker (collapsed onder de knop) */}
+      {koppelOpen && (
+        <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+          <EntityPicker
+            label="Bestaande relatie kiezen"
+            pickerTitle="Kies relatie"
+            searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+            emptyLabel="Geen relatie gekozen"
+            value={eigenaarRelatieId ?? ''}
+            onChange={(id) => {
+              if (id) {
+                handleKoppelBestaand(id);
+                setKoppelOpen(false);
+              }
+            }}
+            items={relatieItems}
+          />
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setKoppelOpen(false)}>Sluiten</Button>
+          </div>
+        </div>
+      )}
 
       {!editMode ? (
         <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} />
@@ -295,7 +484,62 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
       <p className="text-[11px] text-muted-foreground">
         Laatste Kadaster check: <span className="font-mono-data">{formatDateTimeNL(kadasterCheckOp)}</span>
       </p>
+
+      {/* Dialogs */}
+      <RelatieFormDialog
+        open={nieuwRelatieOpen}
+        onOpenChange={setNieuwRelatieOpen}
+        initialValues={prefill.relatie as any}
+        initialPrimaireContactpersoon={prefill.contactpersoon as any}
+        onCreated={(relatieId) => { handleRelatieAangemaakt(relatieId); }}
+      />
+
+      <TaakFormDialog
+        open={taakOpen}
+        onOpenChange={(v) => { setTaakOpen(v); if (!v) setTaakTemplate(null); }}
+        defaultTitel={taakTemplate?.titel}
+        defaultType={taakTemplate?.type}
+        defaultPrioriteit={taakTemplate?.prioriteit}
+        defaultDeadline={taakTemplate ? deadlineOverDagen(taakTemplate.dagen) : undefined}
+        defaultOffMarketSignaalId={signaal.id}
+        defaultRelatieId={eigenaarRelatieId ?? undefined}
+      />
+
+
+      <ContactMomentFormDialog
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        defaultOffMarketSignaalId={signaal.id}
+        defaultRelatieId={eigenaarRelatieId ?? undefined}
+      />
     </section>
+  );
+}
+
+function ActieKnop({
+  onClick, disabled, actief, icon, children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  actief?: boolean;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={actief}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border transition-colors ${
+        actief
+          ? 'bg-accent text-accent-foreground border-accent cursor-default'
+          : 'bg-card text-foreground border-border hover:border-accent/50 hover:text-accent disabled:opacity-50'
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
 
@@ -347,7 +591,6 @@ function ReadView({ signaal, kadasterCheckOp }: { signaal: OffMarketSignaal; kad
       <div className="md:col-span-2">
         <ReadRow label="Onderzoeknotities" value={a.eigenaar_onderzoek_notities} />
       </div>
-      {/* kadaster_check_op wordt ook onderaan getoond — hier alleen voor rust */}
       <input type="hidden" data-kadaster-check-op={kadasterCheckOp ?? ''} />
     </div>
   );
