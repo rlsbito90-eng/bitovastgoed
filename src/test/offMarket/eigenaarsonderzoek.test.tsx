@@ -22,10 +22,17 @@ vi.mock('@/hooks/useOffMarketLinks', () => ({
 
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({
-    relaties: [],
-    contactpersonen: [],
-    getRelatieById: () => null,
+    relaties: [], contactpersonen: [], deals: [], objecten: [],
+    addTaak: vi.fn(), updateTaak: vi.fn(), deleteTaak: vi.fn(),
+    addContactMoment: vi.fn(), updateContactMoment: vi.fn(),
+    addRelatie: vi.fn(), updateRelatie: vi.fn(),
+    addContactpersoon: vi.fn(), updateContactpersoon: vi.fn(), deleteContactpersoon: vi.fn(),
+    getRelatieById: () => null, getObjectById: () => null,
   }),
+}));
+
+vi.mock('@/hooks/usePropertyTaxonomie', () => ({
+  usePropertyTaxonomie: () => ({ propertyTypes: [], dealTypes: [], subtypesForTypes: () => [] }),
 }));
 
 vi.mock('react-router-dom', () => ({
