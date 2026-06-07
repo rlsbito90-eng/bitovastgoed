@@ -66,7 +66,7 @@ const pushRecent = (kind: string, id: string) => {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId }: Props) {
+export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline }: Props) {
   const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
@@ -91,13 +91,17 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     } else {
       setForm({
         ...emptyForm,
+        titel: defaultTitel || '',
+        type: defaultType || emptyForm.type,
+        prioriteit: defaultPrioriteit || emptyForm.prioriteit,
+        deadline: defaultDeadline || emptyForm.deadline,
         relatieId: defaultRelatieId || '',
         dealId: defaultDealId || '',
         objectId: defaultObjectId || '',
         offMarketSignaalId: defaultOffMarketSignaalId || '',
       });
     }
-  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId]);
+  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline]);
 
   // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
