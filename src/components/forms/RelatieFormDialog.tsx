@@ -50,6 +50,10 @@ interface Props {
   relatie?: Relatie | null;
   /** Wordt aangeroepen direct na het aanmaken van een nieuwe relatie (niet bij edit). */
   onCreated?: (relatieId: string) => void;
+  /** Optionele prefill voor een nieuwe relatie (genegeerd bij edit). */
+  initialValues?: Partial<FormState>;
+  /** Optionele prefill voor de primaire contactpersoon-input (genegeerd bij edit). */
+  initialPrimaireContactpersoon?: Partial<PrimaireContactpersoonInput>;
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
