@@ -273,23 +273,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
 
   const prefill = useMemo(() => signaalNaarRelatiePrefill(signaal), [signaal]);
 
-  // Taak-prefill bouwen voor TaakFormDialog (via "phantom" taak prop).
-  const taakPrefill: Partial<Taak> | null = useMemo(() => {
-    if (!taakTemplate) return null;
-    return {
-      id: '', // wordt genegeerd; we sturen via taak-prop een sjabloon
-      titel: taakTemplate.titel,
-      type: taakTemplate.type,
-      prioriteit: taakTemplate.prioriteit,
-      status: 'open',
-      deadline: deadlineOverDagen(taakTemplate.dagen),
-      deadlineTijd: undefined,
-      relatieId: eigenaarRelatieId ?? undefined,
-      offMarketSignaalId: signaal.id,
-      notities: undefined,
-    } as Partial<Taak>;
-  }, [taakTemplate, signaal.id, eigenaarRelatieId]);
-
   return (
     <section data-testid="eigenaarsonderzoek-sectie" className="section-card p-5 space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
