@@ -25,6 +25,12 @@ interface Props {
   defaultDealId?: string;
   defaultObjectId?: string;
   defaultOffMarketSignaalId?: string;
+  /** Prefill voor nieuwe taak (genegeerd bij edit). */
+  defaultTitel?: string;
+  defaultType?: string;
+  defaultPrioriteit?: TaakPrioriteit;
+  /** ISO date YYYY-MM-DD voor deadline (genegeerd bij edit). */
+  defaultDeadline?: string;
 }
 
 const emptyForm = {
