@@ -226,13 +226,50 @@ Deno.serve(async (req: Request) => {
     if (relatieIds.size > 0) {
       const { data: rels, error: relsErr } = await supabase
         .from('relaties')
-        .select('id, bedrijfsnaam')
+        .select('id, bedrijfsnaam, contactpersoon, email, telefoon, type_partij')
         .in('id', Array.from(relatieIds));
       if (relsErr) console.error('Relaties query error:', relsErr);
       for (const r of rels ?? []) relatieMap.set(r.id, r);
     }
 
-    const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
+    // Primaire contactpersonen per relatie (optioneel)
+    const primaryCpMap = new Map<string, any>();
+    if (relatieIds.size > 0) {
+      const { data: cps, error: cpsErr } = await supabase
+        .from('relatie_contactpersonen')
+        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair')
+        .in('relatie_id', Array.from(relatieIds))
+        .eq('is_primair', true);
+      if (cpsErr) console.error('Contactpersonen query error:', cpsErr);
+      for (const c of cps ?? []) primaryCpMap.set(c.relatie_id, c);
+    }
+
+    const PLACEHOLDER = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
+    const cleanStr = (v: any): string => {
+      const s = (v ?? '').toString().trim();
+      if (!s) return '';
+      if (PLACEHOLDER.has(s.toLowerCase())) return '';
+      return s;
+    };
+    const PARTIJ_LABELS: Record<string, string> = {
+      belegger: 'Belegger', ontwikkelaar: 'Ontwikkelaar', eigenaar: 'Eigenaar',
+      makelaar: 'Makelaar', partner: 'Partner', overig: 'Relatie',
+    };
+    const relName = (r: any): string => {
+      if (!r) return '';
+      const cp = primaryCpMap.get(r.id);
+      const naam = cleanStr(cp?.naam) || cleanStr(r.contactpersoon);
+      const bedrijf = cleanStr(r.bedrijfsnaam);
+      if (naam && bedrijf) return `${naam} · ${bedrijf}`;
+      if (naam) return naam;
+      if (bedrijf) return bedrijf;
+      const email = cleanStr(r.email) || cleanStr(cp?.email);
+      if (email) return email;
+      const tel = cleanStr(r.telefoon) || cleanStr(cp?.telefoon) || cleanStr(cp?.telefoon_mobiel);
+      if (tel) return tel;
+      const typeLabel = r.type_partij ? PARTIJ_LABELS[r.type_partij] : '';
+      return typeLabel ? `${typeLabel} zonder naam` : '';
+    };
 
     // 4. iCal opbouwen
     const dtstamp = icsDateTimeUtc(new Date());
