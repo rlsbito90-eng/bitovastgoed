@@ -171,7 +171,7 @@ const contactpersoonFromDb = (c: any): RelatieContactpersoon => ({
 
 const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
   relatie_id: c.relatieId,
-  naam: c.naam !== undefined ? (c.naam || 'Onbekend') : undefined,
+  naam: c.naam !== undefined ? (c.naam?.trim() || '') : undefined,
   functie: c.functie !== undefined ? (c.functie || null) : undefined,
   email: c.email !== undefined ? (c.email || null) : undefined,
   telefoon: c.telefoon !== undefined ? (c.telefoon || null) : undefined,
