@@ -2332,6 +2332,78 @@ export type Database = {
         }
         Relationships: []
       }
+      off_market_kadaster_checks: {
+        Row: {
+          created_at: string
+          foutmelding: string | null
+          gekozen_resultaat: Json | null
+          id: string
+          kosten_eurocent: number | null
+          match_confidence: number | null
+          modus: Database["public"]["Enums"]["off_market_kadaster_modus"]
+          overgenomen_op: string | null
+          resultaten: Json
+          signaal_id: string
+          status: Database["public"]["Enums"]["off_market_kadaster_status"]
+          uitgevoerd_door: string | null
+          uitgevoerd_op: string
+          updated_at: string
+          zoekterm: Json | null
+          zoekvariant: string | null
+        }
+        Insert: {
+          created_at?: string
+          foutmelding?: string | null
+          gekozen_resultaat?: Json | null
+          id?: string
+          kosten_eurocent?: number | null
+          match_confidence?: number | null
+          modus: Database["public"]["Enums"]["off_market_kadaster_modus"]
+          overgenomen_op?: string | null
+          resultaten?: Json
+          signaal_id: string
+          status: Database["public"]["Enums"]["off_market_kadaster_status"]
+          uitgevoerd_door?: string | null
+          uitgevoerd_op?: string
+          updated_at?: string
+          zoekterm?: Json | null
+          zoekvariant?: string | null
+        }
+        Update: {
+          created_at?: string
+          foutmelding?: string | null
+          gekozen_resultaat?: Json | null
+          id?: string
+          kosten_eurocent?: number | null
+          match_confidence?: number | null
+          modus?: Database["public"]["Enums"]["off_market_kadaster_modus"]
+          overgenomen_op?: string | null
+          resultaten?: Json
+          signaal_id?: string
+          status?: Database["public"]["Enums"]["off_market_kadaster_status"]
+          uitgevoerd_door?: string | null
+          uitgevoerd_op?: string
+          updated_at?: string
+          zoekterm?: Json | null
+          zoekvariant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_kadaster_checks_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_kadaster_checks_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       off_market_signalen: {
         Row: {
           aanvraag_of_besluit:
@@ -4309,6 +4381,12 @@ export type Database = {
         | "vve"
         | "overheid"
         | "onbekend"
+      off_market_kadaster_modus: "mock" | "handmatig" | "api"
+      off_market_kadaster_status:
+        | "geslaagd"
+        | "geen_resultaat"
+        | "meerdere_resultaten"
+        | "mislukt"
       off_market_prioriteit: "laag" | "midden" | "hoog" | "urgent"
       off_market_signaaltype:
         | "vergunning_bekendmaking"
@@ -4847,6 +4925,13 @@ export const Constants = {
         "vve",
         "overheid",
         "onbekend",
+      ],
+      off_market_kadaster_modus: ["mock", "handmatig", "api"],
+      off_market_kadaster_status: [
+        "geslaagd",
+        "geen_resultaat",
+        "meerdere_resultaten",
+        "mislukt",
       ],
       off_market_prioriteit: ["laag", "midden", "hoog", "urgent"],
       off_market_signaaltype: [

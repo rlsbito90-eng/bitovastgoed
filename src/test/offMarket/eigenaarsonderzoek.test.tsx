@@ -10,6 +10,16 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 const hookMocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   linkMutateAsync: vi.fn(),
+  kadasterCheckMutateAsync: vi.fn(),
+  kadasterOvernameMutateAsync: vi.fn(),
+  kadasterHandmatigMutateAsync: vi.fn(),
+}));
+
+vi.mock('@/hooks/useKadasterCheck', () => ({
+  useLaatsteKadasterCheck: () => ({ data: null }),
+  useKadasterCheck: () => ({ isPending: false, mutateAsync: hookMocks.kadasterCheckMutateAsync }),
+  useOvernameKadasterCheck: () => ({ isPending: false, mutateAsync: hookMocks.kadasterOvernameMutateAsync }),
+  useHandmatigeOvername: () => ({ isPending: false, mutateAsync: hookMocks.kadasterHandmatigMutateAsync }),
 }));
 
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
@@ -82,13 +92,20 @@ describe('SignaalEigenaarsonderzoekSectie — render & acties', () => {
     expect(screen.getByText('jan@example.com')).toBeTruthy();
   });
 
-  it('Kadaster check uitgevoerd zet kadaster_check_op = now()', async () => {
+  it('Handmatig markeren als gecheckt zet kadaster_check_op = now() en eigenaarbron=kadaster', async () => {
     render(<SignaalEigenaarsonderzoekSectie signaal={baseSignaal} />);
-    fireEvent.click(screen.getByRole('button', { name: /Kadaster check uitgevoerd/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Handmatig markeren als gecheckt/i }));
     await waitFor(() => expect(hookMocks.mutateAsync).toHaveBeenCalled());
     const call = hookMocks.mutateAsync.mock.calls[0][0];
     expect(call.id).toBe('sig-1');
     expect(call.patch.kadaster_check_op).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(call.patch.eigenaarbron).toBe('kadaster');
+  });
+
+  it('Kadaster check uitvoeren-knop is aanwezig naast handmatige markering', () => {
+    render(<SignaalEigenaarsonderzoekSectie signaal={baseSignaal} />);
+    expect(screen.getByRole('button', { name: /Kadaster check uitvoeren/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Handmatig markeren als gecheckt/i })).toBeTruthy();
   });
 
   it('Eigenaar gevonden zet eigenaarstatus, eigenaar_bekend en status', async () => {

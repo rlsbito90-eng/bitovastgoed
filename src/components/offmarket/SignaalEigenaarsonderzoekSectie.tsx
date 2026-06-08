@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  UserSearch, Pencil, FileSearch, UserCheck, Send,
+  UserSearch, Pencil, FileSearch, FileCheck2, UserCheck, Send,
   UserPlus, Link2, ListPlus, MessageSquarePlus, ArrowUpRight, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPi
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import KadasterCheckDialog from '@/components/offmarket/kadaster/KadasterCheckDialog';
 import {
   signaalNaarRelatiePrefill,
   EIGENAAR_TAAK_TEMPLATES,
@@ -113,6 +114,7 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
   const [taakOpen, setTaakOpen] = useState(false);
   const [taakTemplate, setTaakTemplate] = useState<EigenaarTaakTemplate | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [kadasterOpen, setKadasterOpen] = useState(false);
 
   // Sync wanneer signaal verandert en we niet aan het bewerken zijn.
   useEffect(() => {
@@ -184,9 +186,9 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
     try {
       await update.mutateAsync({
         id: signaal.id,
-        patch: { kadaster_check_op: new Date().toISOString() } as any,
+        patch: { kadaster_check_op: new Date().toISOString(), eigenaarbron: 'kadaster' } as any,
       });
-      toast.success('Kadaster check geregistreerd');
+      toast.success('Handmatig gemarkeerd als gecheckt');
     } catch (e: any) {
       toast.error(e?.message ?? 'Bijwerken mislukt');
     }
@@ -323,8 +325,11 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
 
       {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
-        <ActieKnop onClick={setKadasterCheck} disabled={update.isPending} icon={<FileSearch className="h-3.5 w-3.5" />}>
-          Kadaster check uitgevoerd
+        <ActieKnop onClick={() => setKadasterOpen(true)} icon={<FileSearch className="h-3.5 w-3.5" />}>
+          Kadaster check uitvoeren
+        </ActieKnop>
+        <ActieKnop onClick={setKadasterCheck} disabled={update.isPending} icon={<FileCheck2 className="h-3.5 w-3.5" />}>
+          Handmatig markeren als gecheckt
         </ActieKnop>
         <ActieKnop
           onClick={setEigenaarGevonden}
@@ -511,6 +516,12 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         onOpenChange={setContactOpen}
         defaultOffMarketSignaalId={signaal.id}
         defaultRelatieId={eigenaarRelatieId ?? undefined}
+      />
+
+      <KadasterCheckDialog
+        signaal={signaal}
+        open={kadasterOpen}
+        onOpenChange={setKadasterOpen}
       />
     </section>
   );
