@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { getRelationDisplayName } from '@/lib/relatieNaam';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
