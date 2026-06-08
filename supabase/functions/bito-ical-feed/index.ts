@@ -508,7 +508,7 @@ Deno.serve(async (req: Request) => {
       const obj = p.object_id ? objectMap.get(p.object_id) : null;
       const rel = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
@@ -528,7 +528,7 @@ Deno.serve(async (req: Request) => {
       if (p.bezichtiging_datum) {
         events.push(buildVEvent({
           uid: makeUid('pipeline-bezichtiging', p.id),
-          summary: `🤝 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `🤝 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`,
           description: baseDescription(),
           location: locatie,
           url: objectUrl,
@@ -544,10 +544,10 @@ Deno.serve(async (req: Request) => {
           ? (ACTIE_LABEL[p.volgende_actie] ?? p.volgende_actie)
           : 'Volgende actie';
         const omschrijving = p.volgende_actie_omschrijving?.trim();
-        const summarySuffix = omschrijving ? `: ${omschrijving}` : '';
+        const actieMetOmschrijving = omschrijving ? `${actieLabel}: ${omschrijving}` : actieLabel;
         events.push(buildVEvent({
           uid: makeUid('pipeline-actie', p.id),
-          summary: `✅ ${actieLabel}${summarySuffix} — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `✅ ${buildAgendaTitle(actieMetOmschrijving, relatie, titel)}`,
           description: baseDescription(omschrijving ? `Actie: ${actieLabel} — ${omschrijving}` : `Actie: ${actieLabel}`),
           location: locatie,
           url: objectUrl,
@@ -560,7 +560,7 @@ Deno.serve(async (req: Request) => {
       if (p.gewenste_levering) {
         events.push(buildVEvent({
           uid: makeUid('pipeline-levering', p.id),
-          summary: `📦 Gewenste levering — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `📦 ${buildAgendaTitle('Gewenste levering', relatie, titel)}`,
           description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'),
           location: locatie,
           url: objectUrl,
