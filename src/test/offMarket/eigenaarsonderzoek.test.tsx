@@ -10,6 +10,16 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 const hookMocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   linkMutateAsync: vi.fn(),
+  kadasterCheckMutateAsync: vi.fn(),
+  kadasterOvernameMutateAsync: vi.fn(),
+  kadasterHandmatigMutateAsync: vi.fn(),
+}));
+
+vi.mock('@/hooks/useKadasterCheck', () => ({
+  useLaatsteKadasterCheck: () => ({ data: null }),
+  useKadasterCheck: () => ({ isPending: false, mutateAsync: hookMocks.kadasterCheckMutateAsync }),
+  useOvernameKadasterCheck: () => ({ isPending: false, mutateAsync: hookMocks.kadasterOvernameMutateAsync }),
+  useHandmatigeOvername: () => ({ isPending: false, mutateAsync: hookMocks.kadasterHandmatigMutateAsync }),
 }));
 
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
