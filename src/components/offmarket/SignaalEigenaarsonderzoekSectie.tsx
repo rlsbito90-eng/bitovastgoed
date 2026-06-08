@@ -325,8 +325,11 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
 
       {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
-        <ActieKnop onClick={setKadasterCheck} disabled={update.isPending} icon={<FileSearch className="h-3.5 w-3.5" />}>
-          Kadaster check uitgevoerd
+        <ActieKnop onClick={() => setKadasterOpen(true)} icon={<FileSearch className="h-3.5 w-3.5" />}>
+          Kadaster check uitvoeren
+        </ActieKnop>
+        <ActieKnop onClick={setKadasterCheck} disabled={update.isPending} icon={<FileCheck2 className="h-3.5 w-3.5" />}>
+          Handmatig markeren als gecheckt
         </ActieKnop>
         <ActieKnop
           onClick={setEigenaarGevonden}
