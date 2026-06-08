@@ -10,6 +10,7 @@
 
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { getRelationDisplayName } from '@/lib/relatieNaam';
 import {
   berekenCommissieStats,
   getRecenteSuccessen,
