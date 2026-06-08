@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  UserSearch, Pencil, FileSearch, UserCheck, Send,
+  UserSearch, Pencil, FileSearch, FileCheck2, UserCheck, Send,
   UserPlus, Link2, ListPlus, MessageSquarePlus, ArrowUpRight, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
