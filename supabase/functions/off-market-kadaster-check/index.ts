@@ -14,11 +14,11 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
 import {
   normaliseerAdres, bouwZoekvarianten, detecteerComplexiteit,
-} from '../../../src/lib/offMarket/kadaster/adres.ts';
-import { mockKadasterLookup } from '../../../src/lib/offMarket/kadaster/mockAdapter.ts';
+} from './_adres.ts';
+import { mockKadasterLookup } from './_mockAdapter.ts';
 import type {
   KadasterCheckResponse, KadasterModus, KadasterStatus, KadasterResultaat,
-} from '../../../src/lib/offMarket/kadaster/types.ts';
+} from './_types.ts';
 
 interface RequestBody {
   signaal_id: string;
