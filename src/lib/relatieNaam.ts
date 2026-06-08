@@ -59,46 +59,52 @@ export function getRelatieNamen(
   contactpersonen?: RelatieContactpersoon[],
 ): RelatieNamen {
   if (!relatie) {
-    return { primair: '(geen relatie)', secundair: null, isLeeg: true };
+    return { primair: 'Relatie zonder naam', secundair: null, isLeeg: true };
   }
 
-  const bedrijfsnaam = relatie.bedrijfsnaam?.trim() || null;
+  const bedrijfsnaam = clean(relatie.bedrijfsnaam) || null;
 
   // 1. Probeer primaire contactpersoon
   const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
-  if (primaireCp?.naam?.trim()) {
-    return {
-      primair: primaireCp.naam.trim(),
-      secundair: bedrijfsnaam,
-      isLeeg: false,
-    };
+  const primaireNaam = clean(primaireCp?.naam);
+  if (primaireNaam) {
+    return { primair: primaireNaam, secundair: bedrijfsnaam, isLeeg: false };
   }
 
   // 2. Fallback: oude contactpersoon-veld op relatie zelf
-  const oudeCp = relatie.contactpersoon?.trim() || null;
+  const oudeCp = clean(relatie.contactpersoon);
   if (oudeCp) {
-    return {
-      primair: oudeCp,
-      secundair: bedrijfsnaam,
-      isLeeg: false,
-    };
+    return { primair: oudeCp, secundair: bedrijfsnaam, isLeeg: false };
   }
 
   // 3. Geen contactpersoon, wel bedrijfsnaam
   if (bedrijfsnaam) {
-    return {
-      primair: bedrijfsnaam,
-      secundair: null,
-      isLeeg: false,
-    };
+    return { primair: bedrijfsnaam, secundair: null, isLeeg: false };
   }
 
-  // 4. Niets ingevuld
-  return {
-    primair: '(naamloze relatie)',
-    secundair: null,
-    isLeeg: true,
-  };
+  // 4. Fallback op e-mail/telefoon/type-label
+  const email = clean(relatie.email) || clean(primaireCp?.email);
+  if (email) return { primair: email, secundair: null, isLeeg: true };
+
+  const tel = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
+  if (tel) return { primair: tel, secundair: null, isLeeg: true };
+
+  const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
+  if (typeLabel) return { primair: `${typeLabel} zonder naam`, secundair: null, isLeeg: true };
+
+  return { primair: 'Relatie zonder naam', secundair: null, isLeeg: true };
+}
+
+/**
+ * App-brede primaire weergavenaam voor een relatie/kandidaat in één regel.
+ * Gebruikt in agenda-titels, taken, kandidaatlijsten, notificaties.
+ * Geeft NOOIT "Onbekend" terug.
+ */
+export function getRelationDisplayName(
+  relatie: Relatie | null | undefined,
+  contactpersonen?: RelatieContactpersoon[],
+): string {
+  return getRelatieNamen(relatie, contactpersonen).primair;
 }
 
 /**
