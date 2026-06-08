@@ -458,7 +458,7 @@ export default function NotificationsBell() {
 
     // 4. Datakwaliteit — dubbele relaties
     for (const dup of detectRelatieDuplicates(relaties)) {
-      const namen = dup.groep.slice(0, 3).map((r) => r.bedrijfsnaam || r.contactpersoon || 'Onbekend').join(', ');
+      const namen = dup.groep.slice(0, 3).map((r) => getRelationDisplayName(r, store.contactpersonen)).join(', ');
       const reden = dup.key.split(':')[0];
       const redenLabel = reden === 'email' ? 'zelfde e-mail'
         : reden === 'tel' ? 'zelfde telefoonnummer'
