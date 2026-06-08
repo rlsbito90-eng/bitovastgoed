@@ -575,11 +575,12 @@ Deno.serve(async (req: Request) => {
     for (const r of ndaRelaties ?? []) {
       if (!r.nda_datum) continue;
       const relatieUrl = `${APP_BASE_URL}/relaties/${r.id}`;
+      const naam = relName(relatieMap.get(r.id)) || 'Relatie';
       events.push(buildVEvent({
         uid: makeUid('nda-relatie', r.id),
-        summary: `🖋 NDA — ${r.bedrijfsnaam ?? 'Relatie'}`,
+        summary: `🖋 NDA — ${naam}`,
         description: [
-          `Relatie: ${r.bedrijfsnaam ?? ''}`,
+          `Relatie: ${naam}`,
           `NDA-datum vastgelegd op het relatieprofiel.`,
           `\n${relatieUrl}`,
         ].join('\n'),
