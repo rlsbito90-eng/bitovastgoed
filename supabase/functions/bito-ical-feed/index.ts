@@ -428,8 +428,9 @@ Deno.serve(async (req: Request) => {
       const dealUrl = deal ? `${APP_BASE_URL}/deals/${deal.id}` : null;
       const dealTitel = deal ? objNaam(obj) : null;
 
+      const relNaam = relName(dealRel);
       const description = [
-        dealRel?.bedrijfsnaam ? `Relatie: ${dealRel.bedrijfsnaam}` : null,
+        relNaam ? `Relatie: ${relNaam}` : null,
         obj ? `Object: ${objNaam(obj)}` : null,
         deal ? `Deal: ${dealTitel}${deal.fase ? ` (${deal.fase})` : ''}` : null,
         t.notities ? `\nNotities:\n${t.notities}` : null,
