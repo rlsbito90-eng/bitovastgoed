@@ -159,7 +159,7 @@ export default function CommissieWidget() {
                         {obj?.titel ?? 'Onbekend object'}
                       </p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {rel?.bedrijfsnaam ?? 'Onbekende relatie'}
+                        {getRelationDisplayName(rel, store.contactpersonen)}
                         {deal.verwachteClosingdatum && ` · ${formatDate(deal.verwachteClosingdatum)}`}
                       </p>
                     </div>
