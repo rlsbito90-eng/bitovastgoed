@@ -208,9 +208,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState(initialTab);
 
-  // Reset tab naar initialTab telkens de dialog opent
+  // Reset tab alleen bij een echte open-transitie (false → true). Hierdoor
+  // valt de tab niet terug naar 'algemeen' wanneer de parent re-rendert na
+  // store.refresh (bijv. na document-upload of type-wijziging).
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (open) setTab(initialTab);
+    if (open && !wasOpenRef.current) {
+      setTab(initialTab);
+    }
+    wasOpenRef.current = open;
   }, [open, initialTab]);
   // Persistente toggle: "Ook bruikbaar als referentieobject".
   // Wordt opgeslagen op het object zelf en kan in een latere fase gebruikt
@@ -228,24 +234,33 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
   // Scroll-container ref: bij tabwissel scrollt deze automatisch naar boven.
   const scrollRef = useResetScrollOnChange(tab);
 
-  // Hydreer form bij open
+  // Hydreer form alleen bij open-transitie of wanneer een ander object wordt
+  // bewerkt (object?.id verandert). Bewust NIET op iedere nieuwe object-
+  // referentie: anders overschrijft elke store.refresh (na upload, document-
+  // type-wijziging, foto-mutatie) de in-progress form-state en/of zorgt voor
+  // ongewenste UI-resets (zoals de Media-tab die disabled wordt wanneer
+  // objectId kort undefined is).
+  const hydratedForRef = useRef<{ open: boolean; id: string | undefined }>({ open: false, id: undefined });
   useEffect(() => {
+    if (!open) {
+      hydratedForRef.current = { open: false, id: undefined };
+      return;
+    }
+    const currentId = object?.id;
+    const alreadyHydrated = hydratedForRef.current.open && hydratedForRef.current.id === currentId;
+    if (alreadyHydrated) return;
+    hydratedForRef.current = { open: true, id: currentId };
+
     if (object) {
       const { id, datumToegevoegd, softDeletedAt, ...rest } = object;
       setForm({ ...leegForm, ...rest });
       setGemaaktId(object.id);
-      // Als er al een handmatige huur/m²-waarde stond: behandel als manual.
       setHuurPerM2Manual(object.huurPerM2 != null);
     } else {
-      // Nieuwe objecten: markeerAlsReferentie standaard UIT (komt uit leegForm).
       setForm(leegForm);
       setGemaaktId(undefined);
       setHuurPerM2Manual(false);
     }
-    // NB: tab niet resetten hier — dat gebeurt al in de open/initialTab-effect
-    // hierboven. Anders springt de modal na elke store.refresh (bv. document-
-    // upload of type-wijziging) terug naar Algemeen.
-    // Initialiseer maandhuur-input op basis van jaarhuur
     setMaandhuurInput(object?.huurinkomsten ? String(Math.round(object.huurinkomsten / 12 * 100) / 100) : '');
     setLaatstGewijzigdHuur(null);
   }, [object, open]);
