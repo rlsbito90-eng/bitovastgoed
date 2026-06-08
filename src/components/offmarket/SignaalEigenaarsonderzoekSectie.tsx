@@ -114,6 +114,7 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
   const [taakOpen, setTaakOpen] = useState(false);
   const [taakTemplate, setTaakTemplate] = useState<EigenaarTaakTemplate | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [kadasterOpen, setKadasterOpen] = useState(false);
 
   // Sync wanneer signaal verandert en we niet aan het bewerken zijn.
   useEffect(() => {
