@@ -271,6 +271,19 @@ Deno.serve(async (req: Request) => {
       return typeLabel ? `${typeLabel} zonder naam` : '';
     };
 
+    const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
+
+    // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
+    const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
+      const parts: string[] = [];
+      const subj = [naam, object].filter(Boolean).join(' · ');
+      if (actie && subj) return `${actie} — ${subj}`;
+      if (actie) return actie;
+      return subj || 'Agenda-item';
+    };
+    const descLines = (...rows: Array<[string, string | undefined | null]>): string =>
+      rows.filter(([, v]) => !!v && v.toString().trim()).map(([k, v]) => `${k}: ${v}`).join('\n');
+
     // 4. iCal opbouwen
     const dtstamp = icsDateTimeUtc(new Date());
     const events: string[] = [];
