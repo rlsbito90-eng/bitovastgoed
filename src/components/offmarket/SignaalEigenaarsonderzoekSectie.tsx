@@ -517,6 +517,12 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         defaultOffMarketSignaalId={signaal.id}
         defaultRelatieId={eigenaarRelatieId ?? undefined}
       />
+
+      <KadasterCheckDialog
+        signaal={signaal}
+        open={kadasterOpen}
+        onOpenChange={setKadasterOpen}
+      />
     </section>
   );
 }
