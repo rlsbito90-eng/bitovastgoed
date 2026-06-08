@@ -36,6 +36,7 @@ import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPi
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import KadasterCheckDialog from '@/components/offmarket/kadaster/KadasterCheckDialog';
 import {
   signaalNaarRelatiePrefill,
   EIGENAAR_TAAK_TEMPLATES,
