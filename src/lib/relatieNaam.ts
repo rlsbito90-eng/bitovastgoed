@@ -9,7 +9,28 @@
 //   <p className="font-medium">{primair}</p>
 //   {secundair && <p className="text-xs text-muted-foreground">{secundair}</p>}
 
-import type { Relatie, RelatieContactpersoon } from '@/data/mock-data';
+import type { Relatie, RelatieContactpersoon, PartijType } from '@/data/mock-data';
+
+// Waarden die in de DB als placeholder zijn beland maar in UI als "leeg"
+// moeten gelden. Voorkomt dat "Onbekend" prominent in agenda/taken/lijsten
+// verschijnt voor relaties zonder echte bedrijfsnaam.
+const PLACEHOLDER_NAMES = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
+
+const clean = (v?: string | null): string => {
+  const s = (v ?? '').trim();
+  if (!s) return '';
+  if (PLACEHOLDER_NAMES.has(s.toLowerCase())) return '';
+  return s;
+};
+
+const PARTIJ_TYPE_LABELS: Record<PartijType, string> = {
+  belegger: 'Belegger',
+  ontwikkelaar: 'Ontwikkelaar',
+  eigenaar: 'Eigenaar',
+  makelaar: 'Makelaar',
+  partner: 'Partner',
+  overig: 'Relatie',
+};
 
 export interface RelatieNamen {
   /** Wat bovenaan komt - de "hoofdnaam" van de relatie */
