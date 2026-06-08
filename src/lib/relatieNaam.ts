@@ -135,37 +135,25 @@ export function getRelatieDropdownLabel(
   relatie: Relatie | null | undefined,
   contactpersonen?: RelatieContactpersoon[],
 ): string {
-  if (!relatie) return 'Onbekende relatie';
+  if (!relatie) return 'Relatie zonder naam';
 
-  const bedrijfsnaam = relatie.bedrijfsnaam?.trim() || '';
+  const bedrijfsnaam = clean(relatie.bedrijfsnaam);
 
   // Contactpersoon: eerst primaire uit relatie_contactpersonen, anders oud veld
   const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
-  const contactpersoon =
-    primaireCp?.naam?.trim() ||
-    relatie.contactpersoon?.trim() ||
-    '';
+  const contactpersoon = clean(primaireCp?.naam) || clean(relatie.contactpersoon);
+  const email = clean(relatie.email) || clean(primaireCp?.email);
 
-  const email =
-    relatie.email?.trim() ||
-    primaireCp?.email?.trim() ||
-    '';
-
-  if (bedrijfsnaam && contactpersoon) return `${bedrijfsnaam} – ${contactpersoon}`;
+  if (contactpersoon && bedrijfsnaam) return `${contactpersoon} · ${bedrijfsnaam}`;
+  if (contactpersoon) return email ? `${contactpersoon} · ${email}` : contactpersoon;
   if (bedrijfsnaam) return bedrijfsnaam;
-  if (contactpersoon && email) return `${contactpersoon} – ${email}`;
-  if (contactpersoon) return contactpersoon;
-  if (email) return `Onbekende relatie – ${email}`;
+  if (email) return email;
 
-  const telefoon =
-    relatie.telefoon?.trim() ||
-    primaireCp?.telefoon?.trim() ||
-    primaireCp?.telefoonMobiel?.trim() ||
-    '';
-  if (telefoon) return `Onbekende relatie – ${telefoon}`;
+  const telefoon = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
+  if (telefoon) return telefoon;
 
-  const kortId = relatie.id ? relatie.id.slice(0, 6) : 'zonder ID';
-  return `Onbekende relatie – ${kortId}`;
+  const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
+  return typeLabel ? `${typeLabel} zonder naam` : 'Relatie zonder naam';
 }
 
 /**
