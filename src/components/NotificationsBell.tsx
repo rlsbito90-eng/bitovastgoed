@@ -47,7 +47,7 @@ import {
 import { useDataStore } from '@/hooks/useDataStore';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
-import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { getRelatieNaamCompact, getRelationDisplayName } from '@/lib/relatieNaam';
 import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
 import { isStrongMatch } from '@/lib/derivations';
 
