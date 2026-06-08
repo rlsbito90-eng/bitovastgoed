@@ -186,9 +186,9 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
     try {
       await update.mutateAsync({
         id: signaal.id,
-        patch: { kadaster_check_op: new Date().toISOString() } as any,
+        patch: { kadaster_check_op: new Date().toISOString(), eigenaarbron: 'kadaster' } as any,
       });
-      toast.success('Kadaster check geregistreerd');
+      toast.success('Handmatig gemarkeerd als gecheckt');
     } catch (e: any) {
       toast.error(e?.message ?? 'Bijwerken mislukt');
     }
