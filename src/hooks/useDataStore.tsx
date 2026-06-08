@@ -111,7 +111,7 @@ const relatieFromDb = (r: any): Relatie => ({
 });
 
 const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
-  bedrijfsnaam: r.bedrijfsnaam !== undefined ? (r.bedrijfsnaam || 'Onbekend') : undefined,
+  bedrijfsnaam: r.bedrijfsnaam !== undefined ? (r.bedrijfsnaam?.trim() || '') : undefined,
   contactpersoon: r.contactpersoon !== undefined ? (r.contactpersoon || null) : undefined,
   type_partij: r.type,
   investeerder_subtype: r.investeerderSubtype !== undefined ? (r.investeerderSubtype || null) : undefined,
@@ -171,7 +171,7 @@ const contactpersoonFromDb = (c: any): RelatieContactpersoon => ({
 
 const contactpersoonToDb = (c: Partial<RelatieContactpersoon>) => cleanPayload({
   relatie_id: c.relatieId,
-  naam: c.naam !== undefined ? (c.naam || 'Onbekend') : undefined,
+  naam: c.naam !== undefined ? (c.naam?.trim() || '') : undefined,
   functie: c.functie !== undefined ? (c.functie || null) : undefined,
   email: c.email !== undefined ? (c.email || null) : undefined,
   telefoon: c.telefoon !== undefined ? (c.telefoon || null) : undefined,

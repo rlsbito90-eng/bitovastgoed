@@ -9,7 +9,28 @@
 //   <p className="font-medium">{primair}</p>
 //   {secundair && <p className="text-xs text-muted-foreground">{secundair}</p>}
 
-import type { Relatie, RelatieContactpersoon } from '@/data/mock-data';
+import type { Relatie, RelatieContactpersoon, PartijType } from '@/data/mock-data';
+
+// Waarden die in de DB als placeholder zijn beland maar in UI als "leeg"
+// moeten gelden. Voorkomt dat "Onbekend" prominent in agenda/taken/lijsten
+// verschijnt voor relaties zonder echte bedrijfsnaam.
+const PLACEHOLDER_NAMES = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
+
+const clean = (v?: string | null): string => {
+  const s = (v ?? '').trim();
+  if (!s) return '';
+  if (PLACEHOLDER_NAMES.has(s.toLowerCase())) return '';
+  return s;
+};
+
+const PARTIJ_TYPE_LABELS: Record<PartijType, string> = {
+  belegger: 'Belegger',
+  ontwikkelaar: 'Ontwikkelaar',
+  eigenaar: 'Eigenaar',
+  makelaar: 'Makelaar',
+  partner: 'Partner',
+  overig: 'Relatie',
+};
 
 export interface RelatieNamen {
   /** Wat bovenaan komt - de "hoofdnaam" van de relatie */
@@ -38,46 +59,52 @@ export function getRelatieNamen(
   contactpersonen?: RelatieContactpersoon[],
 ): RelatieNamen {
   if (!relatie) {
-    return { primair: '(geen relatie)', secundair: null, isLeeg: true };
+    return { primair: 'Relatie zonder naam', secundair: null, isLeeg: true };
   }
 
-  const bedrijfsnaam = relatie.bedrijfsnaam?.trim() || null;
+  const bedrijfsnaam = clean(relatie.bedrijfsnaam) || null;
 
   // 1. Probeer primaire contactpersoon
   const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
-  if (primaireCp?.naam?.trim()) {
-    return {
-      primair: primaireCp.naam.trim(),
-      secundair: bedrijfsnaam,
-      isLeeg: false,
-    };
+  const primaireNaam = clean(primaireCp?.naam);
+  if (primaireNaam) {
+    return { primair: primaireNaam, secundair: bedrijfsnaam, isLeeg: false };
   }
 
   // 2. Fallback: oude contactpersoon-veld op relatie zelf
-  const oudeCp = relatie.contactpersoon?.trim() || null;
+  const oudeCp = clean(relatie.contactpersoon);
   if (oudeCp) {
-    return {
-      primair: oudeCp,
-      secundair: bedrijfsnaam,
-      isLeeg: false,
-    };
+    return { primair: oudeCp, secundair: bedrijfsnaam, isLeeg: false };
   }
 
   // 3. Geen contactpersoon, wel bedrijfsnaam
   if (bedrijfsnaam) {
-    return {
-      primair: bedrijfsnaam,
-      secundair: null,
-      isLeeg: false,
-    };
+    return { primair: bedrijfsnaam, secundair: null, isLeeg: false };
   }
 
-  // 4. Niets ingevuld
-  return {
-    primair: '(naamloze relatie)',
-    secundair: null,
-    isLeeg: true,
-  };
+  // 4. Fallback op e-mail/telefoon/type-label
+  const email = clean(relatie.email) || clean(primaireCp?.email);
+  if (email) return { primair: email, secundair: null, isLeeg: true };
+
+  const tel = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
+  if (tel) return { primair: tel, secundair: null, isLeeg: true };
+
+  const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
+  if (typeLabel) return { primair: `${typeLabel} zonder naam`, secundair: null, isLeeg: true };
+
+  return { primair: 'Relatie zonder naam', secundair: null, isLeeg: true };
+}
+
+/**
+ * App-brede primaire weergavenaam voor een relatie/kandidaat in één regel.
+ * Gebruikt in agenda-titels, taken, kandidaatlijsten, notificaties.
+ * Geeft NOOIT "Onbekend" terug.
+ */
+export function getRelationDisplayName(
+  relatie: Relatie | null | undefined,
+  contactpersonen?: RelatieContactpersoon[],
+): string {
+  return getRelatieNamen(relatie, contactpersonen).primair;
 }
 
 /**
@@ -108,37 +135,25 @@ export function getRelatieDropdownLabel(
   relatie: Relatie | null | undefined,
   contactpersonen?: RelatieContactpersoon[],
 ): string {
-  if (!relatie) return 'Onbekende relatie';
+  if (!relatie) return 'Relatie zonder naam';
 
-  const bedrijfsnaam = relatie.bedrijfsnaam?.trim() || '';
+  const bedrijfsnaam = clean(relatie.bedrijfsnaam);
 
   // Contactpersoon: eerst primaire uit relatie_contactpersonen, anders oud veld
   const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
-  const contactpersoon =
-    primaireCp?.naam?.trim() ||
-    relatie.contactpersoon?.trim() ||
-    '';
+  const contactpersoon = clean(primaireCp?.naam) || clean(relatie.contactpersoon);
+  const email = clean(relatie.email) || clean(primaireCp?.email);
 
-  const email =
-    relatie.email?.trim() ||
-    primaireCp?.email?.trim() ||
-    '';
-
-  if (bedrijfsnaam && contactpersoon) return `${bedrijfsnaam} – ${contactpersoon}`;
+  if (contactpersoon && bedrijfsnaam) return `${contactpersoon} · ${bedrijfsnaam}`;
+  if (contactpersoon) return email ? `${contactpersoon} · ${email}` : contactpersoon;
   if (bedrijfsnaam) return bedrijfsnaam;
-  if (contactpersoon && email) return `${contactpersoon} – ${email}`;
-  if (contactpersoon) return contactpersoon;
-  if (email) return `Onbekende relatie – ${email}`;
+  if (email) return email;
 
-  const telefoon =
-    relatie.telefoon?.trim() ||
-    primaireCp?.telefoon?.trim() ||
-    primaireCp?.telefoonMobiel?.trim() ||
-    '';
-  if (telefoon) return `Onbekende relatie – ${telefoon}`;
+  const telefoon = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
+  if (telefoon) return telefoon;
 
-  const kortId = relatie.id ? relatie.id.slice(0, 6) : 'zonder ID';
-  return `Onbekende relatie – ${kortId}`;
+  const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
+  return typeLabel ? `${typeLabel} zonder naam` : 'Relatie zonder naam';
 }
 
 /**

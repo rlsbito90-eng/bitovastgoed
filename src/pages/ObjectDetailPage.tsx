@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { getRelationDisplayName } from '@/lib/relatieNaam';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
@@ -2046,7 +2047,7 @@ export default function ObjectDetailPage() {
                     to={`/deals/${leadDeal.id}`}
                     className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5"
                   >
-                    {store.getRelatieById(leadDeal.relatieId)?.bedrijfsnaam ?? 'Onbekend'}
+                    {getRelationDisplayName(store.getRelatieById(leadDeal.relatieId), store.contactpersonen)}
                     <ArrowUpRight className="h-3 w-3" />
                   </Link>
                 </div>

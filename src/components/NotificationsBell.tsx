@@ -47,7 +47,7 @@ import {
 import { useDataStore } from '@/hooks/useDataStore';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import { getAllMatchesFromData, type Relatie, type ObjectVastgoed, type Taak } from '@/data/mock-data';
-import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { getRelatieNaamCompact, getRelationDisplayName } from '@/lib/relatieNaam';
 import { isTaakTeLaat, isTaakVandaag } from '@/lib/taakHelpers';
 import { isStrongMatch } from '@/lib/derivations';
 
@@ -458,7 +458,7 @@ export default function NotificationsBell() {
 
     // 4. Datakwaliteit — dubbele relaties
     for (const dup of detectRelatieDuplicates(relaties)) {
-      const namen = dup.groep.slice(0, 3).map((r) => r.bedrijfsnaam || r.contactpersoon || 'Onbekend').join(', ');
+      const namen = dup.groep.slice(0, 3).map((r) => getRelationDisplayName(r, store.contactpersonen)).join(', ');
       const reden = dup.key.split(':')[0];
       const redenLabel = reden === 'email' ? 'zelfde e-mail'
         : reden === 'tel' ? 'zelfde telefoonnummer'

@@ -226,13 +226,63 @@ Deno.serve(async (req: Request) => {
     if (relatieIds.size > 0) {
       const { data: rels, error: relsErr } = await supabase
         .from('relaties')
-        .select('id, bedrijfsnaam')
+        .select('id, bedrijfsnaam, contactpersoon, email, telefoon, type_partij')
         .in('id', Array.from(relatieIds));
       if (relsErr) console.error('Relaties query error:', relsErr);
       for (const r of rels ?? []) relatieMap.set(r.id, r);
     }
 
+    // Primaire contactpersonen per relatie (optioneel)
+    const primaryCpMap = new Map<string, any>();
+    if (relatieIds.size > 0) {
+      const { data: cps, error: cpsErr } = await supabase
+        .from('relatie_contactpersonen')
+        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair')
+        .in('relatie_id', Array.from(relatieIds))
+        .eq('is_primair', true);
+      if (cpsErr) console.error('Contactpersonen query error:', cpsErr);
+      for (const c of cps ?? []) primaryCpMap.set(c.relatie_id, c);
+    }
+
+    const PLACEHOLDER = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
+    const cleanStr = (v: any): string => {
+      const s = (v ?? '').toString().trim();
+      if (!s) return '';
+      if (PLACEHOLDER.has(s.toLowerCase())) return '';
+      return s;
+    };
+    const PARTIJ_LABELS: Record<string, string> = {
+      belegger: 'Belegger', ontwikkelaar: 'Ontwikkelaar', eigenaar: 'Eigenaar',
+      makelaar: 'Makelaar', partner: 'Partner', overig: 'Relatie',
+    };
+    const relName = (r: any): string => {
+      if (!r) return '';
+      const cp = primaryCpMap.get(r.id);
+      const naam = cleanStr(cp?.naam) || cleanStr(r.contactpersoon);
+      const bedrijf = cleanStr(r.bedrijfsnaam);
+      if (naam && bedrijf) return `${naam} · ${bedrijf}`;
+      if (naam) return naam;
+      if (bedrijf) return bedrijf;
+      const email = cleanStr(r.email) || cleanStr(cp?.email);
+      if (email) return email;
+      const tel = cleanStr(r.telefoon) || cleanStr(cp?.telefoon) || cleanStr(cp?.telefoon_mobiel);
+      if (tel) return tel;
+      const typeLabel = r.type_partij ? PARTIJ_LABELS[r.type_partij] : '';
+      return typeLabel ? `${typeLabel} zonder naam` : '';
+    };
+
     const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
+
+    // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
+    const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
+      const parts: string[] = [];
+      const subj = [naam, object].filter(Boolean).join(' · ');
+      if (actie && subj) return `${actie} — ${subj}`;
+      if (actie) return actie;
+      return subj || 'Agenda-item';
+    };
+    const descLines = (...rows: Array<[string, string | undefined | null]>): string =>
+      rows.filter(([, v]) => !!v && v.toString().trim()).map(([k, v]) => `${k}: ${v}`).join('\n');
 
     // 4. iCal opbouwen
     const dtstamp = icsDateTimeUtc(new Date());
@@ -245,17 +295,16 @@ Deno.serve(async (req: Request) => {
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
 
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
       const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
 
-      const summary = `🏠 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`;
+      const summary = `🏠 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`;
       const description = [
-        relatie ? `Relatie: ${relatie}` : null,
-        d.fase ? `Fase: ${d.fase}` : null,
-        d.notities ? `\n${d.notities}` : null,
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
+        d.notities ? `\n${d.notities}` : '',
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
@@ -288,16 +337,15 @@ Deno.serve(async (req: Request) => {
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
 
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
       const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
 
-      const summary = `📞 Follow-up — ${titel}${relatie ? ` (${relatie})` : ''}`;
+      const summary = `📞 ${buildAgendaTitle('Follow-up', relatie, titel)}`;
       const description = [
-        relatie ? `Relatie: ${relatie}` : null,
-        d.fase ? `Fase: ${d.fase}` : null,
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
@@ -329,7 +377,7 @@ Deno.serve(async (req: Request) => {
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
 
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
@@ -338,10 +386,10 @@ Deno.serve(async (req: Request) => {
       const fase = d.fase ?? '';
       const isAfgerond = fase === 'afgerond';
 
-      const summary = `💼 ${isAfgerond ? 'Closing' : 'Verwachte closing'} — ${titel}${relatie ? ` (${relatie})` : ''}`;
+      const actie = isAfgerond ? 'Closing' : 'Verwachte closing';
+      const summary = `💼 ${buildAgendaTitle(actie, relatie, titel)}`;
       const description = [
-        relatie ? `Relatie: ${relatie}` : null,
-        `Fase: ${fase}`,
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', fase || undefined]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
@@ -380,8 +428,9 @@ Deno.serve(async (req: Request) => {
       const dealUrl = deal ? `${APP_BASE_URL}/deals/${deal.id}` : null;
       const dealTitel = deal ? objNaam(obj) : null;
 
+      const relNaam = relName(dealRel);
       const description = [
-        dealRel?.bedrijfsnaam ? `Relatie: ${dealRel.bedrijfsnaam}` : null,
+        relNaam ? `Relatie: ${relNaam}` : null,
         obj ? `Object: ${objNaam(obj)}` : null,
         deal ? `Deal: ${dealTitel}${deal.fase ? ` (${deal.fase})` : ''}` : null,
         t.notities ? `\nNotities:\n${t.notities}` : null,
@@ -459,7 +508,7 @@ Deno.serve(async (req: Request) => {
       const obj = p.object_id ? objectMap.get(p.object_id) : null;
       const rel = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
@@ -479,7 +528,7 @@ Deno.serve(async (req: Request) => {
       if (p.bezichtiging_datum) {
         events.push(buildVEvent({
           uid: makeUid('pipeline-bezichtiging', p.id),
-          summary: `🤝 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `🤝 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`,
           description: baseDescription(),
           location: locatie,
           url: objectUrl,
@@ -495,10 +544,10 @@ Deno.serve(async (req: Request) => {
           ? (ACTIE_LABEL[p.volgende_actie] ?? p.volgende_actie)
           : 'Volgende actie';
         const omschrijving = p.volgende_actie_omschrijving?.trim();
-        const summarySuffix = omschrijving ? `: ${omschrijving}` : '';
+        const actieMetOmschrijving = omschrijving ? `${actieLabel}: ${omschrijving}` : actieLabel;
         events.push(buildVEvent({
           uid: makeUid('pipeline-actie', p.id),
-          summary: `✅ ${actieLabel}${summarySuffix} — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `✅ ${buildAgendaTitle(actieMetOmschrijving, relatie, titel)}`,
           description: baseDescription(omschrijving ? `Actie: ${actieLabel} — ${omschrijving}` : `Actie: ${actieLabel}`),
           location: locatie,
           url: objectUrl,
@@ -511,7 +560,7 @@ Deno.serve(async (req: Request) => {
       if (p.gewenste_levering) {
         events.push(buildVEvent({
           uid: makeUid('pipeline-levering', p.id),
-          summary: `📦 Gewenste levering — ${titel}${relatie ? ` (${relatie})` : ''}`,
+          summary: `📦 ${buildAgendaTitle('Gewenste levering', relatie, titel)}`,
           description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'),
           location: locatie,
           url: objectUrl,
@@ -526,11 +575,12 @@ Deno.serve(async (req: Request) => {
     for (const r of ndaRelaties ?? []) {
       if (!r.nda_datum) continue;
       const relatieUrl = `${APP_BASE_URL}/relaties/${r.id}`;
+      const naam = relName(relatieMap.get(r.id)) || 'Relatie';
       events.push(buildVEvent({
         uid: makeUid('nda-relatie', r.id),
-        summary: `🖋 NDA — ${r.bedrijfsnaam ?? 'Relatie'}`,
+        summary: `🖋 NDA — ${naam}`,
         description: [
-          `Relatie: ${r.bedrijfsnaam ?? ''}`,
+          `Relatie: ${naam}`,
           `NDA-datum vastgelegd op het relatieprofiel.`,
           `\n${relatieUrl}`,
         ].join('\n'),
