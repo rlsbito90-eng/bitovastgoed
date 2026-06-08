@@ -205,5 +205,3 @@ export function bouwZoekvarianten(adres: AdresInput): ZoekVariant[] {
   return varianten;
 }
 
-/** Convenience: bouw direct varianten uit een signaal-achtig object. */
-export function varianten Voor Signaal(_: never): never { throw new Error('niet gebruiken'); }
