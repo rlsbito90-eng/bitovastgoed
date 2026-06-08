@@ -295,17 +295,16 @@ Deno.serve(async (req: Request) => {
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
 
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
       const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
 
-      const summary = `🏠 Bezichtiging — ${titel}${relatie ? ` (${relatie})` : ''}`;
+      const summary = `🏠 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`;
       const description = [
-        relatie ? `Relatie: ${relatie}` : null,
-        d.fase ? `Fase: ${d.fase}` : null,
-        d.notities ? `\n${d.notities}` : null,
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
+        d.notities ? `\n${d.notities}` : '',
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
