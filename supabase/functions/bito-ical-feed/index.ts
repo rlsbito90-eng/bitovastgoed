@@ -377,7 +377,7 @@ Deno.serve(async (req: Request) => {
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
 
       const titel = objNaam(obj);
-      const relatie = rel?.bedrijfsnaam ?? '';
+      const relatie = relName(rel);
       const locatie = obj
         ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
         : undefined;
@@ -386,10 +386,10 @@ Deno.serve(async (req: Request) => {
       const fase = d.fase ?? '';
       const isAfgerond = fase === 'afgerond';
 
-      const summary = `💼 ${isAfgerond ? 'Closing' : 'Verwachte closing'} — ${titel}${relatie ? ` (${relatie})` : ''}`;
+      const actie = isAfgerond ? 'Closing' : 'Verwachte closing';
+      const summary = `💼 ${buildAgendaTitle(actie, relatie, titel)}`;
       const description = [
-        relatie ? `Relatie: ${relatie}` : null,
-        `Fase: ${fase}`,
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', fase || undefined]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
