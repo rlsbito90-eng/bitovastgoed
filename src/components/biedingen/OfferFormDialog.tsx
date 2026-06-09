@@ -17,6 +17,7 @@ import {
   type Bieding, type BiedingStatus, type BiedingType,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
+import { parseDutchNumber } from '@/lib/format/nl';
 
 interface Props {
   open: boolean;
