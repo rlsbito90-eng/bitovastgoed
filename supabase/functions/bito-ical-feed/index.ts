@@ -446,7 +446,7 @@ Deno.serve(async (req: Request) => {
       const description = [
         relNaam ? `Relatie: ${relNaam}` : null,
         obj ? `Object: ${objNaam(obj)}` : null,
-        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${deal.fase})` : ''}` : null,
+        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${humanizeFaseInline(deal.fase)})` : ''}` : null,
         t.notities ? `\nNotities:\n${t.notities}` : null,
         dealUrl ? `\n${dealUrl}` : `\n${APP_BASE_URL}/taken`,
       ].filter(Boolean).join('\n');
