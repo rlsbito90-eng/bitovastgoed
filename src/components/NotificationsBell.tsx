@@ -368,14 +368,14 @@ export default function NotificationsBell() {
           id: `taak-verlopen::${t.id}`,
           type: 'taak',
           priority: 'kritiek',
-          title: `Taak verlopen: ${t.titel}`,
-          body: t.deadline ? `Deadline ${t.deadline}${t.deadlineTijd ? ` ${t.deadlineTijd.slice(0, 5)}` : ''}` : undefined,
+          title: 'Taak verlopen',
+          body: `${t.titel}${t.deadline ? ` · deadline ${t.deadline}${t.deadlineTijd ? ` ${t.deadlineTijd.slice(0, 5)}` : ''}` : ''}`,
           href: '/taken',
           context: { kind: 'taak', id: t.id },
           createdAt: Date.now(),
           read: false,
         });
-        continue; // verlopen overschaduwt "vandaag"
+        continue;
       }
 
       // 1b. Vandaag
@@ -384,8 +384,8 @@ export default function NotificationsBell() {
           id: `taak-vandaag::${t.id}::${dayKey}`,
           type: 'taak',
           priority: 'hoog',
-          title: `Taak vandaag: ${t.titel}`,
-          body: t.deadlineTijd ? `Vandaag ${t.deadlineTijd.slice(0, 5)}` : 'Vandaag',
+          title: 'Taak verloopt vandaag',
+          body: `${t.titel}${t.deadlineTijd ? ` · ${t.deadlineTijd.slice(0, 5)}` : ''}`,
           href: '/taken',
           context: { kind: 'taak', id: t.id },
           createdAt: Date.now(),
@@ -399,8 +399,8 @@ export default function NotificationsBell() {
           id: `taak-hoogprio::${t.id}`,
           type: 'taak',
           priority: 'hoog',
-          title: `Nieuwe ${t.prioriteit === 'urgent' ? 'urgente' : 'hoog-prioriteit'}taak: ${t.titel}`,
-          body: t.deadline ? `Deadline ${t.deadline}` : undefined,
+          title: t.prioriteit === 'urgent' ? 'Urgente taak' : 'Hoge prioriteitstaak',
+          body: `${t.titel}${t.deadline ? ` · deadline ${t.deadline}` : ''}`,
           href: '/taken',
           context: { kind: 'taak', id: t.id },
           createdAt: Date.now(),
