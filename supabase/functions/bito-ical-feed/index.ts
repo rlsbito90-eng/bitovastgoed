@@ -395,7 +395,7 @@ Deno.serve(async (req: Request) => {
       const actie = isAfgerond ? 'Closing' : 'Verwachte closing';
       const summary = `💼 ${buildAgendaTitle(actie, relatie, titel)}`;
       const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', fase || undefined]),
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(fase) || undefined]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
