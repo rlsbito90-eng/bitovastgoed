@@ -686,3 +686,20 @@
     border-color: hsl(31 28% 80% / 0.7);
   }
 }
+
+/*
+  iOS Safari auto-zoom fix.
+  Safari zoomt automatisch in op form controls met font-size < 16px.
+  Door op mobiele viewports een minimum van 16px af te dwingen voor
+  alle native form controls voorkomen we ongewenste zoom én blijft de
+  pagina na blur/modal-sluiten op normale schaal.
+  Desktop (≥768px) behoudt de bestaande compacte typografie.
+*/
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px;
+  }
+}
