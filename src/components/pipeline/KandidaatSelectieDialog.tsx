@@ -361,7 +361,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               {geselecteerd.size === gesorteerd.length && gesorteerd.length > 0 ? 'Deselecteer alles' : 'Selecteer alles'}
             </button>
             <span className="text-muted-foreground">
-              {gesorteerd.length} resultaten · {geselecteerd.size} geselecteerd
+              {gesorteerd.length} gevonden · {geselecteerd.size} geselecteerd
             </span>
             {filtersActief && (
               <button
