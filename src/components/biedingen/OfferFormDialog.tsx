@@ -17,6 +17,7 @@ import {
   type Bieding, type BiedingStatus, type BiedingType,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
+import { parseDutchNumber } from '@/lib/format/nl';
 
 interface Props {
   open: boolean;
@@ -193,7 +194,7 @@ export default function OfferFormDialog({
         dealId: form.dealId || null,
         objectPipelineId: objectPipelineId,
         counterOfferToId: counterOfferToId,
-        bedrag: form.bedrag ? Math.round(parseFloat(form.bedrag.replace(',', '.'))) : null,
+        bedrag: (() => { const n = parseDutchNumber(form.bedrag); return n == null ? null : Math.round(n); })(),
         bieddatum: form.bieddatum || today(),
         geldigTot: form.geldigTot || null,
         status: form.status,
@@ -203,8 +204,8 @@ export default function OfferFormDialog({
         ddVoorbehoud: form.ddVoorbehoud,
         gewensteLevering: form.gewensteLevering || null,
         gewensteLeveringTekst: form.gewensteLeveringTekst || null,
-        waarborgsomBedrag: form.waarborgsomBedrag ? Math.round(parseFloat(form.waarborgsomBedrag.replace(',', '.'))) : null,
-        waarborgsomPct: form.waarborgsomPct ? parseFloat(form.waarborgsomPct.replace(',', '.')) : null,
+        waarborgsomBedrag: (() => { const n = parseDutchNumber(form.waarborgsomBedrag); return n == null ? null : Math.round(n); })(),
+        waarborgsomPct: parseDutchNumber(form.waarborgsomPct),
         kostenType: form.kostenType || null,
         voorwaarden: form.voorwaarden || null,
         notities: form.notities || null,
@@ -273,7 +274,7 @@ export default function OfferFormDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="bedrag">Biedbedrag (€)</Label>
-              <Input id="bedrag" inputMode="numeric" placeholder="1.350.000"
+              <Input id="bedrag" inputMode="decimal" placeholder="1.350.000"
                 value={form.bedrag} onChange={e => set('bedrag', e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -383,7 +384,7 @@ export default function OfferFormDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label htmlFor="wbBedrag">Waarborgsom €</Label>
-                <Input id="wbBedrag" inputMode="numeric"
+                <Input id="wbBedrag" inputMode="decimal"
                   value={form.waarborgsomBedrag} onChange={e => set('waarborgsomBedrag', e.target.value)} />
               </div>
               <div className="space-y-1.5">
