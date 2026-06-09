@@ -232,16 +232,22 @@ Deno.serve(async (req: Request) => {
       for (const r of rels ?? []) relatieMap.set(r.id, r);
     }
 
-    // Primaire contactpersonen per relatie (optioneel)
+    // Contactpersonen per relatie: primair indien aanwezig, anders eerste
+    // beschikbare. Voorkomt dat "Onbekend" in agenda komt wanneer de
+    // contactpersoon (bv. Marco Spierings) niet als primair gemarkeerd is.
     const primaryCpMap = new Map<string, any>();
     if (relatieIds.size > 0) {
       const { data: cps, error: cpsErr } = await supabase
         .from('relatie_contactpersonen')
-        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair')
+        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair, created_at')
         .in('relatie_id', Array.from(relatieIds))
-        .eq('is_primair', true);
+        .order('is_primair', { ascending: false })
+        .order('created_at', { ascending: true });
       if (cpsErr) console.error('Contactpersonen query error:', cpsErr);
-      for (const c of cps ?? []) primaryCpMap.set(c.relatie_id, c);
+      for (const c of cps ?? []) {
+        // Eerste record per relatie wint door bovenstaande sortering
+        if (!primaryCpMap.has(c.relatie_id)) primaryCpMap.set(c.relatie_id, c);
+      }
     }
 
     const PLACEHOLDER = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
