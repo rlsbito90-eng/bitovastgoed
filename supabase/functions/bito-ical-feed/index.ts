@@ -351,7 +351,7 @@ Deno.serve(async (req: Request) => {
 
       const summary = `📞 ${buildAgendaTitle('Follow-up', relatie, titel)}`;
       const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(d.fase)]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
