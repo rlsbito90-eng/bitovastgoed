@@ -232,16 +232,22 @@ Deno.serve(async (req: Request) => {
       for (const r of rels ?? []) relatieMap.set(r.id, r);
     }
 
-    // Primaire contactpersonen per relatie (optioneel)
+    // Contactpersonen per relatie: primair indien aanwezig, anders eerste
+    // beschikbare. Voorkomt dat "Onbekend" in agenda komt wanneer de
+    // contactpersoon (bv. Marco Spierings) niet als primair gemarkeerd is.
     const primaryCpMap = new Map<string, any>();
     if (relatieIds.size > 0) {
       const { data: cps, error: cpsErr } = await supabase
         .from('relatie_contactpersonen')
-        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair')
+        .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair, created_at')
         .in('relatie_id', Array.from(relatieIds))
-        .eq('is_primair', true);
+        .order('is_primair', { ascending: false })
+        .order('created_at', { ascending: true });
       if (cpsErr) console.error('Contactpersonen query error:', cpsErr);
-      for (const c of cps ?? []) primaryCpMap.set(c.relatie_id, c);
+      for (const c of cps ?? []) {
+        // Eerste record per relatie wint door bovenstaande sortering
+        if (!primaryCpMap.has(c.relatie_id)) primaryCpMap.set(c.relatie_id, c);
+      }
     }
 
     const PLACEHOLDER = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
@@ -273,6 +279,14 @@ Deno.serve(async (req: Request) => {
 
     const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
 
+    // Inline humanizer voor fase-keys; alle bekende keys staan ook in
+    // FASE_LABEL verderop, hier vooral fallback met underscore-naar-spatie.
+    const humanizeFaseInline = (key?: string | null): string => {
+      const s = (key ?? '').trim();
+      if (!s) return '';
+      return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
     const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
       const parts: string[] = [];
@@ -303,7 +317,7 @@ Deno.serve(async (req: Request) => {
 
       const summary = `🏠 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`;
       const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(d.fase)]),
         d.notities ? `\n${d.notities}` : '',
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
@@ -345,7 +359,7 @@ Deno.serve(async (req: Request) => {
 
       const summary = `📞 ${buildAgendaTitle('Follow-up', relatie, titel)}`;
       const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', d.fase]),
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(d.fase)]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
@@ -389,7 +403,7 @@ Deno.serve(async (req: Request) => {
       const actie = isAfgerond ? 'Closing' : 'Verwachte closing';
       const summary = `💼 ${buildAgendaTitle(actie, relatie, titel)}`;
       const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', fase || undefined]),
+        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(fase) || undefined]),
         `\nDeal: ${dealUrl}`,
       ].filter(Boolean).join('\n');
 
@@ -432,7 +446,7 @@ Deno.serve(async (req: Request) => {
       const description = [
         relNaam ? `Relatie: ${relNaam}` : null,
         obj ? `Object: ${objNaam(obj)}` : null,
-        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${deal.fase})` : ''}` : null,
+        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${humanizeFaseInline(deal.fase)})` : ''}` : null,
         t.notities ? `\nNotities:\n${t.notities}` : null,
         dealUrl ? `\n${dealUrl}` : `\n${APP_BASE_URL}/taken`,
       ].filter(Boolean).join('\n');
@@ -469,38 +483,56 @@ Deno.serve(async (req: Request) => {
     //  - gewenste_levering
     const FASE_LABEL: Record<string, string> = {
       match_gevonden: 'Match gevonden',
-      benaderd: 'Benaderd',
       teaser_verstuurd: 'Teaser verstuurd',
+      interesse_ontvangen: 'Interesse ontvangen',
       nda_verstuurd: 'NDA verstuurd',
       nda_getekend: 'NDA getekend',
       informatie_gedeeld: 'Informatie gedeeld',
       bezichtiging_gepland: 'Bezichtiging gepland',
+      bezichtiging_geweest: 'Bezichtiging geweest',
       bezichtiging_gehouden: 'Bezichtiging gehouden',
       indicatieve_bieding: 'Indicatieve bieding',
       onderhandeling: 'Onderhandeling',
-      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      loi_ontvangen: 'LOI ontvangen',
+      bieding_ontvangen: 'Bieding ontvangen',
       due_diligence: 'Due diligence',
-      transport_closing: 'Transport / Closing',
+      koopovereenkomst_concept: 'Koopovereenkomst concept',
+      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      transport_closing: 'Transport / closing',
+      afgerond: 'Afgerond',
+      afgevallen: 'Afgevallen',
+      benaderd: 'Benaderd',
       afgehaakt: 'Afgehaakt',
       afgewezen_door_ons: 'Afgewezen door ons',
       on_hold: 'On hold',
       gewonnen: 'Gewonnen',
     };
 
+    const humanizeKey = (key?: string | null): string => {
+      if (!key) return '';
+      if (FASE_LABEL[key]) return FASE_LABEL[key];
+      return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     const ACTIE_LABEL: Record<string, string> = {
       bellen: 'Bellen',
       mailen: 'Mailen',
+      whatsapp: 'WhatsApp',
       teaser_sturen: 'Teaser sturen',
       nda_sturen: 'NDA sturen',
       nda_opvolgen: 'NDA opvolgen',
+      stukken_delen: 'Stukken delen',
       info_delen: 'Info delen',
+      bezichtiging_plannen: 'Bezichtiging plannen',
       bezichtiging_inplannen: 'Bezichtiging inplannen',
       bezichtiging: 'Bezichtiging',
+      bieding_opvolgen: 'Bieding opvolgen',
       bod_opvolgen: 'Bod opvolgen',
       onderhandelen: 'Onderhandelen',
       contract_opstellen: 'Contract opstellen',
       dd_opvolgen: 'DD opvolgen',
       transport_voorbereiden: 'Transport voorbereiden',
+      overig: 'Actie',
       anders: 'Actie',
     };
 
