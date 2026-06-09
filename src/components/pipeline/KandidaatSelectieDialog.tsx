@@ -268,12 +268,27 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={zoekRef}
               placeholder="Zoek op bedrijfsnaam, contactpersoon, e-mail, telefoon, plaats, notities…"
               value={zoek}
               onChange={e => setZoek(e.target.value)}
-              className="pl-8 h-9"
+              className="pl-8 pr-9 h-9"
               autoFocus
             />
+            {zoek && (
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => {
+                  setZoek('');
+                  zoekRef.current?.focus();
+                }}
+                aria-label="Zoekterm wissen"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
