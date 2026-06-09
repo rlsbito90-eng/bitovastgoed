@@ -475,38 +475,56 @@ Deno.serve(async (req: Request) => {
     //  - gewenste_levering
     const FASE_LABEL: Record<string, string> = {
       match_gevonden: 'Match gevonden',
-      benaderd: 'Benaderd',
       teaser_verstuurd: 'Teaser verstuurd',
+      interesse_ontvangen: 'Interesse ontvangen',
       nda_verstuurd: 'NDA verstuurd',
       nda_getekend: 'NDA getekend',
       informatie_gedeeld: 'Informatie gedeeld',
       bezichtiging_gepland: 'Bezichtiging gepland',
+      bezichtiging_geweest: 'Bezichtiging geweest',
       bezichtiging_gehouden: 'Bezichtiging gehouden',
       indicatieve_bieding: 'Indicatieve bieding',
       onderhandeling: 'Onderhandeling',
-      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      loi_ontvangen: 'LOI ontvangen',
+      bieding_ontvangen: 'Bieding ontvangen',
       due_diligence: 'Due diligence',
-      transport_closing: 'Transport / Closing',
+      koopovereenkomst_concept: 'Koopovereenkomst concept',
+      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
+      transport_closing: 'Transport / closing',
+      afgerond: 'Afgerond',
+      afgevallen: 'Afgevallen',
+      benaderd: 'Benaderd',
       afgehaakt: 'Afgehaakt',
       afgewezen_door_ons: 'Afgewezen door ons',
       on_hold: 'On hold',
       gewonnen: 'Gewonnen',
     };
 
+    const humanizeKey = (key?: string | null): string => {
+      if (!key) return '';
+      if (FASE_LABEL[key]) return FASE_LABEL[key];
+      return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     const ACTIE_LABEL: Record<string, string> = {
       bellen: 'Bellen',
       mailen: 'Mailen',
+      whatsapp: 'WhatsApp',
       teaser_sturen: 'Teaser sturen',
       nda_sturen: 'NDA sturen',
       nda_opvolgen: 'NDA opvolgen',
+      stukken_delen: 'Stukken delen',
       info_delen: 'Info delen',
+      bezichtiging_plannen: 'Bezichtiging plannen',
       bezichtiging_inplannen: 'Bezichtiging inplannen',
       bezichtiging: 'Bezichtiging',
+      bieding_opvolgen: 'Bieding opvolgen',
       bod_opvolgen: 'Bod opvolgen',
       onderhandelen: 'Onderhandelen',
       contract_opstellen: 'Contract opstellen',
       dd_opvolgen: 'DD opvolgen',
       transport_voorbereiden: 'Transport voorbereiden',
+      overig: 'Actie',
       anders: 'Actie',
     };
 
