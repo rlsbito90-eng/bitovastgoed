@@ -384,7 +384,7 @@ export default function OfferFormDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label htmlFor="wbBedrag">Waarborgsom €</Label>
-                <Input id="wbBedrag" inputMode="numeric"
+                <Input id="wbBedrag" inputMode="decimal"
                   value={form.waarborgsomBedrag} onChange={e => set('waarborgsomBedrag', e.target.value)} />
               </div>
               <div className="space-y-1.5">
