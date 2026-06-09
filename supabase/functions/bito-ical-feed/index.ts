@@ -279,6 +279,14 @@ Deno.serve(async (req: Request) => {
 
     const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
 
+    // Inline humanizer voor fase-keys; alle bekende keys staan ook in
+    // FASE_LABEL verderop, hier vooral fallback met underscore-naar-spatie.
+    const humanizeFaseInline = (key?: string | null): string => {
+      const s = (key ?? '').trim();
+      if (!s) return '';
+      return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
     const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
       const parts: string[] = [];
