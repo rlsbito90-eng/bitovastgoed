@@ -147,13 +147,13 @@ export default function OffMarketGeskiptRecordsSectie() {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Score-range</label>
           <div className="flex gap-2 items-center">
-            <Input type="number" min={0} max={100} placeholder="min"
+            <Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="min"
               value={filters.minScore ?? ''}
-              onChange={e => setF('minScore', e.target.value === '' ? undefined : Number(e.target.value))} />
+              onChange={e => setF('minScore', e.target.value === '' ? undefined : Number(e.target.value.replace(/[^0-9]/g, '')))} />
             <span className="text-muted-foreground text-xs">–</span>
-            <Input type="number" min={0} max={100} placeholder="max"
+            <Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="max"
               value={filters.maxScore ?? ''}
-              onChange={e => setF('maxScore', e.target.value === '' ? undefined : Number(e.target.value))} />
+              onChange={e => setF('maxScore', e.target.value === '' ? undefined : Number(e.target.value.replace(/[^0-9]/g, '')))} />
           </div>
         </div>
         <div>
