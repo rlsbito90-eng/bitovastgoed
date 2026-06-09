@@ -104,3 +104,48 @@ Acceptatie: alle bestaande 200 tests blijven groen + nieuwe tests groen.
 - Totaal aantal tests groen
 
 Bij akkoord begin ik met Fase 1 (DB-migratie) — die wordt ter goedkeuring voorgelegd voor uitvoering.
+
+---
+
+## Prompt 3.7 — Notificaties gecontroleerd en gecentraliseerd
+
+Uitgevoerd: review en lichte aanscherping van `src/components/NotificationsBell.tsx`.
+
+### Toegestane notificatietriggers (vastgelegd)
+- **Taken**: verlopen (kritiek), deadline vandaag (hoog), nieuwe taak met hoog/urgente prioriteit (hoog).
+- **Biedingen**: bod verloopt vandaag of morgen (hoog), alleen actieve statussen.
+- **Matching**: nieuwe sterke match — drempel via `STRONG_MATCH_THRESHOLD = 70` (`isStrongMatch`).
+- **Datakwaliteit**: mogelijke dubbele relatie (kritiek), mogelijke dubbele objectinvoer (kritiek).
+- Geen andere triggers actief. `pushNotification` is publieke API maar wordt nergens extern aangeroepen.
+
+### Centrale helpers in gebruik
+- Sterke match: `isStrongMatch` / `STRONG_MATCH_THRESHOLD` uit `@/lib/derivations` (geen hardcoded `>= 5`).
+- Taken: `isTaakTeLaat`, `isTaakVandaag` uit `@/lib/taakHelpers`.
+- Biedingen: `useBiedingen({ all: true })` — zelfde bron als Biedingen-sectie.
+- Relatie display: `getRelatieNaamCompact`, `getRelationDisplayName` uit `@/lib/relatieNaam`.
+
+### Init / seen / dedupe
+- `INIT_FLAG = 'bito-notifications-initialized-v3'`: bij eerste init worden alle huidige kandidaten als gezien gemarkeerd → geen backfill-stortvloed.
+- `CREATED_IDS_KEY`: persistente set van reeds gegenereerde notificatie-id's (cap 2000) — voorkomt herverschijnen na wissen.
+- Dedupe-key per trigger:
+  - `taak-verlopen::<id>`
+  - `taak-vandaag::<id>::<YYYY-MM-DD>` (per dag uniek)
+  - `taak-hoogprio::<id>`
+  - `bod-verloop::<id>::<datum>`
+  - `match-sterk::<objectId>::<zoekprofielId>`
+  - `dupe-relatie::<key>` / `dupe-object::<key>`
+
+### Labels (kort, actiegericht)
+"Taak verlopen", "Taak verloopt vandaag", "Hoge prioriteitstaak"/"Urgente taak", "Bod verloopt vandaag/morgen", "Sterke match gevonden", "Mogelijke dubbele relatie", "Mogelijke dubbele objectinvoer". Entiteitsnaam + datum/tijd in body.
+
+### Tests
+- `src/test/notifications.test.ts`: drempel 69/70, 5 ≠ sterk, bod-venster vandaag/morgen vs. 3 dagen/gisteren.
+- Bestaande `src/test/derivations/matching.test.ts` dekt `isStrongMatch`.
+
+### Niet gewijzigd
+- Geen schemawijzigingen, geen datamigraties, geen nieuwe notificatietypes, geen UI-redesign.
+- Read/clear-acties en persistentie via localStorage onveranderd.
+
+### Open punten (later)
+- Optioneel: server-side notificatiestore voor cross-device sync.
+- Optioneel: trigger "taak aan mij gekoppeld" zodra rol-toewijzing op taken actief wordt.
