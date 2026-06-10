@@ -240,7 +240,9 @@ Deno.serve(async (req: Request) => {
       bron: 'kadaster_objectinformatie_api',
       opgehaald_op: new Date().toISOString(),
       productcodes: codes,
-      kosten_indicatie_eur: KOSTEN_INDICATIE_EUR[modus],
+      // Prijs is afhankelijk van de Kadaster-tarieven en wordt niet vooraf
+      // hardgecodeerd; UI toont "prijs volgens Kadaster" bij null.
+      kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
     };
@@ -251,7 +253,6 @@ Deno.serve(async (req: Request) => {
       signaal_id: body.context?.signaal_id ?? null,
       producten: codes.join(','),
       beschikbaar: producten.filter(p => p.beschikbaar).length,
-      kosten: KOSTEN_INDICATIE_EUR[modus],
       dur_ms: Date.now() - t0,
     }));
 
