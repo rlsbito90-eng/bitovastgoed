@@ -141,12 +141,23 @@ function buildRow(
       'rechthebbenden', 'tenaamstellingen', 'gerechtigden',
       'eigenaren', 'rechten', 'rightHolders', 'personen',
       'rechtspersonen', 'natuurlijkePersonen', 'nietNatuurlijkePersonen',
+      // Kadaster Objectinformatie API: 'persons' / 'entities' per rechten-item.
+      'persons', 'entities',
     ];
     let lijst: unknown[] | undefined;
     let lijstNaam: string | null = null;
     for (const k of lijstKeys) {
       const v = (data as Record<string, unknown>)[k];
       if (Array.isArray(v) && v.length > 0) { lijst = v; lijstNaam = k; break; }
+    }
+    // Als 'rechten' een array is met items die persons/entities bevatten,
+    // gebruik die geneste lijst voor de rechthebbende-extractie.
+    if (lijstNaam === 'rechten' && lijst && lijst.length > 0) {
+      const r0c = asObj(lijst[0]) ?? {};
+      for (const nk of ['persons', 'entities', 'rechthebbenden', 'personen']) {
+        const nv = (r0c as Record<string, unknown>)[nk];
+        if (Array.isArray(nv) && nv.length > 0) { lijst = nv; lijstNaam = `rechten[0].${nk}`; break; }
+      }
     }
     const r0 = asObj(lijst?.[0]) ?? {};
     const persoon = asObj(r0.persoon) ?? asObj(r0.natuurlijkPersoon)
