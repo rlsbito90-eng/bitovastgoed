@@ -597,6 +597,26 @@ export default function KadasterGebiedsdataKaart({
               </p>
             </div>
 
+            <label className="flex items-start gap-2 rounded-md border border-border p-2">
+              <Checkbox
+                checked={selPdf}
+                onCheckedChange={(v) => setSelPdf(v === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5 text-xs">
+                <span className="block font-medium">Kadasterbericht/PDF intern opslaan</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Het officiële Kadasterbericht wordt intern opgeslagen bij dit
+                  object. Het wordt niet automatisch gedeeld in de dataroom.
+                </span>
+                {selRechten && (
+                  <span className="block text-[10px] text-muted-foreground">
+                    PDF is vooral nuttig voor eigendoms-/rechthebbendeninformatie.
+                  </span>
+                )}
+              </span>
+            </label>
+
             {!heeftBetaaldProduct && (
               <p className="text-xs text-destructive">
                 Selecteer minimaal één betaald product om de aanvraag te kunnen
