@@ -78,7 +78,7 @@ function gebiedsVariantVoor(type?: string | null): 'buurtprofiel' | 'gebiedscont
 
 export default function KadasterGebiedsdataKaart({
   objectId, adres, postcode, plaats, typeVastgoed,
-  onOvernemenBouwjaar, onOvernemenWozWaarde,
+  objectVelden, onOvernemen,
 }: Props) {
   const parsed = useMemo(() => parseObjectAdres(adres, postcode, plaats),
     [adres, postcode, plaats]);
