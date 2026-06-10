@@ -609,12 +609,21 @@ export default function KadasterGebiedsdataKaart({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Rechten / eigendomsinformatie bevestigen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deze aanvraag kan eigendoms- of rechthebbendeninformatie
-              bevatten en brengt kosten met zich mee volgens Kadaster.
-              Gebruik deze informatie zorgvuldig en alleen voor dit object.
-              Resultaat wordt alleen gepreviewd; er wordt niets automatisch
-              opgeslagen of gekoppeld aan relaties.
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Deze aanvraag kan eigendoms- of rechthebbendeninformatie
+                  bevatten en brengt kosten met zich mee volgens Kadaster.
+                  Gebruik deze informatie zorgvuldig en alleen voor dit object.
+                </p>
+                <p>
+                  Bij een succesvolle aanvraag wordt het resultaat intern
+                  opgeslagen als Kadasterrecord, zodat de betaalde informatie
+                  niet verloren gaat. Er wordt niets automatisch overgenomen
+                  naar objectvelden en er wordt geen relatie, eigenaar of
+                  verkoper automatisch aangemaakt of gekoppeld.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
