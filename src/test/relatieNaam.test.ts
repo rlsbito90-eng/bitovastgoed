@@ -35,9 +35,9 @@ describe('getRelationDisplayName', () => {
     expect(getRelationDisplayName(rel)).toBe('J&CB Invest');
   });
 
-  it('valt terug op email als naam en bedrijf ontbreken', () => {
-    const rel = baseRel({ email: 'foo@bar.nl' });
-    expect(getRelationDisplayName(rel)).toBe('foo@bar.nl');
+  it('toont nooit email als naam en bedrijf ontbreken (privacy-regel)', () => {
+    const rel = baseRel({ email: 'foo@bar.nl', type: 'belegger' });
+    expect(getRelationDisplayName(rel)).toBe('Belegger zonder naam');
   });
 
   it('geeft "Relatie zonder naam" zonder bruikbare data', () => {
