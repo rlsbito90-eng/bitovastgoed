@@ -101,11 +101,12 @@ export default function KadasterGebiedsdataKaart({
   const [adresLetter, setAdresLetter] = useState<string>('');
   const [adresToevoeging, setAdresToevoeging] = useState<string>('');
 
-  // Productselectie in de kostenconfirmatie.
+  // Productselectie in de kostenconfirmatie. `lasten`/`buurt` worden in V1
+  // niet aangeboden: ze zijn niet bevestigd via Kadaster's /products
+  // endpoint en eerdere /report-aanvragen retourneerden HTTP 409
+  // "onbekende producten". Pas aanzetten als /products ze expliciet teruggeeft.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
-  const [selLasten, setSelLasten] = useState(true);
-  const [selBuurt, setSelBuurt] = useState(true);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -170,8 +171,6 @@ export default function KadasterGebiedsdataKaart({
     const out: KadasterProductCode[] = [];
     if (selObject) out.push('object');
     if (selWaarde) out.push('waarde');
-    if (selLasten) out.push('lasten');
-    if (selBuurt)  out.push('buurt');
     return out;
   }
 
@@ -487,29 +486,11 @@ export default function KadasterGebiedsdataKaart({
                 <span className="text-xs text-muted-foreground">prijs volgens Kadaster</span>
               </label>
 
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground pt-1">
-                Gratis meegeleverd
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Gemeentelijke lasten en buurtstatistieken zijn in V1 niet
+                beschikbaar via deze API-key (niet bevestigd via Kadaster's
+                products-endpoint) en worden daarom niet meegestuurd.
               </p>
-              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
-                <span className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selLasten}
-                    onCheckedChange={(v) => setSelLasten(v === true)}
-                  />
-                  <span>Gemeentelijke lasten</span>
-                </span>
-                <span className="text-xs text-muted-foreground">€ 0,00</span>
-              </label>
-              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
-                <span className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selBuurt}
-                    onCheckedChange={(v) => setSelBuurt(v === true)}
-                  />
-                  <span>Buurtstatistieken</span>
-                </span>
-                <span className="text-xs text-muted-foreground">€ 0,00</span>
-              </label>
             </div>
 
             {!heeftBetaaldProduct && (
