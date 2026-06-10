@@ -77,6 +77,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/VastgoedrekenenTab'));
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
+import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
 import { buildMapsUrl } from '@/lib/maps';
 
 /* ============================================================
