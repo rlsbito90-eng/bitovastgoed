@@ -246,6 +246,9 @@ Deno.serve(async (req: Request) => {
       request_preview: reportBody,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       product_codes: codes,
+      allowed_products: allowed,
+      products_source: live ? 'live' : 'fallback',
+      filtered_out: filteredOut,
     };
 
     // --- Kadaster call ---
