@@ -131,35 +131,19 @@ function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDoc
 }
 
 function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
-  const sam = r.rechten_samenvatting ?? {};
-  const aantal = typeof (sam as { aantal_rechthebbenden?: unknown }).aantal_rechthebbenden === 'number'
-    ? (sam as { aantal_rechthebbenden: number }).aantal_rechthebbenden : null;
-  const heeftVelden = !!(r.rechthebbende_naam || r.rechtsoort
-    || r.aandeel || r.kadastrale_aanduiding);
+  const rawRechten = (r.raw_limited as Record<string, unknown> | null | undefined)?.rechten;
+  let blokken = mapRechtenBlokken(rawRechten);
+  if (blokken.length === 0) {
+    const fallback = blokUitOpgeslagenRecord(r);
+    if (fallback) blokken = [fallback];
+  }
   return (
-    <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
-      <p className="text-sm font-medium">Rechthebbende volgens Kadaster</p>
-      <p className="text-[11px] text-muted-foreground">
-        Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan
-        relaties, eigenaar of verkoper.
-      </p>
-      {!heeftVelden ? (
-        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-          {pdf
-            ? 'Rechten geleverd. Rechthebbendevelden niet herkend in JSON, maar Kadasterbericht is opgeslagen.'
-            : 'Rechten geleverd, maar rechthebbende-velden nog niet herkend. Bekijk technische details in de historie.'}
-        </p>
-      ) : (
-        <>
-          <Row label="Aantal rechthebbenden" value={aantal} />
-          <Row label="Naam" value={r.rechthebbende_naam} />
-          <Row label="Type" value={r.rechthebbende_type} />
-          <Row label="Rechtsoort" value={r.rechtsoort} />
-          <Row label="Aandeel" value={r.aandeel} />
-          <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
-        </>
-      )}
-      <PdfRegel doc={pdf} />
+    <div className="rounded-md border border-border bg-card p-3">
+      <KadasterRechtenBlokken
+        blokken={blokken}
+        pdf={pdf ?? null}
+        intro="Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan relaties, eigenaar of verkoper."
+      />
     </div>
   );
 }
