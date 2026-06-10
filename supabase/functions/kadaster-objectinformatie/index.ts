@@ -258,7 +258,7 @@ Deno.serve(async (req: Request) => {
 
     const reportBody: Record<string, unknown> = {
       selection,
-      includePdf: false,
+      includePdf: body.includePdf === true,
     };
     let zoekadresType: 'bagId' | 'pht' = 'pht';
     let zoekadresWaarde = '';
