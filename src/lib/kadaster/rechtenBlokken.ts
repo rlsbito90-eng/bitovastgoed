@@ -261,7 +261,9 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
     for (const item of items) {
       const obj = asObj(item); if (!obj) continue;
       const rechtstype = leesRechtstype(obj)
+        ?? normaliseerRechtstype(asStr((obj as Record<string, unknown>).naam))
         ?? normaliseerRechtstype(key);
+
       const aandeel = leesAandeel(obj.aandeel)
         ?? leesAandeel((obj as Record<string, unknown>).aandeelInRecht)
         ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
