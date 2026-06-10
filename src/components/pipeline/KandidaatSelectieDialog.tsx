@@ -515,6 +515,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <QuickCreateRelationDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        context="kandidaat"
+        defaultValues={quickDefaults}
+        onCreated={handleQuickCreated}
+      />
     </Dialog>
   );
 }
