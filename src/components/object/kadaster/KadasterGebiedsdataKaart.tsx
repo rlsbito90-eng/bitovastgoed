@@ -133,6 +133,15 @@ export default function KadasterGebiedsdataKaart({
   const mutation = useKadasterObjectinformatie();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
 
+  // Lichtgewicht productlijst — pas opgehaald als de kostenconfirmatie
+  // opent (geen automatische call bij mount). Gratis metadata-call.
+  const catalogus = useKadasterProductCatalogus(kostenOpen);
+  const rechtenItem = useMemo(
+    () => catalogus.data?.products.find(p => p.code === 'rechten') ?? null,
+    [catalogus.data],
+  );
+  const rechtenBeschikbaar = !!rechtenItem;
+
   // Genormaliseerde postcode (API-formaat) — bron voor zowel validatie als
   // request. Null = ongeldig.
   const postcodeApi = useMemo(
@@ -180,12 +189,13 @@ export default function KadasterGebiedsdataKaart({
 
   const adresInput = bouwAdresInput();
   const adresKlaar = !!adresInput;
-  const heeftBetaaldProduct = selObject || selWaarde;
+  const heeftBetaaldProduct = selObject || selWaarde || (selRechten && rechtenBeschikbaar);
 
   function geselecteerdeProducten(): KadasterProductCode[] {
     const out: KadasterProductCode[] = [];
     if (selObject) out.push('object');
     if (selWaarde) out.push('waarde');
+    if (selRechten && rechtenBeschikbaar) out.push('rechten');
     return out;
   }
 
