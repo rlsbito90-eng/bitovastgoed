@@ -117,8 +117,13 @@ export default function KadasterGebiedsdataKaart({
   // "onbekende producten". Pas aanzetten als /products ze expliciet teruggeeft.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
+  // Fase 4K.3R: rechten/eigendomsinformatie als experimentele optie.
+  // Default uit; verschijnt alleen als /products het bevestigt en vereist
+  // een aparte privacy- en kostenbevestiging.
+  const [selRechten, setSelRechten] = useState(false);
 
   const [kostenOpen, setKostenOpen] = useState(false);
+  const [rechtenPrivacyOpen, setRechtenPrivacyOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [preview, setPreview] = useState<KadasterPreview | null>(null);
   const [laatsteFout, setLaatsteFout] = useState<{
