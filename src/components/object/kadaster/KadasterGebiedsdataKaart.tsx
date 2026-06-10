@@ -214,6 +214,9 @@ export default function KadasterGebiedsdataKaart({
       adres: adresInput,
       producten: geselecteerdeProducten(),
       context: { object_id: objectId },
+      // Direct persisten zodra Kadaster succesvol antwoordt — voorkomt
+      // dat betaalde data verloren gaat bij sluiten van de preview.
+      persist: true,
     };
     try {
       const resp = await mutation.mutateAsync(input);
@@ -221,6 +224,18 @@ export default function KadasterGebiedsdataKaart({
       setPreviewOpen(true);
       const aantal = resp.producten.filter(p => p.beschikbaar).length;
       toast.success(`Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`);
+      if (resp.persist?.requested) {
+        if (resp.persist.ok) {
+          toast.success('Kadastergegevens opgeslagen bij dit object.');
+        } else {
+          toast.warning(
+            'Kadastergegevens opgehaald, maar opslaan is mislukt. ' +
+            'Maak geen nieuwe aanvraag voordat dit is gecontroleerd.' +
+            (resp.persist.error ? ` (${resp.persist.error})` : ''),
+            { duration: 12_000 },
+          );
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Kadaster-aanvraag mislukt';
       const apiErr = e instanceof KadasterApiError ? e : null;
