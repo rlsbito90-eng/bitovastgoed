@@ -124,6 +124,8 @@ export default function KadasterGebiedsdataKaart({
   // Default uit; verschijnt alleen als /products het bevestigt en vereist
   // een aparte privacy- en kostenbevestiging.
   const [selRechten, setSelRechten] = useState(false);
+  // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
+  const [selPdf, setSelPdf] = useState(false);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [rechtenPrivacyOpen, setRechtenPrivacyOpen] = useState(false);
