@@ -1694,6 +1694,21 @@ export default function ObjectDetailPage() {
             </SectionAnchor>
           )}
 
+          {/* ============ KADASTER & GEBIEDSDATA ============ */}
+          {activeTab === 'meer' && (
+            <SectionAnchor id="kadaster-data" eyebrow={eyebrowFor("kadaster-data", "Kadaster")} title="Kadaster & gebiedsdata">
+              <KadasterGebiedsdataKaart
+                objectId={object.id}
+                adres={object.adres}
+                postcode={object.postcode}
+                plaats={object.plaats}
+                typeVastgoed={object.typeVastgoed as string | null | undefined}
+              />
+            </SectionAnchor>
+          )}
+
+
+
           {/* ============ CONTACTEN (conditioneel) ============ */}
           {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (
             <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
