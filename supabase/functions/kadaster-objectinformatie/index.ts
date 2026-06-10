@@ -325,7 +325,3 @@ function jsonError(
     { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }
-
-    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-  );
-}
