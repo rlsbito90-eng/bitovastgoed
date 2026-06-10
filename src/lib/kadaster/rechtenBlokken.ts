@@ -280,6 +280,9 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
         ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
         ?? leesAandeel((obj as Record<string, unknown>).gerechtigdAandeel);
 
+      const registerVerwijzing = leesRegisterVerwijzing(obj);
+      const kadastraleAanduiding = leesKadastraleAanduiding(obj);
+      const ctx = { rechtstype, aandeel, registerVerwijzing, kadastraleAanduiding };
       const geneste: unknown[] = [];
       for (const lk of RECHTHEBBENDE_LIJST_KEYS) {
         const l = (obj as Record<string, unknown>)[lk];
@@ -287,13 +290,14 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
       }
       if (geneste.length > 0) {
         for (const rh of geneste) {
-          const b = mapRechthebbende(rh, { rechtstype, aandeel });
+          const b = mapRechthebbende(rh, ctx);
           if (b) blokken.push(b);
         }
       } else {
-        const b = mapRechthebbende(obj, { rechtstype, aandeel });
+        const b = mapRechthebbende(obj, ctx);
         if (b) blokken.push(b);
       }
+
     }
   }
 
