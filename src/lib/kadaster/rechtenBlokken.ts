@@ -106,14 +106,16 @@ function leesAdresRegels(obj: Record<string, unknown>): {
 }
 
 function leesRegisterVerwijzing(obj: Record<string, unknown>): string | null {
-  const direct = leesStr(obj, 'gebaseerdOp', 'registerverwijzing', 'bron');
+  const direct = leesStr(obj, 'gebaseerdOp', 'documentGebaseerdOp',
+    'documentVermeldIn', 'stukMelding', 'registerverwijzing', 'bron');
   if (direct) return direct;
-  const reg = asObj(obj.register) ?? asObj((obj as Record<string, unknown>).registerHyp4)
+  const regBron = asObj(obj.documentGebaseerdOp) ?? asObj((obj as Record<string, unknown>).documentVermeldIn)
+    ?? asObj(obj.register) ?? asObj((obj as Record<string, unknown>).registerHyp4)
     ?? asObj((obj as Record<string, unknown>).hypotheekRegister);
-  if (reg) {
-    const naam = leesStr(reg, 'naam', 'register') ?? 'Register Hyp4';
-    const deel = leesStr(reg, 'deel');
-    const nummer = leesStr(reg, 'nummer');
+  if (regBron) {
+    const naam = leesStr(regBron, 'naam', 'register') ?? 'Register Hyp4';
+    const deel = leesStr(regBron, 'deel');
+    const nummer = leesStr(regBron, 'nummer');
     const parts = [naam];
     if (deel) parts.push(`Deel ${deel}`);
     if (nummer) parts.push(`nummer ${nummer}`);
@@ -124,6 +126,7 @@ function leesRegisterVerwijzing(obj: Record<string, unknown>): string | null {
   if (deel && nummer) return `Gebaseerd op Register Hyp4 Deel ${deel} nummer ${nummer}`;
   return null;
 }
+
 
 function leesKadastraleAanduiding(obj: Record<string, unknown>): string | null {
   const direct = leesStr(obj, 'kadastraleAanduiding', 'aanduiding',
@@ -143,8 +146,14 @@ function leesKadastraleAanduiding(obj: Record<string, unknown>): string | null {
 
 function mapRechthebbende(
   raw: unknown,
-  context?: { rechtstype?: string | null; aandeel?: string | null },
+  context?: {
+    rechtstype?: string | null;
+    aandeel?: string | null;
+    registerVerwijzing?: string | null;
+    kadastraleAanduiding?: string | null;
+  },
 ): KadasterRechtenBlok | null {
+
   const rr = asObj(raw); if (!rr) return null;
 
   const persoon = asObj(rr.persoon) ?? asObj(rr.natuurlijkPersoon)
@@ -184,8 +193,9 @@ function mapRechthebbende(
     ?? leesStr(rr, 'kvkNummer', 'kvk', 'kamerVanKoophandel', 'kvkNumber');
 
   const { regels, postcode, plaats } = leesAdresRegels(rr);
-  const registerVerwijzing = leesRegisterVerwijzing(rr);
-  const kadastraleAanduiding = leesKadastraleAanduiding(rr);
+  const registerVerwijzing = leesRegisterVerwijzing(rr) ?? context?.registerVerwijzing ?? null;
+  const kadastraleAanduiding = leesKadastraleAanduiding(rr) ?? context?.kadastraleAanduiding ?? null;
+
 
   return {
     id: `${naam ?? bedrijfsnaam ?? 'rechthebbende'}-${rechtstype ?? ''}-${aandeel ?? ''}-${Math.random().toString(36).slice(2, 8)}`,
@@ -226,11 +236,16 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
   if (Array.isArray(persistBlokken) && persistBlokken.length > 0) {
     for (const item of persistBlokken) {
       const obj = asObj(item); if (!obj) continue;
-      const rechtstype = leesRechtstype(obj);
+      const rechtstype = leesRechtstype(obj)
+        ?? normaliseerRechtstype(asStr((obj as Record<string, unknown>).naam));
+
       const aandeel = leesAandeel(obj.aandeel)
         ?? leesAandeel((obj as Record<string, unknown>).aandeelInRecht)
         ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
         ?? leesAandeel((obj as Record<string, unknown>).gerechtigdAandeel);
+      const registerVerwijzing = leesRegisterVerwijzing(obj);
+      const kadastraleAanduiding = leesKadastraleAanduiding(obj);
+      const ctx = { rechtstype, aandeel, registerVerwijzing, kadastraleAanduiding };
       const geneste: unknown[] = [];
       for (const lk of RECHTHEBBENDE_LIJST_KEYS) {
         const l = (obj as Record<string, unknown>)[lk];
@@ -238,13 +253,14 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
       }
       if (geneste.length > 0) {
         for (const rh of geneste) {
-          const b = mapRechthebbende(rh, { rechtstype, aandeel });
+          const b = mapRechthebbende(rh, ctx);
           if (b) blokken.push(b);
         }
       } else {
-        const b = mapRechthebbende(obj, { rechtstype, aandeel });
+        const b = mapRechthebbende(obj, ctx);
         if (b) blokken.push(b);
       }
+
     }
     if (blokken.length > 0) return blokken;
   }
@@ -256,12 +272,17 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
     for (const item of items) {
       const obj = asObj(item); if (!obj) continue;
       const rechtstype = leesRechtstype(obj)
+        ?? normaliseerRechtstype(asStr((obj as Record<string, unknown>).naam))
         ?? normaliseerRechtstype(key);
+
       const aandeel = leesAandeel(obj.aandeel)
         ?? leesAandeel((obj as Record<string, unknown>).aandeelInRecht)
         ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
         ?? leesAandeel((obj as Record<string, unknown>).gerechtigdAandeel);
 
+      const registerVerwijzing = leesRegisterVerwijzing(obj);
+      const kadastraleAanduiding = leesKadastraleAanduiding(obj);
+      const ctx = { rechtstype, aandeel, registerVerwijzing, kadastraleAanduiding };
       const geneste: unknown[] = [];
       for (const lk of RECHTHEBBENDE_LIJST_KEYS) {
         const l = (obj as Record<string, unknown>)[lk];
@@ -269,13 +290,14 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
       }
       if (geneste.length > 0) {
         for (const rh of geneste) {
-          const b = mapRechthebbende(rh, { rechtstype, aandeel });
+          const b = mapRechthebbende(rh, ctx);
           if (b) blokken.push(b);
         }
       } else {
-        const b = mapRechthebbende(obj, { rechtstype, aandeel });
+        const b = mapRechthebbende(obj, ctx);
         if (b) blokken.push(b);
       }
+
     }
   }
 

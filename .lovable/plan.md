@@ -1257,3 +1257,27 @@ Onderzoek in DB toonde:
 
 Geen orphan record, geen ontbrekende GRANT, geen verloren signaal_id.
 Persist-flow uit Fase 4K.5/4K.6 werkt zoals bedoeld.
+
+## 2026-06-11 — Rechten persist & mapper: live API persons/entities
+
+**Wijzigingen:**
+- `_persist.ts`: rechtenBlokKeys uitgebreid met `voornamen`, `geslachtsnaam`,
+  `toevoeging`, `documentVermeldIn`, `stukMelding`. `raw_limited.rechten.blokken`
+  bevat nu per recht een whitelisted samenvatting incl. `persons`/`entities`,
+  `aandeelInRecht`, `omschrijving`/`naam`, `documentGebaseerdOp`, `aanduiding`.
+- `rechtenBlokken.ts`:
+  - rechtstype-fallback op `naam` (Kadaster API levert vaak `naam:"Eigendom"`).
+  - `leesRegisterVerwijzing` herkent `documentGebaseerdOp`, `documentVermeldIn`,
+    `stukMelding` (string of `{naam, deel, nummer}` object).
+  - parent registerVerwijzing / kadastraleAanduiding worden via context
+    overgegeven aan elk rechthebbende-blok (persons/entities erven dit van
+    het recht-item).
+- Tests: live API-shape met `persons` + `entities` + `documentGebaseerdOp` +
+  `aandeelInRecht`; persist-shape met alleen `naam` als rechtstype.
+
+**Bestaande records** (zoals Sarphatipark 86-2, zonder `blokken` in
+`raw_limited.rechten`) blijven afhankelijk van de opgeslagen PDF — geen
+automatische backfill, geen nieuwe Kadaster-call. PDF blijft officiële bron.
+
+**Vervolg (apart):** PDF-parser voor oudere records; handmatige
+actie "Relatie maken/koppelen van rechthebbende".

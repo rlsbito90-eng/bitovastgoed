@@ -240,17 +240,19 @@ function buildRow(
       'organisatie', 'naamNietNatuurlijkPersoon',
       // Kadaster Objectinformatie API: 'persons' / 'entities' per rechten-item.
       'persons', 'entities', 'rechthebbenden',
-      'naam', 'volledigeNaam', 'naamRechthebbende',
+      'naam', 'voornamen', 'geslachtsnaam', 'volledigeNaam', 'naamRechthebbende',
       'bedrijfsnaam', 'statutaireNaam', 'handelsnaam',
       'kvkNummer', 'kvk', 'zetel', 'statutaireZetel',
       'geboortedatum', 'geboorteplaats',
       'adres', 'woonadres', 'vestigingsadres', 'correspondentieadres',
       'postcode', 'plaats', 'woonplaats', 'straat', 'huisnummer',
-      'huisletter', 'huisnummertoevoeging', 'postbus',
-      'gebaseerdOp', 'documentGebaseerdOp', 'registerverwijzing',
+      'huisletter', 'huisnummertoevoeging', 'toevoeging', 'postbus',
+      'gebaseerdOp', 'documentGebaseerdOp', 'documentVermeldIn',
+      'stukMelding', 'registerverwijzing',
       'register', 'registerHyp4', 'deel', 'nummer', 'identifier',
       'kadastraleAanduiding', 'aanduiding', 'kadastraalObject',
     ];
+
     const blokkenSrc: unknown[] = [];
     const containerKeys = ['rechten', 'overigeRechten', 'zakelijkeRechten',
       'rechtenLijst', 'eigendom', 'eigendommen', 'beperkteRechten'];
