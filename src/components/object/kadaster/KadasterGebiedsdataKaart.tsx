@@ -101,11 +101,12 @@ export default function KadasterGebiedsdataKaart({
   const [adresLetter, setAdresLetter] = useState<string>('');
   const [adresToevoeging, setAdresToevoeging] = useState<string>('');
 
-  // Productselectie in de kostenconfirmatie.
+  // Productselectie in de kostenconfirmatie. `lasten`/`buurt` worden in V1
+  // niet aangeboden: ze zijn niet bevestigd via Kadaster's /products
+  // endpoint en eerdere /report-aanvragen retourneerden HTTP 409
+  // "onbekende producten". Pas aanzetten als /products ze expliciet teruggeeft.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
-  const [selLasten, setSelLasten] = useState(true);
-  const [selBuurt, setSelBuurt] = useState(true);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
