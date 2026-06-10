@@ -40,6 +40,11 @@ import {
   useKadasterDataRecordsForSignaal, laatsteRecordsPerProduct,
   type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
+import {
+  useKadasterDocumentenForSignaal, documentenPerRecord,
+  type KadasterDocument,
+} from '@/hooks/useKadasterDocumenten';
+import KadasterPdfKnop from '@/components/object/kadaster/KadasterPdfKnop';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
 import KadasterHistorieLijst from '@/components/object/kadaster/KadasterHistorieLijst';
 import BagAdresLookup from '@/components/shared/BagAdresLookup';
