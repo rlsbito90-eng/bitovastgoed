@@ -1222,3 +1222,21 @@ alleen de laatste record per productcode was zichtbaar.
   zichtbaar bij oudere records.
 - Storage bucket blijft privé; openen alléén via signed URL.
 - Geen nieuwe Kadaster-call, geen automatische relatiekoppeling.
+
+
+## Security-audit punt — SECURITY DEFINER linterwaarschuwingen (pre-existing)
+- Bevestigd: de SECURITY DEFINER-warnings van de linter zijn **niet**
+  geïntroduceerd door de Kadaster-GRANT migration
+  (`20260610225657_…`). Die migration bevat uitsluitend
+  `GRANT`-statements op `kadaster_documenten` en `kadaster_data_records`
+  — geen `CREATE FUNCTION`, geen `SECURITY DEFINER`.
+- De gemarkeerde SECURITY DEFINER-functies bestaan al sinds eerdere
+  migrations (vanaf 2026-04-16), o.a.:
+  `handle_new_user`, `has_role`, `is_intern_gebruiker`,
+  `generate_refnummer`, `off_market_bron_stats`,
+  `off_market_promote_to_object`, `update_updated_at_column`.
+- Actiepunt (apart, niet nu): review of elke SECURITY DEFINER-functie
+  een vaste `search_path` heeft (`SET search_path = public`) en of
+  EXECUTE-rechten correct zijn ingetrokken voor `anon`/`public` waar
+  niet nodig (zie eerdere migration `20260523082538_…`). Geen refactor
+  in deze fase.
