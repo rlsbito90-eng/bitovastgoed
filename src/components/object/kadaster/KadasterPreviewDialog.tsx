@@ -500,7 +500,75 @@ function ProductCard({
     );
   }
 
-  // ---- Overige producten (rechten, ...) ------------------------------------
+  // ---- Rechten / eigendomsinformatie (productcode 'rechten') ---------------
+  // Experimentele preview (Fase 4K.3R). Geen opslag, geen automatische
+  // koppeling aan Relaties, geen overname-knoppen.
+  if (product.code === 'rechten') {
+    const view = mapRechten(product.data);
+    const heeft = heeftRechtenInhoud(view);
+    return (
+      <div className="rounded-md border border-border bg-card p-3 space-y-3">
+        {header}
+        <p className="text-[11px] text-muted-foreground">
+          Rechthebbende(n) volgens Kadaster. Gebruik deze gegevens zorgvuldig en
+          alleen voor dit object. Worden in deze fase niet opgeslagen of
+          automatisch gekoppeld aan relaties.
+        </p>
+
+        {!heeft ? (
+          <p className="text-[11px] text-muted-foreground italic">
+            Geen rechthebbende-velden herkend in de respons. Bekijk de
+            technische details.
+          </p>
+        ) : (
+          <>
+            {view.rechthebbenden.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Rechthebbenden volgens Kadaster ({view.rechthebbenden.length})
+                </p>
+                {view.rechthebbenden.map((r, i) => (
+                  <div key={i} className="rounded border border-border/60 p-2 space-y-1 text-xs">
+                    <Row label="Naam" value={r.naam} />
+                    <Row label="Bedrijfsnaam" value={r.bedrijfsnaam} />
+                    <Row label="Type" value={r.type} />
+                    <Row label="Aandeel" value={r.aandeel} />
+                    <Row label="Rechtsoort" value={r.rechtsoort} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5 text-xs">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Object
+              </p>
+              <Row label="Kadastrale aanduiding" value={view.kadastraleAanduiding} />
+              <Row label="Appartementsrecht" value={view.appartementsrecht} />
+            </div>
+
+            <p className="text-[10px] text-muted-foreground italic">
+              Labels zoals "verkoper" of "opdrachtgever" worden niet automatisch
+              toegekend — alleen "rechthebbende volgens Kadaster".
+            </p>
+          </>
+        )}
+
+        <Collapsible>
+          <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            Technische details
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-2 overflow-auto max-h-48 rounded bg-muted/40 p-2 text-[10px] font-mono-data">
+{JSON.stringify(product.data ?? {}, null, 2)}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    );
+  }
+
+  // ---- Overige producten ---------------------------------------------------
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-2">
       {header}
