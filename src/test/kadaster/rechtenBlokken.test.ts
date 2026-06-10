@@ -102,5 +102,57 @@ describe('mapRechtenBlokken', () => {
     expect(b!.bedrijfsnaam).toBe('Voorbeeld B.V.');
     expect(b!.rechtstype).toBe('Erfpacht (recht van)');
     expect(b!.kadastraleAanduiding).toBe('AMS00-Q-9999');
+
+  it('herkent live Kadaster API shape met naam/omschrijving/documentGebaseerdOp', () => {
+    const data = {
+      rechten: [{
+        naam: 'Eigendom',
+        omschrijving: 'Eigendom (recht van)',
+        identifier: 'NL.IMKAD.Recht.123',
+        aandeelInRecht: '1/1',
+        aanduiding: 'AMS00-Q-1234',
+        documentGebaseerdOp: { naam: 'Register Hyp4', deel: '92107', nummer: '75' },
+        persons: [{
+          volledigeNaam: 'E. Vonk',
+          geboortedatum: '2006-02-24',
+          geboorteplaats: 'Rotterdam',
+          adres: { straat: 'Sarphatipark', huisnummer: '86', postcode: '1073EB', plaats: 'Amsterdam' },
+        }],
+        entities: [{
+          statutaireNaam: 'Bito Holding B.V.',
+          kvkNummer: '99887766',
+          zetel: 'Amsterdam',
+        }],
+      }],
+    };
+    const blokken = mapRechtenBlokken(data);
+    expect(blokken.length).toBe(2);
+    const persoon = blokken.find(b => b.naam === 'E. Vonk')!;
+    expect(persoon).toBeTruthy();
+    expect(persoon.rechtstype).toBe('Eigendom (recht van)');
+    expect(persoon.aandeel).toBe('1/1');
+    expect(persoon.geboortedatum).toBe('2006-02-24');
+    expect(persoon.adresRegels.join(' ')).toContain('Sarphatipark');
+    expect(persoon.registerVerwijzing).toContain('Deel 92107');
+    const bedrijf = blokken.find(b => b.bedrijfsnaam === 'Bito Holding B.V.')!;
+    expect(bedrijf).toBeTruthy();
+    expect(bedrijf.kvkNummer).toBe('99887766');
+    expect(bedrijf.zetel).toBe('Amsterdam');
+  });
+
+  it('persist-shape met alleen naam (zonder omschrijving) leidt rechtstype af', () => {
+    const persisted = {
+      blokken: [{
+        naam: 'Erfpacht',
+        aandeelInRecht: '1/2',
+        persons: [{ volledigeNaam: 'P. Persoon' }],
+      }],
+    };
+    const blokken = mapRechtenBlokken(persisted);
+    expect(blokken).toHaveLength(1);
+    expect(blokken[0].rechtstype).toBe('Erfpacht (recht van)');
+    expect(blokken[0].aandeel).toBe('1/2');
+    expect(blokken[0].naam).toBe('P. Persoon');
   });
 });
+
