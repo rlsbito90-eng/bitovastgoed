@@ -74,6 +74,11 @@ export interface KadasterDebug {
   upstream_message?: string | null;
   upstream_identifier?: string | null;
   upstream_snippet?: string | null;
+  /** Veilige top-level samenvatting van de Kadaster-response (geen inhoud). */
+  response_shape?: Record<string, unknown> | null;
+  allowed_products?: KadasterProductCode[];
+  products_source?: 'live' | 'fallback';
+  filtered_out?: KadasterProductCode[];
 }
 
 export interface KadasterErrorCode {
