@@ -102,8 +102,10 @@ describe('mapRechtenBlokken', () => {
     expect(b!.bedrijfsnaam).toBe('Voorbeeld B.V.');
     expect(b!.rechtstype).toBe('Erfpacht (recht van)');
     expect(b!.kadastraleAanduiding).toBe('AMS00-Q-9999');
+  });
 
   it('herkent live Kadaster API shape met naam/omschrijving/documentGebaseerdOp', () => {
+
     const data = {
       rechten: [{
         naam: 'Eigendom',
