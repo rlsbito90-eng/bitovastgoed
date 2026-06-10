@@ -651,3 +651,66 @@ Uitgevoerd. Off Market Radar is bewust nog niet aangeraakt (4K.3).
 - Overname-automatiek: knoppen in preview zijn nu alleen weergave;
   bedraden naar object-update volgt eventueel in 4K.4.
 - Caching, beheerkaart, schema/migratie.
+
+## 4K.2 status — Objecten/Aanbod Kadaster-preview (actueel)
+
+### Wat technisch werkt
+- Edge Function `kadaster-objectinformatie` praat met de juiste Kadata-host
+  (`kadatawebservice.kadaster.nl/objectinformatieapi/api/v1`) via header
+  `X-API-KEY`.
+- API-key staat uitsluitend als Supabase Secret
+  `KADASTER_OBJECTINFORMATIE_API_KEY`. Niet in frontend, niet in code,
+  niet in logs, niet in dit plan.
+- Postcode-normalisatie: `3273 AV` → `3273AV` (uppercase, geen spaties).
+  Validatie `^\d{4}[A-Z]{2}$` voordat upstream wordt aangeroepen.
+- Productselectie wordt gefilterd tegen `/products` (live, met fallback
+  `['object', 'waarde']`). Onbekende codes worden nooit meegestuurd, dus
+  geen 409 "Een of meer onbekende producten opgegeven" meer.
+- Minimaal één betaald product is verplicht — anders 400 vóór upstream.
+- Standalone gratis gebiedsdata-knop is verwijderd; gratis producten
+  zijn via deze API-flow niet zelfstandig bestelbaar gebleken.
+- Kostenlabel in UI = "prijs volgens Kadaster" (niet hardcoded).
+- Preview maakt onderscheid tussen technische fout en "product niet
+  geleverd voor dit adres" — incl. veilige `response_shape` debug
+  zonder secrets.
+
+### Bruikbare producten op dit moment
+- `object` (WOZ-object): preview toont BAG-velden (objectstatus,
+  bouwjaar, BAG-oppervlakte, vergund gebruik, complexrelatie),
+  WOZ-objectregels (nummer, gebruiksklasse, feitelijk gebruik,
+  oppervlaktes, inhoud, bouwlaag) en algemene metadata
+  (actualiteit, doelbinding, titel).
+- `waarde` (Koopsom): kan per adres "Niet geleverd voor dit adres"
+  tonen. Dit is geen technische fout — Kadaster levert eenvoudigweg
+  geen transactie voor het opgevraagde object.
+- `lasten` / `buurt` (gemeentelijke lasten, buurtstatistieken):
+  voorlopig **niet** los beschikbaar via deze API-flow. Daarom wordt
+  Off Market Radar niet direct op losse gratis gebiedsdata gebouwd.
+- `rechten` / eigendomsinformatie: **blijft V2**.
+- Product API / Woningrapport / kaartlagen: **blijven V3**.
+
+### Garanties (blijven gelden)
+- Geen automatische Kadaster-calls — alleen na expliciete klik én
+  kostenconfirmatie bij betaalde calls.
+- API-key nooit zichtbaar in frontend, code, logs of plan.md.
+- Key-verloop max 3 maanden; daarna roteren via Supabase Secret.
+- Objectdata wordt nooit automatisch overschreven; preview is V1
+  read-only.
+
+### Open punten voor later
+1. Ander adres testen waarbij `waarde`/Koopsom wél geleverd wordt,
+   om de mapping op echte transactiedata te valideren.
+2. Bij Kadaster nagaan welke productcodes corresponderen met
+   gemeentelijke lasten en buurtstatistieken als die via API
+   beschikbaar zijn voor deze key.
+3. Overnameknoppen bouwen voor veilige velden (bouwjaar,
+   BAG-oppervlakte, gebruiksdoel) — handmatig, met bevestiging.
+4. `rechten`/eigendomsinformatie als aparte betaalde V2-flow
+   (aparte kostenconfirmatie + UI-scheiding).
+5. Beheerkaart voor API-key status (laatste call, foutpercentage,
+   verloopdatum-herinnering) — zonder de key zelf te tonen.
+6. Optionele BAG/PDOK-adreslookup zodat zoeken zonder postcode kan
+   (straat + huisnummer + plaats → postcode).
+7. Off Market Radar pas later aansluiten — waarschijnlijk alleen
+   na promotie naar Object, of via een aparte gebiedsdatabron.
+
