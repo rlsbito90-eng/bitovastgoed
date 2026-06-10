@@ -28,15 +28,15 @@ const KADASTER_BASE_URL =
   Deno.env.get('KADASTER_OBJECTINFORMATIE_BASE_URL')
   ?? 'https://api.kadaster.nl/objectinformatieapi/api/v1';
 
-const PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
+const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
+  // Standalone gebiedsdata-aanvragen worden door Kadaster geweigerd
+  // ("minimaal één product met kosten"); de UI biedt dit niet meer aan,
+  // maar we houden de mapping als documentatie.
   gebiedsdata: ['lasten', 'buurt'],
-  kadaster:    ['object', 'waarde'],
+  kadaster:    ['object', 'waarde', 'lasten', 'buurt'],
 };
 
-const KOSTEN_INDICATIE_EUR: Record<KadasterModus, number> = {
-  gebiedsdata: 0,
-  kadaster:    0.20,
-};
+const BETAALDE_PRODUCTEN: KadasterProductCode[] = ['object', 'waarde', 'rechten'];
 
 const AdresSchema = z.object({
   postalcode: z.string().trim().min(6).max(7),
@@ -49,6 +49,8 @@ const BodySchema = z.object({
   modus: z.enum(['gebiedsdata', 'kadaster']),
   bagId: z.string().trim().min(8).max(32).nullish(),
   adres: AdresSchema.nullish(),
+  producten: z.array(z.enum(['object', 'waarde', 'rechten', 'lasten', 'buurt']))
+    .min(1).max(5).nullish(),
   context: z.object({
     object_id: z.string().uuid().nullish(),
     signaal_id: z.string().uuid().nullish(),
