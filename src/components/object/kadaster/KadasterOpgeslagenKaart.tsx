@@ -18,6 +18,7 @@ import {
   useKadasterDataRecords, laatsteRecordsPerProduct, type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
+import KadasterHistorieLijst from './KadasterHistorieLijst';
 
 function fmtDatum(iso: string): string {
   try { return new Date(iso).toLocaleString('nl-NL'); } catch { return iso; }
