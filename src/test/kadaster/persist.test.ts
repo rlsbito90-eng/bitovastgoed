@@ -7,7 +7,6 @@ import { describe, it, expect } from 'vitest';
 // We re-implementeren hier de publieke verwachting: buildRow is intern,
 // dus we testen via persistKadasterRecords' interface — maar zonder
 // daadwerkelijk een Supabase-client te raken. Daarvoor stubben we client.
-// @ts-expect-error — bestand bevat `@ts-nocheck` voor Deno, dat is hier ok.
 import { persistKadasterRecords } from '../../../supabase/functions/kadaster-objectinformatie/_persist.ts';
 
 function maakStub() {
