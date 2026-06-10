@@ -254,7 +254,7 @@ export function QuickCreateRelationDialog({
               id="qcr-naam"
               value={naam}
               onChange={(e) => setNaam(e.target.value)}
-              placeholder="Bijv. Alexander Jansen"
+              placeholder="Bijv. Jan de Vries"
               disabled={bezig}
               autoFocus
             />
