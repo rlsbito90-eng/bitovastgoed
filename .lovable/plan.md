@@ -812,3 +812,62 @@ wél leverbaar als **meegeleverde** producten binnen een aanvraag met minimaal
 - API-key uitsluitend Supabase Secret; niet in code, frontend, logs of plan.
 - Geen automatische calls; geen kostenverhogende retries.
 - Foutmeldingen NL; technische details zonder secrets.
+
+## Fase 4K.3R — Experimentele rechten/eigendomsinformatie-preview
+
+### Doel
+Productcode `rechten` (eigendomsinformatie) handmatig kunnen testen vanuit
+Objecten/Aanbod, zonder opslag, zonder relatiekoppeling, zonder integratie
+in Off Market Radar of het 4K.4-datamodel.
+
+### Wat is gebouwd
+- **Edge function** `kadaster-objectinformatie` ondersteunt een lichtgewicht
+  `action: 'list_products'` payload. Antwoord bevat `{products, source}` op
+  basis van Kadaster's `/products` endpoint (gratis metadata, geen kosten).
+- **`useKadasterProductCatalogus`** React Query hook (5 min staleTime). Wordt
+  uitsluitend geactiveerd als de kostenconfirmatie-dialog opent — geen call
+  bij mount.
+- **`KadasterGebiedsdataKaart`** toont een extra checkbox
+  "Rechten / eigendomsinformatie" in de kostenconfirmatie, **alleen** als
+  `/products` deze code teruggeeft. Naam + prijs komen uit `/products`.
+- **Aparte privacy-bevestiging** via `AlertDialog`. Zonder die expliciete
+  bevestiging gaat de rechten-aanvraag niet door, ook al heeft de gebruiker
+  de kostenconfirmatie al doorlopen.
+- **Deliver-mode per product**: `rechten` → `OnlyComplete` (Kadaster vereist
+  volledige rapportage voor rechten); overige producten houden
+  `WithoutProduct`.
+- **`KadasterPreviewDialog`** rendert een nieuwe rechten-card via
+  `mapRechten()`: naam, bedrijfsnaam, type, aandeel, rechtsoort,
+  kadastrale aanduiding, appartementsrecht. Labels expliciet
+  "Rechthebbende(n) volgens Kadaster" — niet "verkoper".
+- **`src/lib/kadaster/rechten.ts`** defensieve mapper: probeert meerdere
+  shape-varianten (`rechthebbenden`, `tenaamstellingen`, `gerechtigden`,
+  `eigenaren`, `rechten`, `rightHolders`) en pakt veilig de velden;
+  crasht niet op onbekende structuren.
+
+### Wat NIET (bewust)
+- Geen opslag in database; geen kolommen op `objecten`/`relaties`.
+- Geen automatische aanmaak/koppeling van Relaties of `eigenaar_relatie_id`.
+- Geen Off Market Radar-integratie in deze fase.
+- Geen meenemen in PDF/IM/export.
+- Geen onderdeel van het 4K.4 datamodel (`kadaster_data_records`).
+- Geen retries op rechten-aanvragen.
+
+### Garanties
+- API-key blijft uitsluitend Supabase Secret; nooit zichtbaar in
+  frontend, code, logs of dit plan.
+- `rechten`-checkbox verschijnt alleen na bevestiging via `/products`.
+- Hardcoded productcode `rechten` wordt nooit naar `/report` gestuurd
+  zonder live `/products`-bevestiging (server-side filtering blijft actief).
+- Privacy-bevestiging is verplicht en niet te omzeilen door eerder
+  geselecteerde producten.
+
+### Open vervolgpunten
+1. Beslissen of rechten later in een **aparte tabel** (bv.
+   `kadaster_rechten_records`) wordt opgeslagen, met strenger
+   beveiligingsniveau dan andere Kadaster-records (apart RLS-beleid,
+   bewaartermijn, audit-log).
+2. Beslissen of rechten ooit een **suggestie** mogen geven voor een
+   bestaande Relatie (handmatige bevestiging vereist; geen auto-koppel).
+3. Beslissen of rechten in **Off Market Radar** beschikbaar komt (in V1
+   bewust niet — koopsom blijft ook daar pas na promotie naar Object).
