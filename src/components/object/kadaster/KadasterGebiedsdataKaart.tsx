@@ -1,15 +1,25 @@
-// KadasterGebiedsdataKaart — main UI voor Kadaster & gebiedsdata-flow.
-// - Twee knoppen: "Gebiedsdata ophalen (gratis)" en "Kadastergegevens
-//   ophalen (€ 0,20)".
-// - Bij meerdere huisnummers: dropdown om er één te kiezen vóór de call.
-// - Bij betaalde call: kostenconfirmatie-dialog vooraf.
-// - Geen automatische call bij render/load/save/adreswijziging.
+// KadasterGebiedsdataKaart — Kadaster Objectinformatie-flow (V1.1).
+//
+// Belangrijke regels (zie Fase 4K.2-correctie):
+//   - Eén knop: "Kadastergegevens ophalen". Standalone gratis aanvragen
+//     worden door Kadaster geweigerd ("minimaal één betaald product
+//     vereist"), dus die optie biedt de UI niet meer aan.
+//   - Postcodes worden zowel met als zonder spatie geaccepteerd; vóór de
+//     edge-function-call altijd genormaliseerd naar `3273AV` (geen spatie,
+//     uppercase). UI toont de aanvraagwaarde expliciet zodat de gebruiker
+//     ziet wat er naar Kadaster gaat.
+//   - Knoppen blijven uitgeschakeld zolang postcode niet voldoet aan
+//     4 cijfers + 2 letters of het huisnummer ontbreekt.
+//   - Geen automatische calls; kostenconfirmatie verplicht vóór elke
+//     betaalde aanvraag.
+//   - Geen hardgecodeerde prijs; UI toont "prijs volgens Kadaster".
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileSearch, Coins, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -17,8 +27,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
-import { parseObjectAdres, normaliseerPostcode } from '@/lib/kadaster/adres';
-import type { KadasterAdresInput, KadasterPreview, KadasterRequestInput } from '@/lib/kadaster/types';
+import { parseObjectAdres } from '@/lib/kadaster/adres';
+import type {
+  KadasterAdresInput, KadasterPreview, KadasterProductCode, KadasterRequestInput,
+} from '@/lib/kadaster/types';
 import KadasterPreviewDialog from './KadasterPreviewDialog';
 
 interface Props {
@@ -27,9 +39,23 @@ interface Props {
   postcode: string | null | undefined;
   plaats: string | null | undefined;
   typeVastgoed?: string | null;
-  /** Optioneel: callback voor handmatige overname van losse velden. */
   onOvernemenBouwjaar?: (jaar: number) => void;
   onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
+}
+
+/**
+ * Normaliseer postcode strikt naar API-formaat: "3273AV".
+ * Geeft null wanneer het niet voldoet aan 4 cijfers + 2 letters.
+ */
+function normaliseerPostcodeStrikt(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const compact = String(raw).replace(/\s+/g, '').toUpperCase();
+  return /^\d{4}[A-Z]{2}$/.test(compact) ? compact : null;
+}
+
+/** Mensleesbare weergave "3273 AV" — alleen voor UI. */
+function formatPostcodeMens(api: string): string {
+  return `${api.slice(0, 4)} ${api.slice(4)}`;
 }
 
 function gebiedsVariantVoor(type?: string | null): 'buurtprofiel' | 'gebiedscontext' {
@@ -48,14 +74,26 @@ export default function KadasterGebiedsdataKaart({
   const parsed = useMemo(() => parseObjectAdres(adres, postcode, plaats),
     [adres, postcode, plaats]);
 
-  // Lokale state: gekozen zoekadres. Default = eerste herkende huisnummer.
-  const [postcodeInput, setPostcodeInput] = useState<string>(parsed.postcode ?? '');
+  // UI mag spaties bevatten; we accepteren beide vormen. Bron is altijd
+  // het gestructureerde `postcode`-veld; pas terug naar parser-resultaat
+  // als dat leeg is.
+  const [postcodeInput, setPostcodeInput] = useState<string>(
+    (postcode ?? parsed.postcode ?? '').toString(),
+  );
   const [huisnummerKeuze, setHuisnummerKeuze] = useState<string>(
-    parsed.huisnummers[0]?.label ?? ''
+    parsed.huisnummers[0]?.label ?? '',
   );
   const [handmatigHuisnummer, setHandmatigHuisnummer] = useState<string>('');
   const [handmatigLetter, setHandmatigLetter] = useState<string>('');
   const [handmatigToevoeging, setHandmatigToevoeging] = useState<string>('');
+
+  // Productselectie in de kostenconfirmatie. Beide betaalde producten zijn
+  // standaard aan; gratis producten worden meegeleverd en mogen niet
+  // standalone gekozen worden.
+  const [selObject, setSelObject] = useState(true);
+  const [selWaarde, setSelWaarde] = useState(true);
+  const [selLasten, setSelLasten] = useState(true);
+  const [selBuurt, setSelBuurt] = useState(true);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -64,15 +102,20 @@ export default function KadasterGebiedsdataKaart({
   const mutation = useKadasterObjectinformatie();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
 
+  // Genormaliseerde postcode (API-formaat) — bron voor zowel validatie als
+  // request. Null = ongeldig.
+  const postcodeApi = useMemo(
+    () => normaliseerPostcodeStrikt(postcodeInput),
+    [postcodeInput],
+  );
+
   /** Bouw het uiteindelijke adres-payload op basis van keuzes. */
   function bouwAdresInput(): KadasterAdresInput | null {
-    const pc = normaliseerPostcode(postcodeInput);
-    if (!pc) return null;
+    if (!postcodeApi) return null;
 
-    // Handmatig overschrijft de keuze als ingevuld
     if (handmatigHuisnummer.trim()) {
       return {
-        postalcode: pc,
+        postalcode: postcodeApi,
         houseNumber: handmatigHuisnummer.trim(),
         houseLetter: handmatigLetter.trim() || null,
         houseNumberAddition: handmatigToevoeging.trim() || null,
@@ -81,7 +124,7 @@ export default function KadasterGebiedsdataKaart({
     const gekozen = parsed.huisnummers.find(h => h.label === huisnummerKeuze);
     if (!gekozen) return null;
     return {
-      postalcode: pc,
+      postalcode: postcodeApi,
       houseNumber: gekozen.huisnummer,
       houseLetter: gekozen.huisletter ?? null,
       houseNumberAddition: gekozen.toevoeging ?? null,
@@ -90,15 +133,30 @@ export default function KadasterGebiedsdataKaart({
 
   const adresInput = bouwAdresInput();
   const adresKlaar = !!adresInput;
+  const heeftBetaaldProduct = selObject || selWaarde;
 
-  async function voerCallUit(modus: 'gebiedsdata' | 'kadaster') {
+  function geselecteerdeProducten(): KadasterProductCode[] {
+    const out: KadasterProductCode[] = [];
+    if (selObject) out.push('object');
+    if (selWaarde) out.push('waarde');
+    if (selLasten) out.push('lasten');
+    if (selBuurt)  out.push('buurt');
+    return out;
+  }
+
+  async function voerCallUit() {
     if (!adresInput) {
-      toast.error('Vul postcode + huisnummer in voor de Kadaster-aanvraag.');
+      toast.error('Vul een geldige postcode (4 cijfers + 2 letters) en huisnummer in.');
+      return;
+    }
+    if (!heeftBetaaldProduct) {
+      toast.error('Selecteer minimaal één betaald product (WOZ-object of Koopsom).');
       return;
     }
     const input: KadasterRequestInput = {
-      modus,
+      modus: 'kadaster',
       adres: adresInput,
+      producten: geselecteerdeProducten(),
       context: { object_id: objectId },
     };
     try {
@@ -106,20 +164,16 @@ export default function KadasterGebiedsdataKaart({
       setPreview(resp);
       setPreviewOpen(true);
       const aantal = resp.producten.filter(p => p.beschikbaar).length;
-      toast.success(
-        modus === 'gebiedsdata'
-          ? `Gebiedsdata opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`
-          : `Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`,
-      );
+      toast.success(`Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Kadaster-aanvraag mislukt';
       toast.error(msg);
     }
   }
 
-  function startBetaaldeCall() {
+  function startCall() {
     if (!adresKlaar) {
-      toast.error('Vul postcode + huisnummer in voor de Kadaster-aanvraag.');
+      toast.error('Vul een geldige postcode (4 cijfers + 2 letters) en huisnummer in.');
       return;
     }
     setKostenOpen(true);
@@ -127,9 +181,15 @@ export default function KadasterGebiedsdataKaart({
 
   const meerdere = parsed.huisnummers.length > 1;
   const adresLabel = adresInput
-    ? [adresInput.postalcode, adresInput.houseNumber + (adresInput.houseLetter ?? ''),
-       adresInput.houseNumberAddition].filter(Boolean).join(' ')
+    ? [
+        adresInput.postalcode,
+        adresInput.houseNumber + (adresInput.houseLetter ?? ''),
+        adresInput.houseNumberAddition,
+      ].filter(Boolean).join(' ')
     : '—';
+  const postcodeHint = postcodeApi
+    ? `${formatPostcodeMens(postcodeApi)} → ${postcodeApi}`
+    : 'Voer postcode in (4 cijfers + 2 letters)';
 
   return (
     <div className="section-card p-5 sm:p-6 space-y-4">
@@ -142,6 +202,8 @@ export default function KadasterGebiedsdataKaart({
           <p className="text-xs text-muted-foreground mt-1">
             Handmatig opvragen. Geen automatische bevraging. Resultaat eerst
             previewen — objectvelden worden nooit automatisch overschreven.
+            Gratis gebiedsdata wordt alleen meegeleverd bij een betaalde
+            Kadaster-aanvraag.
           </p>
         </div>
       </div>
@@ -162,6 +224,7 @@ export default function KadasterGebiedsdataKaart({
               placeholder="1234 AB"
               className="font-mono-data"
             />
+            <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
           </div>
           {meerdere && (
             <div className="space-y-1 sm:col-span-2">
@@ -186,10 +249,12 @@ export default function KadasterGebiedsdataKaart({
           )}
         </div>
 
-        {!parsed.betrouwbaar && (
+        {(parsed.huisnummers.length === 0 || !parsed.betrouwbaar) && (
           <div className="space-y-2">
             <p className="text-[11px] text-muted-foreground">
-              Adres niet betrouwbaar herkend — vul handmatig in:
+              {parsed.huisnummers.length === 0
+                ? 'Geen huisnummer herkend — vul handmatig in:'
+                : 'Adres niet betrouwbaar herkend — vul handmatig in:'}
             </p>
             <div className="grid grid-cols-3 gap-2">
               <Input
@@ -221,61 +286,99 @@ export default function KadasterGebiedsdataKaart({
         </p>
       </div>
 
-      {/* Knoppen */}
+      {/* Eén knop — gratis gebiedsdata wordt meegeleverd binnen deze aanvraag. */}
       <div className="flex flex-col sm:flex-row gap-2">
         <Button
-          variant="outline"
           className="flex-1"
           disabled={!adresKlaar || mutation.isPending}
-          onClick={() => voerCallUit('gebiedsdata')}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          {mutation.isPending && mutation.variables?.modus === 'gebiedsdata'
-            ? 'Bezig…' : 'Gebiedsdata ophalen (gratis)'}
-        </Button>
-        <Button
-          className="flex-1"
-          disabled={!adresKlaar || mutation.isPending}
-          onClick={startBetaaldeCall}
+          onClick={startCall}
         >
           <Coins className="h-4 w-4 mr-2" />
-          {mutation.isPending && mutation.variables?.modus === 'kadaster'
-            ? 'Bezig…' : 'Kadastergegevens ophalen (€ 0,20)'}
+          {mutation.isPending ? 'Bezig…' : 'Kadastergegevens ophalen'}
         </Button>
       </div>
 
-      {/* Kostenconfirmatie-dialog (alleen betaalde call) */}
+      {/* Kostenconfirmatie-dialog met productselectie */}
       <Dialog open={kostenOpen} onOpenChange={setKostenOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Coins className="h-4 w-4" /> Kosten bevestigen
+              <Coins className="h-4 w-4" /> Producten en kosten bevestigen
             </DialogTitle>
             <DialogDescription>
               Deze aanvraag wordt door Kadaster in rekening gebracht.
+              Gratis producten worden alleen meegeleverd binnen een betaalde
+              aanvraag — selecteer daarom minimaal één betaald product.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
-              <div className="flex justify-between">
+          <div className="space-y-3 text-sm">
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Zoekadres</span>
                 <span className="font-mono-data">{adresLabel}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">WOZ-object</span>
-                <span className="font-mono-data">± € 0,10</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Koopsom</span>
-                <span className="font-mono-data">± € 0,10</span>
-              </div>
-              <div className="flex justify-between border-t border-border pt-1 mt-1 font-medium">
-                <span>Geschatte kosten</span>
-                <span className="font-mono-data">± € 0,20</span>
-              </div>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Betaalde producten (minimaal één)
+              </p>
+              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selObject}
+                    onCheckedChange={(v) => setSelObject(v === true)}
+                  />
+                  <span>WOZ-object</span>
+                </span>
+                <span className="text-xs text-muted-foreground">prijs volgens Kadaster</span>
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selWaarde}
+                    onCheckedChange={(v) => setSelWaarde(v === true)}
+                  />
+                  <span>Koopsom</span>
+                </span>
+                <span className="text-xs text-muted-foreground">prijs volgens Kadaster</span>
+              </label>
+
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground pt-1">
+                Gratis meegeleverd
+              </p>
+              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selLasten}
+                    onCheckedChange={(v) => setSelLasten(v === true)}
+                  />
+                  <span>Gemeentelijke lasten</span>
+                </span>
+                <span className="text-xs text-muted-foreground">€ 0,00</span>
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selBuurt}
+                    onCheckedChange={(v) => setSelBuurt(v === true)}
+                  />
+                  <span>Buurtstatistieken</span>
+                </span>
+                <span className="text-xs text-muted-foreground">€ 0,00</span>
+              </label>
+            </div>
+
+            {!heeftBetaaldProduct && (
+              <p className="text-xs text-destructive">
+                Selecteer minimaal één betaald product om de aanvraag te kunnen
+                starten.
+              </p>
+            )}
+
             <p className="text-[11px] text-muted-foreground">
-              Bij ontbrekend product wordt de overige informatie alsnog geleverd
+              Totaalprijs volgens Kadaster wordt na de aanvraag zichtbaar.
+              Ontbrekende producten blokkeren de overige niet
               (deliver = withoutProduct).
             </p>
           </div>
@@ -285,10 +388,10 @@ export default function KadasterGebiedsdataKaart({
               Annuleren
             </Button>
             <Button
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !heeftBetaaldProduct}
               onClick={async () => {
                 setKostenOpen(false);
-                await voerCallUit('kadaster');
+                await voerCallUit();
               }}
             >
               {mutation.isPending ? 'Bezig…' : 'Ophalen'}
