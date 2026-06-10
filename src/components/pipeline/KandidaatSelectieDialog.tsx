@@ -255,8 +255,31 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     if (fout > 0) toast.error(`${fout} kandida${fout === 1 ? 'at' : 'ten'} niet toegevoegd`);
   };
 
+  const handleQuickCreated = (r: Relatie) => {
+    // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
+    setGeselecteerd(prev => {
+      const n = new Set(prev);
+      n.add(r.id);
+      return n;
+    });
+    // Leeg zoekterm zodat de nieuwe relatie zichtbaar is in de lijst.
+    setZoek('');
+    toast.success(`${getRelatieDropdownLabel(r)} geselecteerd`);
+  };
+
+  // Bepaal default naam/bedrijfsnaam voor quick create op basis van de zoekterm.
+  const quickDefaults = useMemo(() => {
+    const q = zoek.trim();
+    if (!q) return undefined;
+    // Bevat een spatie of e-mail/telefoon-achtig patroon? Behandel als naam.
+    if (q.includes('@')) return { email: q };
+    if (/^[\d\s+()-]{6,}$/.test(q)) return { telefoon: q };
+    return { naam: q };
+  }, [zoek]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+
       <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-5 py-4 border-b border-border">
           <DialogTitle>Kandidaat toevoegen</DialogTitle>
