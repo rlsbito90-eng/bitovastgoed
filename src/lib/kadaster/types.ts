@@ -31,6 +31,12 @@ export interface KadasterRequestInput {
    * extra Kadaster-call.
    */
   persist?: boolean | null;
+  /**
+   * Fase 4K.5 — vraag het officiële Kadasterbericht/PDF mee aan. Wordt
+   * intern opgeslagen als `kadaster_documenten` rij (niet in dataroom,
+   * niet voor klanten).
+   */
+  includePdf?: boolean | null;
 }
 
 export type KadasterDeliverStatus =
@@ -77,6 +83,19 @@ export interface KadasterPersistResult {
   ok: boolean;
   inserted: number;
   record_ids: string[];
+  error: string | null;
+  pdf?: KadasterPdfPersistInfo | null;
+}
+
+export interface KadasterPdfPersistInfo {
+  requested: boolean;
+  available: boolean;
+  ok: boolean;
+  document_id: string | null;
+  storage_path: string | null;
+  bestandsnaam: string | null;
+  bestandsgrootte_bytes: number | null;
+  source_key: string | null;
   error: string | null;
 }
 

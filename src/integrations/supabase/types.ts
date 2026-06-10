@@ -1244,6 +1244,7 @@ export type Database = {
           mode: string
           monumentaanduiding: string | null
           object_id: string | null
+          pdf_document_id: string | null
           product_code: string
           raw_limited: Json
           rechten_samenvatting: Json | null
@@ -1283,6 +1284,7 @@ export type Database = {
           mode?: string
           monumentaanduiding?: string | null
           object_id?: string | null
+          pdf_document_id?: string | null
           product_code: string
           raw_limited?: Json
           rechten_samenvatting?: Json | null
@@ -1322,6 +1324,7 @@ export type Database = {
           mode?: string
           monumentaanduiding?: string | null
           object_id?: string | null
+          pdf_document_id?: string | null
           product_code?: string
           raw_limited?: Json
           rechten_samenvatting?: Json | null
@@ -1356,6 +1359,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "kadaster_data_records_pdf_document_id_fkey"
+            columns: ["pdf_document_id"]
+            isOneToOne: false
+            referencedRelation: "kadaster_documenten"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "kadaster_data_records_signaal_id_fkey"
             columns: ["signaal_id"]
             isOneToOne: false
@@ -1364,6 +1374,102 @@ export type Database = {
           },
           {
             foreignKeyName: "kadaster_data_records_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kadaster_documenten: {
+        Row: {
+          bestandsgrootte_bytes: number | null
+          bestandsnaam: string
+          created_at: string
+          created_by: string | null
+          fetched_at: string
+          id: string
+          intern_only: boolean
+          kadaster_data_record_id: string | null
+          mime_type: string
+          object_id: string | null
+          product_codes: string[]
+          signaal_id: string | null
+          source: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          zoekadres: Json
+        }
+        Insert: {
+          bestandsgrootte_bytes?: number | null
+          bestandsnaam: string
+          created_at?: string
+          created_by?: string | null
+          fetched_at?: string
+          id?: string
+          intern_only?: boolean
+          kadaster_data_record_id?: string | null
+          mime_type?: string
+          object_id?: string | null
+          product_codes?: string[]
+          signaal_id?: string | null
+          source?: string
+          storage_bucket?: string
+          storage_path: string
+          updated_at?: string
+          zoekadres?: Json
+        }
+        Update: {
+          bestandsgrootte_bytes?: number | null
+          bestandsnaam?: string
+          created_at?: string
+          created_by?: string | null
+          fetched_at?: string
+          id?: string
+          intern_only?: boolean
+          kadaster_data_record_id?: string | null
+          mime_type?: string
+          object_id?: string | null
+          product_codes?: string[]
+          signaal_id?: string | null
+          source?: string
+          storage_bucket?: string
+          storage_path?: string
+          updated_at?: string
+          zoekadres?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kadaster_documenten_kadaster_data_record_id_fkey"
+            columns: ["kadaster_data_record_id"]
+            isOneToOne: false
+            referencedRelation: "kadaster_data_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kadaster_documenten_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "object_huur_metrics"
+            referencedColumns: ["object_id"]
+          },
+          {
+            foreignKeyName: "kadaster_documenten_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kadaster_documenten_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kadaster_documenten_signaal_id_fkey"
             columns: ["signaal_id"]
             isOneToOne: false
             referencedRelation: "view_off_market_dealpotentie"

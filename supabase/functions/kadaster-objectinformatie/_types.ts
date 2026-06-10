@@ -31,6 +31,13 @@ export interface KadasterRequestInput {
    * (betaalde) aanvraag — Kadaster weigert standalone gratis aanvragen.
    */
   producten?: KadasterProductCode[] | null;
+  /**
+   * Wanneer true vraagt de edge function het Kadasterbericht/PDF mee aan
+   * Kadaster (`includePdf: true`). Geen extra Kadaster-call — de PDF zit
+   * in dezelfde respons. Vereist `persist: true` + context om opgeslagen
+   * te worden in `kadaster_documenten`.
+   */
+  includePdf?: boolean | null;
   /** Optioneel: object_id of signaal_id voor audit-log + persist. */
   context?: {
     object_id?: string | null;
@@ -87,6 +94,24 @@ export interface KadasterPersistResult {
   ok: boolean;
   inserted: number;
   record_ids: string[];
+  error: string | null;
+  /** Resultaat van Kadasterbericht/PDF-opslag (Fase 4K.5). */
+  pdf?: KadasterPdfPersistInfo | null;
+}
+
+export interface KadasterPdfPersistInfo {
+  /** True als de gebruiker `includePdf` heeft gevraagd. */
+  requested: boolean;
+  /** True als Kadaster een PDF heeft meegeleverd. */
+  available: boolean;
+  /** True als opslag in `kadaster_documenten` is gelukt. */
+  ok: boolean;
+  document_id: string | null;
+  storage_path: string | null;
+  bestandsnaam: string | null;
+  bestandsgrootte_bytes: number | null;
+  /** Veilige debug-hint waar in de respons de PDF gevonden is. */
+  source_key: string | null;
   error: string | null;
 }
 

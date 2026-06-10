@@ -10,13 +10,18 @@
 //   - Rechten worden voorzichtig getoond als "Rechthebbende volgens
 //     Kadaster"; geen automatische koppeling met relaties of verkoper.
 import { useMemo, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp } from 'lucide-react';
+import { Archive, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
   useKadasterDataRecords, laatsteRecordsPerProduct, type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
+import {
+  useKadasterDocumentenForObject, documentenPerRecord,
+  type KadasterDocument,
+} from '@/hooks/useKadasterDocumenten';
+import KadasterPdfKnop from './KadasterPdfKnop';
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
 import KadasterHistorieLijst from './KadasterHistorieLijst';
 
@@ -169,7 +174,10 @@ interface Props { objectId: string }
 
 export default function KadasterOpgeslagenKaart({ objectId }: Props) {
   const { data, isLoading } = useKadasterDataRecords(objectId);
+  const { data: pdfs } = useKadasterDocumentenForObject(objectId);
   const records = useMemo(() => data ?? [], [data]);
+  const pdfList = useMemo(() => pdfs ?? [], [pdfs]);
+  const pdfPerRecord = useMemo(() => documentenPerRecord(pdfList), [pdfList]);
   const laatste = useMemo(() => laatsteRecordsPerProduct(records), [records]);
   const [techOpen, setTechOpen] = useState(false);
 
@@ -221,9 +229,54 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
             {(['object', 'waarde', 'rechten'] as const).map((code) => {
               const r = laatste.get(code);
               if (!r) return null;
-              return <RecordKaart key={code} r={r} />;
+              const pdf = pdfPerRecord.get(r.id);
+              return (
+                <div key={code} className="space-y-1">
+                  <RecordKaart r={r} />
+                  {pdf && (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+                      <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Kadasterbericht opgeslagen
+                      </span>
+                      <KadasterPdfKnop document={pdf} />
+                    </div>
+                  )}
+                  {!pdf && r.product_code === 'rechten'
+                    && r.status === 'geleverd'
+                    && !r.rechthebbende_naam && (
+                    <p className="text-[10px] text-muted-foreground italic px-1">
+                      Tip: vraag opnieuw op met "Kadasterbericht/PDF intern opslaan" aan
+                      om de rechthebbende uit het officiële Kadasterbericht te kunnen lezen.
+                    </p>
+                  )}
+                </div>
+              );
             })}
           </div>
+
+          {pdfList.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
+                <FileText className="h-3 w-3" /> Kadasterberichten (intern, {pdfList.length})
+              </p>
+              <ul className="space-y-1.5">
+                {pdfList.map((d: KadasterDocument) => (
+                  <li key={d.id} className="flex items-center justify-between gap-2 rounded border border-border/60 px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-xs truncate">{d.bestandsnaam}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono-data">
+                        {d.product_codes.join(', ')} · {fmtDatum(d.fetched_at)}
+                      </p>
+                    </div>
+                    <KadasterPdfKnop document={d} />
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-muted-foreground italic">
+                Intern opgeslagen. Niet automatisch gedeeld in dataroom of export.
+              </p>
+            </div>
+          )}
 
           <KadasterHistorieLijst records={records} />
 
