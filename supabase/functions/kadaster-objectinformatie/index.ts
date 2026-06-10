@@ -43,6 +43,55 @@ const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> 
 
 const BETAALDE_PRODUCTEN: KadasterProductCode[] = ['object', 'waarde', 'rechten'];
 
+/**
+ * Veilige allowlist zolang Kadaster's /products endpoint nog niet bevestigd
+ * is voor deze API-key. `lasten` en `buurt` zijn in de praktijk geweigerd
+ * met HTTP 409 "Een of meer onbekende producten opgegeven", dus we sturen
+ * ze standaard niet mee. Wordt overschreven door de live /products lijst
+ * zodra die succesvol is opgehaald.
+ */
+const FALLBACK_ALLOWED: KadasterProductCode[] = ['object', 'waarde'];
+
+// Process-cache voor /products. TTL klein houden zodat sleutelwijzigingen
+// snel zichtbaar worden, maar voorkomt dat we elke /report een extra GET doen.
+let productsCache: { codes: KadasterProductCode[]; fetched_at: number } | null = null;
+const PRODUCTS_TTL_MS = 5 * 60 * 1000;
+
+async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCode[] | null> {
+  const now = Date.now();
+  if (productsCache && (now - productsCache.fetched_at) < PRODUCTS_TTL_MS) {
+    return productsCache.codes;
+  }
+  try {
+    const resp = await fetch(`${KADASTER_BASE_URL}/products`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json', 'X-API-KEY': apiKey },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json().catch(() => null);
+    const arr = Array.isArray(data)
+      ? data
+      : (data && typeof data === 'object' && Array.isArray((data as Record<string, unknown>).products))
+        ? (data as { products: unknown[] }).products
+        : null;
+    if (!arr) return null;
+    const codes: KadasterProductCode[] = [];
+    for (const item of arr) {
+      const code = typeof item === 'string'
+        ? item
+        : (item && typeof item === 'object' ? String((item as Record<string, unknown>).code ?? '') : '');
+      const lower = code.toLowerCase();
+      if (['object', 'waarde', 'rechten', 'lasten', 'buurt'].includes(lower)) {
+        codes.push(lower as KadasterProductCode);
+      }
+    }
+    productsCache = { codes, fetched_at: now };
+    return codes;
+  } catch {
+    return null;
+  }
+}
+
 const AdresSchema = z.object({
   postalcode: z.string().trim().min(6).max(7),
   houseNumber: z.string().trim().regex(/^\d{1,6}$/, 'huisnummer numeriek'),
