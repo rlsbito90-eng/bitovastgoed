@@ -4,16 +4,18 @@
 // laat ze ongewijzigd door zodat de UI ze 1:1 kan tonen.
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { KadasterPreview, KadasterRequestInput } from '@/lib/kadaster/types';
+import type { KadasterDebug, KadasterPreview, KadasterRequestInput } from '@/lib/kadaster/types';
 
 export class KadasterApiError extends Error {
   code?: string;
   httpStatus?: number;
-  constructor(message: string, code?: string, httpStatus?: number) {
+  debug?: KadasterDebug | null;
+  constructor(message: string, code?: string, httpStatus?: number, debug?: KadasterDebug | null) {
     super(message);
     this.name = 'KadasterApiError';
     this.code = code;
     this.httpStatus = httpStatus;
+    this.debug = debug ?? null;
   }
 }
 
@@ -26,14 +28,13 @@ export function useKadasterObjectinformatie() {
         { body: input },
       );
       if (error) {
-        // supabase.functions.invoke verpakt fouten; probeer de body uit te lezen
         const ctx = (error as { context?: Response }).context;
-        let parsed: { error?: string; code?: string; http_status?: number } | null = null;
+        let parsed: { error?: string; code?: string; http_status?: number; debug?: KadasterDebug } | null = null;
         try {
           if (ctx && typeof ctx.json === 'function') parsed = await ctx.json();
         } catch { /* noop */ }
         const msg = parsed?.error ?? error.message ?? 'Kadaster-aanvraag mislukt';
-        throw new KadasterApiError(msg, parsed?.code, parsed?.http_status);
+        throw new KadasterApiError(msg, parsed?.code, parsed?.http_status, parsed?.debug ?? null);
       }
       return data as KadasterPreview;
     },
