@@ -1205,3 +1205,20 @@ alleen de laatste record per productcode was zichtbaar.
     zodat geen record onbedoeld weggefilterd wordt.
 - Tests: `persons`/`entities`-shape + `blokken`-persist-shape.
 - Geen nieuwe Kadaster-call, geen schemawijziging, geen CRM-koppeling.
+
+
+## Bugfix 4K.6.2 — Kadasterdocumenten zichtbaar in Signaal/Object
+- **Root cause**: `public.kadaster_documenten` en `public.kadaster_data_records`
+  hadden geen GRANTs voor `authenticated`/`service_role`. Data API gaf
+  daardoor permission denied → records/PDF's leken "verdwenen" in UI.
+  Migration voegt benodigde GRANTs toe (geen RLS-wijziging).
+- `KadasterPdfKnop`: signed URL wordt altijd vers opgevraagd bij klik
+  (geen state-cache). Foutmelding nu:
+  "Kadasterbericht bestaat, maar kon tijdelijk niet worden geopend.
+   Probeer opnieuw of controleer opslagrechten."
+- `documentenPerRecord(docs, records?)`: fallback-matching op
+  `signaal_id`/`object_id` + `product_code` + `fetched_at` (±5 min)
+  voor records waar `pdf_document_id` ontbreekt. PDF-knop blijft zo
+  zichtbaar bij oudere records.
+- Storage bucket blijft privé; openen alléén via signed URL.
+- Geen nieuwe Kadaster-call, geen automatische relatiekoppeling.
