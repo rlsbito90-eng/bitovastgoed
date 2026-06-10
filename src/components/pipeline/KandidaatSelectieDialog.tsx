@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   ASSET_CLASS_LABELS,
