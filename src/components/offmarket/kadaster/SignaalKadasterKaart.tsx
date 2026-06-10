@@ -116,19 +116,30 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
   const sam = r.rechten_samenvatting ?? {};
   const aantal = typeof (sam as { aantal_rechthebbenden?: unknown }).aantal_rechthebbenden === 'number'
     ? (sam as { aantal_rechthebbenden: number }).aantal_rechthebbenden : null;
+  const heeftVelden = !!(r.rechthebbende_naam || r.rechtsoort
+    || r.aandeel || r.kadastrale_aanduiding);
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
       <p className="text-sm font-medium">Rechthebbende volgens Kadaster</p>
       <p className="text-[11px] text-muted-foreground">
-        Eigendomsinformatie — intern beeld. Niet automatisch gekoppeld aan
+        Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan
         relaties, eigenaar of verkoper.
       </p>
-      <Row label="Aantal rechthebbenden" value={aantal} />
-      <Row label="Naam" value={r.rechthebbende_naam} />
-      <Row label="Type" value={r.rechthebbende_type} />
-      <Row label="Rechtsoort" value={r.rechtsoort} />
-      <Row label="Aandeel" value={r.aandeel} />
-      <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
+      {!heeftVelden ? (
+        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
+          Rechten geleverd, maar rechthebbende-velden nog niet herkend.
+          Bekijk technische details in de historie.
+        </p>
+      ) : (
+        <>
+          <Row label="Aantal rechthebbenden" value={aantal} />
+          <Row label="Naam" value={r.rechthebbende_naam} />
+          <Row label="Type" value={r.rechthebbende_type} />
+          <Row label="Rechtsoort" value={r.rechtsoort} />
+          <Row label="Aandeel" value={r.aandeel} />
+          <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
+        </>
+      )}
     </div>
   );
 }
