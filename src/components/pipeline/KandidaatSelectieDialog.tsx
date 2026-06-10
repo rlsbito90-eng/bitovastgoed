@@ -387,8 +387,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         {/* Lijst */}
         <div className="flex-1 overflow-y-auto min-h-[200px]">
           {gesorteerd.length === 0 ? (
-            <div className="p-8 text-sm text-muted-foreground text-center">
-              {filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}
+            <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
+              <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setQuickOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-1.5" /> Nieuwe relatie aanmaken
+              </Button>
             </div>
           ) : (
             <>
