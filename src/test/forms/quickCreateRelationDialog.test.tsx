@@ -73,14 +73,14 @@ describe('QuickCreateRelationDialog', () => {
   it('staat opslaan toe met alleen een naam en maakt contactpersoon aan', async () => {
     const user = userEvent.setup();
     const { onCreated, onOpenChange } = renderDialog({ context: 'kandidaat' });
-    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i), 'Alexander');
+    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i), 'Jan de Vries');
     await user.click(screen.getByRole('button', { name: /Relatie aanmaken/i }));
     await waitFor(() => expect(addRelatieMock).toHaveBeenCalled());
     const arg = addRelatieMock.mock.calls[0][0];
-    expect(arg.contactpersoon).toBe('Alexander');
+    expect(arg.contactpersoon).toBe('Jan de Vries');
     expect(arg.type).toBe('belegger'); // default voor kandidaat
     expect(addContactpersoonMock).toHaveBeenCalledWith(
-      expect.objectContaining({ naam: 'Alexander', isPrimair: true }),
+      expect.objectContaining({ naam: 'Jan de Vries', isPrimair: true }),
     );
     expect(onCreated).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -89,7 +89,7 @@ describe('QuickCreateRelationDialog', () => {
   it('staat opslaan toe met alleen bedrijfsnaam, zonder contactpersoon', async () => {
     const user = userEvent.setup();
     renderDialog();
-    await user.type(screen.getByLabelText(/Bedrijfsnaam/i), 'J&CB Invest');
+    await user.type(screen.getByLabelText(/Bedrijfsnaam/i), 'Voorbeeld Invest BV');
     await user.click(screen.getByRole('button', { name: /Relatie aanmaken/i }));
     await waitFor(() => expect(addRelatieMock).toHaveBeenCalled());
     expect(addContactpersoonMock).not.toHaveBeenCalled();
@@ -174,7 +174,7 @@ describe('QuickCreateRelationDialog', () => {
       {
         id: 'r-3',
         bedrijfsnaam: 'Iets',
-        contactpersoon: 'Alexander',
+        contactpersoon: 'Jan de Vries',
         type: 'belegger',
         telefoon: '',
         email: '',
@@ -187,7 +187,7 @@ describe('QuickCreateRelationDialog', () => {
     ];
     const user = userEvent.setup();
     renderDialog();
-    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i), 'Alexander');
+    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i), 'Jan de Vries');
     // Geen alert
     expect(screen.queryByText(/Mogelijk bestaat deze relatie al/i)).not.toBeInTheDocument();
   });
