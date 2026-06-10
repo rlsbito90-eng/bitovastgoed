@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   ASSET_CLASS_LABELS,
@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { parseDutchNumber } from '@/lib/format/nl';
+import { QuickCreateRelationDialog } from '@/components/forms/QuickCreateRelationDialog';
 
 interface Props {
   open: boolean;
@@ -67,6 +68,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [sortKey, setSortKey] = useState<SortKey>('match');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const zoekRef = useRef<HTMLInputElement>(null);
 
   // Reset bij open
@@ -74,7 +76,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     if (open) {
       setZoek(''); setFilterType(''); setFilterStatus(''); setFilterAssetClass('');
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
-      setAlleenActief(false); setGeselecteerd(new Set());
+      setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
     }
   }, [open]);
@@ -253,8 +255,31 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     if (fout > 0) toast.error(`${fout} kandida${fout === 1 ? 'at' : 'ten'} niet toegevoegd`);
   };
 
+  const handleQuickCreated = (r: Relatie) => {
+    // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
+    setGeselecteerd(prev => {
+      const n = new Set(prev);
+      n.add(r.id);
+      return n;
+    });
+    // Leeg zoekterm zodat de nieuwe relatie zichtbaar is in de lijst.
+    setZoek('');
+    toast.success(`${getRelatieDropdownLabel(r)} geselecteerd`);
+  };
+
+  // Bepaal default naam/bedrijfsnaam voor quick create op basis van de zoekterm.
+  const quickDefaults = useMemo(() => {
+    const q = zoek.trim();
+    if (!q) return undefined;
+    // Bevat een spatie of e-mail/telefoon-achtig patroon? Behandel als naam.
+    if (q.includes('@')) return { email: q };
+    if (/^[\d\s+()-]{6,}$/.test(q)) return { telefoon: q };
+    return { naam: q };
+  }, [zoek]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+
       <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-5 py-4 border-b border-border">
           <DialogTitle>Kandidaat toevoegen</DialogTitle>
@@ -363,6 +388,13 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             <span className="text-muted-foreground">
               {gesorteerd.length} gevonden · {geselecteerd.size} geselecteerd
             </span>
+            <button
+              type="button"
+              onClick={() => setQuickOpen(true)}
+              className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-2"
+            >
+              <UserPlus className="h-3 w-3" /> Nieuwe relatie
+            </button>
             {filtersActief && (
               <button
                 type="button"
@@ -378,8 +410,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         {/* Lijst */}
         <div className="flex-1 overflow-y-auto min-h-[200px]">
           {gesorteerd.length === 0 ? (
-            <div className="p-8 text-sm text-muted-foreground text-center">
-              {filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}
+            <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
+              <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setQuickOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-1.5" /> Nieuwe relatie aanmaken
+              </Button>
             </div>
           ) : (
             <>
@@ -480,6 +515,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <QuickCreateRelationDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        context="kandidaat"
+        defaultValues={quickDefaults}
+        onCreated={handleQuickCreated}
+      />
     </Dialog>
   );
 }

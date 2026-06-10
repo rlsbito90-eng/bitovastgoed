@@ -295,3 +295,50 @@ ContactMomentFormDialog, TaakFormDialog of DealFormDialog.
 ### Volgende stap
 4A.2 — Integratie in `KandidaatSelectieDialog` als "+ Nieuwe relatie"-CTA
 wanneer zoekresultaat leeg is.
+
+---
+
+## Fase 4A.2 — Integratie in KandidaatSelectieDialog
+
+### Status
+Uitgevoerd. Alleen `KandidaatSelectieDialog` integreert nu QuickCreate.
+EntityPicker, ObjectFormDialog, OfferFormDialog, ContactMomentFormDialog,
+TaakFormDialog en DealFormDialog blijven ongewijzigd voor latere stappen.
+
+### Wijzigingen
+- `src/components/pipeline/KandidaatSelectieDialog.tsx`
+  - Import `QuickCreateRelationDialog` + `UserPlus` icoon.
+  - State `quickOpen` met reset bij heropenen.
+  - "+ Nieuwe relatie" link in de filterbalk (subtiel, naast de
+    "X gevonden · Y geselecteerd"-teller).
+  - Lege-resultaat-CTA "Nieuwe relatie aanmaken" als de lijst leeg is
+    (zowel met filters actief als zonder relaties).
+  - `handleQuickCreated(r)` voegt nieuwe relatie toe aan `geselecteerd`
+    zonder bestaande selectie te verstoren, leegt de zoekterm zodat de
+    nieuwe relatie zichtbaar wordt en toont een toast met de display-naam.
+  - `quickDefaults` leidt slimme defaults af uit de zoekterm:
+    bevat `@` → email; cijfer/telefoonpatroon → telefoon; anders naam.
+  - QuickCreate dialog gerenderd binnen de outer Dialog (nested), context
+    `kandidaat` → default partijtype `belegger`.
+
+### UX-keuzes
+- Workflow blijft intact: `KandidaatSelectieDialog` sluit niet bij quick
+  create; gebruiker kan direct doorklikken op "Toevoegen (n)".
+- Bestaande selectie blijft behouden; nieuwe relatie wordt automatisch
+  bovenop de bestaande selectie gezet.
+- Zoekterm wordt geleegd zodat de nieuw aangemaakte relatie zichtbaar is
+  in de lijst (lijst filtert ook op `reedsGekoppeld`, dus alleen écht
+  nieuwe relaties verschijnen).
+- Geen wijzigingen aan zoekveld-gedrag, clear-knop of mobiele kaartlijst.
+
+### Tests
+- Volledige suite groen: 462/462 (35 testfiles).
+- Geen aparte interactietest voor de dialog-in-dialog flow toegevoegd:
+  het complexe radix-portal/nested-dialog gedrag is fragiel om te
+  unittesten en de standalone `QuickCreateRelationDialog` heeft eigen
+  10/10 dekking voor de create-flow zelf.
+
+### Volgende stap
+4A.3 — "+ Nieuwe relatie"-CTA in `EntityPicker` zodat OfferFormDialog,
+ContactMomentFormDialog, TaakFormDialog en DealFormDialog tegelijk mee
+profiteren.
