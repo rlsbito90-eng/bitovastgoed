@@ -659,6 +659,29 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
               </p>
             </div>
 
+            <label className="flex items-start gap-2 rounded-md border border-border p-2">
+              <Checkbox
+                checked={selPdf}
+                onCheckedChange={(v) => setSelPdf(v === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5 text-xs">
+                <span className="block font-medium">Kadasterbericht/PDF intern opslaan</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Het officiële Kadasterbericht wordt intern opgeslagen bij dit
+                  signaal. Het wordt niet automatisch gedeeld of gekoppeld aan
+                  relaties.
+                </span>
+                {selRechten && (
+                  <span className="block text-[10px] text-muted-foreground">
+                    Bij Rechten kan eigenaar-/rechthebbendeinformatie in het
+                    Kadasterbericht staan, ook als de JSON-preview deze velden
+                    niet herkent.
+                  </span>
+                )}
+              </span>
+            </label>
+
             {!heeftBetaaldProduct && (waardeBeschikbaar || rechtenBeschikbaar) && (
               <p className="text-xs text-destructive">
                 Selecteer minimaal één product om de aanvraag te starten.
