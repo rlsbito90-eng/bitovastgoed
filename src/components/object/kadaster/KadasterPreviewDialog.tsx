@@ -13,7 +13,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import type {
-  KadasterPreview, KadasterProductResult, KadasterProductCode,
+  KadasterPreview, KadasterProductResult,
 } from '@/lib/kadaster/types';
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
 
