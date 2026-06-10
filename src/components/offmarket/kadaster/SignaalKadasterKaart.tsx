@@ -299,6 +299,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
       producten: geselecteerdeProducten(),
       context: { signaal_id: signaal.id },
       persist: true,
+      includePdf: selPdf,
     };
     try {
       const resp = await mutation.mutateAsync(input);
@@ -310,9 +311,23 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
       );
       if (resp.persist?.requested) {
         if (resp.persist.ok) {
-          toast.success('Kadastergegevens opgeslagen bij dit signaal.');
+          const pdf = resp.persist.pdf;
+          if (pdf?.requested && pdf.ok) {
+            toast.success('Kadastergegevens en Kadasterbericht opgeslagen bij dit signaal.');
+          } else if (pdf?.requested && !pdf.ok) {
+            toast.warning(
+              'Kadastergegevens opgeslagen, maar Kadasterbericht/PDF kon niet worden opgeslagen.' +
+              (pdf.error ? ` (${pdf.error})` : ''),
+              { duration: 10_000 },
+            );
+          } else {
+            toast.success('Kadastergegevens opgeslagen bij dit signaal.');
+          }
           queryClient.invalidateQueries({
             queryKey: ['kadaster_data_records', 'signaal', signaal.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['kadaster_documenten', 'signaal_id', signaal.id],
           });
         } else {
           toast.warning(
