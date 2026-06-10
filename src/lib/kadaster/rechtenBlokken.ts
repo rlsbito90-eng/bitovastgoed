@@ -218,6 +218,37 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
   const data = asObj(raw); if (!data) return [];
   const blokken: KadasterRechtenBlok[] = [];
 
+  // 0) Persist-shape: `raw_limited.rechten` is een diagnostisch object met
+  //    eventueel een `blokken` array (gewhitelist tijdens persist). Wanneer
+  //    aanwezig: behandel die als de bron, zodat oudere records met alleen
+  //    diagnostische velden alsnog blokken kunnen renderen.
+  const persistBlokken = (data as Record<string, unknown>).blokken;
+  if (Array.isArray(persistBlokken) && persistBlokken.length > 0) {
+    for (const item of persistBlokken) {
+      const obj = asObj(item); if (!obj) continue;
+      const rechtstype = leesRechtstype(obj);
+      const aandeel = leesAandeel(obj.aandeel)
+        ?? leesAandeel((obj as Record<string, unknown>).aandeelInRecht)
+        ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
+        ?? leesAandeel((obj as Record<string, unknown>).gerechtigdAandeel);
+      let geneste: unknown[] | null = null;
+      for (const lk of RECHTHEBBENDE_LIJST_KEYS) {
+        const l = (obj as Record<string, unknown>)[lk];
+        if (Array.isArray(l) && l.length > 0) { geneste = l; break; }
+      }
+      if (geneste) {
+        for (const rh of geneste) {
+          const b = mapRechthebbende(rh, { rechtstype, aandeel });
+          if (b) blokken.push(b);
+        }
+      } else {
+        const b = mapRechthebbende(obj, { rechtstype, aandeel });
+        if (b) blokken.push(b);
+      }
+    }
+    if (blokken.length > 0) return blokken;
+  }
+
   // 1) Per-rechttype containers (rechten met genest rechthebbenden-array).
   for (const key of RECHT_CONTAINER_KEYS) {
     const v = data[key];
