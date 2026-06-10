@@ -95,6 +95,24 @@ export interface KadasterPersistResult {
   inserted: number;
   record_ids: string[];
   error: string | null;
+  /** Resultaat van Kadasterbericht/PDF-opslag (Fase 4K.5). */
+  pdf?: KadasterPdfPersistInfo | null;
+}
+
+export interface KadasterPdfPersistInfo {
+  /** True als de gebruiker `includePdf` heeft gevraagd. */
+  requested: boolean;
+  /** True als Kadaster een PDF heeft meegeleverd. */
+  available: boolean;
+  /** True als opslag in `kadaster_documenten` is gelukt. */
+  ok: boolean;
+  document_id: string | null;
+  storage_path: string | null;
+  bestandsnaam: string | null;
+  bestandsgrootte_bytes: number | null;
+  /** Veilige debug-hint waar in de respons de PDF gevonden is. */
+  source_key: string | null;
+  error: string | null;
 }
 
 export interface KadasterErrorResponse {
