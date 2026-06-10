@@ -165,7 +165,7 @@ export default function FeedTokensSectie() {
         <div className="flex-1 min-w-0">
           <label className="field-label block mb-1">Naam (optioneel)</label>
           <Input
-            placeholder="bv. iPhone agenda, Werk laptop"
+            placeholder="bv. agenda telefoon, werk-laptop"
             value={nieuweNaam}
             onChange={e => setNieuweNaam(e.target.value)}
             disabled={nieuwBezig}

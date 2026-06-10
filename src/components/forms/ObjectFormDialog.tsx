@@ -492,7 +492,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <Input
                       value={form.titel}
                       onChange={e => set('titel', e.target.value)}
-                      placeholder="bv. Woningportefeuille Amsterdam-West"
+                      placeholder="bv. Voorbeeldportefeuille"
                     />
                   </Veld>
                   <Veld label="Intern referentienummer">
@@ -554,7 +554,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <Input
                       value={form.publiekeNaam ?? ''}
                       onChange={e => set('publiekeNaam', e.target.value || undefined)}
-                      placeholder="bv. Woonpand grachtengordel"
+                      placeholder="bv. voorbeeldobject centrum"
                       disabled={!form.anoniem}
                     />
                   </Veld>
@@ -562,7 +562,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <Input
                       value={form.publiekeRegio ?? ''}
                       onChange={e => set('publiekeRegio', e.target.value || undefined)}
-                      placeholder="bv. Randstad-Noord"
+                      placeholder="bv. regio"
                       disabled={!form.anoniem}
                     />
                   </Veld>
@@ -671,7 +671,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <Input
                       value={form.bron ?? ''}
                       onChange={e => set('bron', e.target.value || undefined)}
-                      placeholder="bv. eigen netwerk, makelaar X"
+                      placeholder="bv. eigen netwerk, makelaar"
                     />
                   </Veld>
                 </div>
@@ -701,12 +701,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Vraagprijs (€)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <NumberField value={form.vraagprijs}
-                      onChange={v => set('vraagprijs', v)} placeholder="bv. 1.625.000" />
+                      onChange={v => set('vraagprijs', v)} placeholder="bv. 1.000.000" />
                   </Veld>
                   <Veld label="Prijsindicatie (tekstueel)">
                     <Input value={form.prijsindicatie ?? ''}
                       onChange={e => set('prijsindicatie', e.target.value || undefined)}
-                      placeholder="bv. op aanvraag, koers € 5-6 mln" />
+                      placeholder="bv. op aanvraag" />
                   </Veld>
                 </div>
               </Sectie>
@@ -744,7 +744,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                           <NumberField className="min-w-0"
                             value={form.huurinkomsten}
                             onChange={v => { setLaatstGewijzigdHuur('jaar'); set('huurinkomsten', v); setMaandhuurInput(v == null ? '' : String(maandhuurFromJaar(v) ?? '')); }}
-                            placeholder="bv. 7.200" />
+                            placeholder="bv. 5.000" />
                           <p className="text-[11px] text-muted-foreground mt-1">Fallback/indicatie. Als huurdersregels aanwezig zijn, wordt de totale huur op detailniveau daarvan afgeleid.</p>
                         </Veld>
                         <Veld label={<>Maandelijkse huur (€/mnd) <AutoBadge show={laatstGewijzigdHuur !== 'maand' && !!form.huurinkomsten} /></>}>
@@ -876,7 +876,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                     <Input
                       value={form.huidigGebruik ?? ''}
                       onChange={e => set('huidigGebruik', e.target.value || undefined)}
-                      placeholder="bv. verhuurd aan supermarkt"
+                      placeholder="bv. verhuurd aan huurder"
                     />
                   </Veld>
                   <Veld label="Aantal huurders (fallback)">

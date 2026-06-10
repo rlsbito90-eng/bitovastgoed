@@ -237,7 +237,7 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <Label htmlFor="adres">Adres <span className="text-accent">**</span></Label>
-            <Input id="adres" value={adres} onChange={e => setAdres(e.target.value)} placeholder="Straat 12" />
+            <Input id="adres" value={adres} onChange={e => setAdres(e.target.value)} placeholder="Voorbeeldstraat 1" />
           </div>
           <div>
             <Label htmlFor="postcode">Postcode <span className="text-accent">**</span></Label>
@@ -245,7 +245,7 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           </div>
           <div>
             <Label htmlFor="plaats">Plaats <span className="text-accent">**</span></Label>
-            <Input id="plaats" value={plaats} onChange={e => setPlaats(e.target.value)} placeholder="Amsterdam" />
+            <Input id="plaats" value={plaats} onChange={e => setPlaats(e.target.value)} placeholder="Voorbeeldplaats" />
           </div>
           <div>
             <Label htmlFor="assetClass">Asset class <span className="text-accent">**</span></Label>
@@ -263,15 +263,15 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           </div>
           <div>
             <Label htmlFor="m2">m² <span className="text-accent">**</span></Label>
-            <Input id="m2" type="text" inputMode="decimal" value={m2} onChange={e => setM2(e.target.value)} placeholder="850" />
+            <Input id="m2" type="text" inputMode="decimal" value={m2} onChange={e => setM2(e.target.value)} placeholder="500" />
           </div>
           <div>
             <Label htmlFor="vraagprijs">Vraagprijs (€) <span className="text-accent">**</span></Label>
-            <Input id="vraagprijs" type="text" inputMode="decimal" value={vraagprijs} onChange={e => setVraagprijs(e.target.value)} placeholder="2.500.000" />
+            <Input id="vraagprijs" type="text" inputMode="decimal" value={vraagprijs} onChange={e => setVraagprijs(e.target.value)} placeholder="1.000.000" />
           </div>
           <div>
             <Label htmlFor="bouwjaar">Bouwjaar <span className="text-accent">**</span></Label>
-            <Input id="bouwjaar" type="text" inputMode="numeric" pattern="[0-9]*" value={bouwjaar} onChange={e => setBouwjaar(e.target.value)} placeholder="1998" />
+            <Input id="bouwjaar" type="text" inputMode="numeric" pattern="[0-9]*" value={bouwjaar} onChange={e => setBouwjaar(e.target.value)} placeholder="2000" />
           </div>
           <div>
             <Label>Prijs / m² <span className="text-muted-foreground text-xs">(automatisch)</span></Label>
@@ -307,7 +307,7 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="bron">Bron <span className="text-muted-foreground">*</span></Label>
-            <Input id="bron" value={bron} onChange={e => setBron(e.target.value)} placeholder="Funda in Business, eigen netwerk, taxateur..." />
+            <Input id="bron" value={bron} onChange={e => setBron(e.target.value)} placeholder="bv. eigen netwerk, taxateur, openbare bron" />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="notities">Notities</Label>
@@ -330,14 +330,14 @@ export default function ReferentieObjectFormDialog({ open, onOpenChange, referen
               <Label htmlFor="huurMaand">Huurprijs / maand (€)</Label>
               <Input
                 id="huurMaand" type="text" inputMode="decimal" value={huurMaand}
-                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 12.500"
+                onChange={e => setHuurMaand(e.target.value)} placeholder="bijv. 5.000"
               />
             </div>
             <div>
               <Label htmlFor="huurJaar">Huurprijs / jaar (€)</Label>
               <Input
                 id="huurJaar" type="text" inputMode="decimal" value={huurJaar}
-                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 150.000"
+                onChange={e => setHuurJaar(e.target.value)} placeholder="bijv. 60.000"
               />
             </div>
             <div>

@@ -481,7 +481,7 @@ export default function DealFormDialog({
                     <NumberField
                       value={form.commissieBedrag}
                       onChange={v => set('commissieBedrag', v)}
-                      placeholder="bv. 45.000"
+                      placeholder="bv. 25.000"
                     />
                   </Veld>
                 </div>
@@ -538,17 +538,17 @@ export default function DealFormDialog({
                   <Veld label="Notaris">
                     <Input value={form.notaris ?? ''}
                       onChange={e => set('notaris', e.target.value || undefined)}
-                      placeholder="bv. Notariskantoor X" />
+                      placeholder="bv. notariskantoor" />
                   </Veld>
                   <Veld label="Bank">
                     <Input value={form.bank ?? ''}
                       onChange={e => set('bank', e.target.value || undefined)}
-                      placeholder="bv. ABN AMRO" />
+                      placeholder="bv. financier" />
                   </Veld>
                   <Veld label="Tegenpartij makelaar" span={2}>
                     <Input value={form.tegenpartijMakelaar ?? ''}
                       onChange={e => set('tegenpartijMakelaar', e.target.value || undefined)}
-                      placeholder="bv. Makelaarskantoor Y" />
+                      placeholder="bv. makelaarskantoor" />
                   </Veld>
                 </div>
               </Sectie>
@@ -561,7 +561,7 @@ export default function DealFormDialog({
                   <Veld label="Waarom is deze deal afgevallen?">
                     <Textarea rows={3} value={form.afwijzingsreden ?? ''}
                       onChange={e => set('afwijzingsreden', e.target.value || undefined)}
-                      placeholder="bv. tegenpartij heeft te hoog geboden, te weinig oplevering" />
+                      placeholder="bv. tegenpartij bood te hoog, opleveringseisen" />
                   </Veld>
                 </Sectie>
               )}

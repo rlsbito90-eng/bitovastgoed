@@ -169,7 +169,7 @@ export default function KadasterCheckDialog({ signaal, open, onOpenChange }: Pro
               <Input
                 value={handmatigeZoekterm}
                 onChange={e => setHandmatigeZoekterm(e.target.value)}
-                placeholder="bv. Hoofdweg 160-H Amsterdam"
+                placeholder="bv. Voorbeeldstraat 1 Voorbeeldplaats"
               />
             </div>
             <div className="flex justify-end">

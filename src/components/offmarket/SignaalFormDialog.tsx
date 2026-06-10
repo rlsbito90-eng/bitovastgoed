@@ -122,7 +122,7 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
           ) : null}
           <div>
             <Label>Titel <span className="text-destructive">*</span></Label>
-            <Input value={form.titel} onChange={e => upd('titel', e.target.value)} placeholder="Bijv. Leegstaand kantoor Stationsweg" />
+            <Input value={form.titel} onChange={e => upd('titel', e.target.value)} placeholder="Bijv. Leegstaand kantoor Voorbeeldstraat" />
             {err('titel')}
           </div>
 
