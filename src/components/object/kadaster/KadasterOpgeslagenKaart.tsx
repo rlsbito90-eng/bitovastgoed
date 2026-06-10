@@ -221,22 +221,14 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
               const pdf = pdfPerRecord.get(r.id);
               return (
                 <div key={code} className="space-y-1">
-                  <RecordKaart r={r} />
-                  {pdf && (
+                  <RecordKaart r={r} pdf={pdf} />
+                  {pdf && code !== 'rechten' && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
                         <FileText className="h-3 w-3" /> Kadasterbericht opgeslagen
                       </span>
                       <KadasterPdfKnop document={pdf} />
                     </div>
-                  )}
-                  {!pdf && r.product_code === 'rechten'
-                    && r.status === 'geleverd'
-                    && !r.rechthebbende_naam && (
-                    <p className="text-[10px] text-muted-foreground italic px-1">
-                      Tip: vraag opnieuw op met "Kadasterbericht/PDF intern opslaan" aan
-                      om de rechthebbende uit het officiële Kadasterbericht te kunnen lezen.
-                    </p>
                   )}
                 </div>
               );
