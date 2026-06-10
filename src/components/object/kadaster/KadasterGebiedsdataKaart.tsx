@@ -15,7 +15,7 @@
 //   - Geen hardgecodeerde prijs; UI toont "prijs volgens Kadaster".
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { FileSearch, Coins, MapPin } from 'lucide-react';
+import { FileSearch, Coins, MapPin, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,10 +26,14 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { useKadasterObjectinformatie, KadasterApiError } from '@/hooks/useKadasterObjectinformatie';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type {
-  KadasterAdresInput, KadasterPreview, KadasterProductCode, KadasterRequestInput,
+  KadasterAdresInput, KadasterDebug, KadasterPreview, KadasterProductCode, KadasterRequestInput,
 } from '@/lib/kadaster/types';
 import KadasterPreviewDialog from './KadasterPreviewDialog';
 
