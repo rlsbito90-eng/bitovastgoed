@@ -443,14 +443,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                     <th className="w-10 py-2 px-2"></th>
                     <SortKop k="naam">Bedrijfsnaam</SortKop>
                     <SortKop k="contact">Contactpersoon</SortKop>
-                    <th className="text-left font-medium py-2 px-2">E-mail</th>
-                    <th className="text-left font-medium py-2 px-2">Telefoon</th>
                     <SortKop k="type">Type</SortKop>
                     <SortKop k="status">Status</SortKop>
                     <SortKop k="plaats">Plaats</SortKop>
                     <th className="text-left font-medium py-2 px-2">Assetclass</th>
-                    <SortKop k="budgetMin" align="right">Budget vanaf</SortKop>
-                    <SortKop k="budgetMax" align="right">Budget tot</SortKop>
+                    <SortKop k="budget" align="right">Budget</SortKop>
                     <SortKop k="laatsteContact">Laatste contact</SortKop>
                     <th className="text-left font-medium py-2 px-2">Bron</th>
                     <SortKop k="match" align="right">Match</SortKop>
