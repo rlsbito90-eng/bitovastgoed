@@ -763,3 +763,52 @@ Uitgevoerd. Off Market Radar is bewust nog niet aangeraakt (4K.3).
    actualiteit, doelbinding) als compact JSON-veld — uitsluitend voor
    audit, geen mapping op bestaande tekstvelden.
 
+
+## Fase 4K.4 — Nuance: gratis meegeleverde producten (`lasten`, `buurt`)
+
+### Achtergrond
+Eerder leek het dat Gemeentelijke lasten en Buurtstatistieken niet bruikbaar
+zijn, omdat Kadata Internet meldde dat een bestelling minimaal één betaald
+product moet bevatten ("Een of meer onbekende producten opgegeven: lasten,
+buurt" bij standalone aanvraag). Nieuwe nuance: deze producten zijn mogelijk
+wél leverbaar als **meegeleverde** producten binnen een aanvraag met minimaal
+één betaald product (bv. WOZ-object + lasten + buurt).
+
+### Regels
+- **Geen standalone aanvraag** van `lasten` of `buurt`. Standalone blijft
+  uitgeschakeld in UI en edge function.
+- **Mogen later wel meegestuurd worden** binnen een aanvraag met minimaal
+  één betaald product (`object` of `waarde`).
+- **Alleen activeren als `/products` ze daadwerkelijk teruggeeft** voor de
+  actieve API-key. Geen hardcoded productcodes `lasten` / `buurt` zolang de
+  live `/products`-lijst ze niet bevestigt. De bestaande `FALLBACK_ALLOWED`
+  (`['object','waarde']`) blijft hierin leidend bij ontbrekende `/products`-
+  respons.
+- **Geen automatische selectie**: ook als `/products` ze bevestigt, worden
+  ze niet stilzwijgend meegestuurd. De UI biedt ze als opt-in checkbox bij
+  een al gekozen betaald product.
+- **Kostenconfirmatie blijft** vereist voor het betaalde hoofdproduct;
+  meegeleverde gratis producten worden in dezelfde confirmatie genoemd
+  ("inclusief lasten en buurt, indien beschikbaar").
+
+### Per domein
+
+**Objecten/Aanbod (4K.4B/C):**
+- Bij WOZ-object of Koopsom kunnen `lasten` en `buurt` optioneel meegestuurd
+  worden, mits `/products` ze beschikbaar maakt.
+- Resultaat verschijnt als extra blok in de Kadasterkaart ("Gemeentelijke
+  lasten", "Buurtstatistieken"), met dezelfde "Niet geleverd"-afhandeling
+  als bestaande producten.
+
+**Off Market Radar (4K.4D):**
+- In signaalfase mogen `lasten` en `buurt` later eventueel meegestuurd
+  worden bij `object` (WOZ-object) — uitsluitend als `/products` ze
+  bevestigt en de gebruiker ze expliciet aanvinkt.
+- `waarde` (Koopsom) blijft in Off Market Radar uitgeschakeld tot na
+  promotie naar Object. Daarmee blijven betaalde signaal-aanvragen
+  beperkt tot het goedkopere `object`.
+
+### Security/kosten (onveranderd)
+- API-key uitsluitend Supabase Secret; niet in code, frontend, logs of plan.
+- Geen automatische calls; geen kostenverhogende retries.
+- Foutmeldingen NL; technische details zonder secrets.
