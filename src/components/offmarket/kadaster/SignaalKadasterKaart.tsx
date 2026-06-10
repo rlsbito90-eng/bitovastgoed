@@ -238,7 +238,10 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
   const meest = recordList[0] ?? null;
   const { data: pdfs } = useKadasterDocumentenForSignaal(signaal.id);
   const pdfList = useMemo(() => pdfs ?? [], [pdfs]);
-  const pdfPerRecord = useMemo(() => documentenPerRecord(pdfList), [pdfList]);
+  const pdfPerRecord = useMemo(
+    () => documentenPerRecord(pdfList, recordList),
+    [pdfList, recordList],
+  );
 
   // Productlijst wordt pas opgehaald als de kostenconfirmatie opent.
   const catalogus = useKadasterProductCatalogus(kostenOpen);
