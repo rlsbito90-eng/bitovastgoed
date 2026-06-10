@@ -225,6 +225,8 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
             })}
           </div>
 
+          <KadasterHistorieLijst records={records} />
+
           <Collapsible open={techOpen} onOpenChange={setTechOpen}>
             <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
               {techOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -239,6 +241,7 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
   fetched_at: r.fetched_at,
   zoekadres: r.zoekadres,
   raw_limited_keys: Object.keys(r.raw_limited ?? {}),
+  raw_limited_rechten: (r.raw_limited as Record<string, unknown> | null | undefined)?.rechten ?? null,
 })), null, 2)}
               </pre>
             </CollapsibleContent>
