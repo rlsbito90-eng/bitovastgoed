@@ -24,7 +24,7 @@ import {
 import KadasterPdfKnop from './KadasterPdfKnop';
 import KadasterRechtenBlokken from './KadasterRechtenBlokken';
 import { mapRechtenBlokken, blokUitOpgeslagenRecord } from '@/lib/kadaster/rechtenBlokken';
-import type { KadasterDocument } from '@/hooks/useKadasterDocumenten';
+
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
 import KadasterHistorieLijst from './KadasterHistorieLijst';
 
