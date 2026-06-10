@@ -344,9 +344,8 @@ export default function KadasterPreviewDialog({
                   key={p.code}
                   product={p}
                   gebiedsVariant={gebiedsVariant}
-                  onOvernemenBouwjaar={onOvernemenBouwjaar}
-                  onOvernemenWozWaarde={onOvernemenWozWaarde}
                 />
+
               ))
             )}
 
