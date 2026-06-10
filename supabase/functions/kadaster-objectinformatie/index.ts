@@ -433,6 +433,41 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // --- Kadasterbericht/PDF persisten (Fase 4K.5) ---
+    // Alleen wanneer expliciet aangevraagd via `includePdf` én records zijn
+    // opgeslagen. PDF wordt intern bewaard; nooit automatisch in dataroom
+    // of export.
+    let pdfInfo: Awaited<ReturnType<typeof persistKadasterPdf>> | null = null;
+    let pdfAvailable = false;
+    if (body.includePdf === true) {
+      const extracted = extractPdfFromResponse(ruwe);
+      pdfAvailable = !!extracted;
+      if (extracted && wilPersist && persisted) {
+        try {
+          pdfInfo = await persistKadasterPdf(userClient, {
+            objectId: body.context?.object_id ?? null,
+            signaalId: body.context?.signaal_id ?? null,
+            recordIds: persisted.ids,
+            productCodes: codes,
+            zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
+            fetchedAt: opgehaaldOp,
+            userId,
+            pdf: extracted,
+          });
+        } catch (e) {
+          pdfInfo = {
+            ok: false, document_id: null, storage_path: null,
+            bestandsnaam: null, bestandsgrootte_bytes: null,
+            source_key: extracted.source_key,
+            error: e instanceof Error ? e.message : 'Onbekende fout bij PDF-opslag.',
+          };
+          console.log('[kadaster-objectinformatie] pdf-persist-fout', logRegel({
+            modus, user: userId, msg: pdfInfo.error,
+          }));
+        }
+      }
+    }
+
     const preview: KadasterPreview = {
       modus,
       bron: 'kadaster_objectinformatie_api',
@@ -450,6 +485,20 @@ Deno.serve(async (req: Request) => {
         inserted: persisted?.inserted ?? 0,
         record_ids: persisted?.ids ?? [],
         error: persistFout,
+        pdf: body.includePdf === true ? {
+          requested: true,
+          available: pdfAvailable,
+          ok: !!pdfInfo?.ok,
+          document_id: pdfInfo?.document_id ?? null,
+          storage_path: pdfInfo?.storage_path ?? null,
+          bestandsnaam: pdfInfo?.bestandsnaam ?? null,
+          bestandsgrootte_bytes: pdfInfo?.bestandsgrootte_bytes ?? null,
+          source_key: pdfInfo?.source_key ?? null,
+          error: pdfInfo?.error
+            ?? (!pdfAvailable
+              ? 'Kadaster heeft geen PDF/Kadasterbericht meegeleverd in de respons.'
+              : (!wilPersist ? 'PDF niet opgeslagen: geen object/signaal-context.' : null)),
+        } : null,
       },
     };
 
