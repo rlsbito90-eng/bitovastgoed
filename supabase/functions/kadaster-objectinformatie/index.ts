@@ -111,8 +111,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // --- Request opbouwen ---
-    const codes = PRODUCTEN_PER_MODUS[modus];
+    // --- Productselectie bepalen ---
+    // Default per modus, of expliciete selectie uit de body. Kadaster
+    // weigert bestellingen zonder betaald product; we valideren dat
+    // hier vooraf om onnodige upstream-calls te voorkomen.
+    const gevraagd = body.producten && body.producten.length > 0
+      ? Array.from(new Set(body.producten))
+      : DEFAULT_PRODUCTEN_PER_MODUS[modus];
+    const heeftBetaald = gevraagd.some(c => BETAALDE_PRODUCTEN.includes(c));
+    if (!heeftBetaald) {
+      return jsonError(
+        'Gratis gebiedsdata kan alleen worden meegeleverd bij een betaalde Kadaster-aanvraag.',
+        400, 'product_invalid',
+      );
+    }
+    const codes = gevraagd as KadasterProductCode[];
     const selection = codes.map((code) => ({
       code,
       deliver: 'withoutProduct' as const,
@@ -129,16 +142,23 @@ Deno.serve(async (req: Request) => {
       zoekadresType = 'bagId';
       zoekadresWaarde = body.bagId;
     } else if (body.adres) {
+      // Postcode altijd normaliseren naar formaat zonder spatie + uppercase.
+      const normPostcode = body.adres.postalcode.replace(/\s+/g, '').toUpperCase();
+      if (!/^\d{4}[A-Z]{2}$/.test(normPostcode)) {
+        return jsonError(
+          'Ongeldige postcode. Verwacht 4 cijfers + 2 letters (bv. 3273AV).',
+          400, 'invalid_input',
+        );
+      }
       reportBody.pht = {
-        postalcode: body.adres.postalcode.replace(/\s+/g, '').toUpperCase(),
+        postalcode: normPostcode,
         houseNumber: body.adres.houseNumber,
         ...(body.adres.houseLetter ? { houseLetter: body.adres.houseLetter } : {}),
         ...(body.adres.houseNumberAddition ? { houseNumberAddition: body.adres.houseNumberAddition } : {}),
       };
       zoekadresWaarde = [
-        body.adres.postalcode,
-        body.adres.houseNumber,
-        body.adres.houseLetter,
+        normPostcode,
+        body.adres.houseNumber + (body.adres.houseLetter ?? ''),
         body.adres.houseNumberAddition,
       ].filter(Boolean).join(' ');
     }
