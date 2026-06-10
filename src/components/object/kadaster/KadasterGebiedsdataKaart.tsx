@@ -91,9 +91,17 @@ export default function KadasterGebiedsdataKaart({
   const [handmatigLetter, setHandmatigLetter] = useState<string>('');
   const [handmatigToevoeging, setHandmatigToevoeging] = useState<string>('');
 
-  // Productselectie in de kostenconfirmatie. Beide betaalde producten zijn
-  // standaard aan; gratis producten worden meegeleverd en mogen niet
-  // standalone gekozen worden.
+  // Adres-zoekmodus (V1): UI-helper om de gebruiker te helpen bij invoer.
+  // De API-call gebruikt nóóit straat/plaats — Kadaster verwacht uiteindelijk
+  // postcode+huisnummer of een BAG-ID.
+  const [zoekModus, setZoekModus] = useState<'postcode' | 'adres'>('postcode');
+  const [adresStraat, setAdresStraat] = useState<string>('');
+  const [adresPlaats, setAdresPlaats] = useState<string>(plaats ?? '');
+  const [adresHuisnummer, setAdresHuisnummer] = useState<string>('');
+  const [adresLetter, setAdresLetter] = useState<string>('');
+  const [adresToevoeging, setAdresToevoeging] = useState<string>('');
+
+  // Productselectie in de kostenconfirmatie.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
   const [selLasten, setSelLasten] = useState(true);
@@ -102,6 +110,9 @@ export default function KadasterGebiedsdataKaart({
   const [kostenOpen, setKostenOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [preview, setPreview] = useState<KadasterPreview | null>(null);
+  const [laatsteFout, setLaatsteFout] = useState<{
+    msg: string; httpStatus?: number; debug?: KadasterDebug | null;
+  } | null>(null);
 
   const mutation = useKadasterObjectinformatie();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
