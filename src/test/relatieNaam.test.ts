@@ -22,17 +22,17 @@ const baseRel = (over: Partial<Relatie> = {}): Relatie =>
 
 describe('getRelationDisplayName', () => {
   it('prioriteert primaire contactpersoon boven bedrijfsnaam', () => {
-    const rel = baseRel({ id: 'r1', bedrijfsnaam: 'J&CB Invest' });
+    const rel = baseRel({ id: 'r1', bedrijfsnaam: 'Voorbeeld Invest BV' });
     const cps: RelatieContactpersoon[] = [
-      { id: 'c1', relatieId: 'r1', naam: 'Alexander', isPrimair: true, decisionMaker: false, voorkeurTaal: 'nl' } as any,
+      { id: 'c1', relatieId: 'r1', naam: 'Jan de Vries', isPrimair: true, decisionMaker: false, voorkeurTaal: 'nl' } as any,
     ];
-    expect(getRelationDisplayName(rel, cps)).toBe('Alexander');
-    expect(getRelatieNamen(rel, cps).secundair).toBe('J&CB Invest');
+    expect(getRelationDisplayName(rel, cps)).toBe('Jan de Vries');
+    expect(getRelatieNamen(rel, cps).secundair).toBe('Voorbeeld Invest BV');
   });
 
   it('valt terug op bedrijfsnaam als naam ontbreekt', () => {
-    const rel = baseRel({ bedrijfsnaam: 'J&CB Invest' });
-    expect(getRelationDisplayName(rel)).toBe('J&CB Invest');
+    const rel = baseRel({ bedrijfsnaam: 'Voorbeeld Invest BV' });
+    expect(getRelationDisplayName(rel)).toBe('Voorbeeld Invest BV');
   });
 
   it('toont nooit email als naam en bedrijf ontbreken (privacy-regel)', () => {
@@ -57,10 +57,10 @@ describe('getRelationDisplayName', () => {
   });
 
   it('dropdown-label combineert naam en bedrijf', () => {
-    const rel = baseRel({ id: 'r1', bedrijfsnaam: 'J&CB Invest' });
+    const rel = baseRel({ id: 'r1', bedrijfsnaam: 'Voorbeeld Invest BV' });
     const cps: RelatieContactpersoon[] = [
-      { id: 'c1', relatieId: 'r1', naam: 'Alexander', isPrimair: true, decisionMaker: false, voorkeurTaal: 'nl' } as any,
+      { id: 'c1', relatieId: 'r1', naam: 'Jan de Vries', isPrimair: true, decisionMaker: false, voorkeurTaal: 'nl' } as any,
     ];
-    expect(getRelatieDropdownLabel(rel, cps)).toBe('Alexander · J&CB Invest');
+    expect(getRelatieDropdownLabel(rel, cps)).toBe('Jan de Vries · Voorbeeld Invest BV');
   });
 });
