@@ -10,13 +10,18 @@
 //   - Rechten worden voorzichtig getoond als "Rechthebbende volgens
 //     Kadaster"; geen automatische koppeling met relaties of verkoper.
 import { useMemo, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp } from 'lucide-react';
+import { Archive, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
   useKadasterDataRecords, laatsteRecordsPerProduct, type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
+import {
+  useKadasterDocumentenForObject, documentenPerRecord,
+  type KadasterDocument,
+} from '@/hooks/useKadasterDocumenten';
+import KadasterPdfKnop from './KadasterPdfKnop';
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
 import KadasterHistorieLijst from './KadasterHistorieLijst';
 
