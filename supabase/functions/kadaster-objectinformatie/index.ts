@@ -172,14 +172,25 @@ Deno.serve(async (req: Request) => {
     const gevraagd = body.producten && body.producten.length > 0
       ? Array.from(new Set(body.producten))
       : DEFAULT_PRODUCTEN_PER_MODUS[modus];
-    const heeftBetaald = gevraagd.some(c => BETAALDE_PRODUCTEN.includes(c));
+
+    // Allowlist: live /products endpoint indien beschikbaar, anders
+    // veilige fallback met alleen ['object', 'waarde']. `lasten`/`buurt`
+    // worden in V1 nooit gestuurd zonder bevestiging via /products.
+    const live = await fetchAvailableProducts(apiKey);
+    const allowed = live && live.length > 0 ? live : FALLBACK_ALLOWED;
+    const filteredOut = gevraagd.filter(c => !allowed.includes(c));
+    const codes = gevraagd.filter(c => allowed.includes(c)) as KadasterProductCode[];
+
+    const heeftBetaald = codes.some(c => BETAALDE_PRODUCTEN.includes(c));
     if (!heeftBetaald) {
       return jsonError(
-        'Gratis gebiedsdata kan alleen worden meegeleverd bij een betaalde Kadaster-aanvraag.',
+        filteredOut.length > 0
+          ? `Geen geldige producten over na filtering. Niet beschikbaar voor deze API-key: ${filteredOut.join(', ')}.`
+          : 'Selecteer minimaal één betaald Kadaster-product (object of waarde).',
         400, 'product_invalid',
+        { allowed_products: allowed, products_source: live ? 'live' : 'fallback', filtered_out: filteredOut },
       );
     }
-    const codes = gevraagd as KadasterProductCode[];
     // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
     // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
     const selection = codes.map((code) => ({
