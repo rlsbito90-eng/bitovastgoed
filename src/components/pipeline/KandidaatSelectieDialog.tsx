@@ -193,8 +193,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         case 'type': va = ra.type; vb = rb.type; break;
         case 'status': va = ra.leadStatus; vb = rb.leadStatus; break;
         case 'plaats': va = a.plaats; vb = b.plaats; break;
-        case 'budgetMin': va = ra.budgetMin ?? -Infinity; vb = rb.budgetMin ?? -Infinity; break;
-        case 'budgetMax': va = ra.budgetMax ?? -Infinity; vb = rb.budgetMax ?? -Infinity; break;
+        case 'budget': va = ra.budgetMax ?? ra.budgetMin ?? -Infinity; vb = rb.budgetMax ?? rb.budgetMin ?? -Infinity; break;
         case 'laatsteContact': va = ra.laatsteContact ?? ''; vb = rb.laatsteContact ?? ''; break;
         case 'match': va = a.score ?? -1; vb = b.score ?? -1; break;
       }
