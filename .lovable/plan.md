@@ -871,3 +871,41 @@ in Off Market Radar of het 4K.4-datamodel.
    bestaande Relatie (handmatige bevestiging vereist; geen auto-koppel).
 3. Beslissen of rechten in **Off Market Radar** beschikbaar komt (in V1
    bewust niet — koopsom blijft ook daar pas na promotie naar Object).
+
+---
+
+## Fase 4K.4A/B — Directe persist van Kadasterrecords (uitgevoerd)
+
+### Wat is gebouwd
+- **Migration** `public.kadaster_data_records` met whitelisted velden voor
+  koopsom, BAG, WOZ-object, rechten-samenvatting en `raw_limited` jsonb.
+  Constraint `object_id IS NOT NULL OR signaal_id IS NOT NULL` (geen XOR
+  — na promotie mogen beide gevuld zijn). RLS beperkt select/insert/update
+  tot interne gebruikers; service_role behoudt toegang voor edge functions.
+- **Edge function** accepteert `persist: true` en schrijft per product één
+  record direct na een succesvolle Kadaster-response. Producten met status
+  `niet_geleverd` worden ook opgeslagen zodat zichtbaar blijft dat het
+  product voor dit adres is geprobeerd. Geen extra Kadaster-call, geen
+  retry, geen API-key/headers/raw response in DB.
+- **Frontend `KadasterGebiedsdataKaart`** stuurt `persist: true` mee bij
+  elke Objecten/Aanbod-aanvraag. Bij succes: toast "Kadastergegevens
+  opgeslagen bij dit object." Bij persist-fout met geslaagde Kadaster-call:
+  duidelijke waarschuwing, geen automatische tweede aanvraag.
+- **Nieuwe kaart `KadasterOpgeslagenKaart`** op Objectdetail toont laatst
+  opgeslagen record per `product_code` met expliciete semantiek: WOZ-object
+  als "WOZ-objectgegevens", koopsom als "Kadaster-koopsom", rechten als
+  "Rechthebbende volgens Kadaster". Lege staat duidelijk in NL.
+
+### Wat NIET (bewust)
+- Geen Off Market Radar-integratie (komt in 4K.4D).
+- Geen promotie-overdracht Signaal → Object (komt in 4K.4E).
+- Geen automatische overname naar objectvelden of relaties.
+- Geen volledige raw response of API-key in DB.
+- Geen automatische retries bij persist-fout.
+
+### Vervolgstappen
+1. **Off Market Radar Kadasterkaart** met dezelfde tabel via `signaal_id`.
+2. **Promotie Signaal → Object**: records ook beschikbaar maken op het
+   nieuwe object (beide IDs gevuld; geen nieuwe Kadaster-call).
+3. **API-key statuskaart** in admin voor key-rotatie en `/products` check.
+4. **PDF-opslag** als latere optionele kolom (alleen na expliciete keuze).

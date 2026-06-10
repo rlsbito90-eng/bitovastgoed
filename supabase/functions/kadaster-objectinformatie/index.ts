@@ -23,6 +23,7 @@ import type {
   KadasterModus, KadasterProductCode, KadasterPreview,
 } from './_types.ts';
 import { normaliseerKadasterResponse, logRegel, responseShape } from './_normalize.ts';
+import { persistKadasterRecords } from './_persist.ts';
 
 // Officiële Kadata Objectinformatie API host (zie Swagger:
 //   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
@@ -142,6 +143,7 @@ const BodySchema = z.object({
     object_id: z.string().uuid().nullish(),
     signaal_id: z.string().uuid().nullish(),
   }).nullish(),
+  persist: z.boolean().nullish(),
 }).refine((v) => !!v.bagId || !!v.adres, {
   message: 'Geef bagId of adres mee',
   path: ['adres'],
@@ -400,11 +402,39 @@ Deno.serve(async (req: Request) => {
     const ruwe = await upstreamResp.json().catch(() => null);
     const producten = normaliseerKadasterResponse(ruwe, codes);
     const shape = responseShape(ruwe);
+    const opgehaaldOp = new Date().toISOString();
+
+    // --- Direct persisten (zonder extra Kadaster-call) ---
+    // Persist gebeurt automatisch zodra Kadaster succesvol een respons
+    // heeft geleverd, zodat de gebruiker de preview kan sluiten,
+    // wegnavigeren of de browser kan verversen zonder data te verliezen.
+    let persisted: { inserted: number; ids: string[] } | null = null;
+    let persistFout: string | null = null;
+    const wilPersist = body.persist === true
+      && (body.context?.object_id || body.context?.signaal_id);
+    if (wilPersist) {
+      try {
+        persisted = await persistKadasterRecords(userClient, {
+          objectId: body.context?.object_id ?? null,
+          signaalId: body.context?.signaal_id ?? null,
+          mode: modus,
+          fetchedAt: opgehaaldOp,
+          zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
+          producten,
+          userId,
+        });
+      } catch (e) {
+        persistFout = e instanceof Error ? e.message : 'Onbekende fout bij opslaan.';
+        console.log('[kadaster-objectinformatie] persist-fout', logRegel({
+          modus, user: userId, msg: persistFout,
+        }));
+      }
+    }
 
     const preview: KadasterPreview = {
       modus,
       bron: 'kadaster_objectinformatie_api',
-      opgehaald_op: new Date().toISOString(),
+      opgehaald_op: opgehaaldOp,
       productcodes: codes,
       // Prijs is afhankelijk van de Kadaster-tarieven en wordt niet vooraf
       // hardgecodeerd; UI toont "prijs volgens Kadaster" bij null.
@@ -412,6 +442,13 @@ Deno.serve(async (req: Request) => {
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
       debug: { ...debug, response_shape: shape },
+      persist: {
+        requested: !!body.persist,
+        ok: persisted !== null,
+        inserted: persisted?.inserted ?? 0,
+        record_ids: persisted?.ids ?? [],
+        error: persistFout,
+      },
     };
 
     console.log('[kadaster-objectinformatie] ok', logRegel({
@@ -420,6 +457,8 @@ Deno.serve(async (req: Request) => {
       signaal_id: body.context?.signaal_id ?? null,
       producten: codes.join(','),
       beschikbaar: producten.filter(p => p.beschikbaar).length,
+      persist_ok: persisted !== null,
+      persist_inserted: persisted?.inserted ?? 0,
       dur_ms: Date.now() - t0,
     }));
 

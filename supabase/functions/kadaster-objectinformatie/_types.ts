@@ -31,11 +31,17 @@ export interface KadasterRequestInput {
    * (betaalde) aanvraag — Kadaster weigert standalone gratis aanvragen.
    */
   producten?: KadasterProductCode[] | null;
-  /** Optioneel: object_id of signaal_id voor audit-log (geen DB-write in V1.1). */
+  /** Optioneel: object_id of signaal_id voor audit-log + persist. */
   context?: {
     object_id?: string | null;
     signaal_id?: string | null;
   };
+  /**
+   * Wanneer true en context.object_id/signaal_id aanwezig is, slaat de
+   * edge function elk product direct op in `kadaster_data_records`.
+   * Geen extra Kadaster-call; persist is een DB-write, geen retry.
+   */
+  persist?: boolean | null;
 }
 
 export type KadasterDeliverStatus =
@@ -72,6 +78,16 @@ export interface KadasterPreview {
     waarde: string;
   };
   producten: KadasterProductResult[];
+  /** Resultaat van directe persist naar `kadaster_data_records`. */
+  persist?: KadasterPersistResult | null;
+}
+
+export interface KadasterPersistResult {
+  requested: boolean;
+  ok: boolean;
+  inserted: number;
+  record_ids: string[];
+  error: string | null;
 }
 
 export interface KadasterErrorResponse {
