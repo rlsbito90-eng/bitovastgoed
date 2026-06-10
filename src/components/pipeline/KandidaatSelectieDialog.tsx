@@ -365,6 +365,13 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             <span className="text-muted-foreground">
               {gesorteerd.length} gevonden · {geselecteerd.size} geselecteerd
             </span>
+            <button
+              type="button"
+              onClick={() => setQuickOpen(true)}
+              className="inline-flex items-center gap-1 text-primary hover:underline underline-offset-2"
+            >
+              <UserPlus className="h-3 w-3" /> Nieuwe relatie
+            </button>
             {filtersActief && (
               <button
                 type="button"
