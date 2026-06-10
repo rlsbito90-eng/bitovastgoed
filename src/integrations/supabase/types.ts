@@ -1222,6 +1222,155 @@ export type Database = {
         }
         Relationships: []
       }
+      kadaster_data_records: {
+        Row: {
+          aandeel: string | null
+          actualiteit: string | null
+          bag_bouwjaar: number | null
+          bag_gebruiksdoel: string | null
+          bag_object_status: string | null
+          bag_oppervlakte: number | null
+          created_at: string
+          created_by: string | null
+          doelbinding: boolean | null
+          feitelijk_gebruik: string | null
+          fetched_at: string
+          id: string
+          kadastrale_aanduiding: string | null
+          koopjaar: number | null
+          koopsom: number | null
+          koopsom_valuta: string | null
+          meer_onroerend_goed: boolean | null
+          mode: string
+          monumentaanduiding: string | null
+          object_id: string | null
+          product_code: string
+          raw_limited: Json
+          rechten_samenvatting: Json | null
+          rechthebbende_naam: string | null
+          rechthebbende_type: string | null
+          rechtsoort: string | null
+          signaal_id: string | null
+          source: string
+          status: string
+          updated_at: string
+          woz_gebruiksklasse: string | null
+          woz_inhoud: number | null
+          woz_objectnummer: string | null
+          woz_oppervlakte: number | null
+          woz_oppervlakte_niet_wonen: number | null
+          woz_oppervlakte_wonen: number | null
+          zoekadres: Json
+        }
+        Insert: {
+          aandeel?: string | null
+          actualiteit?: string | null
+          bag_bouwjaar?: number | null
+          bag_gebruiksdoel?: string | null
+          bag_object_status?: string | null
+          bag_oppervlakte?: number | null
+          created_at?: string
+          created_by?: string | null
+          doelbinding?: boolean | null
+          feitelijk_gebruik?: string | null
+          fetched_at?: string
+          id?: string
+          kadastrale_aanduiding?: string | null
+          koopjaar?: number | null
+          koopsom?: number | null
+          koopsom_valuta?: string | null
+          meer_onroerend_goed?: boolean | null
+          mode?: string
+          monumentaanduiding?: string | null
+          object_id?: string | null
+          product_code: string
+          raw_limited?: Json
+          rechten_samenvatting?: Json | null
+          rechthebbende_naam?: string | null
+          rechthebbende_type?: string | null
+          rechtsoort?: string | null
+          signaal_id?: string | null
+          source?: string
+          status: string
+          updated_at?: string
+          woz_gebruiksklasse?: string | null
+          woz_inhoud?: number | null
+          woz_objectnummer?: string | null
+          woz_oppervlakte?: number | null
+          woz_oppervlakte_niet_wonen?: number | null
+          woz_oppervlakte_wonen?: number | null
+          zoekadres?: Json
+        }
+        Update: {
+          aandeel?: string | null
+          actualiteit?: string | null
+          bag_bouwjaar?: number | null
+          bag_gebruiksdoel?: string | null
+          bag_object_status?: string | null
+          bag_oppervlakte?: number | null
+          created_at?: string
+          created_by?: string | null
+          doelbinding?: boolean | null
+          feitelijk_gebruik?: string | null
+          fetched_at?: string
+          id?: string
+          kadastrale_aanduiding?: string | null
+          koopjaar?: number | null
+          koopsom?: number | null
+          koopsom_valuta?: string | null
+          meer_onroerend_goed?: boolean | null
+          mode?: string
+          monumentaanduiding?: string | null
+          object_id?: string | null
+          product_code?: string
+          raw_limited?: Json
+          rechten_samenvatting?: Json | null
+          rechthebbende_naam?: string | null
+          rechthebbende_type?: string | null
+          rechtsoort?: string | null
+          signaal_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          woz_gebruiksklasse?: string | null
+          woz_inhoud?: number | null
+          woz_objectnummer?: string | null
+          woz_oppervlakte?: number | null
+          woz_oppervlakte_niet_wonen?: number | null
+          woz_oppervlakte_wonen?: number | null
+          zoekadres?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kadaster_data_records_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "object_huur_metrics"
+            referencedColumns: ["object_id"]
+          },
+          {
+            foreignKeyName: "kadaster_data_records_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kadaster_data_records_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kadaster_data_records_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           bekeken: boolean | null
