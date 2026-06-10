@@ -504,7 +504,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         </div>
                         {/* Privacy-regel: geen e-mail/telefoon als secundair label. */}
                         <div className="text-xs text-muted-foreground mt-0.5 font-mono-data">
-                          Budget: {fmtBedrag(r.budgetMin)} – {fmtBedrag(r.budgetMax)}
+                          Budget: {fmtBudgetRange(r.budgetMin, r.budgetMax)}
                           {item.score != null && <span className="ml-2">Match: {item.score}%</span>}
                         </div>
                       </div>
