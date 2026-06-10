@@ -45,6 +45,8 @@ import {
   type KadasterDocument,
 } from '@/hooks/useKadasterDocumenten';
 import KadasterPdfKnop from '@/components/object/kadaster/KadasterPdfKnop';
+import KadasterRechtenBlokken from '@/components/object/kadaster/KadasterRechtenBlokken';
+import { mapRechtenBlokken, blokUitOpgeslagenRecord } from '@/lib/kadaster/rechtenBlokken';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
 import KadasterHistorieLijst from '@/components/object/kadaster/KadasterHistorieLijst';
 import BagAdresLookup from '@/components/shared/BagAdresLookup';
