@@ -342,3 +342,250 @@ TaakFormDialog en DealFormDialog blijven ongewijzigd voor latere stappen.
 4A.3 — "+ Nieuwe relatie"-CTA in `EntityPicker` zodat OfferFormDialog,
 ContactMomentFormDialog, TaakFormDialog en DealFormDialog tegelijk mee
 profiteren.
+
+---
+
+# Fase 4K — Kadaster-integratie (Objectinformatie API)
+
+Plan-only. Geen code-, schema- of datawijzigingen in deze ronde.
+De API-key zelf wordt niet in plan.md, code, frontend of logs vastgelegd.
+
+## 1. Doel en scope
+
+Voorzichtige, gefaseerde integratie met de Kadaster/Kadata
+Objectinformatie API. Gebruiker krijgt op aanvraag (nooit automatisch)
+Kadaster- en gebiedsdata bij een Object of Off-market Signaal, ziet
+eerst kosten + preview en kiest daarna handmatig welke velden naar het
+CRM worden overgenomen.
+
+**V1 in scope**
+- Edge Function `kadaster-objectinformatie` als enige plek met API-key.
+- Knop "Kadastergegevens ophalen" in ObjectFormDialog/Objectdetail en in
+  Off-market Signaal-detail.
+- Betaalde producten V1: `object` (WOZ-object, ±€ 0,10) en `waarde`
+  (Koopsom, ±€ 0,10) met `deliver = withoutProduct`.
+- Gratis producten V1: gemeentelijke lasten + buurtstatistieken
+  (zonder kostenconfirmatie, wél expliciete klik).
+- Postcode + huisnummer (+ optioneel huisletter/toevoeging) als
+  primaire input. BAG-ID alleen optioneel/geavanceerd.
+- Bij meerdere huisnummers: gebruiker kiest één huisnummer vóór call.
+- Preview-dialog met per-veld of per-groep "Overnemen"; nooit
+  automatisch overschrijven.
+- Foutafhandeling met duidelijke NL-meldingen (401/406, 412, 404,
+  409/422, 500).
+
+**Expliciet niet in V1**
+- Product `rechten` / eigendomsinformatie (V2, aparte knop/bevestiging).
+- PDF-opslag, Kadasterkaart, Woningrapport, Product API (V3).
+- Bulk-enrichment, background sync, automatische datamigratie.
+- Volledige Instellingen → Integraties → Kadaster beheerpagina (alleen
+  ontwerp; minimale status-indicatie kan later).
+- Automatische call bij page load, opslaan of adreswijziging.
+
+## 2. API-overzicht
+
+**Endpoints**
+- `GET  /objectinformatieapi/api/v1/products` — productcatalogus
+  (alleen later/beheer; niet in V1 UI).
+- `POST /objectinformatieapi/api/v1/report` — feitelijke aanvraag.
+
+**Request (relevant)**
+- `pht.postalcode`, `pht.houseNumber`, `pht.houseLetter`,
+  `pht.houseNumberAddition`, of `bagId`.
+- `selection[]` met `{ code, deliver }`.
+- `includePdf` (false in V1), `efacReferentie`, `efacOrderNr`
+  (optioneel, voor latere kostenadministratie).
+
+**Productcodes V1**
+- `object` — WOZ-object, ±€ 0,10, `deliver: withoutProduct`.
+- `waarde` — Koopsom, ±€ 0,10, `deliver: withoutProduct`.
+
+**Gratis producten V1**
+- Gemeentelijke lasten (OZB, reinigingsrechten, rioolheffing).
+- Buurtstatistieken (inwoners, leeftijd, huishoudens, oppervlakte,
+  stedelijkheid, etc.).
+- Worden in dezelfde call meegevraagd of in een aparte "Gebiedsdata
+  ophalen"-knop, afhankelijk van open beslissing 1.
+
+**V2/later**
+- `rechten` — Eigendomsinformatie, ±€ 2,40, `deliver: onlyComplete`,
+  aparte knop, aparte bevestiging.
+
+## 3. Architectuur
+
+```text
+Frontend (React)
+  └─ "Kadastergegevens ophalen" knop
+       ├─ Kostenconfirmatie dialog (alleen betaalde producten)
+       └─ supabase.functions.invoke('kadaster-objectinformatie', { ... })
+              │
+              ▼
+       Edge Function `kadaster-objectinformatie`
+         - JWT-check + interne-rol-check (admin/medewerker)
+         - Input-validatie (zod): postcode/huisnummer of bagId
+         - Leest KADASTER_OBJECTINFORMATIE_API_KEY uit Secrets
+         - Bouwt POST /report met selection[]
+         - Normaliseert response → veilig DTO
+         - Logt metadata (productcodes, status, timestamp,
+           kostenindicatie, objectId/signaalId) — nooit de key
+         - Geeft genormaliseerde preview terug
+              │
+              ▼
+       Frontend Preview-dialog
+         - Per veld/groep "Overnemen" naar CRM
+         - Bron + opgehaald-op + productcodes zichtbaar
+```
+
+**Security**
+- API-key uitsluitend in Supabase Secret
+  `KADASTER_OBJECTINFORMATIE_API_KEY`.
+- Geen key in frontend, geen key in logs, geen key in plan.md.
+- Endpoint alleen voor ingelogde interne gebruikers
+  (`is_intern_gebruiker`).
+- Dubbele-klik preventie + minimale rate limit (bv. 1 call per object
+  per N seconden) om dubbele betaalde calls te voorkomen.
+- Geen automatische retry bij 4xx; bij 5xx maximaal 1 stille retry zonder
+  nieuwe kosten te riskeren (alleen idempotent error-path).
+
+## 4. API-key & expiry
+
+- Key wordt door beheerder als Supabase Secret gezet:
+  `KADASTER_OBJECTINFORMATIE_API_KEY`. Geldigheid maximaal 3 maanden.
+  Einddatum wordt apart bijgehouden (open beslissing 4).
+- Edge Function vertaalt Kadaster-foutcodes naar NL-meldingen:
+  - 401/406 → "Kadaster API-key is ongeldig of verlopen. Verleng of
+    vervang de API-key in Supabase Secrets."
+  - 412 → "Kadaster-bestedingsruimte is overschreden. Controleer de
+    instellingen in Kadaster/Kadata."
+  - 404 → "Geen Kadasterobject gevonden voor dit adres."
+  - 409/422 → "Aanvraag ongeldig (product of adres niet geaccepteerd)."
+  - 500/503 → "Kadaster is tijdelijk niet beschikbaar. Probeer later
+    opnieuw."
+- Latere beheer/statuskaart (ontwerp, niet bouwen in V1):
+  Instellingen → Integraties → Kadaster met status (niet ingesteld /
+  actief / fout / verloopt binnenkort / verlopen), handmatig vastgelegde
+  einddatum, laatste succesvolle aanvraag, laatste foutmelding,
+  reminder 14 dagen vóór verloop.
+
+## 5. Kostenbewaking
+
+- Geen automatische bevragingen — call vereist altijd expliciete klik.
+- Betaalde call (object + waarde):
+  - Kostenconfirmatie dialog vóór elke call ("Geschatte kosten: € 0,20
+    — object € 0,10 + waarde € 0,10. Doorgaan?").
+  - Bevestigingstekst toont gekozen adres zodat fout adres niet
+    onbedoeld betaald wordt.
+- Gratis call (gemeentelijke lasten + buurtstatistieken):
+  - Geen kostenconfirmatie; wel expliciete knop, geen autoload.
+- `rechten` (V2): aparte knop "Eigendomsinformatie ophalen (€ 2,40)",
+  aparte bevestiging, nooit gecombineerd met V1-call.
+- Geen retry-loop die meerdere betaalde calls kan triggeren; bij 4xx
+  geen automatische herhaling.
+
+## 6. Data mapping (preview → CRM)
+
+Edge Function normaliseert response naar een stabiel DTO. Frontend
+toont per veld de waarde en een "Overnemen"-knop. Bestaande, niet-lege
+CRM-velden worden alleen overschreven na expliciete keuze.
+
+**Object / Aanbod (betaald)**
+- Adres, postcode, plaats → `objecten.adres/postcode/plaats`
+- BAG nummeraanduiding ID → nieuw veld in DTO (opslag later, V1 alleen tonen)
+- Kadastrale aanduiding, perceelgegevens → preview only (V1)
+- Objecttype/gebruiksdoel → suggestie voor `type_vastgoed`
+- Bouwjaar (indien geleverd) → `objecten.bouwjaar`
+- WOZ-waarde + peildatum (indien beschikbaar) → preview
+- Koopsom + transactiedatum → preview (V1 niet automatisch naar
+  financiële velden)
+
+**Object / Aanbod (gratis)**
+- Gemeentelijke lasten (OZB, reiniging, riool) → "Kadaster &
+  gebiedsdata"-kaart op Objectdetail
+- Buurtstatistieken → zelfde kaart, gepresenteerd als
+  - "Buurtprofiel" voor residentieel/transformatie/mixed-use
+  - "Gebiedscontext" voor commercieel/BOG
+
+**Off-market Signaal**
+- Zelfde DTO; gratis gebiedsdata wordt gebruikt als gebiedscontext op
+  signaal-detail. Betaalde producten alleen op expliciete klik en
+  bevestiging.
+
+**Altijd zichtbaar in preview**
+- Bron: "Kadaster Objectinformatie API"
+- Opgehaald op: datum/tijd
+- Gebruikte productcodes
+- Geschatte kosten van deze call
+
+## 7. UX-flow
+
+1. Gebruiker opent Objectdetail of Off-market Signaal-detail.
+2. Klik op "Kadastergegevens ophalen".
+3. App bepaalt zoekadres:
+   - BAG-ID indien bekend (geavanceerd).
+   - Anders postcode + huisnummer (+ optioneel letter/toevoeging).
+   - Bij meerdere huisnummers: keuzedialog vóór de call.
+   - Presentatieadres wordt nooit blind doorgestuurd.
+4. Kostenconfirmatie (alleen betaalde producten).
+5. Edge Function-call.
+6. Preview-dialog met velden + "Overnemen"-knoppen.
+7. Gebruiker kiest welke velden naar CRM gaan; rest wordt verworpen.
+8. Toast met aantal overgenomen velden + bronvermelding.
+
+Gratis "Gebiedsdata ophalen" volgt zelfde flow zonder stap 4.
+
+## 8. V1 / V2 / V3 roadmap
+
+- **V1** — `object` + `waarde` preview + handmatige overname; gratis
+  gemeentelijke lasten + buurtstatistieken op Object en Off-market
+  Signaal; postcode/huisnummer als primaire input.
+- **V2** — `rechten`/eigendomsinformatie als aparte knop met eigen
+  bevestiging; minimale beheerkaart met API-key status en
+  verloop-reminder; BAG-ID via BAG/PDOK adresvalidatie als
+  voorkeursinput.
+- **V3** — PDF/documentopslag (`includePdf`), Kadasterkaart,
+  Woningrapport, Product API-integratie, bulk-enrichment met aparte
+  expliciete toestemming en budgetplafond.
+
+## 9. Risico's
+
+- **Kosten** — onbedoelde dubbele calls, verkeerd adres, bulk per
+  ongeluk. Mitigatie: expliciete klik, kostenconfirmatie met adres in
+  beeld, dubbele-klik preventie, geen retry-loops.
+- **Key-verloop** — max 3 maanden geldig. Mitigatie: duidelijke 401/406
+  meldingen, later beheerkaart + reminder.
+- **Privacy** — eigendomsdata (V2) is gevoelig. Mitigatie: aparte flow,
+  beperkte rol-toegang, geen automatische opslag in publieke velden.
+- **Onbedoelde overschrijving** — Mitigatie: nooit auto-merge, preview +
+  per-veld overnemen.
+- **Foutafhandeling** — alle Kadaster-foutcodes naar NL meldingen.
+- **Meerdere huisnummers** — keuzedialog vóór call.
+- **Lek van API-key** — alleen Edge Function, geen log van key, geen
+  vermelding in plan.md/README.
+
+## 10. Open beslissingen (vóór Build)
+
+1. Gratis producten — samen in één knop of apart van betaalde call?
+2. Caching van gratis gebiedsdata per postcode-6/buurtcode of altijd
+   verse call?
+3. Default `deliver`-waarde voor V1 — `withoutProduct` bevestigen of
+   `partialProduct` accepteren?
+4. Einddatum API-key — V1 alleen handmatig in Secret, of minimale
+   `kadaster_api_status` opslag voorbereiden (schemawijziging later)?
+5. Mapping objecttype/gebruiksdoel → `type_vastgoed` — gestandaardiseerde
+   suggesties of altijd handmatig?
+6. Off-market Signaal — in V1 alleen gratis gebiedsdata; betaalde call
+   pas na promotie naar Object?
+
+## 11. Acceptatiecriteria deze planronde
+
+- Geen code-, schema- of datawijzigingen.
+- API-key alleen in Supabase Secret, nooit in frontend/code/logs/plan.md.
+- Key max 3 maanden geldig + foutafhandeling 401/406.
+- Kostenbevestiging vóór elke betaalde call.
+- Nooit automatische calls bij load/save/adreswijziging.
+- Preview vóór overnemen, nooit auto-overschrijven.
+- V1 (object + waarde + gratis gebiedsdata) onderscheiden van V2
+  (rechten/eigendom) en V3 (PDF/kaart/Product API).
+- Gratis producten in Objecten én Off-market Radar.
+- Postcode/huisnummer primair; BAG-ID optioneel; presentatieadres nooit
+  blind; bij meerdere huisnummers eerst kiezen.
