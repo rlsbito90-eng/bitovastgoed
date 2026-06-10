@@ -171,8 +171,6 @@ export default function KadasterGebiedsdataKaart({
     const out: KadasterProductCode[] = [];
     if (selObject) out.push('object');
     if (selWaarde) out.push('waarde');
-    if (selLasten) out.push('lasten');
-    if (selBuurt)  out.push('buurt');
     return out;
   }
 
