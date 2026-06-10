@@ -218,12 +218,18 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
   } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
 
+  // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
+  const [selPdf, setSelPdf] = useState(false);
+
   const mutation = useKadasterObjectinformatie();
   const queryClient = useQueryClient();
   const records = useKadasterDataRecordsForSignaal(signaal.id);
   const recordList = useMemo(() => records.data ?? [], [records.data]);
   const laatsteMap = useMemo(() => laatsteRecordsPerProduct(recordList), [recordList]);
   const meest = recordList[0] ?? null;
+  const { data: pdfs } = useKadasterDocumentenForSignaal(signaal.id);
+  const pdfList = useMemo(() => pdfs ?? [], [pdfs]);
+  const pdfPerRecord = useMemo(() => documentenPerRecord(pdfList), [pdfList]);
 
   // Productlijst wordt pas opgehaald als de kostenconfirmatie opent.
   const catalogus = useKadasterProductCatalogus(kostenOpen);
