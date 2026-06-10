@@ -1114,3 +1114,45 @@ alleen de laatste record per productcode was zichtbaar.
 ### Backlog
 - Handmatige actie "Relatie maken/koppelen van rechthebbende" — pas
   later, met expliciete bevestiging en zonder automatische CRM-koppeling.
+
+## Fase 4K.5 — Kadasterbericht/PDF intern opslaan (afgerond)
+
+### Backend
+- Tabel `kadaster_documenten` + `kadaster_data_records.pdf_document_id` (RLS intern only).
+- Edge Function `_pdf.ts` — extract base64-PDF uit Kadaster-respons, upload
+  naar `bito-objecten` bucket, insert document-rij. Geen secrets/headers in
+  logs. `includePdf` doorgezet; response uitgebreid met `persist.pdf`.
+
+### Frontend
+- Checkbox "Kadasterbericht/PDF intern opslaan" in `KadasterGebiedsdataKaart`
+  (Objecten/Aanbod) en `SignaalKadasterKaart` (Off Market Radar). Default uit;
+  expliciete extra uitleg bij Rechten.
+- `includePdf` wordt meegegeven aan `voerCallUit` op basis van checkbox.
+- PDF-knop (`KadasterPdfKnop`) zichtbaar bij Objectdetail én Signaal-detail
+  via `useKadasterDocumentenForObject` / `useKadasterDocumentenForSignaal` —
+  signed URL via `openKadasterDocument`.
+- Rechten zonder herkende JSON-velden maar mét PDF tonen melding
+  "Rechten geleverd. Rechthebbendevelden niet herkend in JSON, maar
+  Kadasterbericht is opgeslagen." + knop "Kadasterbericht openen".
+
+### Promotie Signaal → Object
+- `usePromoteSignaalToObject` koppelt nu ook `kadaster_documenten.object_id`
+  bij `migrateKadaster=true`. `signaal_id` blijft behouden. Geen nieuwe
+  Kadaster-call, geen PDF-dupes, geen nieuwe upload.
+
+### Security
+- PDF's intern only (RLS admin/medewerker, signed URL ≤5 min).
+- Niet automatisch in dataroom/teaser/IM/export.
+- Geen automatische parsing/OCR.
+- Geen automatische relatie-/eigenaar-/verkoperkoppeling.
+- Geen API-key/secrets in document-metadata of debug.
+
+### Tests
+- `src/test/kadaster/pdf.test.ts` — PDF-extractie + veilige padbouw.
+- `src/test/offMarket/kadaster/promoteMigratie.test.ts` uitgebreid met
+  documenten-migratie.
+
+### Backlog
+- Rechten-PDF analyseren/parsen (handmatige actie).
+- Bulk-PDF aanvraag voor geselecteerde signalen.
+- API-key statuskaart.
