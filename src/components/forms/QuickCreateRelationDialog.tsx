@@ -282,7 +282,7 @@ export function QuickCreateRelationDialog({
                 autoCorrect="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="naam@bedrijf.nl"
+                placeholder="naam@voorbeeld.nl"
                 disabled={bezig}
               />
             </div>
