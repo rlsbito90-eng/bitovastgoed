@@ -321,10 +321,15 @@ Deno.serve(async (req: Request) => {
         );
       }
       if (status === 409 || status === 422) {
-        return jsonError(
-          'Aanvraag ongeldig (product of adres niet geaccepteerd).',
-          status, 'product_invalid', debugMetUpstream,
-        );
+        // Parse "Een of meer onbekende producten opgegeven: lasten, buurt"
+        const m = upstreamMessage?.match(/onbekende producten[^:]*:\s*([a-zA-Z, ]+)/i);
+        const onbekend = m?.[1]?.split(',').map(s => s.trim()).filter(Boolean) ?? [];
+        const melding = onbekend.length > 0
+          ? `Product niet beschikbaar voor deze API-key: ${onbekend.join(', ')}.`
+          : (upstreamMessage
+              ? `Aanvraag geweigerd door Kadaster: ${upstreamMessage}`
+              : 'Aanvraag ongeldig (product of adres niet geaccepteerd).');
+        return jsonError(melding, status, 'product_invalid', debugMetUpstream);
       }
       if (status >= 500) {
         return jsonError(
