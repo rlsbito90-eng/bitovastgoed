@@ -179,6 +179,32 @@ Deno.serve(async (req: Request) => {
 
     // --- Input ---
     const raw = await req.json().catch(() => null);
+
+    // --- API key (vereist voor zowel /products als /report) ---
+    const apiKey = Deno.env.get('KADASTER_OBJECTINFORMATIE_API_KEY');
+    if (!apiKey) {
+      return jsonError(
+        'Kadaster API-key is niet geconfigureerd. Voeg KADASTER_OBJECTINFORMATIE_API_KEY toe als Supabase Secret.',
+        503, 'key_invalid',
+      );
+    }
+
+    // --- Lichtgewicht actie: alleen /products opvragen ---
+    // Geen kosten — Kadaster's /products is gratis metadata. Wordt door de
+    // frontend gebruikt om dynamisch te bepalen welke producten beschikbaar
+    // zijn (o.a. rechten/eigendomsinformatie) voor deze API-key.
+    if (raw && typeof raw === 'object'
+        && (raw as Record<string, unknown>).action === 'list_products') {
+      const items = await fetchAvailableProductsFull(apiKey);
+      return new Response(JSON.stringify({
+        products: items ?? FALLBACK_ALLOWED.map(code => ({ code, name: null, priceEur: null })),
+        source: items && items.length > 0 ? 'live' : 'fallback',
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) {
       return jsonError(
@@ -188,15 +214,6 @@ Deno.serve(async (req: Request) => {
     }
     const body = parsed.data;
     const modus = body.modus;
-
-    // --- API key ---
-    const apiKey = Deno.env.get('KADASTER_OBJECTINFORMATIE_API_KEY');
-    if (!apiKey) {
-      return jsonError(
-        'Kadaster API-key is niet geconfigureerd. Voeg KADASTER_OBJECTINFORMATIE_API_KEY toe als Supabase Secret.',
-        503, 'key_invalid',
-      );
-    }
 
     // --- Productselectie bepalen ---
     // Default per modus, of expliciete selectie uit de body. Kadaster
@@ -226,9 +243,13 @@ Deno.serve(async (req: Request) => {
     }
     // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
     // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
+    // Rechten/eigendomsinformatie levert in praktijk alleen zinvolle inhoud
+    // bij OnlyComplete (Kadaster vereist een volledige rapportage); overige
+    // producten houden WithoutProduct zodat één ontbrekend product de
+    // overige niet blokkeert.
     const selection = codes.map((code) => ({
       code,
-      deliver: 'WithoutProduct' as const,
+      deliver: code === 'rechten' ? ('OnlyComplete' as const) : ('WithoutProduct' as const),
     }));
 
     const reportBody: Record<string, unknown> = {
