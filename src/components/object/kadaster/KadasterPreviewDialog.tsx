@@ -300,8 +300,8 @@ function ProductCard({
 
 export default function KadasterPreviewDialog({
   open, onOpenChange, preview, gebiedsVariant,
-  onOvernemenBouwjaar, onOvernemenWozWaarde,
 }: Props) {
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
