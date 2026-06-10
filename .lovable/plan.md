@@ -1188,3 +1188,20 @@ alleen de laatste record per productcode was zichtbaar.
   (eigendom + erfpacht) met adres/KvK/zetel/registerverwijzing, platte
   fallback, lege/onbekende input, en `blokUitOpgeslagenRecord`.
 
+
+## Bugfix 4K.6.1 — SignaalKadasterKaart blijft laatst opgehaalde data tonen
+- `mapRechtenBlokken` herkent nu ook de Kadaster API-shape met
+  `persons` / `entities` per rechten-item én de persist-shape met
+  `raw_limited.rechten.blokken`. Combineert lijsten i.p.v. eerste-match.
+- `_persist.ts`: `lijstKeys` en `rechtenBlokKeys` uitgebreid met
+  `persons`/`entities` (en `rechthebbenden`-geneste), zodat nieuwe
+  aanvragen rechthebbendevelden én structurele blokken whitelist-opslaan.
+- `SignaalKadasterKaart`:
+  - elke `RecordKaart` toont nu altijd een kop met datum, zoekadres en
+    status — record blijft zichtbaar ook zonder PDF of zonder herkende
+    blokken;
+  - PDF-knop optioneel, niet vereist voor recordweergave;
+  - loop over `laatsteMap.entries()` i.p.v. hardcoded productlijst
+    zodat geen record onbedoeld weggefilterd wordt.
+- Tests: `persons`/`entities`-shape + `blokken`-persist-shape.
+- Geen nieuwe Kadaster-call, geen schemawijziging, geen CRM-koppeling.
