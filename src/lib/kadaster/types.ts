@@ -84,6 +84,19 @@ export interface KadasterPersistResult {
   inserted: number;
   record_ids: string[];
   error: string | null;
+  pdf?: KadasterPdfPersistInfo | null;
+}
+
+export interface KadasterPdfPersistInfo {
+  requested: boolean;
+  available: boolean;
+  ok: boolean;
+  document_id: string | null;
+  storage_path: string | null;
+  bestandsnaam: string | null;
+  bestandsgrootte_bytes: number | null;
+  source_key: string | null;
+  error: string | null;
 }
 
 export interface KadasterDebug {
