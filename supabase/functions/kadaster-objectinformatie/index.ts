@@ -217,43 +217,61 @@ Deno.serve(async (req: Request) => {
     if (!upstreamResp.ok) {
       const status = upstreamResp.status;
       const tekst = await upstreamResp.text().catch(() => '');
+      // Probeer Kadaster's ErrorResponse uit te lezen (message + identifier).
+      let upstreamMessage: string | null = null;
+      let upstreamIdentifier: string | null = null;
+      try {
+        const parsed = JSON.parse(tekst);
+        if (parsed && typeof parsed === 'object') {
+          if (typeof parsed.message === 'string') upstreamMessage = parsed.message;
+          if (typeof parsed.identifier === 'string') upstreamIdentifier = parsed.identifier;
+        }
+      } catch { /* niet-JSON respons (bv. HTML 404 pagina) */ }
+      const debugMetUpstream = {
+        ...debug,
+        upstream_status: status,
+        upstream_message: upstreamMessage,
+        upstream_identifier: upstreamIdentifier,
+        upstream_snippet: upstreamMessage ? null : tekst.slice(0, 240),
+      };
       console.log('[kadaster-objectinformatie] upstream-fout', logRegel({
         modus, user: userId, status, dur_ms: Date.now() - t0,
-        snippet: tekst.slice(0, 200),
+        identifier: upstreamIdentifier,
+        snippet: (upstreamMessage ?? tekst).slice(0, 200),
       }));
       if (status === 401 || status === 406) {
         return jsonError(
           'Kadaster API-key is ongeldig of verlopen. Verleng of vervang de API-key in Supabase Secrets.',
-          status, 'key_invalid',
+          status, 'key_invalid', debugMetUpstream,
         );
       }
       if (status === 412) {
         return jsonError(
           'Kadaster-bestedingsruimte is overschreden. Controleer de instellingen in Kadaster/Kadata.',
-          status, 'budget_exceeded',
+          status, 'budget_exceeded', debugMetUpstream,
         );
       }
       if (status === 404) {
         return jsonError(
-          'Geen Kadasterobject gevonden voor dit adres.',
-          status, 'not_found',
+          `Geen Kadasterobject gevonden voor dit adres. Gecontroleerd zoekadres: ${zoekadresWaarde}`,
+          status, 'not_found', debugMetUpstream,
         );
       }
       if (status === 409 || status === 422) {
         return jsonError(
           'Aanvraag ongeldig (product of adres niet geaccepteerd).',
-          status, 'product_invalid',
+          status, 'product_invalid', debugMetUpstream,
         );
       }
       if (status >= 500) {
         return jsonError(
           'Kadaster is tijdelijk niet beschikbaar. Probeer later opnieuw.',
-          status, 'upstream_unavailable',
+          status, 'upstream_unavailable', debugMetUpstream,
         );
       }
       return jsonError(
         `Onverwachte Kadaster-fout (HTTP ${status}).`,
-        status, 'unknown',
+        status, 'unknown', debugMetUpstream,
       );
     }
 
@@ -270,6 +288,7 @@ Deno.serve(async (req: Request) => {
       kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
+      debug,
     };
 
     console.log('[kadaster-objectinformatie] ok', logRegel({
@@ -295,9 +314,18 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-function jsonError(error: string, status: number, code?: string): Response {
+function jsonError(
+  error: string,
+  status: number,
+  code?: string,
+  debug?: Record<string, unknown>,
+): Response {
   return new Response(
-    JSON.stringify({ error, code, http_status: status }),
+    JSON.stringify({ error, code, http_status: status, debug }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
+}
+
     { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }
