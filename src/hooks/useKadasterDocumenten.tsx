@@ -67,16 +67,48 @@ export async function openKadasterDocument(doc: KadasterDocument): Promise<void>
   window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
 }
 
-/** Map per record_id naar bijbehorend document (voor record-kaarten). */
+/**
+ * Map per record_id → bijbehorend Kadasterdocument.
+ *
+ * Primair: directe `kadaster_data_record_id`-koppeling.
+ * Fallback: records die `pdf_document_id` missen worden alsnog gekoppeld
+ * aan een document dat hetzelfde `signaal_id`/`object_id`, hetzelfde
+ * product en dezelfde `fetched_at` (binnen 5 min) deelt. Zo blijven
+ * PDF-knoppen zichtbaar bij oudere records waar de directe FK ontbreekt.
+ */
 export function documentenPerRecord(
   docs: KadasterDocument[],
+  records?: Array<{
+    id: string;
+    signaal_id: string | null;
+    object_id: string | null;
+    product_code: string;
+    fetched_at: string;
+    pdf_document_id?: string | null;
+  }>,
 ): Map<string, KadasterDocument> {
   const map = new Map<string, KadasterDocument>();
   for (const d of docs) {
-    if (d.kadaster_data_record_id) {
-      if (!map.has(d.kadaster_data_record_id)) {
-        map.set(d.kadaster_data_record_id, d);
-      }
+    if (d.kadaster_data_record_id && !map.has(d.kadaster_data_record_id)) {
+      map.set(d.kadaster_data_record_id, d);
+    }
+  }
+  if (!records?.length) return map;
+  const used = new Set(map.values());
+  for (const r of records) {
+    if (map.has(r.id)) continue;
+    const tijd = new Date(r.fetched_at).getTime();
+    const kandidaat = docs.find(d => {
+      if (used.has(d)) return false;
+      if (r.signaal_id && d.signaal_id !== r.signaal_id) return false;
+      if (r.object_id && d.object_id !== r.object_id) return false;
+      if (!(d.product_codes ?? []).includes(r.product_code)) return false;
+      const dt = Math.abs(new Date(d.fetched_at).getTime() - tijd);
+      return dt <= 5 * 60 * 1000;
+    });
+    if (kandidaat) {
+      map.set(r.id, kandidaat);
+      used.add(kandidaat);
     }
   }
   return map;
