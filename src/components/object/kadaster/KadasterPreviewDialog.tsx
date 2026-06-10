@@ -510,15 +510,15 @@ function ProductCard({
       <div className="rounded-md border border-border bg-card p-3 space-y-3">
         {header}
         <p className="text-[11px] text-muted-foreground">
-          Rechthebbende(n) volgens Kadaster. Gebruik deze gegevens zorgvuldig en
-          alleen voor dit object. Worden in deze fase niet opgeslagen of
-          automatisch gekoppeld aan relaties.
+          Rechthebbende(n) volgens Kadaster. Intern opgeslagen als
+          Kadasterrecord, maar niet automatisch gekoppeld aan relaties,
+          eigenaar of verkoper.
         </p>
 
         {!heeft ? (
-          <p className="text-[11px] text-muted-foreground italic">
-            Geen rechthebbende-velden herkend in de respons. Bekijk de
-            technische details.
+          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+            Rechten geleverd, maar rechthebbende-velden nog niet herkend.
+            Bekijk technische details voor de response-shape.
           </p>
         ) : (
           <>

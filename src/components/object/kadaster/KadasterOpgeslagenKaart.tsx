@@ -18,6 +18,7 @@ import {
   useKadasterDataRecords, laatsteRecordsPerProduct, type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
+import KadasterHistorieLijst from './KadasterHistorieLijst';
 
 function fmtDatum(iso: string): string {
   try { return new Date(iso).toLocaleString('nl-NL'); } catch { return iso; }
@@ -108,19 +109,30 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
   const samenvatting = r.rechten_samenvatting ?? {};
   const aantal = typeof samenvatting.aantal_rechthebbenden === 'number'
     ? samenvatting.aantal_rechthebbenden as number : null;
+  const heeftVelden = !!(r.rechthebbende_naam || r.rechtsoort
+    || r.aandeel || r.kadastrale_aanduiding);
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
       <p className="text-sm font-medium">Rechthebbende volgens Kadaster</p>
       <p className="text-[11px] text-muted-foreground">
-        Eigendomsinformatie — intern beeld. Niet automatisch gekoppeld aan
-        relaties of verkoper.
+        Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan
+        relaties, eigenaar of verkoper.
       </p>
-      <Row label="Aantal rechthebbenden" value={aantal} />
-      <Row label="Naam" value={r.rechthebbende_naam} />
-      <Row label="Type" value={r.rechthebbende_type} />
-      <Row label="Rechtsoort" value={r.rechtsoort} />
-      <Row label="Aandeel" value={r.aandeel} />
-      <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
+      {!heeftVelden ? (
+        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
+          Rechten geleverd, maar rechthebbende-velden nog niet herkend.
+          Bekijk technische details in de historie.
+        </p>
+      ) : (
+        <>
+          <Row label="Aantal rechthebbenden" value={aantal} />
+          <Row label="Naam" value={r.rechthebbende_naam} />
+          <Row label="Type" value={r.rechthebbende_type} />
+          <Row label="Rechtsoort" value={r.rechtsoort} />
+          <Row label="Aandeel" value={r.aandeel} />
+          <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
+        </>
+      )}
     </div>
   );
 }
@@ -213,6 +225,8 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
             })}
           </div>
 
+          <KadasterHistorieLijst records={records} />
+
           <Collapsible open={techOpen} onOpenChange={setTechOpen}>
             <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
               {techOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -227,6 +241,7 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
   fetched_at: r.fetched_at,
   zoekadres: r.zoekadres,
   raw_limited_keys: Object.keys(r.raw_limited ?? {}),
+  raw_limited_rechten: (r.raw_limited as Record<string, unknown> | null | undefined)?.rechten ?? null,
 })), null, 2)}
               </pre>
             </CollapsibleContent>
