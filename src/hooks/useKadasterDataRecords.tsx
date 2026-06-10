@@ -86,3 +86,30 @@ export function laatsteRecordsPerProduct(
   }
   return map;
 }
+
+/** Variant per signaal (Off Market Radar). Read-only. */
+export function useKadasterDataRecordsForSignaal(signaalId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['kadaster_data_records', 'signaal', signaalId],
+    enabled: !!signaalId,
+    queryFn: async (): Promise<KadasterDataRecord[]> => {
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (k: string, v: string) => {
+              order: (k: string, o: { ascending: boolean }) => Promise<{
+                data: KadasterDataRecord[] | null; error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      })
+        .from('kadaster_data_records')
+        .select('*')
+        .eq('signaal_id', signaalId as string)
+        .order('fetched_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as KadasterDataRecord[];
+    },
+  });
+}
