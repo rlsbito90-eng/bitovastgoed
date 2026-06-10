@@ -233,11 +233,13 @@ function buildRow(
     // Whitelist structurele blokken voor weergave (geen vrije velden).
     const rechtenBlokKeys = [
       'rechtsoort', 'soortRecht', 'aardRecht', 'aardRechtVerkort',
-      'omschrijvingRecht', 'zakelijkRecht', 'recht',
+      'omschrijvingRecht', 'zakelijkRecht', 'recht', 'omschrijving',
       'aandeel', 'aandeelInRecht', 'breukdeel', 'gerechtigdAandeel',
       'persoon', 'natuurlijkPersoon', 'naamNatuurlijkPersoon',
       'onderneming', 'nietNatuurlijkPersoon', 'rechtspersoon',
       'organisatie', 'naamNietNatuurlijkPersoon',
+      // Kadaster Objectinformatie API: 'persons' / 'entities' per rechten-item.
+      'persons', 'entities', 'rechthebbenden',
       'naam', 'volledigeNaam', 'naamRechthebbende',
       'bedrijfsnaam', 'statutaireNaam', 'handelsnaam',
       'kvkNummer', 'kvk', 'zetel', 'statutaireZetel',
@@ -245,9 +247,9 @@ function buildRow(
       'adres', 'woonadres', 'vestigingsadres', 'correspondentieadres',
       'postcode', 'plaats', 'woonplaats', 'straat', 'huisnummer',
       'huisletter', 'huisnummertoevoeging', 'postbus',
-      'gebaseerdOp', 'registerverwijzing', 'register', 'registerHyp4',
-      'deel', 'nummer',
-      'kadastraleAanduiding', 'kadastraalObject',
+      'gebaseerdOp', 'documentGebaseerdOp', 'registerverwijzing',
+      'register', 'registerHyp4', 'deel', 'nummer', 'identifier',
+      'kadastraleAanduiding', 'aanduiding', 'kadastraalObject',
     ];
     const blokkenSrc: unknown[] = [];
     const containerKeys = ['rechten', 'overigeRechten', 'zakelijkeRechten',
