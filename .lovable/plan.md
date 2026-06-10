@@ -149,3 +149,71 @@ Uitgevoerd: review en lichte aanscherping van `src/components/NotificationsBell.
 ### Open punten (later)
 - Optioneel: server-side notificatiestore voor cross-device sync.
 - Optioneel: trigger "taak aan mij gekoppeld" zodra rol-toewijzing op taken actief wordt.
+
+---
+
+## Prompt 3.9 — Eindcontrole Fase 3
+
+### Build / tests
+- TypeScript/build: schoon (geen errors).
+- Vitest: **452 tests groen, 34 testfiles** (incl. Fase 3 helpers, notificaties, biedingen, relatieNaam, numberField, derivations).
+
+### Gecontroleerde onderdelen
+
+**Matching**
+- Sweep `score >= 5` / `score > 4` / `STRONG_MATCH_MIN`: 0 hits in `src/` en `supabase/`.
+- Alle sterke-match checks via `isStrongMatch` / `STRONG_MATCH_THRESHOLD = 70`.
+
+**Verhuur**
+- Hero, Financieel- en Verhuur-sectie in `ObjectDetailPage` gebruiken `deriveVerhuurMetrics` voor aantal/WALT/mismatch-banner.
+- `object.huurinkomsten`-reads die overblijven (regels 821/826/834/835/839 in `ObjectDetailPage`) zijn legitieme **bron**-velden voor `resolveBAR/NAR/NOI`/`calculateFactor`/`calculateMonthlyRent`/`calculateRentPerM2` — geen dubbele jaarhuur.
+- Mismatch-banner toont verschil object vs. huurderslijst.
+
+**Financieel**
+- BAR/NAR/factor/huur/m²/maandhuur via `@/lib/derivations/financial` (auto + override).
+- `prijsindicatie` wordt nergens gebruikt voor rendement (zie comment in `financial.ts`).
+- Geen NaN/Infinity-paden: `safeNumber`/`safeDivide` filtert alles.
+
+**ObjectFormDialog**
+- Actieve tab wordt vastgehouden (zie eerdere fix); `initialTab` blijft werken via prop.
+- Numerieke velden via `NumberField` accepteren komma + punt.
+- Mobile font-size ≥ 16px via centrale CSS — geen iOS auto-zoom.
+
+**Dossier / Documenten / Media**
+- `DossierReadiness` is leidend; `documentenBeschikbaar`/`documentatieStatus` zijn IM-presentatieflags, geen dossierstatus.
+- Foto's / Plattegronden / Documenten blijven gescheiden via `object_fotos.categorie` + `object_documenten`.
+
+**Notificaties**
+- Triggerlijst beperkt tot 5 categorieën (taken, biedingen, matching, dupes).
+- `INIT_FLAG`, `CREATED_IDS_KEY` en dedupe-keys actief; gewiste meldingen komen niet terug door dezelfde trigger.
+- Sterke-match notificatie gebruikt `isStrongMatch` (drempel 70).
+- Labels: kort en actiegericht ("Taak verloopt vandaag", "Sterke match gevonden", "Bod verloopt morgen").
+
+**iCal-feed (`bito-ical-feed`)**
+- Geen "Onbekend" in titels/notities; primaire contactpersoon-fallback werkt.
+- `humanizeFaseInline` zet `interesse_ontvangen` → "Interesse ontvangen".
+
+**Deal Cockpit / pipeline / biedingen**
+- Lead deal via `selectLeadDeal`, verwachte fee via `calculateExpectedFee`, kandidaatcount via `countKandidaten` — alle uit `@/lib/derivations/deal`.
+- Biedbedragen via Dutch parser; `offerAmountParse.test.ts` dekt `1.350.000` → 1350000.
+
+### Kleine fixes deze ronde
+- Geen — geen regressies of oude drempels gevonden.
+
+### Bewust niet aangepakt (uit 3.8-audit, voor latere prompts)
+- 3.8A taxonomie fallback-helper.
+- 3.8B financiële override-chips uniform op hero/IM/cockpit.
+- 3.8C legacy `financieleScenarios` read-only met "snapshot"-badge.
+- 3.8D `documentenBeschikbaar`/`documentatieStatus` uitfaseren in IM-UI.
+- 3.8E `humanizeFase` + `FASE_LABEL` centraliseren (nu inline in iCal edge function).
+- Eventuele rebrand van legacy `relatie.contactpersoon` writes.
+
+### Open punten uit 3.8
+1. `object.huurPerM2` afschaffen als opgeslagen veld? (nu: blijft als override)
+2. Bij save automatisch legacy `type`/`subcategorie` afleiden uit `propertyTypeId`? (nu: niet)
+3. PDF-voorrang `marktwaardeIndicatie` vs. referentie-mediaan?
+4. Tolerantie BAR/NAR-override (0.2% vs. 0.5%)?
+5. Handmatige import `financieleScenarios` → `calculation_scenarios`?
+
+### Conclusie
+**Fase 3 technisch afgerond.** Alle centrale helpers in gebruik, tests groen, geen oude drempels of dubbele jaarhuur, notificaties beperkt en gededupliceerd, iCal en relatie-display schoon. Vervolgwerk staat opgeschreven als 3.8A–3.8G voor latere prompts.
