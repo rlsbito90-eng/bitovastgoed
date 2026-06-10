@@ -49,7 +49,7 @@ describe('zoekBagAdressen', () => {
     expect(r[0].huisnummer).toBe('30');
     expect(r[0].nummeraanduiding_id).toBe('0000200000000001');
 
-    const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '');
+    const calledUrl = String((fetchSpy.mock.calls[0] as unknown[] | undefined)?.[0] ?? '');
     expect(calledUrl).toContain('api.pdok.nl');
     expect(calledUrl).toContain('fq=type%3Aadres');
   });
