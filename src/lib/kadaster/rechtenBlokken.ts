@@ -205,6 +205,9 @@ const RECHTHEBBENDE_LIJST_KEYS = [
   'rechthebbenden', 'tenaamstellingen', 'gerechtigden', 'eigenaren',
   'rightHolders', 'personen', 'rechtspersonen', 'natuurlijkePersonen',
   'nietNatuurlijkePersonen', 'betrokkenen', 'aantekeningen',
+  // Kadaster Objectinformatie API gebruikt 'persons' / 'entities'
+  // binnen elk rechten-item voor natuurlijke personen en rechtspersonen.
+  'persons', 'entities',
 ];
 
 /**
