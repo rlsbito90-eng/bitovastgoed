@@ -41,6 +41,7 @@ import {
   type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
+import KadasterHistorieLijst from '@/components/object/kadaster/KadasterHistorieLijst';
 import BagAdresLookup from '@/components/shared/BagAdresLookup';
 import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
