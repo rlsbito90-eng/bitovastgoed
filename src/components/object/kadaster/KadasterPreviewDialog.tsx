@@ -16,6 +16,9 @@ import type {
   KadasterDeliverStatus, KadasterPreview, KadasterProductResult,
 } from '@/lib/kadaster/types';
 import { KADASTER_LABELS_PER_PRODUCT, KADASTER_STATUS_LABELS } from '@/lib/kadaster/types';
+import { mapWozObject, heeftWozObjectInhoud } from '@/lib/kadaster/wozObject';
+
+
 
 interface Props {
   open: boolean;
@@ -79,13 +82,12 @@ function StatusBadge({ status }: { status: KadasterDeliverStatus }) {
 }
 
 function ProductCard({
-  product, gebiedsVariant, onOvernemenBouwjaar, onOvernemenWozWaarde,
+  product, gebiedsVariant,
 }: {
   product: KadasterProductResult;
   gebiedsVariant: 'buurtprofiel' | 'gebiedscontext';
-  onOvernemenBouwjaar?: (jaar: number) => void;
-  onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
 }) {
+
   const titel = useMemo<string>(() => {
     if (product.code === 'lasten') return 'Gemeentelijke lasten';
     if (product.code === 'buurt') {
@@ -138,77 +140,145 @@ function ProductCard({
     );
   }
 
-  const bouwjaar = product.code === 'object'
-    ? leesNummer(product.data, 'bouwjaar', 'buildYear', 'yearOfConstruction')
-    : null;
-  const wozWaarde = product.code === 'object'
-    ? leesNummer(product.data, 'wozWaarde', 'wozValue', 'waarde')
-    : null;
-  const wozPeildatum = product.code === 'object'
-    ? leesString(product.data, 'wozPeildatum', 'wozReferenceDate', 'peildatum')
-    : null;
+  // ---- WOZ-object (productcode 'object') -----------------------------------
+  if (product.code === 'object') {
+    const view = mapWozObject(product.data);
+    const heeftData = heeftWozObjectInhoud(view);
+    const fmtNum = (n: number | null) => n === null ? '—' : new Intl.NumberFormat('nl-NL').format(n);
+    const fmtOpp = (n: number | null) => n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m²`;
+    const fmtInh = (n: number | null) => n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m³`;
+    const Row = ({ label, value }: { label: string; value: string | number | null }) => (
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono-data text-right">{value === null || value === '' ? '—' : value}</span>
+      </div>
+    );
+
+    return (
+      <div className="rounded-md border border-border bg-card p-3 space-y-3">
+        {header}
+        <p className="text-[11px] text-muted-foreground">
+          WOZ-objectinformatie (BAG + WOZ-administratie). Dit is geen WOZ-waarde-bedrag.
+        </p>
+
+        {!heeftData && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Productdata aanwezig, maar geen WOZ-objectvelden gevonden. Bekijk technische details.
+          </p>
+        )}
+
+        {heeftData && (
+          <>
+            <div className="space-y-1.5 text-xs">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">BAG-object</p>
+              <Row label="Objectstatus" value={view.bag.objectStatus} />
+              <Row label="Bouwjaar" value={view.bag.bouwjaar} />
+              <Row label="BAG-oppervlakte" value={fmtOpp(view.bag.oppervlakteBag)} />
+              <Row label="Vergund gebruik" value={view.bag.omschrijvingVergundeGebruik} />
+              <Row label="Complexrelatie" value={view.bag.complexrelatie} />
+              <Row label="Oppervlaktewijziging" value={view.bag.oppervlakteWijziging} />
+            </div>
+
+            {view.woz.length > 0 && (
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">WOZ-object</p>
+                  {view.woz.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Meerdere WOZ-objecten gevonden ({view.woz.length})
+                    </span>
+                  )}
+                </div>
+                {(() => {
+                  const w = view.woz[0];
+                  return (
+                    <div className="space-y-1.5">
+                      <Row label="WOZ-objectnummer" value={w.wozObjectNummer} />
+                      <Row label="Gebruiksklasse" value={w.gebruiksklasse} />
+                      <Row label="Feitelijk gebruik" value={w.feitelijkGebruik} />
+                      <Row label="Monumentaanduiding" value={w.monumentaanduiding} />
+                      <Row label="WOZ-oppervlakte totaal" value={fmtOpp(w.oppervlakteWoz)} />
+                      <Row label="WOZ-oppervlakte wonen" value={fmtOpp(w.oppervlakteWozWonen)} />
+                      <Row label="WOZ-oppervlakte niet-wonen" value={fmtOpp(w.oppervlakteWozNietWonen)} />
+                      <Row label="Inhoud" value={fmtInh(w.inhoud)} />
+                      <Row label="Bouwlaag" value={w.bouwlaag} />
+                    </div>
+                  );
+                })()}
+
+                {view.woz.length > 1 && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                      Overige WOZ-objecten ({view.woz.length - 1})
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 pt-2">
+                      {view.woz.slice(1).map((w, i) => (
+                        <div key={i} className="rounded border border-border/60 p-2 space-y-1">
+                          <Row label="WOZ-objectnummer" value={w.wozObjectNummer} />
+                          <Row label="Gebruiksklasse" value={w.gebruiksklasse} />
+                          <Row label="Feitelijk gebruik" value={w.feitelijkGebruik} />
+                          <Row label="Oppervlakte" value={fmtOpp(w.oppervlakteWoz)} />
+                          <Row label="Inhoud" value={fmtInh(w.inhoud)} />
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5 text-xs">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Algemeen</p>
+              <Row label="Actualiteit" value={view.algemeen.actualiteit} />
+              <Row label="Doelbinding" value={view.algemeen.doelbinding} />
+              <Row label="Titel" value={view.algemeen.titel} />
+            </div>
+
+            <p className="text-[10px] text-muted-foreground italic">
+              Overnemen naar objectvelden komt in een volgende stap. Geen automatische opslag.
+            </p>
+          </>
+        )}
+
+        <Collapsible>
+          <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            Technische details
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-2 overflow-auto max-h-48 rounded bg-muted/40 p-2 text-[10px] font-mono-data">
+{JSON.stringify(product.data ?? {}, null, 2)}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    );
+  }
+
+  // ---- Overige producten (waarde, rechten, ...) ----------------------------
   const koopsom = product.code === 'waarde'
     ? leesNummer(product.data, 'koopsom', 'price', 'amount')
     : null;
   const transactiedatum = product.code === 'waarde'
     ? leesString(product.data, 'transactiedatum', 'transactionDate', 'datum')
     : null;
-  const gebruiksdoel = product.code === 'object'
-    ? leesString(product.data, 'gebruiksdoel', 'usePurpose', 'objecttype')
-    : null;
 
-  const heeftLeesbareWaarde =
-    bouwjaar !== null || wozWaarde !== null || koopsom !== null
-    || transactiedatum !== null || gebruiksdoel !== null;
+  const heeftLeesbareWaarde = koopsom !== null || transactiedatum !== null;
 
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-2">
       {header}
       <div className="space-y-1.5 text-xs">
-        {bouwjaar !== null && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Bouwjaar</span>
-            <span className="flex items-center gap-2">
-              <span className="font-mono-data">{bouwjaar}</span>
-              {onOvernemenBouwjaar && (
-                <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]"
-                  onClick={() => onOvernemenBouwjaar(bouwjaar)}>
-                  Overnemen
-                </Button>
-              )}
-            </span>
-          </div>
-        )}
-        {wozWaarde !== null && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">WOZ-waarde</span>
-            <span className="flex items-center gap-2">
-              <span className="font-mono-data">{fmtEur(wozWaarde)}</span>
-              {onOvernemenWozWaarde && (
-                <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]"
-                  onClick={() => onOvernemenWozWaarde(wozWaarde, wozPeildatum ?? undefined)}>
-                  Overnemen
-                </Button>
-              )}
-            </span>
-          </div>
-        )}
-        {wozPeildatum && (
-          <div className="flex items-center justify-between"><span className="text-muted-foreground">Peildatum</span><span className="font-mono-data">{wozPeildatum}</span></div>
-        )}
         {koopsom !== null && (
           <div className="flex items-center justify-between"><span className="text-muted-foreground">Koopsom</span><span className="font-mono-data">{fmtEur(koopsom)}</span></div>
         )}
         {transactiedatum && (
           <div className="flex items-center justify-between"><span className="text-muted-foreground">Transactiedatum</span><span className="font-mono-data">{transactiedatum}</span></div>
         )}
-        {gebruiksdoel && (
-          <div className="flex items-center justify-between"><span className="text-muted-foreground">Gebruiksdoel</span><span>{gebruiksdoel} <span className="text-[10px] text-muted-foreground">(suggestie)</span></span></div>
-        )}
         {!heeftLeesbareWaarde && (
           <p className="text-[11px] text-muted-foreground italic">
-            Productdata aanwezig, maar geen velden herkend door de previewer.
-            Bekijk de technische details om de mapping bij te werken.
+            {product.code === 'waarde'
+              ? 'Niet geleverd voor dit adres.'
+              : 'Productdata aanwezig, maar geen velden herkend door de previewer. Bekijk de technische details.'}
           </p>
         )}
       </div>
@@ -227,10 +297,11 @@ function ProductCard({
   );
 }
 
+
 export default function KadasterPreviewDialog({
   open, onOpenChange, preview, gebiedsVariant,
-  onOvernemenBouwjaar, onOvernemenWozWaarde,
 }: Props) {
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -273,9 +344,8 @@ export default function KadasterPreviewDialog({
                   key={p.code}
                   product={p}
                   gebiedsVariant={gebiedsVariant}
-                  onOvernemenBouwjaar={onOvernemenBouwjaar}
-                  onOvernemenWozWaarde={onOvernemenWozWaarde}
                 />
+
               ))
             )}
 
