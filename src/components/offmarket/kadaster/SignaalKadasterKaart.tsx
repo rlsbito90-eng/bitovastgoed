@@ -540,7 +540,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
           {(['waarde', 'rechten'] as const).map(code => {
             const r = laatsteMap.get(code);
             if (!r) return null;
-            return <RecordKaart key={code} r={r} />;
+            return <RecordKaart key={code} r={r} pdf={pdfPerRecord.get(r.id)} />;
           })}
           <KadasterHistorieLijst records={recordList} />
 
