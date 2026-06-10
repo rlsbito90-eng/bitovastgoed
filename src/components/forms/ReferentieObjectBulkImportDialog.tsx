@@ -347,8 +347,8 @@ function verwerkRij(
 function downloadVoorbeeldCSV() {
   const headers = ['adres','postcode','plaats','asset_class','m2','vraagprijs','bouwjaar','energielabel','huurstatus','huurprijs_per_jaar','bron','notities'];
   const voorbeelden = [
-    ['Keizersgracht 123','1015 CJ','Amsterdam','kantoren','850','3250000','1920','C','verhuurd','185000','Funda in business','Monumentaal pand, 4 verdiepingen'],
-    ['Industrieweg 45','3542 AD','Utrecht','logistiek','4200','5800000','2008','A','verhuurd','420000','Off-market','Recent gerenoveerd, lange huurder'],
+    ['Voorbeeldstraat 1','1000 AA','Voorbeeldplaats','kantoren','500','1000000','2000','C','verhuurd','60000','eigen netwerk','Voorbeeldnotitie'],
+    ['Voorbeeldweg 2','2000 BB','Andereplaats','logistiek','2000','2000000','2010','A','verhuurd','120000','off-market','Voorbeeldnotitie'],
   ];
   const csv = [headers, ...voorbeelden]
     .map(rij => rij.map(v => /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v).join(','))
@@ -600,7 +600,7 @@ export default function ReferentieObjectBulkImportDialog({ open, onOpenChange }:
                   <Textarea
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
-                    placeholder={'adres\tpostcode\tplaats\tm2\tvraagprijs\nKeizersgracht 123\t1015 CJ\tAmsterdam\t850\t3250000'}
+                    placeholder={'adres\tpostcode\tplaats\tm2\tvraagprijs\nVoorbeeldstraat 1\t1000 AA\tVoorbeeldplaats\t500\t1000000'}
                     className="font-mono text-xs min-h-[240px]"
                   />
                 </div>
