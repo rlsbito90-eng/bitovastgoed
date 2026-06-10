@@ -24,6 +24,13 @@ export interface KadasterRequestInput {
   /** Eén van beide vereist. BAG-ID heeft voorrang. */
   bagId?: string | null;
   adres?: KadasterAdresInput | null;
+  /**
+   * Optioneel: expliciete productselectie. In modus 'kadaster' verplicht
+   * minimaal één betaald product ('object' of 'waarde'). Gratis producten
+   * ('lasten', 'buurt') mogen alleen meegestuurd worden binnen dezelfde
+   * (betaalde) aanvraag — Kadaster weigert standalone gratis aanvragen.
+   */
+  producten?: KadasterProductCode[] | null;
   /** Optioneel: object_id of signaal_id voor audit-log (geen DB-write in V1.1). */
   context?: {
     object_id?: string | null;
@@ -43,7 +50,12 @@ export interface KadasterPreview {
   bron: 'kadaster_objectinformatie_api';
   opgehaald_op: string; // ISO
   productcodes: KadasterProductCode[];
-  kosten_indicatie_eur: number; // 0 voor gebiedsdata
+  /**
+   * Indicatieve kosten in EUR. `null` wanneer de prijs niet vooraf bekend
+   * is — UI moet dan "prijs volgens Kadaster" tonen i.p.v. een hardgecodeerd
+   * bedrag.
+   */
+  kosten_indicatie_eur: number | null;
   zoekadres: {
     type: 'bagId' | 'pht';
     waarde: string;
