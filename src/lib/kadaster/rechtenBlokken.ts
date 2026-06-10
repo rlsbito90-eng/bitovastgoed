@@ -106,14 +106,16 @@ function leesAdresRegels(obj: Record<string, unknown>): {
 }
 
 function leesRegisterVerwijzing(obj: Record<string, unknown>): string | null {
-  const direct = leesStr(obj, 'gebaseerdOp', 'registerverwijzing', 'bron');
+  const direct = leesStr(obj, 'gebaseerdOp', 'documentGebaseerdOp',
+    'documentVermeldIn', 'stukMelding', 'registerverwijzing', 'bron');
   if (direct) return direct;
-  const reg = asObj(obj.register) ?? asObj((obj as Record<string, unknown>).registerHyp4)
+  const regBron = asObj(obj.documentGebaseerdOp) ?? asObj((obj as Record<string, unknown>).documentVermeldIn)
+    ?? asObj(obj.register) ?? asObj((obj as Record<string, unknown>).registerHyp4)
     ?? asObj((obj as Record<string, unknown>).hypotheekRegister);
-  if (reg) {
-    const naam = leesStr(reg, 'naam', 'register') ?? 'Register Hyp4';
-    const deel = leesStr(reg, 'deel');
-    const nummer = leesStr(reg, 'nummer');
+  if (regBron) {
+    const naam = leesStr(regBron, 'naam', 'register') ?? 'Register Hyp4';
+    const deel = leesStr(regBron, 'deel');
+    const nummer = leesStr(regBron, 'nummer');
     const parts = [naam];
     if (deel) parts.push(`Deel ${deel}`);
     if (nummer) parts.push(`nummer ${nummer}`);
@@ -124,6 +126,7 @@ function leesRegisterVerwijzing(obj: Record<string, unknown>): string | null {
   if (deel && nummer) return `Gebaseerd op Register Hyp4 Deel ${deel} nummer ${nummer}`;
   return null;
 }
+
 
 function leesKadastraleAanduiding(obj: Record<string, unknown>): string | null {
   const direct = leesStr(obj, 'kadastraleAanduiding', 'aanduiding',
