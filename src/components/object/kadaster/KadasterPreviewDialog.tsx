@@ -231,7 +231,3 @@ export default function KadasterPreviewDialog({
     </Dialog>
   );
 }
-
-// hint: voorkom dat onOvernemen-prop ongebruikt-warnings TS-niveau triggert
-void KadasterProductCodeMarker;
-const KadasterProductCodeMarker: KadasterProductCode | undefined = undefined;
