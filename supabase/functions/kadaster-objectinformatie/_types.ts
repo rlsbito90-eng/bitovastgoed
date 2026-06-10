@@ -31,6 +31,13 @@ export interface KadasterRequestInput {
    * (betaalde) aanvraag — Kadaster weigert standalone gratis aanvragen.
    */
   producten?: KadasterProductCode[] | null;
+  /**
+   * Wanneer true vraagt de edge function het Kadasterbericht/PDF mee aan
+   * Kadaster (`includePdf: true`). Geen extra Kadaster-call — de PDF zit
+   * in dezelfde respons. Vereist `persist: true` + context om opgeslagen
+   * te worden in `kadaster_documenten`.
+   */
+  includePdf?: boolean | null;
   /** Optioneel: object_id of signaal_id voor audit-log + persist. */
   context?: {
     object_id?: string | null;
