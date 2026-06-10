@@ -110,10 +110,35 @@ function PdfRegel({ doc }: { doc: KadasterDocument | undefined }) {
   );
 }
 
+function RecordKop({
+  titel, r, pdf,
+}: { titel: string; r: KadasterDataRecord; pdf?: KadasterDocument }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium">{titel}</p>
+        <span className="text-[10px] font-mono-data text-muted-foreground whitespace-nowrap">
+          {fmtDatum(r.fetched_at)}
+        </span>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Zoekadres: <span className="font-mono-data">{fmtZoekadres(r.zoekadres)}</span>
+        {' · '}Status: <span className="font-mono-data">{r.status}</span>
+      </p>
+      {pdf && (
+        <div className="flex items-center justify-between gap-2 rounded border border-primary/30 bg-primary/5 px-2 py-1.5">
+          <span className="text-[11px] text-foreground">Kadasterbericht opgeslagen</span>
+          <KadasterPdfKnop document={pdf} label="Kadasterbericht openen" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
-      <p className="text-sm font-medium">Kadaster-koopsom</p>
+    <div className="rounded-md border border-border bg-card p-3 space-y-2">
+      <RecordKop titel="Kadaster-koopsom" r={r} pdf={pdf} />
       <p className="text-[11px] text-muted-foreground">
         Historische transactie volgens Kadaster — geen marktwaarde, vraagprijs
         of taxatiewaarde.
@@ -125,7 +150,6 @@ function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDoc
         label="Meer onroerend goed"
         value={r.meer_onroerend_goed === null ? null : (r.meer_onroerend_goed ? 'Ja' : 'Nee')}
       />
-      <PdfRegel doc={pdf} />
     </div>
   );
 }
@@ -138,10 +162,12 @@ function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDo
     if (fallback) blokken = [fallback];
   }
   return (
-    <div className="rounded-md border border-border bg-card p-3">
+    <div className="rounded-md border border-border bg-card p-3 space-y-3">
+      <RecordKop titel="Rechten / eigendomsinformatie" r={r} pdf={pdf} />
       <KadasterRechtenBlokken
         blokken={blokken}
         pdf={pdf ?? null}
+        toonTitel={false}
         intro="Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan relaties, eigenaar of verkoper."
       />
     </div>
@@ -149,26 +175,32 @@ function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDo
 }
 
 function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
+  const titel = r.product_code === 'waarde' ? 'Kadaster-koopsom'
+    : r.product_code === 'rechten' ? 'Rechten / eigendomsinformatie'
+    : String(r.product_code);
   if (r.status !== 'geleverd' && r.status !== 'gedeeltelijk') {
     return (
-      <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium">
-            {r.product_code === 'waarde' ? 'Kadaster-koopsom'
-              : r.product_code === 'rechten' ? 'Rechthebbende volgens Kadaster'
-              : r.product_code}
-          </p>
-          <span className="text-[10px] text-muted-foreground">{r.status}</span>
-        </div>
+      <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1.5">
+        <RecordKop titel={titel} r={r} pdf={pdf} />
         <p className="text-[11px] text-muted-foreground">
           Eerder geprobeerd voor dit adres — geen gegevens geleverd door Kadaster.
+          De aanvraag blijft zichtbaar voor audit.
         </p>
       </div>
     );
   }
   if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} pdf={pdf} />;
   if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} />;
-  return null;
+  // Fallback voor onbekende producten — record blijft zichtbaar.
+  return (
+    <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
+      <RecordKop titel={titel} r={r} pdf={pdf} />
+      <p className="text-[11px] text-muted-foreground">
+        Geleverd — geen specifieke weergave voor dit product. Bekijk
+        technische details voor de opgeslagen velden.
+      </p>
+    </div>
+  );
 }
 
 export default function SignaalKadasterKaart({ signaal }: Props) {
