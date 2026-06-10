@@ -132,6 +132,7 @@ export default function KadasterGebiedsdataKaart({
   } | null>(null);
 
   const mutation = useKadasterObjectinformatie();
+  const queryClient = useQueryClient();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
 
   // Lichtgewicht productlijst — pas opgehaald als de kostenconfirmatie
