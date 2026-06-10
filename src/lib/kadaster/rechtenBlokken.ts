@@ -193,8 +193,9 @@ function mapRechthebbende(
     ?? leesStr(rr, 'kvkNummer', 'kvk', 'kamerVanKoophandel', 'kvkNumber');
 
   const { regels, postcode, plaats } = leesAdresRegels(rr);
-  const registerVerwijzing = leesRegisterVerwijzing(rr);
-  const kadastraleAanduiding = leesKadastraleAanduiding(rr);
+  const registerVerwijzing = leesRegisterVerwijzing(rr) ?? context?.registerVerwijzing ?? null;
+  const kadastraleAanduiding = leesKadastraleAanduiding(rr) ?? context?.kadastraleAanduiding ?? null;
+
 
   return {
     id: `${naam ?? bedrijfsnaam ?? 'rechthebbende'}-${rechtstype ?? ''}-${aandeel ?? ''}-${Math.random().toString(36).slice(2, 8)}`,
