@@ -31,6 +31,12 @@ export interface KadasterRequestInput {
    * extra Kadaster-call.
    */
   persist?: boolean | null;
+  /**
+   * Fase 4K.5 — vraag het officiële Kadasterbericht/PDF mee aan. Wordt
+   * intern opgeslagen als `kadaster_documenten` rij (niet in dataroom,
+   * niet voor klanten).
+   */
+  includePdf?: boolean | null;
 }
 
 export type KadasterDeliverStatus =
