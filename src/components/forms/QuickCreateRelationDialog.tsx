@@ -266,7 +266,7 @@ export function QuickCreateRelationDialog({
               id="qcr-bedrijf"
               value={bedrijfsnaam}
               onChange={(e) => setBedrijfsnaam(e.target.value)}
-              placeholder="Bijv. J&CB Invest BV"
+              placeholder="Bijv. Voorbeeld Invest BV"
               disabled={bezig}
             />
           </div>
