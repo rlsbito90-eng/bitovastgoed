@@ -38,9 +38,20 @@ export interface KadasterRequestInput {
   };
 }
 
+export type KadasterDeliverStatus =
+  | 'geleverd'
+  | 'gedeeltelijk'
+  | 'niet_geleverd'
+  | 'niet_beschikbaar'
+  | 'onbekend';
+
 export interface KadasterProductResult {
   code: KadasterProductCode;
   beschikbaar: boolean;
+  /** Mapping van Kadaster-status naar UI-status. */
+  status?: KadasterDeliverStatus;
+  /** Deliver-mode zoals Kadaster die teruggaf (bv. "WithoutProduct"). */
+  deliver?: string | null;
   data?: Record<string, unknown>;
   foutmelding?: string;
 }

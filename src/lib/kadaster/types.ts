@@ -27,9 +27,26 @@ export interface KadasterRequestInput {
   context?: { object_id?: string | null; signaal_id?: string | null };
 }
 
+export type KadasterDeliverStatus =
+  | 'geleverd'
+  | 'gedeeltelijk'
+  | 'niet_geleverd'
+  | 'niet_beschikbaar'
+  | 'onbekend';
+
+export const KADASTER_STATUS_LABELS: Record<KadasterDeliverStatus, string> = {
+  geleverd: 'Geleverd',
+  gedeeltelijk: 'Gedeeltelijk geleverd',
+  niet_geleverd: 'Niet geleverd',
+  niet_beschikbaar: 'Niet beschikbaar',
+  onbekend: 'Onbekend',
+};
+
 export interface KadasterProductResult {
   code: KadasterProductCode;
   beschikbaar: boolean;
+  status?: KadasterDeliverStatus;
+  deliver?: string | null;
   data?: Record<string, unknown>;
   foutmelding?: string;
 }
