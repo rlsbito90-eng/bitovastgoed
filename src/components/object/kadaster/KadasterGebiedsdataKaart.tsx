@@ -43,8 +43,13 @@ interface Props {
   postcode: string | null | undefined;
   plaats: string | null | undefined;
   typeVastgoed?: string | null;
-  onOvernemenBouwjaar?: (jaar: number) => void;
-  onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
+  /** Huidige CRM-waarden voor handmatige overname-knoppen. */
+  objectVelden?: { bouwjaar?: number | null; oppervlakte?: number | null };
+  /** Handmatige overname-handler (parent persist via datastore). */
+  onOvernemen?: (
+    patch: { bouwjaar?: number; oppervlakte?: number },
+    beschrijving: string,
+  ) => Promise<void> | void;
 }
 
 /**
@@ -73,7 +78,7 @@ function gebiedsVariantVoor(type?: string | null): 'buurtprofiel' | 'gebiedscont
 
 export default function KadasterGebiedsdataKaart({
   objectId, adres, postcode, plaats, typeVastgoed,
-  onOvernemenBouwjaar, onOvernemenWozWaarde,
+  objectVelden, onOvernemen,
 }: Props) {
   const parsed = useMemo(() => parseObjectAdres(adres, postcode, plaats),
     [adres, postcode, plaats]);
@@ -529,8 +534,8 @@ export default function KadasterGebiedsdataKaart({
         onOpenChange={setPreviewOpen}
         preview={preview}
         gebiedsVariant={gebiedsVariant}
-        onOvernemenBouwjaar={onOvernemenBouwjaar}
-        onOvernemenWozWaarde={onOvernemenWozWaarde}
+        objectVelden={objectVelden}
+        onOvernemen={onOvernemen}
       />
     </div>
   );

@@ -1,13 +1,27 @@
 // KadasterPreviewDialog — toont resultaat van Kadaster Objectinformatie API.
-// V1: alleen weergave. "Overnemen" verschijnt alleen bij geleverde data.
-// Per product tonen we expliciet status + deliver-mode + eventuele
-// Kadaster-melding zodat duidelijk is of de API niets leverde of dat de
-// frontend de response nog niet uitleest.
-import { useMemo } from 'react';
-import { FileSearch, ExternalLink } from 'lucide-react';
+//
+// Fase 4K.3: handmatige overname van veilige velden naar Object.
+//   - Geen automatische opslag of overschrijving.
+//   - Alleen velden waarvoor een CRM-doelveld bestaat krijgen een
+//     "Overnemen"-knop. Als CRM-veld al gevuld is: "Vervang huidige waarde"
+//     met expliciete bevestiging via AlertDialog.
+//   - Overname-acties bestaan in V1 voor:
+//       · bouwjaar (BAG)
+//       · oppervlakte (BAG of WOZ — keuze per knop)
+//   - Velden zonder CRM-doel (vergund gebruik, WOZ-objectnummer, koopsom,
+//     koopjaar, inhoud, monumentaanduiding, ...) worden alleen getoond
+//     en gedocumenteerd als open punt in .lovable/plan.md.
+//   - Bron-vermelding "Kadaster Objectinformatie API" altijd zichtbaar.
+import { useMemo, useState } from 'react';
+import { FileSearch, ExternalLink, ArrowDownToLine } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -18,27 +32,48 @@ import type {
 import { KADASTER_LABELS_PER_PRODUCT, KADASTER_STATUS_LABELS } from '@/lib/kadaster/types';
 import { mapWozObject, heeftWozObjectInhoud } from '@/lib/kadaster/wozObject';
 
+/** Patch dat naar de parent gaat. Bewust beperkt tot veilige velden. */
+export interface KadasterOvernamePatch {
+  bouwjaar?: number;
+  oppervlakte?: number;
+}
 
+/** Huidige CRM-waarden die nodig zijn om "leeg vs vervang" te bepalen. */
+export interface KadasterHuidigeObjectVelden {
+  bouwjaar?: number | null;
+  oppervlakte?: number | null;
+}
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preview: KadasterPreview | null;
-  /** Voor labeling van gebiedsdata: 'buurtprofiel' of 'gebiedscontext'. */
   gebiedsVariant: 'buurtprofiel' | 'gebiedscontext';
-  /** Optioneel: callback om een basisveld over te nemen in CRM. */
-  onOvernemenBouwjaar?: (jaar: number) => void;
-  onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
+  /** Huidige CRM-waarden voor "leeg vs vervang"-logica. */
+  objectVelden?: KadasterHuidigeObjectVelden;
+  /**
+   * Wordt aangeroepen als de gebruiker expliciet "Overnemen" of
+   * "Vervang huidige waarde" bevestigt. Parent voert de persist uit.
+   */
+  onOvernemen?: (patch: KadasterOvernamePatch, beschrijving: string) => Promise<void> | void;
 }
 
 function fmtDatumTijd(iso: string): string {
   try { return new Date(iso).toLocaleString('nl-NL'); } catch { return iso; }
 }
-
 function fmtEur(n: number): string {
   return new Intl.NumberFormat('nl-NL', {
-    style: 'currency', currency: 'EUR', minimumFractionDigits: 2,
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 0,
   }).format(n);
+}
+function fmtNum(n: number | null): string {
+  return n === null ? '—' : new Intl.NumberFormat('nl-NL').format(n);
+}
+function fmtOpp(n: number | null): string {
+  return n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m²`;
+}
+function fmtInh(n: number | null): string {
+  return n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m³`;
 }
 
 function leesString(data: unknown, ...keys: string[]): string | null {
@@ -64,6 +99,20 @@ function leesNummer(data: unknown, ...keys: string[]): number | null {
   }
   return null;
 }
+function leesBool(data: unknown, ...keys: string[]): boolean | null {
+  if (!data || typeof data !== 'object') return null;
+  const obj = data as Record<string, unknown>;
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') {
+      const s = v.trim().toLowerCase();
+      if (s === 'ja' || s === 'true' || s === '1') return true;
+      if (s === 'nee' || s === 'false' || s === '0') return false;
+    }
+  }
+  return null;
+}
 
 const STATUS_KLEUR: Record<KadasterDeliverStatus, string> = {
   geleverd: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -81,13 +130,105 @@ function StatusBadge({ status }: { status: KadasterDeliverStatus }) {
   );
 }
 
+function Row({ label, value }: { label: string; value: string | number | null }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono-data text-right">
+        {value === null || value === '' ? '—' : value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Eén regel met een Kadasterwaarde en een handmatige Overnemen-knop.
+ * Toont automatisch "Overnemen" of "Vervang huidige waarde" afhankelijk
+ * van of het CRM-doelveld al gevuld is. Equal-waarden geven geen knop.
+ */
+function OvernameRij({
+  label, crmWaarde, kadasterWaarde, formatter, onBevestig, disabled,
+}: {
+  label: string;
+  crmWaarde: number | null | undefined;
+  kadasterWaarde: number | null;
+  formatter: (n: number | null) => string;
+  onBevestig: () => Promise<void> | void;
+  disabled?: boolean;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const heeftCrm = crmWaarde !== null && crmWaarde !== undefined;
+  const heeftKad = kadasterWaarde !== null && kadasterWaarde !== undefined;
+  const gelijk = heeftCrm && heeftKad && Number(crmWaarde) === Number(kadasterWaarde);
+  const moetVervangen = heeftCrm && heeftKad && !gelijk;
+
+  return (
+    <div className="rounded border border-border/60 p-2 space-y-1.5">
+      <p className="text-[11px] font-medium">{label}</p>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">CRM</p>
+          <p className="font-mono-data">{heeftCrm ? formatter(Number(crmWaarde)) : 'leeg'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Kadaster</p>
+          <p className="font-mono-data">{formatter(kadasterWaarde)}</p>
+        </div>
+      </div>
+      {!heeftKad ? (
+        <p className="text-[10px] text-muted-foreground italic">Niet geleverd door Kadaster.</p>
+      ) : gelijk ? (
+        <p className="text-[10px] text-muted-foreground italic">CRM en Kadaster zijn al gelijk.</p>
+      ) : moetVervangen ? (
+        <>
+          <Button
+            size="sm" variant="outline" className="h-7 text-[11px]"
+            disabled={disabled} onClick={() => setConfirmOpen(true)}
+          >
+            <ArrowDownToLine className="h-3 w-3 mr-1" /> Vervang huidige waarde
+          </Button>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Huidige waarde vervangen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Het veld <strong>{label}</strong> bevat al {formatter(Number(crmWaarde))}.
+                  Wil je dit vervangen door de Kadasterwaarde{' '}
+                  <strong>{formatter(kadasterWaarde)}</strong>?
+                  <br /><br />
+                  Bron: Kadaster Objectinformatie API. Deze actie wijzigt het
+                  object direct.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { void onBevestig(); }}>
+                  Vervangen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : (
+        <Button
+          size="sm" variant="outline" className="h-7 text-[11px]"
+          disabled={disabled} onClick={() => { void onBevestig(); }}
+        >
+          <ArrowDownToLine className="h-3 w-3 mr-1" /> Overnemen
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function ProductCard({
-  product, gebiedsVariant,
+  product, gebiedsVariant, objectVelden, onOvernemen,
 }: {
   product: KadasterProductResult;
   gebiedsVariant: 'buurtprofiel' | 'gebiedscontext';
+  objectVelden?: KadasterHuidigeObjectVelden;
+  onOvernemen?: (patch: KadasterOvernamePatch, beschrijving: string) => Promise<void> | void;
 }) {
-
   const titel = useMemo<string>(() => {
     if (product.code === 'lasten') return 'Gemeentelijke lasten';
     if (product.code === 'buurt') {
@@ -104,8 +245,7 @@ function ProductCard({
       <div className="space-y-0.5">
         <p className="text-sm font-medium">{titel}</p>
         <p className="text-[10px] text-muted-foreground font-mono-data">
-          code: {product.code}
-          {product.deliver ? ` · deliver: ${product.deliver}` : ''}
+          code: {product.code}{product.deliver ? ` · deliver: ${product.deliver}` : ''}
         </p>
       </div>
       <StatusBadge status={status} />
@@ -144,15 +284,32 @@ function ProductCard({
   if (product.code === 'object') {
     const view = mapWozObject(product.data);
     const heeftData = heeftWozObjectInhoud(view);
-    const fmtNum = (n: number | null) => n === null ? '—' : new Intl.NumberFormat('nl-NL').format(n);
-    const fmtOpp = (n: number | null) => n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m²`;
-    const fmtInh = (n: number | null) => n === null ? '—' : `${new Intl.NumberFormat('nl-NL').format(n)} m³`;
-    const Row = ({ label, value }: { label: string; value: string | number | null }) => (
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono-data text-right">{value === null || value === '' ? '—' : value}</span>
-      </div>
-    );
+    const w0 = view.woz[0];
+
+    async function neemBouwjaarOver() {
+      if (!onOvernemen || view.bag.bouwjaar === null) return;
+      await onOvernemen(
+        { bouwjaar: view.bag.bouwjaar },
+        `Bouwjaar (BAG) → ${view.bag.bouwjaar}`,
+      );
+      toast.success('Kadastergegevens overgenomen.');
+    }
+    async function neemOppervlakteBagOver() {
+      if (!onOvernemen || view.bag.oppervlakteBag === null) return;
+      await onOvernemen(
+        { oppervlakte: view.bag.oppervlakteBag },
+        `Oppervlakte (BAG) → ${view.bag.oppervlakteBag} m²`,
+      );
+      toast.success('Kadastergegevens overgenomen.');
+    }
+    async function neemOppervlakteWozOver() {
+      if (!onOvernemen || !w0 || w0.oppervlakteWoz === null) return;
+      await onOvernemen(
+        { oppervlakte: w0.oppervlakteWoz },
+        `Oppervlakte (WOZ) → ${w0.oppervlakteWoz} m²`,
+      );
+      toast.success('Kadastergegevens overgenomen.');
+    }
 
     return (
       <div className="rounded-md border border-border bg-card p-3 space-y-3">
@@ -179,32 +336,25 @@ function ProductCard({
               <Row label="Oppervlaktewijziging" value={view.bag.oppervlakteWijziging} />
             </div>
 
-            {view.woz.length > 0 && (
+            {w0 && (
               <div className="space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">WOZ-object</p>
                   {view.woz.length > 1 && (
                     <span className="text-[10px] text-muted-foreground">
-                      Meerdere WOZ-objecten gevonden ({view.woz.length})
+                      Meerdere WOZ-objecten ({view.woz.length}) — V1 toont eerste
                     </span>
                   )}
                 </div>
-                {(() => {
-                  const w = view.woz[0];
-                  return (
-                    <div className="space-y-1.5">
-                      <Row label="WOZ-objectnummer" value={w.wozObjectNummer} />
-                      <Row label="Gebruiksklasse" value={w.gebruiksklasse} />
-                      <Row label="Feitelijk gebruik" value={w.feitelijkGebruik} />
-                      <Row label="Monumentaanduiding" value={w.monumentaanduiding} />
-                      <Row label="WOZ-oppervlakte totaal" value={fmtOpp(w.oppervlakteWoz)} />
-                      <Row label="WOZ-oppervlakte wonen" value={fmtOpp(w.oppervlakteWozWonen)} />
-                      <Row label="WOZ-oppervlakte niet-wonen" value={fmtOpp(w.oppervlakteWozNietWonen)} />
-                      <Row label="Inhoud" value={fmtInh(w.inhoud)} />
-                      <Row label="Bouwlaag" value={w.bouwlaag} />
-                    </div>
-                  );
-                })()}
+                <Row label="WOZ-objectnummer" value={w0.wozObjectNummer} />
+                <Row label="Gebruiksklasse" value={w0.gebruiksklasse} />
+                <Row label="Feitelijk gebruik" value={w0.feitelijkGebruik} />
+                <Row label="Monumentaanduiding" value={w0.monumentaanduiding} />
+                <Row label="WOZ-oppervlakte totaal" value={fmtOpp(w0.oppervlakteWoz)} />
+                <Row label="WOZ-oppervlakte wonen" value={fmtOpp(w0.oppervlakteWozWonen)} />
+                <Row label="WOZ-oppervlakte niet-wonen" value={fmtOpp(w0.oppervlakteWozNietWonen)} />
+                <Row label="Inhoud" value={fmtInh(w0.inhoud)} />
+                <Row label="Bouwlaag" value={w0.bouwlaag} />
 
                 {view.woz.length > 1 && (
                   <Collapsible>
@@ -234,9 +384,49 @@ function ProductCard({
               <Row label="Titel" value={view.algemeen.titel} />
             </div>
 
-            <p className="text-[10px] text-muted-foreground italic">
-              Overnemen naar objectvelden komt in een volgende stap. Geen automatische opslag.
-            </p>
+            {/* ---- Handmatige overname ---- */}
+            {onOvernemen && (view.bag.bouwjaar !== null
+              || view.bag.oppervlakteBag !== null
+              || (w0 && w0.oppervlakteWoz !== null)) && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Overnemen naar object
+                </p>
+                {view.bag.bouwjaar !== null && (
+                  <OvernameRij
+                    label="Bouwjaar"
+                    crmWaarde={objectVelden?.bouwjaar ?? null}
+                    kadasterWaarde={view.bag.bouwjaar}
+                    formatter={(n) => n === null ? '—' : String(n)}
+                    onBevestig={neemBouwjaarOver}
+                  />
+                )}
+                {view.bag.oppervlakteBag !== null && (
+                  <OvernameRij
+                    label="Oppervlakte (BAG)"
+                    crmWaarde={objectVelden?.oppervlakte ?? null}
+                    kadasterWaarde={view.bag.oppervlakteBag}
+                    formatter={fmtOpp}
+                    onBevestig={neemOppervlakteBagOver}
+                  />
+                )}
+                {w0 && w0.oppervlakteWoz !== null
+                  && w0.oppervlakteWoz !== view.bag.oppervlakteBag && (
+                  <OvernameRij
+                    label="Oppervlakte (WOZ-totaal)"
+                    crmWaarde={objectVelden?.oppervlakte ?? null}
+                    kadasterWaarde={w0.oppervlakteWoz}
+                    formatter={fmtOpp}
+                    onBevestig={neemOppervlakteWozOver}
+                  />
+                )}
+                <p className="text-[10px] text-muted-foreground italic">
+                  WOZ-objectnummer, vergund gebruik, feitelijk gebruik, monumentaanduiding,
+                  gebruiksklasse en inhoud hebben momenteel geen CRM-doelveld.
+                  Alleen preview — zie open punten in plan.
+                </p>
+              </div>
+            )}
           </>
         )}
 
@@ -254,35 +444,69 @@ function ProductCard({
     );
   }
 
-  // ---- Overige producten (waarde, rechten, ...) ----------------------------
-  const koopsom = product.code === 'waarde'
-    ? leesNummer(product.data, 'koopsom', 'price', 'amount')
-    : null;
-  const transactiedatum = product.code === 'waarde'
-    ? leesString(product.data, 'transactiedatum', 'transactionDate', 'datum')
-    : null;
+  // ---- Koopsom (productcode 'waarde') --------------------------------------
+  if (product.code === 'waarde') {
+    const koopsom = leesNummer(product.data, 'koopsom', 'price', 'amount');
+    const koopJaar = leesNummer(product.data, 'koopJaar', 'koopjaar', 'jaar');
+    const valuta = leesString(product.data, 'koopsomValuta', 'valuta', 'currency') ?? 'EUR';
+    const meerOg = leesBool(product.data, 'meerOnroerendGoed');
+    const doelbinding = leesString(product.data, 'doelbinding');
 
-  const heeftLeesbareWaarde = koopsom !== null || transactiedatum !== null;
+    const heeftIets = koopsom !== null || koopJaar !== null
+      || meerOg !== null || doelbinding !== null;
 
+    return (
+      <div className="rounded-md border border-border bg-card p-3 space-y-2">
+        {header}
+        {heeftIets ? (
+          <div className="space-y-1.5 text-xs">
+            <Row
+              label="Koopsom"
+              value={koopsom !== null
+                ? (valuta === 'EUR' ? fmtEur(koopsom) : `${fmtNum(koopsom)} ${valuta}`)
+                : null}
+            />
+            <Row label="Koopjaar" value={koopJaar} />
+            <Row label="Valuta" value={valuta} />
+            <Row
+              label="Meer onroerend goed"
+              value={meerOg === null ? null : meerOg ? 'Ja' : 'Nee'}
+            />
+            <Row label="Doelbinding" value={doelbinding} />
+            <p className="text-[10px] text-muted-foreground italic pt-1">
+              Kadaster-koopsom is geen marktwaarde, vraagprijs of taxatiewaarde.
+              Er is in het object nog geen specifiek veld voor Kadaster-koopsom
+              en koopjaar — alleen preview. Zie open punten in plan.
+            </p>
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground italic">
+            Niet geleverd voor dit adres.
+          </p>
+        )}
+
+        <Collapsible>
+          <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            Technische details
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-2 overflow-auto max-h-48 rounded bg-muted/40 p-2 text-[10px] font-mono-data">
+{JSON.stringify(product.data ?? {}, null, 2)}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    );
+  }
+
+  // ---- Overige producten (rechten, ...) ------------------------------------
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-2">
       {header}
-      <div className="space-y-1.5 text-xs">
-        {koopsom !== null && (
-          <div className="flex items-center justify-between"><span className="text-muted-foreground">Koopsom</span><span className="font-mono-data">{fmtEur(koopsom)}</span></div>
-        )}
-        {transactiedatum && (
-          <div className="flex items-center justify-between"><span className="text-muted-foreground">Transactiedatum</span><span className="font-mono-data">{transactiedatum}</span></div>
-        )}
-        {!heeftLeesbareWaarde && (
-          <p className="text-[11px] text-muted-foreground italic">
-            {product.code === 'waarde'
-              ? 'Niet geleverd voor dit adres.'
-              : 'Productdata aanwezig, maar geen velden herkend door de previewer. Bekijk de technische details.'}
-          </p>
-        )}
-      </div>
-
+      <p className="text-[11px] text-muted-foreground italic">
+        Productdata aanwezig, maar geen velden herkend door de previewer.
+        Bekijk de technische details.
+      </p>
       <Collapsible>
         <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
           Technische details
@@ -297,11 +521,9 @@ function ProductCard({
   );
 }
 
-
 export default function KadasterPreviewDialog({
-  open, onOpenChange, preview, gebiedsVariant,
+  open, onOpenChange, preview, gebiedsVariant, objectVelden, onOvernemen,
 }: Props) {
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -344,8 +566,9 @@ export default function KadasterPreviewDialog({
                   key={p.code}
                   product={p}
                   gebiedsVariant={gebiedsVariant}
+                  objectVelden={objectVelden}
+                  onOvernemen={onOvernemen}
                 />
-
               ))
             )}
 
@@ -365,11 +588,6 @@ export default function KadasterPreviewDialog({
   response_shape: preview.debug.response_shape,
 }, null, 2)}
                   </pre>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Deliver-mode <code>WithoutProduct</code> betekent dat de aanvraag
-                    kan slagen zonder dat elk product inhoud heeft. Een leeg product
-                    betekent dus niet automatisch een fout.
-                  </p>
                 </CollapsibleContent>
               </Collapsible>
             )}
