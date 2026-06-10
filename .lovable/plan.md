@@ -714,3 +714,52 @@ Uitgevoerd. Off Market Radar is bewust nog niet aangeraakt (4K.3).
 7. Off Market Radar pas later aansluiten — waarschijnlijk alleen
    na promotie naar Object, of via een aparte gebiedsdatabron.
 
+## 4K.3 status — Handmatige overname Kadaster → Object (actueel)
+
+### Wat werkt
+- Preview-dialog heeft per veld een overname-actie. Standaard "Overnemen";
+  als CRM al een waarde heeft "Vervang huidige waarde" met expliciete
+  AlertDialog-bevestiging.
+- Toast na succesvolle overname: "Kadastergegevens overgenomen."
+- Bronvermelding "Kadaster Objectinformatie API" zichtbaar in dialog en
+  bevestigingsmelding.
+- Persist via `store.updateObject(id, patch)` — geen schemawijziging.
+
+### Handmatig overneembare velden (bestaande CRM-doelvelden)
+- `bagObjectData.bouwjaar` → `objecten.bouwjaar`
+- `bagObjectData.oppervlakteBag` → `objecten.oppervlakte`
+- `wozObjecten[0].oppervlakteWoz` → `objecten.oppervlakte`
+  (alternatief; alleen als afwijkend van BAG)
+
+### Alleen preview (geen passend CRM-veld)
+- `wozObjecten[*].wozObjectNummer`
+- `bagObjectData.omschrijvingVergundeGebruik`
+- `wozObjecten[*].feitelijkGebruik` / `gebruiksklasse` / `monumentaanduiding`
+- `wozObjecten[*].inhoud` / `bouwlaag` / WOZ-deeloppervlaktes
+- `bagObjectData.objectStatus` / `complexrelatie` / `oppervlakteWijziging`
+- Koopsom: `koopsom`, `koopJaar`, `koopsomValuta`, `meerOnroerendGoed`,
+  `doelbinding` — bewust **niet** opgeslagen in `vraagprijs`,
+  `marktwaarde`, `taxatiewaarde` of `bieding`.
+
+### Garanties
+- Geen automatische opslag of overschrijving.
+- Geen extra Kadaster-calls bij overname.
+- API-key blijft uitsluitend Supabase Secret.
+- WOZ-objectinformatie wordt nooit als WOZ-waarde (`woz_waarde`)
+  opgeslagen — die kolom blijft leeg tenzij Kadaster expliciet een
+  WOZ-bedrag levert (komt momenteel niet voor in deze flow).
+- Bij meerdere `wozObjecten` toont V1 alleen de eerste; overige
+  zichtbaar in collapsible. Geen blinde overname over alle objecten.
+
+### Open punten (schema-uitbreiding, niet in deze fase)
+1. Velden voor Kadaster-koopsom (`kadaster_koopsom`) en koopjaar
+   (`kadaster_koopjaar`) toevoegen aan `objecten`, met aparte
+   bronregistratie zodat dit niet met marktwaarde/vraagprijs verward
+   wordt.
+2. Veld voor WOZ-objectnummer (`woz_object_nummer`).
+3. Velden voor vergund gebruik (BAG), feitelijk gebruik (WOZ),
+   monumentaanduiding, inhoud (m³).
+4. Kadaster-metadata-veld op object (laatste aanvraagdatum,
+   actualiteit, doelbinding) als compact JSON-veld — uitsluitend voor
+   audit, geen mapping op bestaande tekstvelden.
+
