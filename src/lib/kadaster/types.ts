@@ -43,6 +43,20 @@ export interface KadasterPreview {
   kosten_indicatie_eur: number | null;
   zoekadres: { type: 'bagId' | 'pht'; waarde: string };
   producten: KadasterProductResult[];
+  /** Veilige debug-info (bevat NOOIT API-key). Optioneel. */
+  debug?: KadasterDebug | null;
+}
+
+export interface KadasterDebug {
+  endpoint?: string;
+  base_url?: string;
+  request_preview?: Record<string, unknown>;
+  zoekadres?: { type: 'bagId' | 'pht'; waarde: string };
+  product_codes?: KadasterProductCode[];
+  upstream_status?: number | null;
+  upstream_message?: string | null;
+  upstream_identifier?: string | null;
+  upstream_snippet?: string | null;
 }
 
 export interface KadasterErrorCode {

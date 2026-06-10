@@ -24,9 +24,14 @@ import type {
 } from './_types.ts';
 import { normaliseerKadasterResponse, logRegel } from './_normalize.ts';
 
+// Officiële Kadata Objectinformatie API host (zie Swagger:
+//   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
+// `api.kadaster.nl/objectinformatieapi/...` bestaat NIET en geeft Kadaster's
+// generieke 404-pagina terug, wat eerder als "object niet gevonden" werd
+// geïnterpreteerd.
 const KADASTER_BASE_URL =
   Deno.env.get('KADASTER_OBJECTINFORMATIE_BASE_URL')
-  ?? 'https://api.kadaster.nl/objectinformatieapi/api/v1';
+  ?? 'https://kadatawebservice.kadaster.nl/objectinformatieapi/api/v1';
 
 const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
   // Standalone gebiedsdata-aanvragen worden door Kadaster geweigerd
@@ -126,9 +131,11 @@ Deno.serve(async (req: Request) => {
       );
     }
     const codes = gevraagd as KadasterProductCode[];
+    // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
+    // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
     const selection = codes.map((code) => ({
       code,
-      deliver: 'withoutProduct' as const,
+      deliver: 'WithoutProduct' as const,
     }));
 
     const reportBody: Record<string, unknown> = {
@@ -150,18 +157,36 @@ Deno.serve(async (req: Request) => {
           400, 'invalid_input',
         );
       }
-      reportBody.pht = {
+      const pht: Record<string, string> = {
         postalcode: normPostcode,
-        houseNumber: body.adres.houseNumber,
-        ...(body.adres.houseLetter ? { houseLetter: body.adres.houseLetter } : {}),
-        ...(body.adres.houseNumberAddition ? { houseNumberAddition: body.adres.houseNumberAddition } : {}),
+        houseNumber: String(body.adres.houseNumber),
       };
+      // Lege strings niet meesturen — Swagger geeft nullable, en Kadaster
+      // weigert in de praktijk lege toevoegingen bij sommige adressen.
+      if (body.adres.houseLetter && body.adres.houseLetter.trim()) {
+        pht.houseLetter = body.adres.houseLetter.trim();
+      }
+      if (body.adres.houseNumberAddition && body.adres.houseNumberAddition.trim()) {
+        pht.houseNumberAddition = body.adres.houseNumberAddition.trim();
+      }
+      reportBody.pht = pht;
       zoekadresWaarde = [
         normPostcode,
         body.adres.houseNumber + (body.adres.houseLetter ?? ''),
         body.adres.houseNumberAddition,
       ].filter(Boolean).join(' ');
     }
+
+    // Veilige debug-info: bevat genormaliseerde input + request body zonder
+    // de API-key. Wordt zowel bij succes als fout teruggegeven zodat de UI
+    // technische details kan tonen.
+    const debug = {
+      endpoint: '/report',
+      base_url: KADASTER_BASE_URL,
+      request_preview: reportBody,
+      zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
+      product_codes: codes,
+    };
 
     // --- Kadaster call ---
     const upstreamUrl = `${KADASTER_BASE_URL}/report`;
@@ -173,7 +198,7 @@ Deno.serve(async (req: Request) => {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-Api-Key': apiKey,
+          'X-API-KEY': apiKey,
         },
         body: JSON.stringify(reportBody),
       });
@@ -184,7 +209,7 @@ Deno.serve(async (req: Request) => {
       }));
       return jsonError(
         'Kadaster is tijdelijk niet bereikbaar. Probeer later opnieuw.',
-        502, 'upstream_unavailable',
+        502, 'upstream_unavailable', debug,
       );
     }
 
@@ -192,43 +217,61 @@ Deno.serve(async (req: Request) => {
     if (!upstreamResp.ok) {
       const status = upstreamResp.status;
       const tekst = await upstreamResp.text().catch(() => '');
+      // Probeer Kadaster's ErrorResponse uit te lezen (message + identifier).
+      let upstreamMessage: string | null = null;
+      let upstreamIdentifier: string | null = null;
+      try {
+        const parsed = JSON.parse(tekst);
+        if (parsed && typeof parsed === 'object') {
+          if (typeof parsed.message === 'string') upstreamMessage = parsed.message;
+          if (typeof parsed.identifier === 'string') upstreamIdentifier = parsed.identifier;
+        }
+      } catch { /* niet-JSON respons (bv. HTML 404 pagina) */ }
+      const debugMetUpstream = {
+        ...debug,
+        upstream_status: status,
+        upstream_message: upstreamMessage,
+        upstream_identifier: upstreamIdentifier,
+        upstream_snippet: upstreamMessage ? null : tekst.slice(0, 240),
+      };
       console.log('[kadaster-objectinformatie] upstream-fout', logRegel({
         modus, user: userId, status, dur_ms: Date.now() - t0,
-        snippet: tekst.slice(0, 200),
+        identifier: upstreamIdentifier,
+        snippet: (upstreamMessage ?? tekst).slice(0, 200),
       }));
       if (status === 401 || status === 406) {
         return jsonError(
           'Kadaster API-key is ongeldig of verlopen. Verleng of vervang de API-key in Supabase Secrets.',
-          status, 'key_invalid',
+          status, 'key_invalid', debugMetUpstream,
         );
       }
       if (status === 412) {
         return jsonError(
           'Kadaster-bestedingsruimte is overschreden. Controleer de instellingen in Kadaster/Kadata.',
-          status, 'budget_exceeded',
+          status, 'budget_exceeded', debugMetUpstream,
         );
       }
       if (status === 404) {
         return jsonError(
-          'Geen Kadasterobject gevonden voor dit adres.',
-          status, 'not_found',
+          `Geen Kadasterobject gevonden voor dit adres. Gecontroleerd zoekadres: ${zoekadresWaarde}`,
+          status, 'not_found', debugMetUpstream,
         );
       }
       if (status === 409 || status === 422) {
         return jsonError(
           'Aanvraag ongeldig (product of adres niet geaccepteerd).',
-          status, 'product_invalid',
+          status, 'product_invalid', debugMetUpstream,
         );
       }
       if (status >= 500) {
         return jsonError(
           'Kadaster is tijdelijk niet beschikbaar. Probeer later opnieuw.',
-          status, 'upstream_unavailable',
+          status, 'upstream_unavailable', debugMetUpstream,
         );
       }
       return jsonError(
         `Onverwachte Kadaster-fout (HTTP ${status}).`,
-        status, 'unknown',
+        status, 'unknown', debugMetUpstream,
       );
     }
 
@@ -245,6 +288,7 @@ Deno.serve(async (req: Request) => {
       kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
+      debug,
     };
 
     console.log('[kadaster-objectinformatie] ok', logRegel({
@@ -270,9 +314,14 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-function jsonError(error: string, status: number, code?: string): Response {
+function jsonError(
+  error: string,
+  status: number,
+  code?: string,
+  debug?: Record<string, unknown>,
+): Response {
   return new Response(
-    JSON.stringify({ error, code, http_status: status }),
+    JSON.stringify({ error, code, http_status: status, debug }),
     { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }

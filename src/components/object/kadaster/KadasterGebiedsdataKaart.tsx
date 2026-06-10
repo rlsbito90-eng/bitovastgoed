@@ -15,7 +15,7 @@
 //   - Geen hardgecodeerde prijs; UI toont "prijs volgens Kadaster".
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { FileSearch, Coins, MapPin } from 'lucide-react';
+import { FileSearch, Coins, MapPin, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,10 +26,14 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { useKadasterObjectinformatie, KadasterApiError } from '@/hooks/useKadasterObjectinformatie';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type {
-  KadasterAdresInput, KadasterPreview, KadasterProductCode, KadasterRequestInput,
+  KadasterAdresInput, KadasterDebug, KadasterPreview, KadasterProductCode, KadasterRequestInput,
 } from '@/lib/kadaster/types';
 import KadasterPreviewDialog from './KadasterPreviewDialog';
 
@@ -87,9 +91,17 @@ export default function KadasterGebiedsdataKaart({
   const [handmatigLetter, setHandmatigLetter] = useState<string>('');
   const [handmatigToevoeging, setHandmatigToevoeging] = useState<string>('');
 
-  // Productselectie in de kostenconfirmatie. Beide betaalde producten zijn
-  // standaard aan; gratis producten worden meegeleverd en mogen niet
-  // standalone gekozen worden.
+  // Adres-zoekmodus (V1): UI-helper om de gebruiker te helpen bij invoer.
+  // De API-call gebruikt nóóit straat/plaats — Kadaster verwacht uiteindelijk
+  // postcode+huisnummer of een BAG-ID.
+  const [zoekModus, setZoekModus] = useState<'postcode' | 'adres'>('postcode');
+  const [adresStraat, setAdresStraat] = useState<string>('');
+  const [adresPlaats, setAdresPlaats] = useState<string>(plaats ?? '');
+  const [adresHuisnummer, setAdresHuisnummer] = useState<string>('');
+  const [adresLetter, setAdresLetter] = useState<string>('');
+  const [adresToevoeging, setAdresToevoeging] = useState<string>('');
+
+  // Productselectie in de kostenconfirmatie.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
   const [selLasten, setSelLasten] = useState(true);
@@ -98,6 +110,9 @@ export default function KadasterGebiedsdataKaart({
   const [kostenOpen, setKostenOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [preview, setPreview] = useState<KadasterPreview | null>(null);
+  const [laatsteFout, setLaatsteFout] = useState<{
+    msg: string; httpStatus?: number; debug?: KadasterDebug | null;
+  } | null>(null);
 
   const mutation = useKadasterObjectinformatie();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
@@ -109,9 +124,25 @@ export default function KadasterGebiedsdataKaart({
     [postcodeInput],
   );
 
-  /** Bouw het uiteindelijke adres-payload op basis van keuzes. */
+  /**
+   * Bouw het uiteindelijke adres-payload op basis van de actieve modus.
+   * In adresmodus is `postcode` formeel nog steeds vereist — Kadaster
+   * accepteert geen straat/plaats. De adresvelden zijn een UI-helper om
+   * de gebruiker te helpen het juiste pand te identificeren.
+   */
   function bouwAdresInput(): KadasterAdresInput | null {
     if (!postcodeApi) return null;
+
+    if (zoekModus === 'adres') {
+      const nr = adresHuisnummer.trim();
+      if (!nr) return null;
+      return {
+        postalcode: postcodeApi,
+        houseNumber: nr,
+        houseLetter: adresLetter.trim() || null,
+        houseNumberAddition: adresToevoeging.trim() || null,
+      };
+    }
 
     if (handmatigHuisnummer.trim()) {
       return {
@@ -153,6 +184,7 @@ export default function KadasterGebiedsdataKaart({
       toast.error('Selecteer minimaal één betaald product (WOZ-object of Koopsom).');
       return;
     }
+    setLaatsteFout(null);
     const input: KadasterRequestInput = {
       modus: 'kadaster',
       adres: adresInput,
@@ -167,6 +199,12 @@ export default function KadasterGebiedsdataKaart({
       toast.success(`Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Kadaster-aanvraag mislukt';
+      const apiErr = e instanceof KadasterApiError ? e : null;
+      setLaatsteFout({
+        msg,
+        httpStatus: apiErr?.httpStatus,
+        debug: apiErr?.debug ?? null,
+      });
       toast.error(msg);
     }
   }
@@ -208,83 +246,188 @@ export default function KadasterGebiedsdataKaart({
         </div>
       </div>
 
-      {/* Zoekadres-blok */}
+      {/* Zoekadres-blok met modus-tabs */}
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Zoekadres voor Kadaster</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">Postcode</Label>
-            <Input
-              value={postcodeInput}
-              onChange={(e) => setPostcodeInput(e.target.value)}
-              placeholder="1234 AB"
-              className="font-mono-data"
-            />
-            <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
-          </div>
-          {meerdere && (
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-[11px] text-muted-foreground">
-                Huisnummer (meerdere herkend — kies één)
-              </Label>
-              <Select value={huisnummerKeuze} onValueChange={setHuisnummerKeuze}>
-                <SelectTrigger><SelectValue placeholder="Kies huisnummer" /></SelectTrigger>
-                <SelectContent>
-                  {parsed.huisnummers.map(h => (
-                    <SelectItem key={h.label} value={h.label}>{h.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {!meerdere && parsed.huisnummers.length === 1 && (
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
-              <Input value={parsed.huisnummers[0].label} disabled className="font-mono-data" />
-            </div>
-          )}
-        </div>
+        <Tabs value={zoekModus} onValueChange={(v) => setZoekModus(v as 'postcode' | 'adres')}>
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="postcode">Postcode + huisnummer</TabsTrigger>
+            <TabsTrigger value="adres">Adres</TabsTrigger>
+          </TabsList>
 
-        {(parsed.huisnummers.length === 0 || !parsed.betrouwbaar) && (
-          <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">
-              {parsed.huisnummers.length === 0
-                ? 'Geen huisnummer herkend — vul handmatig in:'
-                : 'Adres niet betrouwbaar herkend — vul handmatig in:'}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <Input
-                value={handmatigHuisnummer}
-                onChange={(e) => setHandmatigHuisnummer(e.target.value.replace(/\D/g, ''))}
-                placeholder="Huisnr"
-                className="font-mono-data"
-              />
-              <Input
-                value={handmatigLetter}
-                onChange={(e) => setHandmatigLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
-                placeholder="Letter"
-                className="font-mono-data"
-                maxLength={1}
-              />
-              <Input
-                value={handmatigToevoeging}
-                onChange={(e) => setHandmatigToevoeging(e.target.value.slice(0, 8))}
-                placeholder="Toevoeging"
-                className="font-mono-data"
-                maxLength={8}
-              />
+          <TabsContent value="postcode" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Postcode</Label>
+                <Input
+                  value={postcodeInput}
+                  onChange={(e) => setPostcodeInput(e.target.value)}
+                  placeholder="1234 AB"
+                  className="font-mono-data"
+                />
+                <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
+              </div>
+              {meerdere && (
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px] text-muted-foreground">
+                    Huisnummer (meerdere herkend — kies één)
+                  </Label>
+                  <Select value={huisnummerKeuze} onValueChange={setHuisnummerKeuze}>
+                    <SelectTrigger><SelectValue placeholder="Kies huisnummer" /></SelectTrigger>
+                    <SelectContent>
+                      {parsed.huisnummers.map(h => (
+                        <SelectItem key={h.label} value={h.label}>{h.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!meerdere && parsed.huisnummers.length === 1 && (
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
+                  <Input value={parsed.huisnummers[0].label} disabled className="font-mono-data" />
+                </div>
+              )}
             </div>
-          </div>
-        )}
+
+            {(parsed.huisnummers.length === 0 || !parsed.betrouwbaar) && (
+              <div className="space-y-2">
+                <p className="text-[11px] text-muted-foreground">
+                  {parsed.huisnummers.length === 0
+                    ? 'Geen huisnummer herkend — vul handmatig in:'
+                    : 'Adres niet betrouwbaar herkend — vul handmatig in:'}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    value={handmatigHuisnummer}
+                    onChange={(e) => setHandmatigHuisnummer(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Huisnr"
+                    className="font-mono-data"
+                  />
+                  <Input
+                    value={handmatigLetter}
+                    onChange={(e) => setHandmatigLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                    placeholder="Letter"
+                    className="font-mono-data"
+                    maxLength={1}
+                  />
+                  <Input
+                    value={handmatigToevoeging}
+                    onChange={(e) => setHandmatigToevoeging(e.target.value.slice(0, 8))}
+                    placeholder="Toevoeging"
+                    className="font-mono-data"
+                    maxLength={8}
+                  />
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="adres" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-[11px] text-muted-foreground">Straatnaam</Label>
+                <Input value={adresStraat} onChange={(e) => setAdresStraat(e.target.value)} placeholder="Bijv. Prins Willem Alexanderlaan" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    value={adresHuisnummer}
+                    onChange={(e) => setAdresHuisnummer(e.target.value.replace(/\D/g, ''))}
+                    placeholder="30"
+                    className="font-mono-data"
+                  />
+                  <Input
+                    value={adresLetter}
+                    onChange={(e) => setAdresLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                    placeholder="L"
+                    className="font-mono-data"
+                    maxLength={1}
+                  />
+                  <Input
+                    value={adresToevoeging}
+                    onChange={(e) => setAdresToevoeging(e.target.value.slice(0, 8))}
+                    placeholder="Toev."
+                    className="font-mono-data"
+                    maxLength={8}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Plaats</Label>
+                <Input value={adresPlaats} onChange={(e) => setAdresPlaats(e.target.value)} placeholder="Westmaas" />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-[11px] text-muted-foreground">Postcode (vereist voor Kadaster)</Label>
+                <Input
+                  value={postcodeInput}
+                  onChange={(e) => setPostcodeInput(e.target.value)}
+                  placeholder="1234 AB"
+                  className="font-mono-data"
+                />
+                <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
+              </div>
+            </div>
+            {!postcodeApi && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                Voor Kadaster is uiteindelijk een postcode + huisnummer nodig.
+                Vul de postcode aan of gebruik een gekoppelde adreszoekservice.
+                Straat en plaats helpen alleen bij identificatie en worden niet
+                naar Kadaster gestuurd.
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <p className="text-[11px] text-muted-foreground">
           Aanvraag gebruikt: <span className="font-mono-data">{adresLabel}</span>
         </p>
       </div>
+
+      {/* Foutmelding met veilige debug-info */}
+      {laatsteFout && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+          <div className="flex items-start gap-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">{laatsteFout.msg}</p>
+              {laatsteFout.debug?.zoekadres?.waarde && (
+                <p className="text-[11px] text-muted-foreground font-mono-data">
+                  Gecontroleerd zoekadres: {laatsteFout.debug.zoekadres.waarde}
+                </p>
+              )}
+            </div>
+          </div>
+          {laatsteFout.debug && (
+            <Collapsible>
+              <CollapsibleTrigger className="text-[11px] text-muted-foreground underline">
+                Technische details
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre className="text-[10px] bg-muted/40 rounded p-2 mt-1 overflow-x-auto font-mono-data">
+{JSON.stringify({
+  http_status: laatsteFout.httpStatus,
+  endpoint: laatsteFout.debug.endpoint,
+  base_url: laatsteFout.debug.base_url,
+  request_preview: laatsteFout.debug.request_preview,
+  product_codes: laatsteFout.debug.product_codes,
+  upstream_status: laatsteFout.debug.upstream_status,
+  upstream_message: laatsteFout.debug.upstream_message,
+  upstream_identifier: laatsteFout.debug.upstream_identifier,
+  upstream_snippet: laatsteFout.debug.upstream_snippet,
+}, null, 2)}
+                </pre>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
+      )}
+
 
       {/* Eén knop — gratis gebiedsdata wordt meegeleverd binnen deze aanvraag. */}
       <div className="flex flex-col sm:flex-row gap-2">
