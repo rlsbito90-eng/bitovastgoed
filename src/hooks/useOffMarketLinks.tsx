@@ -70,15 +70,19 @@ export interface PromoteSignaalResult {
   objectId: string;
   kadasterMigrated: number;
   kadasterMigrationError: string | null;
+  kadasterDocumentenMigrated: number;
+  kadasterDocumentenMigrationError: string | null;
 }
 
 /**
  * Promoot een signaal naar een object via de bestaande RPC.
  * Idempotent: als signaal al gekoppeld is, geeft de RPC hetzelfde object_id terug.
  *
- * Optioneel: bestaande Kadasterrecords van het signaal meenemen naar het
- * nieuwe object. Records behouden `signaal_id` (audit) en krijgen daarnaast
- * `object_id`. Er wordt nooit een nieuwe Kadaster-call gedaan.
+ * Optioneel: bestaande Kadasterrecords + Kadasterdocumenten (PDF) van het
+ * signaal meenemen naar het nieuwe object. Beiden behouden `signaal_id`
+ * (audit) en krijgen daarnaast `object_id`. Er wordt nooit een nieuwe
+ * Kadaster-call gedaan en er worden geen PDF's gedupliceerd of opnieuw
+ * geüpload.
  */
 export function usePromoteSignaalToObject() {
   const qc = useQueryClient();
@@ -93,6 +97,9 @@ export function usePromoteSignaalToObject() {
 
       let kadasterMigrated = 0;
       let kadasterMigrationError: string | null = null;
+      let kadasterDocumentenMigrated = 0;
+      let kadasterDocumentenMigrationError: string | null = null;
+
       if (migrateKadaster) {
         try {
           const { data: updated, error: upErr } = await (supabase as unknown as {
@@ -116,14 +123,45 @@ export function usePromoteSignaalToObject() {
         } catch (e) {
           kadasterMigrationError = e instanceof Error ? e.message : 'Onbekende fout';
         }
+
+        try {
+          const { data: updatedDocs, error: docErr } = await (supabase as unknown as {
+            from: (t: string) => {
+              update: (v: Record<string, unknown>) => {
+                eq: (k: string, v: string) => {
+                  is: (k: string, v: null) => {
+                    select: (c: string) => Promise<{ data: { id: string }[] | null; error: { message: string } | null }>;
+                  };
+                };
+              };
+            };
+          })
+            .from('kadaster_documenten')
+            .update({ object_id: objectId })
+            .eq('signaal_id', signaalId)
+            .is('object_id', null)
+            .select('id');
+          if (docErr) throw new Error(docErr.message);
+          kadasterDocumentenMigrated = (updatedDocs ?? []).length;
+        } catch (e) {
+          kadasterDocumentenMigrationError = e instanceof Error ? e.message : 'Onbekende fout';
+        }
       }
 
-      return { objectId, kadasterMigrated, kadasterMigrationError };
+      return {
+        objectId,
+        kadasterMigrated,
+        kadasterMigrationError,
+        kadasterDocumentenMigrated,
+        kadasterDocumentenMigrationError,
+      };
     },
     onSuccess: (res, vars) => {
       invalidate(qc, vars.signaalId);
       qc.invalidateQueries({ queryKey: ['kadaster_data_records', 'signaal', vars.signaalId] });
       qc.invalidateQueries({ queryKey: ['kadaster_data_records', 'object', res.objectId] });
+      qc.invalidateQueries({ queryKey: ['kadaster_documenten', 'signaal_id', vars.signaalId] });
+      qc.invalidateQueries({ queryKey: ['kadaster_documenten', 'object_id', res.objectId] });
     },
   });
 }

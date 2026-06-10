@@ -40,6 +40,11 @@ import {
   useKadasterDataRecordsForSignaal, laatsteRecordsPerProduct,
   type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
+import {
+  useKadasterDocumentenForSignaal, documentenPerRecord,
+  type KadasterDocument,
+} from '@/hooks/useKadasterDocumenten';
+import KadasterPdfKnop from '@/components/object/kadaster/KadasterPdfKnop';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
 import KadasterHistorieLijst from '@/components/object/kadaster/KadasterHistorieLijst';
 import BagAdresLookup from '@/components/shared/BagAdresLookup';
@@ -93,7 +98,17 @@ function Row({ label, value }: { label: string; value: string | number | null | 
   );
 }
 
-function WaardeRecordBlok({ r }: { r: KadasterDataRecord }) {
+function PdfRegel({ doc }: { doc: KadasterDocument | undefined }) {
+  if (!doc) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded border border-border/60 bg-muted/20 px-2 py-1.5 mt-1.5">
+      <span className="text-[11px] text-muted-foreground">Kadasterbericht opgeslagen</span>
+      <KadasterPdfKnop document={doc} label="Kadasterbericht openen" />
+    </div>
+  );
+}
+
+function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
       <p className="text-sm font-medium">Kadaster-koopsom</p>
@@ -108,11 +123,12 @@ function WaardeRecordBlok({ r }: { r: KadasterDataRecord }) {
         label="Meer onroerend goed"
         value={r.meer_onroerend_goed === null ? null : (r.meer_onroerend_goed ? 'Ja' : 'Nee')}
       />
+      <PdfRegel doc={pdf} />
     </div>
   );
 }
 
-function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
+function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   const sam = r.rechten_samenvatting ?? {};
   const aantal = typeof (sam as { aantal_rechthebbenden?: unknown }).aantal_rechthebbenden === 'number'
     ? (sam as { aantal_rechthebbenden: number }).aantal_rechthebbenden : null;
@@ -127,8 +143,9 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
       </p>
       {!heeftVelden ? (
         <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-          Rechten geleverd, maar rechthebbende-velden nog niet herkend.
-          Bekijk technische details in de historie.
+          {pdf
+            ? 'Rechten geleverd. Rechthebbendevelden niet herkend in JSON, maar Kadasterbericht is opgeslagen.'
+            : 'Rechten geleverd, maar rechthebbende-velden nog niet herkend. Bekijk technische details in de historie.'}
         </p>
       ) : (
         <>
@@ -140,11 +157,12 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
           <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
         </>
       )}
+      <PdfRegel doc={pdf} />
     </div>
   );
 }
 
-function RecordKaart({ r }: { r: KadasterDataRecord }) {
+function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   if (r.status !== 'geleverd' && r.status !== 'gedeeltelijk') {
     return (
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
@@ -162,8 +180,8 @@ function RecordKaart({ r }: { r: KadasterDataRecord }) {
       </div>
     );
   }
-  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} />;
-  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} />;
+  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} pdf={pdf} />;
+  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} />;
   return null;
 }
 
@@ -200,12 +218,18 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
   } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
 
+  // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
+  const [selPdf, setSelPdf] = useState(false);
+
   const mutation = useKadasterObjectinformatie();
   const queryClient = useQueryClient();
   const records = useKadasterDataRecordsForSignaal(signaal.id);
   const recordList = useMemo(() => records.data ?? [], [records.data]);
   const laatsteMap = useMemo(() => laatsteRecordsPerProduct(recordList), [recordList]);
   const meest = recordList[0] ?? null;
+  const { data: pdfs } = useKadasterDocumentenForSignaal(signaal.id);
+  const pdfList = useMemo(() => pdfs ?? [], [pdfs]);
+  const pdfPerRecord = useMemo(() => documentenPerRecord(pdfList), [pdfList]);
 
   // Productlijst wordt pas opgehaald als de kostenconfirmatie opent.
   const catalogus = useKadasterProductCatalogus(kostenOpen);
@@ -275,6 +299,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
       producten: geselecteerdeProducten(),
       context: { signaal_id: signaal.id },
       persist: true,
+      includePdf: selPdf,
     };
     try {
       const resp = await mutation.mutateAsync(input);
@@ -286,9 +311,23 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
       );
       if (resp.persist?.requested) {
         if (resp.persist.ok) {
-          toast.success('Kadastergegevens opgeslagen bij dit signaal.');
+          const pdf = resp.persist.pdf;
+          if (pdf?.requested && pdf.ok) {
+            toast.success('Kadastergegevens en Kadasterbericht opgeslagen bij dit signaal.');
+          } else if (pdf?.requested && !pdf.ok) {
+            toast.warning(
+              'Kadastergegevens opgeslagen, maar Kadasterbericht/PDF kon niet worden opgeslagen.' +
+              (pdf.error ? ` (${pdf.error})` : ''),
+              { duration: 10_000 },
+            );
+          } else {
+            toast.success('Kadastergegevens opgeslagen bij dit signaal.');
+          }
           queryClient.invalidateQueries({
             queryKey: ['kadaster_data_records', 'signaal', signaal.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['kadaster_documenten', 'signaal_id', signaal.id],
           });
         } else {
           toast.warning(
@@ -501,7 +540,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
           {(['waarde', 'rechten'] as const).map(code => {
             const r = laatsteMap.get(code);
             if (!r) return null;
-            return <RecordKaart key={code} r={r} />;
+            return <RecordKaart key={code} r={r} pdf={pdfPerRecord.get(r.id)} />;
           })}
           <KadasterHistorieLijst records={recordList} />
 
@@ -619,6 +658,29 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
                 product is voorbehouden aan Objecten/Aanbod na promotie.
               </p>
             </div>
+
+            <label className="flex items-start gap-2 rounded-md border border-border p-2">
+              <Checkbox
+                checked={selPdf}
+                onCheckedChange={(v) => setSelPdf(v === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5 text-xs">
+                <span className="block font-medium">Kadasterbericht/PDF intern opslaan</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Het officiële Kadasterbericht wordt intern opgeslagen bij dit
+                  signaal. Het wordt niet automatisch gedeeld of gekoppeld aan
+                  relaties.
+                </span>
+                {selRechten && (
+                  <span className="block text-[10px] text-muted-foreground">
+                    Bij Rechten kan eigenaar-/rechthebbendeinformatie in het
+                    Kadasterbericht staan, ook als de JSON-preview deze velden
+                    niet herkent.
+                  </span>
+                )}
+              </span>
+            </label>
 
             {!heeftBetaaldProduct && (waardeBeschikbaar || rechtenBeschikbaar) && (
               <p className="text-xs text-destructive">

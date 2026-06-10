@@ -124,6 +124,8 @@ export default function KadasterGebiedsdataKaart({
   // Default uit; verschijnt alleen als /products het bevestigt en vereist
   // een aparte privacy- en kostenbevestiging.
   const [selRechten, setSelRechten] = useState(false);
+  // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
+  const [selPdf, setSelPdf] = useState(false);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [rechtenPrivacyOpen, setRechtenPrivacyOpen] = useState(false);
@@ -221,6 +223,7 @@ export default function KadasterGebiedsdataKaart({
       // Direct persisten zodra Kadaster succesvol antwoordt — voorkomt
       // dat betaalde data verloren gaat bij sluiten van de preview.
       persist: true,
+      includePdf: selPdf,
     };
     try {
       const resp = await mutation.mutateAsync(input);
@@ -230,8 +233,20 @@ export default function KadasterGebiedsdataKaart({
       toast.success(`Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`);
       if (resp.persist?.requested) {
         if (resp.persist.ok) {
-          toast.success('Kadastergegevens opgeslagen bij dit object.');
+          const pdf = resp.persist.pdf;
+          if (pdf?.requested && pdf.ok) {
+            toast.success('Kadastergegevens en Kadasterbericht opgeslagen bij dit object.');
+          } else if (pdf?.requested && !pdf.ok) {
+            toast.warning(
+              'Kadastergegevens opgeslagen, maar Kadasterbericht/PDF kon niet worden opgeslagen.' +
+              (pdf.error ? ` (${pdf.error})` : ''),
+              { duration: 10_000 },
+            );
+          } else {
+            toast.success('Kadastergegevens opgeslagen bij dit object.');
+          }
           queryClient.invalidateQueries({ queryKey: ['kadaster_data_records', 'object', objectId] });
+          queryClient.invalidateQueries({ queryKey: ['kadaster_documenten', 'object_id', objectId] });
         } else {
           toast.warning(
             'Kadastergegevens opgehaald, maar opslaan is mislukt. ' +
@@ -581,6 +596,26 @@ export default function KadasterGebiedsdataKaart({
                   && ' Rechten niet beschikbaar voor deze API-key.'}
               </p>
             </div>
+
+            <label className="flex items-start gap-2 rounded-md border border-border p-2">
+              <Checkbox
+                checked={selPdf}
+                onCheckedChange={(v) => setSelPdf(v === true)}
+                className="mt-0.5"
+              />
+              <span className="space-y-0.5 text-xs">
+                <span className="block font-medium">Kadasterbericht/PDF intern opslaan</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Het officiële Kadasterbericht wordt intern opgeslagen bij dit
+                  object. Het wordt niet automatisch gedeeld in de dataroom.
+                </span>
+                {selRechten && (
+                  <span className="block text-[10px] text-muted-foreground">
+                    PDF is vooral nuttig voor eigendoms-/rechthebbendeninformatie.
+                  </span>
+                )}
+              </span>
+            </label>
 
             {!heeftBetaaldProduct && (
               <p className="text-xs text-destructive">
