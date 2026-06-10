@@ -54,13 +54,34 @@ const FALLBACK_ALLOWED: KadasterProductCode[] = ['object', 'waarde'];
 
 // Process-cache voor /products. TTL klein houden zodat sleutelwijzigingen
 // snel zichtbaar worden, maar voorkomt dat we elke /report een extra GET doen.
-let productsCache: { codes: KadasterProductCode[]; fetched_at: number } | null = null;
+interface KadasterProductMeta {
+  code: KadasterProductCode;
+  name: string | null;
+  priceEur: number | null;
+}
+let productsCacheFull: { items: KadasterProductMeta[]; fetched_at: number } | null = null;
 const PRODUCTS_TTL_MS = 5 * 60 * 1000;
 
-async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCode[] | null> {
+function leesPrijs(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v.replace(',', '.'));
+    if (Number.isFinite(n)) return n;
+  }
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    for (const k of ['amount', 'value', 'price', 'eur']) {
+      const n = leesPrijs(o[k]);
+      if (n !== null) return n;
+    }
+  }
+  return null;
+}
+
+async function fetchAvailableProductsFull(apiKey: string): Promise<KadasterProductMeta[] | null> {
   const now = Date.now();
-  if (productsCache && (now - productsCache.fetched_at) < PRODUCTS_TTL_MS) {
-    return productsCache.codes;
+  if (productsCacheFull && (now - productsCacheFull.fetched_at) < PRODUCTS_TTL_MS) {
+    return productsCacheFull.items;
   }
   try {
     const resp = await fetch(`${KADASTER_BASE_URL}/products`, {
@@ -75,21 +96,33 @@ async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCo
         ? (data as { products: unknown[] }).products
         : null;
     if (!arr) return null;
-    const codes: KadasterProductCode[] = [];
+    const items: KadasterProductMeta[] = [];
     for (const item of arr) {
       const code = typeof item === 'string'
         ? item
         : (item && typeof item === 'object' ? String((item as Record<string, unknown>).code ?? '') : '');
       const lower = code.toLowerCase();
-      if (['object', 'waarde', 'rechten', 'lasten', 'buurt'].includes(lower)) {
-        codes.push(lower as KadasterProductCode);
+      if (!['object', 'waarde', 'rechten', 'lasten', 'buurt'].includes(lower)) continue;
+      let name: string | null = null;
+      let priceEur: number | null = null;
+      if (item && typeof item === 'object') {
+        const o = item as Record<string, unknown>;
+        const n = o.name ?? o.naam ?? o.description ?? o.omschrijving;
+        if (typeof n === 'string' && n.trim()) name = n.trim();
+        priceEur = leesPrijs(o.price ?? o.cost ?? o.priceEur ?? o.prijs ?? o.tarief);
       }
+      items.push({ code: lower as KadasterProductCode, name, priceEur });
     }
-    productsCache = { codes, fetched_at: now };
-    return codes;
+    productsCacheFull = { items, fetched_at: now };
+    return items;
   } catch {
     return null;
   }
+}
+
+async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCode[] | null> {
+  const full = await fetchAvailableProductsFull(apiKey);
+  return full ? full.map(i => i.code) : null;
 }
 
 const AdresSchema = z.object({
