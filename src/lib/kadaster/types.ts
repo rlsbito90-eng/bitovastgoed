@@ -25,6 +25,12 @@ export interface KadasterRequestInput {
    */
   producten?: KadasterProductCode[] | null;
   context?: { object_id?: string | null; signaal_id?: string | null };
+  /**
+   * Wanneer true en context.object_id/signaal_id aanwezig is, schrijft de
+   * edge function elk product direct in `kadaster_data_records`. Geen
+   * extra Kadaster-call.
+   */
+  persist?: boolean | null;
 }
 
 export type KadasterDeliverStatus =
