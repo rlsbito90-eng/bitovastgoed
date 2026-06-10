@@ -54,13 +54,34 @@ const FALLBACK_ALLOWED: KadasterProductCode[] = ['object', 'waarde'];
 
 // Process-cache voor /products. TTL klein houden zodat sleutelwijzigingen
 // snel zichtbaar worden, maar voorkomt dat we elke /report een extra GET doen.
-let productsCache: { codes: KadasterProductCode[]; fetched_at: number } | null = null;
+interface KadasterProductMeta {
+  code: KadasterProductCode;
+  name: string | null;
+  priceEur: number | null;
+}
+let productsCacheFull: { items: KadasterProductMeta[]; fetched_at: number } | null = null;
 const PRODUCTS_TTL_MS = 5 * 60 * 1000;
 
-async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCode[] | null> {
+function leesPrijs(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v.replace(',', '.'));
+    if (Number.isFinite(n)) return n;
+  }
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    for (const k of ['amount', 'value', 'price', 'eur']) {
+      const n = leesPrijs(o[k]);
+      if (n !== null) return n;
+    }
+  }
+  return null;
+}
+
+async function fetchAvailableProductsFull(apiKey: string): Promise<KadasterProductMeta[] | null> {
   const now = Date.now();
-  if (productsCache && (now - productsCache.fetched_at) < PRODUCTS_TTL_MS) {
-    return productsCache.codes;
+  if (productsCacheFull && (now - productsCacheFull.fetched_at) < PRODUCTS_TTL_MS) {
+    return productsCacheFull.items;
   }
   try {
     const resp = await fetch(`${KADASTER_BASE_URL}/products`, {
@@ -75,21 +96,33 @@ async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCo
         ? (data as { products: unknown[] }).products
         : null;
     if (!arr) return null;
-    const codes: KadasterProductCode[] = [];
+    const items: KadasterProductMeta[] = [];
     for (const item of arr) {
       const code = typeof item === 'string'
         ? item
         : (item && typeof item === 'object' ? String((item as Record<string, unknown>).code ?? '') : '');
       const lower = code.toLowerCase();
-      if (['object', 'waarde', 'rechten', 'lasten', 'buurt'].includes(lower)) {
-        codes.push(lower as KadasterProductCode);
+      if (!['object', 'waarde', 'rechten', 'lasten', 'buurt'].includes(lower)) continue;
+      let name: string | null = null;
+      let priceEur: number | null = null;
+      if (item && typeof item === 'object') {
+        const o = item as Record<string, unknown>;
+        const n = o.name ?? o.naam ?? o.description ?? o.omschrijving;
+        if (typeof n === 'string' && n.trim()) name = n.trim();
+        priceEur = leesPrijs(o.price ?? o.cost ?? o.priceEur ?? o.prijs ?? o.tarief);
       }
+      items.push({ code: lower as KadasterProductCode, name, priceEur });
     }
-    productsCache = { codes, fetched_at: now };
-    return codes;
+    productsCacheFull = { items, fetched_at: now };
+    return items;
   } catch {
     return null;
   }
+}
+
+async function fetchAvailableProducts(apiKey: string): Promise<KadasterProductCode[] | null> {
+  const full = await fetchAvailableProductsFull(apiKey);
+  return full ? full.map(i => i.code) : null;
 }
 
 const AdresSchema = z.object({
@@ -146,6 +179,32 @@ Deno.serve(async (req: Request) => {
 
     // --- Input ---
     const raw = await req.json().catch(() => null);
+
+    // --- API key (vereist voor zowel /products als /report) ---
+    const apiKey = Deno.env.get('KADASTER_OBJECTINFORMATIE_API_KEY');
+    if (!apiKey) {
+      return jsonError(
+        'Kadaster API-key is niet geconfigureerd. Voeg KADASTER_OBJECTINFORMATIE_API_KEY toe als Supabase Secret.',
+        503, 'key_invalid',
+      );
+    }
+
+    // --- Lichtgewicht actie: alleen /products opvragen ---
+    // Geen kosten — Kadaster's /products is gratis metadata. Wordt door de
+    // frontend gebruikt om dynamisch te bepalen welke producten beschikbaar
+    // zijn (o.a. rechten/eigendomsinformatie) voor deze API-key.
+    if (raw && typeof raw === 'object'
+        && (raw as Record<string, unknown>).action === 'list_products') {
+      const items = await fetchAvailableProductsFull(apiKey);
+      return new Response(JSON.stringify({
+        products: items ?? FALLBACK_ALLOWED.map(code => ({ code, name: null, priceEur: null })),
+        source: items && items.length > 0 ? 'live' : 'fallback',
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) {
       return jsonError(
@@ -155,15 +214,6 @@ Deno.serve(async (req: Request) => {
     }
     const body = parsed.data;
     const modus = body.modus;
-
-    // --- API key ---
-    const apiKey = Deno.env.get('KADASTER_OBJECTINFORMATIE_API_KEY');
-    if (!apiKey) {
-      return jsonError(
-        'Kadaster API-key is niet geconfigureerd. Voeg KADASTER_OBJECTINFORMATIE_API_KEY toe als Supabase Secret.',
-        503, 'key_invalid',
-      );
-    }
 
     // --- Productselectie bepalen ---
     // Default per modus, of expliciete selectie uit de body. Kadaster
@@ -193,9 +243,13 @@ Deno.serve(async (req: Request) => {
     }
     // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
     // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
+    // Rechten/eigendomsinformatie levert in praktijk alleen zinvolle inhoud
+    // bij OnlyComplete (Kadaster vereist een volledige rapportage); overige
+    // producten houden WithoutProduct zodat één ontbrekend product de
+    // overige niet blokkeert.
     const selection = codes.map((code) => ({
       code,
-      deliver: 'WithoutProduct' as const,
+      deliver: code === 'rechten' ? ('OnlyComplete' as const) : ('WithoutProduct' as const),
     }));
 
     const reportBody: Record<string, unknown> = {

@@ -31,6 +31,11 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { useKadasterObjectinformatie, KadasterApiError } from '@/hooks/useKadasterObjectinformatie';
+import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type {
   KadasterAdresInput, KadasterDebug, KadasterPreview, KadasterProductCode, KadasterRequestInput,
@@ -112,8 +117,13 @@ export default function KadasterGebiedsdataKaart({
   // "onbekende producten". Pas aanzetten als /products ze expliciet teruggeeft.
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
+  // Fase 4K.3R: rechten/eigendomsinformatie als experimentele optie.
+  // Default uit; verschijnt alleen als /products het bevestigt en vereist
+  // een aparte privacy- en kostenbevestiging.
+  const [selRechten, setSelRechten] = useState(false);
 
   const [kostenOpen, setKostenOpen] = useState(false);
+  const [rechtenPrivacyOpen, setRechtenPrivacyOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [preview, setPreview] = useState<KadasterPreview | null>(null);
   const [laatsteFout, setLaatsteFout] = useState<{
@@ -122,6 +132,15 @@ export default function KadasterGebiedsdataKaart({
 
   const mutation = useKadasterObjectinformatie();
   const gebiedsVariant = useMemo(() => gebiedsVariantVoor(typeVastgoed), [typeVastgoed]);
+
+  // Lichtgewicht productlijst — pas opgehaald als de kostenconfirmatie
+  // opent (geen automatische call bij mount). Gratis metadata-call.
+  const catalogus = useKadasterProductCatalogus(kostenOpen);
+  const rechtenItem = useMemo(
+    () => catalogus.data?.products.find(p => p.code === 'rechten') ?? null,
+    [catalogus.data],
+  );
+  const rechtenBeschikbaar = !!rechtenItem;
 
   // Genormaliseerde postcode (API-formaat) — bron voor zowel validatie als
   // request. Null = ongeldig.
@@ -170,12 +189,13 @@ export default function KadasterGebiedsdataKaart({
 
   const adresInput = bouwAdresInput();
   const adresKlaar = !!adresInput;
-  const heeftBetaaldProduct = selObject || selWaarde;
+  const heeftBetaaldProduct = selObject || selWaarde || (selRechten && rechtenBeschikbaar);
 
   function geselecteerdeProducten(): KadasterProductCode[] {
     const out: KadasterProductCode[] = [];
     if (selObject) out.push('object');
     if (selWaarde) out.push('waarde');
+    if (selRechten && rechtenBeschikbaar) out.push('rechten');
     return out;
   }
 
@@ -491,10 +511,40 @@ export default function KadasterGebiedsdataKaart({
                 <span className="text-xs text-muted-foreground">prijs volgens Kadaster</span>
               </label>
 
+              {rechtenBeschikbaar && (
+                <label className="flex items-start justify-between gap-2 rounded-md border border-amber-300 bg-amber-50/60 p-2">
+                  <span className="flex items-start gap-2">
+                    <Checkbox
+                      checked={selRechten}
+                      onCheckedChange={(v) => setSelRechten(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="space-y-0.5">
+                      <span className="block">
+                        {rechtenItem?.name?.trim() || 'Rechten / eigendomsinformatie'}
+                      </span>
+                      <span className="block text-[10px] text-amber-900/80">
+                        Gevoelig product — bevat naam/bedrijfsnaam van rechthebbende.
+                        Aparte privacy-bevestiging vereist.
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {rechtenItem?.priceEur != null
+                      ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' })
+                          .format(rechtenItem.priceEur)
+                      : 'prijs volgens Kadaster'}
+                  </span>
+                </label>
+              )}
+
               <p className="text-[11px] text-muted-foreground pt-1">
                 Gemeentelijke lasten en buurtstatistieken zijn in V1 niet
                 beschikbaar via deze API-key (niet bevestigd via Kadaster's
                 products-endpoint) en worden daarom niet meegestuurd.
+                {catalogus.isLoading && ' Productlijst wordt opgehaald…'}
+                {!catalogus.isLoading && !rechtenBeschikbaar
+                  && ' Rechten niet beschikbaar voor deze API-key.'}
               </p>
             </div>
 
@@ -508,7 +558,7 @@ export default function KadasterGebiedsdataKaart({
             <p className="text-[11px] text-muted-foreground">
               Totaalprijs volgens Kadaster wordt na de aanvraag zichtbaar.
               Ontbrekende producten blokkeren de overige niet
-              (deliver = withoutProduct).
+              (deliver = withoutProduct; rechten = OnlyComplete).
             </p>
           </div>
           <DialogFooter>
@@ -519,6 +569,13 @@ export default function KadasterGebiedsdataKaart({
             <Button
               disabled={mutation.isPending || !heeftBetaaldProduct}
               onClick={async () => {
+                // Rechten vereist een extra, expliciete privacy-bevestiging
+                // bovenop de kostenconfirmatie — ongeacht andere selecties.
+                if (selRechten && rechtenBeschikbaar) {
+                  setKostenOpen(false);
+                  setRechtenPrivacyOpen(true);
+                  return;
+                }
                 setKostenOpen(false);
                 await voerCallUit();
               }}
@@ -528,6 +585,34 @@ export default function KadasterGebiedsdataKaart({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Aparte privacy/kostenbevestiging voor rechten (4K.3R) */}
+      <AlertDialog open={rechtenPrivacyOpen} onOpenChange={setRechtenPrivacyOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechten / eigendomsinformatie bevestigen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deze aanvraag kan eigendoms- of rechthebbendeninformatie
+              bevatten en brengt kosten met zich mee volgens Kadaster.
+              Gebruik deze informatie zorgvuldig en alleen voor dit object.
+              Resultaat wordt alleen gepreviewd; er wordt niets automatisch
+              opgeslagen of gekoppeld aan relaties.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={mutation.isPending}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={mutation.isPending}
+              onClick={async () => {
+                setRechtenPrivacyOpen(false);
+                await voerCallUit();
+              }}
+            >
+              Rechten ophalen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <KadasterPreviewDialog
         open={previewOpen}
