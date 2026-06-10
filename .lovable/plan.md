@@ -1240,3 +1240,20 @@ alleen de laatste record per productcode was zichtbaar.
   EXECUTE-rechten correct zijn ingetrokken voor `anon`/`public` waar
   niet nodig (zie eerdere migration `20260523082538_…`). Geen refactor
   in deze fase.
+
+## 2026-06-11 — Diagnose "verdwenen" Kadaster-PDF (Sarphatipark)
+
+**Conclusie:** geen bug, geen code-wijziging.
+
+Onderzoek in DB toonde:
+- `kadaster_documenten` + `kadaster_data_records` voor Sarphatipark 86-2 (1073EB) hangen
+  correct aan signaal `811e02a2-132d-4206-9dba-92335b05af11` (titel:
+  "Omzettingsvergunning Sarphatipark 86-2 1073EB Amsterdam"). FK's en
+  `pdf_document_id` zijn over en weer gevuld; storage_path bestaat.
+- Het signaal dat de gebruiker open had (`1a0a23a6-…dcd50`) is een
+  ANDER signaal: "Splitsingsvergunning Sarphatistraat 90 1018GT Amsterdam".
+  Daar is nooit een Kadasteraanvraag voor gedaan, dus de UI-melding
+  "Nog geen Kadastergegevens opgehaald voor dit signaal" is correct.
+
+Geen orphan record, geen ontbrekende GRANT, geen verloren signaal_id.
+Persist-flow uit Fase 4K.5/4K.6 werkt zoals bedoeld.
