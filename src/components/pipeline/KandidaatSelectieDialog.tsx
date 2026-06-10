@@ -41,11 +41,30 @@ const LEAD_LABELS: Record<LeadStatus, string> = {
   koud: 'Koud', lauw: 'Lauw', warm: 'Warm', actief: 'Actief',
 };
 
-type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budgetMin' | 'budgetMax' | 'laatsteContact' | 'match';
+type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budget' | 'laatsteContact' | 'match';
 type SortDir = 'asc' | 'desc';
 
 const fmtBedrag = (n?: number) =>
   n != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '—';
+
+const fmtCompactEur = (n: number): string => {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    const s = (Math.round(v * 10) / 10).toString().replace('.', ',');
+    return `€ ${s}m`;
+  }
+  if (n >= 1_000) {
+    const v = Math.round(n / 1_000);
+    return `€ ${v}k`;
+  }
+  return `€ ${n}`;
+};
+const fmtBudgetRange = (min?: number, max?: number): string => {
+  if (min != null && max != null) return `${fmtCompactEur(min)} – ${fmtCompactEur(max)}`;
+  if (min != null) return `Vanaf ${fmtCompactEur(min)}`;
+  if (max != null) return `Tot ${fmtCompactEur(max)}`;
+  return '—';
+};
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
@@ -174,8 +193,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         case 'type': va = ra.type; vb = rb.type; break;
         case 'status': va = ra.leadStatus; vb = rb.leadStatus; break;
         case 'plaats': va = a.plaats; vb = b.plaats; break;
-        case 'budgetMin': va = ra.budgetMin ?? -Infinity; vb = rb.budgetMin ?? -Infinity; break;
-        case 'budgetMax': va = ra.budgetMax ?? -Infinity; vb = rb.budgetMax ?? -Infinity; break;
+        case 'budget': va = ra.budgetMax ?? ra.budgetMin ?? -Infinity; vb = rb.budgetMax ?? rb.budgetMin ?? -Infinity; break;
         case 'laatsteContact': va = ra.laatsteContact ?? ''; vb = rb.laatsteContact ?? ''; break;
         case 'match': va = a.score ?? -1; vb = b.score ?? -1; break;
       }
@@ -187,7 +205,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
   const sorteerToggle = (k: SortKey) => {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(k); setSortDir(k === 'match' || k === 'budgetMax' || k === 'laatsteContact' ? 'desc' : 'asc'); }
+    else { setSortKey(k); setSortDir(k === 'match' || k === 'budget' || k === 'laatsteContact' ? 'desc' : 'asc'); }
   };
 
   const SortKop = ({ k, children, align = 'left' }: { k: SortKey; children: React.ReactNode; align?: 'left' | 'right' }) => (
@@ -425,14 +443,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                     <th className="w-10 py-2 px-2"></th>
                     <SortKop k="naam">Bedrijfsnaam</SortKop>
                     <SortKop k="contact">Contactpersoon</SortKop>
-                    <th className="text-left font-medium py-2 px-2">E-mail</th>
-                    <th className="text-left font-medium py-2 px-2">Telefoon</th>
                     <SortKop k="type">Type</SortKop>
                     <SortKop k="status">Status</SortKop>
                     <SortKop k="plaats">Plaats</SortKop>
                     <th className="text-left font-medium py-2 px-2">Assetclass</th>
-                    <SortKop k="budgetMin" align="right">Budget vanaf</SortKop>
-                    <SortKop k="budgetMax" align="right">Budget tot</SortKop>
+                    <SortKop k="budget" align="right">Budget</SortKop>
                     <SortKop k="laatsteContact">Laatste contact</SortKop>
                     <th className="text-left font-medium py-2 px-2">Bron</th>
                     <SortKop k="match" align="right">Match</SortKop>
@@ -451,8 +466,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         <td className="py-2 px-2"><Checkbox checked={checked} onCheckedChange={() => toggle(r.id)} /></td>
                         <td className="py-2 px-2 font-medium max-w-[180px] truncate" title={r.bedrijfsnaam}>{r.bedrijfsnaam || '—'}</td>
                         <td className="py-2 px-2 max-w-[160px] truncate" title={item.contactNaam}>{item.contactNaam || '—'}</td>
-                        <td className="py-2 px-2 text-xs text-muted-foreground max-w-[180px] truncate" title={item.email}>{item.email || '—'}</td>
-                        <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">{item.telefoon || '—'}</td>
                         <td className="py-2 px-2 text-xs whitespace-nowrap">{PARTIJ_LABELS[r.type]}</td>
                         <td className="py-2 px-2"><LeadStatusBadge status={r.leadStatus} /></td>
                         <td className="py-2 px-2 text-xs max-w-[120px] truncate" title={item.plaats}>{item.plaats || '—'}</td>
@@ -460,8 +473,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                           {(r.assetClasses ?? []).slice(0, 2).map(a => ASSET_CLASS_LABELS[a]).join(', ') || '—'}
                           {(r.assetClasses?.length ?? 0) > 2 && <span className="text-muted-foreground"> +{(r.assetClasses!.length - 2)}</span>}
                         </td>
-                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBedrag(r.budgetMin)}</td>
-                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBedrag(r.budgetMax)}</td>
+                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBudgetRange(r.budgetMin, r.budgetMax)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDatum(r.laatsteContact)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground max-w-[100px] truncate" title={r.bronRelatie ?? ''}>{r.bronRelatie || '—'}</td>
                         <td className="py-2 px-2 text-right font-mono-data text-xs">{item.score != null ? `${item.score}%` : '—'}</td>
@@ -492,7 +504,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         </div>
                         {/* Privacy-regel: geen e-mail/telefoon als secundair label. */}
                         <div className="text-xs text-muted-foreground mt-0.5 font-mono-data">
-                          Budget: {fmtBedrag(r.budgetMin)} – {fmtBedrag(r.budgetMax)}
+                          Budget: {fmtBudgetRange(r.budgetMin, r.budgetMax)}
                           {item.score != null && <span className="ml-2">Match: {item.score}%</span>}
                         </div>
                       </div>
