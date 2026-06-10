@@ -56,7 +56,7 @@ describe('usePromoteSignaalToObject — Kadaster-migratie', () => {
     expect(res.kadasterMigrationError).toBeNull();
   });
 
-  it('zet object_id op bestaande records bij migrateKadaster=true (signaal_id blijft)', async () => {
+  it('zet object_id op bestaande records + documenten bij migrateKadaster=true', async () => {
     rpcMock.mockResolvedValue({ data: 'obj-2', error: null });
     updateSelectMock.mockResolvedValue({
       data: [{ id: 'r1' }, { id: 'r2' }],
@@ -66,10 +66,15 @@ describe('usePromoteSignaalToObject — Kadaster-migratie', () => {
     const { result } = renderHook(() => usePromoteSignaalToObject(), { wrapper });
     const res = await result.current.mutateAsync({ signaalId: 'sig-2', migrateKadaster: true });
 
-    expect(updateSelectMock).toHaveBeenCalledTimes(1);
+    // records én documenten: 2 chained updates
+    expect(updateSelectMock).toHaveBeenCalledTimes(2);
     expect(updateSelectMock).toHaveBeenCalledWith({ object_id: 'obj-2' });
+    expect(fromMock).toHaveBeenCalledWith('kadaster_data_records');
+    expect(fromMock).toHaveBeenCalledWith('kadaster_documenten');
     expect(res.kadasterMigrated).toBe(2);
+    expect(res.kadasterDocumentenMigrated).toBe(2);
     expect(res.kadasterMigrationError).toBeNull();
+    expect(res.kadasterDocumentenMigrationError).toBeNull();
   });
 
   it('rolt het object niet terug als kadaster-koppeling mislukt; geeft foutmelding mee', async () => {
@@ -82,6 +87,7 @@ describe('usePromoteSignaalToObject — Kadaster-migratie', () => {
     expect(res.objectId).toBe('obj-3');
     expect(res.kadasterMigrated).toBe(0);
     expect(res.kadasterMigrationError).toMatch(/permission denied/);
+    expect(res.kadasterDocumentenMigrationError).toMatch(/permission denied/);
   });
 
   it('doet geen extra Kadaster Edge Function call tijdens promotie', async () => {
