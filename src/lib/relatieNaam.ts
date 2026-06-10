@@ -82,13 +82,8 @@ export function getRelatieNamen(
     return { primair: bedrijfsnaam, secundair: null, isLeeg: false };
   }
 
-  // 4. Fallback op e-mail/telefoon/type-label
-  const email = clean(relatie.email) || clean(primaireCp?.email);
-  if (email) return { primair: email, secundair: null, isLeeg: true };
-
-  const tel = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
-  if (tel) return { primair: tel, secundair: null, isLeeg: true };
-
+  // 4. Geen naam en geen bedrijf: NOOIT e-mail of telefoon als displaynaam
+  //    gebruiken (privacy + UI-regel). Val terug op type-label.
   const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
   if (typeLabel) return { primair: `${typeLabel} zonder naam`, secundair: null, isLeeg: true };
 
