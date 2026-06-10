@@ -23,6 +23,7 @@ import type {
   KadasterModus, KadasterProductCode, KadasterPreview,
 } from './_types.ts';
 import { normaliseerKadasterResponse, logRegel, responseShape } from './_normalize.ts';
+import { persistKadasterRecords } from './_persist.ts';
 
 // Officiële Kadata Objectinformatie API host (zie Swagger:
 //   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
