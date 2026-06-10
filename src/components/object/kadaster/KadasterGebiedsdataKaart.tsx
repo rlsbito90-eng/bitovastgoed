@@ -124,9 +124,25 @@ export default function KadasterGebiedsdataKaart({
     [postcodeInput],
   );
 
-  /** Bouw het uiteindelijke adres-payload op basis van keuzes. */
+  /**
+   * Bouw het uiteindelijke adres-payload op basis van de actieve modus.
+   * In adresmodus is `postcode` formeel nog steeds vereist — Kadaster
+   * accepteert geen straat/plaats. De adresvelden zijn een UI-helper om
+   * de gebruiker te helpen het juiste pand te identificeren.
+   */
   function bouwAdresInput(): KadasterAdresInput | null {
     if (!postcodeApi) return null;
+
+    if (zoekModus === 'adres') {
+      const nr = adresHuisnummer.trim();
+      if (!nr) return null;
+      return {
+        postalcode: postcodeApi,
+        houseNumber: nr,
+        houseLetter: adresLetter.trim() || null,
+        houseNumberAddition: adresToevoeging.trim() || null,
+      };
+    }
 
     if (handmatigHuisnummer.trim()) {
       return {
@@ -168,6 +184,7 @@ export default function KadasterGebiedsdataKaart({
       toast.error('Selecteer minimaal één betaald product (WOZ-object of Koopsom).');
       return;
     }
+    setLaatsteFout(null);
     const input: KadasterRequestInput = {
       modus: 'kadaster',
       adres: adresInput,
@@ -182,6 +199,12 @@ export default function KadasterGebiedsdataKaart({
       toast.success(`Kadastergegevens opgehaald (${aantal} product${aantal === 1 ? '' : 'en'})`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Kadaster-aanvraag mislukt';
+      const apiErr = e instanceof KadasterApiError ? e : null;
+      setLaatsteFout({
+        msg,
+        httpStatus: apiErr?.httpStatus,
+        debug: apiErr?.debug ?? null,
+      });
       toast.error(msg);
     }
   }
