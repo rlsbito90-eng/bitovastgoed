@@ -22,6 +22,9 @@ import {
   type KadasterDocument,
 } from '@/hooks/useKadasterDocumenten';
 import KadasterPdfKnop from './KadasterPdfKnop';
+import KadasterRechtenBlokken from './KadasterRechtenBlokken';
+import { mapRechtenBlokken, blokUitOpgeslagenRecord } from '@/lib/kadaster/rechtenBlokken';
+
 import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
 import KadasterHistorieLijst from './KadasterHistorieLijst';
 
@@ -110,39 +113,25 @@ function WaardeRecordBlok({ r }: { r: KadasterDataRecord }) {
   );
 }
 
-function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
-  const samenvatting = r.rechten_samenvatting ?? {};
-  const aantal = typeof samenvatting.aantal_rechthebbenden === 'number'
-    ? samenvatting.aantal_rechthebbenden as number : null;
-  const heeftVelden = !!(r.rechthebbende_naam || r.rechtsoort
-    || r.aandeel || r.kadastrale_aanduiding);
+function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
+  const rawRechten = (r.raw_limited as Record<string, unknown> | null | undefined)?.rechten;
+  let blokken = mapRechtenBlokken(rawRechten);
+  if (blokken.length === 0) {
+    const fallback = blokUitOpgeslagenRecord(r);
+    if (fallback) blokken = [fallback];
+  }
   return (
-    <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
-      <p className="text-sm font-medium">Rechthebbende volgens Kadaster</p>
-      <p className="text-[11px] text-muted-foreground">
-        Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan
-        relaties, eigenaar of verkoper.
-      </p>
-      {!heeftVelden ? (
-        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-          Rechten geleverd, maar rechthebbende-velden nog niet herkend.
-          Bekijk technische details in de historie.
-        </p>
-      ) : (
-        <>
-          <Row label="Aantal rechthebbenden" value={aantal} />
-          <Row label="Naam" value={r.rechthebbende_naam} />
-          <Row label="Type" value={r.rechthebbende_type} />
-          <Row label="Rechtsoort" value={r.rechtsoort} />
-          <Row label="Aandeel" value={r.aandeel} />
-          <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
-        </>
-      )}
+    <div className="rounded-md border border-border bg-card p-3">
+      <KadasterRechtenBlokken
+        blokken={blokken}
+        pdf={pdf ?? null}
+        intro="Intern opgeslagen als Kadasterrecord. Niet automatisch gekoppeld aan relaties, eigenaar of verkoper."
+      />
     </div>
   );
 }
 
-function RecordKaart({ r }: { r: KadasterDataRecord }) {
+function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   if (r.status !== 'geleverd' && r.status !== 'gedeeltelijk') {
     return (
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
@@ -160,7 +149,7 @@ function RecordKaart({ r }: { r: KadasterDataRecord }) {
   }
   if (r.product_code === 'object') return <ObjectRecordBlok r={r} />;
   if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} />;
-  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} />;
+  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} />;
   return (
     <div className="rounded-md border border-border bg-card p-3">
       <p className="text-sm font-medium">
@@ -232,22 +221,14 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
               const pdf = pdfPerRecord.get(r.id);
               return (
                 <div key={code} className="space-y-1">
-                  <RecordKaart r={r} />
-                  {pdf && (
+                  <RecordKaart r={r} pdf={pdf} />
+                  {pdf && code !== 'rechten' && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
                         <FileText className="h-3 w-3" /> Kadasterbericht opgeslagen
                       </span>
                       <KadasterPdfKnop document={pdf} />
                     </div>
-                  )}
-                  {!pdf && r.product_code === 'rechten'
-                    && r.status === 'geleverd'
-                    && !r.rechthebbende_naam && (
-                    <p className="text-[10px] text-muted-foreground italic px-1">
-                      Tip: vraag opnieuw op met "Kadasterbericht/PDF intern opslaan" aan
-                      om de rechthebbende uit het officiële Kadasterbericht te kunnen lezen.
-                    </p>
                   )}
                 </div>
               );

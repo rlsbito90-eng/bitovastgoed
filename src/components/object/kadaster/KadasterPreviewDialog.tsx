@@ -32,6 +32,8 @@ import type {
 import { KADASTER_LABELS_PER_PRODUCT, KADASTER_STATUS_LABELS } from '@/lib/kadaster/types';
 import { mapWozObject, heeftWozObjectInhoud } from '@/lib/kadaster/wozObject';
 import { mapRechten, heeftRechtenInhoud } from '@/lib/kadaster/rechten';
+import { mapRechtenBlokken } from '@/lib/kadaster/rechtenBlokken';
+import KadasterRechtenBlokken from './KadasterRechtenBlokken';
 
 /** Patch dat naar de parent gaat. Bewust beperkt tot veilige velden. */
 export interface KadasterOvernamePatch {
@@ -504,56 +506,33 @@ function ProductCard({
   // Experimentele preview (Fase 4K.3R). Geen opslag, geen automatische
   // koppeling aan Relaties, geen overname-knoppen.
   if (product.code === 'rechten') {
-    const view = mapRechten(product.data);
-    const heeft = heeftRechtenInhoud(view);
+    const blokken = mapRechtenBlokken(product.data);
+    const viewLegacy = mapRechten(product.data);
+    // Fallback: als nieuwe mapper niets vond maar oude wel, bouw 1 blok
+    if (blokken.length === 0 && heeftRechtenInhoud(viewLegacy)) {
+      for (const rh of viewLegacy.rechthebbenden) {
+        blokken.push({
+          id: `legacy-${blokken.length}`,
+          rechtstype: rh.rechtsoort,
+          aandeel: rh.aandeel,
+          naam: rh.naam, bedrijfsnaam: rh.bedrijfsnaam,
+          persoonType: rh.bedrijfsnaam ? 'rechtspersoon' : (rh.naam ? 'natuurlijk' : null),
+          geboortedatum: null, geboorteplaats: null,
+          adresRegels: [], postcode: null, plaats: null,
+          zetel: null, kvkNummer: null, registerVerwijzing: null,
+          kadastraleAanduiding: viewLegacy.kadastraleAanduiding,
+          bron: 'json',
+        });
+      }
+    }
     return (
       <div className="rounded-md border border-border bg-card p-3 space-y-3">
         {header}
-        <p className="text-[11px] text-muted-foreground">
-          Rechthebbende(n) volgens Kadaster. Intern opgeslagen als
-          Kadasterrecord, maar niet automatisch gekoppeld aan relaties,
-          eigenaar of verkoper.
-        </p>
-
-        {!heeft ? (
-          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
-            Rechten geleverd, maar rechthebbende-velden nog niet herkend.
-            Bekijk technische details voor de response-shape.
-          </p>
-        ) : (
-          <>
-            {view.rechthebbenden.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Rechthebbenden volgens Kadaster ({view.rechthebbenden.length})
-                </p>
-                {view.rechthebbenden.map((r, i) => (
-                  <div key={i} className="rounded border border-border/60 p-2 space-y-1 text-xs">
-                    <Row label="Naam" value={r.naam} />
-                    <Row label="Bedrijfsnaam" value={r.bedrijfsnaam} />
-                    <Row label="Type" value={r.type} />
-                    <Row label="Aandeel" value={r.aandeel} />
-                    <Row label="Rechtsoort" value={r.rechtsoort} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="space-y-1.5 text-xs">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Object
-              </p>
-              <Row label="Kadastrale aanduiding" value={view.kadastraleAanduiding} />
-              <Row label="Appartementsrecht" value={view.appartementsrecht} />
-            </div>
-
-            <p className="text-[10px] text-muted-foreground italic">
-              Labels zoals "verkoper" of "opdrachtgever" worden niet automatisch
-              toegekend — alleen "rechthebbende volgens Kadaster".
-            </p>
-          </>
-        )}
-
+        <KadasterRechtenBlokken
+          blokken={blokken}
+          intro="Rechthebbende(n) volgens Kadaster. Intern opgeslagen als Kadasterrecord, niet automatisch gekoppeld aan relaties, eigenaar of verkoper."
+          toonTitel={false}
+        />
         <Collapsible>
           <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
             Technische details

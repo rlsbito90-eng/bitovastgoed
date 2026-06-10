@@ -219,6 +219,47 @@ function buildRow(
           }
         : null,
     };
+    // Whitelist structurele blokken voor weergave (geen vrije velden).
+    const rechtenBlokKeys = [
+      'rechtsoort', 'soortRecht', 'aardRecht', 'aardRechtVerkort',
+      'omschrijvingRecht', 'zakelijkRecht', 'recht',
+      'aandeel', 'aandeelInRecht', 'breukdeel', 'gerechtigdAandeel',
+      'persoon', 'natuurlijkPersoon', 'naamNatuurlijkPersoon',
+      'onderneming', 'nietNatuurlijkPersoon', 'rechtspersoon',
+      'organisatie', 'naamNietNatuurlijkPersoon',
+      'naam', 'volledigeNaam', 'naamRechthebbende',
+      'bedrijfsnaam', 'statutaireNaam', 'handelsnaam',
+      'kvkNummer', 'kvk', 'zetel', 'statutaireZetel',
+      'geboortedatum', 'geboorteplaats',
+      'adres', 'woonadres', 'vestigingsadres', 'correspondentieadres',
+      'postcode', 'plaats', 'woonplaats', 'straat', 'huisnummer',
+      'huisletter', 'huisnummertoevoeging', 'postbus',
+      'gebaseerdOp', 'registerverwijzing', 'register', 'registerHyp4',
+      'deel', 'nummer',
+      'kadastraleAanduiding', 'kadastraalObject',
+    ];
+    const blokkenSrc: unknown[] = [];
+    const containerKeys = ['rechten', 'overigeRechten', 'zakelijkeRechten',
+      'rechtenLijst', 'eigendom', 'eigendommen', 'beperkteRechten'];
+    for (const ck of containerKeys) {
+      const v = (data as Record<string, unknown>)[ck];
+      if (Array.isArray(v)) blokkenSrc.push(...v);
+      else if (asObj(v)) blokkenSrc.push(v);
+    }
+    if (blokkenSrc.length === 0 && Array.isArray(lijst)) blokkenSrc.push(...lijst);
+
+    function whitelistDiep(v: unknown, diepte = 0): unknown {
+      if (diepte > 3) return null;
+      if (Array.isArray(v)) return v.slice(0, 10).map((x) => whitelistDiep(x, diepte + 1));
+      const o = asObj(v); if (!o) return typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? v : null;
+      const out: Record<string, unknown> = {};
+      for (const k of rechtenBlokKeys) {
+        if (o[k] !== undefined) out[k] = whitelistDiep(o[k], diepte + 1);
+      }
+      return out;
+    }
+    const blokkenWhitelist = blokkenSrc.slice(0, 20).map((b) => whitelistDiep(b));
+
     row.raw_limited = {
       rechten: {
         aantal: Array.isArray(lijst) ? lijst.length : 0,
@@ -229,6 +270,7 @@ function buildRow(
           ?? asStr(data.aanduiding) ?? null,
         appartementsrecht: asStr((data as Record<string, unknown>).appartementsrecht)
           ?? asStr((data as Record<string, unknown>).appartementsrechtsplitsing) ?? null,
+        blokken: blokkenWhitelist,
       },
     };
   } else {
