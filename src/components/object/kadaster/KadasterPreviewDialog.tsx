@@ -82,13 +82,12 @@ function StatusBadge({ status }: { status: KadasterDeliverStatus }) {
 }
 
 function ProductCard({
-  product, gebiedsVariant, onOvernemenBouwjaar, onOvernemenWozWaarde,
+  product, gebiedsVariant,
 }: {
   product: KadasterProductResult;
   gebiedsVariant: 'buurtprofiel' | 'gebiedscontext';
-  onOvernemenBouwjaar?: (jaar: number) => void;
-  onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
 }) {
+
   const titel = useMemo<string>(() => {
     if (product.code === 'lasten') return 'Gemeentelijke lasten';
     if (product.code === 'buurt') {
