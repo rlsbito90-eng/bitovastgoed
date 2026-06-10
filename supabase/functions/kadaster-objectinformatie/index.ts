@@ -131,9 +131,11 @@ Deno.serve(async (req: Request) => {
       );
     }
     const codes = gevraagd as KadasterProductCode[];
+    // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
+    // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
     const selection = codes.map((code) => ({
       code,
-      deliver: 'withoutProduct' as const,
+      deliver: 'WithoutProduct' as const,
     }));
 
     const reportBody: Record<string, unknown> = {
@@ -155,18 +157,36 @@ Deno.serve(async (req: Request) => {
           400, 'invalid_input',
         );
       }
-      reportBody.pht = {
+      const pht: Record<string, string> = {
         postalcode: normPostcode,
-        houseNumber: body.adres.houseNumber,
-        ...(body.adres.houseLetter ? { houseLetter: body.adres.houseLetter } : {}),
-        ...(body.adres.houseNumberAddition ? { houseNumberAddition: body.adres.houseNumberAddition } : {}),
+        houseNumber: String(body.adres.houseNumber),
       };
+      // Lege strings niet meesturen — Swagger geeft nullable, en Kadaster
+      // weigert in de praktijk lege toevoegingen bij sommige adressen.
+      if (body.adres.houseLetter && body.adres.houseLetter.trim()) {
+        pht.houseLetter = body.adres.houseLetter.trim();
+      }
+      if (body.adres.houseNumberAddition && body.adres.houseNumberAddition.trim()) {
+        pht.houseNumberAddition = body.adres.houseNumberAddition.trim();
+      }
+      reportBody.pht = pht;
       zoekadresWaarde = [
         normPostcode,
         body.adres.houseNumber + (body.adres.houseLetter ?? ''),
         body.adres.houseNumberAddition,
       ].filter(Boolean).join(' ');
     }
+
+    // Veilige debug-info: bevat genormaliseerde input + request body zonder
+    // de API-key. Wordt zowel bij succes als fout teruggegeven zodat de UI
+    // technische details kan tonen.
+    const debug = {
+      endpoint: '/report',
+      base_url: KADASTER_BASE_URL,
+      request_preview: reportBody,
+      zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
+      product_codes: codes,
+    };
 
     // --- Kadaster call ---
     const upstreamUrl = `${KADASTER_BASE_URL}/report`;
@@ -178,7 +198,7 @@ Deno.serve(async (req: Request) => {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-Api-Key': apiKey,
+          'X-API-KEY': apiKey,
         },
         body: JSON.stringify(reportBody),
       });
@@ -189,7 +209,7 @@ Deno.serve(async (req: Request) => {
       }));
       return jsonError(
         'Kadaster is tijdelijk niet bereikbaar. Probeer later opnieuw.',
-        502, 'upstream_unavailable',
+        502, 'upstream_unavailable', debug,
       );
     }
 
