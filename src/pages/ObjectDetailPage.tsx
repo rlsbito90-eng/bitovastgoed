@@ -77,6 +77,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/VastgoedrekenenTab'));
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
+import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
 import { buildMapsUrl } from '@/lib/maps';
 
 /* ============================================================
@@ -1692,6 +1693,21 @@ export default function ObjectDetailPage() {
               </div>
             </SectionAnchor>
           )}
+
+          {/* ============ KADASTER & GEBIEDSDATA ============ */}
+          {activeTab === 'meer' && (
+            <SectionAnchor id="kadaster-data" eyebrow={eyebrowFor("kadaster-data", "Kadaster")} title="Kadaster & gebiedsdata">
+              <KadasterGebiedsdataKaart
+                objectId={object.id}
+                adres={object.adres}
+                postcode={object.postcode}
+                plaats={object.plaats}
+                typeVastgoed={(object as { type?: string | null }).type ?? null}
+              />
+            </SectionAnchor>
+          )}
+
+
 
           {/* ============ CONTACTEN (conditioneel) ============ */}
           {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (

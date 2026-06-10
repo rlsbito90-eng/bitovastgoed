@@ -589,3 +589,65 @@ Gratis "Gebiedsdata ophalen" volgt zelfde flow zonder stap 4.
 - Gratis producten in Objecten én Off-market Radar.
 - Postcode/huisnummer primair; BAG-ID optioneel; presentatieadres nooit
   blind; bij meerdere huisnummers eerst kiezen.
+
+---
+
+## Fase 4K.2 — Frontend in Objecten/Aanbod
+
+### Status
+Uitgevoerd. Off Market Radar is bewust nog niet aangeraakt (4K.3).
+
+### Nieuwe bestanden
+- `src/lib/kadaster/types.ts` — frontend-mirror van edge function types,
+  helpers `KADASTER_KOSTEN_PER_MODUS` en `KADASTER_LABELS_PER_PRODUCT`.
+- `src/lib/kadaster/adres.ts` — `parseObjectAdres()` haalt postcode +
+  huisnummer(s) (incl. `t/m`-ranges op letters of nummers, max 10) uit
+  het vrije `objecten.adres` veld; `normaliseerPostcode()` voor "1234 AB".
+- `src/hooks/useKadasterObjectinformatie.tsx` — React Query mutation
+  rond `supabase.functions.invoke('kadaster-objectinformatie')` met
+  `retry: false` en `KadasterApiError` die `code`/`http_status` doorgeeft.
+- `src/components/object/kadaster/KadasterGebiedsdataKaart.tsx` — hoofd-UI:
+  - Zoekadres-blok: postcode-input + dropdown bij meerdere huisnummers +
+    handmatige inputs als parsing niet betrouwbaar is.
+  - Twee knoppen: "Gebiedsdata ophalen (gratis)" en "Kadastergegevens
+    ophalen (€ 0,20)".
+  - Kostenconfirmatie-dialog (alleen betaalde call) toont zoekadres +
+    kostenopbouw vóór de call.
+  - Knoppen disabled tijdens `mutation.isPending` — geen dubbele calls.
+- `src/components/object/kadaster/KadasterPreviewDialog.tsx` — preview
+  per product: bouwjaar, WOZ-waarde, peildatum, koopsom,
+  transactiedatum, gebruiksdoel (suggestie). Optionele
+  `onOvernemenBouwjaar`/`onOvernemenWozWaarde` callbacks (in V1 niet
+  bedraad — alleen weergave). Technische details inklapbaar.
+- `src/test/kadaster/adres.test.ts` — 13 tests voor adresparser
+  (postcode normalisatie, losse huisnummers, letters, `t/m`-ranges,
+  betrouwbaarheid).
+
+### Integratie ObjectDetailPage
+- Nieuwe `SectionAnchor id="kadaster-data"` op tab "meer", direct na
+  Juridisch & kadastraal. Bevat `<KadasterGebiedsdataKaart>` met object-id,
+  adres, postcode, plaats en `type` voor gebiedsvariant.
+- `type === 'wonen' | 'mixed_use' | 'ontwikkellocatie' | 'zorgvastgoed'`
+  → "Buurtprofiel"; rest → "Gebiedscontext".
+
+### Garanties
+- Geen automatische Kadaster-calls. Geen call bij render, opslaan of
+  adreswijziging — alleen na expliciete klik (en bevestiging bij
+  betaalde call).
+- API-key blijft uitsluitend server-side; frontend kent alleen de
+  Edge Function-naam.
+- Objectdata wordt nooit automatisch overschreven; preview is
+  read-only in V1.
+- Bij meerdere huisnummers eerst keuze; presentatieadres nooit blind.
+- Foutmeldingen 401/406, 412, 404, 409/422, 5xx komen vanuit Edge
+  Function al in NL terug en worden via `toast.error` getoond.
+
+### Tests
+- 475/475 groen (was 462; +13 nieuwe adres-tests).
+
+### Niet in deze stap
+- Off Market Radar (4K.3).
+- Product `rechten`/eigendomsinformatie (V2).
+- Overname-automatiek: knoppen in preview zijn nu alleen weergave;
+  bedraden naar object-update volgt eventueel in 4K.4.
+- Caching, beheerkaart, schema/migratie.
