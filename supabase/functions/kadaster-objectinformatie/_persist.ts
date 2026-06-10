@@ -135,38 +135,81 @@ function buildRow(
       doelbinding: data.doelbinding ?? null,
     };
   } else if (product.code === 'rechten') {
-    // Voorzichtige samenvatting; geen automatische relatiekoppeling.
-    const lijstKandidaten = [
-      data.rechthebbenden, data.tenaamstellingen, data.gerechtigden,
-      data.eigenaren, data.rechten, data.rightHolders,
+    // Brede zoektocht naar rechthebbenden + diagnostische shape.
+    // We slaan geen volledige raw response op; alleen keys/lengtes.
+    const lijstKeys = [
+      'rechthebbenden', 'tenaamstellingen', 'gerechtigden',
+      'eigenaren', 'rechten', 'rightHolders', 'personen',
+      'rechtspersonen', 'natuurlijkePersonen', 'nietNatuurlijkePersonen',
     ];
-    const lijst = lijstKandidaten.find(Array.isArray) as unknown[] | undefined;
+    let lijst: unknown[] | undefined;
+    let lijstNaam: string | null = null;
+    for (const k of lijstKeys) {
+      const v = (data as Record<string, unknown>)[k];
+      if (Array.isArray(v) && v.length > 0) { lijst = v; lijstNaam = k; break; }
+    }
     const r0 = asObj(lijst?.[0]) ?? {};
-    const persoon = asObj(r0.persoon) ?? asObj(r0.natuurlijkPersoon) ?? {};
+    const persoon = asObj(r0.persoon) ?? asObj(r0.natuurlijkPersoon)
+      ?? asObj((r0 as Record<string, unknown>).naturalPerson)
+      ?? asObj((r0 as Record<string, unknown>).naamNatuurlijkPersoon) ?? {};
     const ond = asObj(r0.onderneming) ?? asObj(r0.nietNatuurlijkPersoon)
-      ?? asObj(r0.rechtspersoon) ?? {};
+      ?? asObj(r0.rechtspersoon) ?? asObj((r0 as Record<string, unknown>).organisatie)
+      ?? asObj((r0 as Record<string, unknown>).legalEntity)
+      ?? asObj((r0 as Record<string, unknown>).naamNietNatuurlijkPersoon) ?? {};
 
     row.rechthebbende_naam =
       asStr(persoon.volledigeNaam) ?? asStr(persoon.naam)
+      ?? asStr((persoon as Record<string, unknown>).achternaam)
+      ?? asStr((persoon as Record<string, unknown>).geslachtsnaam)
       ?? asStr(ond.statutaireNaam) ?? asStr(ond.naam)
-      ?? asStr(r0.naam) ?? null;
+      ?? asStr((ond as Record<string, unknown>).handelsnaam)
+      ?? asStr((ond as Record<string, unknown>).organisatieNaam)
+      ?? asStr(r0.naam) ?? asStr((r0 as Record<string, unknown>).volledigeNaam)
+      ?? asStr((r0 as Record<string, unknown>).naamRechthebbende)
+      ?? asStr((r0 as Record<string, unknown>).bedrijfsnaam) ?? null;
     row.rechthebbende_type = asStr(r0.soortRechthebbende)
-      ?? asStr(r0.typeRechthebbende) ?? (Object.keys(persoon).length > 0
+      ?? asStr(r0.typeRechthebbende) ?? asStr((r0 as Record<string, unknown>).type)
+      ?? asStr((r0 as Record<string, unknown>).soort)
+      ?? asStr((r0 as Record<string, unknown>).rechtsvorm)
+      ?? (Object.keys(persoon).length > 0
         ? 'natuurlijk persoon'
         : (Object.keys(ond).length > 0 ? 'rechtspersoon' : null));
     row.rechtsoort = asStr(r0.rechtsoort) ?? asStr(r0.aardRecht)
-      ?? asStr(r0.aardRechtVerkort);
-    const aandeelV = r0.aandeel;
+      ?? asStr(r0.aardRechtVerkort)
+      ?? asStr((r0 as Record<string, unknown>).soortRecht)
+      ?? asStr((r0 as Record<string, unknown>).zakelijkRecht)
+      ?? asStr((r0 as Record<string, unknown>).omschrijvingRecht)
+      ?? asStr((r0 as Record<string, unknown>).recht) ?? null;
+    const aandeelV = r0.aandeel
+      ?? (r0 as Record<string, unknown>).aandeelInRecht
+      ?? (r0 as Record<string, unknown>).breukdeel
+      ?? (r0 as Record<string, unknown>).gerechtigdAandeel
+      ?? (r0 as Record<string, unknown>).share;
     row.aandeel = typeof aandeelV === 'string' ? aandeelV
       : (asObj(aandeelV) && typeof (aandeelV as Record<string, unknown>).teller === 'number'
           && typeof (aandeelV as Record<string, unknown>).noemer === 'number'
             ? `${(aandeelV as Record<string, unknown>).teller}/${(aandeelV as Record<string, unknown>).noemer}`
             : asStr(aandeelV));
     row.kadastrale_aanduiding = asStr(data.kadastraleAanduiding)
-      ?? asStr(data.aanduiding) ?? null;
+      ?? asStr(data.aanduiding)
+      ?? asStr((data as Record<string, unknown>).kadastraalObject)
+      ?? asStr((data as Record<string, unknown>).kadastraleObjectIdentificatie)
+      ?? null;
+
+    // Diagnostische shape (geen vrije inhoud, alleen keys/lengtes).
+    const dataKeys = Object.keys(data).slice(0, 32);
+    const arrays: Record<string, { lengte: number; first_item_keys: string[] }> = {};
+    for (const k of dataKeys) {
+      const v = (data as Record<string, unknown>)[k];
+      if (Array.isArray(v) && v.length > 0) {
+        const first = asObj(v[0]) ?? {};
+        arrays[k] = { lengte: v.length, first_item_keys: Object.keys(first).slice(0, 24) };
+      }
+    }
 
     row.rechten_samenvatting = {
       aantal_rechthebbenden: Array.isArray(lijst) ? lijst.length : 0,
+      gebruikte_array: lijstNaam,
       eerste: row.rechthebbende_naam
         ? {
             naam: row.rechthebbende_naam,
@@ -179,8 +222,13 @@ function buildRow(
     row.raw_limited = {
       rechten: {
         aantal: Array.isArray(lijst) ? lijst.length : 0,
-        kadastraleAanduiding: data.kadastraleAanduiding ?? data.aanduiding ?? null,
-        appartementsrecht: data.appartementsrecht ?? null,
+        gebruikte_array: lijstNaam,
+        top_level_keys: dataKeys,
+        arrays,
+        kadastraleAanduiding: asStr(data.kadastraleAanduiding)
+          ?? asStr(data.aanduiding) ?? null,
+        appartementsrecht: asStr((data as Record<string, unknown>).appartementsrecht)
+          ?? asStr((data as Record<string, unknown>).appartementsrechtsplitsing) ?? null,
       },
     };
   } else {
