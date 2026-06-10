@@ -31,6 +31,7 @@ import type {
 } from '@/lib/kadaster/types';
 import { KADASTER_LABELS_PER_PRODUCT, KADASTER_STATUS_LABELS } from '@/lib/kadaster/types';
 import { mapWozObject, heeftWozObjectInhoud } from '@/lib/kadaster/wozObject';
+import { mapRechten, heeftRechtenInhoud } from '@/lib/kadaster/rechten';
 
 /** Patch dat naar de parent gaat. Bewust beperkt tot veilige velden. */
 export interface KadasterOvernamePatch {
