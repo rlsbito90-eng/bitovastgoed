@@ -166,7 +166,10 @@ export default function KadasterOpgeslagenKaart({ objectId }: Props) {
   const { data: pdfs } = useKadasterDocumentenForObject(objectId);
   const records = useMemo(() => data ?? [], [data]);
   const pdfList = useMemo(() => pdfs ?? [], [pdfs]);
-  const pdfPerRecord = useMemo(() => documentenPerRecord(pdfList), [pdfList]);
+  const pdfPerRecord = useMemo(
+    () => documentenPerRecord(pdfList, records),
+    [pdfList, records],
+  );
   const laatste = useMemo(() => laatsteRecordsPerProduct(records), [records]);
   const [techOpen, setTechOpen] = useState(false);
 
