@@ -1156,3 +1156,35 @@ alleen de laatste record per productcode was zichtbaar.
 - Rechten-PDF analyseren/parsen (handmatige actie).
 - Bulk-PDF aanvraag voor geselecteerde signalen.
 - API-key statuskaart.
+
+## Fase 4K.6 — Rechten als blokken + PDF altijd zichtbaar (afgerond)
+
+### Frontend
+- Nieuwe mapper `src/lib/kadaster/rechtenBlokken.ts` bouwt genormaliseerde
+  `KadasterRechtenBlok[]` met rechtstype, aandeel, partij (natuurlijk
+  persoon of rechtspersoon), geboortedatum/-plaats, KvK/zetel, adres,
+  registerverwijzing (Hyp4 Deel/nummer) en kadastrale aanduiding.
+- Defensief: meerdere per-rechttype containers (`rechten`, `overigeRechten`,
+  `eigendom`, ...) én geneste `rechthebbenden`-lijsten; fallback op platte
+  top-level rechthebbenden-arrays.
+- `src/components/object/kadaster/KadasterRechtenBlokken.tsx` — kaart per
+  blok; PDF-bronbalk wordt altijd bovenaan getoond als Kadasterbericht
+  beschikbaar is, óók wanneer JSON wel velden geleverd heeft.
+- Toegepast in `KadasterOpgeslagenKaart`, `SignaalKadasterKaart` en de
+  rechten-tak van `KadasterPreviewDialog`.
+
+### Backend
+- `_persist.ts` slaat een whitelisted `raw_limited.rechten.blokken` op
+  (max 20 blokken, diepte 3) zodat opgeslagen records meerdere blokken
+  kunnen tonen — geen volledige raw, geen secrets, geen schemawijziging.
+
+### Niet-doelen
+- Geen automatische CRM-relatie-aanmaak/-koppeling.
+- Geen automatische eigenaar/verkoper-invulling, geen objectveld-overname.
+- Geen automatische AI-aanpassing, geen nieuwe Kadaster-call.
+
+### Tests
+- `src/test/kadaster/rechtenBlokken.test.ts` — meerdere blokken
+  (eigendom + erfpacht) met adres/KvK/zetel/registerverwijzing, platte
+  fallback, lege/onbekende input, en `blokUitOpgeslagenRecord`.
+
