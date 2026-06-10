@@ -146,8 +146,14 @@ function leesKadastraleAanduiding(obj: Record<string, unknown>): string | null {
 
 function mapRechthebbende(
   raw: unknown,
-  context?: { rechtstype?: string | null; aandeel?: string | null },
+  context?: {
+    rechtstype?: string | null;
+    aandeel?: string | null;
+    registerVerwijzing?: string | null;
+    kadastraleAanduiding?: string | null;
+  },
 ): KadasterRechtenBlok | null {
+
   const rr = asObj(raw); if (!rr) return null;
 
   const persoon = asObj(rr.persoon) ?? asObj(rr.natuurlijkPersoon)
