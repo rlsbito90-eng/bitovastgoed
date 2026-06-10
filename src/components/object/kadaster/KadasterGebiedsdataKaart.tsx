@@ -534,8 +534,8 @@ export default function KadasterGebiedsdataKaart({
         onOpenChange={setPreviewOpen}
         preview={preview}
         gebiedsVariant={gebiedsVariant}
-        onOvernemenBouwjaar={onOvernemenBouwjaar}
-        onOvernemenWozWaarde={onOvernemenWozWaarde}
+        objectVelden={objectVelden}
+        onOvernemen={onOvernemen}
       />
     </div>
   );
