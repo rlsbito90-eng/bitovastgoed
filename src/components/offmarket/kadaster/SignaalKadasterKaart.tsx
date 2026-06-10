@@ -98,7 +98,17 @@ function Row({ label, value }: { label: string; value: string | number | null | 
   );
 }
 
-function WaardeRecordBlok({ r }: { r: KadasterDataRecord }) {
+function PdfRegel({ doc }: { doc: KadasterDocument | undefined }) {
+  if (!doc) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded border border-border/60 bg-muted/20 px-2 py-1.5 mt-1.5">
+      <span className="text-[11px] text-muted-foreground">Kadasterbericht opgeslagen</span>
+      <KadasterPdfKnop document={doc} label="Kadasterbericht openen" />
+    </div>
+  );
+}
+
+function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
       <p className="text-sm font-medium">Kadaster-koopsom</p>
@@ -113,11 +123,12 @@ function WaardeRecordBlok({ r }: { r: KadasterDataRecord }) {
         label="Meer onroerend goed"
         value={r.meer_onroerend_goed === null ? null : (r.meer_onroerend_goed ? 'Ja' : 'Nee')}
       />
+      <PdfRegel doc={pdf} />
     </div>
   );
 }
 
-function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
+function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   const sam = r.rechten_samenvatting ?? {};
   const aantal = typeof (sam as { aantal_rechthebbenden?: unknown }).aantal_rechthebbenden === 'number'
     ? (sam as { aantal_rechthebbenden: number }).aantal_rechthebbenden : null;
@@ -132,8 +143,9 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
       </p>
       {!heeftVelden ? (
         <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-1">
-          Rechten geleverd, maar rechthebbende-velden nog niet herkend.
-          Bekijk technische details in de historie.
+          {pdf
+            ? 'Rechten geleverd. Rechthebbendevelden niet herkend in JSON, maar Kadasterbericht is opgeslagen.'
+            : 'Rechten geleverd, maar rechthebbende-velden nog niet herkend. Bekijk technische details in de historie.'}
         </p>
       ) : (
         <>
@@ -145,11 +157,12 @@ function RechtenRecordBlok({ r }: { r: KadasterDataRecord }) {
           <Row label="Kadastrale aanduiding" value={r.kadastrale_aanduiding} />
         </>
       )}
+      <PdfRegel doc={pdf} />
     </div>
   );
 }
 
-function RecordKaart({ r }: { r: KadasterDataRecord }) {
+function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
   if (r.status !== 'geleverd' && r.status !== 'gedeeltelijk') {
     return (
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
@@ -167,8 +180,8 @@ function RecordKaart({ r }: { r: KadasterDataRecord }) {
       </div>
     );
   }
-  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} />;
-  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} />;
+  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} pdf={pdf} />;
+  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} />;
   return null;
 }
 
