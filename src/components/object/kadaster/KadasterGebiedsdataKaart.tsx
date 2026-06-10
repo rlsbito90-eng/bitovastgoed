@@ -42,6 +42,8 @@ import type {
   KadasterAdresInput, KadasterDebug, KadasterPreview, KadasterProductCode, KadasterRequestInput,
 } from '@/lib/kadaster/types';
 import KadasterPreviewDialog from './KadasterPreviewDialog';
+import BagAdresLookup from '@/components/shared/BagAdresLookup';
+import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
 
 interface Props {
   objectId: string;
@@ -370,6 +372,20 @@ export default function KadasterGebiedsdataKaart({
           </TabsContent>
 
           <TabsContent value="adres" className="space-y-3 pt-3">
+            <BagAdresLookup
+              initieleStraat={adresStraat || parsed.straat}
+              initieelHuisnummer={adresHuisnummer || parsed.huisnummers[0]?.huisnummer}
+              initielePlaats={adresPlaats || plaats}
+              initielePostcode={postcodeInput}
+              onKies={(r: BagAdresResultaat) => {
+                if (r.postcode) setPostcodeInput(`${r.postcode.slice(0, 4)} ${r.postcode.slice(4)}`);
+                if (r.straat) setAdresStraat(r.straat);
+                if (r.woonplaats) setAdresPlaats(r.woonplaats);
+                if (r.huisnummer) setAdresHuisnummer(r.huisnummer);
+                setAdresLetter(r.huisletter ?? '');
+                setAdresToevoeging(r.huisnummertoevoeging ?? '');
+              }}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-[11px] text-muted-foreground">Straatnaam</Label>

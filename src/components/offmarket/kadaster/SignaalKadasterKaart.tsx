@@ -41,6 +41,8 @@ import {
   type KadasterDataRecord,
 } from '@/hooks/useKadasterDataRecords';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
+import BagAdresLookup from '@/components/shared/BagAdresLookup';
+import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type {
   KadasterAdresInput, KadasterDebug, KadasterPreview,
@@ -340,6 +342,20 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
           <MapPin className="h-3.5 w-3.5" />
           <span>Zoekadres voor Kadaster</span>
         </div>
+
+        <BagAdresLookup
+          initieleStraat={parsed.straat ?? signaal.titel ?? null}
+          initieelHuisnummer={handmatigHuisnummer || parsed.huisnummers[0]?.huisnummer || null}
+          initielePlaats={signaal.plaats ?? null}
+          initielePostcode={postcodeInput}
+          onKies={(r: BagAdresResultaat) => {
+            if (r.postcode) setPostcodeInput(`${r.postcode.slice(0, 4)} ${r.postcode.slice(4)}`);
+            if (r.huisnummer) setHandmatigHuisnummer(r.huisnummer);
+            setHandmatigLetter(r.huisletter ?? '');
+            setHandmatigToevoeging(r.huisnummertoevoeging ?? '');
+          }}
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="space-y-1">
             <Label className="text-[11px] text-muted-foreground">Postcode</Label>
