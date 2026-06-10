@@ -82,13 +82,8 @@ export function getRelatieNamen(
     return { primair: bedrijfsnaam, secundair: null, isLeeg: false };
   }
 
-  // 4. Fallback op e-mail/telefoon/type-label
-  const email = clean(relatie.email) || clean(primaireCp?.email);
-  if (email) return { primair: email, secundair: null, isLeeg: true };
-
-  const tel = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
-  if (tel) return { primair: tel, secundair: null, isLeeg: true };
-
+  // 4. Geen naam en geen bedrijf: NOOIT e-mail of telefoon als displaynaam
+  //    gebruiken (privacy + UI-regel). Val terug op type-label.
   const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
   if (typeLabel) return { primair: `${typeLabel} zonder naam`, secundair: null, isLeeg: true };
 
@@ -122,14 +117,15 @@ export function getRelatieNaamCompact(
 
 /**
  * Bouwt een eenduidig label voor een relatie in dropdowns en lijsten.
- * Voorkomt meerdere identieke "Onbekend"-opties.
+ * Toont NOOIT e-mail of telefoon als displaynaam of secundair label
+ * (privacy + UI-regel). Die mogen alleen in expliciete detailvelden op
+ * de relatiepagina staan.
  *
  * Volgorde:
- *   1. "Bedrijfsnaam – Contactpersoon" als beide bekend
+ *   1. "Contactpersoon · Bedrijfsnaam" als beide bekend
  *   2. "Bedrijfsnaam"
  *   3. "Contactpersoon"
- *   4. "Onbekende relatie – e-mail/telefoon"
- *   5. "Onbekende relatie – [korte ID]"
+ *   4. "<Type> zonder naam" of "Relatie zonder naam"
  */
 export function getRelatieDropdownLabel(
   relatie: Relatie | null | undefined,
@@ -138,19 +134,12 @@ export function getRelatieDropdownLabel(
   if (!relatie) return 'Relatie zonder naam';
 
   const bedrijfsnaam = clean(relatie.bedrijfsnaam);
-
-  // Contactpersoon: eerst primaire uit relatie_contactpersonen, anders oud veld
   const primaireCp = contactpersonen?.find(c => c.relatieId === relatie.id && c.isPrimair);
   const contactpersoon = clean(primaireCp?.naam) || clean(relatie.contactpersoon);
-  const email = clean(relatie.email) || clean(primaireCp?.email);
 
   if (contactpersoon && bedrijfsnaam) return `${contactpersoon} · ${bedrijfsnaam}`;
-  if (contactpersoon) return email ? `${contactpersoon} · ${email}` : contactpersoon;
+  if (contactpersoon) return contactpersoon;
   if (bedrijfsnaam) return bedrijfsnaam;
-  if (email) return email;
-
-  const telefoon = clean(relatie.telefoon) || clean(primaireCp?.telefoon) || clean(primaireCp?.telefoonMobiel);
-  if (telefoon) return telefoon;
 
   const typeLabel = relatie.type ? PARTIJ_TYPE_LABELS[relatie.type] : '';
   return typeLabel ? `${typeLabel} zonder naam` : 'Relatie zonder naam';

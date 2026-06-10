@@ -254,7 +254,7 @@ export function QuickCreateRelationDialog({
               id="qcr-naam"
               value={naam}
               onChange={(e) => setNaam(e.target.value)}
-              placeholder="Bijv. Alexander Jansen"
+              placeholder="Bijv. Jan de Vries"
               disabled={bezig}
               autoFocus
             />
@@ -266,7 +266,7 @@ export function QuickCreateRelationDialog({
               id="qcr-bedrijf"
               value={bedrijfsnaam}
               onChange={(e) => setBedrijfsnaam(e.target.value)}
-              placeholder="Bijv. J&CB Invest BV"
+              placeholder="Bijv. Voorbeeld Invest BV"
               disabled={bezig}
             />
           </div>
@@ -282,7 +282,7 @@ export function QuickCreateRelationDialog({
                 autoCorrect="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="naam@bedrijf.nl"
+                placeholder="naam@voorbeeld.nl"
                 disabled={bezig}
               />
             </div>

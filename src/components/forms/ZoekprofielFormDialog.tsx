@@ -301,7 +301,7 @@ export default function ZoekprofielFormDialog({
                   <Input
                     value={(form.steden ?? []).join(', ')}
                     onChange={e => set('steden', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                    placeholder="Amsterdam, Rotterdam, Utrecht"
+                    placeholder="Plaats(en) of regio('s)"
                   />
                 </Veld>
               </Sectie>
