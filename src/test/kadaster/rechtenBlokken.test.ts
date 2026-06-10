@@ -59,6 +59,37 @@ describe('mapRechtenBlokken', () => {
     expect(mapRechtenBlokken({ rechten: 'kapot' })).toEqual([]);
   });
 
+  it('herkent persons/entities binnen rechten-items (Kadaster API shape)', () => {
+    const data = {
+      rechten: [{
+        omschrijving: 'Eigendom',
+        aandeelInRecht: { teller: 1, noemer: 1 },
+        persons: [{ volledigeNaam: 'J. de Vries', geboortedatum: '1980-01-01' }],
+        entities: [{ statutaireNaam: 'Bito Holding B.V.', kvkNummer: '99887766' }],
+      }],
+    };
+    const blokken = mapRechtenBlokken(data);
+    expect(blokken.length).toBeGreaterThanOrEqual(2);
+    expect(blokken.find(b => b.naam === 'J. de Vries')).toBeTruthy();
+    expect(blokken.find(b => b.bedrijfsnaam === 'Bito Holding B.V.')).toBeTruthy();
+  });
+
+  it('herkent persist-shape met blokken-array (raw_limited.rechten)', () => {
+    const persisted = {
+      aantal: 1, gebruikte_array: 'rechten', top_level_keys: ['rechten'], arrays: {},
+      blokken: [{
+        omschrijving: 'Eigendom',
+        aandeelInRecht: '1/1',
+        persons: [{ volledigeNaam: 'A. Jansen' }],
+      }],
+    };
+    const blokken = mapRechtenBlokken(persisted);
+    expect(blokken).toHaveLength(1);
+    expect(blokken[0].naam).toBe('A. Jansen');
+    expect(blokken[0].rechtstype).toBe('Eigendom (recht van)');
+    expect(blokken[0].aandeel).toBe('1/1');
+  });
+
   it('blokUitOpgeslagenRecord maakt 1 blok uit row-velden', () => {
     const b = blokUitOpgeslagenRecord({
       rechthebbende_naam: 'Voorbeeld B.V.',

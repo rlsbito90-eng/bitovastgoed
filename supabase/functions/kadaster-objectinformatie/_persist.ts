@@ -141,12 +141,23 @@ function buildRow(
       'rechthebbenden', 'tenaamstellingen', 'gerechtigden',
       'eigenaren', 'rechten', 'rightHolders', 'personen',
       'rechtspersonen', 'natuurlijkePersonen', 'nietNatuurlijkePersonen',
+      // Kadaster Objectinformatie API: 'persons' / 'entities' per rechten-item.
+      'persons', 'entities',
     ];
     let lijst: unknown[] | undefined;
     let lijstNaam: string | null = null;
     for (const k of lijstKeys) {
       const v = (data as Record<string, unknown>)[k];
       if (Array.isArray(v) && v.length > 0) { lijst = v; lijstNaam = k; break; }
+    }
+    // Als 'rechten' een array is met items die persons/entities bevatten,
+    // gebruik die geneste lijst voor de rechthebbende-extractie.
+    if (lijstNaam === 'rechten' && lijst && lijst.length > 0) {
+      const r0c = asObj(lijst[0]) ?? {};
+      for (const nk of ['persons', 'entities', 'rechthebbenden', 'personen']) {
+        const nv = (r0c as Record<string, unknown>)[nk];
+        if (Array.isArray(nv) && nv.length > 0) { lijst = nv; lijstNaam = `rechten[0].${nk}`; break; }
+      }
     }
     const r0 = asObj(lijst?.[0]) ?? {};
     const persoon = asObj(r0.persoon) ?? asObj(r0.natuurlijkPersoon)
@@ -222,11 +233,13 @@ function buildRow(
     // Whitelist structurele blokken voor weergave (geen vrije velden).
     const rechtenBlokKeys = [
       'rechtsoort', 'soortRecht', 'aardRecht', 'aardRechtVerkort',
-      'omschrijvingRecht', 'zakelijkRecht', 'recht',
+      'omschrijvingRecht', 'zakelijkRecht', 'recht', 'omschrijving',
       'aandeel', 'aandeelInRecht', 'breukdeel', 'gerechtigdAandeel',
       'persoon', 'natuurlijkPersoon', 'naamNatuurlijkPersoon',
       'onderneming', 'nietNatuurlijkPersoon', 'rechtspersoon',
       'organisatie', 'naamNietNatuurlijkPersoon',
+      // Kadaster Objectinformatie API: 'persons' / 'entities' per rechten-item.
+      'persons', 'entities', 'rechthebbenden',
       'naam', 'volledigeNaam', 'naamRechthebbende',
       'bedrijfsnaam', 'statutaireNaam', 'handelsnaam',
       'kvkNummer', 'kvk', 'zetel', 'statutaireZetel',
@@ -234,9 +247,9 @@ function buildRow(
       'adres', 'woonadres', 'vestigingsadres', 'correspondentieadres',
       'postcode', 'plaats', 'woonplaats', 'straat', 'huisnummer',
       'huisletter', 'huisnummertoevoeging', 'postbus',
-      'gebaseerdOp', 'registerverwijzing', 'register', 'registerHyp4',
-      'deel', 'nummer',
-      'kadastraleAanduiding', 'kadastraalObject',
+      'gebaseerdOp', 'documentGebaseerdOp', 'registerverwijzing',
+      'register', 'registerHyp4', 'deel', 'nummer', 'identifier',
+      'kadastraleAanduiding', 'aanduiding', 'kadastraalObject',
     ];
     const blokkenSrc: unknown[] = [];
     const containerKeys = ['rechten', 'overigeRechten', 'zakelijkeRechten',
