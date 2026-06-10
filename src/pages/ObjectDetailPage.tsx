@@ -1714,6 +1714,9 @@ export default function ObjectDetailPage() {
                   void beschrijving;
                 }}
               />
+              <div className="mt-4">
+                <KadasterOpgeslagenKaart objectId={object.id} />
+              </div>
             </SectionAnchor>
           )}
 
