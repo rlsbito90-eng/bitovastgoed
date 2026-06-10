@@ -1702,7 +1702,7 @@ export default function ObjectDetailPage() {
                 adres={object.adres}
                 postcode={object.postcode}
                 plaats={object.plaats}
-                typeVastgoed={object.typeVastgoed as string | null | undefined}
+                typeVastgoed={(object as { type?: string | null }).type ?? null}
               />
             </SectionAnchor>
           )}
