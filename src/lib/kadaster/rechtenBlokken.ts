@@ -174,12 +174,14 @@ function mapRechthebbende(
     ? 'natuurlijk'
     : (ond || bedrijfsnaam) ? 'rechtspersoon' : null;
 
-  const persoonBron = persoon ?? rr;
-  const ondBron = ond ?? rr;
-  const geboortedatum = leesStr(persoonBron, 'geboortedatum', 'geboren', 'dateOfBirth');
-  const geboorteplaats = leesStr(persoonBron, 'geboorteplaats', 'placeOfBirth');
-  const zetel = leesStr(ondBron, 'zetel', 'statutaireZetel', 'vestigingsplaats');
-  const kvkNummer = leesStr(ondBron, 'kvkNummer', 'kvk', 'kamerVanKoophandel', 'kvkNumber');
+  const geboortedatum = leesStr(persoon, 'geboortedatum', 'geboren', 'dateOfBirth')
+    ?? leesStr(rr, 'geboortedatum', 'geboren', 'dateOfBirth');
+  const geboorteplaats = leesStr(persoon, 'geboorteplaats', 'placeOfBirth')
+    ?? leesStr(rr, 'geboorteplaats', 'placeOfBirth');
+  const zetel = leesStr(ond, 'zetel', 'statutaireZetel', 'vestigingsplaats')
+    ?? leesStr(rr, 'zetel', 'statutaireZetel', 'vestigingsplaats');
+  const kvkNummer = leesStr(ond, 'kvkNummer', 'kvk', 'kamerVanKoophandel', 'kvkNumber')
+    ?? leesStr(rr, 'kvkNummer', 'kvk', 'kamerVanKoophandel', 'kvkNumber');
 
   const { regels, postcode, plaats } = leesAdresRegels(rr);
   const registerVerwijzing = leesRegisterVerwijzing(rr);
