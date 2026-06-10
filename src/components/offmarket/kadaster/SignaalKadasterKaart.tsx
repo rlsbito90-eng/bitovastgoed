@@ -546,11 +546,9 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
               Opgeslagen bij dit signaal
             </p>
           </div>
-          {(['waarde', 'rechten'] as const).map(code => {
-            const r = laatsteMap.get(code);
-            if (!r) return null;
-            return <RecordKaart key={code} r={r} pdf={pdfPerRecord.get(r.id)} />;
-          })}
+          {Array.from(laatsteMap.entries()).map(([code, r]) => (
+            <RecordKaart key={code} r={r} pdf={pdfPerRecord.get(r.id)} />
+          ))}
           <KadasterHistorieLijst records={recordList} />
 
           <Collapsible open={techOpen} onOpenChange={setTechOpen}>
