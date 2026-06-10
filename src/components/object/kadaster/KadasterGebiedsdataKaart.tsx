@@ -246,83 +246,188 @@ export default function KadasterGebiedsdataKaart({
         </div>
       </div>
 
-      {/* Zoekadres-blok */}
+      {/* Zoekadres-blok met modus-tabs */}
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>Zoekadres voor Kadaster</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">Postcode</Label>
-            <Input
-              value={postcodeInput}
-              onChange={(e) => setPostcodeInput(e.target.value)}
-              placeholder="1234 AB"
-              className="font-mono-data"
-            />
-            <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
-          </div>
-          {meerdere && (
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-[11px] text-muted-foreground">
-                Huisnummer (meerdere herkend — kies één)
-              </Label>
-              <Select value={huisnummerKeuze} onValueChange={setHuisnummerKeuze}>
-                <SelectTrigger><SelectValue placeholder="Kies huisnummer" /></SelectTrigger>
-                <SelectContent>
-                  {parsed.huisnummers.map(h => (
-                    <SelectItem key={h.label} value={h.label}>{h.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {!meerdere && parsed.huisnummers.length === 1 && (
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
-              <Input value={parsed.huisnummers[0].label} disabled className="font-mono-data" />
-            </div>
-          )}
-        </div>
+        <Tabs value={zoekModus} onValueChange={(v) => setZoekModus(v as 'postcode' | 'adres')}>
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="postcode">Postcode + huisnummer</TabsTrigger>
+            <TabsTrigger value="adres">Adres</TabsTrigger>
+          </TabsList>
 
-        {(parsed.huisnummers.length === 0 || !parsed.betrouwbaar) && (
-          <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">
-              {parsed.huisnummers.length === 0
-                ? 'Geen huisnummer herkend — vul handmatig in:'
-                : 'Adres niet betrouwbaar herkend — vul handmatig in:'}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <Input
-                value={handmatigHuisnummer}
-                onChange={(e) => setHandmatigHuisnummer(e.target.value.replace(/\D/g, ''))}
-                placeholder="Huisnr"
-                className="font-mono-data"
-              />
-              <Input
-                value={handmatigLetter}
-                onChange={(e) => setHandmatigLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
-                placeholder="Letter"
-                className="font-mono-data"
-                maxLength={1}
-              />
-              <Input
-                value={handmatigToevoeging}
-                onChange={(e) => setHandmatigToevoeging(e.target.value.slice(0, 8))}
-                placeholder="Toevoeging"
-                className="font-mono-data"
-                maxLength={8}
-              />
+          <TabsContent value="postcode" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Postcode</Label>
+                <Input
+                  value={postcodeInput}
+                  onChange={(e) => setPostcodeInput(e.target.value)}
+                  placeholder="1234 AB"
+                  className="font-mono-data"
+                />
+                <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
+              </div>
+              {meerdere && (
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px] text-muted-foreground">
+                    Huisnummer (meerdere herkend — kies één)
+                  </Label>
+                  <Select value={huisnummerKeuze} onValueChange={setHuisnummerKeuze}>
+                    <SelectTrigger><SelectValue placeholder="Kies huisnummer" /></SelectTrigger>
+                    <SelectContent>
+                      {parsed.huisnummers.map(h => (
+                        <SelectItem key={h.label} value={h.label}>{h.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!meerdere && parsed.huisnummers.length === 1 && (
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
+                  <Input value={parsed.huisnummers[0].label} disabled className="font-mono-data" />
+                </div>
+              )}
             </div>
-          </div>
-        )}
+
+            {(parsed.huisnummers.length === 0 || !parsed.betrouwbaar) && (
+              <div className="space-y-2">
+                <p className="text-[11px] text-muted-foreground">
+                  {parsed.huisnummers.length === 0
+                    ? 'Geen huisnummer herkend — vul handmatig in:'
+                    : 'Adres niet betrouwbaar herkend — vul handmatig in:'}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    value={handmatigHuisnummer}
+                    onChange={(e) => setHandmatigHuisnummer(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Huisnr"
+                    className="font-mono-data"
+                  />
+                  <Input
+                    value={handmatigLetter}
+                    onChange={(e) => setHandmatigLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                    placeholder="Letter"
+                    className="font-mono-data"
+                    maxLength={1}
+                  />
+                  <Input
+                    value={handmatigToevoeging}
+                    onChange={(e) => setHandmatigToevoeging(e.target.value.slice(0, 8))}
+                    placeholder="Toevoeging"
+                    className="font-mono-data"
+                    maxLength={8}
+                  />
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="adres" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-[11px] text-muted-foreground">Straatnaam</Label>
+                <Input value={adresStraat} onChange={(e) => setAdresStraat(e.target.value)} placeholder="Bijv. Prins Willem Alexanderlaan" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    value={adresHuisnummer}
+                    onChange={(e) => setAdresHuisnummer(e.target.value.replace(/\D/g, ''))}
+                    placeholder="30"
+                    className="font-mono-data"
+                  />
+                  <Input
+                    value={adresLetter}
+                    onChange={(e) => setAdresLetter(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                    placeholder="L"
+                    className="font-mono-data"
+                    maxLength={1}
+                  />
+                  <Input
+                    value={adresToevoeging}
+                    onChange={(e) => setAdresToevoeging(e.target.value.slice(0, 8))}
+                    placeholder="Toev."
+                    className="font-mono-data"
+                    maxLength={8}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Plaats</Label>
+                <Input value={adresPlaats} onChange={(e) => setAdresPlaats(e.target.value)} placeholder="Westmaas" />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-[11px] text-muted-foreground">Postcode (vereist voor Kadaster)</Label>
+                <Input
+                  value={postcodeInput}
+                  onChange={(e) => setPostcodeInput(e.target.value)}
+                  placeholder="1234 AB"
+                  className="font-mono-data"
+                />
+                <p className="text-[10px] text-muted-foreground font-mono-data">{postcodeHint}</p>
+              </div>
+            </div>
+            {!postcodeApi && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                Voor Kadaster is uiteindelijk een postcode + huisnummer nodig.
+                Vul de postcode aan of gebruik een gekoppelde adreszoekservice.
+                Straat en plaats helpen alleen bij identificatie en worden niet
+                naar Kadaster gestuurd.
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <p className="text-[11px] text-muted-foreground">
           Aanvraag gebruikt: <span className="font-mono-data">{adresLabel}</span>
         </p>
       </div>
+
+      {/* Foutmelding met veilige debug-info */}
+      {laatsteFout && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+          <div className="flex items-start gap-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">{laatsteFout.msg}</p>
+              {laatsteFout.debug?.zoekadres?.waarde && (
+                <p className="text-[11px] text-muted-foreground font-mono-data">
+                  Gecontroleerd zoekadres: {laatsteFout.debug.zoekadres.waarde}
+                </p>
+              )}
+            </div>
+          </div>
+          {laatsteFout.debug && (
+            <Collapsible>
+              <CollapsibleTrigger className="text-[11px] text-muted-foreground underline">
+                Technische details
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre className="text-[10px] bg-muted/40 rounded p-2 mt-1 overflow-x-auto font-mono-data">
+{JSON.stringify({
+  http_status: laatsteFout.httpStatus,
+  endpoint: laatsteFout.debug.endpoint,
+  base_url: laatsteFout.debug.base_url,
+  request_preview: laatsteFout.debug.request_preview,
+  product_codes: laatsteFout.debug.product_codes,
+  upstream_status: laatsteFout.debug.upstream_status,
+  upstream_message: laatsteFout.debug.upstream_message,
+  upstream_identifier: laatsteFout.debug.upstream_identifier,
+  upstream_snippet: laatsteFout.debug.upstream_snippet,
+}, null, 2)}
+                </pre>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
+      )}
+
 
       {/* Eén knop — gratis gebiedsdata wordt meegeleverd binnen deze aanvraag. */}
       <div className="flex flex-col sm:flex-row gap-2">
