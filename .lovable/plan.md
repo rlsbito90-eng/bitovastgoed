@@ -897,15 +897,76 @@ in Off Market Radar of het 4K.4-datamodel.
   "Rechthebbende volgens Kadaster". Lege staat duidelijk in NL.
 
 ### Wat NIET (bewust)
-- Geen Off Market Radar-integratie (komt in 4K.4D).
 - Geen promotie-overdracht Signaal → Object (komt in 4K.4E).
 - Geen automatische overname naar objectvelden of relaties.
 - Geen volledige raw response of API-key in DB.
 - Geen automatische retries bij persist-fout.
 
+---
+
+## Fase 4K.4D — Kadasterkaart in Off Market Radar (uitgevoerd)
+
+### Doel
+Vanuit een Off Market Signaal handmatig Kadastergegevens opvragen en direct
+opslaan in `kadaster_data_records` met `signaal_id`, zodat eigenaars- en
+acquisitie-onderzoek niet verloren gaat.
+
+### Scope V1 voor Off Market Radar
+- **Toegestane producten:** `rechten` (Rechten/eigendomsinformatie) en
+  `waarde` (Koopsom).
+- **Bewust niet aangeboden:** `object` (WOZ-object). WOZ-objectkenmerken
+  zijn voor Objecten/Aanbod nuttig; in de signaalfase richten we ons op
+  eigenaar/rechthebbende en historische koopsom.
+- Productlijst wordt gefilterd op zowel `SIGNAAL_ALLOWED_PRODUCTS` als
+  Kadaster's `/products`-endpoint. `lasten`/`buurt` worden niet aangeboden.
+
+### Implementatie
+- Nieuwe component `SignaalKadasterKaart` (off-market/kadaster/) op
+  `OffMarketSignaalDetailPage`, geplaatst onder Eigenaarsonderzoek.
+- Statusregel toont: laatst opgehaald, zoekadres, productcodes, bron.
+- Lege staat: "Nog geen Kadastergegevens opgehaald voor dit signaal."
+- Knop: "Kadastergegevens ophalen" → kostenconfirmatie met productselectie.
+- Bij `rechten` altijd een tweede, expliciete privacy-/kostenbevestiging.
+- Bij `waarde` disclaimer: "Kadaster-koopsom is geen marktwaarde,
+  vraagprijs of taxatiewaarde."
+- Zoekadres hergebruikt `parseObjectAdres`; postcode wordt strikt
+  genormaliseerd (`3273AV`). Geen vrije adresregel naar Kadaster.
+- Aanvraag stuurt `context.signaal_id` + `persist: true`. Edge function
+  schrijft per product een rij in `kadaster_data_records` met `signaal_id`
+  (ook voor `niet_geleverd` producten).
+- Hook `useKadasterDataRecordsForSignaal` leest records read-only en
+  toont laatste record per `product_code`. Labels strikt:
+  "Kadaster-koopsom" en "Rechthebbende volgens Kadaster".
+
+### Wat NIET (bewust)
+- Geen WOZ-object/product `object` in Off Market Radar V1.
+- Geen automatische Kadaster-call (niet bij openen, statuswijziging,
+  AI-run of promotie).
+- Geen relatie/eigenaar/verkoper automatisch aanmaken of koppelen.
+- Geen automatische AI-herberekening of score-update.
+- Geen bulkverrijking in deze fase.
+- Geen schemawijzigingen (bestaande tabel volstaat).
+
+### Toekomst — bulkverrijking (alleen backlog, niet bouwen)
+- Mag nooit automatisch op alle signalen draaien; alleen handmatig
+  geselecteerde signalen.
+- Vooraf kosteninschatting + productselectie tonen.
+- Producten: `rechten` en `waarde`; mogelijk later andere na expliciete
+  keuze. Voor `rechten` altijd extra privacy-/kostenbevestiging.
+- Maximum batchgrootte verplicht; geen automatische retries op betaalde
+  calls.
+- Resultaten per signaal direct in `kadaster_data_records`; fouten per
+  signaal apart tonen.
+- Mag geen relaties, eigenaren, verkopers of AI-scores automatisch
+  aanpassen.
+
 ### Vervolgstappen
-1. **Off Market Radar Kadasterkaart** met dezelfde tabel via `signaal_id`.
-2. **Promotie Signaal → Object**: records ook beschikbaar maken op het
-   nieuwe object (beide IDs gevuld; geen nieuwe Kadaster-call).
-3. **API-key statuskaart** in admin voor key-rotatie en `/products` check.
-4. **PDF-opslag** als latere optionele kolom (alleen na expliciete keuze).
+1. **4K.4E — Promotie Signaal → Object**: bij promotie de bestaande
+   Kadasterrecords doorzetten naar het nieuwe object (beide IDs gevuld;
+   geen nieuwe Kadaster-call).
+2. Handmatige actie "Relatie maken/koppelen van rechthebbende" als
+   expliciete vervolgstap.
+3. Handmatige knop "AI opnieuw verrijken met Kadasterdata".
+4. Bulkverrijking voor geselecteerde signalen (zie backlog hierboven).
+5. **API-key statuskaart** in admin voor key-rotatie en `/products` check.
+6. **PDF-opslag** als latere optionele kolom (alleen na expliciete keuze).
