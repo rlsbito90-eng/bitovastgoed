@@ -476,8 +476,8 @@ function ProductCard({
             <Row label="Doelbinding" value={doelbinding} />
             <p className="text-[10px] text-muted-foreground italic pt-1">
               Kadaster-koopsom is geen marktwaarde, vraagprijs of taxatiewaarde.
-              Er is in het object nog geen specifiek veld voor Kadaster-koopsom
-              en koopjaar — alleen preview. Zie open punten in plan.
+              Deze gegevens zijn intern opgeslagen als Kadasterrecord en worden
+              niet automatisch overgenomen naar financiële objectvelden.
             </p>
           </div>
         ) : (
