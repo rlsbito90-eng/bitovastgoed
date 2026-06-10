@@ -41,11 +41,30 @@ const LEAD_LABELS: Record<LeadStatus, string> = {
   koud: 'Koud', lauw: 'Lauw', warm: 'Warm', actief: 'Actief',
 };
 
-type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budgetMin' | 'budgetMax' | 'laatsteContact' | 'match';
+type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budget' | 'laatsteContact' | 'match';
 type SortDir = 'asc' | 'desc';
 
 const fmtBedrag = (n?: number) =>
   n != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '—';
+
+const fmtCompactEur = (n: number): string => {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    const s = (Math.round(v * 10) / 10).toString().replace('.', ',');
+    return `€ ${s}m`;
+  }
+  if (n >= 1_000) {
+    const v = Math.round(n / 1_000);
+    return `€ ${v}k`;
+  }
+  return `€ ${n}`;
+};
+const fmtBudgetRange = (min?: number, max?: number): string => {
+  if (min != null && max != null) return `${fmtCompactEur(min)} – ${fmtCompactEur(max)}`;
+  if (min != null) return `Vanaf ${fmtCompactEur(min)}`;
+  if (max != null) return `Tot ${fmtCompactEur(max)}`;
+  return '—';
+};
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
