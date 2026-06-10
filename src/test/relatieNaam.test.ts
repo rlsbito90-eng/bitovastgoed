@@ -46,8 +46,8 @@ describe('getRelationDisplayName', () => {
   });
 
   it('behandelt placeholder "Onbekend" als leeg', () => {
-    const rel = baseRel({ bedrijfsnaam: 'Onbekend', email: 'a@b.nl' });
-    expect(getRelationDisplayName(rel)).toBe('a@b.nl');
+    const rel = baseRel({ bedrijfsnaam: 'Onbekend', email: 'a@b.nl', type: 'belegger' });
+    expect(getRelationDisplayName(rel)).toBe('Belegger zonder naam');
   });
 
   it('toont nooit "Onbekend" als fallback', () => {
