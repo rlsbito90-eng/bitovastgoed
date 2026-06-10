@@ -43,8 +43,13 @@ interface Props {
   postcode: string | null | undefined;
   plaats: string | null | undefined;
   typeVastgoed?: string | null;
-  onOvernemenBouwjaar?: (jaar: number) => void;
-  onOvernemenWozWaarde?: (waarde: number, peildatum?: string) => void;
+  /** Huidige CRM-waarden voor handmatige overname-knoppen. */
+  objectVelden?: { bouwjaar?: number | null; oppervlakte?: number | null };
+  /** Handmatige overname-handler (parent persist via datastore). */
+  onOvernemen?: (
+    patch: { bouwjaar?: number; oppervlakte?: number },
+    beschrijving: string,
+  ) => Promise<void> | void;
 }
 
 /**
