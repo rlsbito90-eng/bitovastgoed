@@ -486,29 +486,11 @@ export default function KadasterGebiedsdataKaart({
                 <span className="text-xs text-muted-foreground">prijs volgens Kadaster</span>
               </label>
 
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground pt-1">
-                Gratis meegeleverd
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Gemeentelijke lasten en buurtstatistieken zijn in V1 niet
+                beschikbaar via deze API-key (niet bevestigd via Kadaster's
+                products-endpoint) en worden daarom niet meegestuurd.
               </p>
-              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
-                <span className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selLasten}
-                    onCheckedChange={(v) => setSelLasten(v === true)}
-                  />
-                  <span>Gemeentelijke lasten</span>
-                </span>
-                <span className="text-xs text-muted-foreground">€ 0,00</span>
-              </label>
-              <label className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
-                <span className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selBuurt}
-                    onCheckedChange={(v) => setSelBuurt(v === true)}
-                  />
-                  <span>Buurtstatistieken</span>
-                </span>
-                <span className="text-xs text-muted-foreground">€ 0,00</span>
-              </label>
             </div>
 
             {!heeftBetaaldProduct && (
