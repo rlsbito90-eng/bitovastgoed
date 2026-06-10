@@ -490,11 +490,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         <div className="text-xs text-muted-foreground mt-0.5 truncate">
                           {PARTIJ_LABELS[r.type]}{item.plaats ? ` · ${item.plaats}` : ''}
                         </div>
-                        {(item.email || item.telefoon) && (
-                          <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {item.email}{item.email && item.telefoon ? ' · ' : ''}{item.telefoon}
-                          </div>
-                        )}
+                        {/* Privacy-regel: geen e-mail/telefoon als secundair label. */}
                         <div className="text-xs text-muted-foreground mt-0.5 font-mono-data">
                           Budget: {fmtBedrag(r.budgetMin)} – {fmtBedrag(r.budgetMax)}
                           {item.score != null && <span className="ml-2">Match: {item.score}%</span>}
