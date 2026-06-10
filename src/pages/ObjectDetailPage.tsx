@@ -78,6 +78,7 @@ const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/Vastg
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
 import Timeline from '@/components/contactmoment/Timeline';
 import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
+import KadasterOpgeslagenKaart from '@/components/object/kadaster/KadasterOpgeslagenKaart';
 import { buildMapsUrl } from '@/lib/maps';
 
 /* ============================================================
