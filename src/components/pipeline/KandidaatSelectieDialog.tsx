@@ -68,6 +68,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [sortKey, setSortKey] = useState<SortKey>('match');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const zoekRef = useRef<HTMLInputElement>(null);
 
   // Reset bij open
