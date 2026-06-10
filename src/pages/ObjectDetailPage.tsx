@@ -1703,6 +1703,15 @@ export default function ObjectDetailPage() {
                 postcode={object.postcode}
                 plaats={object.plaats}
                 typeVastgoed={(object as { type?: string | null }).type ?? null}
+                objectVelden={{
+                  bouwjaar: object.bouwjaar ?? null,
+                  oppervlakte: object.oppervlakte ?? null,
+                }}
+                onOvernemen={async (patch, beschrijving) => {
+                  await store.updateObject(object.id, patch);
+                  // beschrijving wordt voorlopig alleen voor toast-context gebruikt.
+                  void beschrijving;
+                }}
               />
             </SectionAnchor>
           )}
