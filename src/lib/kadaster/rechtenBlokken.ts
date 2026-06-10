@@ -231,12 +231,12 @@ export function mapRechtenBlokken(raw: unknown): KadasterRechtenBlok[] {
         ?? leesAandeel((obj as Record<string, unknown>).aandeelInRecht)
         ?? leesAandeel((obj as Record<string, unknown>).breukdeel)
         ?? leesAandeel((obj as Record<string, unknown>).gerechtigdAandeel);
-      let geneste: unknown[] | null = null;
+      const geneste: unknown[] = [];
       for (const lk of RECHTHEBBENDE_LIJST_KEYS) {
         const l = (obj as Record<string, unknown>)[lk];
-        if (Array.isArray(l) && l.length > 0) { geneste = l; break; }
+        if (Array.isArray(l) && l.length > 0) geneste.push(...l);
       }
-      if (geneste) {
+      if (geneste.length > 0) {
         for (const rh of geneste) {
           const b = mapRechthebbende(rh, { rechtstype, aandeel });
           if (b) blokken.push(b);
