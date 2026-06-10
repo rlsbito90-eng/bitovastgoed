@@ -197,8 +197,12 @@ export default function KadasterPreviewDialog({
                 <span className="font-mono-data">{preview.productcodes.join(', ')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Geschatte kosten</span>
-                <span className="font-mono-data">{fmtEur(preview.kosten_indicatie_eur)}</span>
+                <span className="text-muted-foreground">Kosten</span>
+                <span className="font-mono-data">
+                  {preview.kosten_indicatie_eur === null || preview.kosten_indicatie_eur === undefined
+                    ? 'prijs volgens Kadaster'
+                    : fmtEur(preview.kosten_indicatie_eur)}
+                </span>
               </div>
             </div>
 

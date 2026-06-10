@@ -17,6 +17,13 @@ export interface KadasterRequestInput {
   modus: KadasterModus;
   bagId?: string | null;
   adres?: KadasterAdresInput | null;
+  /**
+   * Optionele expliciete productselectie. In modus 'kadaster' vereist
+   * minimaal één betaald product ('object' of 'waarde'); gratis producten
+   * ('lasten', 'buurt') worden alleen meegeleverd binnen die betaalde
+   * aanvraag — Kadaster weigert standalone gratis bestellingen.
+   */
+  producten?: KadasterProductCode[] | null;
   context?: { object_id?: string | null; signaal_id?: string | null };
 }
 
@@ -32,7 +39,8 @@ export interface KadasterPreview {
   bron: 'kadaster_objectinformatie_api';
   opgehaald_op: string;
   productcodes: KadasterProductCode[];
-  kosten_indicatie_eur: number;
+  /** `null` betekent: prijs volgens Kadaster (niet vooraf bekend). */
+  kosten_indicatie_eur: number | null;
   zoekadres: { type: 'bagId' | 'pht'; waarde: string };
   producten: KadasterProductResult[];
 }
@@ -46,10 +54,8 @@ export interface KadasterErrorCode {
   error: string;
 }
 
-export const KADASTER_KOSTEN_PER_MODUS: Record<KadasterModus, number> = {
-  gebiedsdata: 0,
-  kadaster: 0.20,
-};
+export const KADASTER_BETAALDE_PRODUCTEN: KadasterProductCode[] = ['object', 'waarde'];
+export const KADASTER_GRATIS_PRODUCTEN: KadasterProductCode[] = ['lasten', 'buurt'];
 
 export const KADASTER_LABELS_PER_PRODUCT: Record<KadasterProductCode, string> = {
   object: 'WOZ-object',

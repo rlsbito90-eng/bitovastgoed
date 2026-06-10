@@ -28,15 +28,15 @@ const KADASTER_BASE_URL =
   Deno.env.get('KADASTER_OBJECTINFORMATIE_BASE_URL')
   ?? 'https://api.kadaster.nl/objectinformatieapi/api/v1';
 
-const PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
+const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
+  // Standalone gebiedsdata-aanvragen worden door Kadaster geweigerd
+  // ("minimaal één product met kosten"); de UI biedt dit niet meer aan,
+  // maar we houden de mapping als documentatie.
   gebiedsdata: ['lasten', 'buurt'],
-  kadaster:    ['object', 'waarde'],
+  kadaster:    ['object', 'waarde', 'lasten', 'buurt'],
 };
 
-const KOSTEN_INDICATIE_EUR: Record<KadasterModus, number> = {
-  gebiedsdata: 0,
-  kadaster:    0.20,
-};
+const BETAALDE_PRODUCTEN: KadasterProductCode[] = ['object', 'waarde', 'rechten'];
 
 const AdresSchema = z.object({
   postalcode: z.string().trim().min(6).max(7),
@@ -49,6 +49,8 @@ const BodySchema = z.object({
   modus: z.enum(['gebiedsdata', 'kadaster']),
   bagId: z.string().trim().min(8).max(32).nullish(),
   adres: AdresSchema.nullish(),
+  producten: z.array(z.enum(['object', 'waarde', 'rechten', 'lasten', 'buurt']))
+    .min(1).max(5).nullish(),
   context: z.object({
     object_id: z.string().uuid().nullish(),
     signaal_id: z.string().uuid().nullish(),
@@ -109,8 +111,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // --- Request opbouwen ---
-    const codes = PRODUCTEN_PER_MODUS[modus];
+    // --- Productselectie bepalen ---
+    // Default per modus, of expliciete selectie uit de body. Kadaster
+    // weigert bestellingen zonder betaald product; we valideren dat
+    // hier vooraf om onnodige upstream-calls te voorkomen.
+    const gevraagd = body.producten && body.producten.length > 0
+      ? Array.from(new Set(body.producten))
+      : DEFAULT_PRODUCTEN_PER_MODUS[modus];
+    const heeftBetaald = gevraagd.some(c => BETAALDE_PRODUCTEN.includes(c));
+    if (!heeftBetaald) {
+      return jsonError(
+        'Gratis gebiedsdata kan alleen worden meegeleverd bij een betaalde Kadaster-aanvraag.',
+        400, 'product_invalid',
+      );
+    }
+    const codes = gevraagd as KadasterProductCode[];
     const selection = codes.map((code) => ({
       code,
       deliver: 'withoutProduct' as const,
@@ -127,16 +142,23 @@ Deno.serve(async (req: Request) => {
       zoekadresType = 'bagId';
       zoekadresWaarde = body.bagId;
     } else if (body.adres) {
+      // Postcode altijd normaliseren naar formaat zonder spatie + uppercase.
+      const normPostcode = body.adres.postalcode.replace(/\s+/g, '').toUpperCase();
+      if (!/^\d{4}[A-Z]{2}$/.test(normPostcode)) {
+        return jsonError(
+          'Ongeldige postcode. Verwacht 4 cijfers + 2 letters (bv. 3273AV).',
+          400, 'invalid_input',
+        );
+      }
       reportBody.pht = {
-        postalcode: body.adres.postalcode.replace(/\s+/g, '').toUpperCase(),
+        postalcode: normPostcode,
         houseNumber: body.adres.houseNumber,
         ...(body.adres.houseLetter ? { houseLetter: body.adres.houseLetter } : {}),
         ...(body.adres.houseNumberAddition ? { houseNumberAddition: body.adres.houseNumberAddition } : {}),
       };
       zoekadresWaarde = [
-        body.adres.postalcode,
-        body.adres.houseNumber,
-        body.adres.houseLetter,
+        normPostcode,
+        body.adres.houseNumber + (body.adres.houseLetter ?? ''),
         body.adres.houseNumberAddition,
       ].filter(Boolean).join(' ');
     }
@@ -218,7 +240,9 @@ Deno.serve(async (req: Request) => {
       bron: 'kadaster_objectinformatie_api',
       opgehaald_op: new Date().toISOString(),
       productcodes: codes,
-      kosten_indicatie_eur: KOSTEN_INDICATIE_EUR[modus],
+      // Prijs is afhankelijk van de Kadaster-tarieven en wordt niet vooraf
+      // hardgecodeerd; UI toont "prijs volgens Kadaster" bij null.
+      kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
     };
@@ -229,7 +253,6 @@ Deno.serve(async (req: Request) => {
       signaal_id: body.context?.signaal_id ?? null,
       producten: codes.join(','),
       beschikbaar: producten.filter(p => p.beschikbaar).length,
-      kosten: KOSTEN_INDICATIE_EUR[modus],
       dur_ms: Date.now() - t0,
     }));
 
