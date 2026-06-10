@@ -205,7 +205,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
   const sorteerToggle = (k: SortKey) => {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(k); setSortDir(k === 'match' || k === 'budgetMax' || k === 'laatsteContact' ? 'desc' : 'asc'); }
+    else { setSortKey(k); setSortDir(k === 'match' || k === 'budget' || k === 'laatsteContact' ? 'desc' : 'asc'); }
   };
 
   const SortKop = ({ k, children, align = 'left' }: { k: SortKey; children: React.ReactNode; align?: 'left' | 'right' }) => (
