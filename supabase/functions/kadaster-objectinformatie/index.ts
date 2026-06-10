@@ -24,9 +24,14 @@ import type {
 } from './_types.ts';
 import { normaliseerKadasterResponse, logRegel } from './_normalize.ts';
 
+// Officiële Kadata Objectinformatie API host (zie Swagger:
+//   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
+// `api.kadaster.nl/objectinformatieapi/...` bestaat NIET en geeft Kadaster's
+// generieke 404-pagina terug, wat eerder als "object niet gevonden" werd
+// geïnterpreteerd.
 const KADASTER_BASE_URL =
   Deno.env.get('KADASTER_OBJECTINFORMATIE_BASE_URL')
-  ?? 'https://api.kadaster.nl/objectinformatieapi/api/v1';
+  ?? 'https://kadatawebservice.kadaster.nl/objectinformatieapi/api/v1';
 
 const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
   // Standalone gebiedsdata-aanvragen worden door Kadaster geweigerd
