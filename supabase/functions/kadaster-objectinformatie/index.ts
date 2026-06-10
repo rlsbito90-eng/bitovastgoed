@@ -22,7 +22,7 @@ import { z } from 'npm:zod@3.23.8';
 import type {
   KadasterModus, KadasterProductCode, KadasterPreview,
 } from './_types.ts';
-import { normaliseerKadasterResponse, logRegel } from './_normalize.ts';
+import { normaliseerKadasterResponse, logRegel, responseShape } from './_normalize.ts';
 
 // Officiële Kadata Objectinformatie API host (zie Swagger:
 //   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
@@ -345,6 +345,7 @@ Deno.serve(async (req: Request) => {
 
     const ruwe = await upstreamResp.json().catch(() => null);
     const producten = normaliseerKadasterResponse(ruwe, codes);
+    const shape = responseShape(ruwe);
 
     const preview: KadasterPreview = {
       modus,
@@ -356,7 +357,7 @@ Deno.serve(async (req: Request) => {
       kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
-      debug,
+      debug: { ...debug, response_shape: shape },
     };
 
     console.log('[kadaster-objectinformatie] ok', logRegel({
