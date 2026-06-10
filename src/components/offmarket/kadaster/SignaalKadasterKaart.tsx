@@ -100,15 +100,6 @@ function Row({ label, value }: { label: string; value: string | number | null | 
   );
 }
 
-function PdfRegel({ doc }: { doc: KadasterDocument | undefined }) {
-  if (!doc) return null;
-  return (
-    <div className="flex items-center justify-between gap-2 rounded border border-border/60 bg-muted/20 px-2 py-1.5 mt-1.5">
-      <span className="text-[11px] text-muted-foreground">Kadasterbericht opgeslagen</span>
-      <KadasterPdfKnop document={doc} label="Kadasterbericht openen" />
-    </div>
-  );
-}
 
 function RecordKop({
   titel, r, pdf,
