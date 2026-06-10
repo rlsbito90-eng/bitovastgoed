@@ -1,8 +1,8 @@
 // KadasterPreviewDialog — toont resultaat van Kadaster Objectinformatie API.
-// V1: alleen weergave, geen overname-acties die overschrijven. Voor
-// veilig overneembare basisvelden (bouwjaar, WOZ-waarde, WOZ-peildatum)
-// kan een onOvernemen-callback worden meegegeven; CRM-veld vullen blijft
-// expliciet bij de gebruiker.
+// V1: alleen weergave. "Overnemen" verschijnt alleen bij geleverde data.
+// Per product tonen we expliciet status + deliver-mode + eventuele
+// Kadaster-melding zodat duidelijk is of de API niets leverde of dat de
+// frontend de response nog niet uitleest.
 import { useMemo } from 'react';
 import { FileSearch, ExternalLink } from 'lucide-react';
 import {
@@ -13,9 +13,9 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import type {
-  KadasterPreview, KadasterProductResult,
+  KadasterDeliverStatus, KadasterPreview, KadasterProductResult,
 } from '@/lib/kadaster/types';
-import { KADASTER_LABELS_PER_PRODUCT } from '@/lib/kadaster/types';
+import { KADASTER_LABELS_PER_PRODUCT, KADASTER_STATUS_LABELS } from '@/lib/kadaster/types';
 
 interface Props {
   open: boolean;
@@ -62,6 +62,22 @@ function leesNummer(data: unknown, ...keys: string[]): number | null {
   return null;
 }
 
+const STATUS_KLEUR: Record<KadasterDeliverStatus, string> = {
+  geleverd: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  gedeeltelijk: 'bg-amber-100 text-amber-800 border-amber-200',
+  niet_geleverd: 'bg-muted text-muted-foreground border-border',
+  niet_beschikbaar: 'bg-destructive/10 text-destructive border-destructive/30',
+  onbekend: 'bg-muted text-muted-foreground border-border',
+};
+
+function StatusBadge({ status }: { status: KadasterDeliverStatus }) {
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${STATUS_KLEUR[status]}`}>
+      {KADASTER_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
 function ProductCard({
   product, gebiedsVariant, onOvernemenBouwjaar, onOvernemenWozWaarde,
 }: {
@@ -78,13 +94,46 @@ function ProductCard({
     return KADASTER_LABELS_PER_PRODUCT[product.code] ?? product.code;
   }, [product.code, gebiedsVariant]);
 
+  const status: KadasterDeliverStatus = product.status
+    ?? (product.beschikbaar ? 'geleverd' : 'niet_geleverd');
+
+  const header = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium">{titel}</p>
+        <p className="text-[10px] text-muted-foreground font-mono-data">
+          code: {product.code}
+          {product.deliver ? ` · deliver: ${product.deliver}` : ''}
+        </p>
+      </div>
+      <StatusBadge status={status} />
+    </div>
+  );
+
   if (!product.beschikbaar) {
     return (
-      <div className="rounded-md border border-border bg-muted/20 p-3 text-xs">
-        <p className="font-medium">{titel}</p>
-        <p className="text-muted-foreground mt-1">
-          {product.foutmelding ?? 'Niet beschikbaar voor dit adres.'}
+      <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+        {header}
+        <p className="text-xs text-muted-foreground">
+          {product.foutmelding
+            ?? 'Niet geleverd voor dit adres. Kadaster heeft voor dit product geen gegevens teruggegeven.'}
         </p>
+        {product.deliver?.toLowerCase().includes('without') && (
+          <p className="text-[11px] text-muted-foreground">
+            De aanvraag is afgerond, maar dit product is door Kadaster niet
+            meegeleverd (deliver = {product.deliver}).
+          </p>
+        )}
+        <Collapsible>
+          <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            Technische details
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-2 overflow-auto max-h-48 rounded bg-muted/40 p-2 text-[10px] font-mono-data">
+{JSON.stringify({ status: product.status, deliver: product.deliver, data_keys: product.data ? Object.keys(product.data) : [] }, null, 2)}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     );
   }
@@ -108,9 +157,13 @@ function ProductCard({
     ? leesString(product.data, 'gebruiksdoel', 'usePurpose', 'objecttype')
     : null;
 
+  const heeftLeesbareWaarde =
+    bouwjaar !== null || wozWaarde !== null || koopsom !== null
+    || transactiedatum !== null || gebruiksdoel !== null;
+
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-2">
-      <p className="text-sm font-medium">{titel}</p>
+      {header}
       <div className="space-y-1.5 text-xs">
         {bouwjaar !== null && (
           <div className="flex items-center justify-between gap-2">
@@ -152,6 +205,12 @@ function ProductCard({
         {gebruiksdoel && (
           <div className="flex items-center justify-between"><span className="text-muted-foreground">Gebruiksdoel</span><span>{gebruiksdoel} <span className="text-[10px] text-muted-foreground">(suggestie)</span></span></div>
         )}
+        {!heeftLeesbareWaarde && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Productdata aanwezig, maar geen velden herkend door de previewer.
+            Bekijk de technische details om de mapping bij te werken.
+          </p>
+        )}
       </div>
 
       <Collapsible>
@@ -186,7 +245,7 @@ export default function KadasterPreviewDialog({
         </DialogHeader>
 
         {preview && (
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Zoekadres</span>
@@ -218,6 +277,31 @@ export default function KadasterPreviewDialog({
                   onOvernemenWozWaarde={onOvernemenWozWaarde}
                 />
               ))
+            )}
+
+            {preview.debug?.response_shape && (
+              <Collapsible>
+                <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                  Response-shape (debug, zonder secrets)
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <pre className="mt-2 overflow-auto max-h-64 rounded bg-muted/40 p-2 text-[10px] font-mono-data">
+{JSON.stringify({
+  endpoint: preview.debug.endpoint,
+  base_url: preview.debug.base_url,
+  product_codes: preview.debug.product_codes,
+  allowed_products: preview.debug.allowed_products,
+  products_source: preview.debug.products_source,
+  response_shape: preview.debug.response_shape,
+}, null, 2)}
+                  </pre>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Deliver-mode <code>WithoutProduct</code> betekent dat de aanvraag
+                    kan slagen zonder dat elk product inhoud heeft. Een leeg product
+                    betekent dus niet automatisch een fout.
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
