@@ -143,6 +143,7 @@ const BodySchema = z.object({
     object_id: z.string().uuid().nullish(),
     signaal_id: z.string().uuid().nullish(),
   }).nullish(),
+  persist: z.boolean().nullish(),
 }).refine((v) => !!v.bagId || !!v.adres, {
   message: 'Geef bagId of adres mee',
   path: ['adres'],
