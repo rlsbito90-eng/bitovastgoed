@@ -78,6 +78,16 @@ export interface KadasterPreview {
     waarde: string;
   };
   producten: KadasterProductResult[];
+  /** Resultaat van directe persist naar `kadaster_data_records`. */
+  persist?: KadasterPersistResult | null;
+}
+
+export interface KadasterPersistResult {
+  requested: boolean;
+  ok: boolean;
+  inserted: number;
+  record_ids: string[];
+  error: string | null;
 }
 
 export interface KadasterErrorResponse {
