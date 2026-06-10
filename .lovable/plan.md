@@ -970,3 +970,54 @@ acquisitie-onderzoek niet verloren gaat.
 4. Bulkverrijking voor geselecteerde signalen (zie backlog hierboven).
 5. **API-key statuskaart** in admin voor key-rotatie en `/products` check.
 6. **PDF-opslag** als latere optionele kolom (alleen na expliciete keuze).
+
+## Fase 4K.4E — Kadasterrecords meenemen bij promotie Signaal → Object (uitgevoerd)
+
+### Doel
+Bij promotie van een Off Market Signaal naar Object/Aanbod kunnen reeds
+opgehaalde Kadasterrecords worden meegenomen naar het nieuwe object,
+zonder een nieuwe (betaalde) Kadasteraanvraag.
+
+### Implementatie
+- `usePromoteSignaalToObject` accepteert nu `{ signaalId, migrateKadaster }`
+  en retourneert `{ objectId, kadasterMigrated, kadasterMigrationError }`.
+- Na succesvolle RPC `off_market_promote_to_object` worden bestaande rijen
+  in `kadaster_data_records` met `signaal_id = X` en `object_id IS NULL`
+  bijgewerkt met `object_id = nieuw object`. `signaal_id` blijft staan,
+  zodat de audit-relatie met het oorspronkelijke signaal behouden blijft.
+- Bestaande tabel volstaat — geen schemawijzigingen, geen migraties.
+- `SignaalKoppelingenSectie` toont een AlertDialog-bevestiging bij
+  "Omzetten naar object". Wanneer het signaal Kadasterrecords heeft,
+  verschijnt een checkbox "Kadasterdata meenemen naar object" (default
+  aan) met subtekst dat objectvelden, relaties en eigenaren niet
+  automatisch worden overschreven. Zonder records: geen checkbox.
+- Toasts: succes-melding bij promotie + aparte "Kadasterdata meegenomen
+  naar object" bij gelukte koppeling. Bij koppelfout een waarschuwing:
+  "Object is aangemaakt, maar Kadasterdata kon niet automatisch worden
+  gekoppeld. De data staat nog bij het oorspronkelijke signaal." Geen
+  rollback, geen retry-loop, geen nieuwe Kadaster-call.
+- Objectdetail toont via bestaande `KadasterOpgeslagenKaart` de
+  meegenomen records (Kadaster-koopsom, Rechthebbende volgens Kadaster).
+
+### Wat NIET (bewust)
+- Geen nieuwe Kadaster Edge Function-call tijdens promotie.
+- Geen objectvelden automatisch ingevuld (marktwaarde, vraagprijs,
+  taxatiewaarde, koopsom-veld).
+- Geen relatie/eigenaar/verkoper automatisch aangemaakt of gekoppeld.
+- Geen `eigenaar_relatie_id` automatisch ingevuld vanuit rechthebbende.
+- Geen automatische taak of contactmoment aangemaakt.
+- Geen automatische AI-herberekening of score-update.
+- Geen records gedupliceerd; records blijven aan signaal én object hangen.
+
+### Tests
+- `src/test/offMarket/kadaster/promoteMigratie.test.ts`:
+  geen kadaster-update bij `migrateKadaster=false`; juiste update bij
+  `migrateKadaster=true`; fout bij koppeling blokkeert object niet; geen
+  extra Kadaster-RPC tijdens promotie.
+
+### Vervolgstappen (backlog)
+1. Handmatige actie "Relatie maken/koppelen van rechthebbende".
+2. Handmatige knop "AI opnieuw verrijken met Kadasterdata".
+3. Bulkverrijking voor geselecteerde signalen (zie eerdere backlog).
+4. API-key statuskaart in admin (key-rotatie en `/products` check).
+5. PDF-opslag als latere optionele kolom (alleen na expliciete keuze).
