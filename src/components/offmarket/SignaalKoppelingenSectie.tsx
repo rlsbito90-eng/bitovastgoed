@@ -1,12 +1,17 @@
 // Koppelingen-paneel voor een off-market signaal:
 // - Eigenaar/relatie kiezen, ontkoppelen of nieuw aanmaken
-// - Promoten naar object (idempotent via RPC)
+// - Promoten naar object (idempotent via RPC) met optionele Kadaster-migratie
 // - Doorklik naar gekoppeld object indien aanwezig
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowUpRight, Building2, Plus, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPicker';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -15,6 +20,7 @@ import {
   useLinkRelatieToSignaal,
   usePromoteSignaalToObject,
 } from '@/hooks/useOffMarketLinks';
+import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
 const norm = (s: string | undefined | null) =>
@@ -30,6 +36,11 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
   const linkRelatie = useLinkRelatieToSignaal();
   const promote = usePromoteSignaalToObject();
   const [nieuwRelatieOpen, setNieuwRelatieOpen] = useState(false);
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [migrateKadaster, setMigrateKadaster] = useState(true);
+
+  const kadasterRecords = useKadasterDataRecordsForSignaal(signaal.id);
+  const heeftKadasterRecords = (kadasterRecords.data ?? []).length > 0;
 
   const relatieItems = useMemo<EntityPickerItem[]>(
     () =>
@@ -59,11 +70,31 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
     }
   };
 
-  const handlePromote = async () => {
+  const openPromote = () => {
+    setMigrateKadaster(true);
+    setPromoteOpen(true);
+  };
+
+  const handlePromoteConfirm = async () => {
     try {
-      const objectId = await promote.mutateAsync(signaal.id);
+      const res = await promote.mutateAsync({
+        signaalId: signaal.id,
+        migrateKadaster: heeftKadasterRecords && migrateKadaster,
+      });
+      setPromoteOpen(false);
       toast.success(signaal.gekoppeld_object_id ? 'Object al gekoppeld' : 'Signaal omgezet naar object');
-      navigate(`/objecten/${objectId}`);
+      if (heeftKadasterRecords && migrateKadaster) {
+        if (res.kadasterMigrationError) {
+          toast.warning(
+            'Object is aangemaakt, maar Kadasterdata kon niet automatisch worden gekoppeld. ' +
+            'De data staat nog bij het oorspronkelijke signaal.',
+            { duration: 12_000 },
+          );
+        } else if (res.kadasterMigrated > 0) {
+          toast.success('Kadasterdata meegenomen naar object.');
+        }
+      }
+      navigate(`/objecten/${res.objectId}`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Promote mislukt');
     }
@@ -85,7 +116,7 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
               </Link>
             </Button>
           ) : (
-            <Button size="sm" onClick={handlePromote} disabled={promote.isPending}>
+            <Button size="sm" onClick={openPromote} disabled={promote.isPending}>
               <Plus className="h-4 w-4" /> {promote.isPending ? 'Bezig…' : 'Omzetten naar object'}
             </Button>
           )}
@@ -118,6 +149,52 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
           handleRelatieChange(relatieId);
         }}
       />
+
+      <AlertDialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Signaal omzetten naar object</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Hiermee wordt een nieuw object aangemaakt op basis van dit
+                  signaal. Er worden geen relaties, eigenaren of verkopers
+                  automatisch gekoppeld.
+                </p>
+                {heeftKadasterRecords && (
+                  <div
+                    data-testid="promote-kadaster-migratie"
+                    className="rounded-md border border-border bg-muted/30 p-3 space-y-2"
+                  >
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={migrateKadaster}
+                        onCheckedChange={(v) => setMigrateKadaster(v === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm font-medium text-foreground">
+                        Kadasterdata meenemen naar object
+                      </span>
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Reeds opgehaalde Kadasterdata wordt gekoppeld aan het
+                      nieuwe object, zodat er geen nieuwe Kadasteraanvraag nodig
+                      is. Er worden geen objectvelden, relaties of eigenaren
+                      automatisch overschreven.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={promote.isPending}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePromoteConfirm} disabled={promote.isPending}>
+              {promote.isPending ? 'Bezig…' : 'Omzetten naar object'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
