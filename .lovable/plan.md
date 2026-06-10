@@ -1067,3 +1067,50 @@ postcodes op te zoeken.
    Edge Function dit veilig ondersteunt.
 2. App-brede adreslookup bij object/signaal-invoer (niet alleen
    Kadasterkaart).
+
+## Fase 4K.4F — Rechten-mapping aangescherpt + Kadaster-historie
+
+### Waarom
+Rechten-records werden geleverd met status "geleverd" maar UI toonde
+lege velden. Daarnaast konden meerdere aanvragen op verschillende
+zoekadressen (bv. 9-H en 9-1) niet als historie worden teruggezien —
+alleen de laatste record per productcode was zichtbaar.
+
+### Implementatie
+- Edge Function `kadaster-objectinformatie/_persist.ts` — rechten-branch
+  veel breder: zoekt rechthebbenden in extra arrays (`personen`,
+  `rechtspersonen`, `natuurlijkePersonen`, `nietNatuurlijkePersonen`),
+  pakt naam/bedrijfsnaam/type/rechtsoort/aandeel uit aanvullende
+  veldnamen, slaat in `raw_limited.rechten` een diagnostische shape op
+  (top-level keys, arrays met lengte + eerste-item keys, gebruikte
+  array). Geen volledige raw response, geen secrets.
+- `src/lib/kadaster/rechten.ts` — `mapRechten` uitgebreid met dezelfde
+  alternatieve veldnamen (gerechtigden / naamRechthebbende /
+  naamNietNatuurlijkPersoon / zakelijkRecht / breukdeel /
+  gerechtigdAandeel / kadastraalObject).
+- `KadasterPreviewDialog` — rechten-tekst gecorrigeerd ("Intern
+  opgeslagen als Kadasterrecord. Niet automatisch gekoppeld …").
+  Lege rechten-respons toont nu duidelijke melding "Rechten geleverd,
+  maar rechthebbende-velden nog niet herkend".
+- Nieuwe component `src/components/object/kadaster/KadasterHistorieLijst.tsx`
+  — inklapbaar blok "Eerdere Kadasteraanvragen (N)" met per record
+  datum, productnaam, status, zoekadres, korte samenvatting en
+  technische details (incl. `raw_limited.rechten` shape).
+- `KadasterOpgeslagenKaart` en `SignaalKadasterKaart` — hoofdkaart
+  blijft laatste-record-weergave; historie hangt onder als
+  inklapbaar blok. Rechten-cards tonen fallback-melding bij lege
+  velden.
+
+### Wat NIET (bewust)
+- Geen nieuwe Kadaster-call.
+- Geen schemawijziging, geen migraties.
+- Geen automatische relatie/eigenaar/verkoper-koppeling.
+- Geen volledige raw response of secrets in `raw_limited`.
+
+### Tests
+- `src/test/kadaster/rechtenExtra.test.ts` — extra veldnamen voor
+  rechten-mapper, fallback-gedrag, geen crash bij onbekende shape.
+
+### Backlog
+- Handmatige actie "Relatie maken/koppelen van rechthebbende" — pas
+  later, met expliciete bevestiging en zonder automatische CRM-koppeling.
