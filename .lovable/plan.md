@@ -217,3 +217,81 @@ Uitgevoerd: review en lichte aanscherping van `src/components/NotificationsBell.
 
 ### Conclusie
 **Fase 3 technisch afgerond.** Alle centrale helpers in gebruik, tests groen, geen oude drempels of dubbele jaarhuur, notificaties beperkt en gededupliceerd, iCal en relatie-display schoon. Vervolgwerk staat opgeschreven als 3.8A–3.8G voor latere prompts.
+
+---
+
+## Fase 4A.1 — QuickCreateRelationDialog (standalone)
+
+### Status
+Uitgevoerd. Standalone component + tests. **Nog niet geïntegreerd** in
+KandidaatSelectieDialog, EntityPicker, ObjectFormDialog, OfferFormDialog,
+ContactMomentFormDialog, TaakFormDialog of DealFormDialog.
+
+### Component
+- Locatie: `src/components/forms/QuickCreateRelationDialog.tsx`
+- Default export + named export `QuickCreateRelationDialog`.
+
+### Props
+- `open: boolean`
+- `onOpenChange(open)`
+- `context?: 'verkoper' | 'kandidaat' | 'bieder' | 'contact' | 'taak' | 'deal' | 'algemeen'` (default `'algemeen'`)
+- `defaultValues?: { naam?, bedrijfsnaam?, email?, telefoon?, type? }`
+- `onCreated(relatie)` — wordt ook aangeroepen bij "Kies deze" op een duplicate-hit.
+- `onCancel?()`
+
+### Velden (V1, geen "Meer")
+- Naam / contactpersoon
+- Bedrijfsnaam
+- E-mail (inputMode=email)
+- Telefoon (inputMode=tel)
+- Partijtype (select, default per context)
+
+### Default partijtype per context
+- `verkoper` → eigenaar
+- `kandidaat` / `bieder` / `deal` → belegger
+- `contact` / `taak` / `algemeen` → overig
+
+### Validatie en placeholder-logica
+- Minimaal één van naam, bedrijfsnaam, e-mail, telefoon vereist.
+- "Onbekend", "onbekende relatie", "naamloos", "-", "–" tellen als leeg en
+  worden nooit opgeslagen (zelfde set als `getRelatieNamen`).
+- Alle velden trimmed; lege strings → lege string in store (consistent met
+  bestaande `Relatie`-type).
+
+### Aanmaken
+- Gebruikt `useDataStore().addRelatie` met `leadStatus: 'lauw'`, `regio: []`,
+  `assetClasses: []`, `ndaGetekend: false`.
+- Slaat schone naam ook op in legacy `relatie.contactpersoon` voor backwards
+  compat met bestaande displays.
+- Maakt primaire `RelatieContactpersoon` aan (`isPrimair: true`,
+  `decisionMaker: false`, `voorkeurTaal: 'nl'`) als naam is ingevuld.
+- Faal van contactpersoon-create logt warning maar laat relatie-create intact.
+- Bij succes: `toast.success('Relatie aangemaakt.')`, `onCreated(nieuw)`,
+  sluit dialog.
+
+### Duplicate-hint V1
+- Strict: e-mail exact match (case-insensitive) of telefoon match op alleen
+  cijfers (`/\D+/g` gestript).
+- Toont amber alert "Mogelijk bestaat deze relatie al." met max 3 hits via
+  `getRelatieDropdownLabel`.
+- Per hit een "Kies deze"-knop die `onCreated(bestaande)` aanroept zonder
+  nieuwe relatie te maken.
+- Geen naam/fuzzy matching, geen merge-flow.
+
+### UI/UX
+- Compacte dialog `max-w-md w-[95vw]`, geen tabs, mobile-first.
+- Hergebruikt shadcn `Input`/`Select` (16px font, dus geen iOS auto-zoom).
+- Primaire knop "Relatie aanmaken", secundair "Annuleren", disabled tijdens save.
+- Validatiefout zichtbaar als `text-destructive` met `role="alert"`.
+
+### Tests
+- `src/test/forms/quickCreateRelationDialog.test.tsx` — 10 tests, allemaal groen.
+- Mockt `useDataStore` en `sonner`.
+- Dekt: titel, lege validatie, alleen-naam create + contactpersoon, alleen
+  bedrijfsnaam (geen contactpersoon), alleen e-mail, "Onbekend" als leeg,
+  default `eigenaar` voor `verkoper`, duplicate-hint op e-mail, duplicate-hint
+  op telefoon, geen hint bij alleen naam-overlap.
+
+### Volgende stap
+4A.2 — Integratie in `KandidaatSelectieDialog` als "+ Nieuwe relatie"-CTA
+wanneer zoekresultaat leeg is.
