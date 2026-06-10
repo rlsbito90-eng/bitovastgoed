@@ -22,9 +22,15 @@ export default function KadasterPdfKnop({
   async function openen() {
     setBezig(true);
     try {
+      // Altijd een verse signed URL aanvragen — verlopen URL's worden
+      // nooit gecached, dus een PDF "verdwijnt" niet door expiratie.
       await openKadasterDocument(doc);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Kon Kadasterbericht niet openen.');
+      const detail = e instanceof Error ? e.message : '';
+      toast.error(
+        'Kadasterbericht bestaat, maar kon tijdelijk niet worden geopend. ' +
+        'Probeer opnieuw of controleer opslagrechten.' + (detail ? ` (${detail})` : ''),
+      );
     } finally {
       setBezig(false);
     }
