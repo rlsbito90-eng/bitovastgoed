@@ -229,6 +229,7 @@ export default function KadasterGebiedsdataKaart({
       if (resp.persist?.requested) {
         if (resp.persist.ok) {
           toast.success('Kadastergegevens opgeslagen bij dit object.');
+          queryClient.invalidateQueries({ queryKey: ['kadaster_data_records', 'object', objectId] });
         } else {
           toast.warning(
             'Kadastergegevens opgehaald, maar opslaan is mislukt. ' +
