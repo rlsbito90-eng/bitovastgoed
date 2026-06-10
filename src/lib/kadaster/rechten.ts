@@ -51,22 +51,30 @@ function mapRechthebbendeRegel(r: unknown): KadasterRechthebbende | null {
   if (!r || typeof r !== 'object') return null;
   const rr = r as Record<string, unknown>;
 
-  const persoon = (rr.persoon ?? rr.natuurlijkPersoon ?? rr.naturalPerson) as unknown;
+  const persoon = (rr.persoon ?? rr.natuurlijkPersoon ?? rr.naturalPerson
+    ?? rr.naamNatuurlijkPersoon) as unknown;
   const ond = (rr.onderneming ?? rr.nietNatuurlijkPersoon
-    ?? rr.rechtspersoon ?? rr.organisatie ?? rr.legalEntity) as unknown;
+    ?? rr.rechtspersoon ?? rr.organisatie ?? rr.legalEntity
+    ?? rr.naamNietNatuurlijkPersoon) as unknown;
 
   const naam =
     leesString(persoon, 'volledigeNaam', 'naam', 'achternaam', 'geslachtsnaam')
-    ?? leesString(rr, 'naam', 'volledigeNaam', 'achternaam');
+    ?? leesString(rr, 'naam', 'volledigeNaam', 'achternaam', 'naamRechthebbende');
   const bedrijfsnaam =
     leesString(ond, 'statutaireNaam', 'naam', 'handelsnaam', 'organisatieNaam')
-    ?? leesString(rr, 'bedrijfsnaam', 'statutaireNaam', 'handelsnaam');
+    ?? leesString(rr, 'bedrijfsnaam', 'statutaireNaam', 'handelsnaam', 'organisatieNaam');
   const type =
-    leesString(rr, 'soortRechthebbende', 'typeRechthebbende', 'type', 'soort')
+    leesString(rr, 'soortRechthebbende', 'typeRechthebbende', 'type', 'soort',
+      'soortPersoon', 'rechtsvorm')
     ?? (persoon ? 'natuurlijk persoon' : (ond ? 'rechtspersoon' : null));
-  const aandeel = leesAandeel(rr.aandeel) ?? leesAandeel((rr as Record<string, unknown>).share);
+  const aandeel = leesAandeel(rr.aandeel)
+    ?? leesAandeel(rr.aandeelInRecht)
+    ?? leesAandeel(rr.breukdeel)
+    ?? leesAandeel(rr.gerechtigdAandeel)
+    ?? leesAandeel((rr as Record<string, unknown>).share);
   const rechtsoort = leesString(
-    rr, 'rechtsoort', 'aardRecht', 'aardRechtVerkort', 'soortRecht', 'rightType',
+    rr, 'rechtsoort', 'aardRecht', 'aardRechtVerkort', 'soortRecht',
+    'zakelijkRecht', 'omschrijvingRecht', 'recht', 'rightType',
   );
 
   if (!naam && !bedrijfsnaam && !rechtsoort && !aandeel) return null;
@@ -85,6 +93,8 @@ export function mapRechten(data: unknown): KadasterRechtenView {
   const kandidaten = [
     d.rechthebbenden, d.tenaamstellingen, d.gerechtigden,
     d.eigenaren, d.rechten, d.rightHolders,
+    d.personen, d.rechtspersonen,
+    d.natuurlijkePersonen, d.nietNatuurlijkePersonen,
   ];
   for (const lijst of kandidaten) {
     if (!Array.isArray(lijst)) continue;
@@ -99,6 +109,7 @@ export function mapRechten(data: unknown): KadasterRechtenView {
 
   result.kadastraleAanduiding = leesString(
     d, 'kadastraleAanduiding', 'aanduiding', 'kadastraleObjectIdentificatie',
+    'kadastraalObject',
   );
   result.appartementsrecht = leesString(
     d, 'appartementsrecht', 'appartementsrechtsplitsing', 'appartement',
