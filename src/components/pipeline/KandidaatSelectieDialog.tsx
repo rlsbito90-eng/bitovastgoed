@@ -76,7 +76,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     if (open) {
       setZoek(''); setFilterType(''); setFilterStatus(''); setFilterAssetClass('');
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
-      setAlleenActief(false); setGeselecteerd(new Set());
+      setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
     }
   }, [open]);
