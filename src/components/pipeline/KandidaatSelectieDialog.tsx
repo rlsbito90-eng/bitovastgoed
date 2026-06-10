@@ -466,8 +466,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         <td className="py-2 px-2"><Checkbox checked={checked} onCheckedChange={() => toggle(r.id)} /></td>
                         <td className="py-2 px-2 font-medium max-w-[180px] truncate" title={r.bedrijfsnaam}>{r.bedrijfsnaam || '—'}</td>
                         <td className="py-2 px-2 max-w-[160px] truncate" title={item.contactNaam}>{item.contactNaam || '—'}</td>
-                        <td className="py-2 px-2 text-xs text-muted-foreground max-w-[180px] truncate" title={item.email}>{item.email || '—'}</td>
-                        <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">{item.telefoon || '—'}</td>
                         <td className="py-2 px-2 text-xs whitespace-nowrap">{PARTIJ_LABELS[r.type]}</td>
                         <td className="py-2 px-2"><LeadStatusBadge status={r.leadStatus} /></td>
                         <td className="py-2 px-2 text-xs max-w-[120px] truncate" title={item.plaats}>{item.plaats || '—'}</td>
@@ -475,8 +473,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                           {(r.assetClasses ?? []).slice(0, 2).map(a => ASSET_CLASS_LABELS[a]).join(', ') || '—'}
                           {(r.assetClasses?.length ?? 0) > 2 && <span className="text-muted-foreground"> +{(r.assetClasses!.length - 2)}</span>}
                         </td>
-                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBedrag(r.budgetMin)}</td>
-                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBedrag(r.budgetMax)}</td>
+                        <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBudgetRange(r.budgetMin, r.budgetMax)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDatum(r.laatsteContact)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground max-w-[100px] truncate" title={r.bronRelatie ?? ''}>{r.bronRelatie || '—'}</td>
                         <td className="py-2 px-2 text-right font-mono-data text-xs">{item.score != null ? `${item.score}%` : '—'}</td>
