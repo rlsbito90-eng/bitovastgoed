@@ -145,6 +145,7 @@ const BodySchema = z.object({
     signaal_id: z.string().uuid().nullish(),
   }).nullish(),
   persist: z.boolean().nullish(),
+  includePdf: z.boolean().nullish(),
 }).refine((v) => !!v.bagId || !!v.adres, {
   message: 'Geef bagId of adres mee',
   path: ['adres'],
