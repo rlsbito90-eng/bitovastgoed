@@ -1021,3 +1021,49 @@ zonder een nieuwe (betaalde) Kadasteraanvraag.
 3. Bulkverrijking voor geselecteerde signalen (zie eerdere backlog).
 4. API-key statuskaart in admin (key-rotatie en `/products` check).
 5. PDF-opslag als latere optionele kolom (alleen na expliciete keuze).
+
+## Fase 4K.4C — BAG/PDOK adreslookup voor Kadaster (uitgevoerd)
+
+### Doel
+Gebruiker kan in Objecten/Aanbod en Off Market Radar via straat +
+huisnummer (+ plaats) een officieel BAG-adres opzoeken, zodat postcode +
+huisnummer voor de Kadasteraanvraag worden ingevuld zonder handmatig
+postcodes op te zoeken.
+
+### Implementatie
+- Nieuwe helper `src/lib/bag/pdokLookup.ts` — gebruikt publieke PDOK
+  Locatieserver (`api.pdok.nl/.../search/v3_1/free`, `fq=type:adres`).
+  Geen API-key. Geen Kadaster-call. Genormaliseerde velden:
+  straat, huisnummer, huisletter, huisnummertoevoeging, postcode
+  (zonder spatie), woonplaats, `nummeraanduiding_id`,
+  `adresseerbaar_object_id`.
+- Nieuwe component `src/components/shared/BagAdresLookup.tsx` — herbruikbaar
+  formuliertje met "Adres zoeken"-knop (handmatige actie), max 10
+  resultaten, geen automatische keuze, foutmelding bij 0 resultaten.
+- Geïntegreerd in:
+  - `KadasterGebiedsdataKaart` (tab "Adres") — vult postcode +
+    huisnummer + letter + toevoeging + straat/plaats voor object.
+  - `SignaalKadasterKaart` — vult postcode + handmatig huisnummer +
+    letter + toevoeging voor signaal.
+- Kadasterknop blijft pas actief bij geldige postcode (4 cijfers + 2
+  letters) en huisnummer. "Aanvraag gebruikt: …" toont het effectieve
+  zoekadres ongewijzigd.
+
+### Wat NIET (bewust)
+- Geen Kadaster-call tijdens of na BAG-lookup.
+- Geen automatische keuze van eerste resultaat.
+- Geen BAG-ID rechtstreeks naar Kadaster (PHT blijft postcode +
+  huisnummer); BAG-ID alleen in UI/resultaatdetails getoond.
+- Geen opslag van BAG-resultaten als losse tabel; alleen via bestaand
+  object-/signaal-save.
+- Geen schemawijzigingen, geen datamigraties, geen nieuwe secrets.
+
+### Tests
+- `src/test/bag/pdokLookup.test.ts`: postcodenormalisatie, query-bouw,
+  PDOK fetch + mapping, geen call bij lege query.
+
+### Backlog
+1. BAG-ID rechtstreeks gebruiken in Kadasterrequest als bestaande
+   Edge Function dit veilig ondersteunt.
+2. App-brede adreslookup bij object/signaal-invoer (niet alleen
+   Kadasterkaart).
