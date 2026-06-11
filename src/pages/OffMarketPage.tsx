@@ -278,6 +278,31 @@ export default function OffMarketPage() {
           </section>
         </>
       )}
+
+      {tab === 'kaart' && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {(['actueel', 'komend', 'historisch', 'alles'] as DatumBucket[]).map(b => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setDatumBucket(b)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  datumBucket === b
+                    ? 'bg-accent text-accent-foreground border-accent'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                {DATUMBUCKET_LABEL[b]}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-muted-foreground self-center">
+              {gefilterd.filter(s => matchBucket(s, datumBucket)).length} signalen in selectie
+            </span>
+          </div>
+          <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
+        </section>
+      )}
     </div>
   );
 }
