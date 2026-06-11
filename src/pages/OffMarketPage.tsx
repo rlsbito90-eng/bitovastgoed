@@ -32,12 +32,22 @@ export default function OffMarketPage() {
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
-      return (t === 'signalen' || t === 'dashboard') ? t : 'dashboard';
+      return (t === 'signalen' || t === 'dashboard' || t === 'kaart') ? t : 'dashboard';
     } catch { return 'dashboard'; }
   });
   const setTab = (t: Tab) => {
     setTabState(t);
     try { sessionStorage.setItem('off-market-filter:tab', t); } catch {}
+  };
+  const [datumBucket, setDatumBucketRaw] = useState<DatumBucket>(() => {
+    try {
+      const v = sessionStorage.getItem('off-market-filter:datumbucket');
+      return (v === 'actueel' || v === 'komend' || v === 'historisch' || v === 'alles') ? v : 'actueel';
+    } catch { return 'actueel'; }
+  });
+  const setDatumBucket = (b: DatumBucket) => {
+    setDatumBucketRaw(b);
+    try { sessionStorage.setItem('off-market-filter:datumbucket', b); } catch {}
   };
   const [createOpen, setCreateOpen] = useState(false);
 
