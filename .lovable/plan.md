@@ -1281,3 +1281,57 @@ automatische backfill, geen nieuwe Kadaster-call. PDF blijft officiële bron.
 
 **Vervolg (apart):** PDF-parser voor oudere records; handmatige
 actie "Relatie maken/koppelen van rechthebbende".
+
+## 2026-06-11 — Kaart 1: Off Market Radar kaartweergave
+
+**Gebouwd**
+- Nieuwe tab `Kaart` in `OffMarketPage.tsx` (persistent via sessionStorage).
+- `OffMarketKaart` (`src/components/offmarket/kaart/`) met MapLibre GL JS +
+  react-map-gl/maplibre, PDOK BRT-Achtergrondkaart tiles, default viewport
+  = laatst gebruikte (sessionStorage) met fallback Nederland.
+- GeoJSON-source + cluster + losse pinnen. Pin-kleur op `prioriteit`
+  (urgent rood, hoog oranje, midden geel, laag grijs). Legenda rechtsonder.
+- Popover bij pin met titel, adres, type, status- en prioriteit-badge,
+  bron + datum en knop "Open signaal". **Geen** eigenaar/Kadaster/notities.
+- Samenvouwbaar sidepanel desktop met klik-naar-pan; mobiel = full-bleed kaart.
+- Filters (status, prio, asset, regio, bron, AI-status, zoek) gedeeld
+  tussen Signalen- en Kaart-tab.
+- Datumbuckets `Actueel | Komend | Historisch | Alles`
+  (`src/lib/offMarket/kaart/datumbucket.ts`, bron_datum primair,
+   volgende_actie_datum secundair).
+
+**Automatische PDOK-geocoding** (`useKaartGeocoding`)
+- Draait **alleen** bij openen Kaart-tab, niet bij Dashboard/Signalen.
+- Max 3 parallel; session-cache van geprobeerde signaal-ids tegen loops.
+- Veilige match: type=adres, huisnummer matcht parsed signaal-huisnummer,
+  postcode OF plaats matcht, geen tweede kandidaat met vergelijkbare score.
+- Auto-opslag: `lat`/`lng` direct naar `off_market_signalen`. Geen
+  schemawijziging — kolommen bestonden al.
+- Onzekere matches → "Locatie controleren"-dialog met kandidatenlijst,
+  gebruiker kiest handmatig.
+- Signalen zonder adres of zonder match → "Zonder locatie"-dialog met
+  knop "Zoek via PDOK" voor handmatige retry.
+- Geen Kadaster-call, geen AI-call, geen bulkverrijking, geen kosten.
+
+**Tests** (23 tests, allemaal groen)
+- `geocode.test.ts`: adresparser, querybouw, veilige match-beoordeling.
+- `datumbucket.test.ts`: actueel/komend/historisch classificatie.
+- `kaartHelpers.test.ts`: lat/lng-validatie, GeoJSON-build, kleur per prio.
+
+**Privacy/security**
+- Pin-preview en sidepanel tonen geen eigenaargegevens, telefoons,
+  e-mails, notities, Kadasterrechten of dealwaarden.
+- Kadasterdata blijft uitsluitend in signaaldetail (RLS-beschermd).
+
+**Toekomstige fasen** (in plan, niet gebouwd)
+- **Kaart 2**: schema-uitbreiding `geocode_kwaliteit`/`geocode_bron`/
+  `geocode_op`/`bag_nummeraanduiding_id`, viewport-gekoppelde lijst,
+  drag-to-correct pin, bulk-geocode achter admin-flag.
+- **Kaart 3 — Kopers-/zoekprofiel-overlay**: locatie-intentie met
+  zekerheidsniveau (Exact gebied / Stad / Regio / Breed / Onbekend).
+  Vage zoekprofielen ("Rotterdam", "Randstad", "Nederland bij goede deal")
+  worden expliciet **geen** harde matches; alleen geaggregeerd op kaart
+  zichtbaar. Geen persoonsgegevens van kopers op de kaart. Polygon-laag,
+  heatmap en kandidaatmatchtelling zijn opties voor deze fase.
+- Niet-blokkerend voor Kaart 1: MapLibre ondersteunt meerdere lagen
+  (signalen, toekomstige vraag-/heatmaplaag) zonder herontwerp.
