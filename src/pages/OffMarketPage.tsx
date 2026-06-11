@@ -175,7 +175,7 @@ export default function OffMarketPage() {
 
 
       <div className="flex items-center gap-1 border-b border-border/60">
-        {(['dashboard', 'signalen'] as const).map(t => (
+        {(['dashboard', 'signalen', 'kaart'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -185,7 +185,7 @@ export default function OffMarketPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'dashboard' ? 'Dashboard' : `Signalen (${signalen.length})`}
+            {t === 'dashboard' ? 'Dashboard' : t === 'signalen' ? `Signalen (${signalen.length})` : 'Kaart'}
           </button>
         ))}
       </div>
