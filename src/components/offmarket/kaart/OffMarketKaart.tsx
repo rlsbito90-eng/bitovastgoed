@@ -6,6 +6,7 @@ import Map, {
 } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { Feature, FeatureCollection, Point } from 'geojson';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw } from 'lucide-react';
 import type { OffMarketSignaal, OffMarketPrioriteit } from '@/lib/offMarket/types';
@@ -52,7 +53,7 @@ export function heeftLocatie(s: OffMarketSignaal): boolean {
     && !(lat === 0 && lng === 0);
 }
 
-export function bouwGeoJson(signalen: OffMarketSignaal[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+export function bouwGeoJson(signalen: OffMarketSignaal[]): FeatureCollection<Point> {
   return {
     type: 'FeatureCollection',
     features: signalen.filter(heeftLocatie).map(s => ({
@@ -114,7 +115,7 @@ export default function OffMarketKaart({ signalen }: Props) {
       if (clusterId != null && src) {
         src.getClusterExpansionZoom(clusterId).then((zoom) => {
           mapRef.current?.easeTo({
-            center: (f.geometry as GeoJSON.Point).coordinates as [number, number],
+            center: ((f.geometry as Point).coordinates) as [number, number],
             zoom: zoom + 0.2,
             duration: 500,
           });
