@@ -13,6 +13,8 @@ import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { saveListContext } from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
+import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
+import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
@@ -21,7 +23,7 @@ import {
   type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
-type Tab = 'dashboard' | 'signalen';
+type Tab = 'dashboard' | 'signalen' | 'kaart';
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
@@ -30,12 +32,22 @@ export default function OffMarketPage() {
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
-      return (t === 'signalen' || t === 'dashboard') ? t : 'dashboard';
+      return (t === 'signalen' || t === 'dashboard' || t === 'kaart') ? t : 'dashboard';
     } catch { return 'dashboard'; }
   });
   const setTab = (t: Tab) => {
     setTabState(t);
     try { sessionStorage.setItem('off-market-filter:tab', t); } catch {}
+  };
+  const [datumBucket, setDatumBucketRaw] = useState<DatumBucket>(() => {
+    try {
+      const v = sessionStorage.getItem('off-market-filter:datumbucket');
+      return (v === 'actueel' || v === 'komend' || v === 'historisch' || v === 'alles') ? v : 'actueel';
+    } catch { return 'actueel'; }
+  });
+  const setDatumBucket = (b: DatumBucket) => {
+    setDatumBucketRaw(b);
+    try { sessionStorage.setItem('off-market-filter:datumbucket', b); } catch {}
   };
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -163,7 +175,7 @@ export default function OffMarketPage() {
 
 
       <div className="flex items-center gap-1 border-b border-border/60">
-        {(['dashboard', 'signalen'] as const).map(t => (
+        {(['dashboard', 'signalen', 'kaart'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -173,7 +185,7 @@ export default function OffMarketPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'dashboard' ? 'Dashboard' : `Signalen (${signalen.length})`}
+            {t === 'dashboard' ? 'Dashboard' : t === 'signalen' ? `Signalen (${signalen.length})` : 'Kaart'}
           </button>
         ))}
       </div>
@@ -191,7 +203,7 @@ export default function OffMarketPage() {
         </section>
       )}
 
-      {tab === 'signalen' && (
+      {(tab === 'signalen' || tab === 'kaart') && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
@@ -226,12 +238,14 @@ export default function OffMarketPage() {
               <option value="">Alle AI-statussen</option>
               {AI_STATUS_VOLGORDE.map(a => <option key={a} value={a}>{AI_STATUS_LABEL[a]}</option>)}
             </select>
-            <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
-              <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
-            </div>
+            {tab === 'signalen' && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
+                <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+              </div>
+            )}
           </div>
 
-          {bucketTellingen.length > 0 && (
+          {tab === 'signalen' && bucketTellingen.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -261,10 +275,37 @@ export default function OffMarketPage() {
             </div>
           )}
 
-          <section className="section-card overflow-hidden">
-            <SignalenTable signalen={gefilterd} laden={isLoading} />
-          </section>
+          {tab === 'signalen' && (
+            <section className="section-card overflow-hidden">
+              <SignalenTable signalen={gefilterd} laden={isLoading} />
+            </section>
+          )}
         </>
+      )}
+
+      {tab === 'kaart' && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {(['actueel', 'komend', 'historisch', 'alles'] as DatumBucket[]).map(b => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setDatumBucket(b)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  datumBucket === b
+                    ? 'bg-accent text-accent-foreground border-accent'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                {DATUMBUCKET_LABEL[b]}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-muted-foreground self-center">
+              {gefilterd.filter(s => matchBucket(s, datumBucket)).length} signalen in selectie
+            </span>
+          </div>
+          <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
+        </section>
       )}
     </div>
   );
