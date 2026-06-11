@@ -13,11 +13,17 @@ import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { saveListContext } from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
+import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
+import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
   AI_STATUS_LABEL, AI_STATUS_VOLGORDE,
   type OffMarketAssettype, type OffMarketBronType, type OffMarketPrioriteit,
+  type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
+} from '@/lib/offMarket/types';
+
+type Tab = 'dashboard' | 'signalen' | 'kaart';
   type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
