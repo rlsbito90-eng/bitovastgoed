@@ -203,7 +203,7 @@ export default function OffMarketPage() {
         </section>
       )}
 
-      {tab === 'signalen' && (
+      {(tab === 'signalen' || tab === 'kaart') && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
@@ -238,12 +238,14 @@ export default function OffMarketPage() {
               <option value="">Alle AI-statussen</option>
               {AI_STATUS_VOLGORDE.map(a => <option key={a} value={a}>{AI_STATUS_LABEL[a]}</option>)}
             </select>
-            <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
-              <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
-            </div>
+            {tab === 'signalen' && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
+                <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+              </div>
+            )}
           </div>
 
-          {bucketTellingen.length > 0 && (
+          {tab === 'signalen' && bucketTellingen.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -273,9 +275,11 @@ export default function OffMarketPage() {
             </div>
           )}
 
-          <section className="section-card overflow-hidden">
-            <SignalenTable signalen={gefilterd} laden={isLoading} />
-          </section>
+          {tab === 'signalen' && (
+            <section className="section-card overflow-hidden">
+              <SignalenTable signalen={gefilterd} laden={isLoading} />
+            </section>
+          )}
         </>
       )}
 
