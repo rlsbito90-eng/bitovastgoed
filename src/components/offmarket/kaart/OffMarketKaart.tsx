@@ -6,7 +6,7 @@ import Map, {
 } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { Feature, FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Point } from 'geojson';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw } from 'lucide-react';
 import type { OffMarketSignaal, OffMarketPrioriteit } from '@/lib/offMarket/types';
