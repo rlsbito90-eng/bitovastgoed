@@ -1423,3 +1423,147 @@ actie "Relatie maken/koppelen van rechthebbende".
 - Evalueren of bewerk-modal volledig wordt vervangen door inline edit op `TaakDetailPage`.
 - Evalueren of Google Maps/Search-knoppen app-breed (relaties/objecten) gelijkgetrokken worden.
 - Evalueren of sticky vorige/volgende-navigatie app-breed wenselijk is.
+
+---
+
+# Off Market Radar — Filters, Sortering en Lijstcontext
+
+## Probleem
+Bij terugnavigatie vanuit een signaaldetail belandt de gebruiker bovenaan de lijst: scrollpositie, focus en "welk signaal was ik aan het bewerken" zijn verloren. Verder is er behoefte aan uitgebreidere — maar expliciet door de gebruiker te kiezen — sortering en filtering. Geen "slimme volgorde" als default.
+
+## Huidige situatie
+- `OffMarketPage` bewaart al in `sessionStorage` (prefix `off-market-filter:`): `tab`, `zoek`, `status`, `prio`, `asset`, `regio`, `bron`, `ai_status`, `bucket`, `datumbucket`.
+- Sorteervoorkeur via `useSortPreference('off-market-signalen', …)` (localStorage). Default sort = `relevantie` (= slimme volgorde) — dat moet aanpasbaar worden.
+- `saveListContext('off-market-signalen', ids)` schrijft de huidige gefilterde volgorde naar sessionStorage; de detailpagina gebruikt `getListNavigation` voor Vorige/Volgende.
+- `SignalenTable` navigeert via `navigate('/off-market/:id')`. Er wordt geen scroll-anchor of "laatst bekeken" id bewaard.
+- Scroll: `ScrollToTop`-component reset scroll bij elke route-change → na terugkomen begint de lijst altijd bovenaan.
+- Relevante kolommen op `off_market_signalen`: `created_at`, `updated_at`, `bron_datum`, `volgende_actie_datum`, `prioriteit`, `status`, `ai_score`, `ai_verkoopkans`, `ai_status`, `plaats`, `provincie`, `regio`, `eigenaarstatus`, `eigenaar_relatie_id`, `gekoppeld_object_id`, `gekoppelde_deal_id`, `lat`/`lng`, `gearchiveerd_op`. Geen `last_viewed_at`.
+- Taken zijn aparte tabel; "open/verlopen taak per signaal" vereist join/aggregaat.
+
+## Lijstcontext bewaren
+Uitbreiden van de bestaande sessionStorage-aanpak (zelfde prefix-conventie):
+- `off-market-list:lastViewedId` — id van het laatst geopende signaal.
+- `off-market-list:scrollY` — verticale scrollpositie van de lijstcontainer.
+- `off-market-list:anchorId` — id om naartoe te scrollen wanneer scrollY niet (meer) klopt (filterresultaat verkleind, nieuwe data, etc.).
+- Tab/filters/sort blijven zoals nu in sessionStorage/localStorage.
+
+Schrijfmoment: bij klik op een rij in `SignalenTable` (en bij open vanuit Kaart-sidepanel zodra die bestaat) → zet `lastViewedId` + huidige `scrollY` + `anchorId = id`.
+
+Leesmoment: bij mount van `OffMarketPage` op tab `signalen`, ná dat `gefilterd` is opgebouwd:
+1. Probeer `scrollIntoView({ block: 'center' })` op `[data-signaal-id="…anchorId…"]`.
+2. Als element niet bestaat (filter veranderd) → val terug op `window.scrollTo(0, scrollY)`.
+3. Highlight de `lastViewedId`-rij gedurende ~6s (subtiele ring + badge "Laatst bekeken").
+
+## Scroll restore
+- Maak `ScrollToTop` opt-out voor `/off-market` (of skip wanneer de vorige route een signaaldetail was).
+- Gebruik `requestAnimationFrame` + retry-loop (max 3 frames) zodat scroll-restore wacht tot de tabel daadwerkelijk gerenderd is.
+- Mobiel: zelfde mechanisme; gebruik `scrollIntoView({ block: 'center', behavior: 'auto' })` zonder smooth scrolling.
+
+## Laatst bekeken / highlight
+- Lokaal, geen DB-veld toevoegen (`last_viewed_at` voorlopig NIET introduceren).
+- Visualisatie:
+  - Rij: subtiele `ring-1 ring-accent/40` + lichte achtergrond.
+  - Badge "Laatst bekeken" rechts in de adres-cel; verdwijnt na 6s of zodra een ander signaal wordt geopend.
+- Optionele extra badges (alleen als data triviaal beschikbaar is):
+  - "Net bijgewerkt" als `updated_at` < 5 min geleden én verschilt van `created_at`.
+  - "Taak aangemaakt" — overslaan in fase 1 (vereist extra query).
+
+## Sorteringsvoorstel
+Direct bouwbaar (alle velden bestaan):
+- Nieuwste eerst (`created_at` desc) — **nieuwe default**.
+- Oudste eerst (`created_at` asc).
+- Laatst bijgewerkt (`updated_at` desc).
+- Brondatum nieuw→oud (`bron_datum` desc, null laatst).
+- Brondatum oud→nieuw.
+- Prioriteit hoog→laag / laag→hoog (`prioriteit` via `prioriteitRang`).
+- Status (vaste volgorde uit `STATUS_VOLGORDE`).
+- Volgende actie datum (al aanwezig).
+- AI-score hoog→laag / laag→hoog.
+- Verkoopkans hoog→laag / laag→hoog (`ai_verkoopkans`).
+- Plaats A→Z, Provincie A→Z, Regio A→Z.
+- "Slimme volgorde (vastgoedrelevantie)" — blijft beschikbaar als **optie**, niet meer default.
+
+Laatst bekeken als sortering: skip — wordt al via highlight + scroll-anchor opgelost.
+
+Alles client-side; bij groei >2.000 signalen later server-side overwegen.
+
+## Filtervoorstel
+
+### Direct bouwbaar (bestaande kolommen, client-side)
+- Status (multi-select i.p.v. single) — incl. "Gearchiveerd" via `gearchiveerd_op`.
+- Prioriteit (multi).
+- Assettype (multi).
+- Provincie / Regio (multi).
+- Bron (multi).
+- Vergunningtype + Aanvraag/Besluit (multi).
+- AI-status (multi) + AI-score ≥ slider + Verkoopkans ≥ slider.
+- Eigenaarstatus (multi) + "met/zonder gekoppelde relatie" (`eigenaar_relatie_id`).
+- "Met/zonder gekoppeld object" (`gekoppeld_object_id`).
+- "Met/zonder deal" (`gekoppelde_deal_id`).
+- Locatie: "Met kaartlocatie" (`lat`/`lng` not null) / "Zonder kaartlocatie" / "Locatie controleren" (gebruik bestaande geocode-resultaten in client-state).
+- Volgende actie: "vandaag", "deze week", "verlopen", "zonder volgende actie" (`volgende_actie_datum`).
+- Tijd: "vandaag bijgewerkt", "deze week bijgewerkt", "≤30 dagen", "ouder" (`updated_at`).
+- Datumbucket op kaart (bestaand) blijft.
+
+### Bouwbaar met kleine query-aanpassing
+- "Met open taak / verlopen taak / taak vandaag / zonder open taak" — vereist join op `taken` (signaal_id, status, deadline). Toevoegen aan `useOffMarketSignalen` als afgeleide map `signaalId → taakSamenvatting` zonder schemawijziging.
+- "Met Kadasterrecord / met opgeslagen PDF / met Rechten / met Koopsom" — vereist bestaan-check op kadaster-tabellen gekoppeld aan signaal/object. Bouwbaar als afgeleide map; geen schemawijziging.
+
+### Later bouwbaar (vereist schema/view of significante refactor)
+- "Eigenaar gevonden / nog onbekend" als afzonderlijk filter naast `eigenaarstatus` (semantiek overlapt; pas in fase 2).
+- Filterpresets/opgeslagen weergaven (zie hieronder).
+- Server-side filtering + index op `updated_at`, `status`, `prioriteit` als datavolume groeit.
+
+## URL/sessionStorage advies
+- **localStorage** (`off-market-prefs:*`): default sorteervoorkeur, kolomzichtbaarheid, voorkeur "uitgebreid filterpaneel open/dicht".
+- **sessionStorage** (`off-market-filter:*`, `off-market-list:*`): actieve filters per browser-tab, scroll-anchor, lastViewedId, datumbucket, actieve hoofdtab. (Reeds aanwezig — uitbreiden.)
+- **URL-query**: optioneel in fase 2 voor deelbare links. Voorlopig **niet** invoeren om scope klein te houden en dubbele bron van waarheid te vermijden.
+- Tabkeuze blijft in sessionStorage zoals nu.
+
+## Mobile filter UX
+- Boven de lijst: horizontale chips-rij met actieve filters (`status: nieuw, interessant • prio: hoog • AI ≥ 70`), met een "×" per chip.
+- Knop "Filters" opent **bottom-sheet** met alle filters, secties (Status, Locatie, AI, Taken, Tijd, Koppelingen). Knoppen onderin: "Wissen" / "Toepassen".
+- Sorteringen in eigen `Select` (compacte trigger).
+- Sticky filterbalk = nee; alleen chips-rij sticky onder de tabs.
+- Geen horizontale overflow: gebruik `flex-wrap` op chips-rij, geen `overflow-x-auto` als default.
+
+## Desktop filter UX
+- Eerste rij: zoekveld + 4 belangrijkste selects (Status, Prio, Asset, Regio) + Sort-dropdown rechts.
+- Knop "Meer filters" opent expandable paneel onder de filterbalk met de overige filters in 3-koloms grid.
+- Actieve filter-chips boven de tabel, inclusief knop "Alle filters wissen".
+- Bestaande vergunningtype-buckets blijven als kliklijst onder de filterbalk.
+
+## Bouwfase Filters 1 (klein, lage regressierisico)
+1. `ScrollToTop` opt-out voor `/off-market` ↔ `/off-market/:id` heen-en-weer.
+2. SessionStorage uitbreiden met `lastViewedId`, `scrollY`, `anchorId`; schrijven in `SignalenTable.onClick`.
+3. Scroll-restore + highlight + "Laatst bekeken"-badge in `SignalenTable` (data-attribuut `data-signaal-id`).
+4. Sortering uitbreiden met: Nieuwste/Oudste, Laatst bijgewerkt, Brondatum oud→nieuw, AI-score laag→hoog, Verkoopkans hoog→laag/laag→hoog, Provincie A-Z, Regio A-Z, Prioriteit laag→hoog.
+5. Default sort wijzigen naar "Nieuwste eerst"; "Slimme volgorde" blijft als optie. Bestaande gebruikersvoorkeur in localStorage respecteren.
+6. Actieve filterchips-strook + "Filters wissen"-knop.
+
+## Bouwfase Filters 2 (uitgebreid + meer-filters-paneel)
+1. "Meer filters"-paneel (desktop) + bottom-sheet (mobiel).
+2. Multi-select voor Status / Prio / Asset / Provincie / Regio / Bron / Vergunningtype / AI-status / Eigenaarstatus.
+3. Sliders: AI-score ≥ N, Verkoopkans ≥ N.
+4. Boolean filters: Met/zonder kaartlocatie · Met/zonder relatie · Met/zonder object · Met/zonder deal · Gearchiveerd ja/nee.
+5. Tijd-presets op `updated_at` en `volgende_actie_datum` (vandaag, deze week, verlopen, ≤30d, ouder).
+6. Taken-filters via afgeleide map (open/verlopen/vandaag/zonder) — geen schemawijziging.
+7. Kadaster-filters via afgeleide map (record/PDF/rechten/koopsom) — geen schemawijziging.
+8. Onderzoek + voorstel voor filterpresets (apart prompt).
+
+## Open beslissingen
+- Filters in URL meenemen (deelbare links) — **voorstel: nee in fase 1, heroverwegen in fase 2**.
+- `last_viewed_at` ooit naar database — **voorstel: nee, lokaal volstaat**.
+- Default sortering — **voorstel: "Nieuwste eerst"**; akkoord nodig.
+- Welke filters horen in hoofdbalk vs "Meer filters" — voorstel hierboven; te bevestigen.
+- Filterpresets bouwen — **voorstel: pas na fase Filters 2**.
+- Highlight-duur "Laatst bekeken" — **voorstel: 6 seconden, verdwijnt ook bij openen ander signaal**.
+
+## Acceptatiecriteria planfase
+- Geen code-/schema-/datawijzigingen in deze fase. ✅
+- Plan voor terugkeren naar dezelfde lijstpositie inclusief fallback. ✅
+- Plan voor laatst-bekeken highlight zonder DB-veld. ✅
+- Concrete sorteer- en filterlijst, gesplitst naar direct/later bouwbaar. ✅
+- Mobiele én desktop filter-UX beschreven. ✅
+- Bouwfasering in 2 stappen, "slimme volgorde" niet als default. ✅
+- `.lovable/plan.md` bijgewerkt. ✅
