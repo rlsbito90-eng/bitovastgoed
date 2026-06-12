@@ -290,23 +290,26 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         )}
       </div>
 
-      {/* Gekoppelde relatie */}
+      {/* Gekoppelde relatie — compacte kaart, knoppen onder de naam zodat
+          niets overlapt op mobiel. */}
       {gekoppeldeRelatie && gekoppeldeRelatieNamen && (
-        <div className="rounded-md border border-border bg-card px-3 py-2.5 flex items-center gap-2">
-          <div className="min-w-0 flex-1">
+        <div className="rounded-md border border-border bg-card px-3 py-2.5 space-y-2">
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Gekoppelde relatie</p>
             <Link
               to={`/relaties/${gekoppeldeRelatie.id}`}
-              className="text-sm font-medium text-accent hover:underline inline-flex items-center gap-1"
+              className="text-sm font-medium text-accent hover:underline inline-flex items-start gap-1 break-words"
             >
-              {gekoppeldeRelatieNamen.primair}
-              <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />
+              <span className="break-words">{gekoppeldeRelatieNamen.primair}</span>
+              <ArrowUpRight className="h-3.5 w-3.5 opacity-70 shrink-0 mt-0.5" />
             </Link>
             {gekoppeldeRelatieNamen.secundair && (
-              <p className="text-xs text-muted-foreground truncate">{gekoppeldeRelatieNamen.secundair}</p>
+              <p className="text-xs text-muted-foreground break-words">
+                Contactpersoon: {gekoppeldeRelatieNamen.secundair}
+              </p>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setKoppelOpen(true)}>
               Andere relatie koppelen
             </Button>
@@ -322,6 +325,7 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
           </div>
         </div>
       )}
+
 
       {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
