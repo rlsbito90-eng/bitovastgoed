@@ -513,6 +513,7 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         defaultDeadline={taakTemplate ? deadlineOverDagen(taakTemplate.dagen) : undefined}
         defaultOffMarketSignaalId={signaal.id}
         defaultRelatieId={eigenaarRelatieId ?? undefined}
+        defaultNotities={bouwSignaalTaakContext(signaal, taakTemplate?.label)}
       />
 
 
