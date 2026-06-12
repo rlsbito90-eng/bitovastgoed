@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Calendar, ExternalLink } from 'lucide-react';
+import { Sparkles, Calendar, ExternalLink, Eye } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -12,13 +12,17 @@ import {
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
+import { saveListLastViewed } from '@/lib/listNavigation';
 
 interface Props {
   signalen: OffMarketSignaal[];
   laden: boolean;
   /** Optioneel: override default-zichtbaarheid. Wanneer leeg: standaardkolommen. */
   zichtbareKolommen?: string[];
+  /** Optioneel: id van laatst bekeken signaal — wordt visueel gehighlight. */
+  highlightedId?: string | null;
 }
+
 
 function formatDateNL(d: string | null) {
   if (!d) return '—';
@@ -190,10 +194,17 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
 
 export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
 
-export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Props) {
+export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
-  const go = (id: string) => navigate(`/off-market/${id}`);
+  const go = (id: string) => {
+    try {
+      const main = document.querySelector('main');
+      const scrollY = main ? main.scrollTop : window.scrollY;
+      saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
+    } catch { /* ignore */ }
+    navigate(`/off-market/${id}`);
+  };
   const { relaties } = useDataStore();
   const relatieNaam = (id: string | null) => {
     if (!id) return null;
@@ -201,6 +212,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
     if (!r) return null;
     return (r as any).bedrijfsnaam ?? (r as any).contactpersoon ?? '—';
   };
+
 
   const actieveKolommen = useMemo(() => {
     const ids = zichtbareKolommen && zichtbareKolommen.length > 0
@@ -230,13 +242,28 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
       {/* Mobiel: compacte card */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => {
+          const isHighlighted = highlightedId === s.id;
           return (
-            <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
+            <div
+              key={s.id}
+              data-row-id={s.id}
+              className={`px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
+                isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''
+              }`}
+              onClick={() => go(s.id)}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
-                    {vergunningLabel(s)}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
+                      {vergunningLabel(s)}
+                    </span>
+                    {isHighlighted && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                        <Eye className="h-3 w-3" /> Laatst bekeken
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm font-medium text-foreground mt-1 truncate">
                     {s.adres || '—'}{s.plaats ? ` · ${s.plaats}` : ''}
                   </p>
@@ -259,6 +286,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
         })}
       </div>
 
+
       {/* Desktop: acquisitie-tabel */}
       <div className="hidden sm:block">
         <Table>
@@ -270,15 +298,32 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(s => (
-              <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)} title={s.titel}>
-                {actieveKolommen.map(k => (
-                  <TableCell key={k.id} className={k.cellClassName}>
-                    {k.render(s, ctx)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {rows.map(s => {
+              const isHighlighted = highlightedId === s.id;
+              return (
+                <TableRow
+                  key={s.id}
+                  data-row-id={s.id}
+                  className={`cursor-pointer ${isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''}`}
+                  onClick={() => go(s.id)}
+                  title={s.titel}
+                >
+                  {actieveKolommen.map((k, i) => (
+                    <TableCell key={k.id} className={k.cellClassName}>
+                      {i === 0 && isHighlighted ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                            <Eye className="h-3 w-3" /> Laatst bekeken
+                          </span>
+                          {k.render(s, ctx)}
+                        </div>
+                      ) : k.render(s, ctx)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+
           </TableBody>
         </Table>
       </div>

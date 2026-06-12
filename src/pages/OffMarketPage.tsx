@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, X } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
-import { byDate, byString, combine } from '@/lib/sorting/comparators';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { saveListContext } from '@/lib/listNavigation';
+import { loadListLastViewed, saveListContext } from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
 import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
 import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
@@ -24,6 +24,7 @@ import {
 } from '@/lib/offMarket/types';
 
 type Tab = 'dashboard' | 'signalen' | 'kaart';
+
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
@@ -82,15 +83,35 @@ export default function OffMarketPage() {
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
-      value: 'relevantie', label: 'Vastgoedrelevantie',
-      compare: compareRelevantie,
+      value: 'nieuwste', label: 'Nieuwste eerst',
+      compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
+    },
+    {
+      value: 'oudste', label: 'Oudste eerst',
+      compare: byDate<OffMarketSignaal>(s => s.created_at, 'asc'),
+    },
+    {
+      value: 'bijgewerkt', label: 'Laatst bijgewerkt',
+      compare: byDate<OffMarketSignaal>(s => (s as any).updated_at ?? s.created_at, 'desc'),
+    },
+    {
+      value: 'brondatum_desc', label: 'Brondatum (nieuwste)',
+      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'desc'),
+    },
+    {
+      value: 'brondatum_asc', label: 'Brondatum (oudste)',
+      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'asc'),
     },
     {
       value: 'ai_score', label: 'AI-score hoog → laag',
-      compare: (a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1),
+      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'desc'),
     },
     {
-      value: 'prioriteit', label: 'Prioriteit',
+      value: 'ai_score_asc', label: 'AI-score laag → hoog',
+      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'asc'),
+    },
+    {
+      value: 'prioriteit', label: 'Prioriteit hoog → laag',
       compare: combine(
         (a, b) => prioriteitRang(b.prioriteit) - prioriteitRang(a.prioriteit),
         byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
@@ -101,17 +122,23 @@ export default function OffMarketPage() {
       compare: byDate<OffMarketSignaal>(s => s.volgende_actie_datum, 'asc'),
     },
     {
-      value: 'nieuwste', label: 'Nieuwste eerst',
-      compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
-    },
-    {
       value: 'plaats', label: 'Plaats A-Z',
       compare: byString<OffMarketSignaal>(s => s.plaats ?? ''),
     },
+    {
+      value: 'provincie', label: 'Provincie A-Z',
+      compare: byString<OffMarketSignaal>(s => s.provincie ?? ''),
+    },
+    {
+      value: 'relevantie', label: 'Slimme volgorde (vastgoedrelevantie)',
+      compare: compareRelevantie,
+    },
   ], []);
+  // Bumped naar v2 zodat oude default 'relevantie' niet langer wordt opgepikt.
   const [sortValue, setSortValue] = useSortPreference(
-    'off-market-signalen', 'relevantie', sortOptions.map(o => o.value),
+    'off-market-signalen-v2', 'nieuwste', sortOptions.map(o => o.value),
   );
+
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
   // Tellingen per vergunningtype (bucket) — vóór bucket-filter, ná overige filters.
@@ -159,6 +186,54 @@ export default function OffMarketPage() {
   useEffect(() => {
     saveListContext('off-market-signalen', gefilterd.map(s => s.id));
   }, [gefilterd]);
+
+  // ─── Laatst bekeken: scrollherstel + 6s highlight ──────────────────────────
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (tab !== 'signalen') return;
+    if (isLoading) return;
+    if (gefilterd.length === 0) return;
+    const lv = loadListLastViewed('off-market-signalen');
+    if (!lv) { restoredRef.current = true; return; }
+    restoredRef.current = true;
+    setHighlightedId(lv.id);
+    // Twee frames wachten zodat de lijst gerenderd is.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const main = document.querySelector('main');
+        const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
+        if (row) {
+          row.scrollIntoView({ block: 'center', behavior: 'auto' });
+        } else if (main) {
+          main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+        }
+      });
+    });
+    const t = window.setTimeout(() => setHighlightedId(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [tab, isLoading, gefilterd]);
+
+  // ─── Actieve filterchips ───────────────────────────────────────────────────
+  const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (zoek) activeFilters.push({ key: 'zoek', label: `Zoek: "${zoek}"`, clear: () => setZoek('') });
+  if (statusFilter) activeFilters.push({ key: 'status', label: `Status: ${STATUS_LABEL[statusFilter]}`, clear: () => setStatusFilter('') });
+  if (prioFilter) activeFilters.push({ key: 'prio', label: `Prio: ${PRIORITEIT_LABEL[prioFilter]}`, clear: () => setPrioFilter('') });
+  if (assetFilter) activeFilters.push({ key: 'asset', label: `Asset: ${ASSETTYPE_LABEL[assetFilter]}`, clear: () => setAssetFilter('') });
+  if (regioFilter) activeFilters.push({ key: 'regio', label: `Regio: ${regioFilter}`, clear: () => setRegioFilter('') });
+  if (bronFilter) activeFilters.push({ key: 'bron', label: `Bron: ${BRON_TYPE_LABEL[bronFilter]}`, clear: () => setBronFilter('') });
+  if (aiStatusFilter) activeFilters.push({ key: 'ai', label: `AI: ${AI_STATUS_LABEL[aiStatusFilter]}`, clear: () => setAiStatusFilter('') });
+  if (bucketFilter !== null) {
+    const found = bucketTellingen.find(b => b.rang === bucketFilter);
+    if (found) activeFilters.push({ key: 'bucket', label: `Type: ${found.label}`, clear: () => setBucketFilter(null) });
+  }
+  const wisAlleFilters = () => {
+    setZoek(''); setStatusFilter(''); setPrioFilter(''); setAssetFilter('');
+    setRegioFilter(''); setBronFilter(''); setAiStatusFilter(''); setBucketFilter(null);
+  };
+
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
@@ -275,11 +350,36 @@ export default function OffMarketPage() {
             </div>
           )}
 
+          {tab === 'signalen' && activeFilters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground mr-1">Actieve filters:</span>
+              {activeFilters.map(f => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={f.clear}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border border-accent/40 bg-accent/10 text-accent hover:bg-accent/20"
+                >
+                  {f.label}
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={wisAlleFilters}
+                className="ml-1 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              >
+                Wissen
+              </button>
+            </div>
+          )}
+
           {tab === 'signalen' && (
             <section className="section-card overflow-hidden">
-              <SignalenTable signalen={gefilterd} laden={isLoading} />
+              <SignalenTable signalen={gefilterd} laden={isLoading} highlightedId={highlightedId} />
             </section>
           )}
+
         </>
       )}
 

@@ -44,3 +44,42 @@ export function getListNavigation(key: string, currentId: string, fallbackIds: s
     total: ids.length,
   };
 }
+
+// ─── Laatst bekeken-helper voor scrollherstel en highlight ───────────────────
+const LAST_VIEWED_PREFIX = 'list-last-viewed:';
+
+export interface ListLastViewed {
+  id: string;
+  scrollY: number;
+  ts: number;
+}
+
+export function saveListLastViewed(key: string, payload: ListLastViewed): void {
+  try {
+    sessionStorage.setItem(LAST_VIEWED_PREFIX + key, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadListLastViewed(key: string): ListLastViewed | null {
+  try {
+    const raw = sessionStorage.getItem(LAST_VIEWED_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed && typeof parsed === 'object'
+      && typeof parsed.id === 'string'
+      && typeof parsed.scrollY === 'number'
+      && typeof parsed.ts === 'number'
+    ) return parsed as ListLastViewed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearListLastViewed(key: string): void {
+  try { sessionStorage.removeItem(LAST_VIEWED_PREFIX + key); } catch { /* ignore */ }
+}
+
