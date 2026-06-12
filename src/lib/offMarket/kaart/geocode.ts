@@ -75,22 +75,44 @@ function stripDiacritics(s: string): string {
 }
 
 function normToevoeging(...delen: Array<string | null | undefined>): string | null {
-  const s = delen.filter(Boolean).join('').toUpperCase().replace(/[\s\-/]+/g, '');
-  return s || null;
+  const raw = delen.filter(Boolean).join(' ').toUpperCase();
+  const s = raw.replace(/[\s\-/.,]+/g, '');
+  if (!s) return null;
+  // HUIS → HS (gangbare Amsterdamse afkorting). H en HS blijven onderscheiden.
+  if (s === 'HUIS') return 'HS';
+  return s;
 }
 
-/** Eenvoudige parser voor vrije-tekst adresvelden (NL). */
+/**
+ * Parser voor vrije-tekst adresvelden (NL).
+ * Accepteert o.a. "Damrak 1", "Damrak 1A", "Damrak 1-A", "Damrak 1 A",
+ * "Rijnstraat 101-2", "Derde Schinkelstraat 20-3L", "Damrak 4 hs".
+ */
 export function parseAdres(adres: string | null | undefined): ParsedAdres {
   if (!adres) return { straat: null, huisnummer: null, toevoeging: null };
   const trimmed = adres.trim().replace(/\s+/g, ' ');
-  const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*([A-Za-z])?\s*(?:[-/\s]+([\w\d-]+))?$/);
+  // Lazy straat, dan huisnummer, dan optionele toevoeging (vrij formaat).
+  const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*[-\s/]*\s*([A-Za-z][A-Za-z0-9\-\s/]*|\d+[A-Za-z]*)?\s*$/);
   if (!m) return { straat: trimmed || null, huisnummer: null, toevoeging: null };
-  const [, straat, nr, letter, toev] = m;
+  const [, straat, nr, rest] = m;
   return {
     straat: straat.trim() || null,
     huisnummer: nr,
-    toevoeging: normToevoeging(letter, toev),
+    toevoeging: normToevoeging(rest),
   };
+}
+
+/**
+ * Haal toevoeging uit PDOK-weergavenaam ("Straat 101-H, 1079 HA Amsterdam" → "H";
+ * "Straat 20-3L, …" → "3L"). Robuuster dan losse huisletter/huisnummertoevoeging
+ * velden waarvan de volgorde per record verschilt.
+ */
+function toevoegingUitWeergavenaam(weergavenaam: string | null | undefined, huisnummer: string | null): string | null {
+  if (!weergavenaam || !huisnummer) return null;
+  const re = new RegExp(`\\b${huisnummer}\\b([^,]*)`, 'i');
+  const m = weergavenaam.match(re);
+  if (!m) return null;
+  return normToevoeging(m[1]);
 }
 
 function normPostcode(pc: string | null | undefined): string | null {
@@ -162,12 +184,17 @@ function mapDoc(d: PdokDoc): GeocodeKandidaat | null {
   const ll = parseCentroideLL(d.centroide_ll);
   if (!ll) return null;
   const pc = (d.postcode ?? '').toString().replace(/\s+/g, '').toUpperCase();
+  const huisnummer = d.huisnummer != null ? String(d.huisnummer) : null;
+  // Primair: parse uit weergavenaam (volgorde-onafhankelijk).
+  // Fallback: combineer huisletter + huisnummertoevoeging.
+  const toevWeergave = toevoegingUitWeergavenaam(d.weergavenaam, huisnummer);
+  const toevFallback = normToevoeging(d.huisnummertoevoeging, d.huisletter);
   return {
     id: d.id ?? d.weergavenaam ?? `${ll.lng},${ll.lat}`,
     weergavenaam: d.weergavenaam ?? '',
     straat: d.straatnaam ?? null,
-    huisnummer: d.huisnummer != null ? String(d.huisnummer) : null,
-    toevoeging: normToevoeging(d.huisletter, d.huisnummertoevoeging),
+    huisnummer,
+    toevoeging: toevWeergave ?? toevFallback,
     postcode: /^\d{4}[A-Z]{2}$/.test(pc) ? pc : null,
     woonplaats: d.woonplaatsnaam ?? null,
     lat: ll.lat,

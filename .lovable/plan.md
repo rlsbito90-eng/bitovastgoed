@@ -1377,3 +1377,12 @@ actie "Relatie maken/koppelen van rechthebbende".
 - **Beste-kandidaat** wordt in de controleren-lijst gemarkeerd met een
   `Beste`-badge maar nooit automatisch gekozen.
 - Geen Kadaster/AI/schemawijziging. 549 tests groen.
+
+
+## Kaart 1B — Toevoegingsmatch + mobiele sluitknop (afgerond)
+- PDOK-kandidaat toevoeging wordt nu uit `weergavenaam` geparset (volgorde-onafhankelijk), met fallback op huisletter/huisnummertoevoeging.
+- `parseAdres` accepteert nu varianten als `101-2`, `20-3L`, `20 3L`, `26A`, `4 hs`, `4 huis` (HUIS → HS).
+- Signaal mét expliciete toevoeging matcht alleen automatisch op exact dezelfde toevoeging; afwijkende toevoegingen worden nooit auto-gekozen en krijgen geen "Beste"-label meer.
+- "Beste"-label in Locatie controleren is vervangen door "Exacte toevoeging" (signaal mét toevoeging) of "Beste" (alleen wanneer signaal géén toevoeging heeft én er één basisadres-kandidaat is). Anders géén label.
+- Mobiele Locatie controleren-dialog heeft nu een altijd zichtbare sticky sluitknop rechtsboven (44x44, z-20, safe-area-top), default Radix X verborgen om dubbele knoppen te voorkomen.
+- Geen Kadaster/AI/schemawijziging. 29 geocode-tests groen.

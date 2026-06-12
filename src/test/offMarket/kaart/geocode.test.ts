@@ -156,3 +156,64 @@ describe('redenLabel', () => {
     expect(redenLabel('postcode_mismatch')).toContain('Postcode');
   });
 });
+
+describe('parseAdres — uitgebreide NL-toevoegingen', () => {
+  it('20-3L → toevoeging 3L', () => {
+    expect(parseAdres('Derde Schinkelstraat 20-3L')).toEqual({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: '3L' });
+  });
+  it('20 3L → toevoeging 3L', () => {
+    expect(parseAdres('Derde Schinkelstraat 20 3L')).toEqual({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: '3L' });
+  });
+  it('20-HL → toevoeging HL', () => {
+    expect(parseAdres('Derde Schinkelstraat 20-HL')).toEqual({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: 'HL' });
+  });
+  it('4 hs → toevoeging HS', () => {
+    expect(parseAdres('Damrak 4 hs')).toEqual({ straat: 'Damrak', huisnummer: '4', toevoeging: 'HS' });
+  });
+  it('HUIS wordt HS', () => {
+    expect(parseAdres('Damrak 4 huis')).toEqual({ straat: 'Damrak', huisnummer: '4', toevoeging: 'HS' });
+  });
+});
+
+describe('beoordeelKandidaten — strikte toevoegingsmatch (Kaart 1B)', () => {
+  function k(p: Partial<GeocodeKandidaat>): GeocodeKandidaat {
+    return {
+      id: p.id ?? Math.random().toString(36), weergavenaam: p.weergavenaam ?? '',
+      straat: p.straat ?? null, huisnummer: p.huisnummer ?? null,
+      toevoeging: p.toevoeging ?? null,
+      postcode: p.postcode ?? null, woonplaats: p.woonplaats ?? null,
+      lat: p.lat ?? 52.37, lng: p.lng ?? 4.9, score: p.score ?? 10, type: p.type ?? 'adres',
+    };
+  }
+
+  it('Rijnstraat 101-2 kiest 101-2, niet 101-H', () => {
+    const inv = { adres: 'Rijnstraat 101-2', postcode: '1079HA', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      k({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: 'H', postcode: '1079HA', score: 14 }),
+      k({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: '2', postcode: '1079HA', score: 12 }),
+      k({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: '1', postcode: '1079HA', score: 11 }),
+    ]);
+    expect(r.status).toBe('auto');
+    if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('2');
+  });
+
+  it('Derde Schinkelstraat 20-3L kiest 20-3L, niet 20-HL', () => {
+    const inv = { adres: 'Derde Schinkelstraat 20-3L', postcode: '1075TL', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      k({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: 'HL', postcode: '1075TL', score: 20 }),
+      k({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: 'HR', postcode: '1075TL', score: 19 }),
+      k({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: '3L', postcode: '1075TL', score: 8 }),
+      k({ straat: 'Derde Schinkelstraat', huisnummer: '20', toevoeging: '3R', postcode: '1075TL', score: 7 }),
+    ]);
+    expect(r.status).toBe('auto');
+    if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('3L');
+  });
+
+  it('expliciete toevoeging zonder exacte match → controleren', () => {
+    const inv = { adres: 'Damrak 26A', postcode: '1012LJ', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      k({ straat: 'Damrak', huisnummer: '26', toevoeging: 'B', postcode: '1012LJ' }),
+    ]);
+    expect(r.status).toBe('controleren');
+  });
+});
