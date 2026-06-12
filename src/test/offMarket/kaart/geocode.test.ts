@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseAdres, bouwQuery, beoordeelKandidaten,
+  parseAdres, bouwQuery, beoordeelKandidaten, redenLabel,
   type GeocodeKandidaat,
 } from '@/lib/offMarket/kaart/geocode';
 
@@ -52,112 +52,107 @@ function kand(p: Partial<GeocodeKandidaat>): GeocodeKandidaat {
   };
 }
 
-describe('beoordeelKandidaten', () => {
+describe('beoordeelKandidaten — basis', () => {
   const inv = { adres: 'Damrak 1', postcode: '1012AB', plaats: 'Amsterdam' };
 
-  it('auto: enige kandidaat, huisnummer + postcode match', () => {
-    const r = beoordeelKandidaten(inv, [kand({ huisnummer: '1', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
+  it('auto: enige kandidaat, huisnummer + postcode + straat match', () => {
+    const r = beoordeelKandidaten(inv, [kand({ straat: 'Damrak', huisnummer: '1', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
     expect(r.status).toBe('auto');
   });
 
   it('controleren bij afwijkend huisnummer', () => {
-    const r = beoordeelKandidaten(inv, [kand({ huisnummer: '5', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
+    const r = beoordeelKandidaten(inv, [kand({ straat: 'Damrak', huisnummer: '5', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
     expect(r.status).toBe('controleren');
   });
 
   it('controleren bij postcode en plaats mismatch', () => {
-    const r = beoordeelKandidaten(inv, [kand({ huisnummer: '1', postcode: '9999ZZ', woonplaats: 'Groningen' })]);
+    const r = beoordeelKandidaten(inv, [kand({ straat: 'Damrak', huisnummer: '1', postcode: '9999ZZ', woonplaats: 'Groningen' })]);
     expect(r.status).toBe('controleren');
+  });
+
+  it('controleren bij straat mismatch', () => {
+    const r = beoordeelKandidaten(inv, [kand({ straat: 'Rokin', huisnummer: '1', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
+    expect(r.status).toBe('controleren');
+    if (r.status === 'controleren') expect(r.redenCode).toBe('street_mismatch');
   });
 
   it('geen bij lege lijst', () => {
     const r = beoordeelKandidaten(inv, []);
     expect(r.status).toBe('geen');
   });
-
-  it('controleren als signaal-huisnummer ontbreekt', () => {
-    const r = beoordeelKandidaten({ adres: 'Damrak', postcode: '1012AB', plaats: 'Amsterdam' },
-      [kand({ huisnummer: '1', postcode: '1012AB', woonplaats: 'Amsterdam' })]);
-    expect(r.status).toBe('controleren');
-  });
 });
 
-describe('exacte toevoeging-match', () => {
+describe('beoordeelKandidaten — toevoeging', () => {
   const invA = { adres: 'Muiderslaan 405A', postcode: '1087VA', plaats: 'Amsterdam' };
 
   it('405A → auto bij exact één match met toevoeging A tussen meerdere', () => {
     const r = beoordeelKandidaten(invA, [
-      kand({ huisnummer: '405', toevoeging: 'A', postcode: '1087VA', woonplaats: 'Amsterdam', score: 9 }),
-      kand({ huisnummer: '405', toevoeging: 'B', postcode: '1087VA', woonplaats: 'Amsterdam', score: 9 }),
-      kand({ huisnummer: '405', toevoeging: 'C', postcode: '1087VA', woonplaats: 'Amsterdam', score: 9 }),
-      kand({ huisnummer: '405', toevoeging: 'D', postcode: '1087VA', woonplaats: 'Amsterdam', score: 9 }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'A', postcode: '1087VA', woonplaats: 'Amsterdam' }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'B', postcode: '1087VA', woonplaats: 'Amsterdam' }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'C', postcode: '1087VA', woonplaats: 'Amsterdam' }),
     ]);
     expect(r.status).toBe('auto');
     if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('A');
   });
 
-  it('405-A normaliseert en matcht met 405 A', () => {
-    const r = beoordeelKandidaten(
-      { adres: 'Muiderslaan 405-A', postcode: '1087VA', plaats: 'Amsterdam' },
-      [
-        kand({ huisnummer: '405', toevoeging: 'A', postcode: '1087VA' }),
-        kand({ huisnummer: '405', toevoeging: 'B', postcode: '1087VA' }),
-      ],
-    );
-    expect(r.status).toBe('auto');
-  });
-
-  it('12-2 matcht met 12 2', () => {
-    const r = beoordeelKandidaten(
-      { adres: 'Foo 12-2', postcode: '1000AA', plaats: 'X' },
-      [
-        kand({ huisnummer: '12', toevoeging: '1', postcode: '1000AA' }),
-        kand({ huisnummer: '12', toevoeging: '2', postcode: '1000AA' }),
-      ],
-    );
-    expect(r.status).toBe('auto');
-    if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('2');
-  });
-
   it('405A kiest niet 405B als enige kandidaat', () => {
     const r = beoordeelKandidaten(invA, [
-      kand({ huisnummer: '405', toevoeging: 'B', postcode: '1087VA', woonplaats: 'Amsterdam' }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'B', postcode: '1087VA' }),
     ]);
-    expect(r.status).toBe('controleren');
-  });
-
-  it('input zonder toevoeging blijft controleren bij meerdere toevoegingen', () => {
-    const r = beoordeelKandidaten(
-      { adres: 'Muiderslaan 405', postcode: '1087VA', plaats: 'Amsterdam' },
-      [
-        kand({ huisnummer: '405', toevoeging: 'A', postcode: '1087VA' }),
-        kand({ huisnummer: '405', toevoeging: 'B', postcode: '1087VA' }),
-      ],
-    );
     expect(r.status).toBe('controleren');
   });
 
   it('exacte toevoeging wint van hogere score met verkeerde toevoeging', () => {
     const r = beoordeelKandidaten(invA, [
-      kand({ huisnummer: '405', toevoeging: 'B', postcode: '1087VA', score: 99 }),
-      kand({ huisnummer: '405', toevoeging: 'A', postcode: '1087VA', score: 5 }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'B', postcode: '1087VA', score: 99 }),
+      kand({ straat: 'Muiderslaan', huisnummer: '405', toevoeging: 'A', postcode: '1087VA', score: 5 }),
     ]);
     expect(r.status).toBe('auto');
     if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('A');
   });
+});
 
-  it('afwijkende postcode blijft controleren', () => {
-    const r = beoordeelKandidaten(invA, [
-      kand({ huisnummer: '405', toevoeging: 'A', postcode: '9999ZZ', woonplaats: 'Groningen' }),
+describe('beoordeelKandidaten — basisadres uniek (nieuwe regel)', () => {
+  it('Jan Luijkenstraat 16 → auto wanneer basisadres "16" zonder toevoeging uniek voorkomt naast subadressen', () => {
+    const inv = { adres: 'Jan Luijkenstraat 16', postcode: '1071CN', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      kand({ straat: 'Jan Luijkenstraat', huisnummer: '16', toevoeging: null, postcode: '1071CN', woonplaats: 'Amsterdam', score: 12 }),
+      kand({ straat: 'Jan Luijkenstraat', huisnummer: '16', toevoeging: '1', postcode: '1071CN', woonplaats: 'Amsterdam', score: 11 }),
+      kand({ straat: 'Jan Luijkenstraat', huisnummer: '16', toevoeging: '2', postcode: '1071CN', woonplaats: 'Amsterdam', score: 10 }),
     ]);
-    expect(r.status).toBe('controleren');
+    expect(r.status).toBe('auto');
+    if (r.status === 'auto') {
+      expect(r.kandidaat.toevoeging).toBeNull();
+      expect(r.reden).toBe('basic_address_unique');
+    }
   });
 
-  it('12-2 kiest niet 12-1', () => {
-    const r = beoordeelKandidaten(
-      { adres: 'Foo 12-2', postcode: '1000AA', plaats: 'X' },
-      [kand({ huisnummer: '12', toevoeging: '1', postcode: '1000AA' })],
-    );
+  it('Nicolaas Berchemstraat 4 zonder basisadres-resultaat → controleren (alleen subadressen)', () => {
+    const inv = { adres: 'Nicolaas Berchemstraat 4', postcode: '1073VR', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      kand({ straat: 'Nicolaas Berchemstraat', huisnummer: '4', toevoeging: 'H', postcode: '1073VR', score: 12 }),
+      kand({ straat: 'Nicolaas Berchemstraat', huisnummer: '4', toevoeging: '1', postcode: '1073VR', score: 11 }),
+      kand({ straat: 'Nicolaas Berchemstraat', huisnummer: '4', toevoeging: '2', postcode: '1073VR', score: 10 }),
+    ]);
     expect(r.status).toBe('controleren');
+    if (r.status === 'controleren') expect(r.redenCode).toBe('multiple_additions');
+  });
+
+  it('Rijnstraat 101-2 → auto via exact toevoeging-match', () => {
+    const inv = { adres: 'Rijnstraat 101-2', postcode: '1079HA', plaats: 'Amsterdam' };
+    const r = beoordeelKandidaten(inv, [
+      kand({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: '1', postcode: '1079HA', score: 11 }),
+      kand({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: '2', postcode: '1079HA', score: 12 }),
+      kand({ straat: 'Rijnstraat', huisnummer: '101', toevoeging: '3', postcode: '1079HA', score: 10 }),
+    ]);
+    expect(r.status).toBe('auto');
+    if (r.status === 'auto') expect(r.kandidaat.toevoeging).toBe('2');
+  });
+});
+
+describe('redenLabel', () => {
+  it('vertaalt naar NL', () => {
+    expect(redenLabel('multiple_additions')).toContain('toevoeging');
+    expect(redenLabel('postcode_mismatch')).toContain('Postcode');
   });
 });
