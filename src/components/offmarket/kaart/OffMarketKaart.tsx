@@ -144,14 +144,14 @@ export default function OffMarketKaart({ signalen }: Props) {
     <div className="relative w-full h-[calc(100vh-220px)] min-h-[480px] rounded-lg overflow-hidden border border-border bg-card">
       {/* Statuschip-rij linksboven */}
       <div className="absolute z-10 top-3 left-3 flex flex-wrap gap-2 max-w-[calc(100%-1.5rem)]">
-        <div className="px-2.5 py-1 text-xs rounded-md bg-background/95 border border-border shadow-sm">
+        <div className="px-2.5 py-1 text-xs rounded-md bg-background text-foreground border border-border shadow-sm font-medium">
           {metLocatie.length} op kaart · {signalen.length} totaal
         </div>
         {onzeker.length > 0 && (
           <button
             type="button"
             onClick={() => setControleerOpen(true)}
-            className="px-2.5 py-1 text-xs rounded-md bg-warning/15 text-warning border border-warning/30 hover:bg-warning/25 inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs rounded-md bg-accent text-accent-foreground border border-accent shadow-sm hover:bg-accent/90 active:bg-accent/80 inline-flex items-center gap-1.5 font-semibold min-h-[32px]"
           >
             <ListChecks className="h-3.5 w-3.5" />
             Locatie controleren ({onzeker.length})
@@ -161,14 +161,14 @@ export default function OffMarketKaart({ signalen }: Props) {
           <button
             type="button"
             onClick={() => setZonderOpen(true)}
-            className="px-2.5 py-1 text-xs rounded-md bg-background/95 border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px]"
           >
             <MapPinOff className="h-3.5 w-3.5" />
             Zonder locatie ({zonderLocatie.length})
           </button>
         )}
         {voortgang.bezig && (
-          <div className="px-2.5 py-1 text-xs rounded-md bg-background/95 border border-border shadow-sm inline-flex items-center gap-1.5">
+          <div className="px-2.5 py-1 text-xs rounded-md bg-background text-foreground border border-border shadow-sm inline-flex items-center gap-1.5 font-medium">
             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             PDOK… {voortgang.klaar}/{voortgang.totaal}
           </div>
@@ -177,7 +177,7 @@ export default function OffMarketKaart({ signalen }: Props) {
           <button
             type="button"
             onClick={opnieuwProberen}
-            className="px-2.5 py-1 text-xs rounded-md bg-background/95 border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            className="px-2.5 py-1 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px]"
             title="Locaties opnieuw controleren via PDOK"
           >
             <RefreshCw className="h-3.5 w-3.5" />
