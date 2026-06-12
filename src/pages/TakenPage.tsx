@@ -53,6 +53,22 @@ export default function TakenPage() {
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<Tab>('focus');
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Backwards compat: oude ?open={id} deep-links redirecten naar /taken/:id.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId) return;
+    if (taken.some((x) => x.id === openId)) {
+      navigate(`/taken/${openId}`, { replace: true });
+    } else {
+      toast.error('Taak niet gevonden');
+      const next = new URLSearchParams(searchParams);
+      next.delete('open');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, taken]);
 
   // Deep-link via ?open={id} (bv. vanuit notificatie). Opent de taakdialog.
   useEffect(() => {
