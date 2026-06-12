@@ -68,7 +68,7 @@ const pushRecent = (kind: string, id: string) => {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline }: Props) {
+export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities }: Props) {
   const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [bezig, setBezig] = useState(false);
