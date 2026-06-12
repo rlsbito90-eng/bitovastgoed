@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
@@ -53,15 +53,14 @@ export default function TakenPage() {
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<Tab>('focus');
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  // Deep-link via ?open={id} (bv. vanuit notificatie). Opent de taakdialog.
+  // Backwards compat: oude ?open={id} deep-links redirecten naar /taken/:id.
   useEffect(() => {
     const openId = searchParams.get('open');
     if (!openId) return;
-    const t = taken.find(x => x.id === openId);
-    if (t) {
-      setEditTaak(t);
-      setFormOpen(true);
+    if (taken.some((x) => x.id === openId)) {
+      navigate(`/taken/${openId}`, { replace: true });
     } else {
       toast.error('Taak niet gevonden');
       const next = new URLSearchParams(searchParams);
@@ -73,14 +72,7 @@ export default function TakenPage() {
 
   const handleFormOpenChange = (v: boolean) => {
     setFormOpen(v);
-    if (!v) {
-      setEditTaak(null);
-      if (searchParams.get('open')) {
-        const next = new URLSearchParams(searchParams);
-        next.delete('open');
-        setSearchParams(next, { replace: true });
-      }
-    }
+    if (!v) setEditTaak(null);
   };
 
   const now = new Date();
@@ -218,7 +210,7 @@ export default function TakenPage() {
     return (
       <div
         key={taak.id}
-        onClick={() => { setEditTaak(taak); setFormOpen(true); }}
+        onClick={() => navigate(`/taken/${taak.id}`)}
         className="group px-4 sm:px-5 py-3.5 flex items-start sm:items-center gap-3 hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <button
@@ -284,6 +276,10 @@ export default function TakenPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuLabel>Snelle acties</DropdownMenuLabel>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditTaak(taak); setFormOpen(true); }}>
+                <MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {!isAfgerond && (
                 <>
                   <DropdownMenuItem onClick={(e) => togglAfvinken(e as any, taak)}>

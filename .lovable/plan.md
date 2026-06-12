@@ -1406,3 +1406,20 @@ actie "Relatie maken/koppelen van rechthebbende".
 - Evalueren of sticky vorige/volgende app-breed wenselijk is (nu alleen Off Market Signaal-detail).
 - Eventueel swipe links/rechts tussen signalen (uitgesteld i.v.m. scroll-conflict).
 - Verdere geocoding-polish als "Locatie controleren" in praktijk nog te vaak vult.
+
+## Mobile Workflow Polish 2 — Taakdetail + sticky-aansluiting + externe links (afgerond)
+- **Taakdetail-scherm**: nieuwe route `/taken/:id` met `TaakDetailPage` — titel, badges, deadline/tijd, type, notities/context, koppelingen (relatie/object/deal/signaal) met snelle openen-knoppen. Acties: Voltooien (via `TaakAfrondenDialog`), Heropenen, Bewerken (hergebruikt `TaakFormDialog`), Verwijderen.
+- **TakenPage**: rij-klik navigeert naar `/taken/:id` in plaats van bewerk-modal. Dropdown bevat nu expliciete "Bewerken" actie. Oude `?open={id}` deep-link redirect transparant naar `/taken/:id` (backwards-compatible).
+- **NotificationsBell**: taak-notificaties gebruiken voortaan `/taken/${id}` als `href`.
+- **Mobiele taakmodal**: `TaakFormDialog` content nu `w-[calc(100vw-1rem)] sm:w-full max-w-xl` + `overflow-x-hidden` — geen scheve positie meer op smal scherm, geen horizontale overflow.
+- **Sticky signaalnav aansluiting**: `-mt-4 sm:mt-0` op de mobiele sticky-balk binnen `OffMarketSignaalDetailPage` compenseert de `py-4` page-padding zodat de balk strak onder de app-header valt — gat verdwenen.
+- **Externe links Off Market Signaal-detail**:
+  - `SignaalKerngegevens` toont in de Locatie-sectie knoppen "Open in Google Maps" en "Zoek adres op Google" (alleen als er minimaal adres/postcode/plaats is). Hergebruik van `buildMapsUrl`; nieuwe helpers `buildGoogleSearchUrl` en `buildAdresSearchUrl` in `src/lib/maps.ts`.
+  - `SignaalEigenaarsonderzoekSectie` toont "Zoek bedrijf op Google" wanneer `eigenaar_bedrijfsnaam` of een gekoppelde-relatie bedrijfsnaam aanwezig is; query combineert bedrijfsnaam + adres/plaats. Geen knop voor natuurlijke personen, geen automatische scraping.
+- Alle externe links openen in een nieuw tabblad met `rel="noreferrer noopener"`.
+- Geen Kadaster/AI/schemawijziging, geen datamigratie.
+
+### Open punten
+- Evalueren of bewerk-modal volledig wordt vervangen door inline edit op `TaakDetailPage`.
+- Evalueren of Google Maps/Search-knoppen app-breed (relaties/objecten) gelijkgetrokken worden.
+- Evalueren of sticky vorige/volgende-navigatie app-breed wenselijk is.

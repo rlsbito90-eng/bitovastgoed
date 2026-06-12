@@ -25,6 +25,7 @@ import DealDetailPage from "@/pages/DealDetailPage";
 import ZoekprofielenPage from "@/pages/ZoekprofielenPage";
 import PipelinePage from "@/pages/PipelinePage";
 import TakenPage from "@/pages/TakenPage";
+import TaakDetailPage from "@/pages/TaakDetailPage";
 import RapportagePage from "@/pages/RapportagePage";
 import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
@@ -71,6 +72,7 @@ const App = () => (
                           <Route path="/off-market/:id" element={<OffMarketSignaalDetailPage />} />
                           <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
                           <Route path="/taken" element={<TakenPage />} />
+                          <Route path="/taken/:id" element={<TaakDetailPage />} />
                           <Route path="/vastgoedrekenen" element={<VastgoedrekenenPage />} />
                           <Route path="/rapportage" element={<RapportagePage />} />
                           <Route

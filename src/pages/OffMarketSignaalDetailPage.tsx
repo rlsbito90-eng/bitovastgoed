@@ -55,9 +55,10 @@ export default function OffMarketSignaalDetailPage() {
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6 max-w-5xl">
-      {/* Mobiele sticky navigatie — alleen Off Market Signaal-detail */}
+      {/* Mobiele sticky navigatie — sluit strak aan op de mobiele app-header
+          door negatieve top-marge die de page-shell padding compenseert. */}
       <div
-        className="md:hidden -mx-4 sticky z-30 glass-topbar border-b border-border/60"
+        className="md:hidden -mx-4 -mt-4 sm:mt-0 sticky z-30 glass-topbar border-b border-border/60"
         style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
       >
         <div className="flex items-center gap-1 px-2 py-1.5">
