@@ -200,18 +200,38 @@ export default function OffMarketPage() {
     if (!lv) { restoredRef.current = true; return; }
     restoredRef.current = true;
     setHighlightedId(lv.id);
-    // Twee frames wachten zodat de lijst gerenderd is.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const main = document.querySelector('main');
-        const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
-        if (row) {
-          row.scrollIntoView({ block: 'center', behavior: 'auto' });
-        } else if (main) {
-          main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
-        }
-      });
-    });
+
+    // Probeer scrollherstel tot max ~20 frames, zodat zowel de table als
+    // eventueel layout-shift (KPI's, sticky headers) settelden.
+    // Werkt op desktop én mobiel: <main> is in beide gevallen de scroll-container.
+    const main = document.querySelector<HTMLElement>('main');
+    let frames = 0;
+    const maxFrames = 20;
+    const tryRestore = () => {
+      const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
+      if (row && main) {
+        // Centreer handmatig binnen main, zodat sticky topbars worden gecompenseerd.
+        const mainRect = main.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const offsetInMain = (rowRect.top - mainRect.top) + main.scrollTop;
+        const target = Math.max(0, offsetInMain - (main.clientHeight / 2) + (rowRect.height / 2));
+        main.scrollTo({ top: target, behavior: 'auto' });
+        return;
+      }
+      if (row) {
+        row.scrollIntoView({ block: 'center', behavior: 'auto' });
+        return;
+      }
+      if (frames++ < maxFrames) {
+        requestAnimationFrame(tryRestore);
+        return;
+      }
+      // Fallback: opgeslagen scrollpositie.
+      if (main) main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+      else window.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+    };
+    requestAnimationFrame(tryRestore);
+
     const t = window.setTimeout(() => setHighlightedId(null), 6000);
     return () => window.clearTimeout(t);
   }, [tab, isLoading, gefilterd]);
