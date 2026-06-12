@@ -1590,3 +1590,17 @@ Open punten / fase 2:
 - URL-state (deelbare links).
 - Meer-filters-paneel (desktop) + bottom-sheet (mobiel) met multi-selects, sliders, boolean- en tijdpresets.
 - Filterpresets.
+
+## Bugfix desktop scroll restore — STATUS: AFGEROND
+
+Probleem: na "Terug naar signalen" keerde de desktoplijst niet terug naar het laatst bekeken signaal.
+
+Fix:
+- `OffMarketPage` scrollherstel herschreven met retry-loop (max ~20 frames). Berekent offset binnen `<main>` handmatig zodat sticky desktop-topbar wordt gecompenseerd (`scrollTo` op `main` i.p.v. enkel `scrollIntoView`). Fallback: opgeslagen `scrollY` op `<main>` of `window`.
+- Werkt op desktop én mobiel (zelfde scroll-container `<main>`); mobiele flow ongewijzigd in gedrag.
+
+Terugnavigatie opgeschoond:
+- `SignaalDetailHeader`: link "Terug naar signalen" alleen op desktop (`hidden md:inline-flex`). Mobiel gebruikt de sticky "Terug"-knop in de detail-topbar; geen dubbele knoppen meer.
+
+Verificatie:
+- `signalenTable.test.tsx` groen (9/9). Geen schema-, Kadaster- of AI-wijziging.
