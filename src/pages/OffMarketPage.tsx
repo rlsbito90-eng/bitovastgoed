@@ -350,11 +350,36 @@ export default function OffMarketPage() {
             </div>
           )}
 
+          {tab === 'signalen' && activeFilters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground mr-1">Actieve filters:</span>
+              {activeFilters.map(f => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={f.clear}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border border-accent/40 bg-accent/10 text-accent hover:bg-accent/20"
+                >
+                  {f.label}
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={wisAlleFilters}
+                className="ml-1 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              >
+                Wissen
+              </button>
+            </div>
+          )}
+
           {tab === 'signalen' && (
             <section className="section-card overflow-hidden">
-              <SignalenTable signalen={gefilterd} laden={isLoading} />
+              <SignalenTable signalen={gefilterd} laden={isLoading} highlightedId={highlightedId} />
             </section>
           )}
+
         </>
       )}
 
