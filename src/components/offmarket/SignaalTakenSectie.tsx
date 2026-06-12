@@ -5,8 +5,10 @@ import { Plus, CheckSquare, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import { PrioriteitBadge } from '@/components/StatusBadges';
 import { deadlineLabel, isTaakTeLaat } from '@/lib/taakHelpers';
+import { bouwSignaalTaakContext } from '@/lib/offMarket/eigenaar';
 import type { Taak } from '@/data/mock-data';
 
 interface Props {
@@ -15,6 +17,7 @@ interface Props {
 
 export default function SignaalTakenSectie({ signaalId }: Props) {
   const { taken } = useDataStore();
+  const { data: signaal } = useOffMarketSignaal(signaalId);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Taak | null>(null);
 
@@ -72,6 +75,7 @@ export default function SignaalTakenSectie({ signaalId }: Props) {
         onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}
         taak={editing}
         defaultOffMarketSignaalId={signaalId}
+        defaultNotities={!editing && signaal ? bouwSignaalTaakContext(signaal, 'taak vanuit signaal') : undefined}
       />
     </section>
   );

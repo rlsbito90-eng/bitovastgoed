@@ -40,6 +40,10 @@ import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 
+// Test-flag: hamburger rechts op mobiel. Zet op `false` om terug te draaien.
+// Zie .lovable/plan.md (Mobile Workflow Polish — Blok 6).
+const HAMBURGER_RIGHT_MOBILE = true;
+
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
   { path: "/taken", label: "Taken", icon: CheckSquare },
@@ -220,28 +224,53 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         className="lg:hidden flex items-center justify-between px-3 border-b border-border/60 glass-topbar sticky top-0 z-40"
         style={{ height: "var(--mobile-header-height, 3.5rem)" }}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 -ml-1 rounded-md hover:bg-muted text-foreground"
-            aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-          <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
-            <img
-              src="/logo-bito-vastgoed.png"
-              alt="Bito Vastgoed"
-              className="h-9 w-auto max-w-[140px] object-contain"
-            />
-          </Link>
-        </div>
-        <div className="flex items-center gap-0.5 shrink-0">
-          <RefreshButton />
-          <MatchAlertBadge />
-          <NotificationsBell />
-        </div>
-
+        {HAMBURGER_RIGHT_MOBILE ? (
+          <>
+            <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
+              <img
+                src="/logo-bito-vastgoed.png"
+                alt="Bito Vastgoed"
+                className="h-9 w-auto max-w-[140px] object-contain"
+              />
+            </Link>
+            <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+              <RefreshButton />
+              <MatchAlertBadge />
+              <NotificationsBell />
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="p-2 -mr-1 rounded-md hover:bg-muted text-foreground min-w-11 min-h-11 flex items-center justify-center"
+                aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
+              >
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="p-2 -ml-1 rounded-md hover:bg-muted text-foreground"
+                aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
+              >
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+              <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
+                <img
+                  src="/logo-bito-vastgoed.png"
+                  alt="Bito Vastgoed"
+                  className="h-9 w-auto max-w-[140px] object-contain"
+                />
+              </Link>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <RefreshButton />
+              <MatchAlertBadge />
+              <NotificationsBell />
+            </div>
+          </>
+        )}
       </header>
 
         {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}

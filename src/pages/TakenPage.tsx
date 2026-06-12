@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,36 @@ export default function TakenPage() {
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<Tab>('focus');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep-link via ?open={id} (bv. vanuit notificatie). Opent de taakdialog.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId) return;
+    const t = taken.find(x => x.id === openId);
+    if (t) {
+      setEditTaak(t);
+      setFormOpen(true);
+    } else {
+      toast.error('Taak niet gevonden');
+      const next = new URLSearchParams(searchParams);
+      next.delete('open');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, taken]);
+
+  const handleFormOpenChange = (v: boolean) => {
+    setFormOpen(v);
+    if (!v) {
+      setEditTaak(null);
+      if (searchParams.get('open')) {
+        const next = new URLSearchParams(searchParams);
+        next.delete('open');
+        setSearchParams(next, { replace: true });
+      }
+    }
+  };
 
   const now = new Date();
 
@@ -400,7 +430,7 @@ export default function TakenPage() {
         </div>
       )}
 
-      <TaakFormDialog open={formOpen} onOpenChange={setFormOpen} taak={editTaak} />
+      <TaakFormDialog open={formOpen} onOpenChange={handleFormOpenChange} taak={editTaak} />
       <TaakAfrondenDialog
         open={!!afrondenTaak}
         onOpenChange={(v) => { if (!v) setAfrondenTaak(null); }}

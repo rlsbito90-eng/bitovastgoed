@@ -18,6 +18,7 @@ import {
   useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function OffMarketSignaalDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,11 +51,51 @@ export default function OffMarketSignaalDetailPage() {
     }
   };
 
+  const navInfo = getListNavigation('off-market-signalen', signaal.id, alleSignalen.map(s => s.id));
+
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6 max-w-5xl">
-      <div className="flex items-center justify-end">
+      {/* Mobiele sticky navigatie — alleen Off Market Signaal-detail */}
+      <div
+        className="md:hidden -mx-4 sticky z-30 glass-topbar border-b border-border/60"
+        style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
+      >
+        <div className="flex items-center gap-1 px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => navigate('/off-market')}
+            className="inline-flex items-center gap-1 px-2 h-11 text-xs text-foreground hover:bg-muted rounded-md"
+            aria-label="Terug"
+          >
+            <ArrowLeft className="h-4 w-4" /> Terug
+          </button>
+          <button
+            type="button"
+            onClick={() => navInfo.prevId && navigate(`/off-market/${navInfo.prevId}`)}
+            disabled={!navInfo.prevId}
+            className="inline-flex items-center justify-center w-11 h-11 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
+            aria-label="Vorige signaal"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <span className="flex-1 text-center text-xs text-muted-foreground tabular-nums">
+            {navInfo.index >= 0 ? `${navInfo.index + 1} / ${navInfo.total}` : `— / ${navInfo.total}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => navInfo.nextId && navigate(`/off-market/${navInfo.nextId}`)}
+            disabled={!navInfo.nextId}
+            className="inline-flex items-center justify-center w-11 h-11 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
+            aria-label="Volgende signaal"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-center justify-end">
         <ListNavigator
-          info={getListNavigation('off-market-signalen', signaal.id, alleSignalen.map(s => s.id))}
+          info={navInfo}
           buildHref={(nid) => `/off-market/${nid}`}
           itemLabel="signaal"
         />
