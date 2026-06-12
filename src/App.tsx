@@ -25,6 +25,7 @@ import DealDetailPage from "@/pages/DealDetailPage";
 import ZoekprofielenPage from "@/pages/ZoekprofielenPage";
 import PipelinePage from "@/pages/PipelinePage";
 import TakenPage from "@/pages/TakenPage";
+import TaakDetailPage from "@/pages/TaakDetailPage";
 import RapportagePage from "@/pages/RapportagePage";
 import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
