@@ -1335,3 +1335,19 @@ actie "Relatie maken/koppelen van rechthebbende".
   heatmap en kandidaatmatchtelling zijn opties voor deze fase.
 - Niet-blokkerend voor Kaart 1: MapLibre ondersteunt meerdere lagen
   (signalen, toekomstige vraag-/heatmaplaag) zonder herontwerp.
+
+## Kaart 1.1 — PDOK auto-geocoding aangescherpt (afgerond)
+- `parseAdres` normaliseert huisletter + toevoeging tot één uppercase string
+  (`405A`, `405 A`, `405-A` → `A`; `12-2`, `12 2` → `2`).
+- `GeocodeKandidaat` slaat nu `huisletter` + `huisnummertoevoeging` uit PDOK
+  op als genormaliseerde `toevoeging`.
+- `beoordeelKandidaten` kiest automatisch wanneer er na huisnummer + postcode/
+  plaats-filter exact één kandidaat is met dezelfde toevoeging als het signaal.
+  Exacte toevoeging-match wint van hogere PDOK-score met verkeerde toevoeging.
+- Input zonder toevoeging blijft `controleren` zodra PDOK meerdere
+  toevoegingen levert.
+- `GeocodeResultaat` heeft een `redenCode` (`exact_addition_match`,
+  `multiple_candidates`, `addition_mismatch`, `postcode_mismatch`,
+  `too_uncertain`, `no_housenumber`, `no_candidates`, `insufficient_input`)
+  voor veilige debug-logging zonder persoons-/sleutel-data.
+- Geen Kadaster/AI/schemawijziging. 22 geocode-tests groen.

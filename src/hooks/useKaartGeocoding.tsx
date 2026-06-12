@@ -79,7 +79,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
         } catch (err) {
           // eslint-disable-next-line no-console
           if (import.meta.env.DEV) console.warn('[kaart-geocode] mislukt', s.id, err);
-          resultaat = { status: 'geen', reden: 'PDOK-call mislukt' };
+          resultaat = { status: 'geen', reden: 'PDOK-call mislukt', redenCode: 'no_candidates' };
         }
         if (resultaat.status === 'auto') {
           const { error } = await supabase
