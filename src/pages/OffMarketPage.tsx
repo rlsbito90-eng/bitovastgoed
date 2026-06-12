@@ -1,20 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, X } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
-import { byDate, byString, combine } from '@/lib/sorting/comparators';
+import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { saveListContext } from '@/lib/listNavigation';
+import { loadListLastViewed, saveListContext } from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
 import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
 import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
+import {
+  ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
+  STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
+  AI_STATUS_LABEL, AI_STATUS_VOLGORDE,
+  type OffMarketAssettype, type OffMarketBronType, type OffMarketPrioriteit,
+  type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
+} from '@/lib/offMarket/types';
+
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
   STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
