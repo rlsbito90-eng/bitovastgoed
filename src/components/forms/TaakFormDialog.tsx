@@ -31,6 +31,8 @@ interface Props {
   defaultPrioriteit?: TaakPrioriteit;
   /** ISO date YYYY-MM-DD voor deadline (genegeerd bij edit). */
   defaultDeadline?: string;
+  /** Prefill notities/context (genegeerd bij edit). */
+  defaultNotities?: string;
 }
 
 const emptyForm = {
