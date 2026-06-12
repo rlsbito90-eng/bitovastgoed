@@ -40,6 +40,10 @@ import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 
+// Test-flag: hamburger rechts op mobiel. Zet op `false` om terug te draaien.
+// Zie .lovable/plan.md (Mobile Workflow Polish — Blok 6).
+const HAMBURGER_RIGHT_MOBILE = true;
+
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
   { path: "/taken", label: "Taken", icon: CheckSquare },
