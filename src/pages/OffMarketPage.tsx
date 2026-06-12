@@ -187,6 +187,54 @@ export default function OffMarketPage() {
     saveListContext('off-market-signalen', gefilterd.map(s => s.id));
   }, [gefilterd]);
 
+  // ─── Laatst bekeken: scrollherstel + 6s highlight ──────────────────────────
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (tab !== 'signalen') return;
+    if (isLoading) return;
+    if (gefilterd.length === 0) return;
+    const lv = loadListLastViewed('off-market-signalen');
+    if (!lv) { restoredRef.current = true; return; }
+    restoredRef.current = true;
+    setHighlightedId(lv.id);
+    // Twee frames wachten zodat de lijst gerenderd is.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const main = document.querySelector('main');
+        const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
+        if (row) {
+          row.scrollIntoView({ block: 'center', behavior: 'auto' });
+        } else if (main) {
+          main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+        }
+      });
+    });
+    const t = window.setTimeout(() => setHighlightedId(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [tab, isLoading, gefilterd]);
+
+  // ─── Actieve filterchips ───────────────────────────────────────────────────
+  const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (zoek) activeFilters.push({ key: 'zoek', label: `Zoek: "${zoek}"`, clear: () => setZoek('') });
+  if (statusFilter) activeFilters.push({ key: 'status', label: `Status: ${STATUS_LABEL[statusFilter]}`, clear: () => setStatusFilter('') });
+  if (prioFilter) activeFilters.push({ key: 'prio', label: `Prio: ${PRIORITEIT_LABEL[prioFilter]}`, clear: () => setPrioFilter('') });
+  if (assetFilter) activeFilters.push({ key: 'asset', label: `Asset: ${ASSETTYPE_LABEL[assetFilter]}`, clear: () => setAssetFilter('') });
+  if (regioFilter) activeFilters.push({ key: 'regio', label: `Regio: ${regioFilter}`, clear: () => setRegioFilter('') });
+  if (bronFilter) activeFilters.push({ key: 'bron', label: `Bron: ${BRON_TYPE_LABEL[bronFilter]}`, clear: () => setBronFilter('') });
+  if (aiStatusFilter) activeFilters.push({ key: 'ai', label: `AI: ${AI_STATUS_LABEL[aiStatusFilter]}`, clear: () => setAiStatusFilter('') });
+  if (bucketFilter !== null) {
+    const found = bucketTellingen.find(b => b.rang === bucketFilter);
+    if (found) activeFilters.push({ key: 'bucket', label: `Type: ${found.label}`, clear: () => setBucketFilter(null) });
+  }
+  const wisAlleFilters = () => {
+    setZoek(''); setStatusFilter(''); setPrioFilter(''); setAssetFilter('');
+    setRegioFilter(''); setBronFilter(''); setAiStatusFilter(''); setBucketFilter(null);
+  };
+
+
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
