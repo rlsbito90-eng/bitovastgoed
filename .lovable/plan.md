@@ -1567,3 +1567,26 @@ Alles client-side; bij groei >2.000 signalen later server-side overwegen.
 - Mobiele én desktop filter-UX beschreven. ✅
 - Bouwfasering in 2 stappen, "slimme volgorde" niet als default. ✅
 - `.lovable/plan.md` bijgewerkt. ✅
+
+---
+
+## Bouwfase Filters 1 — STATUS: AFGEROND
+
+Uitgevoerd:
+- `ScrollToTop` opt-out voor `/off-market` ↔ `/off-market/:id` (zie `src/components/ScrollToTop.tsx`, prev-pathname tracking via ref).
+- `listNavigation.ts`: nieuwe helpers `saveListLastViewed` / `loadListLastViewed` / `clearListLastViewed` (sessionStorage, key `list-last-viewed:off-market-signalen`, payload `{ id, scrollY, ts }`).
+- `SignalenTable`: schrijft `lastViewed` bij rij-klik (scrollTop van `<main>`), accepteert `highlightedId`-prop, rendert ring + "Laatst bekeken"-badge (mobiel + desktop) en `data-row-id` voor scrollherstel.
+- `OffMarketPage`: herstelt scrollpositie via `scrollIntoView({ block: 'center' })` met fallback naar opgeslagen `scrollY`; highlight verdwijnt na 6s.
+- Sorteringen uitgebreid: Nieuwste, Oudste, Laatst bijgewerkt, Brondatum (nieuwste/oudste), AI-score hoog→laag/laag→hoog, Prioriteit, Volgende actie, Plaats A-Z, Provincie A-Z, Slimme volgorde (vastgoedrelevantie).
+- Default sortering = **Nieuwste eerst** via bumped storage-key `sort-pref:off-market-signalen-v2` (oude `relevantie`-default wordt niet meer opgepikt; "Slimme volgorde" blijft als optie).
+- Actieve filterchips-strook ("Actieve filters: …") met per-chip × en knop **Wissen** die alle filters incl. bucket reset.
+
+Verificatie:
+- Tests: **557/557 groen** (incl. `signalenTable.test.tsx`, geocoding, kadaster, vastgoedrekenen).
+- Geen schemawijziging, geen Kadaster/AI-calls, geen datamigratie.
+- TypeScript-build schoon.
+
+Open punten / fase 2:
+- URL-state (deelbare links).
+- Meer-filters-paneel (desktop) + bottom-sheet (mobiel) met multi-selects, sliders, boolean- en tijdpresets.
+- Filterpresets.
