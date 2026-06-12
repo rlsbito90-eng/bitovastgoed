@@ -192,12 +192,14 @@ export interface SignaalLocatieInvoer {
   adres: string | null;
   postcode: string | null;
   plaats: string | null;
+  /** Optionele titel/omschrijving voor toevoeging-fallback (alleen aanvullend). */
+  titel?: string | null;
 }
 
-/** Bouw PDOK-zoekquery uit signaal-locatievelden. */
+/** Bouw PDOK-zoekquery uit signaal-locatievelden (adres heeft prioriteit). */
 export function bouwQuery(inv: SignaalLocatieInvoer): string | null {
   const pc = normPostcode(inv.postcode);
-  const parsed = parseAdres(inv.adres);
+  const parsed = combineerParsed(parseAdres(inv.adres), inv.titel);
   const plaats = inv.plaats?.trim() || null;
   const heeftAdresplus = !!(parsed.huisnummer && (pc || plaats));
   const heeftPcHuisnr = !!(pc && parsed.huisnummer);
