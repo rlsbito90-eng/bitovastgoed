@@ -41,6 +41,7 @@ import {
   signaalNaarRelatiePrefill,
   EIGENAAR_TAAK_TEMPLATES,
   deadlineOverDagen,
+  bouwSignaalTaakContext,
   type EigenaarTaakTemplate,
 } from '@/lib/offMarket/eigenaar';
 import {
