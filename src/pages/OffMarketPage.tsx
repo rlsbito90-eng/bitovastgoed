@@ -83,15 +83,35 @@ export default function OffMarketPage() {
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
     {
-      value: 'relevantie', label: 'Vastgoedrelevantie',
-      compare: compareRelevantie,
+      value: 'nieuwste', label: 'Nieuwste eerst',
+      compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
+    },
+    {
+      value: 'oudste', label: 'Oudste eerst',
+      compare: byDate<OffMarketSignaal>(s => s.created_at, 'asc'),
+    },
+    {
+      value: 'bijgewerkt', label: 'Laatst bijgewerkt',
+      compare: byDate<OffMarketSignaal>(s => (s as any).updated_at ?? s.created_at, 'desc'),
+    },
+    {
+      value: 'brondatum_desc', label: 'Brondatum (nieuwste)',
+      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'desc'),
+    },
+    {
+      value: 'brondatum_asc', label: 'Brondatum (oudste)',
+      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'asc'),
     },
     {
       value: 'ai_score', label: 'AI-score hoog → laag',
-      compare: (a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1),
+      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'desc'),
     },
     {
-      value: 'prioriteit', label: 'Prioriteit',
+      value: 'ai_score_asc', label: 'AI-score laag → hoog',
+      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'asc'),
+    },
+    {
+      value: 'prioriteit', label: 'Prioriteit hoog → laag',
       compare: combine(
         (a, b) => prioriteitRang(b.prioriteit) - prioriteitRang(a.prioriteit),
         byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
@@ -102,17 +122,23 @@ export default function OffMarketPage() {
       compare: byDate<OffMarketSignaal>(s => s.volgende_actie_datum, 'asc'),
     },
     {
-      value: 'nieuwste', label: 'Nieuwste eerst',
-      compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
-    },
-    {
       value: 'plaats', label: 'Plaats A-Z',
       compare: byString<OffMarketSignaal>(s => s.plaats ?? ''),
     },
+    {
+      value: 'provincie', label: 'Provincie A-Z',
+      compare: byString<OffMarketSignaal>(s => s.provincie ?? ''),
+    },
+    {
+      value: 'relevantie', label: 'Slimme volgorde (vastgoedrelevantie)',
+      compare: compareRelevantie,
+    },
   ], []);
+  // Bumped naar v2 zodat oude default 'relevantie' niet langer wordt opgepikt.
   const [sortValue, setSortValue] = useSortPreference(
-    'off-market-signalen', 'relevantie', sortOptions.map(o => o.value),
+    'off-market-signalen-v2', 'nieuwste', sortOptions.map(o => o.value),
   );
+
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
   // Tellingen per vergunningtype (bucket) — vóór bucket-filter, ná overige filters.
