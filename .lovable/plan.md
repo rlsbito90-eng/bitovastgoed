@@ -1351,3 +1351,29 @@ actie "Relatie maken/koppelen van rechthebbende".
   `too_uncertain`, `no_housenumber`, `no_candidates`, `insufficient_input`)
   voor veilige debug-logging zonder persoons-/sleutel-data.
 - Geen Kadaster/AI/schemawijziging. 22 geocode-tests groen.
+
+## Kaart 1A — Slimmere PDOK + leesbare UI + mobiele dialog (afgerond)
+- **Geocoding slimmer**: nieuwe regel "basisadres uniek" — input zonder
+  toevoeging matcht automatisch wanneer in PDOK exact één resultaat
+  zónder toevoeging voorkomt naast subadressen
+  (bv. *Jan Luijkenstraat 16* met `16`, `16-1`, `16-2` → auto op `16`).
+- **Straatnaam-check** met diakritieken-normalisatie (`stripDiacritics`)
+  voorkomt straatmismatch-auto's.
+- **Toevoegingsmatch** kiest binnen de exacte-set de hoogste score in
+  plaats van direct te falen bij dubbelen.
+- **Score-dominantie** (`MIN_TOP_SCORE`=8, `MIN_SCORE_GAP`=2) voor
+  zeldzaam geval van meerdere basisadressen.
+- Nieuwe redencodes: `basic_address_unique`, `top_score_dominant`,
+  `multiple_additions`, `street_mismatch`; helper `redenLabel()` voor
+  Nederlandse UI-tekst.
+- **Locatie controleren-chip**: nu solide `bg-accent` met
+  `accent-foreground`, duidelijk leesbaar tegen kaartachtergrond in
+  light/dark. Overige chips ook op solide `bg-background` gezet.
+- **Mobiele dialogen** (`LocatieControlerenDialog`, `ZonderLocatieDialog`)
+  full-screen op mobiel (`w-[100vw] h-[100vh] rounded-none`), sticky
+  header, scrollbare body, full-width result-cards en `min-h-[40px]`
+  knoppen. Op desktop blijft de bestaande dialog (`sm:max-w-2xl
+  sm:max-h-[85vh] sm:rounded-2xl`).
+- **Beste-kandidaat** wordt in de controleren-lijst gemarkeerd met een
+  `Beste`-badge maar nooit automatisch gekozen.
+- Geen Kadaster/AI/schemawijziging. 549 tests groen.

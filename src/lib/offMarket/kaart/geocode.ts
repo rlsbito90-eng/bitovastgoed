@@ -1,16 +1,21 @@
-// Veilige PDOK-geocoding voor Off Market Radar Kaart.
+// Veilige, maar slimme PDOK-geocoding voor Off Market Radar Kaart.
 //
 // Doel:
-//  - Probeer voor signalen zonder lat/lng exact coördinaten op te halen.
-//  - Automatisch opslaan mag ALLEEN bij een betrouwbare match:
-//      * type=adres
-//      * huisnummer komt exact overeen
-//      * huisletter/toevoeging komt exact overeen (indien in signaal aanwezig)
-//      * postcode of plaats komt overeen
-//      * geen tweede kandidaat met een gelijkwaardige adres-match
-//  - Onzekere resultaten worden teruggegeven als 'controleren' met
-//    kandidaten zodat de gebruiker handmatig kan kiezen.
+//  - Voor de hand liggende adressen worden automatisch opgeslagen.
+//  - Echte twijfelgevallen komen in "Locatie controleren".
 //  - Geen Kadaster-call, geen kosten, geen AI.
+//
+// Auto-regels (samenvatting):
+//  * type=adres
+//  * huisnummer exact
+//  * straatnaam genormaliseerd gelijk (zonder diakritieken, lowercase)
+//  * postcode exact (indien in signaal aanwezig) OF plaats genormaliseerd gelijk
+//  * input mét toevoeging  → exacte toevoegings-match vereist
+//  * input zónder toevoeging → kies de unieke kandidaat ZONDER toevoeging
+//    (basisadres bestaat in BAG). Subadressen worden genegeerd zolang het
+//    basisadres uniek is.
+//  * meerdere kandidaten zonder toevoeging → alleen auto als topscore
+//    duidelijk hoger is (≥ MIN_SCORE_GAP) en topscore ≥ MIN_TOP_SCORE.
 
 export interface GeocodeKandidaat {
   id: string;
@@ -28,9 +33,14 @@ export interface GeocodeKandidaat {
 }
 
 export type GeocodeReden =
+  | 'exact_match'
   | 'exact_addition_match'
+  | 'basic_address_unique'
+  | 'top_score_dominant'
   | 'multiple_candidates'
+  | 'multiple_additions'
   | 'addition_mismatch'
+  | 'street_mismatch'
   | 'postcode_mismatch'
   | 'too_uncertain'
   | 'no_housenumber'
@@ -50,11 +60,18 @@ const PDOK_FIELDS = [
   'postcode', 'woonplaatsnaam', 'centroide_ll',
 ].join(',');
 
+const MIN_TOP_SCORE = 8;
+const MIN_SCORE_GAP = 2;
+
 export interface ParsedAdres {
   straat: string | null;
   huisnummer: string | null;
   /** Genormaliseerd: uppercase, zonder spaties/streepjes, bv "A", "2", "BS", "1HG". */
   toevoeging: string | null;
+}
+
+function stripDiacritics(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function normToevoeging(...delen: Array<string | null | undefined>): string | null {
@@ -66,7 +83,6 @@ function normToevoeging(...delen: Array<string | null | undefined>): string | nu
 export function parseAdres(adres: string | null | undefined): ParsedAdres {
   if (!adres) return { straat: null, huisnummer: null, toevoeging: null };
   const trimmed = adres.trim().replace(/\s+/g, ' ');
-  // straat ... huisnummer (cijfers) optioneel direct gevolgd door letter, en/of toevoeging na sep
   const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*([A-Za-z])?\s*(?:[-/\s]+([\w\d-]+))?$/);
   if (!m) return { straat: trimmed || null, huisnummer: null, toevoeging: null };
   const [, straat, nr, letter, toev] = m;
@@ -85,12 +101,12 @@ function normPostcode(pc: string | null | undefined): string | null {
 
 function normPlaats(p: string | null | undefined): string | null {
   if (!p) return null;
-  return p.trim().toLowerCase().replace(/\s+/g, ' ') || null;
+  return stripDiacritics(p.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
 }
 
 function normStraat(s: string | null | undefined): string | null {
   if (!s) return null;
-  return s.trim().toLowerCase().replace(/\s+/g, ' ') || null;
+  return stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
 }
 
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
@@ -161,10 +177,6 @@ function mapDoc(d: PdokDoc): GeocodeKandidaat | null {
   };
 }
 
-/**
- * Doe een PDOK-call en map naar kandidaten met coördinaten.
- * Alleen `type:adres` resultaten worden meegenomen.
- */
 export async function pdokAdresZoek(
   inv: SignaalLocatieInvoer,
   opts: { signal?: AbortSignal; rows?: number; fetchImpl?: typeof fetch } = {},
@@ -193,7 +205,6 @@ interface DebugInfo {
 }
 
 function debugLog(info: DebugInfo) {
-  // Geen secrets, geen gevoelige data. Alleen DEV.
   if (import.meta.env?.DEV) {
     // eslint-disable-next-line no-console
     console.debug('[kaart-geocode]', info);
@@ -213,13 +224,7 @@ export function beoordeelKandidaten(
 
   const baseDebug = {
     signaal_id: debugCtx.signaal_id,
-    input: {
-      straat: inputStraat,
-      huisnummer: parsed.huisnummer,
-      toevoeging: parsed.toevoeging,
-      postcode: pc,
-      plaats,
-    },
+    input: { straat: inputStraat, huisnummer: parsed.huisnummer, toevoeging: parsed.toevoeging, postcode: pc, plaats },
     aantal: kandidaten.length,
   };
 
@@ -232,56 +237,74 @@ export function beoordeelKandidaten(
     return { status: 'controleren', kandidaten, reden: 'Geen huisnummer in signaal-adres.', redenCode: 'no_housenumber' };
   }
 
-  // Filter: kandidaten met exact zelfde huisnummer en (postcode of plaats) match
+  // 1) Huisnummer + (postcode of plaats) match
   const huisnummerMatch = kandidaten.filter(k => String(k.huisnummer ?? '') === String(parsed.huisnummer));
+  if (huisnummerMatch.length === 0) {
+    debugLog({ ...baseDebug, gekozen: false, reden: 'addition_mismatch' });
+    return { status: 'controleren', kandidaten, reden: 'Huisnummer wijkt af van resultaten.', redenCode: 'addition_mismatch' };
+  }
   const adresMatch = huisnummerMatch.filter(k => {
     const pcOk = pc && k.postcode && pc === k.postcode;
     const plaatsOk = plaats && k.woonplaats && normPlaats(k.woonplaats) === plaats;
     return pcOk || plaatsOk;
   });
-
   if (adresMatch.length === 0) {
-    // Wellicht wel huisnummer-treffer maar postcode/plaats wijkt af
-    if (huisnummerMatch.length > 0) {
-      debugLog({ ...baseDebug, gekozen: false, reden: 'postcode_mismatch' });
-      return { status: 'controleren', kandidaten, reden: 'Postcode noch plaats komt overeen.', redenCode: 'postcode_mismatch' };
-    }
-    debugLog({ ...baseDebug, gekozen: false, reden: 'addition_mismatch' });
-    return { status: 'controleren', kandidaten, reden: 'Huisnummer wijkt af van resultaten.', redenCode: 'addition_mismatch' };
+    debugLog({ ...baseDebug, gekozen: false, reden: 'postcode_mismatch' });
+    return { status: 'controleren', kandidaten, reden: 'Postcode noch plaats komt overeen.', redenCode: 'postcode_mismatch' };
   }
 
-  // Exacte toevoegings-logica
+  // 2) Straatnaam (genormaliseerd)
+  const straatMatch = inputStraat
+    ? adresMatch.filter(k => normStraat(k.straat) === inputStraat)
+    : adresMatch;
+  if (inputStraat && straatMatch.length === 0) {
+    debugLog({ ...baseDebug, gekozen: false, reden: 'street_mismatch' });
+    return { status: 'controleren', kandidaten, reden: 'Straatnaam wijkt af.', redenCode: 'street_mismatch' };
+  }
+
+  // 3) Toevoegingen
   if (parsed.toevoeging) {
-    const exact = adresMatch.filter(k => k.toevoeging === parsed.toevoeging);
-    if (exact.length === 1) {
+    const exact = straatMatch.filter(k => k.toevoeging === parsed.toevoeging)
+      .sort((a, b) => b.score - a.score);
+    if (exact.length >= 1) {
+      const w = exact[0];
       debugLog({ ...baseDebug, gekozen: true, reden: 'exact_addition_match' });
-      return { status: 'auto', lat: exact[0].lat, lng: exact[0].lng, kandidaat: exact[0], reden: 'exact_addition_match' };
+      return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_addition_match' };
     }
-    if (exact.length === 0) {
-      debugLog({ ...baseDebug, gekozen: false, reden: 'addition_mismatch' });
-      return { status: 'controleren', kandidaten, reden: 'Geen exacte huisletter/toevoeging-match.', redenCode: 'addition_mismatch' };
+    debugLog({ ...baseDebug, gekozen: false, reden: 'addition_mismatch' });
+    return { status: 'controleren', kandidaten, reden: 'Toevoeging wijkt af van resultaten.', redenCode: 'addition_mismatch' };
+  }
+
+  // Input zónder toevoeging
+  const zonder = straatMatch.filter(k => !k.toevoeging).sort((a, b) => b.score - a.score);
+
+  // 3a) Basisadres bestaat uniek → auto, ook al zijn er subadressen
+  if (zonder.length === 1) {
+    const w = zonder[0];
+    debugLog({ ...baseDebug, gekozen: true, reden: 'basic_address_unique' });
+    return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'basic_address_unique' };
+  }
+  // 3b) Meerdere basisadressen → pick top als duidelijk hoger
+  if (zonder.length > 1) {
+    const gap = zonder[0].score - zonder[1].score;
+    if (zonder[0].score >= MIN_TOP_SCORE && gap >= MIN_SCORE_GAP) {
+      const w = zonder[0];
+      debugLog({ ...baseDebug, gekozen: true, reden: 'top_score_dominant' });
+      return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'top_score_dominant' };
     }
-    // Meerdere exacte → eigenlijk niet mogelijk maar val terug op multiple
     debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_candidates' });
     return { status: 'controleren', kandidaten, reden: 'Meerdere vergelijkbare kandidaten.', redenCode: 'multiple_candidates' };
   }
 
-  // Geen toevoeging in input
-  const zonderToev = adresMatch.filter(k => !k.toevoeging);
-  if (zonderToev.length === 1 && adresMatch.length === 1) {
-    debugLog({ ...baseDebug, gekozen: true, reden: 'exact_addition_match' });
-    return { status: 'auto', lat: zonderToev[0].lat, lng: zonderToev[0].lng, kandidaat: zonderToev[0], reden: 'exact_addition_match' };
+  // 3c) Geen basisadres-resultaat, alleen subadressen
+  if (straatMatch.length === 1) {
+    debugLog({ ...baseDebug, gekozen: false, reden: 'too_uncertain' });
+    return { status: 'controleren', kandidaten, reden: 'Resultaat heeft toevoeging, signaal niet.', redenCode: 'too_uncertain' };
   }
-  if (adresMatch.length > 1) {
-    debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_candidates' });
-    return { status: 'controleren', kandidaten, reden: 'Meerdere toevoegingen gevonden bij dit huisnummer.', redenCode: 'multiple_candidates' };
-  }
-  // 1 kandidaat met toevoeging, input zonder → onzeker
-  debugLog({ ...baseDebug, gekozen: false, reden: 'too_uncertain' });
-  return { status: 'controleren', kandidaten, reden: 'Resultaat heeft toevoeging, signaal niet.', redenCode: 'too_uncertain' };
+  debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_additions' });
+  return { status: 'controleren', kandidaten, reden: 'Meerdere toevoegingen gevonden bij dit huisnummer.', redenCode: 'multiple_additions' };
 }
 
-/** Volledige flow: query bouwen, PDOK aanroepen, beoordelen. */
 export async function geocodeSignaalLocatie(
   inv: SignaalLocatieInvoer,
   opts: { signal?: AbortSignal; fetchImpl?: typeof fetch; signaal_id?: string } = {},
@@ -292,4 +315,24 @@ export async function geocodeSignaalLocatie(
   }
   const kandidaten = await pdokAdresZoek(inv, opts);
   return beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
+}
+
+/** UI label voor reden code (NL). */
+export function redenLabel(code: GeocodeReden | undefined | null): string {
+  switch (code) {
+    case 'multiple_candidates': return 'Meerdere vergelijkbare kandidaten';
+    case 'multiple_additions': return 'Meerdere toevoegingen bij dit huisnummer';
+    case 'addition_mismatch': return 'Toevoeging onzeker';
+    case 'street_mismatch': return 'Straatnaam wijkt af';
+    case 'postcode_mismatch': return 'Postcode/plaats komt niet overeen';
+    case 'too_uncertain': return 'Resultaat heeft toevoeging, signaal niet';
+    case 'no_housenumber': return 'Geen huisnummer in signaal';
+    case 'no_candidates': return 'Geen PDOK-resultaat';
+    case 'insufficient_input': return 'Onvoldoende adresgegevens';
+    case 'exact_match':
+    case 'exact_addition_match':
+    case 'basic_address_unique':
+    case 'top_score_dominant': return 'Automatisch gematcht';
+    default: return 'Controle nodig';
+  }
 }
