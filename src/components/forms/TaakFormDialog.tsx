@@ -101,9 +101,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         dealId: defaultDealId || '',
         objectId: defaultObjectId || '',
         offMarketSignaalId: defaultOffMarketSignaalId || '',
+        notities: defaultNotities || '',
       });
     }
-  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline]);
+  }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities]);
 
   // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
