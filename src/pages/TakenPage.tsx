@@ -276,6 +276,10 @@ export default function TakenPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuLabel>Snelle acties</DropdownMenuLabel>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditTaak(taak); setFormOpen(true); }}>
+                <MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {!isAfgerond && (
                 <>
                   <DropdownMenuItem onClick={(e) => togglAfvinken(e as any, taak)}>
