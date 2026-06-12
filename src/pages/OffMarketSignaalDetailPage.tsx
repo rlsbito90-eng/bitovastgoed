@@ -18,6 +18,7 @@ import {
   useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function OffMarketSignaalDetailPage() {
   const { id } = useParams<{ id: string }>();
