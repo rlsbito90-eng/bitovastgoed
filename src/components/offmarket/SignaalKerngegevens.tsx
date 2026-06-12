@@ -1,5 +1,6 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, MapPin, Search } from 'lucide-react';
 import { formatCurrency } from '@/lib/format/nl';
+import { buildMapsUrl, buildAdresSearchUrl } from '@/lib/maps';
 import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, SIGNAALTYPE_LABEL,
   type OffMarketSignaal,
