@@ -327,6 +327,33 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         </div>
       )}
 
+      {/* Externe zoekopties op bedrijfsnaam (indien beschikbaar). */}
+      {(() => {
+        const a = signaal as any;
+        const bedrijf: string | null =
+          (a.eigenaar_bedrijfsnaam && String(a.eigenaar_bedrijfsnaam).trim()) ||
+          (gekoppeldeRelatie?.bedrijfsnaam && gekoppeldeRelatie.bedrijfsnaam.trim()) ||
+          null;
+        if (!bedrijf) return null;
+        const adresDelen = [signaal.adres, signaal.plaats].filter(Boolean).join(' ');
+        const q = encodeURIComponent([bedrijf, adresDelen].filter(Boolean).join(' ').trim());
+        const url = `https://www.google.com/search?q=${q}`;
+        return (
+          <div>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-card hover:border-accent/50 hover:text-accent text-foreground"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" /> Zoek bedrijf op Google
+            </a>
+          </div>
+        );
+      })()}
+
+
+
 
       {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
