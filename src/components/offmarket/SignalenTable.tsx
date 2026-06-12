@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Calendar, ExternalLink } from 'lucide-react';
+import { Sparkles, Calendar, ExternalLink, Eye } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -12,13 +12,17 @@ import {
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
+import { saveListLastViewed } from '@/lib/listNavigation';
 
 interface Props {
   signalen: OffMarketSignaal[];
   laden: boolean;
   /** Optioneel: override default-zichtbaarheid. Wanneer leeg: standaardkolommen. */
   zichtbareKolommen?: string[];
+  /** Optioneel: id van laatst bekeken signaal — wordt visueel gehighlight. */
+  highlightedId?: string | null;
 }
+
 
 function formatDateNL(d: string | null) {
   if (!d) return '—';
