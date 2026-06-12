@@ -74,25 +74,47 @@ function stripDiacritics(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// Stopwoorden die per ongeluk in een toevoeging-positie kunnen belanden,
+// vooral wanneer een ruwe titel/adresregel woorden als "in Amsterdam" bevat.
+const TOEVOEGING_STOPWOORDEN = new Set<string>([
+  'IN', 'TE', 'VOOR', 'VAN', 'OP', 'AAN', 'BIJ', 'MET',
+  'AANVRAAG', 'VERGUNNING', 'BESLUIT', 'VERLEEND', 'GEWEIGERD',
+  'OMGEVINGSVERGUNNING', 'SPLITSINGSVERGUNNING', 'WOONVORMINGSVERGUNNING',
+  'AMSTERDAM', 'ROTTERDAM', 'UTRECHT', 'DENHAAG', 'EINDHOVEN',
+]);
+
 function normToevoeging(...delen: Array<string | null | undefined>): string | null {
   const raw = delen.filter(Boolean).join(' ').toUpperCase();
   const s = raw.replace(/[\s\-/.,]+/g, '');
   if (!s) return null;
-  // HUIS → HS (gangbare Amsterdamse afkorting). H en HS blijven onderscheiden.
+  if (s.length > 6) return null; // echte toevoegingen zijn kort
+  if (TOEVOEGING_STOPWOORDEN.has(s)) return null;
   if (s === 'HUIS') return 'HS';
   return s;
 }
 
 /**
- * Parser voor vrije-tekst adresvelden (NL).
- * Accepteert o.a. "Damrak 1", "Damrak 1A", "Damrak 1-A", "Damrak 1 A",
- * "Rijnstraat 101-2", "Derde Schinkelstraat 20-3L", "Damrak 4 hs".
+ * Strip vulwoorden zoals "in <Plaats>" / "te <Plaats>" achter een huisnummer,
+ * zodat "Surinameplein 46 in Amsterdam" niet als toevoeging "in" wordt
+ * geparseerd. Alleen veilig na het huisnummer.
+ */
+function schoonAdres(adres: string): string {
+  let s = adres.trim().replace(/\s+/g, ' ');
+  s = s.replace(/\b(\d{1,5})\s+(in|te|voor)\b\s+[A-Z][A-Za-z'\-\s]+$/u, '$1');
+  s = s.replace(/\b(\d{1,5})\s+(in|te|voor)\s*$/u, '$1');
+  return s.trim();
+}
+
+/**
+ * Parser voor vrije-tekst adresvelden (NL). Strikte toevoeging: max ~4 chars.
+ * Accepteert o.a. "Damrak 1", "Damrak 1A", "Rijnstraat 101-2",
+ * "Derde Schinkelstraat 20-3L", "Damrak 4 hs". "Surinameplein 46 in Amsterdam"
+ * wordt netjes als huisnummer 46 zonder toevoeging geparseerd.
  */
 export function parseAdres(adres: string | null | undefined): ParsedAdres {
   if (!adres) return { straat: null, huisnummer: null, toevoeging: null };
-  const trimmed = adres.trim().replace(/\s+/g, ' ');
-  // Lazy straat, dan huisnummer, dan optionele toevoeging (vrij formaat).
-  const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*[-\s/]*\s*([A-Za-z][A-Za-z0-9\-\s/]*|\d+[A-Za-z]*)?\s*$/);
+  const trimmed = schoonAdres(adres);
+  const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*[-\s/]?\s*([A-Za-z][A-Za-z0-9]{0,3}|\d{1,3}[A-Za-z]?)?\s*$/);
   if (!m) return { straat: trimmed || null, huisnummer: null, toevoeging: null };
   const [, straat, nr, rest] = m;
   return {
@@ -100,6 +122,30 @@ export function parseAdres(adres: string | null | undefined): ParsedAdres {
     huisnummer: nr,
     toevoeging: normToevoeging(rest),
   };
+}
+
+/**
+ * Combineer adres-parse met titel-parse: adres heeft prioriteit, titel vult
+ * alleen aan (toevoeging, langere straat zoals "Derde Schinkelstraat").
+ */
+export function combineerParsed(adresParsed: ParsedAdres, titel: string | null | undefined): ParsedAdres {
+  if (!titel) return adresParsed;
+  const t = parseAdres(titel);
+  if (!t.huisnummer) return adresParsed;
+  if (adresParsed.huisnummer && t.huisnummer !== adresParsed.huisnummer) return adresParsed;
+  const out: ParsedAdres = { ...adresParsed };
+  if (!out.huisnummer) out.huisnummer = t.huisnummer;
+  if (!out.toevoeging && t.toevoeging) out.toevoeging = t.toevoeging;
+  if (out.straat && t.straat) {
+    const aN = stripDiacritics(out.straat.toLowerCase()).replace(/\s+/g, ' ');
+    const tN = stripDiacritics(t.straat.toLowerCase()).replace(/\s+/g, ' ');
+    if (tN !== aN && tN.endsWith(aN) && tN.length > aN.length) {
+      out.straat = t.straat;
+    }
+  } else if (!out.straat && t.straat) {
+    out.straat = t.straat;
+  }
+  return out;
 }
 
 /**
