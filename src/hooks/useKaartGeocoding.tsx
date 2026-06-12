@@ -75,6 +75,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
             adres: s.adres ?? null,
             postcode: s.postcode ?? null,
             plaats: s.plaats ?? null,
+            titel: s.titel ?? null,
           });
         } catch (err) {
           // eslint-disable-next-line no-console
@@ -156,7 +157,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
   }, [qc]);
 
   const handmatigZoeken = useCallback(async (signaal: OffMarketSignaal) => {
-    const inv = { adres: signaal.adres ?? null, postcode: signaal.postcode ?? null, plaats: signaal.plaats ?? null };
+    const inv = { adres: signaal.adres ?? null, postcode: signaal.postcode ?? null, plaats: signaal.plaats ?? null, titel: signaal.titel ?? null };
     const kandidaten = await pdokAdresZoek(inv);
     const resultaat = beoordeelKandidaten(inv, kandidaten);
     if (resultaat.status === 'auto') {

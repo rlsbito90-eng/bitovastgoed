@@ -83,3 +83,23 @@ export function deadlineOverDagen(dagen: number, now: Date = new Date()): string
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+/**
+ * Bouw een standaard notitie-context voor taken die vanuit een off-market
+ * signaal worden aangemaakt. Bevat altijd minimaal signaaltitel + adres
+ * + postcode/plaats, ongeacht of er ook een signaal_id-koppeling is.
+ */
+export function bouwSignaalTaakContext(
+  signaal: OffMarketSignaal,
+  actie?: string,
+): string {
+  const a = signaal as any;
+  const adresRegel = [a.adres, [a.postcode, a.plaats].filter(Boolean).join(' ')]
+    .filter(Boolean).join(', ');
+  const regels = [
+    `Signaal: ${signaal.titel}`,
+    adresRegel ? `Adres: ${adresRegel}` : null,
+    `Context: Off Market Radar${actie ? ` — ${actie}` : ''}`,
+  ].filter(Boolean) as string[];
+  return regels.join('\n');
+}
