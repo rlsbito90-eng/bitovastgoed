@@ -298,15 +298,32 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(s => (
-              <TableRow key={s.id} className="cursor-pointer" onClick={() => go(s.id)} title={s.titel}>
-                {actieveKolommen.map(k => (
-                  <TableCell key={k.id} className={k.cellClassName}>
-                    {k.render(s, ctx)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {rows.map(s => {
+              const isHighlighted = highlightedId === s.id;
+              return (
+                <TableRow
+                  key={s.id}
+                  data-row-id={s.id}
+                  className={`cursor-pointer ${isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''}`}
+                  onClick={() => go(s.id)}
+                  title={s.titel}
+                >
+                  {actieveKolommen.map((k, i) => (
+                    <TableCell key={k.id} className={k.cellClassName}>
+                      {i === 0 && isHighlighted ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                            <Eye className="h-3 w-3" /> Laatst bekeken
+                          </span>
+                          {k.render(s, ctx)}
+                        </div>
+                      ) : k.render(s, ctx)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+
           </TableBody>
         </Table>
       </div>
