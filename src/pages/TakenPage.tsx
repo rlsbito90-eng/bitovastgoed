@@ -210,7 +210,7 @@ export default function TakenPage() {
     return (
       <div
         key={taak.id}
-        onClick={() => { setEditTaak(taak); setFormOpen(true); }}
+        onClick={() => navigate(`/taken/${taak.id}`)}
         className="group px-4 sm:px-5 py-3.5 flex items-start sm:items-center gap-3 hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <button
