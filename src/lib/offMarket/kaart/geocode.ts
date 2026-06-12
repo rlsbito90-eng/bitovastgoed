@@ -184,12 +184,17 @@ function mapDoc(d: PdokDoc): GeocodeKandidaat | null {
   const ll = parseCentroideLL(d.centroide_ll);
   if (!ll) return null;
   const pc = (d.postcode ?? '').toString().replace(/\s+/g, '').toUpperCase();
+  const huisnummer = d.huisnummer != null ? String(d.huisnummer) : null;
+  // Primair: parse uit weergavenaam (volgorde-onafhankelijk).
+  // Fallback: combineer huisletter + huisnummertoevoeging.
+  const toevWeergave = toevoegingUitWeergavenaam(d.weergavenaam, huisnummer);
+  const toevFallback = normToevoeging(d.huisnummertoevoeging, d.huisletter);
   return {
     id: d.id ?? d.weergavenaam ?? `${ll.lng},${ll.lat}`,
     weergavenaam: d.weergavenaam ?? '',
     straat: d.straatnaam ?? null,
-    huisnummer: d.huisnummer != null ? String(d.huisnummer) : null,
-    toevoeging: normToevoeging(d.huisletter, d.huisnummertoevoeging),
+    huisnummer,
+    toevoeging: toevWeergave ?? toevFallback,
     postcode: /^\d{4}[A-Z]{2}$/.test(pc) ? pc : null,
     woonplaats: d.woonplaatsnaam ?? null,
     lat: ll.lat,
