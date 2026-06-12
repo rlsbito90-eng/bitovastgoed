@@ -23,15 +23,8 @@ import {
   type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
-import {
-  ASSETTYPE_LABEL, BRON_TYPE_LABEL, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
-  STATUS_LABEL, STATUS_VOLGORDE, PROVINCIES, prioriteitRang,
-  AI_STATUS_LABEL, AI_STATUS_VOLGORDE,
-  type OffMarketAssettype, type OffMarketBronType, type OffMarketPrioriteit,
-  type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
-} from '@/lib/offMarket/types';
-
 type Tab = 'dashboard' | 'signalen' | 'kaart';
+
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
