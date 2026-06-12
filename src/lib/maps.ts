@@ -33,3 +33,26 @@ export function buildMapsUrl(parts: {
   const query = encodeURIComponent(segments.join(', '));
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
+
+/**
+ * Bouwt een Google Search-URL uit losse tekstdelen.
+ * Lege/whitespace-only entries worden genegeerd. Retourneert null als
+ * er geen bruikbare tekst over is.
+ */
+export function buildGoogleSearchUrl(parts: Array<string | null | undefined>): string | null {
+  const cleaned = parts
+    .map((p) => (p ?? '').toString().trim())
+    .filter((p) => p.length > 0);
+  if (cleaned.length === 0) return null;
+  const query = encodeURIComponent(cleaned.join(' '));
+  return `https://www.google.com/search?q=${query}`;
+}
+
+/** Convenience: Google Search-URL voor een adres. */
+export function buildAdresSearchUrl(parts: {
+  adres?: string | null;
+  postcode?: string | null;
+  plaats?: string | null;
+}): string | null {
+  return buildGoogleSearchUrl([parts.adres, parts.postcode, parts.plaats]);
+}
