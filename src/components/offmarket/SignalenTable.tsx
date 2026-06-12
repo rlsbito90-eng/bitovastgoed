@@ -194,10 +194,17 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
 
 export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
 
-export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Props) {
+export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
-  const go = (id: string) => navigate(`/off-market/${id}`);
+  const go = (id: string) => {
+    try {
+      const main = document.querySelector('main');
+      const scrollY = main ? main.scrollTop : window.scrollY;
+      saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
+    } catch { /* ignore */ }
+    navigate(`/off-market/${id}`);
+  };
   const { relaties } = useDataStore();
   const relatieNaam = (id: string | null) => {
     if (!id) return null;
@@ -205,6 +212,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen }: Pr
     if (!r) return null;
     return (r as any).bedrijfsnaam ?? (r as any).contactpersoon ?? '—';
   };
+
 
   const actieveKolommen = useMemo(() => {
     const ids = zichtbareKolommen && zichtbareKolommen.length > 0
