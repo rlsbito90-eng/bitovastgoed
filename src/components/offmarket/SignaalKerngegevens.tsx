@@ -29,6 +29,8 @@ interface Props { signaal: OffMarketSignaal; }
 export default function SignaalKerngegevens({ signaal: s }: Props) {
   const adresregel = [s.adres, [s.postcode, s.plaats].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null;
   const regio = [s.provincie, s.regio].filter(Boolean).join(' · ') || null;
+  const mapsUrl = buildMapsUrl({ adres: s.adres, postcode: s.postcode, plaats: s.plaats, provincie: s.provincie });
+  const adresZoekUrl = buildAdresSearchUrl({ adres: s.adres, postcode: s.postcode, plaats: s.plaats });
   return (
     <div className="space-y-5">
       <section className="section-card p-5 space-y-4">
@@ -37,6 +39,30 @@ export default function SignaalKerngegevens({ signaal: s }: Props) {
           <Field label="Adres">{val(adresregel)}</Field>
           <Field label="Regio / provincie">{val(regio)}</Field>
         </div>
+        {(mapsUrl || adresZoekUrl) && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {mapsUrl && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-card hover:border-accent/50 hover:text-accent text-foreground"
+              >
+                <MapPin className="h-3.5 w-3.5" /> Open in Google Maps
+              </a>
+            )}
+            {adresZoekUrl && (
+              <a
+                href={adresZoekUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-card hover:border-accent/50 hover:text-accent text-foreground"
+              >
+                <Search className="h-3.5 w-3.5" /> Zoek adres op Google
+              </a>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="section-card p-5 space-y-4">
