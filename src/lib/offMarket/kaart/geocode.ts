@@ -292,7 +292,7 @@ export function beoordeelKandidaten(
   kandidaten: GeocodeKandidaat[],
   debugCtx: { signaal_id?: string } = {},
 ): GeocodeResultaat {
-  const parsed = parseAdres(inv.adres);
+  const parsed = combineerParsed(parseAdres(inv.adres), inv.titel);
   const pc = normPostcode(inv.postcode);
   const plaats = normPlaats(inv.plaats);
   const inputStraat = normStraat(parsed.straat);
