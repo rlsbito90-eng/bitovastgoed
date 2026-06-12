@@ -70,33 +70,9 @@ export default function TakenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, taken]);
 
-  // Deep-link via ?open={id} (bv. vanuit notificatie). Opent de taakdialog.
-  useEffect(() => {
-    const openId = searchParams.get('open');
-    if (!openId) return;
-    const t = taken.find(x => x.id === openId);
-    if (t) {
-      setEditTaak(t);
-      setFormOpen(true);
-    } else {
-      toast.error('Taak niet gevonden');
-      const next = new URLSearchParams(searchParams);
-      next.delete('open');
-      setSearchParams(next, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, taken]);
-
   const handleFormOpenChange = (v: boolean) => {
     setFormOpen(v);
-    if (!v) {
-      setEditTaak(null);
-      if (searchParams.get('open')) {
-        const next = new URLSearchParams(searchParams);
-        next.delete('open');
-        setSearchParams(next, { replace: true });
-      }
-    }
+    if (!v) setEditTaak(null);
   };
 
   const now = new Date();
