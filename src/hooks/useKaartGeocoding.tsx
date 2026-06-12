@@ -75,6 +75,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
             adres: s.adres ?? null,
             postcode: s.postcode ?? null,
             plaats: s.plaats ?? null,
+            titel: s.titel ?? null,
           });
         } catch (err) {
           // eslint-disable-next-line no-console
