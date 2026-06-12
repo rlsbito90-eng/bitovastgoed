@@ -242,13 +242,28 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
       {/* Mobiel: compacte card */}
       <div className="sm:hidden divide-y divide-border/70">
         {rows.map(s => {
+          const isHighlighted = highlightedId === s.id;
           return (
-            <div key={s.id} className="px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => go(s.id)}>
+            <div
+              key={s.id}
+              data-row-id={s.id}
+              className={`px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
+                isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''
+              }`}
+              onClick={() => go(s.id)}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
-                    {vergunningLabel(s)}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
+                      {vergunningLabel(s)}
+                    </span>
+                    {isHighlighted && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                        <Eye className="h-3 w-3" /> Laatst bekeken
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm font-medium text-foreground mt-1 truncate">
                     {s.adres || '—'}{s.plaats ? ` · ${s.plaats}` : ''}
                   </p>
@@ -270,6 +285,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
           );
         })}
       </div>
+
 
       {/* Desktop: acquisitie-tabel */}
       <div className="hidden sm:block">
