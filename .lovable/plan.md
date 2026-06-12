@@ -1386,3 +1386,23 @@ actie "Relatie maken/koppelen van rechthebbende".
 - "Beste"-label in Locatie controleren is vervangen door "Exacte toevoeging" (signaal mét toevoeging) of "Beste" (alleen wanneer signaal géén toevoeging heeft én er één basisadres-kandidaat is). Anders géén label.
 - Mobiele Locatie controleren-dialog heeft nu een altijd zichtbare sticky sluitknop rechtsboven (44x44, z-20, safe-area-top), default Radix X verborgen om dubbele knoppen te voorkomen.
 - Geen Kadaster/AI/schemawijziging. 29 geocode-tests groen.
+
+## Mobile Workflow Polish — Blokken 1 t/m 8 (afgerond)
+- **Blok 1 — Geocoding parser**: `parseAdres` strikter (max 4-char toevoeging), `schoonAdres()` stript "in/te/voor <plaats>", `TOEVOEGING_STOPWOORDEN` blacklist (IN, TE, AMSTERDAM, …), nieuwe `combineerParsed()` haalt langere straat/toevoeging uit titel wanneer adres die mist. Hook geeft `titel` mee aan parser. Resultaat: *Surinameplein 46* wordt niet meer `46in`; *Rijnstraat 101-2* en *Derde Schinkelstraat 20-3L* matchen automatisch correct.
+- **Blok 2 — Locatie controleren-dialog**: flexbox-layout met sticky header (`100dvh`), safe-area top/bottom, altijd zichtbare 44×44 sluitknop, full-width acties.
+- **Blok 3 — Beste/Exacte toevoeging label**: `besteKandidaatId` gebruikt nu `combineerParsed` met titel; beste kandidaat krijgt `default`-knopstijl.
+- **Blok 4 — Eigenaarsonderzoek relatiekaart**: knoppen onder naam in plaats van ernaast (`flex-wrap`), contactpersoon-prefix, geen overlap meer.
+- **Blok 5 — Sticky signaalnavigatie mobiel**: alleen op `OffMarketSignaalDetailPage`, sticky onder mobiele app-header (`md:hidden`), `Terug | ‹ | X / Y | ›`, alle knoppen 44px. Desktop ongewijzigd (`ListNavigator` in `hidden md:flex`).
+- **Blok 6 — Hamburger rechts op mobiel (test)**: `HAMBURGER_RIGHT_MOBILE` constante in `AppLayout.tsx`; logo links, refresh/match/notif + hamburger rechts. Zet de constante op `false` om terug te draaien. Desktop ongewijzigd.
+- **Blok 7 — Taakcontext vanuit signaal**: `bouwSignaalTaakContext(signaal, actie)` levert signaaltitel + adres + postcode/plaats + context. `TaakFormDialog.defaultNotities` vult notities alleen bij nieuwe taak (genegeerd bij edit). Gewired in `SignaalEigenaarsonderzoekSectie` (alle templates) en `SignaalTakenSectie` (nieuwe taak).
+- **Blok 8 — Notificatie deep-link naar juiste taak**: taak-notificaties verwijzen naar `/taken?open={id}`. `TakenPage` leest `?open=`, opent de taakdialog, toont toast bij ontbrekende taak en verwijdert de query-param bij sluiten (replace, voorkomt vreemd back/refresh-gedrag).
+
+### Tests/build
+- 557/557 tests groen, geocode-suite (29) ongewijzigd groen.
+- Geen TypeScript-errors.
+
+### Open punten
+- Evalueren of hamburger rechts blijft (`HAMBURGER_RIGHT_MOBILE`).
+- Evalueren of sticky vorige/volgende app-breed wenselijk is (nu alleen Off Market Signaal-detail).
+- Eventueel swipe links/rechts tussen signalen (uitgesteld i.v.m. scroll-conflict).
+- Verdere geocoding-polish als "Locatie controleren" in praktijk nog te vaak vult.
