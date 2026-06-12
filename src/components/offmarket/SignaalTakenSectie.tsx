@@ -75,6 +75,7 @@ export default function SignaalTakenSectie({ signaalId }: Props) {
         onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}
         taak={editing}
         defaultOffMarketSignaalId={signaalId}
+        defaultNotities={!editing && signaal ? bouwSignaalTaakContext(signaal, 'taak vanuit signaal') : undefined}
       />
     </section>
   );
