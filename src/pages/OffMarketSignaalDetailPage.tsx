@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
@@ -13,7 +13,7 @@ import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBa
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
 import ListNavigator from '@/components/ListNavigator';
-import { getListNavigation } from '@/lib/listNavigation';
+import { getListNavigation, updateListLastViewedId } from '@/lib/listNavigation';
 import {
   useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
