@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
@@ -13,7 +13,7 @@ import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBa
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
 import ListNavigator from '@/components/ListNavigator';
-import { getListNavigation } from '@/lib/listNavigation';
+import { getListNavigation, updateListLastViewedId } from '@/lib/listNavigation';
 import {
   useOffMarketSignaal, useArchiveOffMarketSignaal, useOffMarketSignalen,
 } from '@/hooks/useOffMarketSignalen';
@@ -28,6 +28,13 @@ export default function OffMarketSignaalDetailPage() {
   const archive = useArchiveOffMarketSignaal();
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+
+  // Houd de "laatst bekeken"-marker synchroon met het actieve signaal.
+  // Hierdoor keert Terug naar signalen terug bij het laatst geopende signaal,
+  // ook wanneer de gebruiker via Vorige/Volgende door de lijst bladert.
+  useEffect(() => {
+    if (signaal?.id) updateListLastViewedId('off-market-signalen', signaal.id);
+  }, [signaal?.id]);
 
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6"><p className="text-sm text-muted-foreground">Signaal laden…</p></div>;

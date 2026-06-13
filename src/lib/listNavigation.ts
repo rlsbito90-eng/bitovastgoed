@@ -83,6 +83,21 @@ export function clearListLastViewed(key: string): void {
   try { sessionStorage.removeItem(LAST_VIEWED_PREFIX + key); } catch { /* ignore */ }
 }
 
+/**
+ * Werkt alleen het id bij van de "laatst bekeken"-marker.
+ * Behoudt de eerder opgeslagen scrollY zodat de lijst na terugkeer
+ * naar het juiste item kan scrollen. Wordt gebruikt wanneer de gebruiker
+ * binnen een detailpagina via Vorige/Volgende door de lijst bladert.
+ */
+export function updateListLastViewedId(key: string, id: string): void {
+  const prev = loadListLastViewed(key);
+  saveListLastViewed(key, {
+    id,
+    scrollY: prev?.scrollY ?? 0,
+    ts: Date.now(),
+  });
+}
+
 // ─── Scroll-container helpers ────────────────────────────────────────────────
 // Desktop Off Market gebruikt niet altijd <main> als actieve scroller: de
 // shadcn Table-wrapper heeft `overflow-auto` en kan de echte scrollpositie
