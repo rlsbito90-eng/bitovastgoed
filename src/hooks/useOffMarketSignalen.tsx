@@ -35,6 +35,22 @@ export function useOffMarketSignalen() {
   });
 }
 
+/** Variant inclusief gearchiveerde signalen — voor de acquisitie-funnel. */
+export function useOffMarketSignalenAlle() {
+  return useQuery({
+    queryKey: ['off-market-signalen', 'alle'] as const,
+    queryFn: async (): Promise<OffMarketSignaal[]> => {
+      const { data, error } = await supabase
+        .from('off_market_signalen')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []) as OffMarketSignaal[];
+    },
+  });
+}
+
 export function useOffMarketSignaal(id: string | undefined) {
   return useQuery({
     queryKey: ['off-market-signaal', id],

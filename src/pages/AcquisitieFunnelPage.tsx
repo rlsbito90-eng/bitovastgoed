@@ -4,7 +4,7 @@ import { ArrowRight, ChevronRight, Info } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { useOffMarketSignalenAlle } from '@/hooks/useOffMarketSignalen';
 import {
   ACQUISITIE_BRON_LABEL,
   berekenBronAggregaat,
@@ -34,7 +34,7 @@ type DrillSelectie =
   | { soort: 'op'; stage: FunnelStage | 'afgevallen' };
 
 export default function AcquisitieFunnelPage() {
-  const { data: signalenRaw = [], isLoading } = useOffMarketSignalen();
+  const { data: signalenRaw = [], isLoading } = useOffMarketSignalenAlle();
 
   // Filters
   const [periodeVan, setPeriodeVan] = useState<string>('');
