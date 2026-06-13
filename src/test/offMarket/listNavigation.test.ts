@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  findVisibleListRow,
   saveListLastViewed,
   loadListLastViewed,
   updateListLastViewedId,
@@ -32,5 +33,26 @@ describe('updateListLastViewedId — Vorige/Volgende synchroniseert lastViewedId
     // Terug → lijst leest lastViewed
     const lv = loadListLastViewed('off-market-signalen');
     expect(lv?.id).toBe('C');
+  });
+});
+
+describe('findVisibleListRow — desktop restore kiest zichtbare duplicate row', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('negeert de verborgen mobiele rij met hetzelfde data-row-id', () => {
+    const mobiel = document.createElement('div');
+    mobiel.dataset.rowId = 'A';
+    mobiel.style.display = 'none';
+    mobiel.getBoundingClientRect = () => ({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0, x: 0, y: 0, toJSON: () => ({}) });
+
+    const desktop = document.createElement('tr');
+    desktop.dataset.rowId = 'A';
+    desktop.getBoundingClientRect = () => ({ width: 1200, height: 64, top: 500, bottom: 564, left: 0, right: 1200, x: 0, y: 500, toJSON: () => ({}) });
+
+    document.body.append(mobiel, desktop);
+
+    expect(findVisibleListRow('A')).toBe(desktop);
   });
 });
