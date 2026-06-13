@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Play, Radio, ListFilter, AlertTriangle } from 'lucide-react';
+import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -10,6 +10,7 @@ import {
   useOffMarketBronStats,
   type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
+import BronInstellingenPanel from './BronInstellingenPanel';
 
 const BATCH_OPTIES = [100, 250, 500, 1000] as const;
 const DEFAULT_BATCH = 250;
@@ -33,6 +34,9 @@ interface LaatsteRun {
   afgebroken?: boolean;
   duur_ms?: number;
   test_mode?: boolean;
+  modus?: string;
+  query_vanaf?: string;
+  query_tot?: string;
 }
 
 function parseLaatsteRun(raw: string | null): LaatsteRun | null {
@@ -43,11 +47,18 @@ function parseLaatsteRun(raw: string | null): LaatsteRun | null {
   } catch { return null; }
 }
 
-function formatDatum(iso: string | null): string {
+function formatDatum(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
 }
+
+function formatPeriode(vanaf?: string | null, tot?: string | null): string {
+  if (!vanaf || !tot) return '—';
+  const fmt = (s: string) => new Date(s).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `${fmt(vanaf)} → ${fmt(tot)}`;
+}
+
 
 function Teller({ label, value, tone }: { label: string; value: number | string; tone?: 'muted' | 'success' | 'warn' }) {
   const cls = tone === 'success' ? 'text-success'
