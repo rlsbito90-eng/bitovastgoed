@@ -4,7 +4,7 @@ import { ArrowRight, ChevronRight, Info } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { useOffMarketSignalenAlle } from '@/hooks/useOffMarketSignalen';
 import {
   ACQUISITIE_BRON_LABEL,
   berekenBronAggregaat,
