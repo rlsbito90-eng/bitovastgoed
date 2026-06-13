@@ -150,8 +150,8 @@ export function isAfgevallen(signaal: OffMarketSignaal): boolean {
 
 // ---------- Filters ----------
 export interface FunnelFilters {
-  periodeVan?: string | null;   // ISO datum (created_at >=)
-  periodeTot?: string | null;   // ISO datum (created_at <=)
+  periodeVan?: string | null;   // ISO datum; V1 filtert op created_at/aangemaakt op
+  periodeTot?: string | null;   // ISO datum; V1 filtert op created_at/aangemaakt op
   bron?: AcquisitieBron | null;
   gemeente?: string | null;     // case-insensitive contains op plaats
   status?: OffMarketStatus | null;
@@ -217,6 +217,35 @@ export function filterSignalen(signalen: OffMarketSignaal[], f: FunnelFilters): 
     }
     return true;
   });
+}
+
+export interface FunnelRuntimeDiagnose {
+  totaalVoorFiltering: number;
+  gearchiveerdOpNietNull: number;
+  statusArchief: number;
+  binnenDatumrange: number;
+  naAlleFilters: number;
+}
+
+export function berekenRuntimeDiagnose(
+  signalenRaw: OffMarketSignaal[],
+  filters: FunnelFilters,
+  signalenGefilterd = filterSignalen(signalenRaw, filters),
+): FunnelRuntimeDiagnose {
+  const datumFilters: FunnelFilters = {
+    periodeVan: filters.periodeVan,
+    periodeTot: filters.periodeTot,
+    bron: null,
+    gemeente: null,
+    status: null,
+  };
+  return {
+    totaalVoorFiltering: signalenRaw.length,
+    gearchiveerdOpNietNull: signalenRaw.filter(s => !!s.gearchiveerd_op).length,
+    statusArchief: signalenRaw.filter(s => s.status === 'archief').length,
+    binnenDatumrange: filterSignalen(signalenRaw, datumFilters).length,
+    naAlleFilters: signalenGefilterd.length,
+  };
 }
 
 // ---------- Aggregaten ----------
