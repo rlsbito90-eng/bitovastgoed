@@ -11,7 +11,12 @@ import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { loadListLastViewed, saveListContext } from '@/lib/listNavigation';
+import {
+  loadListLastViewed,
+  restoreListScrollY,
+  saveListContext,
+  scrollElementIntoListView,
+} from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
 import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
 import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
@@ -201,26 +206,21 @@ export default function OffMarketPage() {
     restoredRef.current = true;
     setHighlightedId(lv.id);
 
-    // Robuust scrollherstel: laat de browser zelf de juiste scroll-container
-    // bepalen via scrollIntoView. Werkt op desktop (<main>) én mobiel.
-    // Retry tot ~60 frames (~1s) zodat layout-shifts (KPI's, sticky headers,
-    // data-loading) tijd hebben om te settelen.
+    // Restore op de echte lijst-scroller. Desktop scrollt de Table-wrapper
+    // (`overflow-auto`), mobiel meestal <main>. De helper bepaalt dit vanaf de rij.
     let frames = 0;
     const maxFrames = 60;
     const tryRestore = () => {
       const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
       if (row) {
-        row.scrollIntoView({ block: 'center', behavior: 'auto' });
+        scrollElementIntoListView(row);
         return;
       }
       if (frames++ < maxFrames) {
         requestAnimationFrame(tryRestore);
         return;
       }
-      // Fallback: opgeslagen scrollpositie op zowel <main> als window.
-      const main = document.querySelector<HTMLElement>('main');
-      if (main) main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
-      window.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+      restoreListScrollY(lv.scrollY);
     };
     requestAnimationFrame(tryRestore);
 
