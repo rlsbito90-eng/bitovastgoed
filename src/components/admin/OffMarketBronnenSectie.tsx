@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown } from 'lucide-react';
+import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   useOffMarketBronnen, useOnverwerkteRuwCount, useRunBron, useToggleBron, useNormalizeWachtrij,
+  useNormalizeWachtrijVolledig,
   useOffMarketBronStats,
   type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
@@ -79,7 +81,10 @@ export default function OffMarketBronnenSectie() {
   const runBron = useRunBron();
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
+  const volledig = useNormalizeWachtrijVolledig();
   const [batchPerBron, setBatchPerBron] = useState<Record<string, number>>({});
+  const [normalizeBatch, setNormalizeBatch] = useState<number>(200);
+  const [progress, setProgress] = useState<{ totaal: number; chunks: number } | null>(null);
   const [instellingenOpen, setInstellingenOpen] = useState<Record<string, boolean>>({});
 
   const getBatch = (id: string) => batchPerBron[id] ?? DEFAULT_BATCH;
@@ -118,10 +123,10 @@ export default function OffMarketBronnenSectie() {
   };
 
 
-  const handleNormalize = async () => {
-    if (normalize.isPending) return;
+  const handleNormalize = async (bronId?: string) => {
+    if (normalize.isPending || volledig.isPending) return;
     try {
-      const r = await normalize.mutateAsync(200);
+      const r = await normalize.mutateAsync({ limit: normalizeBatch, bronId });
       toast.success(
         `Verwerkt: ${r.verwerkt} · gepromoveerd ${r.gepromoveerd} · merged ${r.merged} · geskipt ${r.geskipt}` +
         (r.fouten ? ` · fouten ${r.fouten}` : ''),
@@ -130,6 +135,30 @@ export default function OffMarketBronnenSectie() {
       toast.error(e instanceof Error ? e.message : 'Verwerken mislukt');
     }
   };
+
+  const handleVolledig = async (bronId?: string) => {
+    if (normalize.isPending || volledig.isPending) return;
+    setProgress({ totaal: 0, chunks: 0 });
+    try {
+      const r = await volledig.mutateAsync({
+        batchSize: normalizeBatch,
+        bronId,
+        onProgress: (totaal, chunks) => setProgress({ totaal, chunks }),
+      });
+      const duurS = (r.duur_ms / 1000).toFixed(1);
+      const tag = r.foutmelding ? '⚠ gestopt' : r.afgekapt ? 'afgekapt' : 'klaar';
+      const msg =
+        `Volledige wachtrij (${tag}): ${r.verwerkt} verwerkt · ${r.gepromoveerd} gepromoveerd · ` +
+        `${r.merged} merged · ${r.geskipt} geskipt · ${r.fouten} fouten · ${r.chunks} chunks · ${duurS}s`;
+      if (r.foutmelding) toast.error(`${msg} · ${r.foutmelding}`);
+      else toast.success(msg);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Volledige verwerking mislukt');
+    } finally {
+      setProgress(null);
+    }
+  };
+
 
   return (
     <div className="space-y-4">
@@ -143,18 +172,55 @@ export default function OffMarketBronnenSectie() {
             daarna naar de signalenlijst na normalisatie.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="text-xs text-muted-foreground">
             Onverwerkt in buffer: <span className="font-mono-data text-foreground">{onverwerkt}</span>
           </div>
-          <Button size="sm" variant="outline" onClick={handleNormalize} disabled={normalize.isPending}>
+          <Select
+            value={String(normalizeBatch)}
+            onValueChange={(v) => setNormalizeBatch(Number(v))}
+            disabled={normalize.isPending || volledig.isPending}
+          >
+            <SelectTrigger className="h-8 w-[110px] text-xs" aria-label="Batchgrootte">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[100, 200, 500, 1000].map(n => (
+                <SelectItem key={n} value={String(n)} className="text-xs">{n} per chunk</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline"
+            onClick={() => handleNormalize()}
+            disabled={normalize.isPending || volledig.isPending}>
             {normalize.isPending
               ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               : <ListFilter className="h-4 w-4 mr-1" />}
             Wachtrij verwerken
           </Button>
+          <Button size="sm" variant="default"
+            onClick={() => handleVolledig()}
+            disabled={normalize.isPending || volledig.isPending}>
+            {volledig.isPending
+              ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              : <Zap className="h-4 w-4 mr-1" />}
+            Verwerk volledige wachtrij
+          </Button>
         </div>
       </div>
+
+      {volledig.isPending && progress && (
+        <div className="bg-card border border-border rounded-md px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-mono-data">
+            <span>{progress.totaal} verwerkt · {progress.chunks} chunks (batch {normalizeBatch})</span>
+            <span>max 20.000 records / 5 min</span>
+          </div>
+          <Progress
+            value={onverwerkt > 0 ? Math.min(100, (progress.totaal / (progress.totaal + onverwerkt)) * 100) : 100}
+            className="h-1.5"
+          />
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         {isLoading ? (

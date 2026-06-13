@@ -161,23 +161,58 @@ export function useOffMarketBronStats() {
   });
 }
 
+export interface NormalizeChunkResult {
+  ok: true; verwerkt: number; gepromoveerd: number; geskipt: number; merged: number; fouten: number;
+}
+
+export async function invokeNormalizeChunk(args: { limit: number; bronId?: string }): Promise<NormalizeChunkResult> {
+  const body: Record<string, unknown> = { limit: args.limit };
+  if (args.bronId) body.bron_id = args.bronId;
+  const { data, error } = await supabase.functions.invoke('off-market-normalize-ruw', { body });
+  if (error) throw new Error(error.message ?? 'Verwerken mislukt');
+  if (data?.error) throw new Error(data.error);
+  return data as NormalizeChunkResult;
+}
+
 export function useNormalizeWachtrij() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (limitArg?: number) => {
-      const limit = limitArg ?? 200;
-      const { data, error } = await supabase.functions.invoke(
-        'off-market-normalize-ruw', { body: { limit } });
-      if (error) throw new Error(error.message ?? 'Verwerken mislukt');
-      if (data?.error) throw new Error(data.error);
-      return data as {
-        ok: true; verwerkt: number; gepromoveerd: number; geskipt: number; merged: number; fouten: number;
-      };
+    mutationFn: async (args?: number | { limit?: number; bronId?: string }) => {
+      const limit = typeof args === 'number' ? args : args?.limit ?? 200;
+      const bronId = typeof args === 'object' && args ? args.bronId : undefined;
+      return invokeNormalizeChunk({ limit, bronId });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['off-market-ruw-onverwerkt'] });
       qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
       qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
+      qc.invalidateQueries({ queryKey: ['off-market-bron-stats'] });
+    },
+  });
+}
+
+import { verwerkVolledigeWachtrij, type VolledigResult, clampBatchSize } from '@/lib/offMarket/wachtrij/runner';
+
+export function useNormalizeWachtrijVolledig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      batchSize: number;
+      bronId?: string;
+      onProgress?: (totaal: number, chunks: number) => void;
+    }): Promise<VolledigResult> => {
+      return verwerkVolledigeWachtrij({
+        batchSize: clampBatchSize(args.batchSize),
+        bronId: args.bronId,
+        runChunk: invokeNormalizeChunk,
+        onProgress: args.onProgress,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['off-market-ruw-onverwerkt'] });
+      qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
+      qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
+      qc.invalidateQueries({ queryKey: ['off-market-bron-stats'] });
     },
   });
 }
