@@ -149,6 +149,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const bronId = body.bron_id as string | undefined;
     const testMode = body.test_mode === true;
+    // Modus bepalen — backwards compat: test_mode=true → 'test', anders 'handmatig'.
+    const modusRaw = (body.modus as string | undefined)?.toLowerCase();
+    const modus: 'test' | 'sync' | 'backfill' | 'handmatig' =
+      modusRaw === 'test' || modusRaw === 'sync' || modusRaw === 'backfill' || modusRaw === 'handmatig'
+        ? modusRaw
+        : (testMode ? 'test' : 'handmatig');
     const lookbackOverride = body.lookback_days as number | undefined;
     const maxRecordsOverride = typeof body.max_records === 'number' && Number.isFinite(body.max_records)
       ? Math.max(1, Math.min(1000, Math.floor(body.max_records)))
@@ -173,20 +179,48 @@ Deno.serve(async (req) => {
     const endpoint = bron.endpoint_url ?? 'https://repository.overheid.nl/sru';
     const creator = cfg.sru_creator as string | undefined;
     const subjects = (cfg.sru_subjects as string[] | undefined) ?? [];
-    const cfgMax = Number(cfg.max_records_per_run ?? 200);
+    // Voorkeur: kolomwaarden uit bron. Fallback: cfg of defaults voor oudere bronnen.
+    const cfgMax = Number(bron.max_records_per_run ?? cfg.max_records_per_run ?? 200);
     const maxRecords = Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
-    const lookbackFirst = Number(cfg.lookback_days_first_run ?? 7);
-    const lookbackDefault = Number(cfg.lookback_days_default ?? 3);
+    const lookbackFirst = Number(cfg.lookback_days_first_run ?? bron.lookback_days_default ?? 7);
+    const lookbackDefault = Number(bron.lookback_days_default ?? cfg.lookback_days_default ?? 7);
+    const overlapUren = Number(bron.lookback_overlap_uren ?? 24);
     if (!creator) {
       return new Response(JSON.stringify({ error: 'config.sru_creator ontbreekt' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const lookbackDays = testMode
-      ? (lookbackOverride ?? 30)
-      : (lookbackOverride ?? (bron.laatste_run_op ? lookbackDefault : lookbackFirst));
-    const since = new Date(Date.now() - lookbackDays * 86400_000);
-    const sinceIso = since.toISOString().slice(0, 10);
+    // Bepaal sync-venster (query_vanaf / query_tot).
+    const nu = new Date();
+    let queryVanaf: Date;
+    if (modus === 'sync') {
+      if (bron.laatste_sync_op) {
+        queryVanaf = new Date(new Date(bron.laatste_sync_op).getTime() - Math.max(0, overlapUren) * 3600_000);
+      } else {
+        queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDefault) * 86400_000);
+      }
+    } else {
+      const lookbackDays = modus === 'test'
+        ? (lookbackOverride ?? 30)
+        : (lookbackOverride ?? (bron.laatste_run_op ? lookbackDefault : lookbackFirst));
+      queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDays) * 86400_000);
+    }
+    const queryTot = nu;
+    const sinceIso = queryVanaf.toISOString().slice(0, 10);
+
+    // Run-logging — start direct met status=bezig.
+    const { data: runRow } = await admin
+      .from('off_market_import_runs')
+      .insert({
+        bron_id: bronId,
+        modus,
+        status: 'bezig',
+        query_vanaf: queryVanaf.toISOString(),
+        query_tot: queryTot.toISOString(),
+      })
+      .select('id')
+      .single();
+    const runId = runRow?.id as string | undefined;
 
     let startRecord = 1;
     let opgehaald = 0, nieuw = 0, dubbel = 0;
@@ -203,7 +237,7 @@ Deno.serve(async (req) => {
         });
         if (!firstQueryUrl) firstQueryUrl = url;
         console.log(JSON.stringify({
-          fase: 'sru_fetch', bron: bron.naam, creator, sinceIso, testMode,
+          fase: 'sru_fetch', bron: bron.naam, creator, sinceIso, modus,
           startRecord, url,
         }));
         const xml = await fetchMetRetry(url);
@@ -236,28 +270,58 @@ Deno.serve(async (req) => {
         if (records.length < pageSize) break;
       }
 
-      const afgebroken = opgehaald < maxRecords && (Date.now() - start) >= TIME_BUDGET_MS;
+      const duurMs = Date.now() - start;
+      const afgebroken = opgehaald < maxRecords && duurMs >= TIME_BUDGET_MS;
       const status = {
-        opgehaald, nieuw, dubbel, duur_ms: Date.now() - start, sinceIso,
+        opgehaald, nieuw, dubbel, duur_ms: duurMs, sinceIso,
         totaal_server: totaalServer, max_records: maxRecords, afgebroken,
-        test_mode: testMode, query_url: firstQueryUrl,
+        test_mode: testMode, modus, query_url: firstQueryUrl,
+        query_vanaf: queryVanaf.toISOString(), query_tot: queryTot.toISOString(),
       };
-      await admin.from('off_market_bronnen').update({
+      const bronUpdate: Record<string, unknown> = {
         laatste_run_op: new Date().toISOString(),
         laatste_run_status: JSON.stringify(status),
         laatste_fout: null,
-      }).eq('id', bronId);
+      };
+      // Alleen bij succesvolle sync laatste_sync_op bijwerken.
+      if (modus === 'sync' && !afgebroken) {
+        bronUpdate.laatste_sync_op = queryTot.toISOString();
+      }
+      await admin.from('off_market_bronnen').update(bronUpdate).eq('id', bronId);
 
-      return new Response(JSON.stringify({ ok: true, ...status }),
+      if (runId) {
+        await admin.from('off_market_import_runs').update({
+          status: afgebroken ? 'afgebroken' : 'ok',
+          afgerond_op: new Date().toISOString(),
+          query_url: firstQueryUrl || null,
+          server_total: totaalServer,
+          opgehaald, nieuw, dubbel,
+          duration_ms: duurMs,
+        }).eq('id', runId);
+      }
+
+      return new Response(JSON.stringify({ ok: true, run_id: runId, ...status }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      const duurMs = Date.now() - start;
       await admin.from('off_market_bronnen').update({
         laatste_run_op: new Date().toISOString(),
-        laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel }),
+        laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel, modus }),
         laatste_fout: msg.slice(0, 500),
       }).eq('id', bronId);
-      return new Response(JSON.stringify({ error: msg }),
+      if (runId) {
+        await admin.from('off_market_import_runs').update({
+          status: 'fout',
+          afgerond_op: new Date().toISOString(),
+          query_url: firstQueryUrl || null,
+          server_total: totaalServer,
+          opgehaald, nieuw, dubbel,
+          duration_ms: duurMs,
+          foutmelding: msg.slice(0, 1000),
+        }).eq('id', runId);
+      }
+      return new Response(JSON.stringify({ error: msg, run_id: runId }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
   } catch (e) {
