@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SignalenTable, { STANDAARD_ZICHTBARE_KOLOMMEN, SIGNALEN_KOLOMMEN } from '@/components/offmarket/SignalenTable';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
@@ -99,5 +99,23 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
     renderTable([baseSignaal], ['adres', 'postcode', 'bron']);
     expect(screen.getByRole('columnheader', { name: /Postcode/i })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: /Bron/i })).toBeTruthy();
+  });
+
+  it('bewaart de scrollpositie van de echte tabel-scroller bij openen', () => {
+    sessionStorage.clear();
+    renderTable([baseSignaal]);
+    const row = document.querySelector('[data-row-id="s1"]') as HTMLElement;
+    const scroller = row.closest('.overflow-auto') as HTMLElement;
+    Object.defineProperties(scroller, {
+      scrollTop: { value: 420, configurable: true, writable: true },
+      scrollHeight: { value: 1000, configurable: true },
+      clientHeight: { value: 300, configurable: true },
+    });
+    scroller.style.overflowY = 'auto';
+
+    fireEvent.click(row);
+
+    const saved = JSON.parse(sessionStorage.getItem('list-last-viewed:off-market-signalen') ?? '{}');
+    expect(saved).toMatchObject({ id: 's1', scrollY: 420 });
   });
 });
