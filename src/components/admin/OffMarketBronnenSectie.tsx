@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown } from 'lucide-react';
+import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   useOffMarketBronnen, useOnverwerkteRuwCount, useRunBron, useToggleBron, useNormalizeWachtrij,
+  useNormalizeWachtrijVolledig,
   useOffMarketBronStats,
   type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
