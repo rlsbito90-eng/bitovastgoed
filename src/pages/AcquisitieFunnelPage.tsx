@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Info } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
@@ -9,6 +9,7 @@ import {
   ACQUISITIE_BRON_LABEL,
   berekenBronAggregaat,
   berekenFunnelAggregaat,
+  berekenRuntimeDiagnose,
   filterSignalen,
   FUNNEL_STAGES,
   FUNNEL_STAGE_KORT,
@@ -55,6 +56,23 @@ export default function AcquisitieFunnelPage() {
   const signalen = useMemo(() => filterSignalen(signalenRaw, filters), [signalenRaw, filters]);
   const aggregaat = useMemo(() => berekenFunnelAggregaat(signalen), [signalen]);
   const bronAgg = useMemo(() => berekenBronAggregaat(signalen), [signalen]);
+  const runtimeDiagnose = useMemo(
+    () => berekenRuntimeDiagnose(signalenRaw, filters, signalen),
+    [signalenRaw, filters, signalen],
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    // Tijdelijke runtime-diagnose voor de Acquisitie-funnel: bewijst welke data
+    // de pagina bereikt vóór en na client-side filtering.
+    // eslint-disable-next-line no-console
+    console.debug('[acquisitie-funnel.runtime]', {
+      query: 'useOffMarketSignalenAlle → off_market_signalen select=* order=created_at desc limit=2000',
+      datumveld: 'created_at (aangemaakt op)',
+      filters,
+      ...runtimeDiagnose,
+    });
+  }, [filters, runtimeDiagnose]);
 
   const drillRecords = useMemo(() => {
     if (!drill) return [];
@@ -114,7 +132,23 @@ export default function AcquisitieFunnelPage() {
             </Button>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Periodefilter op basis van signaaldatum / aangemaakt op. Archiefacties worden als afgevallen geteld als het signaal binnen deze periode valt.
+        </p>
       </div>
+
+      {import.meta.env.DEV && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+          <div className="font-medium text-foreground mb-1">Runtime-diagnose funnel</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 font-mono-data">
+            <span>Query: {runtimeDiagnose.totaalVoorFiltering}</span>
+            <span>gearchiveerd_op: {runtimeDiagnose.gearchiveerdOpNietNull}</span>
+            <span>status archief: {runtimeDiagnose.statusArchief}</span>
+            <span>datumrange: {runtimeDiagnose.binnenDatumrange}</span>
+            <span>na filters: {runtimeDiagnose.naAlleFilters}</span>
+          </div>
+        </div>
+      )}
 
       {/* KPI-totalen */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

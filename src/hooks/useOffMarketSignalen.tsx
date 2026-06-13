@@ -17,6 +17,7 @@ export interface OffMarketKpi {
 }
 
 const LIST_KEY = ['off-market-signalen'] as const;
+const ALL_LIST_KEY = ['off-market-signalen', 'alle'] as const;
 const KPI_KEY = ['off-market-kpi'] as const;
 
 export function useOffMarketSignalen() {
@@ -38,7 +39,7 @@ export function useOffMarketSignalen() {
 /** Variant inclusief gearchiveerde signalen — voor de acquisitie-funnel. */
 export function useOffMarketSignalenAlle() {
   return useQuery({
-    queryKey: ['off-market-signalen', 'alle'] as const,
+    queryKey: ALL_LIST_KEY,
     queryFn: async (): Promise<OffMarketSignaal[]> => {
       const { data, error } = await supabase
         .from('off_market_signalen')
@@ -86,6 +87,7 @@ export function useOffMarketKpi() {
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>, id?: string) {
   qc.invalidateQueries({ queryKey: LIST_KEY });
+  qc.invalidateQueries({ queryKey: ALL_LIST_KEY });
   qc.invalidateQueries({ queryKey: KPI_KEY });
   if (id) qc.invalidateQueries({ queryKey: ['off-market-signaal', id] });
 }
