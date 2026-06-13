@@ -391,7 +391,7 @@ export default function OffMarketPage() {
 
           {tab === 'signalen' && (
             <section className="section-card overflow-hidden">
-              <SignalenTable signalen={gefilterd} laden={isLoading} highlightedId={highlightedId} debugSortering={activeSort.label} />
+              <SignalenTable signalen={gefilterd} laden={isLoading} highlightedId={highlightedId} />
             </section>
           )}
 
