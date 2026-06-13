@@ -34,7 +34,7 @@ type DrillSelectie =
   | { soort: 'op'; stage: FunnelStage | 'afgevallen' };
 
 export default function AcquisitieFunnelPage() {
-  const { data: signalenRaw = [], isLoading } = useOffMarketSignalen();
+  const { data: signalenRaw = [], isLoading } = useOffMarketSignalenAlle();
 
   // Filters
   const [periodeVan, setPeriodeVan] = useState<string>('');
