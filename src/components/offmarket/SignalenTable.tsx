@@ -12,7 +12,7 @@ import {
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getListScrollContainer, getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
+import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
 
 interface Props {
   signalen: OffMarketSignaal[];
@@ -21,7 +21,6 @@ interface Props {
   zichtbareKolommen?: string[];
   /** Optioneel: id van laatst bekeken signaal — wordt visueel gehighlight. */
   highlightedId?: string | null;
-  debugSortering?: string;
 }
 
 
@@ -195,31 +194,12 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
 
 export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
 
-export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId, debugSortering }: Props) {
+export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
   const go = (id: string, anchor?: HTMLElement | null) => {
     try {
       const scrollY = getListScrollY(anchor);
-      const signaal = rows.find((s) => s.id === id);
-      const container = getListScrollContainer(anchor);
-      console.groupCollapsed('[OMR scroll] klik signaal');
-      console.log('id', id);
-      console.log('titel', signaal?.titel);
-      console.log('adres', signaal?.adres, signaal?.plaats);
-      console.log('sortering', debugSortering ?? 'onbekend');
-      console.log('lijstIndex', rows.findIndex((s) => s.id === id));
-      console.log('scrollContainer', container ? {
-        tag: container.tagName,
-        className: container.className,
-        scrollTop: container.scrollTop,
-        scrollHeight: container.scrollHeight,
-        clientHeight: container.clientHeight,
-      } : 'window');
-      console.log('opgeslagenScrollTop', scrollY);
-      console.log('mainScrollTop', document.querySelector('main')?.scrollTop ?? null);
-      console.log('windowScrollY', window.scrollY);
-      console.groupEnd();
       saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
     } catch { /* ignore */ }
     navigate(`/off-market/${id}`);

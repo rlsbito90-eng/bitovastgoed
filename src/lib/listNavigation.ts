@@ -130,6 +130,23 @@ export function restoreListScrollY(scrollY: number, anchor?: HTMLElement | null)
   else window.scrollTo({ top: scrollY, behavior: 'auto' });
 }
 
+function escapeDataRowId(id: string): string {
+  return id.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function isVisibleRow(el: HTMLElement): boolean {
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+export function findVisibleListRow(id: string): HTMLElement | null {
+  const rows = Array.from(document.querySelectorAll<HTMLElement>(`[data-row-id="${escapeDataRowId(id)}"]`));
+  if (rows.length === 0) return null;
+  return rows.find(isVisibleRow) ?? rows[0];
+}
+
 export function scrollElementIntoListView(anchor: HTMLElement): void {
   const container = getListScrollContainer(anchor);
   if (!container) {
