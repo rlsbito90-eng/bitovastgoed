@@ -83,3 +83,50 @@ export function clearListLastViewed(key: string): void {
   try { sessionStorage.removeItem(LAST_VIEWED_PREFIX + key); } catch { /* ignore */ }
 }
 
+// ─── Scroll-container helpers ────────────────────────────────────────────────
+// Desktop Off Market gebruikt niet altijd <main> als actieve scroller: de
+// shadcn Table-wrapper heeft `overflow-auto` en kan de echte scrollpositie
+// dragen. Daarom bepalen we de scrollcontainer vanaf de aangeklikte rij.
+
+function isScrollableY(el: HTMLElement): boolean {
+  const overflowY = window.getComputedStyle(el).overflowY;
+  return /(auto|scroll|overlay)/.test(overflowY) && el.scrollHeight > el.clientHeight + 1;
+}
+
+export function getListScrollContainer(anchor: HTMLElement | null | undefined): HTMLElement | null {
+  let el = anchor?.parentElement ?? null;
+  while (el && el !== document.body && el !== document.documentElement) {
+    if (isScrollableY(el)) return el;
+    el = el.parentElement;
+  }
+  const main = document.querySelector<HTMLElement>('main');
+  return main && isScrollableY(main) ? main : null;
+}
+
+export function getListScrollY(anchor?: HTMLElement | null): number {
+  const container = getListScrollContainer(anchor);
+  if (container) return container.scrollTop;
+  return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+}
+
+export function restoreListScrollY(scrollY: number, anchor?: HTMLElement | null): void {
+  const container = getListScrollContainer(anchor);
+  if (container) container.scrollTo({ top: scrollY, behavior: 'auto' });
+  else window.scrollTo({ top: scrollY, behavior: 'auto' });
+}
+
+export function scrollElementIntoListView(anchor: HTMLElement): void {
+  const container = getListScrollContainer(anchor);
+  if (!container) {
+    anchor.scrollIntoView({ block: 'center', behavior: 'auto' });
+    return;
+  }
+  const rowRect = anchor.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  const target = container.scrollTop
+    + (rowRect.top - containerRect.top)
+    - (container.clientHeight / 2)
+    + (rowRect.height / 2);
+  container.scrollTo({ top: Math.max(0, target), behavior: 'auto' });
+}
+

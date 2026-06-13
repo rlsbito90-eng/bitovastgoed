@@ -12,7 +12,7 @@ import {
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
-import { saveListLastViewed } from '@/lib/listNavigation';
+import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
 
 interface Props {
   signalen: OffMarketSignaal[];
@@ -197,10 +197,9 @@ export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defa
 export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
-  const go = (id: string) => {
+  const go = (id: string, anchor?: HTMLElement | null) => {
     try {
-      const main = document.querySelector('main');
-      const scrollY = main ? main.scrollTop : window.scrollY;
+      const scrollY = getListScrollY(anchor);
       saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
     } catch { /* ignore */ }
     navigate(`/off-market/${id}`);
@@ -250,7 +249,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
               className={`px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
                 isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''
               }`}
-              onClick={() => go(s.id)}
+              onClick={(e) => go(s.id, e.currentTarget)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -305,7 +304,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                   key={s.id}
                   data-row-id={s.id}
                   className={`cursor-pointer ${isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''}`}
-                  onClick={() => go(s.id)}
+                  onClick={(e) => go(s.id, e.currentTarget)}
                   title={s.titel}
                 >
                   {actieveKolommen.map((k, i) => (

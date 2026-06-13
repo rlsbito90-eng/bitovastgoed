@@ -1610,3 +1610,11 @@ Verificatie:
 - Desktop scroll restore: vervangen door `row.scrollIntoView({ block: 'center' })` met retry tot ~60 frames (~1s). Browser bepaalt zelf de scroll-container, werkt zowel op desktop (`<main>`) als mobiel. Fallback: opgeslagen scrollY op `<main>` én `window`.
 - Mobiele sticky signaalnav: `sm:mt-0`-bug verwijderd die op 640–768px een gat liet. Negatieve marges nu `-mx-4 -mt-4 sm:-mx-6 sm:-mt-6` zodat de balk strak onder de mobiele header sluit. Compactere knoppen (h-10) en `py-1` voor minder visuele hoogte.
 - Geen schema-/Kadaster-/AI-wijzigingen. signalenTable tests: 9/9 groen.
+
+## Bugfix Off Market Radar — desktop scroll restore (root cause) + mobiele sticky nav — STATUS: AFGEROND
+
+- Root cause desktop: op desktop scrollt de shadcn Table-wrapper (`overflow-auto`) in de signalenkaart; de code las/herstelde alleen `<main>`/`window`, waardoor `scrollY` als 0 werd opgeslagen en restore bovenaan eindigde.
+- Fix desktop: `listNavigation.ts` bepaalt nu de echte scroll-container vanaf de aangeklikte rij; `SignalenTable` slaat die scrollpositie op en `OffMarketPage` herstelt in dezelfde container. Extra regressietest toegevoegd.
+- Root cause mobiel: de sticky signaalnav stond binnen `<main>`, dat al onder de mobiele app-header begint, maar kreeg nog `top: var(--mobile-header-height)`. Daardoor ontstond een extra headerhoogte als gap en kwam de titel onder de balk te liggen.
+- Fix mobiel: mobiele detailpagina start op `pt-0`; sticky signaalnav gebruikt `top-0` binnen `<main>`, zodat de balk direct onder de header staat en content eronder begint.
+- Scope bewaakt: geen schemawijzigingen, geen Kadaster/AI-calls, geen brede refactor.
