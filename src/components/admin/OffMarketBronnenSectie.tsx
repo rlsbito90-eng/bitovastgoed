@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Play, Radio, ListFilter, AlertTriangle } from 'lucide-react';
+import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -10,6 +10,7 @@ import {
   useOffMarketBronStats,
   type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
+import BronInstellingenPanel from './BronInstellingenPanel';
 
 const BATCH_OPTIES = [100, 250, 500, 1000] as const;
 const DEFAULT_BATCH = 250;
@@ -33,6 +34,9 @@ interface LaatsteRun {
   afgebroken?: boolean;
   duur_ms?: number;
   test_mode?: boolean;
+  modus?: string;
+  query_vanaf?: string;
+  query_tot?: string;
 }
 
 function parseLaatsteRun(raw: string | null): LaatsteRun | null {
@@ -43,11 +47,18 @@ function parseLaatsteRun(raw: string | null): LaatsteRun | null {
   } catch { return null; }
 }
 
-function formatDatum(iso: string | null): string {
+function formatDatum(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
 }
+
+function formatPeriode(vanaf?: string | null, tot?: string | null): string {
+  if (!vanaf || !tot) return '—';
+  const fmt = (s: string) => new Date(s).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `${fmt(vanaf)} → ${fmt(tot)}`;
+}
+
 
 function Teller({ label, value, tone }: { label: string; value: number | string; tone?: 'muted' | 'success' | 'warn' }) {
   const cls = tone === 'success' ? 'text-success'
@@ -69,22 +80,28 @@ export default function OffMarketBronnenSectie() {
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
   const [batchPerBron, setBatchPerBron] = useState<Record<string, number>>({});
+  const [instellingenOpen, setInstellingenOpen] = useState<Record<string, boolean>>({});
 
   const getBatch = (id: string) => batchPerBron[id] ?? DEFAULT_BATCH;
+  const toggleInstellingen = (id: string) =>
+    setInstellingenOpen(prev => ({ ...prev, [id]: !prev[id] }));
 
-  const handleRun = async (b: OffMarketBron, testMode = false) => {
+  const handleRun = async (b: OffMarketBron, modus: 'test' | 'handmatig' | 'sync') => {
     if (runBron.isPending) return;
     const maxRecords = getBatch(b.id);
     try {
       const r = await runBron.mutateAsync(
-        testMode
-          ? { bronId: b.id, testMode: true, lookbackDays: 30, maxRecords }
-          : { bronId: b.id, maxRecords },
+        modus === 'test'
+          ? { bronId: b.id, modus: 'test', testMode: true, lookbackDays: 30, maxRecords }
+          : modus === 'sync'
+            ? { bronId: b.id, modus: 'sync', maxRecords }
+            : { bronId: b.id, modus: 'handmatig', maxRecords },
       );
       const extra = r.totaal_server !== undefined ? ` · server: ${r.totaal_server}` : '';
       const cut = r.afgebroken ? ' · afgebroken (tijdslimiet)' : '';
+      const tag = modus === 'test' ? ' [test]' : modus === 'sync' ? ' [sync]' : '';
       toast.success(
-        `${b.naam}${testMode ? ' [test]' : ''}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}${cut}`,
+        `${b.naam}${tag}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}${cut}`,
       );
     } catch (e) {
       toast.error(`${b.naam}: ${e instanceof Error ? e.message : 'fout'}`);
@@ -99,6 +116,7 @@ export default function OffMarketBronnenSectie() {
       toast.error(e instanceof Error ? e.message : 'Toggle mislukt');
     }
   };
+
 
   const handleNormalize = async () => {
     if (normalize.isPending) return;
@@ -206,19 +224,52 @@ export default function OffMarketBronnenSectie() {
                       </Select>
                       <Button size="sm" variant="ghost"
                         disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b, true)}
+                        onClick={() => handleRun(b, 'test')}
                         title="Testmodus: 30 dagen lookback">
                         Test
                       </Button>
+                      <Button size="sm" variant="ghost"
+                        disabled={!b.actief || bezig}
+                        onClick={() => handleRun(b, 'sync')}
+                        title="Sync: alleen nieuw/recent op basis van laatste sync + overlap">
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Sync nu
+                      </Button>
                       <Button size="sm" variant="outline"
                         disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b)}>
+                        onClick={() => handleRun(b, 'handmatig')}>
                         {bezig
                           ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                           : <Play className="h-4 w-4 mr-1" />}
                         Nu draaien
                       </Button>
+                      <Button size="sm" variant="ghost"
+                        onClick={() => toggleInstellingen(b.id)}
+                        title="Instellingen">
+                        <Settings2 className="h-4 w-4 mr-1" />
+                        Instellingen
+                        <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${instellingenOpen[b.id] ? 'rotate-180' : ''}`} />
+                      </Button>
                     </div>
+                  </div>
+
+                  {last && (
+                    <div className="text-xs text-muted-foreground font-mono-data">
+                      {(last.modus ?? (last.test_mode ? 'test' : 'handmatig'))} · query {formatPeriode(last.query_vanaf, last.query_tot)}
+                      {' · '}server {last.totaal_server ?? '—'}
+                      {' · '}opgehaald {last.opgehaald ?? '—'}
+                      {' · '}nieuw {last.nieuw ?? '—'}
+                      {' · '}dubbel {last.dubbel ?? '—'}
+                      {last.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
+                    </div>
+                  )}
+
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Laatste sync: <span className="text-foreground">{formatDatum(b.laatste_sync_op)}</span></span>
+                    <span>Volgende run: <span className="text-foreground">{formatDatum(b.volgende_run_op)}</span></span>
+                    <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
+                    <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
+                    <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
                   </div>
 
                   {(last || stats) && (
@@ -232,6 +283,8 @@ export default function OffMarketBronnenSectie() {
                       <Teller label="geskipt" value={stats?.geskipt ?? '—'} tone="muted" />
                     </div>
                   )}
+
+                  {instellingenOpen[b.id] && <BronInstellingenPanel bron={b} />}
                 </div>
               );
             })}

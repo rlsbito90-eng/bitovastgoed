@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export type BronFrequentie = 'handmatig' | 'dagelijks' | 'wekelijks';
+
 export interface OffMarketBron {
   id: string;
   naam: string;
@@ -10,7 +12,24 @@ export interface OffMarketBron {
   laatste_run_op: string | null;
   laatste_run_status: string | null;
   laatste_fout: string | null;
+  auto_import: boolean;
+  auto_verwerken: boolean;
+  frequentie: BronFrequentie;
+  dag_van_week: number | null;
+  tijdstip_uur: number;
+  max_records_per_run: number;
+  normalize_batch_size: number;
+  lookback_days_default: number;
+  lookback_overlap_uren: number;
+  volgende_run_op: string | null;
+  laatste_sync_op: string | null;
 }
+
+const BRON_SELECT =
+  'id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout, ' +
+  'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, ' +
+  'max_records_per_run, normalize_batch_size, lookback_days_default, lookback_overlap_uren, ' +
+  'volgende_run_op, laatste_sync_op';
 
 export function useOffMarketBronnen() {
   return useQuery({
@@ -18,11 +37,11 @@ export function useOffMarketBronnen() {
     queryFn: async (): Promise<OffMarketBron[]> => {
       const { data, error } = await supabase
         .from('off_market_bronnen')
-        .select('id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout')
+        .select(BRON_SELECT)
         .order('actief', { ascending: false })
         .order('naam', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as OffMarketBron[];
+      return (data ?? []) as unknown as OffMarketBron[];
     },
     refetchOnWindowFocus: false,
   });
@@ -55,10 +74,31 @@ export function useToggleBron() {
   });
 }
 
+export type BronInstellingenPatch = Partial<Pick<OffMarketBron,
+  'auto_import' | 'auto_verwerken' | 'frequentie' | 'dag_van_week' | 'tijdstip_uur'
+  | 'max_records_per_run' | 'normalize_batch_size' | 'lookback_days_default' | 'lookback_overlap_uren'
+>>;
+
+export function useUpdateBronInstellingen() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: BronInstellingenPatch }) => {
+      const { error } = await supabase
+        .from('off_market_bronnen').update(patch).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['off-market-bronnen'] }),
+  });
+}
+
 export function useRunBron() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: string | { bronId: string; testMode?: boolean; lookbackDays?: number; maxRecords?: number }) => {
+    mutationFn: async (
+      args:
+        | string
+        | { bronId: string; testMode?: boolean; lookbackDays?: number; maxRecords?: number; modus?: 'test' | 'sync' | 'handmatig' | 'backfill' },
+    ) => {
       const body = typeof args === 'string'
         ? { bron_id: args }
         : {
@@ -66,6 +106,7 @@ export function useRunBron() {
             test_mode: args.testMode,
             lookback_days: args.lookbackDays,
             max_records: args.maxRecords,
+            modus: args.modus,
           };
       const { data, error } = await supabase.functions.invoke(
         'off-market-import-bekendmakingen', { body });
@@ -74,13 +115,16 @@ export function useRunBron() {
       return data as {
         ok: true; opgehaald: number; nieuw: number; dubbel: number;
         totaal_server?: number; max_records?: number; afgebroken?: boolean;
-        query_url?: string; test_mode?: boolean;
+        query_url?: string; test_mode?: boolean; modus?: string;
+        query_vanaf?: string; query_tot?: string; duur_ms?: number;
+        run_id?: string;
       };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['off-market-bronnen'] });
       qc.invalidateQueries({ queryKey: ['off-market-ruw-onverwerkt'] });
       qc.invalidateQueries({ queryKey: ['off-market-bron-stats'] });
+      qc.invalidateQueries({ queryKey: ['off-market-import-runs'] });
     },
   });
 }
@@ -135,5 +179,45 @@ export function useNormalizeWachtrij() {
       qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
       qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
     },
+  });
+}
+
+export interface OffMarketImportRun {
+  id: string;
+  bron_id: string;
+  modus: 'test' | 'sync' | 'backfill' | 'handmatig';
+  status: 'bezig' | 'ok' | 'fout' | 'afgebroken';
+  gestart_op: string;
+  afgerond_op: string | null;
+  query_vanaf: string | null;
+  query_tot: string | null;
+  query_url: string | null;
+  server_total: number | null;
+  opgehaald: number;
+  nieuw: number;
+  dubbel: number;
+  verwerkt: number;
+  gepromoveerd: number;
+  merged: number;
+  geskipt: number;
+  foutmelding: string | null;
+  duration_ms: number | null;
+}
+
+export function useLaatsteImportRuns(bronId: string | null, limit = 5) {
+  return useQuery({
+    queryKey: ['off-market-import-runs', bronId, limit],
+    enabled: !!bronId,
+    queryFn: async (): Promise<OffMarketImportRun[]> => {
+      const { data, error } = await supabase
+        .from('off_market_import_runs')
+        .select('*')
+        .eq('bron_id', bronId!)
+        .order('gestart_op', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as unknown as OffMarketImportRun[];
+    },
+    refetchOnWindowFocus: false,
   });
 }

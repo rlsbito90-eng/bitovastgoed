@@ -2546,46 +2546,165 @@ export type Database = {
         Row: {
           actief: boolean
           auth_secret_naam: string | null
+          auto_import: boolean
+          auto_verwerken: boolean
           config: Json
           created_at: string
+          dag_van_week: number | null
           endpoint_url: string | null
+          frequentie: string
           id: string
           laatste_fout: string | null
           laatste_run_op: string | null
           laatste_run_status: string | null
+          laatste_sync_op: string | null
+          lookback_days_default: number
+          lookback_overlap_uren: number
+          max_records_per_run: number
           naam: string
+          normalize_batch_size: number
+          tijdstip_uur: number
           type: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at: string
+          volgende_run_op: string | null
         }
         Insert: {
           actief?: boolean
           auth_secret_naam?: string | null
+          auto_import?: boolean
+          auto_verwerken?: boolean
           config?: Json
           created_at?: string
+          dag_van_week?: number | null
           endpoint_url?: string | null
+          frequentie?: string
           id?: string
           laatste_fout?: string | null
           laatste_run_op?: string | null
           laatste_run_status?: string | null
+          laatste_sync_op?: string | null
+          lookback_days_default?: number
+          lookback_overlap_uren?: number
+          max_records_per_run?: number
           naam: string
+          normalize_batch_size?: number
+          tijdstip_uur?: number
           type?: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at?: string
+          volgende_run_op?: string | null
         }
         Update: {
           actief?: boolean
           auth_secret_naam?: string | null
+          auto_import?: boolean
+          auto_verwerken?: boolean
           config?: Json
           created_at?: string
+          dag_van_week?: number | null
           endpoint_url?: string | null
+          frequentie?: string
           id?: string
           laatste_fout?: string | null
           laatste_run_op?: string | null
           laatste_run_status?: string | null
+          laatste_sync_op?: string | null
+          lookback_days_default?: number
+          lookback_overlap_uren?: number
+          max_records_per_run?: number
           naam?: string
+          normalize_batch_size?: number
+          tijdstip_uur?: number
           type?: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at?: string
+          volgende_run_op?: string | null
         }
         Relationships: []
+      }
+      off_market_import_runs: {
+        Row: {
+          afgerond_op: string | null
+          bron_id: string
+          created_at: string
+          cursor_eind: number | null
+          cursor_start: number | null
+          dubbel: number
+          duration_ms: number | null
+          foutmelding: string | null
+          gepromoveerd: number
+          geskipt: number
+          gestart_op: string
+          id: string
+          merged: number
+          modus: Database["public"]["Enums"]["off_market_run_modus"]
+          nieuw: number
+          opgehaald: number
+          query_tot: string | null
+          query_url: string | null
+          query_vanaf: string | null
+          server_total: number | null
+          status: Database["public"]["Enums"]["off_market_run_status"]
+          updated_at: string
+          verwerkt: number
+        }
+        Insert: {
+          afgerond_op?: string | null
+          bron_id: string
+          created_at?: string
+          cursor_eind?: number | null
+          cursor_start?: number | null
+          dubbel?: number
+          duration_ms?: number | null
+          foutmelding?: string | null
+          gepromoveerd?: number
+          geskipt?: number
+          gestart_op?: string
+          id?: string
+          merged?: number
+          modus: Database["public"]["Enums"]["off_market_run_modus"]
+          nieuw?: number
+          opgehaald?: number
+          query_tot?: string | null
+          query_url?: string | null
+          query_vanaf?: string | null
+          server_total?: number | null
+          status?: Database["public"]["Enums"]["off_market_run_status"]
+          updated_at?: string
+          verwerkt?: number
+        }
+        Update: {
+          afgerond_op?: string | null
+          bron_id?: string
+          created_at?: string
+          cursor_eind?: number | null
+          cursor_start?: number | null
+          dubbel?: number
+          duration_ms?: number | null
+          foutmelding?: string | null
+          gepromoveerd?: number
+          geskipt?: number
+          gestart_op?: string
+          id?: string
+          merged?: number
+          modus?: Database["public"]["Enums"]["off_market_run_modus"]
+          nieuw?: number
+          opgehaald?: number
+          query_tot?: string | null
+          query_url?: string | null
+          query_vanaf?: string | null
+          server_total?: number | null
+          status?: Database["public"]["Enums"]["off_market_run_status"]
+          updated_at?: string
+          verwerkt?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_import_runs_bron_id_fkey"
+            columns: ["bron_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_bronnen"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       off_market_kadaster_checks: {
         Row: {
@@ -4643,6 +4762,8 @@ export type Database = {
         | "meerdere_resultaten"
         | "mislukt"
       off_market_prioriteit: "laag" | "midden" | "hoog" | "urgent"
+      off_market_run_modus: "test" | "sync" | "backfill" | "handmatig"
+      off_market_run_status: "bezig" | "ok" | "fout" | "afgebroken"
       off_market_signaaltype:
         | "vergunning_bekendmaking"
         | "functiewijziging"
@@ -5189,6 +5310,8 @@ export const Constants = {
         "mislukt",
       ],
       off_market_prioriteit: ["laag", "midden", "hoog", "urgent"],
+      off_market_run_modus: ["test", "sync", "backfill", "handmatig"],
+      off_market_run_status: ["bezig", "ok", "fout", "afgebroken"],
       off_market_signaaltype: [
         "vergunning_bekendmaking",
         "functiewijziging",
