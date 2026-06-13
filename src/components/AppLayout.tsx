@@ -55,6 +55,7 @@ const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[]
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
   { path: "/acquisitie", label: "Acquisitie", icon: Target },
+  { path: "/acquisitie/funnel", label: "Acquisitie-funnel", icon: BarChart3 },
   { path: "/off-market", label: "Off-Market Radar", icon: Radar },
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
