@@ -67,6 +67,7 @@ const App = () => (
                           <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
                           <Route path="/pipeline" element={<PipelinePage />} />
                           <Route path="/acquisitie" element={<AcquisitiePage />} />
+                          <Route path="/acquisitie/funnel" element={<AcquisitieFunnelPage />} />
                           <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/off-market" element={<OffMarketPage />} />
