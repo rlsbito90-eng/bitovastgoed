@@ -170,6 +170,34 @@ describe('filters', () => {
     expect(r[0].plaats).toBe('Utrecht');
   });
 
+  it('tot-datum is inclusief — record op exacte tot-datum blijft zichtbaar', () => {
+    // Record gemaakt op 13-06-2026 om 14:30 lokaal (na UTC middernacht, voor einde dag).
+    const r = [maakSignaal({
+      plaats: 'Den Haag',
+      created_at: new Date(2026, 5, 13, 14, 30).toISOString(),
+    })];
+    expect(filterSignalen(r, { periodeVan: '2026-06-13', periodeTot: '2026-06-13' })).toHaveLength(1);
+    expect(filterSignalen(r, { periodeVan: '2026-06-11', periodeTot: '2026-06-13' })).toHaveLength(1);
+  });
+
+  it('ruimere range bevat altijd minimaal de records van een smallere range erbinnen', () => {
+    const r = [
+      maakSignaal({ created_at: new Date(2026, 5, 11, 9, 0).toISOString() }),
+      maakSignaal({ created_at: new Date(2026, 5, 12, 23, 0).toISOString() }),
+      maakSignaal({ created_at: new Date(2026, 5, 13, 14, 30).toISOString() }),
+    ];
+    const smal = filterSignalen(r, { periodeVan: '2026-06-13', periodeTot: '2026-06-13' });
+    const ruim = filterSignalen(r, { periodeVan: '2026-06-11', periodeTot: '2026-06-13' });
+    expect(smal.length).toBe(1);
+    expect(ruim.length).toBe(3);
+    expect(ruim.length).toBeGreaterThanOrEqual(smal.length);
+  });
+
+  it('accepteert ook dd-mm-yyyy datumnotatie', () => {
+    const r = [maakSignaal({ created_at: new Date(2026, 5, 13, 12, 0).toISOString() })];
+    expect(filterSignalen(r, { periodeVan: '13-06-2026', periodeTot: '13-06-2026' })).toHaveLength(1);
+  });
+
   it('gemeentefilter is case-insensitive contains', () => {
     expect(filterSignalen(signalen, { gemeente: 'amst' })).toHaveLength(1);
     expect(filterSignalen(signalen, { gemeente: 'rotter' })[0].plaats).toBe('Rotterdam');
@@ -183,6 +211,24 @@ describe('filters', () => {
   it('bron off_market_radar matcht alle off-market signalen (V1)', () => {
     expect(filterSignalen(signalen, { bron: 'off_market_radar' })).toHaveLength(3);
     expect(filterSignalen(signalen, { bron: 'facebook_ads' })).toHaveLength(0);
+  });
+});
+
+describe('archief-mapping', () => {
+  it('signaal met gearchiveerd_op valt onder afgevallen, ook als status nog "in_gesprek" is', () => {
+    const s = maakSignaal({ status: 'in_gesprek', gearchiveerd_op: '2026-06-12T10:00:00Z' });
+    expect(isAfgevallen(s)).toBe(true);
+    expect(bepaalFunnelStap(s)).toBeNull();
+    const agg = berekenFunnelAggregaat([s]);
+    expect(agg.totaalAfgevallen).toBe(1);
+    expect(agg.totaalActief).toBe(0);
+  });
+
+  it('signaal met status "archief" (zoals gezet door OffMarketArchiveDialog) telt als afgevallen', () => {
+    const s = maakSignaal({ status: 'archief', gearchiveerd_op: '2026-06-12T10:00:00Z' });
+    const agg = berekenFunnelAggregaat([s]);
+    expect(agg.totaalAfgevallen).toBe(1);
+    expect(signalenOpStage([s], 'afgevallen')).toHaveLength(1);
   });
 });
 
