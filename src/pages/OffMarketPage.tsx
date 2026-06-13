@@ -12,6 +12,7 @@ import SignalenTable from '@/components/offmarket/SignalenTable';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
+  findVisibleListRow,
   loadListLastViewed,
   restoreListScrollY,
   saveListContext,
@@ -206,46 +207,19 @@ export default function OffMarketPage() {
     restoredRef.current = true;
     setHighlightedId(lv.id);
 
-    // Robust restore: wait for the target row to appear, scroll to it, then
-    // verify it's actually visible — herhaal als layout-shifts (KPI's,
-    // sticky topbar, query refetch) of een late ScrollToTop de scroll resetten.
+    // Desktop en mobiel renderen beide een rij met hetzelfde data-row-id.
+    // Kies expliciet de zichtbare variant; anders kan de verborgen mobiele rij
+    // (height 0) worden geraakt en scrollt desktop terug naar boven.
     const targetId = lv.id;
-    let attempts = 0;
-    const maxAttempts = 25; // ~3s totaal (120ms × 25)
-    let timeoutHandle = 0;
     let cancelled = false;
-
-    const isInView = (row: HTMLElement): boolean => {
-      const rowRect = row.getBoundingClientRect();
-      // Bepaal viewport van de actieve scroll-container (main of nested).
-      const main = document.querySelector<HTMLElement>('main');
-      const top = 0;
-      const bottom = main?.clientHeight ?? window.innerHeight;
-      const center = (rowRect.top + rowRect.bottom) / 2;
-      return center > top + 40 && center < bottom - 40;
-    };
 
     const attempt = () => {
       if (cancelled) return;
-      const row = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
+      const row = findVisibleListRow(targetId);
       if (row) {
         scrollElementIntoListView(row);
-        // verificatie: na 150ms checken of de rij nog in beeld is
-        timeoutHandle = window.setTimeout(() => {
-          if (cancelled) return;
-          const stillRow = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
-          if (stillRow && !isInView(stillRow) && attempts < maxAttempts) {
-            attempts++;
-            attempt();
-          }
-        }, 150);
         return;
       }
-      if (attempts++ < maxAttempts) {
-        timeoutHandle = window.setTimeout(attempt, 120);
-        return;
-      }
-      // Fallback: ruwe scrollY-restore.
       restoreListScrollY(lv.scrollY);
     };
     requestAnimationFrame(attempt);
@@ -253,7 +227,6 @@ export default function OffMarketPage() {
     const t = window.setTimeout(() => setHighlightedId(null), 6000);
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutHandle);
       window.clearTimeout(t);
     };
   }, [tab, isLoading, gefilterd]);
