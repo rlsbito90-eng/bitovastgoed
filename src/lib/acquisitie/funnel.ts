@@ -165,18 +165,49 @@ export function bronVanSignaal(_signaal: OffMarketSignaal): AcquisitieBron {
   return 'off_market_radar';
 }
 
+/**
+ * Parse een datumstring in 'YYYY-MM-DD' of 'DD-MM-YYYY'/'DD/MM/YYYY' formaat
+ * naar een lokale Date op 00:00. Returns null bij ongeldige input.
+ */
+export function parseDatumLokaal(input: string | null | undefined): Date | null {
+  if (!input) return null;
+  const s = input.trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const y = +iso[1], m = +iso[2], d = +iso[3];
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return dt;
+  }
+  const dmy = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if (dmy) {
+    let y = +dmy[3]; const m = +dmy[2], d = +dmy[1];
+    if (y < 100) y += 2000;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return dt;
+  }
+  return null;
+}
+
 export function filterSignalen(signalen: OffMarketSignaal[], f: FunnelFilters): OffMarketSignaal[] {
-  const van = f.periodeVan ? new Date(f.periodeVan).getTime() : null;
-  const tot = f.periodeTot ? new Date(f.periodeTot).getTime() : null;
+  const vanDt = parseDatumLokaal(f.periodeVan);
+  const totDt = parseDatumLokaal(f.periodeTot);
+  // Van inclusief vanaf 00:00 lokaal; Tot inclusief tot einde dag = strikt < start volgende dag.
+  const vanMs = vanDt ? vanDt.getTime() : null;
+  const totMsExcl = totDt
+    ? new Date(totDt.getFullYear(), totDt.getMonth(), totDt.getDate() + 1).getTime()
+    : null;
   const gem = f.gemeente?.trim().toLowerCase() || null;
   return signalen.filter(s => {
-    if (van !== null) {
+    if (vanMs !== null || totMsExcl !== null) {
       const t = new Date(s.created_at).getTime();
-      if (isNaN(t) || t < van) return false;
-    }
-    if (tot !== null) {
-      const t = new Date(s.created_at).getTime();
-      if (isNaN(t) || t > tot) return false;
+      if (isNaN(t)) return false;
+      if (vanMs !== null && t < vanMs) return false;
+      if (totMsExcl !== null && t >= totMsExcl) return false;
     }
     if (f.bron && bronVanSignaal(s) !== f.bron) return false;
     if (f.status && s.status !== f.status) return false;
