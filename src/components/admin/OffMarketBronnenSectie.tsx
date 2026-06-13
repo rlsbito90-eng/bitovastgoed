@@ -123,10 +123,10 @@ export default function OffMarketBronnenSectie() {
   };
 
 
-  const handleNormalize = async () => {
-    if (normalize.isPending) return;
+  const handleNormalize = async (bronId?: string) => {
+    if (normalize.isPending || volledig.isPending) return;
     try {
-      const r = await normalize.mutateAsync(200);
+      const r = await normalize.mutateAsync({ limit: normalizeBatch, bronId });
       toast.success(
         `Verwerkt: ${r.verwerkt} · gepromoveerd ${r.gepromoveerd} · merged ${r.merged} · geskipt ${r.geskipt}` +
         (r.fouten ? ` · fouten ${r.fouten}` : ''),
@@ -135,6 +135,30 @@ export default function OffMarketBronnenSectie() {
       toast.error(e instanceof Error ? e.message : 'Verwerken mislukt');
     }
   };
+
+  const handleVolledig = async (bronId?: string) => {
+    if (normalize.isPending || volledig.isPending) return;
+    setProgress({ totaal: 0, chunks: 0 });
+    try {
+      const r = await volledig.mutateAsync({
+        batchSize: normalizeBatch,
+        bronId,
+        onProgress: (totaal, chunks) => setProgress({ totaal, chunks }),
+      });
+      const duurS = (r.duur_ms / 1000).toFixed(1);
+      const tag = r.foutmelding ? '⚠ gestopt' : r.afgekapt ? 'afgekapt' : 'klaar';
+      const msg =
+        `Volledige wachtrij (${tag}): ${r.verwerkt} verwerkt · ${r.gepromoveerd} gepromoveerd · ` +
+        `${r.merged} merged · ${r.geskipt} geskipt · ${r.fouten} fouten · ${r.chunks} chunks · ${duurS}s`;
+      if (r.foutmelding) toast.error(`${msg} · ${r.foutmelding}`);
+      else toast.success(msg);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Volledige verwerking mislukt');
+    } finally {
+      setProgress(null);
+    }
+  };
+
 
   return (
     <div className="space-y-4">
