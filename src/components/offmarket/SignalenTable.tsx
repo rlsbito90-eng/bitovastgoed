@@ -12,7 +12,7 @@ import {
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { useDataStore } from '@/hooks/useDataStore';
-import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
+import { getListScrollContainer, getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
 
 interface Props {
   signalen: OffMarketSignaal[];
@@ -202,15 +202,22 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     try {
       const scrollY = getListScrollY(anchor);
       const signaal = rows.find((s) => s.id === id);
-      const container = anchor ? getComputedStyle(anchor).display && anchor.closest('main') : null;
+      const container = getListScrollContainer(anchor);
       console.groupCollapsed('[OMR scroll] klik signaal');
       console.log('id', id);
       console.log('titel', signaal?.titel);
       console.log('adres', signaal?.adres, signaal?.plaats);
       console.log('sortering', debugSortering ?? 'onbekend');
       console.log('lijstIndex', rows.findIndex((s) => s.id === id));
+      console.log('scrollContainer', container ? {
+        tag: container.tagName,
+        className: container.className,
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+      } : 'window');
       console.log('opgeslagenScrollTop', scrollY);
-      console.log('mainScrollTop', container instanceof HTMLElement ? container.scrollTop : null);
+      console.log('mainScrollTop', document.querySelector('main')?.scrollTop ?? null);
       console.log('windowScrollY', window.scrollY);
       console.groupEnd();
       saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
