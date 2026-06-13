@@ -81,7 +81,10 @@ export default function OffMarketBronnenSectie() {
   const runBron = useRunBron();
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
+  const volledig = useNormalizeWachtrijVolledig();
   const [batchPerBron, setBatchPerBron] = useState<Record<string, number>>({});
+  const [normalizeBatch, setNormalizeBatch] = useState<number>(200);
+  const [progress, setProgress] = useState<{ totaal: number; chunks: number } | null>(null);
   const [instellingenOpen, setInstellingenOpen] = useState<Record<string, boolean>>({});
 
   const getBatch = (id: string) => batchPerBron[id] ?? DEFAULT_BATCH;
