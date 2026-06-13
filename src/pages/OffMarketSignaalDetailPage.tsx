@@ -54,15 +54,12 @@ export default function OffMarketSignaalDetailPage() {
   const navInfo = getListNavigation('off-market-signalen', signaal.id, alleSignalen.map(s => s.id));
 
   return (
-    <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6 max-w-5xl">
+    <div className="space-y-5 px-4 sm:px-6 pb-4 sm:pb-6 pt-0 md:pt-6 max-w-5xl">
       {/* Mobiele sticky navigatie — sluit strak aan op de mobiele app-header.
           Negatieve marges compenseren de page-shell padding (py-4/px-4 en
           sm:py-6/sm:px-6) zodat er geen visueel gat ontstaat. De app-header
           handelt safe-area zelf af, dus hier geen dubbele compensatie. */}
-      <div
-        className="md:hidden -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 sticky z-30 glass-topbar border-b border-border/60"
-        style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
-      >
+      <div className="md:hidden -mx-4 sm:-mx-6 sticky top-0 z-30 glass-topbar border-b border-border/60">
         <div className="flex items-center gap-1 px-2 py-1">
           <button
             type="button"
