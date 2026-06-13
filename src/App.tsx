@@ -12,6 +12,7 @@ import { AcquisitieProvider } from "@/hooks/useAcquisitie";
 import AcquisitiePage from "@/pages/AcquisitiePage";
 import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
 import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
+import AcquisitieFunnelPage from "@/pages/AcquisitieFunnelPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
