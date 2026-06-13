@@ -104,7 +104,7 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
   it('bewaart de scrollpositie van de echte tabel-scroller bij openen', () => {
     sessionStorage.clear();
     renderTable([baseSignaal]);
-    const row = document.querySelector('[data-row-id="s1"]') as HTMLElement;
+    const row = document.querySelector('tr[data-row-id="s1"]') as HTMLElement;
     const scroller = row.closest('.overflow-auto') as HTMLElement;
     Object.defineProperties(scroller, {
       scrollTop: { value: 420, configurable: true, writable: true },
