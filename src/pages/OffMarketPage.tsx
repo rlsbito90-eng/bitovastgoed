@@ -205,6 +205,20 @@ export default function OffMarketPage() {
     if (!lv) { restoredRef.current = true; return; }
     restoredRef.current = true;
     setHighlightedId(lv.id);
+    const listIndex = gefilterd.findIndex((s) => s.id === lv.id);
+    const listItem = listIndex >= 0 ? gefilterd[listIndex] : null;
+    console.groupCollapsed('[OMR scroll] terugkeer signalen');
+    console.log('lastViewedId', lv.id);
+    console.log('lastViewedScrollY', lv.scrollY);
+    console.log('sortering', activeSort.value, activeSort.label);
+    console.log('inLijst', listIndex >= 0);
+    console.log('lijstIndex', listIndex);
+    console.log('titel', listItem?.titel);
+    console.log('adres', listItem?.adres, listItem?.plaats);
+    console.log('aantalGefilterd', gefilterd.length);
+    console.log('mainScrollTopStart', document.querySelector('main')?.scrollTop ?? null);
+    console.log('windowScrollYStart', window.scrollY);
+    console.groupEnd();
 
     // Robust restore: wait for the target row to appear, scroll to it, then
     // verify it's actually visible — herhaal als layout-shifts (KPI's,
@@ -225,16 +239,49 @@ export default function OffMarketPage() {
       return center > top + 40 && center < bottom - 40;
     };
 
+    const logState = (label: string, row: HTMLElement | null) => {
+      const container = row ? row.closest<HTMLElement>('.overflow-auto') : null;
+      const main = document.querySelector<HTMLElement>('main');
+      const rowRect = row?.getBoundingClientRect();
+      console.log(`[OMR scroll] ${label}`, {
+        rowBestaat: !!row,
+        rowRect: rowRect ? {
+          top: rowRect.top,
+          bottom: rowRect.bottom,
+          height: rowRect.height,
+        } : null,
+        rowZichtbaar: row ? isInView(row) : false,
+        tableScroller: container ? {
+          scrollTop: container.scrollTop,
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight,
+          className: container.className,
+        } : null,
+        main: main ? {
+          scrollTop: main.scrollTop,
+          scrollHeight: main.scrollHeight,
+          clientHeight: main.clientHeight,
+        } : null,
+        windowScrollY: window.scrollY,
+      });
+    };
+
     const attempt = () => {
       if (cancelled) return;
       const row = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
       if (row) {
+        logState('voor scroll', row);
         scrollElementIntoListView(row);
+        logState('direct na scroll', row);
+        window.setTimeout(() => logState('250ms na scroll', document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`)), 250);
+        window.setTimeout(() => logState('750ms na scroll', document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`)), 750);
+        window.setTimeout(() => logState('1500ms na scroll', document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`)), 1500);
         // verificatie: na 150ms checken of de rij nog in beeld is
         timeoutHandle = window.setTimeout(() => {
           if (cancelled) return;
           const stillRow = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
           if (stillRow && !isInView(stillRow) && attempts < maxAttempts) {
+            console.log('[OMR scroll] retry nodig', { attempts, reason: 'target row niet zichtbaar na scroll' });
             attempts++;
             attempt();
           }
