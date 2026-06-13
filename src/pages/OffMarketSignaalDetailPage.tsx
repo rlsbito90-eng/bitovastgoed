@@ -29,6 +29,13 @@ export default function OffMarketSignaalDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
+  // Houd de "laatst bekeken"-marker synchroon met het actieve signaal.
+  // Hierdoor keert Terug naar signalen terug bij het laatst geopende signaal,
+  // ook wanneer de gebruiker via Vorige/Volgende door de lijst bladert.
+  useEffect(() => {
+    if (signaal?.id) updateListLastViewedId('off-market-signalen', signaal.id);
+  }, [signaal?.id]);
+
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6"><p className="text-sm text-muted-foreground">Signaal laden…</p></div>;
   }
