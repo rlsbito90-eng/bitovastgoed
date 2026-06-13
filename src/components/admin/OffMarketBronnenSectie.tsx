@@ -288,9 +288,6 @@ export default function OffMarketBronnenSectie() {
                 </div>
               );
             })}
-                </div>
-              );
-            })}
           </div>
         )}
       </div>
