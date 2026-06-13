@@ -224,19 +224,52 @@ export default function OffMarketBronnenSectie() {
                       </Select>
                       <Button size="sm" variant="ghost"
                         disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b, true)}
+                        onClick={() => handleRun(b, 'test')}
                         title="Testmodus: 30 dagen lookback">
                         Test
                       </Button>
+                      <Button size="sm" variant="ghost"
+                        disabled={!b.actief || bezig}
+                        onClick={() => handleRun(b, 'sync')}
+                        title="Sync: alleen nieuw/recent op basis van laatste sync + overlap">
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Sync nu
+                      </Button>
                       <Button size="sm" variant="outline"
                         disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b)}>
+                        onClick={() => handleRun(b, 'handmatig')}>
                         {bezig
                           ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                           : <Play className="h-4 w-4 mr-1" />}
                         Nu draaien
                       </Button>
+                      <Button size="sm" variant="ghost"
+                        onClick={() => toggleInstellingen(b.id)}
+                        title="Instellingen">
+                        <Settings2 className="h-4 w-4 mr-1" />
+                        Instellingen
+                        <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${instellingenOpen[b.id] ? 'rotate-180' : ''}`} />
+                      </Button>
                     </div>
+                  </div>
+
+                  {last && (
+                    <div className="text-xs text-muted-foreground font-mono-data">
+                      {(last.modus ?? (last.test_mode ? 'test' : 'handmatig'))} · query {formatPeriode(last.query_vanaf, last.query_tot)}
+                      {' · '}server {last.totaal_server ?? '—'}
+                      {' · '}opgehaald {last.opgehaald ?? '—'}
+                      {' · '}nieuw {last.nieuw ?? '—'}
+                      {' · '}dubbel {last.dubbel ?? '—'}
+                      {last.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
+                    </div>
+                  )}
+
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Laatste sync: <span className="text-foreground">{formatDatum(b.laatste_sync_op)}</span></span>
+                    <span>Volgende run: <span className="text-foreground">{formatDatum(b.volgende_run_op)}</span></span>
+                    <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
+                    <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
+                    <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
                   </div>
 
                   {(last || stats) && (
@@ -250,6 +283,11 @@ export default function OffMarketBronnenSectie() {
                       <Teller label="geskipt" value={stats?.geskipt ?? '—'} tone="muted" />
                     </div>
                   )}
+
+                  {instellingenOpen[b.id] && <BronInstellingenPanel bron={b} />}
+                </div>
+              );
+            })}
                 </div>
               );
             })}
