@@ -21,6 +21,7 @@ interface Props {
   zichtbareKolommen?: string[];
   /** Optioneel: id van laatst bekeken signaal — wordt visueel gehighlight. */
   highlightedId?: string | null;
+  debugSortering?: string;
 }
 
 
@@ -194,12 +195,24 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
 
 export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
 
-export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
+export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId, debugSortering }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const navigate = useNavigate();
   const go = (id: string, anchor?: HTMLElement | null) => {
     try {
       const scrollY = getListScrollY(anchor);
+      const signaal = rows.find((s) => s.id === id);
+      const container = anchor ? getComputedStyle(anchor).display && anchor.closest('main') : null;
+      console.groupCollapsed('[OMR scroll] klik signaal');
+      console.log('id', id);
+      console.log('titel', signaal?.titel);
+      console.log('adres', signaal?.adres, signaal?.plaats);
+      console.log('sortering', debugSortering ?? 'onbekend');
+      console.log('lijstIndex', rows.findIndex((s) => s.id === id));
+      console.log('opgeslagenScrollTop', scrollY);
+      console.log('mainScrollTop', container instanceof HTMLElement ? container.scrollTop : null);
+      console.log('windowScrollY', window.scrollY);
+      console.groupEnd();
       saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
     } catch { /* ignore */ }
     navigate(`/off-market/${id}`);
