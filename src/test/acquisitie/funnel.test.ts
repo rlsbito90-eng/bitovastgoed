@@ -3,6 +3,7 @@ import {
   bepaalFunnelStap,
   berekenBronAggregaat,
   berekenFunnelAggregaat,
+  berekenRuntimeDiagnose,
   filterSignalen,
   isAfgevallen,
   signalenDieStageBereikten,
@@ -211,6 +212,22 @@ describe('filters', () => {
   it('bron off_market_radar matcht alle off-market signalen (V1)', () => {
     expect(filterSignalen(signalen, { bron: 'off_market_radar' })).toHaveLength(3);
     expect(filterSignalen(signalen, { bron: 'facebook_ads' })).toHaveLength(0);
+  });
+
+  it('runtime-diagnose telt raw, archief, datumrange en eindfilter apart', () => {
+    const r = [
+      maakSignaal({ created_at: new Date(2026, 5, 11, 9, 0).toISOString(), plaats: 'Amsterdam' }),
+      maakSignaal({ created_at: new Date(2026, 5, 13, 10, 0).toISOString(), plaats: 'Utrecht', status: 'archief', gearchiveerd_op: '2026-06-13T11:00:00Z' }),
+      maakSignaal({ created_at: new Date(2026, 5, 10, 10, 0).toISOString(), plaats: 'Amsterdam' }),
+    ];
+    const gefilterd = filterSignalen(r, { periodeVan: '2026-06-11', periodeTot: '2026-06-13', gemeente: 'amsterdam' });
+    expect(berekenRuntimeDiagnose(r, { periodeVan: '2026-06-11', periodeTot: '2026-06-13', gemeente: 'amsterdam' }, gefilterd)).toEqual({
+      totaalVoorFiltering: 3,
+      gearchiveerdOpNietNull: 1,
+      statusArchief: 1,
+      binnenDatumrange: 2,
+      naAlleFilters: 1,
+    });
   });
 });
 
