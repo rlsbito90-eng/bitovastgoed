@@ -172,18 +172,55 @@ export default function OffMarketBronnenSectie() {
             daarna naar de signalenlijst na normalisatie.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="text-xs text-muted-foreground">
             Onverwerkt in buffer: <span className="font-mono-data text-foreground">{onverwerkt}</span>
           </div>
-          <Button size="sm" variant="outline" onClick={handleNormalize} disabled={normalize.isPending}>
+          <Select
+            value={String(normalizeBatch)}
+            onValueChange={(v) => setNormalizeBatch(Number(v))}
+            disabled={normalize.isPending || volledig.isPending}
+          >
+            <SelectTrigger className="h-8 w-[110px] text-xs" aria-label="Batchgrootte">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[100, 200, 500, 1000].map(n => (
+                <SelectItem key={n} value={String(n)} className="text-xs">{n} per chunk</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline"
+            onClick={() => handleNormalize()}
+            disabled={normalize.isPending || volledig.isPending}>
             {normalize.isPending
               ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               : <ListFilter className="h-4 w-4 mr-1" />}
             Wachtrij verwerken
           </Button>
+          <Button size="sm" variant="default"
+            onClick={() => handleVolledig()}
+            disabled={normalize.isPending || volledig.isPending}>
+            {volledig.isPending
+              ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              : <Zap className="h-4 w-4 mr-1" />}
+            Verwerk volledige wachtrij
+          </Button>
         </div>
       </div>
+
+      {volledig.isPending && progress && (
+        <div className="bg-card border border-border rounded-md px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-mono-data">
+            <span>{progress.totaal} verwerkt · {progress.chunks} chunks (batch {normalizeBatch})</span>
+            <span>max 20.000 records / 5 min</span>
+          </div>
+          <Progress
+            value={onverwerkt > 0 ? Math.min(100, (progress.totaal / (progress.totaal + onverwerkt)) * 100) : 100}
+            className="h-1.5"
+          />
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         {isLoading ? (
