@@ -201,23 +201,14 @@ export default function OffMarketPage() {
     restoredRef.current = true;
     setHighlightedId(lv.id);
 
-    // Probeer scrollherstel tot max ~20 frames, zodat zowel de table als
-    // eventueel layout-shift (KPI's, sticky headers) settelden.
-    // Werkt op desktop én mobiel: <main> is in beide gevallen de scroll-container.
-    const main = document.querySelector<HTMLElement>('main');
+    // Robuust scrollherstel: laat de browser zelf de juiste scroll-container
+    // bepalen via scrollIntoView. Werkt op desktop (<main>) én mobiel.
+    // Retry tot ~60 frames (~1s) zodat layout-shifts (KPI's, sticky headers,
+    // data-loading) tijd hebben om te settelen.
     let frames = 0;
-    const maxFrames = 20;
+    const maxFrames = 60;
     const tryRestore = () => {
       const row = document.querySelector<HTMLElement>(`[data-row-id="${lv.id}"]`);
-      if (row && main) {
-        // Centreer handmatig binnen main, zodat sticky topbars worden gecompenseerd.
-        const mainRect = main.getBoundingClientRect();
-        const rowRect = row.getBoundingClientRect();
-        const offsetInMain = (rowRect.top - mainRect.top) + main.scrollTop;
-        const target = Math.max(0, offsetInMain - (main.clientHeight / 2) + (rowRect.height / 2));
-        main.scrollTo({ top: target, behavior: 'auto' });
-        return;
-      }
       if (row) {
         row.scrollIntoView({ block: 'center', behavior: 'auto' });
         return;
@@ -226,9 +217,10 @@ export default function OffMarketPage() {
         requestAnimationFrame(tryRestore);
         return;
       }
-      // Fallback: opgeslagen scrollpositie.
+      // Fallback: opgeslagen scrollpositie op zowel <main> als window.
+      const main = document.querySelector<HTMLElement>('main');
       if (main) main.scrollTo({ top: lv.scrollY, behavior: 'auto' });
-      else window.scrollTo({ top: lv.scrollY, behavior: 'auto' });
+      window.scrollTo({ top: lv.scrollY, behavior: 'auto' });
     };
     requestAnimationFrame(tryRestore);
 

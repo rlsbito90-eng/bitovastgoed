@@ -1604,3 +1604,9 @@ Terugnavigatie opgeschoond:
 
 Verificatie:
 - `signalenTable.test.tsx` groen (9/9). Geen schema-, Kadaster- of AI-wijziging.
+
+## Bugfix Off Market Radar — desktop scroll restore (ronde 2) + sticky mobiele nav
+
+- Desktop scroll restore: vervangen door `row.scrollIntoView({ block: 'center' })` met retry tot ~60 frames (~1s). Browser bepaalt zelf de scroll-container, werkt zowel op desktop (`<main>`) als mobiel. Fallback: opgeslagen scrollY op `<main>` én `window`.
+- Mobiele sticky signaalnav: `sm:mt-0`-bug verwijderd die op 640–768px een gat liet. Negatieve marges nu `-mx-4 -mt-4 sm:-mx-6 sm:-mt-6` zodat de balk strak onder de mobiele header sluit. Compactere knoppen (h-10) en `py-1` voor minder visuele hoogte.
+- Geen schema-/Kadaster-/AI-wijzigingen. signalenTable tests: 9/9 groen.

@@ -55,17 +55,19 @@ export default function OffMarketSignaalDetailPage() {
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6 max-w-5xl">
-      {/* Mobiele sticky navigatie — sluit strak aan op de mobiele app-header
-          door negatieve top-marge die de page-shell padding compenseert. */}
+      {/* Mobiele sticky navigatie — sluit strak aan op de mobiele app-header.
+          Negatieve marges compenseren de page-shell padding (py-4/px-4 en
+          sm:py-6/sm:px-6) zodat er geen visueel gat ontstaat. De app-header
+          handelt safe-area zelf af, dus hier geen dubbele compensatie. */}
       <div
-        className="md:hidden -mx-4 -mt-4 sm:mt-0 sticky z-30 glass-topbar border-b border-border/60"
+        className="md:hidden -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 sticky z-30 glass-topbar border-b border-border/60"
         style={{ top: 'var(--mobile-header-height, 3.5rem)' }}
       >
-        <div className="flex items-center gap-1 px-2 py-1.5">
+        <div className="flex items-center gap-1 px-2 py-1">
           <button
             type="button"
             onClick={() => navigate('/off-market')}
-            className="inline-flex items-center gap-1 px-2 h-11 text-xs text-foreground hover:bg-muted rounded-md"
+            className="inline-flex items-center gap-1 px-2 h-10 text-xs text-foreground hover:bg-muted rounded-md"
             aria-label="Terug"
           >
             <ArrowLeft className="h-4 w-4" /> Terug
@@ -74,7 +76,7 @@ export default function OffMarketSignaalDetailPage() {
             type="button"
             onClick={() => navInfo.prevId && navigate(`/off-market/${navInfo.prevId}`)}
             disabled={!navInfo.prevId}
-            className="inline-flex items-center justify-center w-11 h-11 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
             aria-label="Vorige signaal"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -86,13 +88,14 @@ export default function OffMarketSignaalDetailPage() {
             type="button"
             onClick={() => navInfo.nextId && navigate(`/off-market/${navInfo.nextId}`)}
             disabled={!navInfo.nextId}
-            className="inline-flex items-center justify-center w-11 h-11 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
             aria-label="Volgende signaal"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>
+
 
       <div className="hidden md:flex items-center justify-end">
         <ListNavigator
