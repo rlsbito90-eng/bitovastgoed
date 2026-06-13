@@ -80,22 +80,28 @@ export default function OffMarketBronnenSectie() {
   const toggleBron = useToggleBron();
   const normalize = useNormalizeWachtrij();
   const [batchPerBron, setBatchPerBron] = useState<Record<string, number>>({});
+  const [instellingenOpen, setInstellingenOpen] = useState<Record<string, boolean>>({});
 
   const getBatch = (id: string) => batchPerBron[id] ?? DEFAULT_BATCH;
+  const toggleInstellingen = (id: string) =>
+    setInstellingenOpen(prev => ({ ...prev, [id]: !prev[id] }));
 
-  const handleRun = async (b: OffMarketBron, testMode = false) => {
+  const handleRun = async (b: OffMarketBron, modus: 'test' | 'handmatig' | 'sync') => {
     if (runBron.isPending) return;
     const maxRecords = getBatch(b.id);
     try {
       const r = await runBron.mutateAsync(
-        testMode
-          ? { bronId: b.id, testMode: true, lookbackDays: 30, maxRecords }
-          : { bronId: b.id, maxRecords },
+        modus === 'test'
+          ? { bronId: b.id, modus: 'test', testMode: true, lookbackDays: 30, maxRecords }
+          : modus === 'sync'
+            ? { bronId: b.id, modus: 'sync', maxRecords }
+            : { bronId: b.id, modus: 'handmatig', maxRecords },
       );
       const extra = r.totaal_server !== undefined ? ` · server: ${r.totaal_server}` : '';
       const cut = r.afgebroken ? ' · afgebroken (tijdslimiet)' : '';
+      const tag = modus === 'test' ? ' [test]' : modus === 'sync' ? ' [sync]' : '';
       toast.success(
-        `${b.naam}${testMode ? ' [test]' : ''}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}${cut}`,
+        `${b.naam}${tag}: ${r.opgehaald} opgehaald · ${r.nieuw} nieuw · ${r.dubbel} dubbel${extra}${cut}`,
       );
     } catch (e) {
       toast.error(`${b.naam}: ${e instanceof Error ? e.message : 'fout'}`);
@@ -110,6 +116,7 @@ export default function OffMarketBronnenSectie() {
       toast.error(e instanceof Error ? e.message : 'Toggle mislukt');
     }
   };
+
 
   const handleNormalize = async () => {
     if (normalize.isPending) return;
