@@ -38,6 +38,7 @@ export type GeocodeReden =
   | 'exact_addition_match'
   | 'basic_address_unique'
   | 'top_score_dominant'
+  | 'multiple_addresses'
   | 'multiple_candidates'
   | 'multiple_additions'
   | 'addition_mismatch'
@@ -265,7 +266,7 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
  */
 function toevoegingUitWeergavenaam(weergavenaam: string | null | undefined, huisnummer: string | null): string | null {
   if (!weergavenaam || !huisnummer) return null;
-  const re = new RegExp(`\\b${huisnummer}\\b([^,]*)`, 'i');
+  const re = new RegExp(`\\b${huisnummer}\\s*([A-Za-z](?:\\s*[-/]?\\s*[A-Za-z0-9]{1,3})?|[-/]\\s*[A-Za-z0-9]{1,4})?(?=\\s*,|\\s|$)`, 'i');
   const m = weergavenaam.match(re);
   if (!m) return null;
   return normToevoeging(m[1]);
@@ -284,10 +285,18 @@ function normPlaats(p: string | null | undefined): string | null {
 
 function normVrijeTekst(s: string | null | undefined): string {
   if (!s) return '';
-  return stripDiacritics(s)
+  let n = stripDiacritics(s)
     .toLowerCase()
     .replace(/\b(\d{4})\s*([a-z]{2})\b/g, '$1$2')
-    .replace(/[,.;:()]+/g, ' ')
+    .replace(/[,.;:()]+/g, ' ');
+  // Normaliseer huisletter/toevoeging zodat titel en PDOK-weergave dezelfde
+  // vorm krijgen: 67A-1 = 67A-01, 300-2 = 300-02, 22-H blijft 22 H.
+  n = n
+    .replace(/\b(\d{1,5})\s*([a-z])\s*[-/]?\s*0*(\d{1,3})\b/g, '$1$2 $3')
+    .replace(/\b(\d{1,5})\s*[-/]\s*0*(\d{1,3})\b/g, '$1 $2')
+    .replace(/\b(\d{1,5})\s*[-/]\s*([a-z]{1,3})\b/g, '$1 $2')
+    .replace(/\b(\d{1,5})\s+([a-z])\b/g, '$1$2');
+  return n
     .replace(/[\s\-/]+/g, ' ')
     .trim();
 }
@@ -315,6 +324,10 @@ function kandidaatTeksten(k: GeocodeKandidaat): string[] {
   ].filter(Boolean);
 }
 
+function kandidaatMatchKey(k: GeocodeKandidaat): string {
+  return normVrijeTekst(k.weergavenaam.split(',')[0] ?? k.weergavenaam);
+}
+
 function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): boolean {
   const bron = normVrijeTekst([inv.titel, inv.adres, inv.postcode, inv.plaats].filter(Boolean).join(' '));
   if (!bron) return false;
@@ -324,6 +337,30 @@ function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): bo
     const esc = nt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
   });
+}
+
+function straatKomtVoorInTekst(inv: SignaalLocatieInvoer, straat: string | null | undefined): boolean {
+  const ns = normVrijeTekst(straat);
+  if (!ns || ns.length < 6) return false;
+  const bron = normVrijeTekst([inv.titel, inv.adres].filter(Boolean).join(' '));
+  if (!bron) return false;
+  const esc = ns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
+}
+
+function langereKandidaatStraatUitTekst(
+  inv: SignaalLocatieInvoer,
+  kandidaten: GeocodeKandidaat[],
+  inputStraat: string | null,
+): string | null {
+  if (!inputStraat) return null;
+  const mogelijke = kandidaten
+    .map(k => ({ raw: k.straat, norm: normStraat(k.straat) }))
+    .filter((s): s is { raw: string; norm: string } => !!s.raw && !!s.norm)
+    .filter(s => s.norm !== inputStraat && s.norm.endsWith(` ${inputStraat}`))
+    .filter(s => straatKomtVoorInTekst(inv, s.raw))
+    .sort((a, b) => b.norm.length - a.norm.length);
+  return mogelijke[0]?.norm ?? null;
 }
 
 function splitHuisletterToevoeging(toevoeging: string | null): { huisletter: string | null; toevoeging: string | null } {
@@ -341,7 +378,7 @@ function kandidaatDebugReden(
   plaats: string | null,
   inputStraat: string | null,
 ): string {
-  if (tekstBevatKandidaat(inv, k)) return 'Exacte adresstring staat in titel/adres.';
+  if (tekstBevatKandidaat(inv, k)) return 'Exacte kandidaat gevonden in titel.';
   if (!parsed.huisnummer) return 'Geen huisnummer in input.';
   if (String(k.huisnummer ?? '') !== String(parsed.huisnummer)) return 'Huisnummer wijkt af.';
   const pcOk = pc && k.postcode && pc === k.postcode;
@@ -526,10 +563,24 @@ export function beoordeelKandidaten(
   const tekstMatches = kandidaten
     .filter(k => tekstBevatKandidaat(inv, k))
     .sort((a, b) => b.score - a.score);
-  if (tekstMatches.length === 1 || (tekstMatches.length > 1 && tekstMatches[0].score > tekstMatches[1].score)) {
+  const tekstMatchKeys = new Set(tekstMatches.map(kandidaatMatchKey).filter(Boolean));
+  if (tekstMatches.length > 0 && tekstMatchKeys.size === 1) {
     const w = { ...tekstMatches[0], score: Math.max(95, tekstMatches[0].score) };
     debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
     return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+  }
+  if (tekstMatchKeys.size > 1) {
+    const keys = [...tekstMatchKeys].sort((a, b) => b.length - a.length);
+    const langsteKey = keys[0];
+    const kortereSuffixenVanZelfdeAdres = keys.slice(1).every(k => langsteKey.endsWith(` ${k}`));
+    if (kortereSuffixenVanZelfdeAdres) {
+      const w0 = tekstMatches.find(k => kandidaatMatchKey(k) === langsteKey) ?? tekstMatches[0];
+      const w = { ...w0, score: Math.max(95, w0.score) };
+      debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
+      return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+    }
+    debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_addresses' });
+    return { status: 'controleren', kandidaten, reden: 'Meerdere adressen gevonden.', redenCode: 'multiple_addresses' };
   }
 
   if (!parsed.huisnummer) {
@@ -554,10 +605,11 @@ export function beoordeelKandidaten(
   }
 
   // 2) Straatnaam (genormaliseerd)
-  const straatMatch = inputStraat
-    ? adresMatch.filter(k => normStraat(k.straat) === inputStraat)
+  const effectieveInputStraat = langereKandidaatStraatUitTekst(inv, adresMatch, inputStraat) ?? inputStraat;
+  const straatMatch = effectieveInputStraat
+    ? adresMatch.filter(k => normStraat(k.straat) === effectieveInputStraat)
     : adresMatch;
-  if (inputStraat && straatMatch.length === 0) {
+  if (effectieveInputStraat && straatMatch.length === 0) {
     debugLog({ ...baseDebug, gekozen: false, reden: 'street_mismatch' });
     return { status: 'controleren', kandidaten, reden: 'Straatnaam wijkt af.', redenCode: 'street_mismatch' };
   }
@@ -627,6 +679,7 @@ export async function geocodeSignaalLocatie(
 /** UI label voor reden code (NL). */
 export function redenLabel(code: GeocodeReden | undefined | null): string {
   switch (code) {
+    case 'multiple_addresses': return 'Meerdere adressen gevonden';
     case 'multiple_candidates': return 'Meerdere vergelijkbare kandidaten';
     case 'multiple_additions': return 'Meerdere toevoegingen bij dit huisnummer';
     case 'addition_mismatch': return 'Toevoeging onzeker';
