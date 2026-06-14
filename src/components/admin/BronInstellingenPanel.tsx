@@ -26,6 +26,20 @@ const DAGEN = [
   { value: 7, label: 'Zondag' },
 ];
 
+
+
+const TIJD_OPTIES: { value: string; uur: number; minuut: number; label: string }[] = (() => {
+  const out: { value: string; uur: number; minuut: number; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      out.push({ value: label, uur: h, minuut: m, label });
+    }
+  }
+  return out;
+})();
+
+
 function formatDatumTijd(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
@@ -39,6 +53,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
     frequentie: bron.frequentie,
     dag_van_week: bron.dag_van_week,
     tijdstip_uur: bron.tijdstip_uur,
+    tijdstip_minuut: bron.tijdstip_minuut ?? 0,
     max_records_per_run: bron.max_records_per_run,
     normalize_batch_size: bron.normalize_batch_size,
     lookback_days_default: bron.lookback_days_default,
@@ -53,6 +68,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
       frequentie: bron.frequentie,
       dag_van_week: bron.dag_van_week,
       tijdstip_uur: bron.tijdstip_uur,
+      tijdstip_minuut: bron.tijdstip_minuut ?? 0,
       max_records_per_run: bron.max_records_per_run,
       normalize_batch_size: bron.normalize_batch_size,
       lookback_days_default: bron.lookback_days_default,
@@ -60,6 +76,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
       auto_start_op: bron.auto_start_op,
     });
   }, [bron.id]);
+
 
   const setField = <K extends keyof BronInstellingenPatch>(k: K, v: BronInstellingenPatch[K]) => {
     setVorm(prev => {
@@ -140,11 +157,25 @@ export default function BronInstellingenPanel({ bron }: Props) {
           </Veld>
         )}
 
-        <Veld label="Tijdstip (uur)">
-          <Input type="number" min={0} max={23} className="h-8 text-xs"
-            value={vorm.tijdstip_uur ?? 6}
-            onChange={(e) => setField('tijdstip_uur', e.target.value === '' ? 6 : Math.max(0, Math.min(23, Number(e.target.value))))} />
+        <Veld label="Tijdstip">
+          <Select
+            value={`${String(vorm.tijdstip_uur ?? 6).padStart(2, '0')}:${String(vorm.tijdstip_minuut ?? 0).padStart(2, '0')}`}
+            onValueChange={(v) => {
+              const opt = TIJD_OPTIES.find(o => o.value === v);
+              if (!opt) return;
+              setVorm(prev => ({ ...prev, tijdstip_uur: opt.uur, tijdstip_minuut: opt.minuut }));
+            }}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {TIJD_OPTIES.map(o => (
+                <SelectItem key={o.value} value={o.value} className="text-xs font-mono-data">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Veld>
+
 
         <Veld label="Volgende run">
           <div className="h-8 px-2 flex items-center text-xs rounded-md border border-border/60 bg-muted/30">

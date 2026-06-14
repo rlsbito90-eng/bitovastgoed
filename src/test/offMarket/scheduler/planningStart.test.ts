@@ -10,7 +10,7 @@ function bron(over: Partial<OffMarketBron> = {}): OffMarketBron {
     id: 'b1', naam: 'Test', type: 'bekendmaking', actief: true,
     endpoint_url: null, laatste_run_op: null, laatste_run_status: null, laatste_fout: null,
     auto_import: true, auto_verwerken: false,
-    frequentie: 'dagelijks', dag_van_week: null, tijdstip_uur: 9,
+    frequentie: 'dagelijks', dag_van_week: null, tijdstip_uur: 9, tijdstip_minuut: 0,
     max_records_per_run: 500, normalize_batch_size: 200,
     lookback_days_default: 7, lookback_overlap_uren: 24,
     volgende_run_op: null, laatste_sync_op: null, auto_start_op: null,

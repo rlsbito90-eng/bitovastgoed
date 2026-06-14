@@ -2564,6 +2564,7 @@ export type Database = {
           max_records_per_run: number
           naam: string
           normalize_batch_size: number
+          tijdstip_minuut: number
           tijdstip_uur: number
           type: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at: string
@@ -2590,6 +2591,7 @@ export type Database = {
           max_records_per_run?: number
           naam: string
           normalize_batch_size?: number
+          tijdstip_minuut?: number
           tijdstip_uur?: number
           type?: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at?: string
@@ -2616,6 +2618,7 @@ export type Database = {
           max_records_per_run?: number
           naam?: string
           normalize_batch_size?: number
+          tijdstip_minuut?: number
           tijdstip_uur?: number
           type?: Database["public"]["Enums"]["off_market_bron_type"]
           updated_at?: string

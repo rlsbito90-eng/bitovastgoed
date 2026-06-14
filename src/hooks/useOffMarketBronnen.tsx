@@ -18,6 +18,7 @@ export interface OffMarketBron {
   frequentie: BronFrequentie;
   dag_van_week: number | null;
   tijdstip_uur: number;
+  tijdstip_minuut: number;
   max_records_per_run: number;
   normalize_batch_size: number;
   lookback_days_default: number;
@@ -29,9 +30,10 @@ export interface OffMarketBron {
 
 const BRON_SELECT =
   'id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout, ' +
-  'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, ' +
+  'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, tijdstip_minuut, ' +
   'max_records_per_run, normalize_batch_size, lookback_days_default, lookback_overlap_uren, ' +
   'volgende_run_op, laatste_sync_op, auto_start_op';
+
 
 export function useOffMarketBronnen() {
   return useQuery({
@@ -77,7 +79,7 @@ export function useToggleBron() {
 }
 
 export type BronInstellingenPatch = Partial<Pick<OffMarketBron,
-  'auto_import' | 'auto_verwerken' | 'frequentie' | 'dag_van_week' | 'tijdstip_uur'
+  'auto_import' | 'auto_verwerken' | 'frequentie' | 'dag_van_week' | 'tijdstip_uur' | 'tijdstip_minuut'
   | 'max_records_per_run' | 'normalize_batch_size' | 'lookback_days_default' | 'lookback_overlap_uren'
   | 'auto_start_op'
 >>;
@@ -91,12 +93,13 @@ export function bepaalVolgendeRunVoorPatch(
   const s = { ...huidig, ...patch } as OffMarketBron;
   if (!s.actief || !s.auto_import || s.frequentie === 'handmatig') return null;
   const next = berekenVolgendeRunMetStart(
-    now, s.frequentie, s.tijdstip_uur, s.dag_van_week, s.auto_start_op,
+    now, s.frequentie, s.tijdstip_uur, s.dag_van_week, s.auto_start_op, s.tijdstip_minuut ?? 0,
   );
   return next ? next.toISOString() : null;
 }
 
-const PLANNING_KEYS = ['auto_import', 'frequentie', 'dag_van_week', 'tijdstip_uur', 'auto_start_op'] as const;
+const PLANNING_KEYS = ['auto_import', 'frequentie', 'dag_van_week', 'tijdstip_uur', 'tijdstip_minuut', 'auto_start_op'] as const;
+
 
 export function useUpdateBronInstellingen() {
   const qc = useQueryClient();
