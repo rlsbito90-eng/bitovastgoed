@@ -21,17 +21,54 @@ interface BronConfig {
   gemeente?: string;
   provincie?: string;
 }
-const STRAAT_RE = /([A-ZÀ-Ý][\wÀ-ÿ\-']{2,40}(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak))\.?\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
+const STRAAT_SUFFIXEN = [
+  'straat','laan','weg','plein','kade','gracht','singel','dreef','hof','park',
+  'baan','dijk','markt','wal','pad','steeg','rak','sloot','burg','polder',
+  'plantsoen','brink','boulevard','allee',
+].join('|');
+const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
+const NOISE_WOORDEN_LC = [
+  'aanvraag','aangevraagd','aangevraagde','vergunning','omgevingsvergunning',
+  'omzettingsvergunning','splitsingsvergunning','woonvormingsvergunning',
+  'onttrekkingsvergunning','verleende','verleend','besluit','besluiten',
+  'bekendmaking','kennisgeving','melding','voor','het','de','een','aan',
+  'locatie','adres','pand','gebouw','complex','wijzigen','veranderen',
+  'verbouwen','intern',
+];
+const NOISE_WOORD = '(?:' + NOISE_WOORDEN_LC.map(w =>
+  `[${w[0].toUpperCase()}${w[0]}]${w.slice(1)}`
+).join('|') + ')';
+const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
+const STRAAT_RE = new RegExp(
+  `((?:${PREFIX_WOORD}\\s+){0,3}(?!${NOISE_WOORD}\\b)[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
+);
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
+const PLAATS_NA_POSTCODE_RE = /\b[1-9]\d{3}\s?[A-Z]{2}\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})/;
+const PLAATS_IN_TE_RE = /\b(?:in|te)\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})\b/;
 
 function parseAdres(text: string) {
-  if (!text) return { adres: null as string | null, postcode: null as string | null };
+  if (!text) return { adres: null as string | null, postcode: null as string | null, plaats: null as string | null };
   const norm = text.replace(/\s+/g, ' ').trim();
   const s = norm.match(STRAAT_RE);
   const p = norm.match(POSTCODE_RE);
+  let adres: string | null = null;
+  if (s) {
+    const straatnaam = s[1].replace(/\s+/g, ' ').trim();
+    const letter = s[3] ?? '';
+    const toev = s[4] ?? '';
+    adres = `${straatnaam} ${s[2]}${letter}${toev ? `-${toev}` : ''}`;
+  }
+  let plaats: string | null = null;
+  const naPc = norm.match(PLAATS_NA_POSTCODE_RE);
+  if (naPc) plaats = naPc[1].trim();
+  else {
+    const inTe = norm.match(PLAATS_IN_TE_RE);
+    if (inTe) plaats = inTe[1].trim();
+  }
   return {
-    adres: s ? `${s[1].trim()} ${s[2]}${s[3] || ''}`.trim() : null,
+    adres,
     postcode: p ? `${p[1]} ${p[2]}` : null,
+    plaats,
   };
 }
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
@@ -307,7 +344,7 @@ Deno.serve(async (req) => {
         omschrijving: samenvatting.slice(0, 500) || null,
         adres: adresInfo.adres,
         postcode: adresInfo.postcode,
-        plaats: cfg.gemeente ?? null,
+        plaats: adresInfo.plaats ?? cfg.gemeente ?? null,
         provincie: cfg.provincie ?? null,
         assettype,
         type_signaal: signaaltype,
