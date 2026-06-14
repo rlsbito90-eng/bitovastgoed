@@ -27,6 +27,8 @@ function bron(over: Partial<OffMarketBron> = {}): OffMarketBron {
     max_records_per_run: 500, normalize_batch_size: 200,
     lookback_days_default: 7, lookback_overlap_uren: 24,
     volgende_run_op: '2026-06-14T13:30:00.000Z', laatste_sync_op: null, auto_start_op: '2026-06-14',
+    backfill_vanaf: null, backfill_tot: null, backfill_cursor: 0,
+    backfill_server_total: null, backfill_status: 'niet_gestart',
     ...over,
   };
 }

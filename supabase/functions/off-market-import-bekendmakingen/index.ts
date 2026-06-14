@@ -48,12 +48,13 @@ function pluckFirst(b: string, n: string): string | null { return pluckAll(b, n)
 
 function bouwSruUrl(opts: {
   endpoint: string; creator: string; subjects: string[];
-  sinceIso: string; startRecord: number; maximumRecords: number;
+  sinceIso: string; totIso?: string | null; startRecord: number; maximumRecords: number;
 }): string {
   // KOOP SRU gebruikt prefix `dt.` (dcterms-alias). Gemeenteblad = identifier "gmb-...".
   // dt.subject is in praktijk niet doorzoekbaar → subjecten filteren we client-side in normalize.
-  const cql =
+  let cql =
     `(dt.identifier any "gmb") AND (dt.creator="${opts.creator}") AND (dt.modified >= "${opts.sinceIso}")`;
+  if (opts.totIso) cql += ` AND (dt.modified <= "${opts.totIso}")`;
   const params = new URLSearchParams({
     operation: 'searchRetrieve', version: '2.0', query: cql,
     startRecord: String(opts.startRecord), maximumRecords: String(opts.maximumRecords),
@@ -155,19 +156,35 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const bronId = body.bron_id as string | undefined;
     const testMode = body.test_mode === true;
-    // Modus bepalen — backwards compat: test_mode=true → 'test', anders 'handmatig'.
     const modusRaw = (body.modus as string | undefined)?.toLowerCase();
     const modus: 'test' | 'sync' | 'backfill' | 'handmatig' =
       modusRaw === 'test' || modusRaw === 'sync' || modusRaw === 'backfill' || modusRaw === 'handmatig'
         ? modusRaw
         : (testMode ? 'test' : 'handmatig');
     const lookbackOverride = body.lookback_days as number | undefined;
+    const isBackfill = modus === 'backfill';
+    // Hard cap: backfill 2000, anders 1000.
+    const recordsCap = isBackfill ? 2000 : 1000;
     const maxRecordsOverride = typeof body.max_records === 'number' && Number.isFinite(body.max_records)
-      ? Math.max(1, Math.min(1000, Math.floor(body.max_records)))
+      ? Math.max(1, Math.min(recordsCap, Math.floor(body.max_records)))
       : undefined;
+    const batchSizeBackfill = typeof body.batch_size === 'number' && Number.isFinite(body.batch_size)
+      ? Math.max(1, Math.min(2000, Math.floor(body.batch_size)))
+      : 500;
+    const backfillVanaf = typeof body.vanaf === 'string' ? body.vanaf : null;
+    const backfillTot = typeof body.tot === 'string' ? body.tot : null;
     if (!bronId) {
       return new Response(JSON.stringify({ error: 'bron_id verplicht' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (isBackfill && (!backfillVanaf || !backfillTot)) {
+      return new Response(JSON.stringify({ error: 'vanaf en tot zijn verplicht bij backfill' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // Backfill mag NIET via cron worden gestart.
+    if (isBackfill && isCronCall) {
+      return new Response(JSON.stringify({ error: 'Backfill mag alleen handmatig worden gestart' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { data: bron, error: bErr } = await admin
@@ -185,9 +202,10 @@ Deno.serve(async (req) => {
     const endpoint = bron.endpoint_url ?? 'https://repository.overheid.nl/sru';
     const creator = cfg.sru_creator as string | undefined;
     const subjects = (cfg.sru_subjects as string[] | undefined) ?? [];
-    // Voorkeur: kolomwaarden uit bron. Fallback: cfg of defaults voor oudere bronnen.
     const cfgMax = Number(bron.max_records_per_run ?? cfg.max_records_per_run ?? 200);
-    const maxRecords = Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
+    const maxRecords = isBackfill
+      ? batchSizeBackfill
+      : Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
     const lookbackFirst = Number(cfg.lookback_days_first_run ?? bron.lookback_days_default ?? 7);
     const lookbackDefault = Number(bron.lookback_days_default ?? cfg.lookback_days_default ?? 7);
     const overlapUren = Number(bron.lookback_overlap_uren ?? 24);
@@ -199,20 +217,30 @@ Deno.serve(async (req) => {
     // Bepaal sync-venster (query_vanaf / query_tot).
     const nu = new Date();
     let queryVanaf: Date;
-    if (modus === 'sync') {
-      if (bron.laatste_sync_op) {
-        queryVanaf = new Date(new Date(bron.laatste_sync_op).getTime() - Math.max(0, overlapUren) * 3600_000);
-      } else {
-        queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDefault) * 86400_000);
-      }
+    let queryTot: Date;
+    let cursorStart = 0;
+    let windowChanged = false;
+
+    if (isBackfill) {
+      queryVanaf = new Date(`${backfillVanaf}T00:00:00.000Z`);
+      queryTot = new Date(`${backfillTot}T23:59:59.999Z`);
+      windowChanged = bron.backfill_vanaf !== backfillVanaf || bron.backfill_tot !== backfillTot;
+      cursorStart = windowChanged ? 0 : Number(bron.backfill_cursor ?? 0);
+    } else if (modus === 'sync') {
+      queryVanaf = bron.laatste_sync_op
+        ? new Date(new Date(bron.laatste_sync_op).getTime() - Math.max(0, overlapUren) * 3600_000)
+        : new Date(nu.getTime() - Math.max(1, lookbackDefault) * 86400_000);
+      queryTot = nu;
     } else {
       const lookbackDays = modus === 'test'
         ? (lookbackOverride ?? 30)
         : (lookbackOverride ?? (bron.laatste_run_op ? lookbackDefault : lookbackFirst));
       queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDays) * 86400_000);
+      queryTot = nu;
     }
-    const queryTot = nu;
     const sinceIso = queryVanaf.toISOString().slice(0, 10);
+    const totIso = isBackfill ? queryTot.toISOString().slice(0, 10) : null;
+
 
     // Run-logging — start direct met status=bezig.
     const { data: runRow } = await admin
@@ -223,32 +251,33 @@ Deno.serve(async (req) => {
         status: 'bezig',
         query_vanaf: queryVanaf.toISOString(),
         query_tot: queryTot.toISOString(),
+        cursor_start: isBackfill ? cursorStart : null,
       })
       .select('id')
       .single();
     const runId = runRow?.id as string | undefined;
 
-    let startRecord = 1;
+    let startRecord = isBackfill ? cursorStart + 1 : 1;
     let opgehaald = 0, nieuw = 0, dubbel = 0;
     let totaalServer = 0;
     let firstQueryUrl = '';
-    const pageSize = 200;
+    const pageSize = isBackfill ? Math.min(maxRecords, 500) : 200;
     const TIME_BUDGET_MS = 50_000;
 
     try {
       while (opgehaald < maxRecords && (Date.now() - start) < TIME_BUDGET_MS) {
         const url = bouwSruUrl({
-          endpoint, creator, subjects, sinceIso,
+          endpoint, creator, subjects, sinceIso, totIso,
           startRecord, maximumRecords: Math.min(pageSize, maxRecords - opgehaald),
         });
         if (!firstQueryUrl) firstQueryUrl = url;
         console.log(JSON.stringify({
-          fase: 'sru_fetch', bron: bron.naam, creator, sinceIso, modus,
+          fase: 'sru_fetch', bron: bron.naam, creator, sinceIso, totIso, modus,
           startRecord, url,
         }));
         const xml = await fetchMetRetry(url);
         const { records, totaal } = parseSruResponse(xml);
-        if (startRecord === 1) totaalServer = totaal;
+        if (totaalServer === 0) totaalServer = totaal;
         console.log(JSON.stringify({
           fase: 'sru_response', bron: bron.naam,
           totaal_server: totaal, records_in_page: records.length, startRecord,
@@ -277,21 +306,33 @@ Deno.serve(async (req) => {
       }
 
       const duurMs = Date.now() - start;
-      const afgebroken = opgehaald < maxRecords && duurMs >= TIME_BUDGET_MS;
+      const afgebroken = opgehaald < maxRecords && duurMs >= TIME_BUDGET_MS && !isBackfill;
+      const cursorEind = isBackfill ? cursorStart + opgehaald : null;
+      const backfillVoltooid = isBackfill && cursorEind !== null && totaalServer > 0 && cursorEind >= totaalServer;
+
       const status = {
-        opgehaald, nieuw, dubbel, duur_ms: duurMs, sinceIso,
+        opgehaald, nieuw, dubbel, duur_ms: duurMs, sinceIso, totIso,
         totaal_server: totaalServer, max_records: maxRecords, afgebroken,
         test_mode: testMode, modus, query_url: firstQueryUrl,
         query_vanaf: queryVanaf.toISOString(), query_tot: queryTot.toISOString(),
+        cursor_start: cursorStart, cursor_eind: cursorEind,
       };
-      const bronUpdate: Record<string, unknown> = {
-        laatste_run_op: new Date().toISOString(),
-        laatste_run_status: JSON.stringify(status),
-        laatste_fout: null,
-      };
-      // Alleen bij succesvolle sync laatste_sync_op bijwerken.
-      if (modus === 'sync' && !afgebroken) {
-        bronUpdate.laatste_sync_op = queryTot.toISOString();
+
+      const bronUpdate: Record<string, unknown> = {};
+      if (isBackfill) {
+        // Backfill mag laatste_sync_op / laatste_run_op niet overschrijven.
+        bronUpdate.backfill_vanaf = backfillVanaf;
+        bronUpdate.backfill_tot = backfillTot;
+        bronUpdate.backfill_cursor = cursorEind ?? cursorStart;
+        bronUpdate.backfill_server_total = totaalServer;
+        bronUpdate.backfill_status = backfillVoltooid ? 'voltooid' : 'bezig';
+      } else {
+        bronUpdate.laatste_run_op = new Date().toISOString();
+        bronUpdate.laatste_run_status = JSON.stringify(status);
+        bronUpdate.laatste_fout = null;
+        if (modus === 'sync' && !afgebroken) {
+          bronUpdate.laatste_sync_op = queryTot.toISOString();
+        }
       }
       await admin.from('off_market_bronnen').update(bronUpdate).eq('id', bronId);
 
@@ -303,6 +344,7 @@ Deno.serve(async (req) => {
           server_total: totaalServer,
           opgehaald, nieuw, dubbel,
           duration_ms: duurMs,
+          cursor_eind: cursorEind,
         }).eq('id', runId);
       }
 
@@ -311,11 +353,22 @@ Deno.serve(async (req) => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const duurMs = Date.now() - start;
-      await admin.from('off_market_bronnen').update({
-        laatste_run_op: new Date().toISOString(),
-        laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel, modus }),
-        laatste_fout: msg.slice(0, 500),
-      }).eq('id', bronId);
+      const cursorEind = isBackfill ? cursorStart + opgehaald : null;
+      if (isBackfill) {
+        await admin.from('off_market_bronnen').update({
+          backfill_vanaf: backfillVanaf,
+          backfill_tot: backfillTot,
+          backfill_cursor: cursorEind ?? cursorStart,
+          backfill_server_total: totaalServer || null,
+          backfill_status: 'fout',
+        }).eq('id', bronId);
+      } else {
+        await admin.from('off_market_bronnen').update({
+          laatste_run_op: new Date().toISOString(),
+          laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel, modus }),
+          laatste_fout: msg.slice(0, 500),
+        }).eq('id', bronId);
+      }
       if (runId) {
         await admin.from('off_market_import_runs').update({
           status: 'fout',
@@ -324,6 +377,7 @@ Deno.serve(async (req) => {
           server_total: totaalServer,
           opgehaald, nieuw, dubbel,
           duration_ms: duurMs,
+          cursor_eind: cursorEind,
           foutmelding: msg.slice(0, 1000),
         }).eq('id', runId);
       }
