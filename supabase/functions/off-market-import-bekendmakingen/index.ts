@@ -104,13 +104,26 @@ async function fetchMetRetry(url: string): Promise<string> {
         signal: ctrl.signal,
       });
       clearTimeout(t);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        // 5xx/429 → retry met langere backoff (KOOP knijpt deep-paging af).
+        if ((resp.status >= 500 || resp.status === 429) && attempt < MAX_RETRIES) {
+          const wait = Math.min(15000, 1000 * Math.pow(2, attempt));
+          console.warn(JSON.stringify({
+            fase: 'sru_retry', status: resp.status, attempt, wait_ms: wait, url,
+          }));
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        throw new SruHttpError(resp.status, url, body.slice(0, 400));
+      }
       return await resp.text();
     } catch (e) {
       clearTimeout(t);
       lastErr = e;
+      if (e instanceof SruHttpError) throw e;
       if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
       }
     }
   }
