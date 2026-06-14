@@ -1,5 +1,5 @@
 // off-market-sync-scheduler
-// Wordt aangeroepen door pg_cron (uurlijks). Beveiligd met X-Cron-Secret header.
+// Wordt aangeroepen door pg_cron (elk kwartier). Beveiligd met X-Cron-Secret header.
 // Doel: voor alle bronnen met auto_import=true bepalen of ze aan de beurt zijn,
 // roep dan de bestaande import-functie aan in modus=sync, en optioneel normalize
 // in beperkte chunks. Raakt GEEN AI/Kadaster/KVK/brief-functionaliteit.
@@ -48,12 +48,16 @@ function plusDagen(y: number, m: number, d: number, n: number) {
   t.setUTCDate(t.getUTCDate() + n);
   return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
 }
+function normaliseerMinuut(v: unknown): number {
+  const n = Math.floor(Number(v ?? 0));
+  return [0, 15, 30, 45].includes(n) ? n : 0;
+}
 function berekenVolgendeRun(
   now: Date, frequentie: Frequentie, tijdstipUur: number, tijdstipMinuut: number, dagVanWeek: number | null,
 ): Date | null {
   if (frequentie === 'handmatig') return null;
   const uur = Math.max(0, Math.min(23, Math.floor(tijdstipUur)));
-  const min = [0, 15, 30, 45].includes(tijdstipMinuut) ? tijdstipMinuut : 0;
+  const min = normaliseerMinuut(tijdstipMinuut);
   const p = amsterdamParts(now);
   if (frequentie === 'dagelijks') {
     const vandaag = amsterdamWallToUtc(p.year, p.month, p.day, uur, min);
@@ -122,13 +126,25 @@ Deno.serve(async (req) => {
     const now = new Date();
     const todayAms = amsterdamParts(now);
     const todayYmd = `${todayAms.year}-${String(todayAms.month).padStart(2, '0')}-${String(todayAms.day).padStart(2, '0')}`;
-    const kandidaten = (bronnen ?? []).filter((b: any) => {
-      if (b.frequentie === 'handmatig') return false;
-      // Respecteer auto_start_op: niet uitvoeren vóór de gekozen startdatum.
-      if (b.auto_start_op && String(b.auto_start_op) > todayYmd) return false;
-      if (!b.volgende_run_op) return true;
-      return new Date(b.volgende_run_op).getTime() <= now.getTime();
+    const evaluaties = (bronnen ?? []).map((b: any) => {
+      let uitvoeren = false;
+      let reden = 'aan_de_beurt';
+      if (b.frequentie === 'handmatig') reden = 'frequentie_handmatig';
+      else if (b.auto_start_op && String(b.auto_start_op) > todayYmd) reden = 'startdatum_in_toekomst';
+      else if (!b.volgende_run_op) uitvoeren = true;
+      else if (new Date(b.volgende_run_op).getTime() <= now.getTime()) uitvoeren = true;
+      else reden = 'volgende_run_in_toekomst';
+      const detail = {
+        fase: 'scheduler_evaluatie', bron_id: b.id, bronnaam: b.naam,
+        actief: b.actief, auto_import: b.auto_import, auto_verwerken: b.auto_verwerken,
+        frequentie: b.frequentie, tijdstip_uur: b.tijdstip_uur,
+        tijdstip_minuut: normaliseerMinuut(b.tijdstip_minuut),
+        volgende_run_op: b.volgende_run_op, now: now.toISOString(), uitvoeren, reden,
+      };
+      console.log(JSON.stringify(detail));
+      return { bron: b, uitvoeren };
     });
+    const kandidaten = evaluaties.filter(e => e.uitvoeren).map(e => e.bron);
 
 
     const resultaten: any[] = [];

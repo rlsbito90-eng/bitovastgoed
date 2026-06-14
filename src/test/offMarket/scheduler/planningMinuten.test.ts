@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   berekenVolgendeRunMetStart, amsterdamParts, amsterdamToday,
-  normaliseerMinuut, TOEGESTANE_MINUTEN,
+  normaliseerMinuut, TOEGESTANE_MINUTEN, isAanDeBeurt,
+  type BronPlan,
 } from '@/lib/offMarket/scheduler/planning';
 
 describe('normaliseerMinuut', () => {
@@ -35,6 +36,36 @@ describe('planning met minuten — dagelijks', () => {
     const now = new Date('2026-06-14T13:15:00Z');
     const r = berekenVolgendeRunMetStart(now, 'dagelijks', 15, null, amsterdamToday(now), 15)!;
     expect(amsterdamParts(r)).toMatchObject({ year: 2026, month: 6, day: 15, hour: 15, minute: 15 });
+  });
+
+  it('scheduler schuift daily 15:30 door naar volgende dag 15:30', () => {
+    const now = new Date('2026-06-14T13:32:00Z'); // 15:32 Ams
+    const r = berekenVolgendeRunMetStart(now, 'dagelijks', 15, null, amsterdamToday(now), 30)!;
+    expect(amsterdamParts(r)).toMatchObject({ year: 2026, month: 6, day: 15, hour: 15, minute: 30 });
+    expect(r.toISOString()).toBe('2026-06-15T13:30:00.000Z');
+  });
+});
+
+describe('selectie rond kwartierplanning', () => {
+  const bron: BronPlan = {
+    id: 'ams', actief: true, auto_import: true, auto_verwerken: true,
+    frequentie: 'dagelijks', dag_van_week: null, tijdstip_uur: 15, tijdstip_minuut: 30,
+    volgende_run_op: '2026-06-14T13:30:00.000Z', laatste_sync_op: null,
+  };
+
+  it('bron met volgende_run_op <= now draait op het juiste kwartier', () => {
+    expect(isAanDeBeurt(bron, new Date('2026-06-14T13:30:00Z'))).toBe(true);
+    expect(isAanDeBeurt(bron, new Date('2026-06-14T13:32:00Z'))).toBe(true);
+  });
+
+  it('bron met volgende_run_op > now wordt nog overgeslagen', () => {
+    expect(isAanDeBeurt(bron, new Date('2026-06-14T13:29:59Z'))).toBe(false);
+  });
+
+  it('geen fallback naar minuut 0 na scheduler-run', () => {
+    const now = new Date('2026-06-14T13:32:00Z');
+    const volgende = berekenVolgendeRunMetStart(now, bron.frequentie, bron.tijdstip_uur, bron.dag_van_week, amsterdamToday(now), bron.tijdstip_minuut)!;
+    expect(amsterdamParts(volgende)).toMatchObject({ year: 2026, month: 6, day: 15, hour: 15, minute: 30 });
   });
 });
 

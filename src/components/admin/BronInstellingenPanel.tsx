@@ -75,7 +75,11 @@ export default function BronInstellingenPanel({ bron }: Props) {
       lookback_overlap_uren: bron.lookback_overlap_uren,
       auto_start_op: bron.auto_start_op,
     });
-  }, [bron.id]);
+  }, [
+    bron.id, bron.auto_import, bron.auto_verwerken, bron.frequentie, bron.dag_van_week,
+    bron.tijdstip_uur, bron.tijdstip_minuut, bron.max_records_per_run, bron.normalize_batch_size,
+    bron.lookback_days_default, bron.lookback_overlap_uren, bron.auto_start_op,
+  ]);
 
 
   const setField = <K extends keyof BronInstellingenPatch>(k: K, v: BronInstellingenPatch[K]) => {
