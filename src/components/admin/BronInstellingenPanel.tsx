@@ -24,6 +24,9 @@ const DAGEN = [
   { value: 1, label: 'Maandag' }, { value: 2, label: 'Dinsdag' }, { value: 3, label: 'Woensdag' },
   { value: 4, label: 'Donderdag' }, { value: 5, label: 'Vrijdag' }, { value: 6, label: 'Zaterdag' },
   { value: 7, label: 'Zondag' },
+];
+
+
 
 const TIJD_OPTIES: { value: string; uur: number; minuut: number; label: string }[] = (() => {
   const out: { value: string; uur: number; minuut: number; label: string }[] = [];
