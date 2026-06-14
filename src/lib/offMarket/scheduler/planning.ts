@@ -13,12 +13,16 @@ export interface BronPlan {
   /** 1=ma … 7=zo */
   dag_van_week: number | null;
   tijdstip_uur: number;
+  tijdstip_minuut?: number;
   volgende_run_op: string | null;
   laatste_sync_op: string | null;
 }
 
 /** Vaste dag-van-de-maand voor 'maandelijks' in V1. */
 export const DAG_VAN_DE_MAAND = 28;
+/** Toegestane minuten voor planning. */
+export const TOEGESTANE_MINUTEN = [0, 15, 30, 45] as const;
+export type ToegestaneMinuut = typeof TOEGESTANE_MINUTEN[number];
 
 // --- Europe/Amsterdam helpers ---
 interface AmsParts {
@@ -52,15 +56,13 @@ export function amsterdamParts(d: Date): AmsParts {
   };
 }
 
-/** Bouw een UTC Date die overeenkomt met de Amsterdam-wallclock y-m-d h:00. */
-export function amsterdamWallToUtc(y: number, m: number, d: number, h: number): Date {
-  // Eerste gok: behandel y-m-d-h als UTC, kijk hoe Amsterdam dat ziet, en corrigeer.
-  const guess = new Date(Date.UTC(y, m - 1, d, h, 0, 0));
+/** Bouw een UTC Date die overeenkomt met de Amsterdam-wallclock y-m-d h:mm. */
+export function amsterdamWallToUtc(y: number, m: number, d: number, h: number, min = 0): Date {
+  const guess = new Date(Date.UTC(y, m - 1, d, h, min, 0));
   const p = amsterdamParts(guess);
-  const desiredMinutes = h * 60;
+  const desiredMinutes = h * 60 + min;
   const actualMinutes = p.hour * 60 + p.minute;
   let diff = desiredMinutes - actualMinutes;
-  // Day boundary kruisen (b.v. -23h) → naar dichtstbijzijnde offset toetrekken.
   if (diff > 12 * 60) diff -= 24 * 60;
   if (diff < -12 * 60) diff += 24 * 60;
   return new Date(guess.getTime() + diff * 60_000);
@@ -68,7 +70,6 @@ export function amsterdamWallToUtc(y: number, m: number, d: number, h: number): 
 
 /** Voeg n dagen toe aan een Amsterdam-wallclock datum. */
 function plusDagen(y: number, m: number, d: number, n: number): { year: number; month: number; day: number } {
-  // Gebruik UTC voor de dagboekhouding; dag-rollover is consistent.
   const t = new Date(Date.UTC(y, m - 1, d));
   t.setUTCDate(t.getUTCDate() + n);
   return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
@@ -95,6 +96,12 @@ export function amsterdamToday(now: Date): string {
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
+/** Normaliseer minuut-waarde naar 0/15/30/45. */
+export function normaliseerMinuut(v: unknown): ToegestaneMinuut {
+  const n = Math.floor(Number(v ?? 0));
+  return (TOEGESTANE_MINUTEN as readonly number[]).includes(n) ? (n as ToegestaneMinuut) : 0;
+}
+
 /**
  * Bereken volgende_run_op voor een bron met expliciete startdatum (`auto_start_op`).
  * Retourneert `null` voor 'handmatig' of als er geen run gepland kan worden.
@@ -105,49 +112,50 @@ export function berekenVolgendeRunMetStart(
   tijdstipUur: number,
   dagVanWeek: number | null,
   autoStartOp: string | null,
+  tijdstipMinuut: number = 0,
 ): Date | null {
   if (frequentie === 'handmatig') return null;
   const uur = Math.max(0, Math.min(23, Math.floor(tijdstipUur)));
+  const min = normaliseerMinuut(tijdstipMinuut);
   const pNow = amsterdamParts(now);
   const today: Ymd = { y: pNow.year, m: pNow.month, d: pNow.day };
   const startCand = parseYmd(autoStartOp);
-  const min: Ymd = startCand && cmpYmd(startCand, today) > 0 ? startCand : today;
+  const minDate: Ymd = startCand && cmpYmd(startCand, today) > 0 ? startCand : today;
 
   if (frequentie === 'dagelijks') {
-    let cand = amsterdamWallToUtc(min.y, min.m, min.d, uur);
+    let cand = amsterdamWallToUtc(minDate.y, minDate.m, minDate.d, uur, min);
     if (cand <= now) {
-      const next = plusDagen(min.y, min.m, min.d, 1);
-      cand = amsterdamWallToUtc(next.year, next.month, next.day, uur);
+      const next = plusDagen(minDate.y, minDate.m, minDate.d, 1);
+      cand = amsterdamWallToUtc(next.year, next.month, next.day, uur, min);
     }
     return cand;
   }
 
   if (frequentie === 'wekelijks') {
     const target = dagVanWeek && dagVanWeek >= 1 && dagVanWeek <= 7 ? dagVanWeek : 1;
-    // Weekdag van min bepalen via een veilig moment (12:00 Amsterdam).
-    const minMidUtc = amsterdamWallToUtc(min.y, min.m, min.d, 12);
+    const minMidUtc = amsterdamWallToUtc(minDate.y, minDate.m, minDate.d, 12);
     const minWeekday = amsterdamParts(minMidUtc).weekday;
-    let daysAhead = (target - minWeekday + 7) % 7;
+    const daysAhead = (target - minWeekday + 7) % 7;
     let tgt: { year: number; month: number; day: number } =
-      daysAhead === 0 ? { year: min.y, month: min.m, day: min.d }
-                      : plusDagen(min.y, min.m, min.d, daysAhead);
-    let cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
+      daysAhead === 0 ? { year: minDate.y, month: minDate.m, day: minDate.d }
+                      : plusDagen(minDate.y, minDate.m, minDate.d, daysAhead);
+    let cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur, min);
     if (cand <= now) {
       tgt = plusDagen(tgt.year, tgt.month, tgt.day, 7);
-      cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
+      cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur, min);
     }
     return cand;
   }
 
   if (frequentie === 'maandelijks') {
-    let y = min.y, m = min.m;
-    if (min.d > DAG_VAN_DE_MAAND) {
+    let y = minDate.y, m = minDate.m;
+    if (minDate.d > DAG_VAN_DE_MAAND) {
       m += 1; if (m > 12) { m = 1; y += 1; }
     }
-    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur, min);
     if (cand <= now) {
       m += 1; if (m > 12) { m = 1; y += 1; }
-      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur, min);
     }
     return cand;
   }
@@ -163,39 +171,9 @@ export function berekenVolgendeRun(
   frequentie: Frequentie,
   tijdstipUur: number,
   dagVanWeek: number | null,
+  tijdstipMinuut: number = 0,
 ): Date | null {
-  if (frequentie === 'handmatig') return null;
-  const uur = Math.max(0, Math.min(23, Math.floor(tijdstipUur)));
-  const p = amsterdamParts(now);
-
-  if (frequentie === 'dagelijks') {
-    const vandaag = amsterdamWallToUtc(p.year, p.month, p.day, uur);
-    if (vandaag > now) return vandaag;
-    const morgen = plusDagen(p.year, p.month, p.day, 1);
-    return amsterdamWallToUtc(morgen.year, morgen.month, morgen.day, uur);
-  }
-
-  if (frequentie === 'wekelijks') {
-    const target = dagVanWeek && dagVanWeek >= 1 && dagVanWeek <= 7 ? dagVanWeek : 1;
-    let daysAhead = (target - p.weekday + 7) % 7;
-    const vandaagCand = amsterdamWallToUtc(p.year, p.month, p.day, uur);
-    if (daysAhead === 0 && vandaagCand <= now) daysAhead = 7;
-    if (daysAhead === 0) return vandaagCand;
-    const tgt = plusDagen(p.year, p.month, p.day, daysAhead);
-    return amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
-  }
-
-  if (frequentie === 'maandelijks') {
-    // Vaste dag 28; deze dag bestaat altijd in elke maand.
-    let y = p.year, m = p.month;
-    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
-    if (cand <= now) {
-      m += 1; if (m > 12) { m = 1; y += 1; }
-      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
-    }
-    return cand;
-  }
-  return null;
+  return berekenVolgendeRunMetStart(now, frequentie, tijdstipUur, dagVanWeek, null, tijdstipMinuut);
 }
 
 /** Is een bron volgens schema aan de beurt? */
@@ -205,7 +183,6 @@ export function isAanDeBeurt(bron: BronPlan, now: Date): boolean {
   if (bron.volgende_run_op) {
     return new Date(bron.volgende_run_op).getTime() <= now.getTime();
   }
-  // Nog geen geplande tijd → eerste keer: direct uitvoeren.
   return true;
 }
 
