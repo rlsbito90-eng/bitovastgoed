@@ -150,10 +150,12 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${serviceKey}`,
             'apikey': serviceKey,
+            'x-cron-secret': cronSecret,
             'x-scheduler-source': 'cron',
           },
           body: JSON.stringify({ bron_id: b.id, modus: 'sync' }),
         });
+
         syncResp = await r.json().catch(() => ({}));
         if (!r.ok || syncResp?.error) {
           throw new Error(syncResp?.error || `import HTTP ${r.status}`);
