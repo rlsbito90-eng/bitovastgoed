@@ -11,8 +11,15 @@ const corsHeaders = {
 };
 
 const USER_AGENT = 'BitoVastgoed-OffMarketRadar/1.0';
-const HTTP_TIMEOUT_MS = 15000;
-const MAX_RETRIES = 3;
+const HTTP_TIMEOUT_MS = 20000;
+const MAX_RETRIES = 6;
+
+class SruHttpError extends Error {
+  constructor(public status: number, public url: string, public bodySnippet: string) {
+    super(`SRU HTTP ${status} bij startRecord uit URL`);
+    this.name = 'SruHttpError';
+  }
+}
 
 interface SruRecord {
   identifier: string;
