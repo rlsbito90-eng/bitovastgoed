@@ -211,7 +211,13 @@ function normPlaats(p: string | null | undefined): string | null {
 
 function normStraat(s: string | null | undefined): string | null {
   if (!s) return null;
-  return stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
+  let n = stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ');
+  // OCR/typo: lowercase L gevolgd door J aan begin van een woord → ij
+  // ("lJsselmondselaan" → "ijsselmondselaan").
+  n = n.replace(/(^|\s)lj/g, '$1ij');
+  // Verwijder leestekens die niet zinvol zijn voor vergelijking
+  n = n.replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
+  return n || null;
 }
 
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
