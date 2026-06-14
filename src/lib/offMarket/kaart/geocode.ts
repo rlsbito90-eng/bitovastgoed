@@ -266,7 +266,7 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
  */
 function toevoegingUitWeergavenaam(weergavenaam: string | null | undefined, huisnummer: string | null): string | null {
   if (!weergavenaam || !huisnummer) return null;
-  const re = new RegExp(`\\b${huisnummer}\\b([^,]*)`, 'i');
+  const re = new RegExp(`\\b${huisnummer}\\s*([A-Za-z](?:\\s*[-/]?\\s*[A-Za-z0-9]{1,3})?|[-/]\\s*[A-Za-z0-9]{1,4})?(?=\\s*,|\\s|$)`, 'i');
   const m = weergavenaam.match(re);
   if (!m) return null;
   return normToevoeging(m[1]);
