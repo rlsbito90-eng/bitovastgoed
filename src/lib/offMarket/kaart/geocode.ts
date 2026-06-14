@@ -611,10 +611,16 @@ export async function geocodeSignaalLocatie(
 ): Promise<GeocodeResultaat> {
   const q = bouwQuery(inv);
   if (!q) {
-    return { status: 'overslaan', reden: 'Onvoldoende adresgegevens (geen huisnummer + postcode/plaats).', redenCode: 'insufficient_input' };
+    return {
+      status: 'overslaan',
+      reden: 'Onvoldoende adresgegevens (geen huisnummer + postcode/plaats).',
+      redenCode: 'insufficient_input',
+      debug: maakGeocodeDebug(inv, [], 'insufficient_input', { signaal_id: opts.signaal_id }),
+    };
   }
   const kandidaten = await pdokAdresZoek(inv, opts);
-  return beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
+  const resultaat = beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
+  return { ...resultaat, debug: maakGeocodeDebug(inv, kandidaten, 'reden' in resultaat ? resultaat.redenCode ?? resultaat.reden : null, { signaal_id: opts.signaal_id }) };
 }
 
 /** UI label voor reden code (NL). */
@@ -630,6 +636,7 @@ export function redenLabel(code: GeocodeReden | undefined | null): string {
     case 'no_candidates': return 'Geen PDOK-resultaat';
     case 'insufficient_input': return 'Onvoldoende adresgegevens';
     case 'exact_match':
+    case 'exact_text_match':
     case 'exact_addition_match':
     case 'basic_address_unique':
     case 'top_score_dominant': return 'Automatisch gematcht';
