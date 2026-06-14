@@ -336,6 +336,9 @@ export default function OffMarketBronnenSectie() {
                     <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
                     <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
                     <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
+                    {b.auto_import && (
+                      <span className="text-warning">Scheduler klaar · cron nog handmatig activeren</span>
+                    )}
                   </div>
 
                   {(last || stats) && (
