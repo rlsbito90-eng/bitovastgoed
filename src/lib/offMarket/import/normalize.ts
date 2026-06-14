@@ -30,8 +30,19 @@ const STRAAT_SUFFIXEN = [
 
 // Toegestane tussenvoegsels (lowercase) voor straatnamen als "Van der Helststraat".
 const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
-// Woorden die nooit deel uitmaken van een straatnaam (titel-ruis).
-const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|aangevraagde)';
+// Lijst van noise-woorden (titel-ruis) die nooit deel uitmaken van een straatnaam.
+const NOISE_WOORDEN_LC = [
+  'aanvraag','aangevraagd','aangevraagde','vergunning','omgevingsvergunning',
+  'omzettingsvergunning','splitsingsvergunning','woonvormingsvergunning',
+  'onttrekkingsvergunning','verleende','verleend','besluit','besluiten',
+  'bekendmaking','kennisgeving','melding','voor','het','de','een','aan',
+  'locatie','adres','pand','gebouw','complex','wijzigen','veranderen',
+  'verbouwen','intern',
+];
+// Maak elke variant case-insensitive door eerste letter in beide cases toe te staan.
+const NOISE_WOORD = '(?:' + NOISE_WOORDEN_LC.map(w =>
+  `[${w[0].toUpperCase()}${w[0]}]${w.slice(1)}`
+).join('|') + ')';
 const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
 
 // Hoofdregex: optioneel 0–3 prefixwoorden ("John ", "Van der "),
