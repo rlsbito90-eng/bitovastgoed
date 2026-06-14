@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { berekenVolgendeRunMetStart, amsterdamToday } from '@/lib/offMarket/scheduler/planning';
 
 export type BronFrequentie = 'handmatig' | 'dagelijks' | 'wekelijks' | 'maandelijks';
+export type BackfillStatus = 'niet_gestart' | 'bezig' | 'gepauzeerd' | 'voltooid' | 'fout';
 
 export interface OffMarketBron {
   id: string;
@@ -26,13 +27,19 @@ export interface OffMarketBron {
   volgende_run_op: string | null;
   laatste_sync_op: string | null;
   auto_start_op: string | null;
+  backfill_vanaf: string | null;
+  backfill_tot: string | null;
+  backfill_cursor: number;
+  backfill_server_total: number | null;
+  backfill_status: BackfillStatus;
 }
 
 const BRON_SELECT =
   'id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout, ' +
   'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, tijdstip_minuut, ' +
   'max_records_per_run, normalize_batch_size, lookback_days_default, lookback_overlap_uren, ' +
-  'volgende_run_op, laatste_sync_op, auto_start_op';
+  'volgende_run_op, laatste_sync_op, auto_start_op, ' +
+  'backfill_vanaf, backfill_tot, backfill_cursor, backfill_server_total, backfill_status';
 
 
 export function useOffMarketBronnen() {
