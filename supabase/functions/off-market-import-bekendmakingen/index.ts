@@ -278,9 +278,10 @@ Deno.serve(async (req) => {
     const runId = runRow?.id as string | undefined;
 
     let startRecord = isBackfill ? cursorStart + 1 : 1;
-    let opgehaald = 0, nieuw = 0, dubbel = 0;
+    let opgehaald = 0, nieuw = 0, dubbel = 0, foutRecords = 0;
     let totaalServer = 0;
     let firstQueryUrl = '';
+    let laatsteRecordIdentifier: string | null = null;
     const pageSize = isBackfill ? Math.min(maxRecords, 500) : 200;
     const TIME_BUDGET_MS = 50_000;
 
@@ -304,19 +305,30 @@ Deno.serve(async (req) => {
         }));
         if (records.length === 0) break;
 
-        for (const r of records) {
-          const payload = {
-            titel: r.titel, datum: r.datum, samenvatting: r.samenvatting,
-            subjects: r.subjects, creator: r.creator, link: r.link,
-          };
-          const { error: insErr } = await admin
-            .from('off_market_signalen_ruw')
-            .insert({ bron_id: bronId, extern_id: r.identifier, payload });
-          if (insErr) {
-            if (insErr.code === '23505') dubbel++;
-            else throw insErr;
-          } else {
-            nieuw++;
+        for (let i = 0; i < records.length; i++) {
+          const r = records[i];
+          laatsteRecordIdentifier = r.identifier;
+          try {
+            const payload = {
+              titel: r.titel, datum: r.datum, samenvatting: r.samenvatting,
+              subjects: r.subjects, creator: r.creator, link: r.link,
+            };
+            const { error: insErr } = await admin
+              .from('off_market_signalen_ruw')
+              .insert({ bron_id: bronId, extern_id: r.identifier, payload });
+            if (insErr) {
+              if (insErr.code === '23505') dubbel++;
+              else throw insErr;
+            } else {
+              nieuw++;
+            }
+          } catch (recErr) {
+            foutRecords++;
+            console.error(JSON.stringify({
+              fase: 'record_fout', index: i, startRecord, identifier: r.identifier,
+              titel: r.titel?.slice(0, 120),
+              error: recErr instanceof Error ? recErr.message : String(recErr),
+            }));
           }
         }
         opgehaald += records.length;
@@ -324,6 +336,7 @@ Deno.serve(async (req) => {
         if (startRecord > totaal) break;
         if (records.length < pageSize) break;
       }
+
 
       const duurMs = Date.now() - start;
       const afgebroken = opgehaald < maxRecords && duurMs >= TIME_BUDGET_MS && !isBackfill;
