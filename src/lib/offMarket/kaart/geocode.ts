@@ -320,7 +320,9 @@ function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): bo
   if (!bron) return false;
   return kandidaatTeksten(k).some(t => {
     const nt = normVrijeTekst(t);
-    return nt.length >= 8 && bron.includes(nt);
+    if (nt.length < 8) return false;
+    const esc = nt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
   });
 }
 
