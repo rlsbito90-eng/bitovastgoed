@@ -34,6 +34,7 @@ export interface GeocodeKandidaat {
 
 export type GeocodeReden =
   | 'exact_match'
+  | 'exact_text_match'
   | 'exact_addition_match'
   | 'basic_address_unique'
   | 'top_score_dominant'
@@ -68,6 +69,32 @@ export interface ParsedAdres {
   huisnummer: string | null;
   /** Genormaliseerd: uppercase, zonder spaties/streepjes, bv "A", "2", "BS", "1HG". */
   toevoeging: string | null;
+}
+
+export interface GeocodeDebugKandidaat {
+  id: string;
+  weergavenaam: string;
+  straat: string | null;
+  huisnummer: string | null;
+  toevoeging: string | null;
+  postcode: string | null;
+  plaats: string | null;
+  score: number;
+  reden: string;
+}
+
+export interface GeocodeDebugInfo {
+  signal_id?: string;
+  titel: string | null;
+  adres: string | null;
+  plaats: string | null;
+  geparseerde_straat: string | null;
+  geparseerd_huisnummer: string | null;
+  geparseerde_huisletter: string | null;
+  geparseerde_toevoeging: string | null;
+  gebruikte_pdok_query: string | null;
+  resultaat: GeocodeReden | null;
+  kandidaten: GeocodeDebugKandidaat[];
 }
 
 function stripDiacritics(s: string): string {
