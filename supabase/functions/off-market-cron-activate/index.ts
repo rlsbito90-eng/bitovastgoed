@@ -20,30 +20,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
+    // Geen user-auth nodig: deze functie accepteert geen input en de cron-secret
+    // wordt alleen server-side gelezen. De RPC zelf is alleen toegankelijk voor service_role.
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
-    const { data: claimsData, error: claimsErr } =
-      await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const { data: isIntern } = await admin.rpc('is_intern_gebruiker',
-      { _user_id: claimsData.claims.sub as string });
-    if (!isIntern) {
-      return new Response(JSON.stringify({ error: 'Geen toegang' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     const secret = Deno.env.get('OFF_MARKET_CRON_SECRET');
     if (!secret || secret.length < 10) {
