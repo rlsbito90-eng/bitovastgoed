@@ -119,32 +119,38 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const cronSecret = Deno.env.get('OFF_MARKET_CRON_SECRET');
+    const providedCron = req.headers.get('x-cron-secret') ?? req.headers.get('X-Cron-Secret');
+    const isCronCall = !!cronSecret && !!providedCron && providedCron === cronSecret;
 
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!isCronCall) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const token = authHeader.replace('Bearer ', '');
+      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+      if (claimsErr || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const userId = claimsData.claims.sub as string;
+      const { data: isIntern } = await admin.rpc('is_intern_gebruiker', { _user_id: userId });
+      if (!isIntern) {
+        return new Response(JSON.stringify({ error: 'Geen toegang' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
-    const userId = claimsData.claims.sub as string;
-    const { data: isIntern } = await admin.rpc('is_intern_gebruiker', { _user_id: userId });
-    if (!isIntern) {
-      return new Response(JSON.stringify({ error: 'Geen toegang' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+
 
     const body = await req.json().catch(() => ({}));
     const bronId = body.bron_id as string | undefined;
