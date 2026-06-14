@@ -320,12 +320,16 @@ Deno.serve(async (req) => {
 
       const bronUpdate: Record<string, unknown> = {};
       if (isBackfill) {
-        // Backfill mag laatste_sync_op / laatste_run_op niet overschrijven.
+        // Backfill mag laatste_sync_op niet overschrijven, maar laatste_run_op/status wel
+        // zodat de runregel actuele activiteit toont.
         bronUpdate.backfill_vanaf = backfillVanaf;
         bronUpdate.backfill_tot = backfillTot;
         bronUpdate.backfill_cursor = cursorEind ?? cursorStart;
         bronUpdate.backfill_server_total = totaalServer;
         bronUpdate.backfill_status = backfillVoltooid ? 'voltooid' : 'bezig';
+        bronUpdate.laatste_run_op = new Date().toISOString();
+        bronUpdate.laatste_run_status = JSON.stringify(status);
+        bronUpdate.laatste_fout = null;
       } else {
         bronUpdate.laatste_run_op = new Date().toISOString();
         bronUpdate.laatste_run_status = JSON.stringify(status);
@@ -334,7 +338,20 @@ Deno.serve(async (req) => {
           bronUpdate.laatste_sync_op = queryTot.toISOString();
         }
       }
-      await admin.from('off_market_bronnen').update(bronUpdate).eq('id', bronId);
+      const { error: updErr } = await admin
+        .from('off_market_bronnen').update(bronUpdate).eq('id', bronId);
+      if (updErr) {
+        console.error(JSON.stringify({
+          fase: 'bron_update_fout', bron_id: bronId, modus, error: updErr.message,
+        }));
+      } else {
+        console.log(JSON.stringify({
+          fase: 'bron_update_ok', bron_id: bronId, modus,
+          backfill_cursor: bronUpdate.backfill_cursor,
+          backfill_server_total: bronUpdate.backfill_server_total,
+          backfill_status: bronUpdate.backfill_status,
+        }));
+      }
 
       if (runId) {
         await admin.from('off_market_import_runs').update({
