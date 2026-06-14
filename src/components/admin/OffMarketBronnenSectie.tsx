@@ -13,6 +13,7 @@ import {
   type OffMarketBron, type OffMarketBronStats,
 } from '@/hooks/useOffMarketBronnen';
 import BronInstellingenPanel from './BronInstellingenPanel';
+import BronBackfillPanel from './BronBackfillPanel';
 
 const BATCH_OPTIES = [100, 250, 500, 1000] as const;
 const DEFAULT_BATCH = 250;
