@@ -18,6 +18,7 @@ export interface OffMarketBron {
   frequentie: BronFrequentie;
   dag_van_week: number | null;
   tijdstip_uur: number;
+  tijdstip_minuut: number;
   max_records_per_run: number;
   normalize_batch_size: number;
   lookback_days_default: number;
@@ -29,9 +30,10 @@ export interface OffMarketBron {
 
 const BRON_SELECT =
   'id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout, ' +
-  'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, ' +
+  'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, tijdstip_minuut, ' +
   'max_records_per_run, normalize_batch_size, lookback_days_default, lookback_overlap_uren, ' +
   'volgende_run_op, laatste_sync_op, auto_start_op';
+
 
 export function useOffMarketBronnen() {
   return useQuery({
