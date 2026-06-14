@@ -177,10 +177,39 @@ const STRAAT_PREFIX_WOORDEN = new Set<string>([
   'oud', 'nieuw', 'noord', 'zuid', 'oost', 'west',
 ]);
 
+const STRAAT_TUSSENVOEGSELS = new Set<string>([
+  'van', 'de', 'der', 'den', 'ten', 'ter', 'op', 'aan', 'in', 'bij', 'te', "'s", "'s-",
+]);
+
+const TITEL_GEEN_STRAAT_WOORDEN = new Set<string>([
+  'aanvraag', 'aangevraagde', 'vergunning', 'omgevingsvergunning', 'kamerverhuur',
+  'besluit', 'melding', 'verleend', 'geweigerd', 'ontvangen', 'bekendmaking',
+]);
+
 function isLegitiemStraatPrefix(extra: string): boolean {
   const woorden = extra.trim().split(/\s+/).filter(Boolean);
   if (woorden.length === 0 || woorden.length > 3) return false;
   return woorden.every(w => STRAAT_PREFIX_WOORDEN.has(w.toLowerCase()));
+}
+
+function straatVerlengingUitTitel(extra: string, basisStraat: string): string | null {
+  const woorden = extra.trim().split(/\s+/).filter(Boolean);
+  if (woorden.length === 0) return null;
+  if (isLegitiemStraatPrefix(extra)) return `${extra.trim()} ${basisStraat}`.trim();
+
+  // Straatnamen als "Godijn van Dormaalstraat" worden soms in het adresveld
+  // als alleen "Dormaalstraat" opgeslagen. Pak dan de kortste plausibele
+  // suffix uit de titel, maar nooit documentwoorden zoals "Vergunning".
+  for (let i = Math.max(0, woorden.length - 3); i < woorden.length; i += 1) {
+    const deel = woorden.slice(i);
+    if (deel.length < 2 || deel.length > 3) continue;
+    const lower = deel.map(w => w.toLowerCase());
+    if (lower.some(w => TITEL_GEEN_STRAAT_WOORDEN.has(w))) continue;
+    if (STRAAT_TUSSENVOEGSELS.has(lower[lower.length - 1])) {
+      return `${deel.join(' ')} ${basisStraat}`.trim();
+    }
+  }
+  return null;
 }
 
 /**
@@ -217,6 +246,10 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
       const extra = tN.slice(0, tN.length - aN.length).trim();
       if (isLegitiemStraatPrefix(extra)) {
         out.straat = t.straat;
+      } else {
+        const extraOrig = t.straat.slice(0, t.straat.length - out.straat.length).trim();
+        const verlengd = straatVerlengingUitTitel(extraOrig, out.straat);
+        if (verlengd) out.straat = verlengd;
       }
     }
   } else if (!out.straat && t.straat) {
