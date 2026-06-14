@@ -74,6 +74,86 @@ function plusDagen(y: number, m: number, d: number, n: number): { year: number; 
   return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
 }
 
+interface Ymd { y: number; m: number; d: number }
+
+function cmpYmd(a: Ymd, b: Ymd): number {
+  if (a.y !== b.y) return a.y - b.y;
+  if (a.m !== b.m) return a.m - b.m;
+  return a.d - b.d;
+}
+
+function parseYmd(s: string | null | undefined): Ymd | null {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return null;
+  return { y: +m[1], m: +m[2], d: +m[3] };
+}
+
+/** Geef Amsterdam-datum (YYYY-MM-DD) terug voor 'vandaag'. */
+export function amsterdamToday(now: Date): string {
+  const p = amsterdamParts(now);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+/**
+ * Bereken volgende_run_op voor een bron met expliciete startdatum (`auto_start_op`).
+ * Retourneert `null` voor 'handmatig' of als er geen run gepland kan worden.
+ */
+export function berekenVolgendeRunMetStart(
+  now: Date,
+  frequentie: Frequentie,
+  tijdstipUur: number,
+  dagVanWeek: number | null,
+  autoStartOp: string | null,
+): Date | null {
+  if (frequentie === 'handmatig') return null;
+  const uur = Math.max(0, Math.min(23, Math.floor(tijdstipUur)));
+  const pNow = amsterdamParts(now);
+  const today: Ymd = { y: pNow.year, m: pNow.month, d: pNow.day };
+  const startCand = parseYmd(autoStartOp);
+  const min: Ymd = startCand && cmpYmd(startCand, today) > 0 ? startCand : today;
+
+  if (frequentie === 'dagelijks') {
+    let cand = amsterdamWallToUtc(min.y, min.m, min.d, uur);
+    if (cand <= now) {
+      const next = plusDagen(min.y, min.m, min.d, 1);
+      cand = amsterdamWallToUtc(next.year, next.month, next.day, uur);
+    }
+    return cand;
+  }
+
+  if (frequentie === 'wekelijks') {
+    const target = dagVanWeek && dagVanWeek >= 1 && dagVanWeek <= 7 ? dagVanWeek : 1;
+    // Weekdag van min bepalen via een veilig moment (12:00 Amsterdam).
+    const minMidUtc = amsterdamWallToUtc(min.y, min.m, min.d, 12);
+    const minWeekday = amsterdamParts(minMidUtc).weekday;
+    let daysAhead = (target - minWeekday + 7) % 7;
+    let tgt: { year: number; month: number; day: number } =
+      daysAhead === 0 ? { year: min.y, month: min.m, day: min.d }
+                      : plusDagen(min.y, min.m, min.d, daysAhead);
+    let cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
+    if (cand <= now) {
+      tgt = plusDagen(tgt.year, tgt.month, tgt.day, 7);
+      cand = amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
+    }
+    return cand;
+  }
+
+  if (frequentie === 'maandelijks') {
+    let y = min.y, m = min.m;
+    if (min.d > DAG_VAN_DE_MAAND) {
+      m += 1; if (m > 12) { m = 1; y += 1; }
+    }
+    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+    if (cand <= now) {
+      m += 1; if (m > 12) { m = 1; y += 1; }
+      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+    }
+    return cand;
+  }
+  return null;
+}
+
 /**
  * Bepaal de eerstvolgende geplande run (UTC instant) voor een bron.
  * Retourneert `null` voor 'handmatig'.
