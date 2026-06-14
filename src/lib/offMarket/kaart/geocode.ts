@@ -95,26 +95,36 @@ function normToevoeging(...delen: Array<string | null | undefined>): string | nu
 
 /**
  * Strip vulwoorden zoals "in <Plaats>" / "te <Plaats>" achter een huisnummer,
- * zodat "Surinameplein 46 in Amsterdam" niet als toevoeging "in" wordt
- * geparseerd. Alleen veilig na het huisnummer.
+ * en eventueel trailing postcode + plaats zodat
+ * "Maaskade 77A-02 3071ND Rotterdam" netjes naar "Maaskade 77A-02" wordt
+ * teruggebracht. Alleen veilig vóór het laatste huisnummer-deel.
  */
 function schoonAdres(adres: string): string {
   let s = adres.trim().replace(/\s+/g, ' ');
+  // Strip trailing postcode (1234 AB / 1234AB) + eventueel plaatsnaam
+  s = s.replace(/\s+\d{4}\s*[A-Z]{2}\b.*$/i, '').trim();
   s = s.replace(/\b(\d{1,5})\s+(in|te|voor)\b\s+[A-Z][A-Za-z'\-\s]+$/u, '$1');
   s = s.replace(/\b(\d{1,5})\s+(in|te|voor)\s*$/u, '$1');
   return s.trim();
 }
 
 /**
- * Parser voor vrije-tekst adresvelden (NL). Strikte toevoeging: max ~4 chars.
+ * Parser voor vrije-tekst adresvelden (NL).
  * Accepteert o.a. "Damrak 1", "Damrak 1A", "Rijnstraat 101-2",
- * "Derde Schinkelstraat 20-3L", "Damrak 4 hs". "Surinameplein 46 in Amsterdam"
- * wordt netjes als huisnummer 46 zonder toevoeging geparseerd.
+ * "Derde Schinkelstraat 20-3L", "Damrak 4 hs", "Maaskade 77A-02",
+ * "Van Spilbergenstraat 9-H". "Surinameplein 46 in Amsterdam" wordt
+ * netjes als huisnummer 46 zonder toevoeging geparseerd.
+ *
+ * Toevoegingen kunnen alfanumeriek zijn met streep/spatie als interne
+ * scheiding (bv "A-02", "3L", "1HG"). Normalisatie strips spaties/strepen
+ * en handhaaft max 6 chars.
  */
 export function parseAdres(adres: string | null | undefined): ParsedAdres {
   if (!adres) return { straat: null, huisnummer: null, toevoeging: null };
   const trimmed = schoonAdres(adres);
-  const m = trimmed.match(/^(.+?)\s+(\d{1,5})\s*[-\s/]?\s*([A-Za-z][A-Za-z0-9]{0,3}|\d{1,3}[A-Za-z]?)?\s*$/);
+  const m = trimmed.match(
+    /^(.+?)\s+(\d{1,5})(?:\s*[-\s/]?\s*([A-Za-z0-9][A-Za-z0-9\-\s/]{0,7}))?\s*$/,
+  );
   if (!m) return { straat: trimmed || null, huisnummer: null, toevoeging: null };
   const [, straat, nr, rest] = m;
   return {
