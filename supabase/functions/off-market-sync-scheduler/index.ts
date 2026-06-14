@@ -111,17 +111,22 @@ Deno.serve(async (req) => {
   try {
     const { data: bronnen, error } = await admin
       .from('off_market_bronnen')
-      .select('id, naam, actief, auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, normalize_batch_size, max_records_per_run, volgende_run_op, laatste_sync_op')
+      .select('id, naam, actief, auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, normalize_batch_size, max_records_per_run, volgende_run_op, laatste_sync_op, auto_start_op')
       .eq('actief', true)
       .eq('auto_import', true);
     if (error) throw error;
 
     const now = new Date();
+    const todayAms = amsterdamParts(now);
+    const todayYmd = `${todayAms.year}-${String(todayAms.month).padStart(2, '0')}-${String(todayAms.day).padStart(2, '0')}`;
     const kandidaten = (bronnen ?? []).filter((b: any) => {
       if (b.frequentie === 'handmatig') return false;
+      // Respecteer auto_start_op: niet uitvoeren vóór de gekozen startdatum.
+      if (b.auto_start_op && String(b.auto_start_op) > todayYmd) return false;
       if (!b.volgende_run_op) return true;
       return new Date(b.volgende_run_op).getTime() <= now.getTime();
     });
+
 
     const resultaten: any[] = [];
 
