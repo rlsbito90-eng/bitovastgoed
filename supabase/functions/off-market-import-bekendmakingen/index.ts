@@ -156,19 +156,35 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const bronId = body.bron_id as string | undefined;
     const testMode = body.test_mode === true;
-    // Modus bepalen — backwards compat: test_mode=true → 'test', anders 'handmatig'.
     const modusRaw = (body.modus as string | undefined)?.toLowerCase();
     const modus: 'test' | 'sync' | 'backfill' | 'handmatig' =
       modusRaw === 'test' || modusRaw === 'sync' || modusRaw === 'backfill' || modusRaw === 'handmatig'
         ? modusRaw
         : (testMode ? 'test' : 'handmatig');
     const lookbackOverride = body.lookback_days as number | undefined;
+    const isBackfill = modus === 'backfill';
+    // Hard cap: backfill 2000, anders 1000.
+    const recordsCap = isBackfill ? 2000 : 1000;
     const maxRecordsOverride = typeof body.max_records === 'number' && Number.isFinite(body.max_records)
-      ? Math.max(1, Math.min(1000, Math.floor(body.max_records)))
+      ? Math.max(1, Math.min(recordsCap, Math.floor(body.max_records)))
       : undefined;
+    const batchSizeBackfill = typeof body.batch_size === 'number' && Number.isFinite(body.batch_size)
+      ? Math.max(1, Math.min(2000, Math.floor(body.batch_size)))
+      : 500;
+    const backfillVanaf = typeof body.vanaf === 'string' ? body.vanaf : null;
+    const backfillTot = typeof body.tot === 'string' ? body.tot : null;
     if (!bronId) {
       return new Response(JSON.stringify({ error: 'bron_id verplicht' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (isBackfill && (!backfillVanaf || !backfillTot)) {
+      return new Response(JSON.stringify({ error: 'vanaf en tot zijn verplicht bij backfill' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // Backfill mag NIET via cron worden gestart.
+    if (isBackfill && isCronCall) {
+      return new Response(JSON.stringify({ error: 'Backfill mag alleen handmatig worden gestart' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { data: bron, error: bErr } = await admin
@@ -186,9 +202,10 @@ Deno.serve(async (req) => {
     const endpoint = bron.endpoint_url ?? 'https://repository.overheid.nl/sru';
     const creator = cfg.sru_creator as string | undefined;
     const subjects = (cfg.sru_subjects as string[] | undefined) ?? [];
-    // Voorkeur: kolomwaarden uit bron. Fallback: cfg of defaults voor oudere bronnen.
     const cfgMax = Number(bron.max_records_per_run ?? cfg.max_records_per_run ?? 200);
-    const maxRecords = Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
+    const maxRecords = isBackfill
+      ? batchSizeBackfill
+      : Math.max(1, Math.min(1000, maxRecordsOverride ?? cfgMax));
     const lookbackFirst = Number(cfg.lookback_days_first_run ?? bron.lookback_days_default ?? 7);
     const lookbackDefault = Number(bron.lookback_days_default ?? cfg.lookback_days_default ?? 7);
     const overlapUren = Number(bron.lookback_overlap_uren ?? 24);
@@ -200,20 +217,30 @@ Deno.serve(async (req) => {
     // Bepaal sync-venster (query_vanaf / query_tot).
     const nu = new Date();
     let queryVanaf: Date;
-    if (modus === 'sync') {
-      if (bron.laatste_sync_op) {
-        queryVanaf = new Date(new Date(bron.laatste_sync_op).getTime() - Math.max(0, overlapUren) * 3600_000);
-      } else {
-        queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDefault) * 86400_000);
-      }
+    let queryTot: Date;
+    let cursorStart = 0;
+    let windowChanged = false;
+
+    if (isBackfill) {
+      queryVanaf = new Date(`${backfillVanaf}T00:00:00.000Z`);
+      queryTot = new Date(`${backfillTot}T23:59:59.999Z`);
+      windowChanged = bron.backfill_vanaf !== backfillVanaf || bron.backfill_tot !== backfillTot;
+      cursorStart = windowChanged ? 0 : Number(bron.backfill_cursor ?? 0);
+    } else if (modus === 'sync') {
+      queryVanaf = bron.laatste_sync_op
+        ? new Date(new Date(bron.laatste_sync_op).getTime() - Math.max(0, overlapUren) * 3600_000)
+        : new Date(nu.getTime() - Math.max(1, lookbackDefault) * 86400_000);
+      queryTot = nu;
     } else {
       const lookbackDays = modus === 'test'
         ? (lookbackOverride ?? 30)
         : (lookbackOverride ?? (bron.laatste_run_op ? lookbackDefault : lookbackFirst));
       queryVanaf = new Date(nu.getTime() - Math.max(1, lookbackDays) * 86400_000);
+      queryTot = nu;
     }
-    const queryTot = nu;
     const sinceIso = queryVanaf.toISOString().slice(0, 10);
+    const totIso = isBackfill ? queryTot.toISOString().slice(0, 10) : null;
+
 
     // Run-logging — start direct met status=bezig.
     const { data: runRow } = await admin
