@@ -199,8 +199,9 @@ Deno.serve(async (req) => {
 
       // Bereken nieuwe volgende_run_op (altijd, ook bij fout — anders blijft de bron 'aan de beurt').
       const volgende = berekenVolgendeRun(
-        new Date(), b.frequentie as Frequentie, b.tijdstip_uur, b.dag_van_week,
+        new Date(), b.frequentie as Frequentie, b.tijdstip_uur, Number(b.tijdstip_minuut ?? 0), b.dag_van_week,
       );
+
       await admin.from('off_market_bronnen').update({
         volgende_run_op: volgende?.toISOString() ?? null,
       }).eq('id', b.id);
