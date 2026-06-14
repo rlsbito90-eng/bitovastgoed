@@ -360,6 +360,7 @@ export default function OffMarketBronnenSectie() {
                   )}
 
                   {instellingenOpen[b.id] && <BronInstellingenPanel bron={b} />}
+                  {instellingenOpen[b.id] && <BronBackfillPanel bron={b} />}
                 </div>
               );
             })}
