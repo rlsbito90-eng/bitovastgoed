@@ -39,6 +39,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
     frequentie: bron.frequentie,
     dag_van_week: bron.dag_van_week,
     tijdstip_uur: bron.tijdstip_uur,
+    tijdstip_minuut: bron.tijdstip_minuut ?? 0,
     max_records_per_run: bron.max_records_per_run,
     normalize_batch_size: bron.normalize_batch_size,
     lookback_days_default: bron.lookback_days_default,
@@ -53,6 +54,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
       frequentie: bron.frequentie,
       dag_van_week: bron.dag_van_week,
       tijdstip_uur: bron.tijdstip_uur,
+      tijdstip_minuut: bron.tijdstip_minuut ?? 0,
       max_records_per_run: bron.max_records_per_run,
       normalize_batch_size: bron.normalize_batch_size,
       lookback_days_default: bron.lookback_days_default,
@@ -60,6 +62,7 @@ export default function BronInstellingenPanel({ bron }: Props) {
       auto_start_op: bron.auto_start_op,
     });
   }, [bron.id]);
+
 
   const setField = <K extends keyof BronInstellingenPatch>(k: K, v: BronInstellingenPatch[K]) => {
     setVorm(prev => {
