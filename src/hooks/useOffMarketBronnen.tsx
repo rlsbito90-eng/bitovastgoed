@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export type BronFrequentie = 'handmatig' | 'dagelijks' | 'wekelijks';
+export type BronFrequentie = 'handmatig' | 'dagelijks' | 'wekelijks' | 'maandelijks';
 
 export interface OffMarketBron {
   id: string;
