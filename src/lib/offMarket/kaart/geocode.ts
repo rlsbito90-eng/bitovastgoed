@@ -378,7 +378,7 @@ function kandidaatDebugReden(
   plaats: string | null,
   inputStraat: string | null,
 ): string {
-  if (tekstBevatKandidaat(inv, k)) return 'Exacte adresstring staat in titel/adres.';
+  if (tekstBevatKandidaat(inv, k)) return 'Exacte kandidaat gevonden in titel.';
   if (!parsed.huisnummer) return 'Geen huisnummer in input.';
   if (String(k.huisnummer ?? '') !== String(parsed.huisnummer)) return 'Huisnummer wijkt af.';
   const pcOk = pc && k.postcode && pc === k.postcode;
@@ -563,10 +563,15 @@ export function beoordeelKandidaten(
   const tekstMatches = kandidaten
     .filter(k => tekstBevatKandidaat(inv, k))
     .sort((a, b) => b.score - a.score);
-  if (tekstMatches.length === 1 || (tekstMatches.length > 1 && tekstMatches[0].score > tekstMatches[1].score)) {
+  const tekstMatchKeys = new Set(tekstMatches.map(kandidaatMatchKey).filter(Boolean));
+  if (tekstMatches.length > 0 && tekstMatchKeys.size === 1) {
     const w = { ...tekstMatches[0], score: Math.max(95, tekstMatches[0].score) };
     debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
     return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+  }
+  if (tekstMatchKeys.size > 1) {
+    debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_addresses' });
+    return { status: 'controleren', kandidaten, reden: 'Meerdere adressen gevonden.', redenCode: 'multiple_addresses' };
   }
 
   if (!parsed.huisnummer) {
@@ -591,10 +596,11 @@ export function beoordeelKandidaten(
   }
 
   // 2) Straatnaam (genormaliseerd)
-  const straatMatch = inputStraat
-    ? adresMatch.filter(k => normStraat(k.straat) === inputStraat)
+  const effectieveInputStraat = langereKandidaatStraatUitTekst(inv, adresMatch, inputStraat) ?? inputStraat;
+  const straatMatch = effectieveInputStraat
+    ? adresMatch.filter(k => normStraat(k.straat) === effectieveInputStraat)
     : adresMatch;
-  if (inputStraat && straatMatch.length === 0) {
+  if (effectieveInputStraat && straatMatch.length === 0) {
     debugLog({ ...baseDebug, gekozen: false, reden: 'street_mismatch' });
     return { status: 'controleren', kandidaten, reden: 'Straatnaam wijkt af.', redenCode: 'street_mismatch' };
   }
