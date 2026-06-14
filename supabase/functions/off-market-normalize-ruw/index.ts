@@ -27,9 +27,10 @@ const STRAAT_SUFFIXEN = [
   'plantsoen','brink','boulevard','allee',
 ].join('|');
 const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
-const PREFIX_WOORD = `(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
+const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|aangevraagde)';
+const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
 const STRAAT_RE = new RegExp(
-  `((?:${PREFIX_WOORD}\\s+){0,3}[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
+  `((?:${PREFIX_WOORD}\\s+){0,3}(?!${NOISE_WOORD}\\b)[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
 );
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
 const PLAATS_NA_POSTCODE_RE = /\b[1-9]\d{3}\s?[A-Z]{2}\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})/;
