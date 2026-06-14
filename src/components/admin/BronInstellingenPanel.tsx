@@ -17,6 +17,7 @@ const FREQ_OPTIES: { value: BronFrequentie; label: string }[] = [
   { value: 'handmatig', label: 'Handmatig' },
   { value: 'dagelijks', label: 'Dagelijks' },
   { value: 'wekelijks', label: 'Wekelijks' },
+  { value: 'maandelijks', label: 'Maandelijks (28e)' },
 ];
 const DAGEN = [
   { value: 1, label: 'Maandag' }, { value: 2, label: 'Dinsdag' }, { value: 3, label: 'Woensdag' },
