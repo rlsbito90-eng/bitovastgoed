@@ -48,12 +48,13 @@ function pluckFirst(b: string, n: string): string | null { return pluckAll(b, n)
 
 function bouwSruUrl(opts: {
   endpoint: string; creator: string; subjects: string[];
-  sinceIso: string; startRecord: number; maximumRecords: number;
+  sinceIso: string; totIso?: string | null; startRecord: number; maximumRecords: number;
 }): string {
   // KOOP SRU gebruikt prefix `dt.` (dcterms-alias). Gemeenteblad = identifier "gmb-...".
   // dt.subject is in praktijk niet doorzoekbaar → subjecten filteren we client-side in normalize.
-  const cql =
+  let cql =
     `(dt.identifier any "gmb") AND (dt.creator="${opts.creator}") AND (dt.modified >= "${opts.sinceIso}")`;
+  if (opts.totIso) cql += ` AND (dt.modified <= "${opts.totIso}")`;
   const params = new URLSearchParams({
     operation: 'searchRetrieve', version: '2.0', query: cql,
     startRecord: String(opts.startRecord), maximumRecords: String(opts.maximumRecords),
