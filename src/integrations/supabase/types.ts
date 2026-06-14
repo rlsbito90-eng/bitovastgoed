@@ -4509,6 +4509,7 @@ export type Database = {
       }
     }
     Functions: {
+      activate_off_market_cron: { Args: { p_secret: string }; Returns: Json }
       generate_refnummer: { Args: never; Returns: string }
       has_role: {
         Args: {
