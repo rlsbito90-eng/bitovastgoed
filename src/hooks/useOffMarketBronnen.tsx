@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { berekenVolgendeRunMetStart, amsterdamToday } from '@/lib/offMarket/scheduler/planning';
 
 export type BronFrequentie = 'handmatig' | 'dagelijks' | 'wekelijks' | 'maandelijks';
 
@@ -23,13 +24,14 @@ export interface OffMarketBron {
   lookback_overlap_uren: number;
   volgende_run_op: string | null;
   laatste_sync_op: string | null;
+  auto_start_op: string | null;
 }
 
 const BRON_SELECT =
   'id, naam, type, actief, endpoint_url, laatste_run_op, laatste_run_status, laatste_fout, ' +
   'auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, ' +
   'max_records_per_run, normalize_batch_size, lookback_days_default, lookback_overlap_uren, ' +
-  'volgende_run_op, laatste_sync_op';
+  'volgende_run_op, laatste_sync_op, auto_start_op';
 
 export function useOffMarketBronnen() {
   return useQuery({
@@ -77,14 +79,49 @@ export function useToggleBron() {
 export type BronInstellingenPatch = Partial<Pick<OffMarketBron,
   'auto_import' | 'auto_verwerken' | 'frequentie' | 'dag_van_week' | 'tijdstip_uur'
   | 'max_records_per_run' | 'normalize_batch_size' | 'lookback_days_default' | 'lookback_overlap_uren'
+  | 'auto_start_op'
 >>;
+
+/** Bereken nieuwe volgende_run_op op basis van samengevoegde instellingen. */
+export function bepaalVolgendeRunVoorPatch(
+  huidig: OffMarketBron,
+  patch: BronInstellingenPatch,
+  now: Date = new Date(),
+): string | null {
+  const s = { ...huidig, ...patch } as OffMarketBron;
+  if (!s.actief || !s.auto_import || s.frequentie === 'handmatig') return null;
+  const next = berekenVolgendeRunMetStart(
+    now, s.frequentie, s.tijdstip_uur, s.dag_van_week, s.auto_start_op,
+  );
+  return next ? next.toISOString() : null;
+}
+
+const PLANNING_KEYS = ['auto_import', 'frequentie', 'dag_van_week', 'tijdstip_uur', 'auto_start_op'] as const;
 
 export function useUpdateBronInstellingen() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: BronInstellingenPatch }) => {
+    mutationFn: async (
+      args: { id: string; patch: BronInstellingenPatch; huidig?: OffMarketBron },
+    ) => {
+      const patch: BronInstellingenPatch = { ...args.patch };
+
+      // Default: bij aanzetten van auto_import zonder startdatum → vandaag (Amsterdam).
+      if (patch.auto_import === true && !patch.auto_start_op && !args.huidig?.auto_start_op) {
+        patch.auto_start_op = amsterdamToday(new Date());
+      }
+
+      const planningGewijzigd = args.huidig
+        ? PLANNING_KEYS.some(k => k in patch && (patch as Record<string, unknown>)[k] !== (args.huidig as unknown as Record<string, unknown>)[k])
+        : true;
+
+      const update: Record<string, unknown> = { ...patch };
+      if (args.huidig && planningGewijzigd) {
+        update.volgende_run_op = bepaalVolgendeRunVoorPatch(args.huidig, patch);
+      }
+
       const { error } = await supabase
-        .from('off_market_bronnen').update(patch).eq('id', id);
+        .from('off_market_bronnen').update(update as never).eq('id', args.id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['off-market-bronnen'] }),
