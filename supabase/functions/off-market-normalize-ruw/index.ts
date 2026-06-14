@@ -21,17 +21,43 @@ interface BronConfig {
   gemeente?: string;
   provincie?: string;
 }
-const STRAAT_RE = /([A-ZÀ-Ý][\wÀ-ÿ\-']{2,40}(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak))\.?\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
+const STRAAT_SUFFIXEN = [
+  'straat','laan','weg','plein','kade','gracht','singel','dreef','hof','park',
+  'baan','dijk','markt','wal','pad','steeg','rak','sloot','burg','polder',
+  'plantsoen','brink','boulevard','allee',
+].join('|');
+const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
+const PREFIX_WOORD = `(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
+const STRAAT_RE = new RegExp(
+  `((?:${PREFIX_WOORD}\\s+){0,3}[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
+);
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
+const PLAATS_NA_POSTCODE_RE = /\b[1-9]\d{3}\s?[A-Z]{2}\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})/;
+const PLAATS_IN_TE_RE = /\b(?:in|te)\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})\b/;
 
 function parseAdres(text: string) {
-  if (!text) return { adres: null as string | null, postcode: null as string | null };
+  if (!text) return { adres: null as string | null, postcode: null as string | null, plaats: null as string | null };
   const norm = text.replace(/\s+/g, ' ').trim();
   const s = norm.match(STRAAT_RE);
   const p = norm.match(POSTCODE_RE);
+  let adres: string | null = null;
+  if (s) {
+    const straatnaam = s[1].replace(/\s+/g, ' ').trim();
+    const letter = s[3] ?? '';
+    const toev = s[4] ?? '';
+    adres = `${straatnaam} ${s[2]}${letter}${toev ? `-${toev}` : ''}`;
+  }
+  let plaats: string | null = null;
+  const naPc = norm.match(PLAATS_NA_POSTCODE_RE);
+  if (naPc) plaats = naPc[1].trim();
+  else {
+    const inTe = norm.match(PLAATS_IN_TE_RE);
+    if (inTe) plaats = inTe[1].trim();
+  }
   return {
-    adres: s ? `${s[1].trim()} ${s[2]}${s[3] || ''}`.trim() : null,
+    adres,
     postcode: p ? `${p[1]} ${p[2]}` : null,
+    plaats,
   };
 }
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
