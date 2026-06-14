@@ -157,11 +157,25 @@ export default function BronInstellingenPanel({ bron }: Props) {
           </Veld>
         )}
 
-        <Veld label="Tijdstip (uur)">
-          <Input type="number" min={0} max={23} className="h-8 text-xs"
-            value={vorm.tijdstip_uur ?? 6}
-            onChange={(e) => setField('tijdstip_uur', e.target.value === '' ? 6 : Math.max(0, Math.min(23, Number(e.target.value))))} />
+        <Veld label="Tijdstip">
+          <Select
+            value={`${String(vorm.tijdstip_uur ?? 6).padStart(2, '0')}:${String(vorm.tijdstip_minuut ?? 0).padStart(2, '0')}`}
+            onValueChange={(v) => {
+              const opt = TIJD_OPTIES.find(o => o.value === v);
+              if (!opt) return;
+              setVorm(prev => ({ ...prev, tijdstip_uur: opt.uur, tijdstip_minuut: opt.minuut }));
+            }}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              {TIJD_OPTIES.map(o => (
+                <SelectItem key={o.value} value={o.value} className="text-xs font-mono-data">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Veld>
+
 
         <Veld label="Volgende run">
           <div className="h-8 px-2 flex items-center text-xs rounded-md border border-border/60 bg-muted/30">
