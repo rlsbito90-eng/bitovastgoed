@@ -31,7 +31,7 @@ const STRAAT_SUFFIXEN = [
 // Toegestane tussenvoegsels (lowercase) voor straatnamen als "Van der Helststraat".
 const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
 // Woorden die nooit deel uitmaken van een straatnaam (titel-ruis).
-const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|nieuw|nieuwe|aangevraagde)';
+const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|aangevraagde)';
 const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
 
 // Hoofdregex: optioneel 0–3 prefixwoorden ("John ", "Van der "),
