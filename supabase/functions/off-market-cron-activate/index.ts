@@ -1,6 +1,6 @@
 // off-market-cron-activate
 // Eénmalige interne activator: maakt of vervangt de pg_cron job
-// 'off-market-sync-hourly'. Leest OFF_MARKET_CRON_SECRET uit env en geeft
+// 'off-market-sync-quarter-hourly'. Leest OFF_MARKET_CRON_SECRET uit env en geeft
 // die door aan de SECURITY DEFINER RPC `activate_off_market_cron`.
 // De secret komt NOOIT terug in de response.
 
