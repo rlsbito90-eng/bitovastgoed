@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
         omschrijving: samenvatting.slice(0, 500) || null,
         adres: adresInfo.adres,
         postcode: adresInfo.postcode,
-        plaats: cfg.gemeente ?? null,
+        plaats: adresInfo.plaats ?? cfg.gemeente ?? null,
         provincie: cfg.provincie ?? null,
         assettype,
         type_signaal: signaaltype,
