@@ -27,7 +27,17 @@ const STRAAT_SUFFIXEN = [
   'plantsoen','brink','boulevard','allee',
 ].join('|');
 const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
-const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|aangevraagde)';
+const NOISE_WOORDEN_LC = [
+  'aanvraag','aangevraagd','aangevraagde','vergunning','omgevingsvergunning',
+  'omzettingsvergunning','splitsingsvergunning','woonvormingsvergunning',
+  'onttrekkingsvergunning','verleende','verleend','besluit','besluiten',
+  'bekendmaking','kennisgeving','melding','voor','het','de','een','aan',
+  'locatie','adres','pand','gebouw','complex','wijzigen','veranderen',
+  'verbouwen','intern',
+];
+const NOISE_WOORD = '(?:' + NOISE_WOORDEN_LC.map(w =>
+  `[${w[0].toUpperCase()}${w[0]}]${w.slice(1)}`
+).join('|') + ')';
 const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
 const STRAAT_RE = new RegExp(
   `((?:${PREFIX_WOORD}\\s+){0,3}(?!${NOISE_WOORD}\\b)[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
