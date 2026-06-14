@@ -144,12 +144,36 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, signalen, verwerk]);
 
-  const opnieuwProberen = useCallback(() => {
+  const opnieuwProberen = useCallback(async () => {
     geprobeerd.current.clear();
     setOnzeker([]);
-    const todo = signalen.filter(s => !heeftLatLng(s) && (s.adres || s.postcode));
+    // Eerst: corrigeer foutief opgeslagen adresvelden op basis van titel/omschrijving.
+    const verbeterd: OffMarketSignaal[] = [];
+    let mutated = false;
+    for (const s of signalen) {
+      if (heeftLatLng(s)) { verbeterd.push(s); continue; }
+      const blob = `${s.titel ?? ''} ${(s as any).omschrijving ?? ''}`;
+      const patch = verfijnAdresUitTekst(
+        { adres: s.adres ?? null, postcode: s.postcode ?? null, plaats: s.plaats ?? null },
+        blob,
+      );
+      if (patch) {
+        const { error } = await supabase
+          .from('off_market_signalen')
+          .update(patch as never)
+          .eq('id', s.id);
+        if (!error) {
+          mutated = true;
+          verbeterd.push({ ...s, ...patch } as OffMarketSignaal);
+          continue;
+        }
+      }
+      verbeterd.push(s);
+    }
+    if (mutated) qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
+    const todo = verbeterd.filter(s => !heeftLatLng(s) && (s.adres || s.postcode));
     void verwerk(todo);
-  }, [signalen, verwerk]);
+  }, [signalen, verwerk, qc]);
 
   const kiesKandidaat = useCallback(async (signaal_id: string, kandidaat: GeocodeKandidaat) => {
     const { error } = await supabase
