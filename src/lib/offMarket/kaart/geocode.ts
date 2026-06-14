@@ -620,7 +620,8 @@ export async function geocodeSignaalLocatie(
   }
   const kandidaten = await pdokAdresZoek(inv, opts);
   const resultaat = beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
-  return { ...resultaat, debug: maakGeocodeDebug(inv, kandidaten, 'reden' in resultaat ? resultaat.redenCode ?? resultaat.reden : null, { signaal_id: opts.signaal_id }) };
+  const debugReden = resultaat.status === 'auto' ? resultaat.reden : resultaat.redenCode;
+  return { ...resultaat, debug: maakGeocodeDebug(inv, kandidaten, debugReden, { signaal_id: opts.signaal_id }) };
 }
 
 /** UI label voor reden code (NL). */
