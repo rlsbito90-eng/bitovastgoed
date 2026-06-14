@@ -336,10 +336,15 @@ export default function OffMarketBronnenSectie() {
                     <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
                     <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
                     <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
-                    {b.auto_import && (
-                      <span className="text-warning">Scheduler klaar · cron nog handmatig activeren</span>
+                    {(!b.auto_import || b.frequentie === 'handmatig') ? (
+                      <span className="text-muted-foreground">Auto-sync uit · geen automatische run gepland</span>
+                    ) : (
+                      <span className="text-success">
+                        Scheduler actief · volgende run: {formatDatum(b.volgende_run_op)}
+                      </span>
                     )}
                   </div>
+
 
                   {(last || stats) && (
                     <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 pt-2 border-t border-border/60">
