@@ -454,6 +454,18 @@ export function beoordeelKandidaten(
     debugLog({ ...baseDebug, gekozen: false, reden: 'no_candidates' });
     return { status: 'geen', reden: 'Geen PDOK-adresmatch gevonden.', redenCode: 'no_candidates' };
   }
+
+  // Sterkste runtime-regel: als de volledige PDOK-adresstring letterlijk in
+  // titel/originele tekst staat, wint die vóór parser-twijfel of suffix-fouten.
+  const tekstMatches = kandidaten
+    .filter(k => tekstBevatKandidaat(inv, k))
+    .sort((a, b) => b.score - a.score);
+  if (tekstMatches.length === 1 || (tekstMatches.length > 1 && tekstMatches[0].score > tekstMatches[1].score)) {
+    const w = { ...tekstMatches[0], score: Math.max(95, tekstMatches[0].score) };
+    debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
+    return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+  }
+
   if (!parsed.huisnummer) {
     debugLog({ ...baseDebug, gekozen: false, reden: 'no_housenumber' });
     return { status: 'controleren', kandidaten, reden: 'Geen huisnummer in signaal-adres.', redenCode: 'no_housenumber' };
