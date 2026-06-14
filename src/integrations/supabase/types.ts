@@ -2547,6 +2547,7 @@ export type Database = {
           actief: boolean
           auth_secret_naam: string | null
           auto_import: boolean
+          auto_start_op: string | null
           auto_verwerken: boolean
           config: Json
           created_at: string
@@ -2572,6 +2573,7 @@ export type Database = {
           actief?: boolean
           auth_secret_naam?: string | null
           auto_import?: boolean
+          auto_start_op?: string | null
           auto_verwerken?: boolean
           config?: Json
           created_at?: string
@@ -2597,6 +2599,7 @@ export type Database = {
           actief?: boolean
           auth_secret_naam?: string | null
           auto_import?: boolean
+          auto_start_op?: string | null
           auto_verwerken?: boolean
           config?: Json
           created_at?: string
