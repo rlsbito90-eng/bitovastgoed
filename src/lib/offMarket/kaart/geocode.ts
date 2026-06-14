@@ -169,7 +169,20 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
   if (adresParsed.huisnummer && t.huisnummer !== adresParsed.huisnummer) return adresParsed;
   const out: ParsedAdres = { ...adresParsed };
   if (!out.huisnummer) out.huisnummer = t.huisnummer;
-  if (!out.toevoeging && t.toevoeging) out.toevoeging = t.toevoeging;
+  // Toevoeging: titel mag aanvullen of verfijnen. Als titel-toevoeging
+  // specifieker is dan adres-toevoeging (bv adres "A", titel "A02"),
+  // gebruik dan de specifiekere variant uit de titel.
+  if (t.toevoeging) {
+    if (!out.toevoeging) {
+      out.toevoeging = t.toevoeging;
+    } else if (
+      t.toevoeging !== out.toevoeging &&
+      t.toevoeging.length > out.toevoeging.length &&
+      t.toevoeging.startsWith(out.toevoeging)
+    ) {
+      out.toevoeging = t.toevoeging;
+    }
+  }
   if (out.straat && t.straat) {
     const aN = stripDiacritics(out.straat.toLowerCase()).replace(/\s+/g, ' ');
     const tN = stripDiacritics(t.straat.toLowerCase()).replace(/\s+/g, ' ');
