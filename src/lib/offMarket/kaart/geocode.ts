@@ -282,6 +282,16 @@ function normPlaats(p: string | null | undefined): string | null {
   return stripDiacritics(p.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
 }
 
+function normVrijeTekst(s: string | null | undefined): string {
+  if (!s) return '';
+  return stripDiacritics(s)
+    .toLowerCase()
+    .replace(/\b(\d{4})\s*([a-z]{2})\b/g, '$1$2')
+    .replace(/[,.;:()]+/g, ' ')
+    .replace(/[\s\-/]+/g, ' ')
+    .trim();
+}
+
 function normStraat(s: string | null | undefined): string | null {
   if (!s) return null;
   let n = stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ');
@@ -291,6 +301,27 @@ function normStraat(s: string | null | undefined): string | null {
   // Verwijder leestekens die niet zinvol zijn voor vergelijking
   n = n.replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
   return n || null;
+}
+
+function kandidaatTeksten(k: GeocodeKandidaat): string[] {
+  const pc = normPostcode(k.postcode);
+  const basis = [k.straat, k.huisnummer, k.toevoeging].filter(Boolean).join(' ');
+  const weergaveZonderPlaats = k.weergavenaam.split(',')[0] ?? k.weergavenaam;
+  return [
+    k.weergavenaam,
+    weergaveZonderPlaats,
+    [basis, pc, k.woonplaats].filter(Boolean).join(' '),
+    basis,
+  ].filter(Boolean);
+}
+
+function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): boolean {
+  const bron = normVrijeTekst([inv.titel, inv.adres, inv.postcode, inv.plaats].filter(Boolean).join(' '));
+  if (!bron) return false;
+  return kandidaatTeksten(k).some(t => {
+    const nt = normVrijeTekst(t);
+    return nt.length >= 8 && bron.includes(nt);
+  });
 }
 
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
