@@ -135,8 +135,32 @@ export function parseAdres(adres: string | null | undefined): ParsedAdres {
 }
 
 /**
+ * Whitelist van bekende Nederlandse straat-voorvoegsels. Alleen wanneer het
+ * extra deel uit deze whitelist bestaat mag titel-parse de adres-straat
+ * verlengen. Voorkomt dat "Vergunning kamerverhuur IJsselmondselaan" als
+ * straatnaam wordt opgevat.
+ */
+const STRAAT_PREFIX_WOORDEN = new Set<string>([
+  'van', 'de', 'der', 'den', 'het', "'s", "'s-", 'ten', 'ter', 'op', 'aan',
+  'in', 'bij', 'te', 'sint', 'st', 'st.',
+  'oude', 'nieuwe', 'korte', 'lange', 'grote', 'groote', 'kleine', 'hoge', 'hooge', 'lage',
+  '1e', '2e', '3e', '4e', '5e', '6e', '7e', '8e', '9e',
+  'eerste', 'tweede', 'derde', 'vierde', 'vijfde', 'zesde', 'zevende', 'achtste', 'negende',
+  'prof', 'prof.', 'dr', 'dr.', 'mr', 'mr.', 'ir', 'ir.', 'jhr', 'jhr.',
+  'oud', 'nieuw', 'noord', 'zuid', 'oost', 'west',
+]);
+
+function isLegitiemStraatPrefix(extra: string): boolean {
+  const woorden = extra.trim().split(/\s+/).filter(Boolean);
+  if (woorden.length === 0 || woorden.length > 3) return false;
+  return woorden.every(w => STRAAT_PREFIX_WOORDEN.has(w.toLowerCase()));
+}
+
+/**
  * Combineer adres-parse met titel-parse: adres heeft prioriteit, titel vult
- * alleen aan (toevoeging, langere straat zoals "Derde Schinkelstraat").
+ * alleen aan (toevoeging, langere straat zoals "Derde Schinkelstraat"). Het
+ * extra deel uit titel moet uit bekende voorvoegsels bestaan, anders blijft
+ * de adres-straat ongewijzigd.
  */
 export function combineerParsed(adresParsed: ParsedAdres, titel: string | null | undefined): ParsedAdres {
   if (!titel) return adresParsed;
@@ -149,8 +173,11 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
   if (out.straat && t.straat) {
     const aN = stripDiacritics(out.straat.toLowerCase()).replace(/\s+/g, ' ');
     const tN = stripDiacritics(t.straat.toLowerCase()).replace(/\s+/g, ' ');
-    if (tN !== aN && tN.endsWith(aN) && tN.length > aN.length) {
-      out.straat = t.straat;
+    if (tN !== aN && tN.endsWith(' ' + aN) && tN.length > aN.length) {
+      const extra = tN.slice(0, tN.length - aN.length).trim();
+      if (isLegitiemStraatPrefix(extra)) {
+        out.straat = t.straat;
+      }
     }
   } else if (!out.straat && t.straat) {
     out.straat = t.straat;
@@ -184,7 +211,13 @@ function normPlaats(p: string | null | undefined): string | null {
 
 function normStraat(s: string | null | undefined): string | null {
   if (!s) return null;
-  return stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
+  let n = stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ');
+  // OCR/typo: lowercase L gevolgd door J aan begin van een woord → ij
+  // ("lJsselmondselaan" → "ijsselmondselaan").
+  n = n.replace(/(^|\s)lj/g, '$1ij');
+  // Verwijder leestekens die niet zinvol zijn voor vergelijking
+  n = n.replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
+  return n || null;
 }
 
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
