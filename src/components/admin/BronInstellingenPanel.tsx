@@ -24,7 +24,18 @@ const DAGEN = [
   { value: 1, label: 'Maandag' }, { value: 2, label: 'Dinsdag' }, { value: 3, label: 'Woensdag' },
   { value: 4, label: 'Donderdag' }, { value: 5, label: 'Vrijdag' }, { value: 6, label: 'Zaterdag' },
   { value: 7, label: 'Zondag' },
-];
+
+const TIJD_OPTIES: { value: string; uur: number; minuut: number; label: string }[] = (() => {
+  const out: { value: string; uur: number; minuut: number; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      out.push({ value: label, uur: h, minuut: m, label });
+    }
+  }
+  return out;
+})();
+
 
 function formatDatumTijd(iso: string | null): string {
   if (!iso) return '—';
