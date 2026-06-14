@@ -30,14 +30,15 @@ const STRAAT_SUFFIXEN = [
 
 // Toegestane tussenvoegsels (lowercase) voor straatnamen als "Van der Helststraat".
 const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
-const PREFIX_WOORD = `(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
+// Woorden die nooit deel uitmaken van een straatnaam (titel-ruis).
+const NOISE_WOORD = '(?:aanvraag|aangevraagd|vergunning|omgevingsvergunning|omzettingsvergunning|splitsingsvergunning|woonvormingsvergunning|onttrekkingsvergunning|verleende|verleend|besluit|besluiten|bekendmaking|kennisgeving|melding|voor|het|de|een|aan|locatie|adres|pand|gebouw|complex|wijzigen|veranderen|verbouwen|intern|nieuw|nieuwe|aangevraagde)';
+const PREFIX_WOORD = `(?!${NOISE_WOORD}\\b)(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
 
-// Hoofdregex: optioneel 0–3 prefixwoorden ("John ", "Nieuwe ", "Van der "),
+// Hoofdregex: optioneel 0–3 prefixwoorden ("John ", "Van der "),
 // dan een woord dat eindigt op een straatsuffix, dan huisnummer +
-// optionele huisletter + optionele toevoeging. Toevoeging wordt alleen
-// herkend na een streepje (bv. 77A-02, 56-H, 86-2).
+// optionele huisletter + optionele toevoeging na streepje.
 const STRAAT_RE = new RegExp(
-  `((?:${PREFIX_WOORD}\\s+){0,3}[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
+  `((?:${PREFIX_WOORD}\\s+){0,3}(?!${NOISE_WOORD}\\b)[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
 );
 const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
 // Plaats direct na postcode: "1075EP Amsterdam".
