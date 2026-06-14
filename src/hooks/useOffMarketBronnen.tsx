@@ -171,7 +171,20 @@ export function useBackfillRun() {
           },
         },
       );
-      if (error) throw new Error(error.message ?? 'Backfill mislukt');
+      if (error) {
+        // Probeer JSON body uit FunctionsHttpError te lezen voor echte foutmelding.
+        let msg = error.message ?? 'Backfill mislukt';
+        try {
+          const ctx = (error as unknown as { context?: { response?: Response } }).context;
+          const body = await ctx?.response?.clone().json();
+          if (body?.message) msg = body.message;
+          else if (body?.error) msg = body.error;
+        } catch { /* negeer */ }
+        throw new Error(msg);
+      }
+      if (data?.ok === false) {
+        throw new Error(data.message ?? data.raw_error ?? 'Backfill mislukt');
+      }
       if (data?.error) throw new Error(data.error);
       return data as BackfillRunResultaat;
     },
