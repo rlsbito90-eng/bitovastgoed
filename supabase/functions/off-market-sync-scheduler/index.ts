@@ -113,9 +113,10 @@ Deno.serve(async (req) => {
   try {
     const { data: bronnen, error } = await admin
       .from('off_market_bronnen')
-      .select('id, naam, actief, auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, normalize_batch_size, max_records_per_run, volgende_run_op, laatste_sync_op, auto_start_op')
+      .select('id, naam, actief, auto_import, auto_verwerken, frequentie, dag_van_week, tijdstip_uur, tijdstip_minuut, normalize_batch_size, max_records_per_run, volgende_run_op, laatste_sync_op, auto_start_op')
       .eq('actief', true)
       .eq('auto_import', true);
+
     if (error) throw error;
 
     const now = new Date();
