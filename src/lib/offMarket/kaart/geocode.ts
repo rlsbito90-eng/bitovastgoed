@@ -326,6 +326,70 @@ function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): bo
   });
 }
 
+function splitHuisletterToevoeging(toevoeging: string | null): { huisletter: string | null; toevoeging: string | null } {
+  if (!toevoeging) return { huisletter: null, toevoeging: null };
+  const m = toevoeging.match(/^([A-Z])(.+)?$/);
+  if (!m) return { huisletter: null, toevoeging };
+  return { huisletter: m[1], toevoeging: m[2] ?? null };
+}
+
+function kandidaatDebugReden(
+  inv: SignaalLocatieInvoer,
+  k: GeocodeKandidaat,
+  parsed: ParsedAdres,
+  pc: string | null,
+  plaats: string | null,
+  inputStraat: string | null,
+): string {
+  if (tekstBevatKandidaat(inv, k)) return 'Exacte adresstring staat in titel/adres.';
+  if (!parsed.huisnummer) return 'Geen huisnummer in input.';
+  if (String(k.huisnummer ?? '') !== String(parsed.huisnummer)) return 'Huisnummer wijkt af.';
+  const pcOk = pc && k.postcode && pc === k.postcode;
+  const plaatsOk = plaats && k.woonplaats && normPlaats(k.woonplaats) === plaats;
+  if (!pcOk && !plaatsOk) return 'Postcode noch plaats komt overeen.';
+  if (inputStraat && normStraat(k.straat) !== inputStraat) return 'Straatnaam wijkt af van parser-output.';
+  if (parsed.toevoeging) {
+    return k.toevoeging === parsed.toevoeging ? 'Exacte toevoeging.' : 'Toevoeging wijkt af.';
+  }
+  return k.toevoeging ? 'Kandidaat heeft toevoeging, signaal niet.' : 'Basisadres match.';
+}
+
+export function maakGeocodeDebug(
+  inv: SignaalLocatieInvoer,
+  kandidaten: GeocodeKandidaat[],
+  resultaat: GeocodeReden | null,
+  debugCtx: { signaal_id?: string } = {},
+): GeocodeDebugInfo {
+  const parsed = combineerParsed(parseAdres(inv.adres), inv.titel);
+  const pc = normPostcode(inv.postcode);
+  const plaats = normPlaats(inv.plaats);
+  const inputStraat = normStraat(parsed.straat);
+  const split = splitHuisletterToevoeging(parsed.toevoeging);
+  return {
+    signal_id: debugCtx.signaal_id,
+    titel: inv.titel ?? null,
+    adres: inv.adres ?? null,
+    plaats: inv.plaats ?? null,
+    geparseerde_straat: parsed.straat,
+    geparseerd_huisnummer: parsed.huisnummer,
+    geparseerde_huisletter: split.huisletter,
+    geparseerde_toevoeging: split.toevoeging,
+    gebruikte_pdok_query: bouwQuery(inv),
+    resultaat,
+    kandidaten: kandidaten.slice(0, 10).map(k => ({
+      id: k.id,
+      weergavenaam: k.weergavenaam,
+      straat: k.straat,
+      huisnummer: k.huisnummer,
+      toevoeging: k.toevoeging,
+      postcode: k.postcode,
+      plaats: k.woonplaats,
+      score: tekstBevatKandidaat(inv, k) ? Math.max(95, k.score) : k.score,
+      reden: kandidaatDebugReden(inv, k, parsed, pc, plaats, inputStraat),
+    })),
+  };
+}
+
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
   if (!raw) return null;
   const m = raw.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
