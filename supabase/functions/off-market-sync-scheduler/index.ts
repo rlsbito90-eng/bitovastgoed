@@ -35,10 +35,10 @@ function amsterdamParts(d: Date) {
     weekday: WEEKDAY_MAP[parts.weekday] ?? 1,
   };
 }
-function amsterdamWallToUtc(y: number, m: number, d: number, h: number): Date {
-  const guess = new Date(Date.UTC(y, m - 1, d, h, 0, 0));
+function amsterdamWallToUtc(y: number, m: number, d: number, h: number, min = 0): Date {
+  const guess = new Date(Date.UTC(y, m - 1, d, h, min, 0));
   const p = amsterdamParts(guess);
-  let diff = h * 60 - (p.hour * 60 + p.minute);
+  let diff = (h * 60 + min) - (p.hour * 60 + p.minute);
   if (diff > 12 * 60) diff -= 24 * 60;
   if (diff < -12 * 60) diff += 24 * 60;
   return new Date(guess.getTime() + diff * 60_000);
@@ -49,37 +49,39 @@ function plusDagen(y: number, m: number, d: number, n: number) {
   return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
 }
 function berekenVolgendeRun(
-  now: Date, frequentie: Frequentie, tijdstipUur: number, dagVanWeek: number | null,
+  now: Date, frequentie: Frequentie, tijdstipUur: number, tijdstipMinuut: number, dagVanWeek: number | null,
 ): Date | null {
   if (frequentie === 'handmatig') return null;
   const uur = Math.max(0, Math.min(23, Math.floor(tijdstipUur)));
+  const min = [0, 15, 30, 45].includes(tijdstipMinuut) ? tijdstipMinuut : 0;
   const p = amsterdamParts(now);
   if (frequentie === 'dagelijks') {
-    const vandaag = amsterdamWallToUtc(p.year, p.month, p.day, uur);
+    const vandaag = amsterdamWallToUtc(p.year, p.month, p.day, uur, min);
     if (vandaag > now) return vandaag;
     const morgen = plusDagen(p.year, p.month, p.day, 1);
-    return amsterdamWallToUtc(morgen.year, morgen.month, morgen.day, uur);
+    return amsterdamWallToUtc(morgen.year, morgen.month, morgen.day, uur, min);
   }
   if (frequentie === 'wekelijks') {
     const target = dagVanWeek && dagVanWeek >= 1 && dagVanWeek <= 7 ? dagVanWeek : 1;
     let daysAhead = (target - p.weekday + 7) % 7;
-    const vandaagCand = amsterdamWallToUtc(p.year, p.month, p.day, uur);
+    const vandaagCand = amsterdamWallToUtc(p.year, p.month, p.day, uur, min);
     if (daysAhead === 0 && vandaagCand <= now) daysAhead = 7;
     if (daysAhead === 0) return vandaagCand;
     const tgt = plusDagen(p.year, p.month, p.day, daysAhead);
-    return amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur);
+    return amsterdamWallToUtc(tgt.year, tgt.month, tgt.day, uur, min);
   }
   if (frequentie === 'maandelijks') {
     let y = p.year, m = p.month;
-    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+    let cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur, min);
     if (cand <= now) {
       m += 1; if (m > 12) { m = 1; y += 1; }
-      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur);
+      cand = amsterdamWallToUtc(y, m, DAG_VAN_DE_MAAND, uur, min);
     }
     return cand;
   }
   return null;
 }
+
 
 // --- Handler ---
 Deno.serve(async (req) => {
