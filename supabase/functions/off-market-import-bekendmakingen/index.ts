@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
       const backfillVoltooid = isBackfill && cursorEind !== null && totaalServer > 0 && cursorEind >= totaalServer;
 
       const status = {
-        opgehaald, nieuw, dubbel, duur_ms: duurMs, sinceIso, totIso,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords, duur_ms: duurMs, sinceIso, totIso,
         totaal_server: totaalServer, max_records: maxRecords, afgebroken,
         test_mode: testMode, modus, query_url: firstQueryUrl,
         query_vanaf: queryVanaf.toISOString(), query_tot: queryTot.toISOString(),
