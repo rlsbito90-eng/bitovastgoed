@@ -172,10 +172,12 @@ Deno.serve(async (req) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${serviceKey}`,
                 'apikey': serviceKey,
+                'x-cron-secret': cronSecret,
                 'x-scheduler-source': 'cron',
               },
               body: JSON.stringify({ limit: batch, bron_id: b.id }),
             });
+
             const nd = await nr.json().catch(() => ({}));
             if (!nr.ok || nd?.error) {
               throw new Error(nd?.error || `normalize HTTP ${nr.status}`);
