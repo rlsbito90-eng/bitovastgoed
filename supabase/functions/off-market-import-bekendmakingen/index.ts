@@ -401,7 +401,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, run_id: runId, ...status }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const rawMsg = e instanceof Error ? e.message : String(e);
+      const isSru = e instanceof SruHttpError;
+      const sruStatus = isSru ? (e as SruHttpError).status : null;
+      const friendly = isSru
+        ? (sruStatus === 503 || sruStatus === 429
+            ? `De landelijke bekendmakingen-server (KOOP/SRU) gaf HTTP ${sruStatus} bij deep-paging vanaf record ${cursorStart + 1}. Probeer het over enkele minuten opnieuw met dezelfde cursor, of verklein de periode (bijv. 30 dagen).`
+            : `De landelijke bekendmakingen-server gaf HTTP ${sruStatus}. Probeer het later opnieuw.`)
+        : rawMsg;
       const duurMs = Date.now() - start;
       const cursorEind = isBackfill ? cursorStart + opgehaald : null;
       if (isBackfill) {
@@ -411,12 +418,13 @@ Deno.serve(async (req) => {
           backfill_cursor: cursorEind ?? cursorStart,
           backfill_server_total: totaalServer || null,
           backfill_status: 'fout',
+          laatste_fout: friendly.slice(0, 500),
         }).eq('id', bronId);
       } else {
         await admin.from('off_market_bronnen').update({
           laatste_run_op: new Date().toISOString(),
           laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel, modus }),
-          laatste_fout: msg.slice(0, 500),
+          laatste_fout: friendly.slice(0, 500),
         }).eq('id', bronId);
       }
       if (runId) {
@@ -428,11 +436,34 @@ Deno.serve(async (req) => {
           opgehaald, nieuw, dubbel,
           duration_ms: duurMs,
           cursor_eind: cursorEind,
-          foutmelding: msg.slice(0, 1000),
+          foutmelding: friendly.slice(0, 1000),
         }).eq('id', runId);
       }
-      return new Response(JSON.stringify({ error: msg, run_id: runId }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      console.error(JSON.stringify({
+        fase: 'backfill_fout', cursor_start: cursorStart, cursor_eind: cursorEind,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords,
+        sru_status: sruStatus, raw_error: rawMsg, query_url: firstQueryUrl,
+        laatste_record: laatsteRecordIdentifier,
+      }));
+      // Status 200 zodat supabase.functions.invoke de JSON-body doorgeeft i.p.v.
+      // "Edge Function returned a non-2xx status code".
+      return new Response(JSON.stringify({
+        ok: false,
+        status: 'fout',
+        modus,
+        message: friendly,
+        raw_error: rawMsg,
+        sru_status: sruStatus,
+        cursor_start: cursorStart,
+        cursor_eind: cursorEind,
+        batch_size: maxRecords,
+        query_vanaf: queryVanaf.toISOString(),
+        query_tot: queryTot.toISOString(),
+        query_url: firstQueryUrl,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords,
+        duration_ms: duurMs,
+        run_id: runId,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
   } catch (e) {
     console.error('import error:', e);
