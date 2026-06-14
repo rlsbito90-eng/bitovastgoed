@@ -38,6 +38,7 @@ export type GeocodeReden =
   | 'exact_addition_match'
   | 'basic_address_unique'
   | 'top_score_dominant'
+  | 'multiple_addresses'
   | 'multiple_candidates'
   | 'multiple_additions'
   | 'addition_mismatch'
@@ -284,10 +285,18 @@ function normPlaats(p: string | null | undefined): string | null {
 
 function normVrijeTekst(s: string | null | undefined): string {
   if (!s) return '';
-  return stripDiacritics(s)
+  let n = stripDiacritics(s)
     .toLowerCase()
     .replace(/\b(\d{4})\s*([a-z]{2})\b/g, '$1$2')
-    .replace(/[,.;:()]+/g, ' ')
+    .replace(/[,.;:()]+/g, ' ');
+  // Normaliseer huisletter/toevoeging zodat titel en PDOK-weergave dezelfde
+  // vorm krijgen: 67A-1 = 67A-01, 300-2 = 300-02, 22-H blijft 22 H.
+  n = n
+    .replace(/\b(\d{1,5})\s*([a-z])\s*[-/]?\s*0*(\d{1,3})\b/g, '$1$2 $3')
+    .replace(/\b(\d{1,5})\s*[-/]\s*0*(\d{1,3})\b/g, '$1 $2')
+    .replace(/\b(\d{1,5})\s*[-/]\s*([a-z]{1,3})\b/g, '$1 $2')
+    .replace(/\b(\d{1,5})\s+([a-z])\b/g, '$1$2');
+  return n
     .replace(/[\s\-/]+/g, ' ')
     .trim();
 }
@@ -315,6 +324,10 @@ function kandidaatTeksten(k: GeocodeKandidaat): string[] {
   ].filter(Boolean);
 }
 
+function kandidaatMatchKey(k: GeocodeKandidaat): string {
+  return normVrijeTekst(k.weergavenaam.split(',')[0] ?? k.weergavenaam);
+}
+
 function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): boolean {
   const bron = normVrijeTekst([inv.titel, inv.adres, inv.postcode, inv.plaats].filter(Boolean).join(' '));
   if (!bron) return false;
@@ -324,6 +337,30 @@ function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): bo
     const esc = nt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
   });
+}
+
+function straatKomtVoorInTekst(inv: SignaalLocatieInvoer, straat: string | null | undefined): boolean {
+  const ns = normVrijeTekst(straat);
+  if (!ns || ns.length < 6) return false;
+  const bron = normVrijeTekst([inv.titel, inv.adres].filter(Boolean).join(' '));
+  if (!bron) return false;
+  const esc = ns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
+}
+
+function langereKandidaatStraatUitTekst(
+  inv: SignaalLocatieInvoer,
+  kandidaten: GeocodeKandidaat[],
+  inputStraat: string | null,
+): string | null {
+  if (!inputStraat) return null;
+  const mogelijke = kandidaten
+    .map(k => ({ raw: k.straat, norm: normStraat(k.straat) }))
+    .filter((s): s is { raw: string; norm: string } => !!s.raw && !!s.norm)
+    .filter(s => s.norm !== inputStraat && s.norm.endsWith(` ${inputStraat}`))
+    .filter(s => straatKomtVoorInTekst(inv, s.raw))
+    .sort((a, b) => b.norm.length - a.norm.length);
+  return mogelijke[0]?.norm ?? null;
 }
 
 function splitHuisletterToevoeging(toevoeging: string | null): { huisletter: string | null; toevoeging: string | null } {
