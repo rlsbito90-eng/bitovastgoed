@@ -670,6 +670,7 @@ export async function geocodeSignaalLocatie(
 /** UI label voor reden code (NL). */
 export function redenLabel(code: GeocodeReden | undefined | null): string {
   switch (code) {
+    case 'multiple_addresses': return 'Meerdere adressen gevonden';
     case 'multiple_candidates': return 'Meerdere vergelijkbare kandidaten';
     case 'multiple_additions': return 'Meerdere toevoegingen bij dit huisnummer';
     case 'addition_mismatch': return 'Toevoeging onzeker';
