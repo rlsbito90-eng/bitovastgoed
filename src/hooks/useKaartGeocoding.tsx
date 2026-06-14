@@ -10,6 +10,7 @@ import {
   type GeocodeDebugInfo,
   type GeocodeResultaat,
 } from '@/lib/offMarket/kaart/geocode';
+import { verfijnAdresUitTekst } from '@/lib/offMarket/import/normalize';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
 export interface GeocodeOnzeker {
