@@ -570,6 +570,15 @@ export function beoordeelKandidaten(
     return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
   }
   if (tekstMatchKeys.size > 1) {
+    const keys = [...tekstMatchKeys].sort((a, b) => b.length - a.length);
+    const langsteKey = keys[0];
+    const kortereSuffixenVanZelfdeAdres = keys.slice(1).every(k => langsteKey.endsWith(` ${k}`));
+    if (kortereSuffixenVanZelfdeAdres) {
+      const w0 = tekstMatches.find(k => kandidaatMatchKey(k) === langsteKey) ?? tekstMatches[0];
+      const w = { ...w0, score: Math.max(95, w0.score) };
+      debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
+      return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+    }
     debugLog({ ...baseDebug, gekozen: false, reden: 'multiple_addresses' });
     return { status: 'controleren', kandidaten, reden: 'Meerdere adressen gevonden.', redenCode: 'multiple_addresses' };
   }
