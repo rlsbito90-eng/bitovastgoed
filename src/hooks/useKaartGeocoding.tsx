@@ -5,7 +5,9 @@ import {
   geocodeSignaalLocatie,
   pdokAdresZoek,
   beoordeelKandidaten,
+  maakGeocodeDebug,
   type GeocodeKandidaat,
+  type GeocodeDebugInfo,
   type GeocodeResultaat,
 } from '@/lib/offMarket/kaart/geocode';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
@@ -18,6 +20,7 @@ export interface GeocodeOnzeker {
   plaats: string | null;
   reden: string;
   kandidaten: GeocodeKandidaat[];
+  debug?: GeocodeDebugInfo;
 }
 
 export interface GeocodeVoortgang {
@@ -76,7 +79,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
             postcode: s.postcode ?? null,
             plaats: s.plaats ?? null,
             titel: s.titel ?? null,
-          });
+          }, { signaal_id: s.id });
         } catch (err) {
           // eslint-disable-next-line no-console
           if (import.meta.env.DEV) console.warn('[kaart-geocode] mislukt', s.id, err);
@@ -106,6 +109,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
               plaats: s.plaats ?? null,
               reden: resultaat.reden,
               kandidaten: resultaat.kandidaten,
+              debug: resultaat.debug,
             }];
           });
         } else if (resultaat.status === 'geen') {
@@ -159,7 +163,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
   const handmatigZoeken = useCallback(async (signaal: OffMarketSignaal) => {
     const inv = { adres: signaal.adres ?? null, postcode: signaal.postcode ?? null, plaats: signaal.plaats ?? null, titel: signaal.titel ?? null };
     const kandidaten = await pdokAdresZoek(inv);
-    const resultaat = beoordeelKandidaten(inv, kandidaten);
+    const resultaat = beoordeelKandidaten(inv, kandidaten, { signaal_id: signaal.id });
     if (resultaat.status === 'auto') {
       await supabase
         .from('off_market_signalen')
@@ -179,6 +183,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
         plaats: signaal.plaats ?? null,
         reden: resultaat.status === 'controleren' ? resultaat.reden : 'Geen automatische match.',
         kandidaten,
+        debug: resultaat.debug ?? maakGeocodeDebug(inv, kandidaten, resultaat.redenCode, { signaal_id: signaal.id }),
       }];
     });
     return { status: resultaat.status, aantal: kandidaten.length };

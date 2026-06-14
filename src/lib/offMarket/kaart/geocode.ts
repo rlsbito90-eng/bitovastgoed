@@ -34,6 +34,7 @@ export interface GeocodeKandidaat {
 
 export type GeocodeReden =
   | 'exact_match'
+  | 'exact_text_match'
   | 'exact_addition_match'
   | 'basic_address_unique'
   | 'top_score_dominant'
@@ -48,10 +49,10 @@ export type GeocodeReden =
   | 'insufficient_input';
 
 export type GeocodeResultaat =
-  | { status: 'auto'; lat: number; lng: number; kandidaat: GeocodeKandidaat; reden: GeocodeReden }
-  | { status: 'controleren'; kandidaten: GeocodeKandidaat[]; reden: string; redenCode: GeocodeReden }
-  | { status: 'geen'; reden: string; redenCode: GeocodeReden }
-  | { status: 'overslaan'; reden: string; redenCode: GeocodeReden };
+  | { status: 'auto'; lat: number; lng: number; kandidaat: GeocodeKandidaat; reden: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'controleren'; kandidaten: GeocodeKandidaat[]; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'geen'; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'overslaan'; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo };
 
 const PDOK_FREE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 const PDOK_FIELDS = [
@@ -68,6 +69,32 @@ export interface ParsedAdres {
   huisnummer: string | null;
   /** Genormaliseerd: uppercase, zonder spaties/streepjes, bv "A", "2", "BS", "1HG". */
   toevoeging: string | null;
+}
+
+export interface GeocodeDebugKandidaat {
+  id: string;
+  weergavenaam: string;
+  straat: string | null;
+  huisnummer: string | null;
+  toevoeging: string | null;
+  postcode: string | null;
+  plaats: string | null;
+  score: number;
+  reden: string;
+}
+
+export interface GeocodeDebugInfo {
+  signal_id?: string;
+  titel: string | null;
+  adres: string | null;
+  plaats: string | null;
+  geparseerde_straat: string | null;
+  geparseerd_huisnummer: string | null;
+  geparseerde_huisletter: string | null;
+  geparseerde_toevoeging: string | null;
+  gebruikte_pdok_query: string | null;
+  resultaat: GeocodeReden | null;
+  kandidaten: GeocodeDebugKandidaat[];
 }
 
 function stripDiacritics(s: string): string {
@@ -150,10 +177,39 @@ const STRAAT_PREFIX_WOORDEN = new Set<string>([
   'oud', 'nieuw', 'noord', 'zuid', 'oost', 'west',
 ]);
 
+const STRAAT_TUSSENVOEGSELS = new Set<string>([
+  'van', 'de', 'der', 'den', 'ten', 'ter', 'op', 'aan', 'in', 'bij', 'te', "'s", "'s-",
+]);
+
+const TITEL_GEEN_STRAAT_WOORDEN = new Set<string>([
+  'aanvraag', 'aangevraagde', 'vergunning', 'omgevingsvergunning', 'kamerverhuur',
+  'besluit', 'melding', 'verleend', 'geweigerd', 'ontvangen', 'bekendmaking',
+]);
+
 function isLegitiemStraatPrefix(extra: string): boolean {
   const woorden = extra.trim().split(/\s+/).filter(Boolean);
   if (woorden.length === 0 || woorden.length > 3) return false;
   return woorden.every(w => STRAAT_PREFIX_WOORDEN.has(w.toLowerCase()));
+}
+
+function straatVerlengingUitTitel(extra: string, basisStraat: string): string | null {
+  const woorden = extra.trim().split(/\s+/).filter(Boolean);
+  if (woorden.length === 0) return null;
+  if (isLegitiemStraatPrefix(extra)) return `${extra.trim()} ${basisStraat}`.trim();
+
+  // Straatnamen als "Godijn van Dormaalstraat" worden soms in het adresveld
+  // als alleen "Dormaalstraat" opgeslagen. Pak dan de kortste plausibele
+  // suffix uit de titel, maar nooit documentwoorden zoals "Vergunning".
+  for (let i = Math.max(0, woorden.length - 3); i < woorden.length; i += 1) {
+    const deel = woorden.slice(i);
+    if (deel.length < 2 || deel.length > 3) continue;
+    const lower = deel.map(w => w.toLowerCase());
+    if (lower.some(w => TITEL_GEEN_STRAAT_WOORDEN.has(w))) continue;
+    if (STRAAT_TUSSENVOEGSELS.has(lower[lower.length - 1])) {
+      return `${deel.join(' ')} ${basisStraat}`.trim();
+    }
+  }
+  return null;
 }
 
 /**
@@ -190,6 +246,10 @@ export function combineerParsed(adresParsed: ParsedAdres, titel: string | null |
       const extra = tN.slice(0, tN.length - aN.length).trim();
       if (isLegitiemStraatPrefix(extra)) {
         out.straat = t.straat;
+      } else {
+        const extraOrig = t.straat.slice(0, t.straat.length - out.straat.length).trim();
+        const verlengd = straatVerlengingUitTitel(extraOrig, out.straat);
+        if (verlengd) out.straat = verlengd;
       }
     }
   } else if (!out.straat && t.straat) {
@@ -222,6 +282,16 @@ function normPlaats(p: string | null | undefined): string | null {
   return stripDiacritics(p.trim().toLowerCase()).replace(/\s+/g, ' ') || null;
 }
 
+function normVrijeTekst(s: string | null | undefined): string {
+  if (!s) return '';
+  return stripDiacritics(s)
+    .toLowerCase()
+    .replace(/\b(\d{4})\s*([a-z]{2})\b/g, '$1$2')
+    .replace(/[,.;:()]+/g, ' ')
+    .replace(/[\s\-/]+/g, ' ')
+    .trim();
+}
+
 function normStraat(s: string | null | undefined): string | null {
   if (!s) return null;
   let n = stripDiacritics(s.trim().toLowerCase()).replace(/\s+/g, ' ');
@@ -231,6 +301,93 @@ function normStraat(s: string | null | undefined): string | null {
   // Verwijder leestekens die niet zinvol zijn voor vergelijking
   n = n.replace(/[.,;:]/g, '').replace(/\s+/g, ' ').trim();
   return n || null;
+}
+
+function kandidaatTeksten(k: GeocodeKandidaat): string[] {
+  const pc = normPostcode(k.postcode);
+  const basis = [k.straat, k.huisnummer, k.toevoeging].filter(Boolean).join(' ');
+  const weergaveZonderPlaats = k.weergavenaam.split(',')[0] ?? k.weergavenaam;
+  return [
+    k.weergavenaam,
+    weergaveZonderPlaats,
+    [basis, pc, k.woonplaats].filter(Boolean).join(' '),
+    basis,
+  ].filter(Boolean);
+}
+
+function tekstBevatKandidaat(inv: SignaalLocatieInvoer, k: GeocodeKandidaat): boolean {
+  const bron = normVrijeTekst([inv.titel, inv.adres, inv.postcode, inv.plaats].filter(Boolean).join(' '));
+  if (!bron) return false;
+  return kandidaatTeksten(k).some(t => {
+    const nt = normVrijeTekst(t);
+    if (nt.length < 8) return false;
+    const esc = nt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(bron);
+  });
+}
+
+function splitHuisletterToevoeging(toevoeging: string | null): { huisletter: string | null; toevoeging: string | null } {
+  if (!toevoeging) return { huisletter: null, toevoeging: null };
+  const m = toevoeging.match(/^([A-Z])(.+)?$/);
+  if (!m) return { huisletter: null, toevoeging };
+  return { huisletter: m[1], toevoeging: m[2] ?? null };
+}
+
+function kandidaatDebugReden(
+  inv: SignaalLocatieInvoer,
+  k: GeocodeKandidaat,
+  parsed: ParsedAdres,
+  pc: string | null,
+  plaats: string | null,
+  inputStraat: string | null,
+): string {
+  if (tekstBevatKandidaat(inv, k)) return 'Exacte adresstring staat in titel/adres.';
+  if (!parsed.huisnummer) return 'Geen huisnummer in input.';
+  if (String(k.huisnummer ?? '') !== String(parsed.huisnummer)) return 'Huisnummer wijkt af.';
+  const pcOk = pc && k.postcode && pc === k.postcode;
+  const plaatsOk = plaats && k.woonplaats && normPlaats(k.woonplaats) === plaats;
+  if (!pcOk && !plaatsOk) return 'Postcode noch plaats komt overeen.';
+  if (inputStraat && normStraat(k.straat) !== inputStraat) return 'Straatnaam wijkt af van parser-output.';
+  if (parsed.toevoeging) {
+    return k.toevoeging === parsed.toevoeging ? 'Exacte toevoeging.' : 'Toevoeging wijkt af.';
+  }
+  return k.toevoeging ? 'Kandidaat heeft toevoeging, signaal niet.' : 'Basisadres match.';
+}
+
+export function maakGeocodeDebug(
+  inv: SignaalLocatieInvoer,
+  kandidaten: GeocodeKandidaat[],
+  resultaat: GeocodeReden | null,
+  debugCtx: { signaal_id?: string } = {},
+): GeocodeDebugInfo {
+  const parsed = combineerParsed(parseAdres(inv.adres), inv.titel);
+  const pc = normPostcode(inv.postcode);
+  const plaats = normPlaats(inv.plaats);
+  const inputStraat = normStraat(parsed.straat);
+  const split = splitHuisletterToevoeging(parsed.toevoeging);
+  return {
+    signal_id: debugCtx.signaal_id,
+    titel: inv.titel ?? null,
+    adres: inv.adres ?? null,
+    plaats: inv.plaats ?? null,
+    geparseerde_straat: parsed.straat,
+    geparseerd_huisnummer: parsed.huisnummer,
+    geparseerde_huisletter: split.huisletter,
+    geparseerde_toevoeging: split.toevoeging,
+    gebruikte_pdok_query: bouwQuery(inv),
+    resultaat,
+    kandidaten: kandidaten.slice(0, 10).map(k => ({
+      id: k.id,
+      weergavenaam: k.weergavenaam,
+      straat: k.straat,
+      huisnummer: k.huisnummer,
+      toevoeging: k.toevoeging,
+      postcode: k.postcode,
+      plaats: k.woonplaats,
+      score: tekstBevatKandidaat(inv, k) ? Math.max(95, k.score) : k.score,
+      reden: kandidaatDebugReden(inv, k, parsed, pc, plaats, inputStraat),
+    })),
+  };
 }
 
 function parseCentroideLL(raw: string | undefined): { lng: number; lat: number } | null {
@@ -363,6 +520,18 @@ export function beoordeelKandidaten(
     debugLog({ ...baseDebug, gekozen: false, reden: 'no_candidates' });
     return { status: 'geen', reden: 'Geen PDOK-adresmatch gevonden.', redenCode: 'no_candidates' };
   }
+
+  // Sterkste runtime-regel: als de volledige PDOK-adresstring letterlijk in
+  // titel/originele tekst staat, wint die vóór parser-twijfel of suffix-fouten.
+  const tekstMatches = kandidaten
+    .filter(k => tekstBevatKandidaat(inv, k))
+    .sort((a, b) => b.score - a.score);
+  if (tekstMatches.length === 1 || (tekstMatches.length > 1 && tekstMatches[0].score > tekstMatches[1].score)) {
+    const w = { ...tekstMatches[0], score: Math.max(95, tekstMatches[0].score) };
+    debugLog({ ...baseDebug, gekozen: true, reden: 'exact_text_match' });
+    return { status: 'auto', lat: w.lat, lng: w.lng, kandidaat: w, reden: 'exact_text_match' };
+  }
+
   if (!parsed.huisnummer) {
     debugLog({ ...baseDebug, gekozen: false, reden: 'no_housenumber' });
     return { status: 'controleren', kandidaten, reden: 'Geen huisnummer in signaal-adres.', redenCode: 'no_housenumber' };
@@ -442,10 +611,17 @@ export async function geocodeSignaalLocatie(
 ): Promise<GeocodeResultaat> {
   const q = bouwQuery(inv);
   if (!q) {
-    return { status: 'overslaan', reden: 'Onvoldoende adresgegevens (geen huisnummer + postcode/plaats).', redenCode: 'insufficient_input' };
+    return {
+      status: 'overslaan',
+      reden: 'Onvoldoende adresgegevens (geen huisnummer + postcode/plaats).',
+      redenCode: 'insufficient_input',
+      debug: maakGeocodeDebug(inv, [], 'insufficient_input', { signaal_id: opts.signaal_id }),
+    };
   }
   const kandidaten = await pdokAdresZoek(inv, opts);
-  return beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
+  const resultaat = beoordeelKandidaten(inv, kandidaten, { signaal_id: opts.signaal_id });
+  const debugReden = resultaat.status === 'auto' ? resultaat.reden : resultaat.redenCode;
+  return { ...resultaat, debug: maakGeocodeDebug(inv, kandidaten, debugReden, { signaal_id: opts.signaal_id }) };
 }
 
 /** UI label voor reden code (NL). */
@@ -461,6 +637,7 @@ export function redenLabel(code: GeocodeReden | undefined | null): string {
     case 'no_candidates': return 'Geen PDOK-resultaat';
     case 'insufficient_input': return 'Onvoldoende adresgegevens';
     case 'exact_match':
+    case 'exact_text_match':
     case 'exact_addition_match':
     case 'basic_address_unique':
     case 'top_score_dominant': return 'Automatisch gematcht';

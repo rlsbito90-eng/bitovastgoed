@@ -88,6 +88,14 @@ export default function LocatieControlerenDialog({ open, onOpenChange, items, on
                     <span className="break-words">{item.reden}</span>
                     <span className="opacity-60">· {item.kandidaten.length} kandidaten</span>
                   </div>
+                  {import.meta.env.DEV && item.debug && (
+                    <details className="mb-2 rounded border border-border/60 bg-background p-2 text-[10px] text-muted-foreground">
+                      <summary className="cursor-pointer font-medium text-foreground">Debug locatie</summary>
+                      <pre className="mt-2 whitespace-pre-wrap break-words font-mono">
+                        {JSON.stringify(item.debug, null, 2)}
+                      </pre>
+                    </details>
+                  )}
                   <ul className="space-y-2">
                     {item.kandidaten.map(k => (
                       <li
