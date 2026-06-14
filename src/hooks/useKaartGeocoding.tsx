@@ -183,7 +183,7 @@ export function useKaartGeocoding(signalen: OffMarketSignaal[], enabled: boolean
         plaats: signaal.plaats ?? null,
         reden: resultaat.status === 'controleren' ? resultaat.reden : 'Geen automatische match.',
         kandidaten,
-        debug: resultaat.debug ?? maakGeocodeDebug(inv, kandidaten, resultaat.status === 'auto' ? resultaat.reden : resultaat.redenCode, { signaal_id: signaal.id }),
+        debug: resultaat.debug ?? maakGeocodeDebug(inv, kandidaten, resultaat.redenCode, { signaal_id: signaal.id }),
       }];
     });
     return { status: resultaat.status, aantal: kandidaten.length };
