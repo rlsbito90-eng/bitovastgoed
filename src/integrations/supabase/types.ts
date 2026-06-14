@@ -2549,6 +2549,11 @@ export type Database = {
           auto_import: boolean
           auto_start_op: string | null
           auto_verwerken: boolean
+          backfill_cursor: number
+          backfill_server_total: number | null
+          backfill_status: string
+          backfill_tot: string | null
+          backfill_vanaf: string | null
           config: Json
           created_at: string
           dag_van_week: number | null
@@ -2576,6 +2581,11 @@ export type Database = {
           auto_import?: boolean
           auto_start_op?: string | null
           auto_verwerken?: boolean
+          backfill_cursor?: number
+          backfill_server_total?: number | null
+          backfill_status?: string
+          backfill_tot?: string | null
+          backfill_vanaf?: string | null
           config?: Json
           created_at?: string
           dag_van_week?: number | null
@@ -2603,6 +2613,11 @@ export type Database = {
           auto_import?: boolean
           auto_start_op?: string | null
           auto_verwerken?: boolean
+          backfill_cursor?: number
+          backfill_server_total?: number | null
+          backfill_status?: string
+          backfill_tot?: string | null
+          backfill_vanaf?: string | null
           config?: Json
           created_at?: string
           dag_van_week?: number | null
