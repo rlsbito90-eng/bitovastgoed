@@ -138,6 +138,74 @@ export function useUpdateBronInstellingen() {
   });
 }
 
+export interface BackfillRunResultaat {
+  ok: true;
+  opgehaald: number;
+  nieuw: number;
+  dubbel: number;
+  totaal_server: number;
+  cursor_start: number;
+  cursor_eind: number | null;
+  duur_ms: number;
+  run_id?: string;
+  query_vanaf?: string;
+  query_tot?: string;
+}
+
+/** Start de volgende backfill-batch voor een bron. */
+export function useBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      bronId: string; vanaf: string; tot: string; batchSize: 500 | 1000 | 2000;
+    }): Promise<BackfillRunResultaat> => {
+      const { data, error } = await supabase.functions.invoke(
+        'off-market-import-bekendmakingen',
+        {
+          body: {
+            bron_id: args.bronId,
+            modus: 'backfill',
+            vanaf: args.vanaf,
+            tot: args.tot,
+            batch_size: args.batchSize,
+          },
+        },
+      );
+      if (error) throw new Error(error.message ?? 'Backfill mislukt');
+      if (data?.error) throw new Error(data.error);
+      return data as BackfillRunResultaat;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['off-market-bronnen'] });
+      qc.invalidateQueries({ queryKey: ['off-market-ruw-onverwerkt'] });
+      qc.invalidateQueries({ queryKey: ['off-market-bron-stats'] });
+      qc.invalidateQueries({ queryKey: ['off-market-import-runs'] });
+    },
+  });
+}
+
+/** Reset backfill-voortgang voor een bron. */
+export function useBackfillReset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { bronId: string }) => {
+      const { error } = await supabase
+        .from('off_market_bronnen')
+        .update({
+          backfill_vanaf: null,
+          backfill_tot: null,
+          backfill_cursor: 0,
+          backfill_server_total: null,
+          backfill_status: 'niet_gestart',
+        } as never)
+        .eq('id', args.bronId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['off-market-bronnen'] }),
+  });
+}
+
+
 export function useRunBron() {
   const qc = useQueryClient();
   return useMutation({
