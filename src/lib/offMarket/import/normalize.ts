@@ -22,11 +22,31 @@ export interface AdresParseResult {
   plaats: string | null;
 }
 
-const STRAAT_RE =
-  /([A-ZÀ-Ý][\wÀ-ÿ\-']{2,40}(?:straat|laan|weg|plein|kade|gracht|singel|dreef|hof|park|baan|dijk|markt|wal|pad|steeg|rak))\.?\s+(\d{1,4})\s*([a-zA-Z]{0,3})\b/;
-const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
+const STRAAT_SUFFIXEN = [
+  'straat','laan','weg','plein','kade','gracht','singel','dreef','hof','park',
+  'baan','dijk','markt','wal','pad','steeg','rak','sloot','burg','polder',
+  'plantsoen','brink','boulevard','allee',
+].join('|');
 
-/** Eenvoudige adres-extractor: zoek straat+huisnummer en postcode in tekst. */
+// Toegestane tussenvoegsels (lowercase) voor straatnamen als "Van der Helststraat".
+const TUSSENVOEGSEL = '(?:van|der|den|de|het|ten|ter|aan|op|in|t)';
+const PREFIX_WOORD = `(?:[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*|${TUSSENVOEGSEL})\\.?`;
+
+// Hoofdregex: optioneel 0–3 prefixwoorden ("John ", "Nieuwe ", "Van der "),
+// dan een woord dat eindigt op een straatsuffix, dan huisnummer +
+// optionele huisletter + optionele toevoeging. Toevoeging wordt alleen
+// herkend na een streepje (bv. 77A-02, 56-H, 86-2).
+const STRAAT_RE = new RegExp(
+  `((?:${PREFIX_WOORD}\\s+){0,3}[A-ZÀ-Ý][\\wÀ-ÿ'\\-]*?(?:${STRAAT_SUFFIXEN}))\\.?\\s+(\\d{1,4})([A-Za-z])?(?:-([A-Za-z0-9]{1,4}))?\\b`,
+);
+const POSTCODE_RE = /\b([1-9]\d{3})\s?([A-Z]{2})\b/;
+// Plaats direct na postcode: "1075EP Amsterdam".
+const PLAATS_NA_POSTCODE_RE = /\b[1-9]\d{3}\s?[A-Z]{2}\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})/;
+// Plaats achter "in"/"te": "in Amsterdam", "te Rotterdam".
+const PLAATS_IN_TE_RE = /\b(?:in|te)\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+){0,2})\b/;
+
+/** Adres-extractor: vindt meest specifieke straat+huisnummer(+letter+toevoeging)
+ * en, indien aanwezig, postcode en plaats. */
 export function parseAdres(text: string): AdresParseResult {
   if (!text) return { adres: null, postcode: null, plaats: null };
   const norm = text.replace(/\s+/g, ' ').trim();
@@ -34,13 +54,51 @@ export function parseAdres(text: string): AdresParseResult {
   const postcode = norm.match(POSTCODE_RE);
   let adres: string | null = null;
   if (straat) {
-    adres = `${straat[1].trim()} ${straat[2]}${straat[3] ? straat[3] : ''}`.trim();
+    const straatnaam = straat[1].replace(/\s+/g, ' ').trim();
+    const nr = straat[2];
+    const letter = straat[3] ?? '';
+    const toev = straat[4] ?? '';
+    adres = `${straatnaam} ${nr}${letter}${toev ? `-${toev}` : ''}`.trim();
+  }
+  let plaats: string | null = null;
+  const naPc = norm.match(PLAATS_NA_POSTCODE_RE);
+  if (naPc) plaats = naPc[1].trim();
+  else {
+    const inTe = norm.match(PLAATS_IN_TE_RE);
+    if (inTe) plaats = inTe[1].trim();
   }
   return {
     adres,
     postcode: postcode ? `${postcode[1]} ${postcode[2]}` : null,
-    plaats: null, // plaats komt uit bronconfig (gemeente)
+    plaats,
   };
+}
+
+/**
+ * Bepaalt of een nieuwe (uit tekst geparste) adresvariant strikter/specifieker
+ * is dan de huidig opgeslagen waarden. Retourneert alleen de velden die echt
+ * verbeterd moeten worden (anders null). Wijzigt nooit een bestaand huisnummer
+ * en overschrijft nooit een al-ingevulde postcode/plaats.
+ */
+export function verfijnAdresUitTekst(
+  huidig: { adres: string | null; postcode: string | null; plaats: string | null },
+  text: string,
+): { adres?: string; postcode?: string; plaats?: string } | null {
+  const nieuw = parseAdres(text);
+  const patch: { adres?: string; postcode?: string; plaats?: string } = {};
+  const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (nieuw.adres) {
+    const h = norm(huidig.adres);
+    const n = norm(nieuw.adres);
+    if (n && n !== h && (h === '' || n.length > h.length)) {
+      const hNr = h.match(/(\d{1,4})/)?.[1];
+      const nNr = n.match(/(\d{1,4})/)?.[1];
+      if (!hNr || hNr === nNr) patch.adres = nieuw.adres;
+    }
+  }
+  if (nieuw.postcode && !huidig.postcode) patch.postcode = nieuw.postcode;
+  if (nieuw.plaats && !huidig.plaats) patch.plaats = nieuw.plaats;
+  return Object.keys(patch).length ? patch : null;
 }
 
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
