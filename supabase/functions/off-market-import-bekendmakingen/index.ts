@@ -11,8 +11,15 @@ const corsHeaders = {
 };
 
 const USER_AGENT = 'BitoVastgoed-OffMarketRadar/1.0';
-const HTTP_TIMEOUT_MS = 15000;
-const MAX_RETRIES = 3;
+const HTTP_TIMEOUT_MS = 20000;
+const MAX_RETRIES = 6;
+
+class SruHttpError extends Error {
+  constructor(public status: number, public url: string, public bodySnippet: string) {
+    super(`SRU HTTP ${status} bij startRecord uit URL`);
+    this.name = 'SruHttpError';
+  }
+}
 
 interface SruRecord {
   identifier: string;
@@ -97,13 +104,26 @@ async function fetchMetRetry(url: string): Promise<string> {
         signal: ctrl.signal,
       });
       clearTimeout(t);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        // 5xx/429 → retry met langere backoff (KOOP knijpt deep-paging af).
+        if ((resp.status >= 500 || resp.status === 429) && attempt < MAX_RETRIES) {
+          const wait = Math.min(15000, 1000 * Math.pow(2, attempt));
+          console.warn(JSON.stringify({
+            fase: 'sru_retry', status: resp.status, attempt, wait_ms: wait, url,
+          }));
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        throw new SruHttpError(resp.status, url, body.slice(0, 400));
+      }
       return await resp.text();
     } catch (e) {
       clearTimeout(t);
       lastErr = e;
+      if (e instanceof SruHttpError) throw e;
       if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
       }
     }
   }
@@ -258,9 +278,10 @@ Deno.serve(async (req) => {
     const runId = runRow?.id as string | undefined;
 
     let startRecord = isBackfill ? cursorStart + 1 : 1;
-    let opgehaald = 0, nieuw = 0, dubbel = 0;
+    let opgehaald = 0, nieuw = 0, dubbel = 0, foutRecords = 0;
     let totaalServer = 0;
     let firstQueryUrl = '';
+    let laatsteRecordIdentifier: string | null = null;
     const pageSize = isBackfill ? Math.min(maxRecords, 500) : 200;
     const TIME_BUDGET_MS = 50_000;
 
@@ -284,19 +305,30 @@ Deno.serve(async (req) => {
         }));
         if (records.length === 0) break;
 
-        for (const r of records) {
-          const payload = {
-            titel: r.titel, datum: r.datum, samenvatting: r.samenvatting,
-            subjects: r.subjects, creator: r.creator, link: r.link,
-          };
-          const { error: insErr } = await admin
-            .from('off_market_signalen_ruw')
-            .insert({ bron_id: bronId, extern_id: r.identifier, payload });
-          if (insErr) {
-            if (insErr.code === '23505') dubbel++;
-            else throw insErr;
-          } else {
-            nieuw++;
+        for (let i = 0; i < records.length; i++) {
+          const r = records[i];
+          laatsteRecordIdentifier = r.identifier;
+          try {
+            const payload = {
+              titel: r.titel, datum: r.datum, samenvatting: r.samenvatting,
+              subjects: r.subjects, creator: r.creator, link: r.link,
+            };
+            const { error: insErr } = await admin
+              .from('off_market_signalen_ruw')
+              .insert({ bron_id: bronId, extern_id: r.identifier, payload });
+            if (insErr) {
+              if (insErr.code === '23505') dubbel++;
+              else throw insErr;
+            } else {
+              nieuw++;
+            }
+          } catch (recErr) {
+            foutRecords++;
+            console.error(JSON.stringify({
+              fase: 'record_fout', index: i, startRecord, identifier: r.identifier,
+              titel: r.titel?.slice(0, 120),
+              error: recErr instanceof Error ? recErr.message : String(recErr),
+            }));
           }
         }
         opgehaald += records.length;
@@ -305,13 +337,14 @@ Deno.serve(async (req) => {
         if (records.length < pageSize) break;
       }
 
+
       const duurMs = Date.now() - start;
       const afgebroken = opgehaald < maxRecords && duurMs >= TIME_BUDGET_MS && !isBackfill;
       const cursorEind = isBackfill ? cursorStart + opgehaald : null;
       const backfillVoltooid = isBackfill && cursorEind !== null && totaalServer > 0 && cursorEind >= totaalServer;
 
       const status = {
-        opgehaald, nieuw, dubbel, duur_ms: duurMs, sinceIso, totIso,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords, duur_ms: duurMs, sinceIso, totIso,
         totaal_server: totaalServer, max_records: maxRecords, afgebroken,
         test_mode: testMode, modus, query_url: firstQueryUrl,
         query_vanaf: queryVanaf.toISOString(), query_tot: queryTot.toISOString(),
@@ -368,7 +401,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, run_id: runId, ...status }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const rawMsg = e instanceof Error ? e.message : String(e);
+      const isSru = e instanceof SruHttpError;
+      const sruStatus = isSru ? (e as SruHttpError).status : null;
+      const friendly = isSru
+        ? (sruStatus === 503 || sruStatus === 429
+            ? `De landelijke bekendmakingen-server (KOOP/SRU) gaf HTTP ${sruStatus} bij deep-paging vanaf record ${cursorStart + 1}. Probeer het over enkele minuten opnieuw met dezelfde cursor, of verklein de periode (bijv. 30 dagen).`
+            : `De landelijke bekendmakingen-server gaf HTTP ${sruStatus}. Probeer het later opnieuw.`)
+        : rawMsg;
       const duurMs = Date.now() - start;
       const cursorEind = isBackfill ? cursorStart + opgehaald : null;
       if (isBackfill) {
@@ -378,12 +418,13 @@ Deno.serve(async (req) => {
           backfill_cursor: cursorEind ?? cursorStart,
           backfill_server_total: totaalServer || null,
           backfill_status: 'fout',
+          laatste_fout: friendly.slice(0, 500),
         }).eq('id', bronId);
       } else {
         await admin.from('off_market_bronnen').update({
           laatste_run_op: new Date().toISOString(),
           laatste_run_status: JSON.stringify({ status: 'mislukt', opgehaald, nieuw, dubbel, modus }),
-          laatste_fout: msg.slice(0, 500),
+          laatste_fout: friendly.slice(0, 500),
         }).eq('id', bronId);
       }
       if (runId) {
@@ -395,11 +436,34 @@ Deno.serve(async (req) => {
           opgehaald, nieuw, dubbel,
           duration_ms: duurMs,
           cursor_eind: cursorEind,
-          foutmelding: msg.slice(0, 1000),
+          foutmelding: friendly.slice(0, 1000),
         }).eq('id', runId);
       }
-      return new Response(JSON.stringify({ error: msg, run_id: runId }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      console.error(JSON.stringify({
+        fase: 'backfill_fout', cursor_start: cursorStart, cursor_eind: cursorEind,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords,
+        sru_status: sruStatus, raw_error: rawMsg, query_url: firstQueryUrl,
+        laatste_record: laatsteRecordIdentifier,
+      }));
+      // Status 200 zodat supabase.functions.invoke de JSON-body doorgeeft i.p.v.
+      // "Edge Function returned a non-2xx status code".
+      return new Response(JSON.stringify({
+        ok: false,
+        status: 'fout',
+        modus,
+        message: friendly,
+        raw_error: rawMsg,
+        sru_status: sruStatus,
+        cursor_start: cursorStart,
+        cursor_eind: cursorEind,
+        batch_size: maxRecords,
+        query_vanaf: queryVanaf.toISOString(),
+        query_tot: queryTot.toISOString(),
+        query_url: firstQueryUrl,
+        opgehaald, nieuw, dubbel, fout_records: foutRecords,
+        duration_ms: duurMs,
+        run_id: runId,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
   } catch (e) {
     console.error('import error:', e);
