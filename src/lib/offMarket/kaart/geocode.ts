@@ -49,10 +49,10 @@ export type GeocodeReden =
   | 'insufficient_input';
 
 export type GeocodeResultaat =
-  | { status: 'auto'; lat: number; lng: number; kandidaat: GeocodeKandidaat; reden: GeocodeReden }
-  | { status: 'controleren'; kandidaten: GeocodeKandidaat[]; reden: string; redenCode: GeocodeReden }
-  | { status: 'geen'; reden: string; redenCode: GeocodeReden }
-  | { status: 'overslaan'; reden: string; redenCode: GeocodeReden };
+  | { status: 'auto'; lat: number; lng: number; kandidaat: GeocodeKandidaat; reden: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'controleren'; kandidaten: GeocodeKandidaat[]; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'geen'; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo }
+  | { status: 'overslaan'; reden: string; redenCode: GeocodeReden; debug?: GeocodeDebugInfo };
 
 const PDOK_FREE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 const PDOK_FIELDS = [
