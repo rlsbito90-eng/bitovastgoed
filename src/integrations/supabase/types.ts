@@ -2542,6 +2542,72 @@ export type Database = {
           },
         ]
       }
+      off_market_brieven: {
+        Row: {
+          aangemaakt_door: string | null
+          aanhef: string | null
+          brieftekst: string
+          created_at: string
+          eigenaar_bedrijfsnaam: string | null
+          eigenaar_naam: string | null
+          id: string
+          objectadres: string | null
+          onderwerp: string | null
+          signaal_id: string
+          status: string
+          updated_at: string
+          verzendadres: string | null
+          verzonden_op: string | null
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          aanhef?: string | null
+          brieftekst: string
+          created_at?: string
+          eigenaar_bedrijfsnaam?: string | null
+          eigenaar_naam?: string | null
+          id?: string
+          objectadres?: string | null
+          onderwerp?: string | null
+          signaal_id: string
+          status?: string
+          updated_at?: string
+          verzendadres?: string | null
+          verzonden_op?: string | null
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          aanhef?: string | null
+          brieftekst?: string
+          created_at?: string
+          eigenaar_bedrijfsnaam?: string | null
+          eigenaar_naam?: string | null
+          id?: string
+          objectadres?: string | null
+          onderwerp?: string | null
+          signaal_id?: string
+          status?: string
+          updated_at?: string
+          verzendadres?: string | null
+          verzonden_op?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_brieven_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_brieven_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       off_market_bronnen: {
         Row: {
           actief: boolean
