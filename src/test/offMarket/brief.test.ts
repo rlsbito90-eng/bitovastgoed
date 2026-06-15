@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
-  bepaalAanhef, bouwBriefPrefill, bouwBriefTekst,
+  bepaalAanhef, bepaalOnderwerp, bouwBriefPrefill, bouwBriefTekst,
   bouwGeadresseerdeBlok, bouwObjectAdresVoorBrief,
   bouwObjectOmschrijvingVoorstel,
   buildBriefViewModel, briefAlsPlatteTekst,
