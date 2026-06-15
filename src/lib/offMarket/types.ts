@@ -26,6 +26,11 @@ export const AI_STATUS_LABEL: Record<OffMarketAiStatus, string> = {
 export const AI_STATUS_VOLGORDE: OffMarketAiStatus[] = ['klaar', 'bezig', 'in_wachtrij', 'niet_verrijkt', 'mislukt'];
 
 export const ASSETTYPE_LABEL: Record<OffMarketAssettype, string> = {
+  wonen: 'Wonen',
+  appartementencomplex: 'Appartementencomplex',
+  woonhuis: 'Woonhuis / herenhuis',
+  studentenhuisvesting: 'Studentenhuisvesting',
+  gemengd_vastgoed: 'Gemengd vastgoed',
   kantoor: 'Kantoor',
   winkelpand: 'Winkelpand',
   woon_winkelpand: 'Woon-/winkelpand',
@@ -38,6 +43,27 @@ export const ASSETTYPE_LABEL: Record<OffMarketAssettype, string> = {
   vastgoedportefeuille: 'Portefeuille',
   overig: 'Overig',
 };
+
+/** Volgorde van assettype in dropdowns: wonen-groep eerst, dan commercieel, daarna overig. */
+export const ASSETTYPE_VOLGORDE: OffMarketAssettype[] = [
+  'wonen', 'appartementencomplex', 'woonhuis', 'studentenhuisvesting',
+  'gemengd_vastgoed', 'woon_winkelpand', 'kantoor', 'winkelpand',
+  'bedrijfscomplex', 'light_industrial', 'logistiek', 'zorgvastgoed',
+  'transformatieobject', 'ontwikkellocatie', 'vastgoedportefeuille', 'overig',
+];
+
+/** Strategie-opties — opgeslagen als vrije tekst in `potentiele_strategie`, maar genormaliseerd. */
+export const STRATEGIE_OPTIES = [
+  'Splitsingspotentie',
+  'Uitponding',
+  'Transformatie',
+  'Herontwikkeling',
+  'Doorexploitatie',
+  'Verkoop aan belegger',
+  'Portefeuille',
+  'Nog te bepalen',
+] as const;
+export type OffMarketStrategie = typeof STRATEGIE_OPTIES[number];
 
 export const BRON_TYPE_LABEL: Record<OffMarketBronType, string> = {
   handmatig: 'Handmatig',
