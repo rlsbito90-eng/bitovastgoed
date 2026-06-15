@@ -26,7 +26,8 @@ import {
 import {
   bouwBriefPrefill, bepaalAanhef, bouwBriefTekst,
   buildBriefViewModel, briefAlsPlatteTekst,
-  VERZENDADRES_PLACEHOLDER,
+  buildKadasterAdresDebug, kadasterAdresKandidaten,
+  VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
 } from '@/lib/offMarket/brief';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import { useUpsertBrief, useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
@@ -41,6 +42,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   signaal: OffMarketSignaal;
   kadasterRecords: KadasterDataRecord[];
+  historischeBrieven?: HistorischBriefAdres[];
 }
 
 function isEchteWaarde(v: string | null | undefined): boolean {
@@ -58,13 +60,15 @@ function safeFilename(s: string): string {
 }
 
 export default function BriefVoorbereidenDialog({
-  open, onOpenChange, signaal, kadasterRecords,
+  open, onOpenChange, signaal, kadasterRecords, historischeBrieven = [],
 }: Props) {
   const prefill = useMemo(
-    () => bouwBriefPrefill(signaal, kadasterRecords),
+    () => bouwBriefPrefill(signaal, kadasterRecords, historischeBrieven),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [signaal.id, kadasterRecords.length, open],
+    [signaal.id, kadasterRecords.length, historischeBrieven.length, open],
   );
+  const kadasterAdresDebug = useMemo(() => buildKadasterAdresDebug(kadasterRecords), [kadasterRecords]);
+  const kadasterAdresOpties = useMemo(() => kadasterAdresKandidaten(kadasterRecords), [kadasterRecords]);
 
   const [kandidaatLabel, setKandidaatLabel] = useState<string>(prefill.kandidaten[0]?.label ?? '');
   const [eigenaarNaam, setEigenaarNaam] = useState(prefill.eigenaarNaam);
@@ -78,6 +82,7 @@ export default function BriefVoorbereidenDialog({
   const [briefId, setBriefId] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
   const [pdfBezig, setPdfBezig] = useState(false);
+  const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
 
   useEffect(() => {
     if (!open) return;
@@ -123,6 +128,26 @@ export default function BriefVoorbereidenDialog({
   const herstelStandaard = () => {
     setBrieftekst(bouwBriefTekst({ aanhef, objectadres: objectomschrijving }));
     toast.success('Standaardtekst hersteld');
+  };
+
+  const neemVerzendadresOverUitKadaster = () => {
+    if (kadasterAdresOpties.length === 0) {
+      toast.error('Geen verzendadres gevonden in Kadasterbericht.');
+      return;
+    }
+    const idx = Number(kadasterAdresKey || 0);
+    const k = kadasterAdresOpties[Number.isFinite(idx) ? idx : 0] ?? kadasterAdresOpties[0];
+    if (!k.verzendadres) return;
+    if (isEchteWaarde(verzendadres) && verzendadres.trim() !== k.verzendadres.trim()) {
+      const ok = typeof window !== 'undefined'
+        ? window.confirm('Er staat al een verzendadres ingevuld. Wilt u dit overschrijven met het Kadasteradres?')
+        : true;
+      if (!ok) return;
+    }
+    setEigenaarNaam(k.naam ?? eigenaarNaam);
+    setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? eigenaarBedrijfsnaam);
+    setVerzendadres(k.verzendadres);
+    toast.success('Verzendadres overgenomen uit Kadasterbericht');
   };
 
   const verzendadresVoorOpslag = (): string | null =>
@@ -273,11 +298,14 @@ export default function BriefVoorbereidenDialog({
             className="rounded-md border bg-muted/30 p-3 text-sm leading-relaxed"
           >
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
-              Geadresseerde (zo verschijnt het in de PDF)
+              Geadresseerde zoals in PDF
             </div>
             {vm.bedrijfsnaam && <div>{vm.bedrijfsnaam}</div>}
             {vm.geadresseerdeNaam && <div>{vm.geadresseerdeNaam}</div>}
             {vm.verzendadresRegels.map((r, i) => <div key={i}>{r}</div>)}
+            {(vm.bedrijfsnaam || vm.geadresseerdeNaam) && vm.verzendadresRegels.length === 0 && (
+              <div className="text-muted-foreground italic">Geen verzendadres ingevuld</div>
+            )}
             {!vm.bedrijfsnaam && !vm.geadresseerdeNaam && vm.verzendadresRegels.length === 0 && (
               <div className="text-muted-foreground italic">Nog geen geadresseerde-gegevens</div>
             )}
@@ -314,6 +342,33 @@ export default function BriefVoorbereidenDialog({
               placeholder={VERZENDADRES_PLACEHOLDER}
               rows={3}
             />
+            {kadasterRecords.length > 0 && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {kadasterAdresOpties.length > 1 && (
+                  <Select value={kadasterAdresKey} onValueChange={setKadasterAdresKey}>
+                    <SelectTrigger className="sm:max-w-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {kadasterAdresOpties.map((k, i) => (
+                        <SelectItem key={`${k.recordId ?? 'rec'}-${i}`} value={String(i)}>
+                          {[k.naam ?? k.bedrijfsnaam, ...(k.verzendadres ?? '').split(/\r?\n/)].filter(Boolean).join(' · ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={neemVerzendadresOverUitKadaster}>
+                  Verzendadres overnemen uit Kadasterbericht
+                </Button>
+              </div>
+            )}
+            <details className="text-[11px] text-muted-foreground">
+              <summary className="cursor-pointer select-none">Details Kadasteradres</summary>
+              <div className="pt-1">
+                Kadasteradres: {kadasterAdresDebug.gevonden ? 'gevonden' : 'niet gevonden'}
+                {kadasterAdresDebug.bronLabel ? <><br />Bron: {kadasterAdresDebug.bronLabel}</> : null}
+                {kadasterAdresDebug.parsedLabel ? <><br />Parsed: {kadasterAdresDebug.parsedLabel}</> : null}
+              </div>
+            </details>
             {verzendadresOntbreekt && (
               <p className="text-[11px] text-amber-600">
                 Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.
