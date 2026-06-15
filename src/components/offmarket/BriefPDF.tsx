@@ -11,7 +11,7 @@ import type { BriefViewModel } from '@/lib/offMarket/brief';
 // Compacte, ingetogen typografie. Bewust géén Playfair (te zwaar voor een brief).
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 56,    // ~20mm
+    paddingTop: 48,    // ~17mm
     paddingBottom: 50,
     paddingHorizontal: 56,
     backgroundColor: '#FFFFFF',
@@ -24,25 +24,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
-    marginBottom: 22,
+    paddingBottom: 12,
+    marginBottom: 20,
     borderBottomWidth: 0.5,
     borderBottomColor: '#C89C69',
   },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
-  logo: { width: 36, height: 36, marginRight: 12 },
+  // ~30mm visueel breed op A4 (1mm ≈ 2.835pt) → 85pt
+  logo: { width: 85, height: 85, marginRight: 14, objectFit: 'contain' },
+  brandTextFallback: { flexDirection: 'column' },
   brandName: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 12,
-    letterSpacing: 0.3,
+    fontSize: 16,
+    letterSpacing: 1.2,
     color: '#1A1A1A',
   },
   brandTagline: {
-    fontSize: 8,
+    fontSize: 8.5,
     color: '#6B6B6B',
     fontStyle: 'italic',
-    marginTop: 2,
-    letterSpacing: 0.3,
+    marginTop: 3,
+    letterSpacing: 0.4,
   },
   datum: { fontSize: 9.5, color: '#1A1A1A' },
   addressee: { marginBottom: 22 },
