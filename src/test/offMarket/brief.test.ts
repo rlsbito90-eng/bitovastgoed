@@ -256,7 +256,7 @@ describe('brief — printbare html', () => {
     });
     expect(html).not.toContain('Straat 1');
     expect(html).not.toContain('1234 AB Plaats');
-    expect(html).toContain('Geen verzendadres');
+    expect(html).toContain('Jan Jansen');
   });
 });
 
