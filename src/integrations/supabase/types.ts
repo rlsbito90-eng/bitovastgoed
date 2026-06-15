@@ -4814,6 +4814,11 @@ export type Database = {
         | "ontwikkellocatie"
         | "vastgoedportefeuille"
         | "overig"
+        | "wonen"
+        | "appartementencomplex"
+        | "woonhuis"
+        | "studentenhuisvesting"
+        | "gemengd_vastgoed"
       off_market_bron_type:
         | "handmatig"
         | "bekendmaking"
@@ -5356,6 +5361,11 @@ export const Constants = {
         "ontwikkellocatie",
         "vastgoedportefeuille",
         "overig",
+        "wonen",
+        "appartementencomplex",
+        "woonhuis",
+        "studentenhuisvesting",
+        "gemengd_vastgoed",
       ],
       off_market_bron_type: [
         "handmatig",
