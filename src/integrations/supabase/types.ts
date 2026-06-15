@@ -2552,6 +2552,7 @@ export type Database = {
           eigenaar_naam: string | null
           id: string
           objectadres: string | null
+          objectomschrijving: string | null
           onderwerp: string | null
           signaal_id: string
           status: string
@@ -2568,6 +2569,7 @@ export type Database = {
           eigenaar_naam?: string | null
           id?: string
           objectadres?: string | null
+          objectomschrijving?: string | null
           onderwerp?: string | null
           signaal_id: string
           status?: string
@@ -2584,6 +2586,7 @@ export type Database = {
           eigenaar_naam?: string | null
           id?: string
           objectadres?: string | null
+          objectomschrijving?: string | null
           onderwerp?: string | null
           signaal_id?: string
           status?: string

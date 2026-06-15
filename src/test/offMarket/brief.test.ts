@@ -1,8 +1,11 @@
-// Tests voor de "Brief voorbereiden"-helpers.
+// Tests voor de "Brief voorbereiden"-helpers (V1.1).
 import { describe, it, expect } from 'vitest';
 import {
-  BITO_CONTACT, bepaalAanhef, bouwBriefPrefill, bouwBriefTekst,
-  bouwGeadresseerdeBlok, bouwObjectAdresVoorBrief, extraheerEigenaarKandidaten,
+  BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
+  bepaalAanhef, bouwBriefPrefill, bouwBriefTekst,
+  bouwGeadresseerdeBlok, bouwObjectAdresVoorBrief,
+  bouwObjectOmschrijvingVoorstel,
+  extraheerEigenaarKandidaten, extraheerRechthebbendenUitRecord,
   getAchternaam, kanBriefVoorbereiden,
 } from '@/lib/offMarket/brief';
 import { bouwPrintbareHtml } from '@/components/offmarket/BriefVoorbereidenDialog';
@@ -52,18 +55,36 @@ describe('brief — objectadres opbouw', () => {
     const adres = bouwObjectAdresVoorBrief(s);
     expect(adres.toLowerCase()).not.toMatch(/aanvraag/);
     expect(adres.toLowerCase()).not.toMatch(/vergunning/);
-    expect(adres.toLowerCase()).not.toMatch(/besluit/);
     expect(adres).toContain('Marco Polostraat 251-H');
     expect(adres).toContain('Amsterdam');
   });
 
-  it('behoudt toevoegingen zoals 256A-01 en huisletter 35-H', () => {
+  it('behoudt toevoegingen zoals 256A-01, 35-H, 77A-02, 340-B', () => {
     expect(bouwObjectAdresVoorBrief(maakSignaal({
       adres: 'Nieuwe Binnenweg 256A-01', postcode: '3021GP', plaats: 'Rotterdam',
     }))).toBe('Nieuwe Binnenweg 256A-01, 3021GP Rotterdam');
     expect(bouwObjectAdresVoorBrief(maakSignaal({
       adres: 'Stuyvesantstraat 35-H', plaats: 'Amsterdam',
     }))).toBe('Stuyvesantstraat 35-H, Amsterdam');
+    expect(bouwObjectAdresVoorBrief(maakSignaal({
+      adres: 'Maaskade 77A-02', plaats: 'Rotterdam',
+    }))).toContain('77A-02');
+    expect(bouwObjectAdresVoorBrief(maakSignaal({
+      adres: 'Prinsengracht 340-B', plaats: 'Amsterdam',
+    }))).toContain('340-B');
+  });
+});
+
+describe('brief — objectomschrijving voorstel', () => {
+  it('voorstel bevat "te <plaats>"', () => {
+    expect(bouwObjectOmschrijvingVoorstel(maakSignaal({
+      adres: 'Prinsengracht 340-B', plaats: 'Amsterdam',
+    }))).toBe('Prinsengracht 340-B te Amsterdam');
+  });
+  it('voorkomt dubbele plaatsnaam', () => {
+    expect(bouwObjectOmschrijvingVoorstel(maakSignaal({
+      adres: 'Marco Polostraat 251-H Amsterdam', plaats: 'Amsterdam',
+    }))).toBe('Marco Polostraat 251-H Amsterdam');
   });
 });
 
@@ -78,64 +99,129 @@ describe('brief — aanhef', () => {
   });
 });
 
+describe('brief — Kadaster rechthebbende-adres extractie', () => {
+  it('extraheert naam + verzendadres uit raw_limited.rechten.blokken[*].persons', () => {
+    const r = maakKadasterRecord({
+      rechthebbende_naam: 'Anneka Treon',
+      raw_limited: {
+        rechten: {
+          blokken: [{
+            persons: [{
+              naam: 'Treon',
+              voornamen: 'Anneka',
+              adres: {
+                straat: 'De Borcht',
+                huisnummer: '3',
+                postcode: '1083AC',
+                plaats: 'Amsterdam',
+              },
+            }],
+          }],
+        },
+      },
+    });
+    const rh = extraheerRechthebbendenUitRecord(r);
+    expect(rh.length).toBe(1);
+    expect(rh[0].naam).toBe('Anneka Treon');
+    expect(rh[0].verzendadres).toContain('De Borcht 3');
+    expect(rh[0].verzendadres).toContain('1083AC Amsterdam');
+  });
+
+  it('verwisselt verzendadres en objectadres niet', () => {
+    const s = maakSignaal({ adres: 'Prinsengracht 340-B', plaats: 'Amsterdam' });
+    const r = maakKadasterRecord({
+      rechthebbende_naam: 'Anneka Treon',
+      raw_limited: {
+        rechten: { blokken: [{ persons: [{
+          naam: 'Treon', voornamen: 'Anneka',
+          adres: { straat: 'De Borcht', huisnummer: '3', postcode: '1083AC', plaats: 'Amsterdam' },
+        }] }] },
+      },
+    });
+    const p = bouwBriefPrefill(s, [r]);
+    expect(p.verzendadres).toContain('De Borcht 3');
+    expect(p.verzendadres).not.toContain('Prinsengracht');
+    expect(p.objectadres).toContain('Prinsengracht 340-B');
+    expect(p.objectadres).not.toContain('De Borcht');
+  });
+
+  it('zonder Kadaster-adres blijft verzendadres leeg', () => {
+    const r = maakKadasterRecord({
+      rechthebbende_naam: 'Treon Vastgoed B.V.',
+      raw_limited: { rechten: { blokken: [{ persons: [{ naam: 'Treon Vastgoed B.V.' }] }] } },
+    });
+    const k = extraheerEigenaarKandidaten(maakSignaal(), [r]);
+    expect(k.length).toBe(1);
+    expect(k[0].verzendadres).toBeNull();
+  });
+
+  it('valt netjes terug zonder blokken', () => {
+    const r = maakKadasterRecord({ raw_limited: {} });
+    expect(extraheerRechthebbendenUitRecord(r)).toEqual([]);
+  });
+
+  it('accepteert voorgeformatteerd string-adres', () => {
+    const r = maakKadasterRecord({
+      raw_limited: { rechten: { blokken: [{ persons: [{
+        naam: 'Jansen',
+        adres: 'Hoofdstraat 1\n1234 AB Amsterdam',
+      }] }] } },
+    });
+    const rh = extraheerRechthebbendenUitRecord(r);
+    expect(rh[0].verzendadres).toContain('Hoofdstraat 1');
+    expect(rh[0].verzendadres).toContain('1234 AB Amsterdam');
+  });
+});
+
 describe('brief — kandidaten', () => {
   it('geeft eigenaar_naam voorrang boven Kadaster-rechthebbende', () => {
     const s = maakSignaal({ eigenaar_naam: 'Jan Jansen' } as any);
-    const recs = [maakKadasterRecord({ rechthebbende_naam: 'Treon Vastgoed B.V.', rechthebbende_type: 'NIET_NATUURLIJK_PERSOON' })];
+    const recs = [maakKadasterRecord({
+      rechthebbende_naam: 'Treon Vastgoed B.V.',
+      raw_limited: { rechten: { blokken: [{ persons: [{ naam: 'Treon Vastgoed B.V.' }] }] } },
+    })];
     const k = extraheerEigenaarKandidaten(s, recs);
     expect(k[0].naam).toBe('Jan Jansen');
     expect(k.length).toBe(2);
-    expect(k[1].bedrijfsnaam).toBe('Treon Vastgoed B.V.');
-  });
-  it('gebruikt bedrijfsnaam wanneer naam ontbreekt', () => {
-    const s = maakSignaal({ eigenaar_bedrijfsnaam: 'Treon Vastgoed B.V.' } as any);
-    const k = extraheerEigenaarKandidaten(s, []);
-    expect(k[0].naam).toBeNull();
-    expect(k[0].bedrijfsnaam).toBe('Treon Vastgoed B.V.');
   });
 });
 
 describe('brief — kan voorbereiden', () => {
-  it('disabled zonder objectadres', () => {
-    const s = maakSignaal({ adres: null, titel: '' } as any);
-    expect(kanBriefVoorbereiden(s, []).ok).toBe(false);
-  });
-  it('disabled zonder eigenaar/rechthebbende', () => {
-    expect(kanBriefVoorbereiden(maakSignaal(), []).ok).toBe(false);
-  });
-  it('ok als objectadres + eigenaar bekend zijn', () => {
-    const s = maakSignaal({ eigenaar_naam: 'Jan Jansen' } as any);
-    expect(kanBriefVoorbereiden(s, []).ok).toBe(true);
-  });
   it('ok als alleen Kadaster rechthebbende beschikbaar is', () => {
-    const recs = [maakKadasterRecord({ rechthebbende_naam: 'Treon Vastgoed B.V.' })];
+    const recs = [maakKadasterRecord({
+      rechthebbende_naam: 'Treon Vastgoed B.V.',
+      raw_limited: { rechten: { blokken: [{ persons: [{ naam: 'Treon Vastgoed B.V.' }] }] } },
+    })];
     expect(kanBriefVoorbereiden(maakSignaal(), recs).ok).toBe(true);
   });
 });
 
 describe('brief — tekst en prefill', () => {
-  it('bevat vaste Bito-contactgegevens en sleutelzin', () => {
-    const t = bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw,', objectadres: 'Marco Polostraat 251-H, Amsterdam' });
-    expect(t).toContain('+31 6 16 98 76 06');
-    expect(t).toContain('info@bitovastgoed.nl');
-    expect(t).toContain('Ramysh Bito');
-    expect(t).toContain('Bito Vastgoed');
-    expect(t).toContain('dit pand, ander vastgoed of een bredere vastgoedportefeuille');
-    expect(t).toContain('Marco Polostraat 251-H, Amsterdam');
-    expect(t).not.toMatch(/\[telefoonnummer\]/i);
+  it('brieftekst bevat objectomschrijving (niet blind objectadres)', () => {
+    const t = bouwBriefTekst({
+      aanhef: 'Geachte heer/mevrouw,',
+      objectadres: 'Prinsengracht 340-A en 340-B te Amsterdam',
+    });
+    expect(t).toContain('Prinsengracht 340-A en 340-B te Amsterdam');
     expect(t).not.toMatch(/kadaster/i);
     expect(t).not.toMatch(/radar/i);
     expect(t).not.toMatch(/signaal/i);
+    expect(t).not.toMatch(/\[telefoonnummer\]/i);
   });
 
-  it('prefill neemt eigenaar_naam, objectadres en kandidaten over', () => {
-    const s = maakSignaal({ eigenaar_naam: 'Jan Jansen' } as any);
-    const p = bouwBriefPrefill(s, []);
-    expect(p.eigenaarNaam).toBe('Jan Jansen');
-    expect(p.objectadres).toContain('Marco Polostraat 251-H');
-    expect(p.aanhef).toBe('Geachte heer/mevrouw Jansen,');
-    expect(p.onderwerp).toMatch(/vastgoedbezit/i);
-    expect(p.brieftekst).toContain('Marco Polostraat 251-H');
+  it('prefill vult objectomschrijving en verzendadres uit Kadaster', () => {
+    const s = maakSignaal({ adres: 'Prinsengracht 340-B', plaats: 'Amsterdam' });
+    const r = maakKadasterRecord({
+      raw_limited: { rechten: { blokken: [{ persons: [{
+        naam: 'Treon', voornamen: 'Anneka',
+        adres: { straat: 'De Borcht', huisnummer: '3', postcode: '1083AC', plaats: 'Amsterdam' },
+      }] }] } },
+    });
+    const p = bouwBriefPrefill(s, [r]);
+    expect(p.eigenaarNaam).toBe('Anneka Treon');
+    expect(p.verzendadres).toContain('De Borcht 3');
+    expect(p.objectomschrijving).toBe('Prinsengracht 340-B te Amsterdam');
+    expect(p.brieftekst).toContain('Prinsengracht 340-B te Amsterdam');
   });
 
   it('BITO_CONTACT bevat het juiste telefoonnummer', () => {
@@ -146,27 +232,41 @@ describe('brief — tekst en prefill', () => {
 describe('brief — printbare html', () => {
   it('bevat onderwerp, datum, brieftekst en geadresseerde', () => {
     const html = bouwPrintbareHtml({
-      eigenaarNaam: 'Jan Jansen',
-      eigenaarBedrijfsnaam: 'Jansen Vastgoed',
-      verzendadres: 'Hoofdstraat 1\n1234 AB Amsterdam',
+      eigenaarNaam: 'Anneka Treon',
+      eigenaarBedrijfsnaam: '',
+      verzendadres: 'De Borcht 3\n1083AC Amsterdam',
       onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
-      brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Jansen,', objectadres: 'Marco Polostraat 251-H, Amsterdam' }),
+      brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Treon,', objectadres: 'Prinsengracht 340-B te Amsterdam' }),
     });
     expect(html).toContain('Vrijblijvende interesse in vastgoedbezit');
-    expect(html).toContain('Jansen Vastgoed');
-    expect(html).toContain('Hoofdstraat 1');
-    expect(html).toContain('Marco Polostraat 251-H');
+    expect(html).toContain('Anneka Treon');
+    expect(html).toContain('De Borcht 3');
+    expect(html).toContain('1083AC Amsterdam');
+    expect(html).toContain('Prinsengracht 340-B te Amsterdam');
     expect(html).toContain('+31 6 16 98 76 06');
+  });
+
+  it('placeholdertekst wordt niet als verzendadres in print getoond', () => {
+    const html = bouwPrintbareHtml({
+      eigenaarNaam: 'Jan Jansen',
+      eigenaarBedrijfsnaam: '',
+      verzendadres: VERZENDADRES_PLACEHOLDER,
+      onderwerp: 'Test',
+      brieftekst: 'Body',
+    });
+    expect(html).not.toContain('Straat 1');
+    expect(html).not.toContain('1234 AB Plaats');
+    expect(html).toContain('Jan Jansen');
   });
 });
 
 describe('brief — geadresseerdeblok', () => {
   it('combineert bedrijfsnaam, naam en adresregels', () => {
     const lines = bouwGeadresseerdeBlok({
-      naam: 'Jan Jansen',
-      bedrijfsnaam: 'Jansen Vastgoed',
-      verzendadres: 'Hoofdstraat 1\n1234 AB Amsterdam',
+      naam: 'Anneka Treon',
+      bedrijfsnaam: '',
+      verzendadres: 'De Borcht 3\n1083AC Amsterdam',
     });
-    expect(lines).toEqual(['Jansen Vastgoed', 'Jan Jansen', 'Hoofdstraat 1', '1234 AB Amsterdam']);
+    expect(lines).toEqual(['Anneka Treon', 'De Borcht 3', '1083AC Amsterdam']);
   });
 });

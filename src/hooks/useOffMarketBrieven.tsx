@@ -10,6 +10,7 @@ export interface OffMarketBrief {
   eigenaar_bedrijfsnaam: string | null;
   verzendadres: string | null;
   objectadres: string | null;
+  objectomschrijving: string | null;
   aanhef: string | null;
   onderwerp: string | null;
   brieftekst: string;
@@ -26,6 +27,7 @@ export interface BriefInsert {
   eigenaar_bedrijfsnaam?: string | null;
   verzendadres?: string | null;
   objectadres?: string | null;
+  objectomschrijving?: string | null;
   aanhef?: string | null;
   onderwerp?: string | null;
   brieftekst: string;
@@ -63,6 +65,7 @@ export function useUpsertBrief() {
         eigenaar_bedrijfsnaam: input.eigenaar_bedrijfsnaam ?? null,
         verzendadres: input.verzendadres ?? null,
         objectadres: input.objectadres ?? null,
+        objectomschrijving: input.objectomschrijving ?? null,
         aanhef: input.aanhef ?? null,
         onderwerp: input.onderwerp ?? null,
         brieftekst: input.brieftekst,

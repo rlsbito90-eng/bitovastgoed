@@ -1,10 +1,14 @@
-// BriefVoorbereidenDialog — V1 Off-Market signaal.
+// BriefVoorbereidenDialog — V1.1 Off-Market signaal.
 //
-// Genereert een conceptbrief op basis van eigenaar/rechthebbende +
-// objectadres + vaste Bito Vastgoed-contactgegevens. De gebruiker kan
-// controleren, aanpassen, kopiëren, printen/als PDF opslaan en markeren
-// als verstuurd. Bij "Markeer als verstuurd" wordt automatisch een
-// opvolgtaak (14 dagen) en een contactmoment (type "notitie") aangemaakt.
+// Wijzigingen t.o.v. V1:
+//  - apart editable veld "Objectomschrijving in brief" (mag breder zijn
+//    dan het feitelijke objectadres);
+//  - Kadaster-verzendadres prefill via extraheerEigenaarKandidaten;
+//  - placeholdertekst voor verzendadres wordt nooit als echte waarde
+//    opgeslagen/gekopieerd/geprint;
+//  - print/PDF via verborgen iframe in dezelfde tab — geen window.open()
+//    en dus geen pop-up blocker afhankelijkheid;
+//  - bevestiging bij "Markeer als verstuurd" als verzendadres leeg is.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, Printer, Send, FileText } from 'lucide-react';
@@ -20,8 +24,7 @@ import {
 } from '@/components/ui/select';
 import {
   bouwBriefPrefill, bouwGeadresseerdeBlok, bepaalAanhef, bouwBriefTekst,
-  formatDatumNL, BITO_CONTACT,
-  type EigenaarKandidaat,
+  formatDatumNL, BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
 } from '@/lib/offMarket/brief';
 import { useUpsertBrief, useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -37,12 +40,20 @@ interface Props {
   kadasterRecords: KadasterDataRecord[];
 }
 
+/** Placeholdertekst mag nooit als echte waarde tellen. */
+function isEchteWaarde(v: string | null | undefined): boolean {
+  if (!v) return false;
+  const norm = v.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!norm) return false;
+  const ph = VERZENDADRES_PLACEHOLDER.replace(/\s+/g, ' ').trim().toLowerCase();
+  return norm !== ph;
+}
+
 export default function BriefVoorbereidenDialog({
   open, onOpenChange, signaal, kadasterRecords,
 }: Props) {
   const prefill = useMemo(
     () => bouwBriefPrefill(signaal, kadasterRecords),
-    // We willen bij elke open opnieuw prefillen vanuit signaal/records.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [signaal.id, kadasterRecords.length, open],
   );
@@ -52,14 +63,14 @@ export default function BriefVoorbereidenDialog({
   const [eigenaarBedrijfsnaam, setEigenaarBedrijfsnaam] = useState(prefill.eigenaarBedrijfsnaam);
   const [verzendadres, setVerzendadres] = useState(prefill.verzendadres);
   const [objectadres, setObjectadres] = useState(prefill.objectadres);
+  const [objectomschrijving, setObjectomschrijving] = useState(prefill.objectomschrijving);
   const [aanhef, setAanhef] = useState(prefill.aanhef);
   const [onderwerp, setOnderwerp] = useState(prefill.onderwerp);
   const [brieftekst, setBrieftekst] = useState(prefill.brieftekst);
   const [briefId, setBriefId] = useState<string | null>(null);
-  const briefRef = useRef<HTMLDivElement>(null);
+  const printIframeRef = useRef<HTMLIFrameElement | null>(null);
   const [bezig, setBezig] = useState(false);
 
-  // Reset bij heropenen.
   useEffect(() => {
     if (!open) return;
     setKandidaatLabel(prefill.kandidaten[0]?.label ?? '');
@@ -67,6 +78,7 @@ export default function BriefVoorbereidenDialog({
     setEigenaarBedrijfsnaam(prefill.eigenaarBedrijfsnaam);
     setVerzendadres(prefill.verzendadres);
     setObjectadres(prefill.objectadres);
+    setObjectomschrijving(prefill.objectomschrijving);
     setAanhef(prefill.aanhef);
     setOnderwerp(prefill.onderwerp);
     setBrieftekst(prefill.brieftekst);
@@ -86,19 +98,18 @@ export default function BriefVoorbereidenDialog({
       if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
       setAanhef(nieuweAanhef);
-      setBrieftekst(bouwBriefTekst({ aanhef: nieuweAanhef, objectadres }));
+      setBrieftekst(bouwBriefTekst({ aanhef: nieuweAanhef, objectadres: objectomschrijving }));
     }
   };
 
-  // Houd brieftekst gesync. met aanhef + objectadres als gebruiker die wijzigt.
-  // Maar respecteer eigen edits aan brieftekst: alleen herbouwen als de tekst
-  // exact gelijk is aan eerder gegenereerde standaardtekst. Eenvoud: bied
-  // expliciete "Brieftekst herstellen"-knop.
-
   const herstelStandaard = () => {
-    setBrieftekst(bouwBriefTekst({ aanhef, objectadres }));
+    setBrieftekst(bouwBriefTekst({ aanhef, objectadres: objectomschrijving }));
     toast.success('Standaardtekst hersteld');
   };
+
+  /** Verzendadres veilig opslaan: placeholdertekst → null. */
+  const verzendadresVoorOpslag = (): string | null =>
+    isEchteWaarde(verzendadres) ? verzendadres.trim() : null;
 
   const ensureBriefOpgeslagen = async (status: 'concept' | 'verstuurd' = 'concept'): Promise<string | null> => {
     try {
@@ -107,8 +118,9 @@ export default function BriefVoorbereidenDialog({
         signaal_id: signaal.id,
         eigenaar_naam: eigenaarNaam || null,
         eigenaar_bedrijfsnaam: eigenaarBedrijfsnaam || null,
-        verzendadres: verzendadres || null,
+        verzendadres: verzendadresVoorOpslag(),
         objectadres: objectadres || null,
+        objectomschrijving: objectomschrijving || null,
         aanhef,
         onderwerp,
         brieftekst,
@@ -131,28 +143,54 @@ export default function BriefVoorbereidenDialog({
     }
   };
 
-  const print = async () => {
-    // Sla concept op zodat een gedrukte brief altijd traceerbaar is.
-    await ensureBriefOpgeslagen('concept');
-    // Print via een verborgen iframe zodat de pagina niet wordt herladen.
+  /**
+   * Browserproof print: render brief in een verborgen iframe binnen
+   * dezelfde tab en roep `iframe.contentWindow.print()` aan. Geen
+   * `window.open()` dus geen pop-up blocker. Werkt op Chrome/Safari/iOS.
+   */
+  const print = () => {
+    // Geen await vóór de print — print moet binnen dezelfde
+    // user-gesture stack uitgevoerd worden. Save loopt parallel.
+    void ensureBriefOpgeslagen('concept');
     if (typeof window === 'undefined') return;
-    const html = bouwPrintbareHtml({
-      eigenaarNaam, eigenaarBedrijfsnaam, verzendadres,
-      onderwerp, brieftekst,
-    });
-    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
-    if (!w) {
-      toast.error('Pop-up geblokkeerd. Sta pop-ups toe om te kunnen printen.');
+    const iframe = printIframeRef.current;
+    if (!iframe) {
+      toast.error('Printen mislukt. Probeer opnieuw of gebruik "Kopieer brief".');
       return;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    // Wacht op render, dan print-dialoog openen.
-    setTimeout(() => { try { w.focus(); w.print(); } catch { /* leeg */ } }, 250);
+    const html = bouwPrintbareHtml({
+      eigenaarNaam, eigenaarBedrijfsnaam,
+      verzendadres: verzendadresVoorOpslag() ?? '',
+      onderwerp, brieftekst,
+    });
+    try {
+      iframe.srcdoc = html;
+      // Wacht op load → trigger print binnen iframe.
+      const onLoad = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.warn('Iframe print mislukt', e);
+          toast.error('Printen mislukt. Gebruik "Kopieer brief" als fallback.');
+        } finally {
+          iframe.removeEventListener('load', onLoad);
+        }
+      };
+      iframe.addEventListener('load', onLoad);
+    } catch (e) {
+      console.warn('Print voorbereiding mislukt', e);
+      toast.error('Printen mislukt. Gebruik "Kopieer brief" als fallback.');
+    }
   };
 
   const markeerVerstuurd = async () => {
+    if (!isEchteWaarde(verzendadres)) {
+      const ok = typeof window !== 'undefined'
+        ? window.confirm('Er is geen verzendadres ingevuld. Weet u zeker dat u deze brief als verstuurd wilt markeren?')
+        : true;
+      if (!ok) return;
+    }
     setBezig(true);
     try {
       let id = briefId;
@@ -162,8 +200,6 @@ export default function BriefVoorbereidenDialog({
       }
       await markVerstuurd.mutateAsync(id);
 
-      // Opvolgtaak (14 dagen). Bestaande taken-flow; bewust geen nieuw type
-      // forceren.
       try {
         await addTaak({
           titel: 'Brief opvolgen',
@@ -172,19 +208,17 @@ export default function BriefVoorbereidenDialog({
           prioriteit: 'normaal',
           status: 'open',
           offMarketSignaalId: signaal.id,
-          notities: `Brief verzonden naar ${eigenaarBedrijfsnaam || eigenaarNaam || 'eigenaar/rechthebbende'} (${objectadres || signaal.titel}).`,
+          notities: `Brief verzonden naar ${eigenaarBedrijfsnaam || eigenaarNaam || 'eigenaar/rechthebbende'} (${objectomschrijving || objectadres || signaal.titel}).`,
         } as any);
       } catch (e) {
         console.warn('Opvolgtaak aanmaken mislukt', e);
       }
 
-      // Contactmoment loggen. 'brief' is geen bestaande enum-waarde — gebruik
-      // 'notitie' met duidelijke omschrijving, zoals opdracht voorschrijft.
       try {
         await logSystemContactMoment({
           type: 'notitie',
           title: 'Brief verzonden',
-          description: `Brief verzonden naar eigenaar/rechthebbende: ${eigenaarBedrijfsnaam || eigenaarNaam || '—'}${objectadres ? ` · ${objectadres}` : ''}.`,
+          description: `Brief verzonden naar eigenaar/rechthebbende: ${eigenaarBedrijfsnaam || eigenaarNaam || '—'}${(objectomschrijving || objectadres) ? ` · ${objectomschrijving || objectadres}` : ''}.`,
           offMarketSignaalId: signaal.id,
           relatieId: (signaal as any).eigenaar_relatie_id ?? null,
           systemKey: `off_market_brief_verstuurd:${id}`,
@@ -203,7 +237,7 @@ export default function BriefVoorbereidenDialog({
   };
 
   const kandidaten = prefill.kandidaten;
-  const verzendadresOntbreekt = !verzendadres.trim();
+  const verzendadresOntbreekt = !isEchteWaarde(verzendadres);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,8 +247,9 @@ export default function BriefVoorbereidenDialog({
             <FileText className="h-4 w-4" /> Brief voorbereiden
           </DialogTitle>
           <DialogDescription>
-            Controleer en pas zo nodig de geadresseerde, het verzendadres en
-            de brieftekst aan. De brief wordt als concept opgeslagen.
+            Controleer de geadresseerde, het verzendadres en de
+            objectomschrijving in de brief. De brief wordt als concept
+            opgeslagen.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,30 +273,36 @@ export default function BriefVoorbereidenDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="brief-naam">Eigenaar / contactpersoon</Label>
-              <Input id="brief-naam" value={eigenaarNaam}
-                onChange={(e) => {
-                  setEigenaarNaam(e.target.value);
-                  const a = bepaalAanhef(e.target.value || null);
-                  setAanhef(a);
-                }}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="brief-bedrijf">Bedrijfsnaam</Label>
-              <Input id="brief-bedrijf" value={eigenaarBedrijfsnaam} onChange={(e) => setEigenaarBedrijfsnaam(e.target.value)} />
+          {/* Blok 1 — Geadresseerde */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Geadresseerde</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="brief-naam">Naam</Label>
+                <Input id="brief-naam" value={eigenaarNaam}
+                  onChange={(e) => {
+                    setEigenaarNaam(e.target.value);
+                    const a = bepaalAanhef(e.target.value || null);
+                    setAanhef(a);
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="brief-bedrijf">Bedrijfsnaam</Label>
+                <Input id="brief-bedrijf" value={eigenaarBedrijfsnaam} onChange={(e) => setEigenaarBedrijfsnaam(e.target.value)} />
+              </div>
             </div>
           </div>
 
+          {/* Blok 2 — Verzendadres */}
           <div className="space-y-1.5">
-            <Label htmlFor="brief-verzend">Verzendadres</Label>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Verzendadres</div>
+            <Label htmlFor="brief-verzend" className="sr-only">Verzendadres</Label>
             <Textarea
               id="brief-verzend"
               value={verzendadres}
               onChange={(e) => setVerzendadres(e.target.value)}
-              placeholder="Straat 1&#10;1234 AB Plaats"
+              placeholder={VERZENDADRES_PLACEHOLDER}
               rows={3}
             />
             {verzendadresOntbreekt && (
@@ -271,13 +312,34 @@ export default function BriefVoorbereidenDialog({
             )}
           </div>
 
+          {/* Blok 3 — Objectomschrijving in brief */}
           <div className="space-y-1.5">
-            <Label htmlFor="brief-object">Objectadres</Label>
-            <Input id="brief-object" value={objectadres} onChange={(e) => {
-              setObjectadres(e.target.value);
-              setBrieftekst(bouwBriefTekst({ aanhef, objectadres: e.target.value }));
-            }} />
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Objectomschrijving in brief</div>
+            <Label htmlFor="brief-objomschrijving" className="sr-only">Objectomschrijving</Label>
+            <Input
+              id="brief-objomschrijving"
+              value={objectomschrijving}
+              onChange={(e) => {
+                setObjectomschrijving(e.target.value);
+                setBrieftekst(bouwBriefTekst({ aanhef, objectadres: e.target.value }));
+              }}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Gebaseerd op signaaladres / Kadasteradres. Pas dit aan als het
+              signaal meerdere adressen of een breder pand betreft.
+            </p>
           </div>
+
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer select-none">Intern objectadres (feitelijk)</summary>
+            <div className="pt-2">
+              <Input value={objectadres} onChange={(e) => setObjectadres(e.target.value)} />
+              <p className="mt-1 text-[11px]">
+                Wordt bewaard voor administratie. De brief gebruikt
+                "Objectomschrijving in brief".
+              </p>
+            </div>
+          </details>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -310,10 +372,17 @@ export default function BriefVoorbereidenDialog({
             />
           </div>
 
-          {/* Hidden preview voor screenreaders / tests. */}
-          <div ref={briefRef} className="sr-only" aria-hidden="true">
-            {brieftekst}
-          </div>
+          {/* Verborgen print-iframe — vermijdt pop-up blocker. */}
+          <iframe
+            ref={printIframeRef}
+            title="Brief print"
+            aria-hidden="true"
+            tabIndex={-1}
+            style={{
+              position: 'fixed', right: 0, bottom: 0,
+              width: 0, height: 0, border: 0, opacity: 0, pointerEvents: 'none',
+            }}
+          />
         </div>
 
         <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
@@ -335,8 +404,7 @@ export default function BriefVoorbereidenDialog({
 
 // ---------------------------------------------------------------------
 // Printbare HTML — bewust zonder externe assets zodat browser-print
-// betrouwbaar is, ook op mobiel. Gebruiker kan via "Opslaan als PDF" in
-// de print-dialoog een PDF maken.
+// betrouwbaar is, ook op mobiel.
 // ---------------------------------------------------------------------
 export function bouwPrintbareHtml(input: {
   eigenaarNaam: string;
@@ -345,10 +413,12 @@ export function bouwPrintbareHtml(input: {
   onderwerp: string;
   brieftekst: string;
 }): string {
+  // Placeholdertekst mag nooit in een printbare brief verschijnen.
+  const veiligVerzend = isEchteWaarde(input.verzendadres) ? input.verzendadres : '';
   const geadresseerde = bouwGeadresseerdeBlok({
     naam: input.eigenaarNaam,
     bedrijfsnaam: input.eigenaarBedrijfsnaam,
-    verzendadres: input.verzendadres,
+    verzendadres: veiligVerzend,
   });
   const datum = formatDatumNL();
   const esc = (s: string) => s
