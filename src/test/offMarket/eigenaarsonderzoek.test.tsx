@@ -60,7 +60,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/hooks/useOffMarketBrieven', () => ({
   useOffMarketBrievenForSignaal: () => ({ data: [], isLoading: false }),
   useUpsertBrief: () => ({ isPending: false, mutateAsync: vi.fn() }),
-  useMarkeerBriefVerstuurd: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useMarkBriefVerstuurd: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }));
 
 const baseSignaal = {
