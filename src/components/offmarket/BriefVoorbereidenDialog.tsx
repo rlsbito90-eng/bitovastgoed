@@ -240,15 +240,27 @@ export default function BriefVoorbereidenDialog({
       await markVerstuurd.mutateAsync(id);
 
       try {
-        await addTaak({
-          titel: 'Brief opvolgen',
-          type: 'Follow-up',
-          deadline: deadlineOverDagen(14),
-          prioriteit: 'normaal',
-          status: 'open',
-          offMarketSignaalId: signaal.id,
-          notities: `Brief verzonden naar ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
-        } as any);
+        // Dedup: maak geen nieuwe opvolgtaak aan wanneer er al een open
+        // Brief 2-opvolgtaak voor dit signaal bestaat.
+        const bestaat = (taken ?? []).some((t: any) =>
+          t?.offMarketSignaalId === signaal.id
+          && t?.type === 'Follow-up'
+          && t?.status === 'open'
+          && typeof t?.titel === 'string'
+          && /brief\s*2|brief opvolgen/i.test(t.titel),
+        );
+        if (!bestaat) {
+          await addTaak({
+            titel: 'Brief 2 voorbereiden / opvolgen',
+            type: 'Follow-up',
+            deadline: deadlineOverDagen(21),
+            prioriteit: 'normaal',
+            status: 'open',
+            offMarketSignaalId: signaal.id,
+            relatieId: (signaal as any).eigenaar_relatie_id ?? undefined,
+            notities: `Bereid Brief 2 voor of neem opvolgend contact op naar aanleiding van de eerste brief aan ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
+          } as any);
+        }
       } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
 
       try {
