@@ -114,8 +114,15 @@ export function bepaalAanhef(_eigenaarNaam?: string | null | undefined): string 
   return 'Geachte heer/mevrouw,';
 }
 
-export function bepaalOnderwerp(): string {
-  return 'Vrijblijvende interesse in vastgoedbezit';
+/**
+ * Standaard onderwerp van een outreach-brief. Gebaseerd op de
+ * objectomschrijving uit de brief (niet het technische objectadres).
+ * Valt netjes terug op "Interesse in uw pand" wanneer geen omschrijving
+ * beschikbaar is.
+ */
+export function bepaalOnderwerp(objectomschrijving?: string | null): string {
+  const o = (objectomschrijving ?? '').trim();
+  return o ? `Interesse in uw pand aan ${o}` : 'Interesse in uw pand';
 }
 
 export interface BriefTekstInput {
