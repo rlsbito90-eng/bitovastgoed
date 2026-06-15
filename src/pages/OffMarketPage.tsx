@@ -361,6 +361,23 @@ export default function OffMarketPage() {
               <option value="">Alle AI-statussen</option>
               {AI_STATUS_VOLGORDE.map(a => <option key={a} value={a}>{AI_STATUS_LABEL[a]}</option>)}
             </select>
+            <select className={selectCls} value={geoGemeenteFilter}
+              onChange={e => { setGeoGemeenteFilter(e.target.value); setGeoWijkFilter(''); setGeoBuurtFilter(''); }}>
+              <option value="">Alle gemeenten</option>
+              {geoOpties.gemeenten.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select className={selectCls} value={geoWijkFilter}
+              onChange={e => { setGeoWijkFilter(e.target.value); setGeoBuurtFilter(''); }}
+              disabled={geoOpties.wijken.length === 0}>
+              <option value="">Alle wijken</option>
+              {geoOpties.wijken.map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+            <select className={selectCls} value={geoBuurtFilter}
+              onChange={e => setGeoBuurtFilter(e.target.value)}
+              disabled={geoOpties.buurten.length === 0}>
+              <option value="">Alle buurten</option>
+              {geoOpties.buurten.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
             {tab === 'signalen' && (
               <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
                 <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
