@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, Printer, Send, FileText } from 'lucide-react';
+import bitoLogo from '@/assets/bito-logo.png';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -162,6 +163,9 @@ export default function BriefVoorbereidenDialog({
       eigenaarNaam, eigenaarBedrijfsnaam,
       verzendadres: verzendadresVoorOpslag() ?? '',
       onderwerp, brieftekst,
+      logoUrl: typeof window !== 'undefined'
+        ? new URL(bitoLogo, window.location.origin).href
+        : undefined,
     });
     try {
       iframe.srcdoc = html;
@@ -391,7 +395,7 @@ export default function BriefVoorbereidenDialog({
             <Copy className="h-4 w-4" /> Kopieer brief
           </Button>
           <Button variant="outline" onClick={print}>
-            <Printer className="h-4 w-4" /> Print / Download als PDF
+            <Printer className="h-4 w-4" /> Print brief / Opslaan als PDF
           </Button>
           <Button onClick={markeerVerstuurd} disabled={bezig}>
             <Send className="h-4 w-4" /> Markeer als verstuurd
@@ -403,8 +407,15 @@ export default function BriefVoorbereidenDialog({
 }
 
 // ---------------------------------------------------------------------
-// Printbare HTML — bewust zonder externe assets zodat browser-print
-// betrouwbaar is, ook op mobiel.
+// Printbare HTML — professionele Bito Vastgoed A4-brief.
+//
+// Bewust een dedicated A4-template:
+//  - eigen <html> binnen verborgen iframe → geen app/modal styling;
+//  - alleen inline CSS, geen externe stylesheets;
+//  - logo via absolute URL (data-URL/asset URL) ingebed wanneer beschikbaar,
+//    anders een nette tekstfallback;
+//  - de brieftekst bevat reeds de afsluiting / handtekening — er wordt
+//    daarom géén tweede handtekeningblok toegevoegd.
 // ---------------------------------------------------------------------
 export function bouwPrintbareHtml(input: {
   eigenaarNaam: string;
@@ -412,6 +423,7 @@ export function bouwPrintbareHtml(input: {
   verzendadres: string;
   onderwerp: string;
   brieftekst: string;
+  logoUrl?: string;
 }): string {
   // Placeholdertekst mag nooit in een printbare brief verschijnen.
   const veiligVerzend = isEchteWaarde(input.verzendadres) ? input.verzendadres : '';
@@ -425,31 +437,114 @@ export function bouwPrintbareHtml(input: {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+
+  const logoBlok = input.logoUrl
+    ? `<img class="logo-img" src="${esc(input.logoUrl)}" alt="Bito Vastgoed" />`
+    : `<div class="logo-fallback" aria-hidden="true">B</div>`;
+
   return `<!doctype html><html lang="nl"><head>
 <meta charset="utf-8" />
-<title>Brief — ${esc(input.onderwerp)}</title>
+<title>Brief — ${esc(BITO_CONTACT.bedrijf)} — ${esc(input.onderwerp)}</title>
 <style>
-  @page { size: A4; margin: 25mm 22mm; }
-  body { font-family: Georgia, "Times New Roman", serif; color: #111; font-size: 11pt; line-height: 1.55; }
-  .hdr { text-align: right; font-size: 10pt; color: #444; margin-bottom: 18mm; }
-  .ge { margin-bottom: 12mm; white-space: pre-line; }
-  .meta { margin-bottom: 8mm; }
-  .meta .datum { color: #444; }
-  .meta .ondw { font-weight: 600; margin-top: 6mm; }
-  .body { white-space: pre-wrap; }
-  @media print { .noprint { display: none; } }
+  @page { size: A4 portrait; margin: 20mm 22mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1a1a1a;
+    font-size: 10.75pt;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { width: 100%; max-width: 170mm; margin: 0 auto; }
+  .header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14mm;
+    padding-bottom: 6mm;
+    border-bottom: 0.5pt solid #c89c69;
+    margin-bottom: 12mm;
+  }
+  .logo { flex: 0 0 auto; }
+  .logo-img { display: block; height: 18mm; width: auto; }
+  .logo-fallback {
+    width: 14mm; height: 14mm;
+    display: flex; align-items: center; justify-content: center;
+    border: 1pt solid #c89c69; color: #c89c69;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22pt; font-weight: 700;
+  }
+  .brand { flex: 1 1 auto; padding-top: 1mm; }
+  .brand-naam {
+    font-size: 13pt; font-weight: 700; letter-spacing: 0.18em;
+    color: #1a1a1a; text-transform: uppercase;
+  }
+  .brand-tagline {
+    margin-top: 1.5mm;
+    font-size: 9pt; color: #6b6b6b; font-style: italic; letter-spacing: 0.02em;
+  }
+  .addressee {
+    margin-bottom: 14mm;
+    line-height: 1.45;
+  }
+  .addressee .line { display: block; }
+  .meta {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 10mm;
+  }
+  .datum { font-size: 10.5pt; color: #1a1a1a; }
+  .onderwerp {
+    margin: 0 0 8mm 0;
+    font-size: 11pt; font-weight: 600; color: #1a1a1a;
+  }
+  .body {
+    white-space: pre-wrap;
+    font-size: 10.75pt;
+    line-height: 1.55;
+    color: #1a1a1a;
+    /* Zorg dat de brief normaal gesproken op één pagina past en
+       afsluiting niet los van laatste alinea afbreekt. */
+    orphans: 3;
+    widows: 3;
+  }
+  .footer-rule {
+    margin-top: 14mm;
+    border-top: 0.5pt solid #e7d9c2;
+    padding-top: 3mm;
+    font-size: 8pt; color: #8a8a8a; text-align: center; letter-spacing: 0.04em;
+  }
+  @media print {
+    body { font-size: 10.75pt; }
+    .noprint { display: none !important; }
+  }
 </style>
 </head><body>
-<div class="hdr">
-  ${esc(BITO_CONTACT.bedrijf)}<br/>
-  ${esc(BITO_CONTACT.naam)} — ${esc(BITO_CONTACT.functie)}<br/>
-  T ${esc(BITO_CONTACT.telefoon)} · E ${esc(BITO_CONTACT.email)} · ${esc(BITO_CONTACT.website)}
+<div class="sheet">
+  <div class="header">
+    <div class="logo">${logoBlok}</div>
+    <div class="brand">
+      <div class="brand-naam">${esc(BITO_CONTACT.bedrijf)}</div>
+      <div class="brand-tagline">Onafhankelijk. Gericht. Discreet.</div>
+    </div>
+  </div>
+
+  <div class="addressee">
+    ${geadresseerde.length > 0
+      ? geadresseerde.map(l => `<span class="line">${esc(l)}</span>`).join('')
+      : ''}
+  </div>
+
+  <div class="meta">
+    <div class="datum">${esc(datum)}</div>
+  </div>
+
+  <p class="onderwerp">Betreft: ${esc(input.onderwerp)}</p>
+
+  <div class="body">${esc(input.brieftekst)}</div>
+
+  <div class="footer-rule">${esc(BITO_CONTACT.bedrijf)} · ${esc(BITO_CONTACT.website)}</div>
 </div>
-<div class="ge">${geadresseerde.map(esc).join('<br/>') || '<em>Geen verzendadres</em>'}</div>
-<div class="meta">
-  <div class="datum">${esc(datum)}</div>
-  <div class="ondw">Betreft: ${esc(input.onderwerp)}</div>
-</div>
-<div class="body">${esc(input.brieftekst)}</div>
 </body></html>`;
 }

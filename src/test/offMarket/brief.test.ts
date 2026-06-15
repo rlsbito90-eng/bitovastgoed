@@ -258,6 +258,52 @@ describe('brief — printbare html', () => {
     expect(html).not.toContain('1234 AB Plaats');
     expect(html).toContain('Jan Jansen');
   });
+
+  it('bevat Bito branding, tagline en A4 print CSS', () => {
+    const html = bouwPrintbareHtml({
+      eigenaarNaam: 'Anneka Treon',
+      eigenaarBedrijfsnaam: '',
+      verzendadres: 'De Borcht 3\n1083AC Amsterdam',
+      onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
+      brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Treon,', objectadres: 'Prinsengracht 340-B te Amsterdam' }),
+    });
+    // Branding
+    expect(html.toLowerCase()).toContain('bito vastgoed');
+    expect(html).toContain('Onafhankelijk. Gericht. Discreet.');
+    // Functietitel zakelijk NL, niet Engels
+    expect(html).toContain('Eigenaar &amp; Vastgoedadviseur');
+    expect(html).not.toMatch(/Founder/i);
+    expect(html).not.toMatch(/Advisor/i);
+    // A4 print CSS
+    expect(html).toMatch(/@page\s*\{[^}]*size:\s*A4/i);
+    expect(html).toMatch(/margin:\s*20mm/);
+    // Geen modal / mobile breedte
+    expect(html).not.toMatch(/max-w-3xl/);
+    expect(html).not.toMatch(/sm:max-w/);
+    // Eén handtekening — naam mag in body 1x voorkomen ("Mijn naam is …" zit niet erin want we tellen alleen het afsluitblok)
+    const naamCount = (html.match(/Ramysh Bito/g) ?? []).length;
+    expect(naamCount).toBeLessThanOrEqual(2); // body bevat "Mijn naam is Ramysh Bito" + ondertekening
+  });
+
+  it('gebruikt logo-URL wanneer meegegeven', () => {
+    const html = bouwPrintbareHtml({
+      eigenaarNaam: 'X', eigenaarBedrijfsnaam: '',
+      verzendadres: '', onderwerp: 'T', brieftekst: 'Body',
+      logoUrl: 'https://example.com/bito-logo.png',
+    });
+    expect(html).toContain('https://example.com/bito-logo.png');
+    expect(html).toContain('alt="Bito Vastgoed"');
+  });
+
+  it('toont geen placeholderadres en geen "Geen verzendadres"-tekst in print', () => {
+    const html = bouwPrintbareHtml({
+      eigenaarNaam: '', eigenaarBedrijfsnaam: '',
+      verzendadres: VERZENDADRES_PLACEHOLDER,
+      onderwerp: 'T', brieftekst: 'Body',
+    });
+    expect(html).not.toContain('Straat 1');
+    expect(html).not.toMatch(/Geen verzendadres/i);
+  });
 });
 
 describe('brief — geadresseerdeblok', () => {
