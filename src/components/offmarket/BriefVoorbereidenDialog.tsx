@@ -69,6 +69,19 @@ export default function BriefVoorbereidenDialog({
   );
   const kadasterAdresDebug = useMemo(() => buildKadasterAdresDebug(kadasterRecords), [kadasterRecords]);
   const kadasterAdresOpties = useMemo(() => kadasterAdresKandidaten(kadasterRecords), [kadasterRecords]);
+  const overneemAdresOpties = useMemo(() => {
+    if (kadasterAdresOpties.length > 0) return kadasterAdresOpties;
+    return historischeBrieven
+      .filter(b => isEchteWaarde(b.verzendadres))
+      .map((b, i) => ({
+        naam: b.eigenaar_naam ?? null,
+        bedrijfsnaam: b.eigenaar_bedrijfsnaam ?? null,
+        verzendadres: b.verzendadres!.trim(),
+        recordId: `brief-${i}`,
+        fetchedAt: b.updated_at ?? b.created_at ?? null,
+        debugBron: 'Eerder opgeslagen briefadres bij dit signaal',
+      }));
+  }, [kadasterAdresOpties, historischeBrieven]);
 
   const [kandidaatLabel, setKandidaatLabel] = useState<string>(prefill.kandidaten[0]?.label ?? '');
   const [eigenaarNaam, setEigenaarNaam] = useState(prefill.eigenaarNaam);
@@ -131,12 +144,12 @@ export default function BriefVoorbereidenDialog({
   };
 
   const neemVerzendadresOverUitKadaster = () => {
-    if (kadasterAdresOpties.length === 0) {
+    if (overneemAdresOpties.length === 0) {
       toast.error('Geen verzendadres gevonden in Kadasterbericht.');
       return;
     }
     const idx = Number(kadasterAdresKey || 0);
-    const k = kadasterAdresOpties[Number.isFinite(idx) ? idx : 0] ?? kadasterAdresOpties[0];
+    const k = overneemAdresOpties[Number.isFinite(idx) ? idx : 0] ?? overneemAdresOpties[0];
     if (!k.verzendadres) return;
     if (isEchteWaarde(verzendadres) && verzendadres.trim() !== k.verzendadres.trim()) {
       const ok = typeof window !== 'undefined'
@@ -344,11 +357,11 @@ export default function BriefVoorbereidenDialog({
             />
             {kadasterRecords.length > 0 && (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                {kadasterAdresOpties.length > 1 && (
+                {overneemAdresOpties.length > 1 && (
                   <Select value={kadasterAdresKey} onValueChange={setKadasterAdresKey}>
                     <SelectTrigger className="sm:max-w-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {kadasterAdresOpties.map((k, i) => (
+                      {overneemAdresOpties.map((k, i) => (
                         <SelectItem key={`${k.recordId ?? 'rec'}-${i}`} value={String(i)}>
                           {[k.naam ?? k.bedrijfsnaam, ...(k.verzendadres ?? '').split(/\r?\n/)].filter(Boolean).join(' · ')}
                         </SelectItem>
