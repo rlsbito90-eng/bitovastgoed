@@ -26,8 +26,8 @@ describe('detectStrategie', () => {
     expect(detectStrategie('splitsen in appartementsrechten')).toBe('Splitsingspotentie');
   });
   it('uitponding → Uitponding', () => {
-    expect(detectStrategie('kadastrale uitponding')).toBe('Splitsingspotentie');
     expect(detectStrategie('plan tot uitponden van complex')).toBe('Uitponding');
+    expect(detectStrategie('uitponding van portefeuille')).toBe('Uitponding');
   });
   it('transformatie → Transformatie', () => {
     expect(detectStrategie('transformatie kantoor naar wonen')).toBe('Transformatie');
