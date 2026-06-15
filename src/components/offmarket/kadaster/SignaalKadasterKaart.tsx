@@ -819,6 +819,13 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
         preview={preview}
         gebiedsVariant="gebiedscontext"
       />
+
+      <KadasterRecordDetailDialog
+        open={detailRecord !== null}
+        onOpenChange={(v) => { if (!v) setDetailRecord(null); }}
+        record={detailRecord}
+        pdf={detailRecord ? pdfPerRecord.get(detailRecord.id) ?? null : null}
+      />
     </section>
   );
 }
