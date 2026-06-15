@@ -22,6 +22,12 @@ vi.mock('@/hooks/useKadasterCheck', () => ({
   useHandmatigeOvername: () => ({ isPending: false, mutateAsync: hookMocks.kadasterHandmatigMutateAsync }),
 }));
 
+vi.mock('@/hooks/useKadasterDataRecords', () => ({
+  useKadasterDataRecordsForSignaal: () => ({ data: [] }),
+  useKadasterDataRecords: () => ({ data: [] }),
+  laatsteRecordsPerProduct: () => new Map(),
+}));
+
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useUpdateOffMarketSignaal: () => ({ isPending: false, mutateAsync: hookMocks.mutateAsync }),
 }));
