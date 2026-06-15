@@ -382,6 +382,11 @@ export default function OffMarketKaart({ signalen }: Props) {
                           <div className="text-xs text-muted-foreground truncate">
                             {[s.adres, s.plaats].filter(Boolean).join(', ') || '—'}
                           </div>
+                          {(s as any).geo_status === 'verrijkt' && ((s as any).geo_gemeente_naam || (s as any).geo_buurt_naam) && (
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {[(s as any).geo_gemeente_naam, (s as any).geo_buurt_naam ?? (s as any).geo_wijk_naam].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <OffMarketPriorityBadge prioriteit={s.prioriteit} />
                             <OffMarketStatusBadge status={s.status} />
@@ -437,6 +442,11 @@ export default function OffMarketKaart({ signalen }: Props) {
 }
 
 function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: () => void }) {
+  const gebied = (() => {
+    const s = signaal as any;
+    if ((s.geo_status ?? 'niet_verrijkt') !== 'verrijkt') return 'Gebiedsindeling nog niet verrijkt';
+    return [s.geo_gemeente_naam, s.geo_wijk_naam, s.geo_buurt_naam].filter(Boolean).join(' · ') || null;
+  })();
   return (
     <div className="space-y-2 min-w-[240px] max-w-[300px]">
       <div
@@ -448,6 +458,9 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
       <div className="text-xs text-muted-foreground leading-snug">
         {[signaal.adres, [signaal.postcode, signaal.plaats].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
       </div>
+      {gebied && (
+        <div className="text-[11px] text-muted-foreground leading-snug">{gebied}</div>
+      )}
       <div className="flex flex-wrap gap-1">
         <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
         <OffMarketStatusBadge status={signaal.status} />
