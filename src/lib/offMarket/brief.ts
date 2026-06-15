@@ -160,7 +160,11 @@ export function extraheerEigenaarKandidaten(
     const al = lijst.some(k => (k.naam ?? '').toLowerCase() === rNaam.toLowerCase()
       || (k.bedrijfsnaam ?? '').toLowerCase() === rNaam.toLowerCase());
     if (al) continue;
-    const isBedrijf = r.rechthebbende_type && /persoon/i.test(r.rechthebbende_type) === false;
+    const type = (r.rechthebbende_type ?? '').toUpperCase();
+    // "NATUURLIJK_PERSOON" = particulier; alle andere typen (incl.
+    // "NIET_NATUURLIJK_PERSOON", "RECHTSPERSOON") behandelen we als bedrijf.
+    const isParticulier = type.includes('NATUURLIJK_PERSOON') && !type.includes('NIET_NATUURLIJK_PERSOON');
+    const isBedrijf = !!type && !isParticulier;
     lijst.push({
       label: rNaam,
       naam: isBedrijf ? null : rNaam,
