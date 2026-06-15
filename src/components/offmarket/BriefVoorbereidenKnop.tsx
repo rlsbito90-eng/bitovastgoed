@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Mail } from 'lucide-react';
 import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
+import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import { kanBriefVoorbereiden } from '@/lib/offMarket/brief';
 import BriefVoorbereidenDialog from '@/components/offmarket/BriefVoorbereidenDialog';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
@@ -14,6 +15,7 @@ interface Props {
 
 export default function BriefVoorbereidenKnop({ signaal }: Props) {
   const { data: records = [] } = useKadasterDataRecordsForSignaal(signaal.id);
+  const { data: brieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
   const [open, setOpen] = useState(false);
   const { ok, reden } = kanBriefVoorbereiden(signaal, records);
 
@@ -36,6 +38,7 @@ export default function BriefVoorbereidenKnop({ signaal }: Props) {
           onOpenChange={setOpen}
           signaal={signaal}
           kadasterRecords={records}
+          historischeBrieven={brieven}
         />
       )}
     </>

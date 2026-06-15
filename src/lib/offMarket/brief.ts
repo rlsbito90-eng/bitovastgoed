@@ -35,7 +35,25 @@ export interface EigenaarKandidaat {
   bedrijfsnaam: string | null;
   /** Aanbevolen verzendadres indien bekend. Multiline. */
   verzendadres: string | null;
-  bron: 'signaal' | 'kadaster';
+  bron: 'signaal' | 'kadaster' | 'brief';
+  recordId?: string | null;
+  fetchedAt?: string | null;
+  debugBron?: string | null;
+}
+
+export interface KadasterAdresDebugInfo {
+  gevonden: boolean;
+  bronLabel: string | null;
+  parsedLabel: string | null;
+  aantalKandidaten: number;
+}
+
+export interface HistorischBriefAdres {
+  eigenaar_naam?: string | null;
+  eigenaar_bedrijfsnaam?: string | null;
+  verzendadres?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
 }
 
 // ---------------------------------------------------------------------
@@ -215,6 +233,87 @@ export interface RechthebbendeUitKadaster {
   naam: string | null;
   bedrijfsnaam: string | null;
   verzendadres: string | null;
+  recordId?: string | null;
+  fetchedAt?: string | null;
+  debugBron?: string | null;
+}
+
+function formatKortDatumTijd(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('nl-NL', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function labelVoorRecord(record: KadasterDataRecord): string {
+  const dt = formatKortDatumTijd(record.fetched_at);
+  return dt ? `Kadasterbericht ${dt}` : 'Kadasterbericht';
+}
+
+function normaliseerNaamUitPersoon(po: Record<string, unknown>): string | null {
+  const nested = asObj(po.naamNatuurlijkPersoon) ?? asObj(po.natuurlijkPersoon) ?? asObj(po.persoon);
+  const bron = nested ?? po;
+  const voornamen = asStr(bron.voornamen) ?? asStr(bron.voornaam) ?? asStr(bron.initialen);
+  const achternaam = asStr(bron.geslachtsnaam) ?? asStr(bron.achternaam) ?? asStr(bron.naam);
+  const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
+  return asStr(bron.volledigeNaam) ?? asStr(bron.naamVolledig) ?? (samengesteld || null)
+    ?? asStr(po.volledigeNaam) ?? asStr(po.naamRechthebbende) ?? asStr(po.naam);
+}
+
+function normaliseerBedrijfsnaamUitEntiteit(po: Record<string, unknown>): string | null {
+  const nested = asObj(po.naamNietNatuurlijkPersoon) ?? asObj(po.rechtspersoon)
+    ?? asObj(po.nietNatuurlijkPersoon) ?? asObj(po.onderneming) ?? asObj(po.organisatie);
+  const bron = nested ?? po;
+  return asStr(bron.statutaireNaam) ?? asStr(bron.handelsnaam) ?? asStr(bron.organisatieNaam)
+    ?? asStr(bron.bedrijfsnaam) ?? asStr(bron.naam);
+}
+
+const RECHTHEBBENDE_KEYS_BREED = [
+  'persons', 'entities', 'rechthebbenden', 'tenaamstellingen', 'gerechtigden', 'eigenaren',
+  'rightHolders', 'personen', 'rechtspersonen', 'natuurlijkePersonen', 'nietNatuurlijkePersonen',
+];
+
+function scanRechthebbendenBreed(
+  node: unknown,
+  record: KadasterDataRecord,
+  path = 'raw_limited',
+  depth = 0,
+): RechthebbendeUitKadaster[] {
+  if (depth > 8) return [];
+  const out: RechthebbendeUitKadaster[] = [];
+  if (Array.isArray(node)) {
+    node.forEach((item, i) => out.push(...scanRechthebbendenBreed(item, record, `${path}[${i}]`, depth + 1)));
+    return out;
+  }
+  const obj = asObj(node);
+  if (!obj) return out;
+
+  const lijktPersoon = ['naamNatuurlijkPersoon', 'natuurlijkPersoon', 'persoon', 'voornamen', 'geslachtsnaam', 'volledigeNaam', 'naamRechthebbende', 'naam']
+    .some(k => obj[k] !== undefined);
+  const lijktEntiteit = ['naamNietNatuurlijkPersoon', 'rechtspersoon', 'nietNatuurlijkPersoon', 'onderneming', 'organisatie', 'statutaireNaam', 'handelsnaam', 'bedrijfsnaam']
+    .some(k => obj[k] !== undefined);
+  const adres = bouwAdresUitBlok(obj);
+  if ((lijktPersoon || lijktEntiteit || adres) && (normaliseerNaamUitPersoon(obj) || normaliseerBedrijfsnaamUitEntiteit(obj) || adres)) {
+    out.push({
+      naam: normaliseerNaamUitPersoon(obj),
+      bedrijfsnaam: normaliseerBedrijfsnaamUitEntiteit(obj),
+      verzendadres: adres,
+      recordId: record.id,
+      fetchedAt: record.fetched_at,
+      debugBron: `${labelVoorRecord(record)} · ${path}`,
+    });
+  }
+
+  for (const k of RECHTHEBBENDE_KEYS_BREED) {
+    if (obj[k] !== undefined) out.push(...scanRechthebbendenBreed(obj[k], record, `${path}.${k}`, depth + 1));
+  }
+  for (const [k, v] of Object.entries(obj)) {
+    if (RECHTHEBBENDE_KEYS_BREED.includes(k)) continue;
+    if (Array.isArray(v) || asObj(v)) out.push(...scanRechthebbendenBreed(v, record, `${path}.${k}`, depth + 1));
+  }
+  return out;
 }
 
 export function extraheerRechthebbendenUitRecord(
@@ -236,7 +335,12 @@ export function extraheerRechthebbendenUitRecord(
       const adresRegel2 = [b.postcode, b.plaats].filter(Boolean).join(' ').trim();
       const verzendadres = [adresRegel1, adresRegel2 || null].filter(Boolean).join('\n').trim() || null;
       if (!naam && !bedrijfsnaam && !verzendadres) continue;
-      verzameld.push({ naam, bedrijfsnaam, verzendadres });
+      verzameld.push({
+        naam, bedrijfsnaam, verzendadres,
+        recordId: record.id,
+        fetchedAt: record.fetched_at,
+        debugBron: labelVoorRecord(record),
+      });
     }
   }
 
@@ -264,8 +368,23 @@ export function extraheerRechthebbendenUitRecord(
         ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
       const adres = bouwAdresUitBlok(po);
       if (!volledig && !bedrijfsnaam && !adres) continue;
-      verzameld.push({ naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres });
+      verzameld.push({
+        naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres,
+        recordId: record.id,
+        fetchedAt: record.fetched_at,
+        debugBron: `${labelVoorRecord(record)} · raw_limited.rechten.blokken`,
+      });
     }
+  }
+
+  // 3) Breed defensief: doorzoek opgeslagen JSON-velden zonder een vaste
+  //    Kadaster-shape aan te nemen. Dit vangt o.a. geneste tenaamstellingen,
+  //    persons/entities en toekomstige whitelisted adresvelden.
+  for (const [label, bron] of [
+    ['raw_limited', record.raw_limited],
+    ['rechten_samenvatting', record.rechten_samenvatting],
+  ] as const) {
+    for (const rh of scanRechthebbendenBreed(bron, record, label)) verzameld.push(rh);
   }
 
   // Merge: dedup op (achternaam-token | bedrijfsnaam), kies rijkste naam +
@@ -283,6 +402,7 @@ export function extraheerRechthebbendenUitRecord(
     if (woordenNieuw > woordenOud) bestaand.naam = rh.naam;
     if (!bestaand.bedrijfsnaam && rh.bedrijfsnaam) bestaand.bedrijfsnaam = rh.bedrijfsnaam;
     if (!bestaand.verzendadres && rh.verzendadres) bestaand.verzendadres = rh.verzendadres;
+    if (!bestaand.debugBron && rh.debugBron) bestaand.debugBron = rh.debugBron;
   }
   const out = Array.from(merged.values());
 
@@ -292,9 +412,30 @@ export function extraheerRechthebbendenUitRecord(
       naam: record.rechthebbende_naam,
       bedrijfsnaam: null,
       verzendadres: null,
+      recordId: record.id,
+      fetchedAt: record.fetched_at,
+      debugBron: labelVoorRecord(record),
     });
   }
   return out;
+}
+
+export function kadasterAdresKandidaten(records: KadasterDataRecord[] = []): RechthebbendeUitKadaster[] {
+  return records
+    .flatMap(extraheerRechthebbendenUitRecord)
+    .filter(k => !!k.verzendadres);
+}
+
+export function buildKadasterAdresDebug(records: KadasterDataRecord[] = []): KadasterAdresDebugInfo {
+  const kandidaten = kadasterAdresKandidaten(records);
+  const eerste = kandidaten[0] ?? null;
+  return {
+    gevonden: !!eerste,
+    bronLabel: eerste?.debugBron ?? (records.length ? 'Kadasteradres niet gevonden in opgeslagen record' : null),
+    parsedLabel: eerste ? [eerste.naam ?? eerste.bedrijfsnaam, ...(eerste.verzendadres ?? '').split(/\r?\n/)]
+      .filter(Boolean).join(' · ') : null,
+    aantalKandidaten: kandidaten.length,
+  };
 }
 
 // ---------------------------------------------------------------------
@@ -304,6 +445,7 @@ export function extraheerRechthebbendenUitRecord(
 export function extraheerEigenaarKandidaten(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
+  historischeBrieven: HistorischBriefAdres[] = [],
 ): EigenaarKandidaat[] {
   const a = signaal as any;
   const lijst: EigenaarKandidaat[] = [];
@@ -358,8 +500,32 @@ export function extraheerEigenaarKandidaten(
         bedrijfsnaam: rh.bedrijfsnaam,
         verzendadres: rh.verzendadres,
         bron: 'kadaster',
+        recordId: rh.recordId,
+        fetchedAt: rh.fetchedAt,
+        debugBron: rh.debugBron,
       });
     }
+  }
+
+  for (const b of historischeBrieven) {
+    if (!b.verzendadres?.trim()) continue;
+    const naamBrief = (b.eigenaar_naam ?? b.eigenaar_bedrijfsnaam ?? '').trim();
+    const bestaand = lijst.find(k =>
+      naamBrief && ((k.naam ?? '').toLowerCase() === naamBrief.toLowerCase()
+        || (k.bedrijfsnaam ?? '').toLowerCase() === naamBrief.toLowerCase()),
+    );
+    if (bestaand) {
+      if (!bestaand.verzendadres) bestaand.verzendadres = b.verzendadres.trim();
+      continue;
+    }
+    lijst.push({
+      label: naamBrief || 'Eerder briefadres',
+      naam: b.eigenaar_naam ?? null,
+      bedrijfsnaam: b.eigenaar_bedrijfsnaam ?? null,
+      verzendadres: b.verzendadres.trim(),
+      bron: 'brief',
+      debugBron: 'Eerder opgeslagen conceptbrief-adres',
+    });
   }
 
   return lijst;
@@ -382,8 +548,9 @@ export interface BriefPrefill {
 export function bouwBriefPrefill(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
+  historischeBrieven: HistorischBriefAdres[] = [],
 ): BriefPrefill {
-  const kandidaten = extraheerEigenaarKandidaten(signaal, kadasterRecords);
+  const kandidaten = extraheerEigenaarKandidaten(signaal, kadasterRecords, historischeBrieven);
   // Kies kandidaat met verzendadres als eerste indien beschikbaar,
   // anders de eerste in volgorde.
   const metAdres = kandidaten.find(k => !!k.verzendadres);

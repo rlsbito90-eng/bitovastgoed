@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   brandName: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 12,
-    letterSpacing: 2,
+    letterSpacing: 0.3,
     color: '#1A1A1A',
   },
   brandTagline: {
@@ -59,16 +59,12 @@ const styles = StyleSheet.create({
     lineHeight: 1.45,
     color: '#1A1A1A',
   },
-  footerRule: {
-    position: 'absolute',
-    left: 56, right: 56, bottom: 28,
-    borderTopWidth: 0.5,
-    borderTopColor: '#E7D9C2',
-    paddingTop: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  signatureParagraph: {
+    marginBottom: 7,
+    fontSize: 10.2,
+    lineHeight: 1.35,
+    color: '#1A1A1A',
   },
-  footerText: { fontSize: 7.5, color: '#8A8A8A', letterSpacing: 0.4 },
 });
 
 export interface BriefPDFProps {
@@ -84,7 +80,7 @@ export default function BriefPDF({ vm, logoUrl }: BriefPDFProps) {
   const alineas = (vm.brieftekst ?? '')
     .replace(/\r\n/g, '\n')
     .split(/\n\s*\n/)
-    .map(p => p.replace(/\n/g, ' ').trim())
+    .map(p => p.trim())
     .filter(Boolean);
 
   const src = logoUrl ?? BITO_LOGO_URL;
@@ -114,13 +110,8 @@ export default function BriefPDF({ vm, logoUrl }: BriefPDFProps) {
         <Text style={styles.onderwerp}>Betreft: {vm.onderwerp}</Text>
 
         {alineas.map((p, i) => (
-          <Text key={i} style={styles.paragraph}>{p}</Text>
+          <Text key={i} style={p.includes('\n') ? styles.signatureParagraph : styles.paragraph}>{p}</Text>
         ))}
-
-        <View style={styles.footerRule} fixed>
-          <Text style={styles.footerText}>{vm.contact.bedrijf}</Text>
-          <Text style={styles.footerText}>{vm.contact.website}</Text>
-        </View>
       </Page>
     </Document>
   );
