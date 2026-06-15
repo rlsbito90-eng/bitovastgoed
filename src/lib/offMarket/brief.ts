@@ -431,3 +431,72 @@ export function bouwGeadresseerdeBlok(input: {
 export function formatDatumNL(d: Date = new Date()): string {
   return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+// ---------------------------------------------------------------------
+// Centraal brief-viewmodel — gedeeld door modal, kopieeractie en PDF.
+// Voorkomt dat de modal iets anders toont dan de PDF / kopieerbrief.
+// ---------------------------------------------------------------------
+
+const _PLACEHOLDER_NORM = VERZENDADRES_PLACEHOLDER.replace(/\s+/g, ' ').trim().toLowerCase();
+function _isEcht(v: string | null | undefined): boolean {
+  if (!v) return false;
+  const norm = v.replace(/\s+/g, ' ').trim().toLowerCase();
+  return !!norm && norm !== _PLACEHOLDER_NORM;
+}
+
+export interface BriefViewModel {
+  geadresseerdeNaam: string;
+  bedrijfsnaam: string;
+  verzendadresRegels: string[];
+  verzendadres: string;
+  heeftVerzendadres: boolean;
+  objectomschrijving: string;
+  onderwerp: string;
+  brieftekst: string;
+  datum: string;
+  contact: typeof BITO_CONTACT;
+}
+
+export interface BriefBronInput {
+  eigenaarNaam: string;
+  eigenaarBedrijfsnaam: string;
+  verzendadres: string;
+  objectomschrijving: string;
+  onderwerp: string;
+  brieftekst: string;
+}
+
+export function buildBriefViewModel(input: BriefBronInput): BriefViewModel {
+  const veiligVerzend = _isEcht(input.verzendadres) ? input.verzendadres.trim() : '';
+  const regels = veiligVerzend
+    ? veiligVerzend.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+    : [];
+  return {
+    geadresseerdeNaam: (input.eigenaarNaam ?? '').trim(),
+    bedrijfsnaam: (input.eigenaarBedrijfsnaam ?? '').trim(),
+    verzendadresRegels: regels,
+    verzendadres: veiligVerzend,
+    heeftVerzendadres: regels.length > 0,
+    objectomschrijving: (input.objectomschrijving ?? '').trim(),
+    onderwerp: (input.onderwerp ?? '').trim() || bepaalOnderwerp(),
+    brieftekst: input.brieftekst ?? '',
+    datum: formatDatumNL(),
+    contact: BITO_CONTACT,
+  };
+}
+
+/** Brief als platte tekst (voor kopieeractie). */
+export function briefAlsPlatteTekst(vm: BriefViewModel): string {
+  const lines: string[] = [];
+  if (vm.bedrijfsnaam) lines.push(vm.bedrijfsnaam);
+  if (vm.geadresseerdeNaam) lines.push(vm.geadresseerdeNaam);
+  for (const r of vm.verzendadresRegels) lines.push(r);
+  lines.push('');
+  lines.push(vm.datum);
+  lines.push('');
+  lines.push(`Betreft: ${vm.onderwerp}`);
+  lines.push('');
+  lines.push(vm.brieftekst);
+  return lines.join('\n');
+}
+
