@@ -1,18 +1,15 @@
 // Helpers voor de "Brief voorbereiden"-flow op een Off-Market signaal.
 //
-// Bevat:
-// - vaste Bito Vastgoed-contactgegevens (BITO_CONTACT)
-// - extractie van eigenaar-/rechthebbendekandidaten uit het signaal en
-//   uit opgeslagen Kadasterrecords
-// - opbouw van objectadres (zonder signaalwoorden zoals "Aanvraag",
-//   "Vergunning", "Besluit")
-// - opbouw van aanhef en standaard brieftekst
+// V1.1 — voegt toe:
+//  - extractie van rechthebbende-adres uit opgeslagen Kadasterrecords
+//    (raw_limited.rechten.blokken[*].persons|entities[*].adres etc.)
+//  - apart veld "objectomschrijving in brief" (kan breder zijn dan het
+//    technische objectadres, bv. "Prinsengracht 340-A en 340-B te Amsterdam")
+//  - placeholderveiligheid: zichtbare placeholdertekst mag nooit als echte
+//    waarde worden opgeslagen / gekopieerd / geprint
 //
-// Bewust geen DOCX-export, AI-generatie of automatisch versturen.
-//
-// De BITO_CONTACT-constante is met opzet één centrale plek zodat deze
-// later eenvoudig naar een bedrijfsinstellingenmodule of gebruikersprofiel
-// kan worden verplaatst, zonder de UI te raken.
+// Bewust geen DOCX-export, AI-generatie, KVK-verrijking of automatisch
+// versturen.
 
 import { schoonAdresTekst } from '@/lib/offMarket/onderzoeksAdres';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
@@ -27,26 +24,31 @@ export const BITO_CONTACT = {
   website: 'www.bitovastgoed.nl',
 } as const;
 
+/** Zichtbare placeholdertekst voor het verzendadres-veld. */
+export const VERZENDADRES_PLACEHOLDER = 'Straat 1\n1234 AB Plaats';
+
 export interface EigenaarKandidaat {
   /** Volledige naam zoals getoond in dropdown. */
   label: string;
   naam: string | null;
   bedrijfsnaam: string | null;
-  /** Aanbevolen verzendadres indien bekend. */
+  /** Aanbevolen verzendadres indien bekend. Multiline. */
   verzendadres: string | null;
   bron: 'signaal' | 'kadaster';
 }
 
+// ---------------------------------------------------------------------
+// Objectadres / objectomschrijving
+// ---------------------------------------------------------------------
+
 /**
- * Bouw het volledige objectadres voor een brief. Schoont signaalwoorden
+ * Bouw het volledige technische objectadres. Schoont signaalwoorden
  * zoals "Aanvraag", "Vergunning", "Besluit" uit en behoudt huisletter,
  * toevoeging en postcode.
- *
- * Voorbeelden:
- * - "Marco Polostraat 251-H, Amsterdam"
- * - "Nieuwe Binnenweg 256A-01, 3021 GP Rotterdam"
  */
-export function bouwObjectAdresVoorBrief(signaal: Pick<OffMarketSignaal, 'adres' | 'postcode' | 'plaats' | 'titel'>): string {
+export function bouwObjectAdresVoorBrief(
+  signaal: Pick<OffMarketSignaal, 'adres' | 'postcode' | 'plaats' | 'titel'>,
+): string {
   const adres = schoonAdresTekst(signaal.adres ?? '') || schoonAdresTekst(signaal.titel ?? '');
   const postcode = (signaal.postcode ?? '').trim();
   const plaats = (signaal.plaats ?? '').trim();
@@ -55,18 +57,34 @@ export function bouwObjectAdresVoorBrief(signaal: Pick<OffMarketSignaal, 'adres'
 }
 
 /**
- * Haal de achternaam uit een volledige naam. Negeert tussenvoegsels.
- * Wordt gebruikt voor "Geachte heer/mevrouw [achternaam],".
+ * Bouw een voorstel voor "Objectomschrijving in brief". Voor V1.1 gelijk
+ * aan het feitelijke objectadres met "te <plaats>"-formulering wanneer
+ * het adres alleen straat+huisnummer bevat. De gebruiker kan dit handmatig
+ * verbreden naar "Prinsengracht 340-A en 340-B te Amsterdam" e.d.
  */
+export function bouwObjectOmschrijvingVoorstel(
+  signaal: Pick<OffMarketSignaal, 'adres' | 'postcode' | 'plaats' | 'titel'>,
+): string {
+  const straatHuisnr = schoonAdresTekst(signaal.adres ?? '') || schoonAdresTekst(signaal.titel ?? '');
+  if (!straatHuisnr) return '';
+  const plaats = (signaal.plaats ?? '').trim();
+  if (!plaats) return straatHuisnr;
+  // Vermijd dubbele plaatsnaam.
+  if (straatHuisnr.toLowerCase().includes(plaats.toLowerCase())) return straatHuisnr;
+  return `${straatHuisnr} te ${plaats}`;
+}
+
+// ---------------------------------------------------------------------
+// Aanhef / onderwerp / brieftekst
+// ---------------------------------------------------------------------
+
 export function getAchternaam(naam: string | null | undefined): string | null {
   if (!naam) return null;
   const schoon = naam.trim().replace(/\s+/g, ' ');
   if (!schoon) return null;
-  // Strip suffix achter komma (bv. "Jansen, P.")
   const voorKomma = schoon.split(',')[0].trim();
   const delen = voorKomma.split(' ').filter(Boolean);
   if (delen.length === 0) return null;
-  // Achternaam = laatste woord. Eenvoudig, voorspelbaar.
   return delen[delen.length - 1];
 }
 
@@ -81,17 +99,17 @@ export function bepaalOnderwerp(): string {
 
 export interface BriefTekstInput {
   aanhef: string;
+  /**
+   * Wat in de zin "Ik neem contact met u op naar aanleiding van het
+   * vastgoed aan …" komt te staan. Mag breder zijn dan het technische
+   * objectadres. Naam blijft `objectadres` voor backwards-compat.
+   */
   objectadres: string;
 }
 
-/**
- * Standaard brieftekst. Bewust geen vermelding van Kadaster, Radar,
- * scraping of andere interne bronnen. Toon: professioneel, rustig,
- * vrijblijvend, zowel particulier als zakelijk bruikbaar.
- */
 export function bouwBriefTekst({ aanhef, objectadres }: BriefTekstInput): string {
   const adresZin = objectadres
-    ? `Ik neem contact met u op naar aanleiding van het pand aan ${objectadres}.`
+    ? `Ik neem contact met u op naar aanleiding van het vastgoed aan ${objectadres}.`
     : 'Ik neem contact met u op naar aanleiding van uw vastgoedbezit.';
 
   return [
@@ -119,14 +137,135 @@ export function bouwBriefTekst({ aanhef, objectadres }: BriefTekstInput): string
   ].join('\n');
 }
 
+// ---------------------------------------------------------------------
+// Kadaster → rechthebbende-adres extractie
+// ---------------------------------------------------------------------
+
+function asObj(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>) : null;
+}
+function asStr(v: unknown): string | null {
+  if (typeof v === 'string' && v.trim()) return v.trim();
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return null;
+}
+
 /**
- * Verzamel mogelijke eigenaren/rechthebbenden uit het signaal en uit
- * eventueel geleverde Kadasterrecords. Volgorde:
- *  1. eigenaar_naam (signaal)
- *  2. eigenaar_bedrijfsnaam (signaal)
- *  3. rechthebbende_naam (Kadasterrecords, meest recent eerst)
- * Dubbele namen worden gefilterd.
+ * Probeer uit één persoon/entiteit-blok een verzendadres te halen.
+ * Kadaster levert het adres niet altijd in de JSON; deze functie is
+ * defensief en faalt netjes terug op `null` als er niets bruikbaars
+ * staat. Ondersteunde shapes:
+ *  - { adres: { straat, huisnummer, huisletter, huisnummertoevoeging,
+ *               postcode, plaats|woonplaats } }
+ *  - { woonadres: {...} } / { vestigingsadres: {...} } / { correspondentieadres: {...} }
+ *  - platte velden direct op het persoon-blok (straat, postcode, …)
+ *  - { adres: "De Borcht 3\n1083AC Amsterdam" } (al voorgeformatteerd)
  */
+function bouwAdresUitBlok(blok: unknown): string | null {
+  const b = asObj(blok);
+  if (!b) return null;
+
+  const kandidaten = [
+    b.adres, b.woonadres, b.vestigingsadres, b.correspondentieadres, b,
+  ];
+  for (const k of kandidaten) {
+    if (typeof k === 'string' && k.trim()) {
+      // Al voorgeformatteerd. Normaliseer whitespace, behoud regelovergangen.
+      return k.replace(/[ \t]+/g, ' ').replace(/\r/g, '').trim();
+    }
+    const o = asObj(k);
+    if (!o) continue;
+    const straat = asStr(o.straat) ?? asStr(o.straatnaam) ?? asStr((o as Record<string, unknown>).street);
+    const huisnr = asStr(o.huisnummer) ?? asStr((o as Record<string, unknown>).number);
+    const huisletter = asStr(o.huisletter);
+    const toevoeging = asStr(o.huisnummertoevoeging) ?? asStr(o.toevoeging);
+    const postcode = asStr(o.postcode);
+    const plaats = asStr(o.plaats) ?? asStr(o.woonplaats) ?? asStr((o as Record<string, unknown>).city);
+    const postbus = asStr(o.postbus);
+
+    const regel1Delen = [
+      straat,
+      [huisnr, huisletter].filter(Boolean).join(''),
+      toevoeging ? `-${toevoeging}` : null,
+    ].filter(Boolean);
+    let regel1 = '';
+    if (regel1Delen.length > 0) {
+      // Plak huisletter aan huisnummer (160-H -> "160H"? Nee, Kadaster gebruikt
+      // vaak "160H"; wij volgen woordvolgorde: "Straat huisnr[letter][-toev]")
+      regel1 = `${straat ?? ''} ${huisnr ?? ''}${huisletter ?? ''}${toevoeging ? `-${toevoeging}` : ''}`.trim();
+    } else if (postbus) {
+      regel1 = `Postbus ${postbus}`;
+    }
+    const regel2 = [postcode, plaats].filter(Boolean).join(' ').trim();
+    if (regel1 || regel2) {
+      return [regel1, regel2].filter(Boolean).join('\n');
+    }
+  }
+  return null;
+}
+
+/**
+ * Loop door alle rechten-blokken in een Kadasterrecord en extraheer
+ * naam + verzendadres van de eerste rechthebbende. Geeft `null` terug
+ * als niets bruikbaars is.
+ */
+export interface RechthebbendeUitKadaster {
+  naam: string | null;
+  bedrijfsnaam: string | null;
+  verzendadres: string | null;
+}
+
+export function extraheerRechthebbendenUitRecord(
+  record: KadasterDataRecord,
+): RechthebbendeUitKadaster[] {
+  const raw = (record.raw_limited as Record<string, unknown> | null) ?? {};
+  const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
+  const blokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
+
+  const out: RechthebbendeUitKadaster[] = [];
+  for (const blok of blokken) {
+    const b = asObj(blok); if (!b) continue;
+    const lijsten: unknown[] = [];
+    for (const k of ['persons', 'entities', 'rechthebbenden', 'personen']) {
+      const v = (b as Record<string, unknown>)[k];
+      if (Array.isArray(v)) lijsten.push(...v);
+    }
+    for (const p of lijsten) {
+      const po = asObj(p); if (!po) continue;
+      const voornamen = asStr(po.voornamen);
+      const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
+        ?? asStr((po as Record<string, unknown>).achternaam);
+      const volledig = asStr(po.volledigeNaam)
+        ?? [voornamen, achternaam].filter(Boolean).join(' ').trim() || null;
+      const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
+        ?? asStr((po as Record<string, unknown>).organisatieNaam)
+        ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
+      const adres = bouwAdresUitBlok(po);
+      if (!volledig && !bedrijfsnaam && !adres) continue;
+      out.push({
+        naam: volledig,
+        bedrijfsnaam: bedrijfsnaam ?? null,
+        verzendadres: adres,
+      });
+    }
+  }
+
+  // Fallback: gebruik top-level rechthebbende_naam wanneer blokken leeg zijn.
+  if (out.length === 0 && record.rechthebbende_naam) {
+    out.push({
+      naam: record.rechthebbende_naam,
+      bedrijfsnaam: null,
+      verzendadres: null,
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------
+// Kandidaten + prefill
+// ---------------------------------------------------------------------
+
 export function extraheerEigenaarKandidaten(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
@@ -136,12 +275,14 @@ export function extraheerEigenaarKandidaten(
 
   const naam = (a.eigenaar_naam ?? '').trim();
   const bedrijf = (a.eigenaar_bedrijfsnaam ?? '').trim();
+  const eigenaarAdres: string | null = (a.eigenaar_verzendadres ?? a.eigenaar_adres ?? null);
+
   if (naam) {
     lijst.push({
       label: bedrijf && bedrijf !== naam ? `${naam} — ${bedrijf}` : naam,
       naam,
       bedrijfsnaam: bedrijf || null,
-      verzendadres: null,
+      verzendadres: eigenaarAdres ?? null,
       bron: 'signaal',
     });
   } else if (bedrijf) {
@@ -149,29 +290,41 @@ export function extraheerEigenaarKandidaten(
       label: bedrijf,
       naam: null,
       bedrijfsnaam: bedrijf,
-      verzendadres: null,
+      verzendadres: eigenaarAdres ?? null,
       bron: 'signaal',
     });
   }
 
   for (const r of kadasterRecords) {
-    const rNaam = (r.rechthebbende_naam ?? '').trim();
-    if (!rNaam) continue;
-    const al = lijst.some(k => (k.naam ?? '').toLowerCase() === rNaam.toLowerCase()
-      || (k.bedrijfsnaam ?? '').toLowerCase() === rNaam.toLowerCase());
-    if (al) continue;
-    const type = (r.rechthebbende_type ?? '').toUpperCase();
-    // "NATUURLIJK_PERSOON" = particulier; alle andere typen (incl.
-    // "NIET_NATUURLIJK_PERSOON", "RECHTSPERSOON") behandelen we als bedrijf.
-    const isParticulier = type.includes('NATUURLIJK_PERSOON') && !type.includes('NIET_NATUURLIJK_PERSOON');
-    const isBedrijf = !!type && !isParticulier;
-    lijst.push({
-      label: rNaam,
-      naam: isBedrijf ? null : rNaam,
-      bedrijfsnaam: isBedrijf ? rNaam : null,
-      verzendadres: null,
-      bron: 'kadaster',
-    });
+    const rechten = extraheerRechthebbendenUitRecord(r);
+    for (const rh of rechten) {
+      const naamMatch = (rh.naam ?? rh.bedrijfsnaam ?? '').toLowerCase();
+      if (!naamMatch) continue;
+      const al = lijst.some(k =>
+        (k.naam ?? '').toLowerCase() === naamMatch
+        || (k.bedrijfsnaam ?? '').toLowerCase() === naamMatch,
+      );
+      if (al) {
+        // Verrijk bestaande kandidaat met Kadaster-verzendadres indien
+        // wij nu wel een adres hebben en eerder nog niet.
+        const bestaand = lijst.find(k =>
+          (k.naam ?? '').toLowerCase() === naamMatch
+          || (k.bedrijfsnaam ?? '').toLowerCase() === naamMatch,
+        );
+        if (bestaand && !bestaand.verzendadres && rh.verzendadres) {
+          bestaand.verzendadres = rh.verzendadres;
+        }
+        continue;
+      }
+      const label = rh.naam ?? rh.bedrijfsnaam ?? '—';
+      lijst.push({
+        label,
+        naam: rh.naam,
+        bedrijfsnaam: rh.bedrijfsnaam,
+        verzendadres: rh.verzendadres,
+        bron: 'kadaster',
+      });
+    }
   }
 
   return lijst;
@@ -181,11 +334,13 @@ export interface BriefPrefill {
   eigenaarNaam: string;
   eigenaarBedrijfsnaam: string;
   verzendadres: string;
+  /** Feitelijk objectadres (technisch, niet weglaten van toevoeging). */
   objectadres: string;
+  /** Editable omschrijving zoals deze in de brieftekst terechtkomt. */
+  objectomschrijving: string;
   aanhef: string;
   onderwerp: string;
   brieftekst: string;
-  /** Beschikbare kandidaten voor de eigenaar/geadresseerde-keuze. */
   kandidaten: EigenaarKandidaat[];
 }
 
@@ -194,30 +349,27 @@ export function bouwBriefPrefill(
   kadasterRecords: KadasterDataRecord[] = [],
 ): BriefPrefill {
   const kandidaten = extraheerEigenaarKandidaten(signaal, kadasterRecords);
-  const eerste = kandidaten[0] ?? null;
+  // Kies kandidaat met verzendadres als eerste indien beschikbaar,
+  // anders de eerste in volgorde.
+  const metAdres = kandidaten.find(k => !!k.verzendadres);
+  const eerste = metAdres ?? kandidaten[0] ?? null;
+
   const eigenaarNaam = eerste?.naam ?? '';
   const eigenaarBedrijfsnaam = eerste?.bedrijfsnaam ?? '';
+  const verzendadres = eerste?.verzendadres ?? '';
   const objectadres = bouwObjectAdresVoorBrief(signaal);
+  const objectomschrijving = bouwObjectOmschrijvingVoorstel(signaal) || objectadres;
   const aanhef = bepaalAanhef(eigenaarNaam || null);
   const onderwerp = bepaalOnderwerp();
-  const brieftekst = bouwBriefTekst({ aanhef, objectadres });
+  const brieftekst = bouwBriefTekst({ aanhef, objectadres: objectomschrijving });
   return {
-    eigenaarNaam,
-    eigenaarBedrijfsnaam,
-    verzendadres: eerste?.verzendadres ?? '',
-    objectadres,
-    aanhef,
-    onderwerp,
-    brieftekst,
+    eigenaarNaam, eigenaarBedrijfsnaam, verzendadres,
+    objectadres, objectomschrijving,
+    aanhef, onderwerp, brieftekst,
     kandidaten,
   };
 }
 
-/**
- * Kan een brief voorbereid worden?
- * Vereist: minimaal een objectadres EN een eigenaar/rechthebbende
- * (eigenaar_naam, eigenaar_bedrijfsnaam, of rechthebbende uit Kadaster).
- */
 export function kanBriefVoorbereiden(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
@@ -233,7 +385,6 @@ export function kanBriefVoorbereiden(
   return { ok: true, reden: null };
 }
 
-/** Volledig adresblok voor in de print/PDF-weergave. */
 export function bouwGeadresseerdeBlok(input: {
   naam: string;
   bedrijfsnaam: string;
