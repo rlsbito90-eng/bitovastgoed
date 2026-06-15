@@ -73,6 +73,9 @@ export default function OffMarketPage() {
   const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
   const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
+  const [geoGemeenteFilter, setGeoGemeenteFilter] = useStored<string>('geo_gemeente', '');
+  const [geoWijkFilter, setGeoWijkFilter] = useStored<string>('geo_wijk', '');
+  const [geoBuurtFilter, setGeoBuurtFilter] = useStored<string>('geo_buurt', '');
   const [bucketFilter, setBucketFilterRaw] = useState<number | null>(() => {
     try {
       const v = sessionStorage.getItem('off-market-filter:bucket');
@@ -151,11 +154,15 @@ export default function OffMarketPage() {
   const preBucket = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     return signalen.filter(s => {
+      const a = s as any;
       if (statusFilter && s.status !== statusFilter) return false;
       if (prioFilter && s.prioriteit !== prioFilter) return false;
       if (assetFilter && s.assettype !== assetFilter) return false;
       if (bronFilter && s.bron_type !== bronFilter) return false;
       if (aiStatusFilter && (s as any).ai_status !== aiStatusFilter) return false;
+      if (geoGemeenteFilter && a.geo_gemeente_naam !== geoGemeenteFilter) return false;
+      if (geoWijkFilter && a.geo_wijk_naam !== geoWijkFilter) return false;
+      if (geoBuurtFilter && a.geo_buurt_naam !== geoBuurtFilter) return false;
       if (regioFilter) {
         const blob = `${s.provincie ?? ''} ${s.regio ?? ''}`.toLowerCase();
         if (!blob.includes(regioFilter.toLowerCase())) return false;
@@ -166,7 +173,29 @@ export default function OffMarketPage() {
       }
       return true;
     });
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter]);
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, geoGemeenteFilter, geoWijkFilter, geoBuurtFilter]);
+
+  // Beschikbare geo-opties (cascade: wijken binnen gekozen gemeente, buurten binnen gekozen wijk/gemeente)
+  const geoOpties = useMemo(() => {
+    const gemeenten = new Set<string>();
+    const wijken = new Set<string>();
+    const buurten = new Set<string>();
+    for (const s of signalen) {
+      const a = s as any;
+      if (a.geo_status !== 'verrijkt') continue;
+      if (a.geo_gemeente_naam) gemeenten.add(a.geo_gemeente_naam);
+      if (a.geo_wijk_naam && (!geoGemeenteFilter || a.geo_gemeente_naam === geoGemeenteFilter)) wijken.add(a.geo_wijk_naam);
+      if (a.geo_buurt_naam
+        && (!geoGemeenteFilter || a.geo_gemeente_naam === geoGemeenteFilter)
+        && (!geoWijkFilter || a.geo_wijk_naam === geoWijkFilter)) buurten.add(a.geo_buurt_naam);
+    }
+    const sort = (a: string, b: string) => a.localeCompare(b, 'nl');
+    return {
+      gemeenten: [...gemeenten].sort(sort),
+      wijken: [...wijken].sort(sort),
+      buurten: [...buurten].sort(sort),
+    };
+  }, [signalen, geoGemeenteFilter, geoWijkFilter]);
 
   const bucketTellingen = useMemo(() => {
     const tellingen = new Map<number, { label: string; aantal: number }>();
