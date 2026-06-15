@@ -100,3 +100,45 @@ export function formatGeoDatum(iso?: string | null): string {
   try { return new Date(iso).toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' }); }
   catch { return iso; }
 }
+
+/** Parse PDOK Locatieserver reverse-response naar onze geo-velden.
+ *  Geëxporteerd los van de edge function zodat het ook in unit tests testbaar is. */
+export function buildGeoPatchFromPdok(pdok: any): {
+  geo_gemeente_naam: string | null;
+  geo_gemeente_code: string | null;
+  geo_wijk_naam: string | null;
+  geo_wijk_code: string | null;
+  geo_buurt_naam: string | null;
+  geo_buurt_code: string | null;
+  hasAny: boolean;
+} {
+  const docs: any[] = pdok?.response?.docs ?? [];
+  const pick = (type: string) => docs.find((d) => d?.type === type);
+  const g = pick('gemeente');
+  const w = pick('wijk');
+  const b = pick('buurt');
+
+  const gemeente = g?.gemeentenaam && g?.gemeentecode
+    ? { naam: String(g.gemeentenaam), code: String(g.gemeentecode) }
+    : b?.gemeentenaam && b?.gemeentecode
+      ? { naam: String(b.gemeentenaam), code: String(b.gemeentecode) }
+      : null;
+  const wijk = w?.wijknaam && w?.wijkcode
+    ? { naam: String(w.wijknaam), code: String(w.wijkcode) }
+    : b?.wijknaam && b?.wijkcode
+      ? { naam: String(b.wijknaam), code: String(b.wijkcode) }
+      : null;
+  const buurt = b?.buurtnaam && b?.buurtcode
+    ? { naam: String(b.buurtnaam), code: String(b.buurtcode) }
+    : null;
+
+  return {
+    geo_gemeente_naam: gemeente?.naam ?? null,
+    geo_gemeente_code: gemeente?.code ?? null,
+    geo_wijk_naam: wijk?.naam ?? null,
+    geo_wijk_code: wijk?.code ?? null,
+    geo_buurt_naam: buurt?.naam ?? null,
+    geo_buurt_code: buurt?.code ?? null,
+    hasAny: Boolean(gemeente || wijk || buurt),
+  };
+}

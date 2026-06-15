@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildPatch } from '../../../supabase/functions/off-market-geo-verrijk/index.ts';
 import {
+  buildGeoPatchFromPdok as buildPatch,
   formatGebiedsindeling, formatGemeenteBuurt, formatGeoStatus,
 } from '@/lib/offMarket/geo';
 
