@@ -274,9 +274,24 @@ describe('brief — viewmodel (modal / kopie / PDF gebruiken dezelfde data)', ()
     expect(tekst).not.toContain('1234 AB Plaats');
   });
 
-  it('valt terug op standaard-onderwerp wanneer leeg', () => {
+  it('valt terug op standaard-onderwerp obv objectomschrijving wanneer leeg', () => {
     const vm = buildBriefViewModel({ ...baseInput, onderwerp: '' });
-    expect(vm.onderwerp).toBe('Vrijblijvende interesse in vastgoedbezit');
+    expect(vm.onderwerp).toBe('Interesse in uw pand aan Prinsengracht 340-B te Amsterdam');
+  });
+
+  it('bepaalOnderwerp genereert "Interesse in uw pand aan <objectomschrijving>"', () => {
+    expect(bepaalOnderwerp('Prinsengracht 340 te Amsterdam'))
+      .toBe('Interesse in uw pand aan Prinsengracht 340 te Amsterdam');
+    expect(bepaalOnderwerp('')).toBe('Interesse in uw pand');
+    expect(bepaalOnderwerp(null)).toBe('Interesse in uw pand');
+  });
+
+  it('prefill onderwerp gebruikt objectomschrijving', () => {
+    const p = bouwBriefPrefill({
+      id: 'sig-1', titel: 'Prinsengracht 340-B', adres: 'Prinsengracht 340-B',
+      postcode: null, plaats: 'Amsterdam', eigenaarstatus: 'onbekend',
+    } as any);
+    expect(p.onderwerp).toBe('Interesse in uw pand aan Prinsengracht 340-B te Amsterdam');
   });
 });
 
