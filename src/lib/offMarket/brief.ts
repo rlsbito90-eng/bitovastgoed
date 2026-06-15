@@ -445,6 +445,7 @@ export function buildKadasterAdresDebug(records: KadasterDataRecord[] = []): Kad
 export function extraheerEigenaarKandidaten(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
+  historischeBrieven: HistorischBriefAdres[] = [],
 ): EigenaarKandidaat[] {
   const a = signaal as any;
   const lijst: EigenaarKandidaat[] = [];
@@ -499,8 +500,32 @@ export function extraheerEigenaarKandidaten(
         bedrijfsnaam: rh.bedrijfsnaam,
         verzendadres: rh.verzendadres,
         bron: 'kadaster',
+        recordId: rh.recordId,
+        fetchedAt: rh.fetchedAt,
+        debugBron: rh.debugBron,
       });
     }
+  }
+
+  for (const b of historischeBrieven) {
+    if (!b.verzendadres?.trim()) continue;
+    const naamBrief = (b.eigenaar_naam ?? b.eigenaar_bedrijfsnaam ?? '').trim();
+    const bestaand = lijst.find(k =>
+      naamBrief && ((k.naam ?? '').toLowerCase() === naamBrief.toLowerCase()
+        || (k.bedrijfsnaam ?? '').toLowerCase() === naamBrief.toLowerCase()),
+    );
+    if (bestaand) {
+      if (!bestaand.verzendadres) bestaand.verzendadres = b.verzendadres.trim();
+      continue;
+    }
+    lijst.push({
+      label: naamBrief || 'Eerder briefadres',
+      naam: b.eigenaar_naam ?? null,
+      bedrijfsnaam: b.eigenaar_bedrijfsnaam ?? null,
+      verzendadres: b.verzendadres.trim(),
+      bron: 'brief',
+      debugBron: 'Eerder opgeslagen conceptbrief-adres',
+    });
   }
 
   return lijst;
@@ -523,8 +548,9 @@ export interface BriefPrefill {
 export function bouwBriefPrefill(
   signaal: OffMarketSignaal,
   kadasterRecords: KadasterDataRecord[] = [],
+  historischeBrieven: HistorischBriefAdres[] = [],
 ): BriefPrefill {
-  const kandidaten = extraheerEigenaarKandidaten(signaal, kadasterRecords);
+  const kandidaten = extraheerEigenaarKandidaten(signaal, kadasterRecords, historischeBrieven);
   // Kies kandidaat met verzendadres als eerste indien beschikbaar,
   // anders de eerste in volgorde.
   const metAdres = kandidaten.find(k => !!k.verzendadres);
