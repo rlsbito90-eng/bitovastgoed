@@ -413,6 +413,8 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         <ActieKnop onClick={() => setContactOpen(true)} icon={<MessageSquarePlus className="h-3.5 w-3.5" />}>
           Contactmoment loggen
         </ActieKnop>
+
+        <BriefVoorbereidenKnop signaal={signaal} />
       </div>
 
       {/* Inline-koppelpicker (collapsed onder de knop) */}
