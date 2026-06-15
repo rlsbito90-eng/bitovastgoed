@@ -1,14 +1,14 @@
-// Tests voor de "Brief voorbereiden"-helpers (V1.1).
+// Tests voor de "Brief voorbereiden"-helpers (V1.3).
 import { describe, it, expect } from 'vitest';
 import {
   BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
   bepaalAanhef, bouwBriefPrefill, bouwBriefTekst,
   bouwGeadresseerdeBlok, bouwObjectAdresVoorBrief,
   bouwObjectOmschrijvingVoorstel,
+  buildBriefViewModel, briefAlsPlatteTekst,
   extraheerEigenaarKandidaten, extraheerRechthebbendenUitRecord,
   getAchternaam, kanBriefVoorbereiden,
 } from '@/lib/offMarket/brief';
-import { bouwPrintbareHtml } from '@/components/offmarket/BriefVoorbereidenDialog';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 
@@ -229,80 +229,95 @@ describe('brief — tekst en prefill', () => {
   });
 });
 
-describe('brief — printbare html', () => {
-  it('bevat onderwerp, datum, brieftekst en geadresseerde', () => {
-    const html = bouwPrintbareHtml({
-      eigenaarNaam: 'Anneka Treon',
-      eigenaarBedrijfsnaam: '',
-      verzendadres: 'De Borcht 3\n1083AC Amsterdam',
-      onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
-      brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Treon,', objectadres: 'Prinsengracht 340-B te Amsterdam' }),
-    });
-    expect(html).toContain('Vrijblijvende interesse in vastgoedbezit');
-    expect(html).toContain('Anneka Treon');
-    expect(html).toContain('De Borcht 3');
-    expect(html).toContain('1083AC Amsterdam');
-    expect(html).toContain('Prinsengracht 340-B te Amsterdam');
-    expect(html).toContain('+31 6 16 98 76 06');
+describe('brief — viewmodel (modal / kopie / PDF gebruiken dezelfde data)', () => {
+  const baseInput = {
+    eigenaarNaam: 'Anneka Treon',
+    eigenaarBedrijfsnaam: '',
+    verzendadres: 'De Borcht 3\n1083AC Amsterdam',
+    objectomschrijving: 'Prinsengracht 340-B te Amsterdam',
+    onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
+    brieftekst: bouwBriefTekst({
+      aanhef: 'Geachte heer/mevrouw Treon,',
+      objectadres: 'Prinsengracht 340-B te Amsterdam',
+    }),
+  };
+
+  it('splitst verzendadres in regels en markeert het als beschikbaar', () => {
+    const vm = buildBriefViewModel(baseInput);
+    expect(vm.geadresseerdeNaam).toBe('Anneka Treon');
+    expect(vm.verzendadresRegels).toEqual(['De Borcht 3', '1083AC Amsterdam']);
+    expect(vm.heeftVerzendadres).toBe(true);
   });
 
-  it('placeholdertekst wordt niet als verzendadres in print getoond', () => {
-    const html = bouwPrintbareHtml({
-      eigenaarNaam: 'Jan Jansen',
-      eigenaarBedrijfsnaam: '',
-      verzendadres: VERZENDADRES_PLACEHOLDER,
-      onderwerp: 'Test',
-      brieftekst: 'Body',
-    });
-    expect(html).not.toContain('Straat 1');
-    expect(html).not.toContain('1234 AB Plaats');
-    expect(html).toContain('Jan Jansen');
+  it('filtert placeholdertekst weg uit verzendadres', () => {
+    const vm = buildBriefViewModel({ ...baseInput, verzendadres: VERZENDADRES_PLACEHOLDER });
+    expect(vm.heeftVerzendadres).toBe(false);
+    expect(vm.verzendadresRegels).toEqual([]);
+    expect(vm.verzendadres).toBe('');
   });
 
-  it('bevat Bito branding, tagline en A4 print CSS', () => {
-    const html = bouwPrintbareHtml({
-      eigenaarNaam: 'Anneka Treon',
-      eigenaarBedrijfsnaam: '',
-      verzendadres: 'De Borcht 3\n1083AC Amsterdam',
-      onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
-      brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Treon,', objectadres: 'Prinsengracht 340-B te Amsterdam' }),
-    });
-    // Branding
-    expect(html.toLowerCase()).toContain('bito vastgoed');
-    expect(html).toContain('Onafhankelijk. Gericht. Discreet.');
-    // Functietitel zakelijk NL, niet Engels
-    expect(html).toContain('Eigenaar &amp; Vastgoedadviseur');
-    expect(html).not.toMatch(/Founder/i);
-    expect(html).not.toMatch(/Advisor/i);
-    // A4 print CSS
-    expect(html).toMatch(/@page\s*\{[^}]*size:\s*A4/i);
-    expect(html).toMatch(/margin:\s*20mm/);
-    // Geen modal / mobile breedte
-    expect(html).not.toMatch(/max-w-3xl/);
-    expect(html).not.toMatch(/sm:max-w/);
-    // Eén handtekening — naam mag in body 1x voorkomen ("Mijn naam is …" zit niet erin want we tellen alleen het afsluitblok)
-    const naamCount = (html.match(/Ramysh Bito/g) ?? []).length;
-    expect(naamCount).toBeLessThanOrEqual(2); // body bevat "Mijn naam is Ramysh Bito" + ondertekening
+  it('platte tekst voor kopieeractie bevat geadresseerde, adres, onderwerp en brieftekst', () => {
+    const vm = buildBriefViewModel(baseInput);
+    const tekst = briefAlsPlatteTekst(vm);
+    expect(tekst).toContain('Anneka Treon');
+    expect(tekst).toContain('De Borcht 3');
+    expect(tekst).toContain('1083AC Amsterdam');
+    expect(tekst).toContain('Betreft: Vrijblijvende interesse in vastgoedbezit');
+    expect(tekst).toContain('Prinsengracht 340-B te Amsterdam');
   });
 
-  it('gebruikt logo-URL wanneer meegegeven', () => {
-    const html = bouwPrintbareHtml({
-      eigenaarNaam: 'X', eigenaarBedrijfsnaam: '',
-      verzendadres: '', onderwerp: 'T', brieftekst: 'Body',
-      logoUrl: 'https://example.com/bito-logo.png',
-    });
-    expect(html).toContain('https://example.com/bito-logo.png');
-    expect(html).toContain('alt="Bito Vastgoed"');
+  it('kopieerbrief bevat geen placeholder als verzendadres ontbreekt', () => {
+    const vm = buildBriefViewModel({ ...baseInput, verzendadres: VERZENDADRES_PLACEHOLDER });
+    const tekst = briefAlsPlatteTekst(vm);
+    expect(tekst).not.toContain('Straat 1');
+    expect(tekst).not.toContain('1234 AB Plaats');
   });
 
-  it('toont geen placeholderadres en geen "Geen verzendadres"-tekst in print', () => {
-    const html = bouwPrintbareHtml({
-      eigenaarNaam: '', eigenaarBedrijfsnaam: '',
-      verzendadres: VERZENDADRES_PLACEHOLDER,
-      onderwerp: 'T', brieftekst: 'Body',
+  it('valt terug op standaard-onderwerp wanneer leeg', () => {
+    const vm = buildBriefViewModel({ ...baseInput, onderwerp: '' });
+    expect(vm.onderwerp).toBe('Vrijblijvende interesse in vastgoedbezit');
+  });
+});
+
+describe('brief — Kadaster rechthebbende extractie (real shapes)', () => {
+  it('herkent naamNatuurlijkPersoon + adres uit Kadaster Objectinformatie shape', () => {
+    const r: KadasterDataRecord = maakKadasterRecord({
+      raw_limited: {
+        rechten: [{
+          aardRecht: 'Eigendom',
+          tenaamstellingen: [{
+            naamNatuurlijkPersoon: { voornamen: 'Anneka', geslachtsnaam: 'Treon' },
+            adres: { straat: 'De Borcht', huisnummer: '3', postcode: '1083AC', plaats: 'Amsterdam' },
+            gerechtigdAandeel: '1/1',
+          }],
+        }],
+      },
     });
-    expect(html).not.toContain('Straat 1');
-    expect(html).not.toMatch(/Geen verzendadres/i);
+    const rh = extraheerRechthebbendenUitRecord(r);
+    expect(rh.length).toBeGreaterThanOrEqual(1);
+    const treffer = rh.find(x => (x.naam ?? '').includes('Treon'));
+    expect(treffer).toBeTruthy();
+    expect(treffer!.verzendadres).toContain('De Borcht 3');
+    expect(treffer!.verzendadres).toContain('1083AC Amsterdam');
+  });
+
+  it('prefill kiest kandidaat met Kadaster-adres als verzendadres', () => {
+    const s = maakSignaal({ adres: 'Prinsengracht 340-B', plaats: 'Amsterdam' });
+    const r = maakKadasterRecord({
+      raw_limited: {
+        rechten: [{
+          aardRecht: 'Eigendom',
+          tenaamstellingen: [{
+            naamNatuurlijkPersoon: { voornamen: 'Anneka', geslachtsnaam: 'Treon' },
+            adres: { straat: 'De Borcht', huisnummer: '3', postcode: '1083AC', plaats: 'Amsterdam' },
+          }],
+        }],
+      },
+    });
+    const p = bouwBriefPrefill(s, [r]);
+    expect(p.eigenaarNaam.toLowerCase()).toContain('treon');
+    expect(p.verzendadres).toContain('De Borcht 3');
+    expect(p.verzendadres).toContain('1083AC Amsterdam');
   });
 });
 

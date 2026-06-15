@@ -14,6 +14,7 @@
 import { schoonAdresTekst } from '@/lib/offMarket/onderzoeksAdres';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
+import { mapRechtenBlokken } from '@/lib/kadaster/rechtenBlokken';
 
 export const BITO_CONTACT = {
   naam: 'Ramysh Bito',
@@ -220,11 +221,31 @@ export function extraheerRechthebbendenUitRecord(
   record: KadasterDataRecord,
 ): RechthebbendeUitKadaster[] {
   const raw = (record.raw_limited as Record<string, unknown> | null) ?? {};
-  const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
-  const blokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
+  const verzameld: RechthebbendeUitKadaster[] = [];
 
-  const out: RechthebbendeUitKadaster[] = [];
-  for (const blok of blokken) {
+  // 1) Primair: gedeelde Kadaster-rechtenparser. Vangt naamNatuurlijkPersoon,
+  //    naamNietNatuurlijkPersoon, persons/entities, tenaamstellingen etc.
+  const bronnen: unknown[] = [raw];
+  const rechtenSub = asObj((raw as Record<string, unknown>).rechten);
+  if (rechtenSub) bronnen.push(rechtenSub);
+  for (const bron of bronnen) {
+    for (const b of mapRechtenBlokken(bron)) {
+      const naam = b.naam ?? null;
+      const bedrijfsnaam = b.bedrijfsnaam ?? null;
+      const adresRegel1 = b.adresRegels[0] ?? null;
+      const adresRegel2 = [b.postcode, b.plaats].filter(Boolean).join(' ').trim();
+      const verzendadres = [adresRegel1, adresRegel2 || null].filter(Boolean).join('\n').trim() || null;
+      if (!naam && !bedrijfsnaam && !verzendadres) continue;
+      verzameld.push({ naam, bedrijfsnaam, verzendadres });
+    }
+  }
+
+  // 2) Secundair: legacy/extra `raw_limited.rechten.blokken[*].persons` shape.
+  //    Vult vaak een fuller naam (voornamen + achternaam) of een
+  //    voorgeformatteerd string-adres aan dat de generieke parser laat liggen.
+  const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
+  const legacyBlokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
+  for (const blok of legacyBlokken) {
     const b = asObj(blok); if (!b) continue;
     const lijsten: unknown[] = [];
     for (const k of ['persons', 'entities', 'rechthebbenden', 'personen']) {
@@ -243,15 +264,29 @@ export function extraheerRechthebbendenUitRecord(
         ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
       const adres = bouwAdresUitBlok(po);
       if (!volledig && !bedrijfsnaam && !adres) continue;
-      out.push({
-        naam: volledig,
-        bedrijfsnaam: bedrijfsnaam ?? null,
-        verzendadres: adres,
-      });
+      verzameld.push({ naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres });
     }
   }
 
-  // Fallback: gebruik top-level rechthebbende_naam wanneer blokken leeg zijn.
+  // Merge: dedup op (achternaam-token | bedrijfsnaam), kies rijkste naam +
+  //        bewaar elk gevonden verzendadres.
+  const merged = new Map<string, RechthebbendeUitKadaster>();
+  for (const rh of verzameld) {
+    const naamLast = (rh.naam ?? '').trim().split(/\s+/).pop()?.toLowerCase() ?? '';
+    const key = `${naamLast}|${(rh.bedrijfsnaam ?? '').toLowerCase()}`;
+    if (!key.replace('|', '')) continue;
+    const bestaand = merged.get(key);
+    if (!bestaand) { merged.set(key, { ...rh }); continue; }
+    // Kies rijkste naam (meer woorden) en eerste niet-lege adres.
+    const woordenNieuw = (rh.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+    const woordenOud = (bestaand.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+    if (woordenNieuw > woordenOud) bestaand.naam = rh.naam;
+    if (!bestaand.bedrijfsnaam && rh.bedrijfsnaam) bestaand.bedrijfsnaam = rh.bedrijfsnaam;
+    if (!bestaand.verzendadres && rh.verzendadres) bestaand.verzendadres = rh.verzendadres;
+  }
+  const out = Array.from(merged.values());
+
+  // 3) Allerlaatste fallback: top-level rechthebbende_naam zonder adres.
   if (out.length === 0 && record.rechthebbende_naam) {
     out.push({
       naam: record.rechthebbende_naam,
@@ -404,3 +439,72 @@ export function bouwGeadresseerdeBlok(input: {
 export function formatDatumNL(d: Date = new Date()): string {
   return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+// ---------------------------------------------------------------------
+// Centraal brief-viewmodel — gedeeld door modal, kopieeractie en PDF.
+// Voorkomt dat de modal iets anders toont dan de PDF / kopieerbrief.
+// ---------------------------------------------------------------------
+
+const _PLACEHOLDER_NORM = VERZENDADRES_PLACEHOLDER.replace(/\s+/g, ' ').trim().toLowerCase();
+function _isEcht(v: string | null | undefined): boolean {
+  if (!v) return false;
+  const norm = v.replace(/\s+/g, ' ').trim().toLowerCase();
+  return !!norm && norm !== _PLACEHOLDER_NORM;
+}
+
+export interface BriefViewModel {
+  geadresseerdeNaam: string;
+  bedrijfsnaam: string;
+  verzendadresRegels: string[];
+  verzendadres: string;
+  heeftVerzendadres: boolean;
+  objectomschrijving: string;
+  onderwerp: string;
+  brieftekst: string;
+  datum: string;
+  contact: typeof BITO_CONTACT;
+}
+
+export interface BriefBronInput {
+  eigenaarNaam: string;
+  eigenaarBedrijfsnaam: string;
+  verzendadres: string;
+  objectomschrijving: string;
+  onderwerp: string;
+  brieftekst: string;
+}
+
+export function buildBriefViewModel(input: BriefBronInput): BriefViewModel {
+  const veiligVerzend = _isEcht(input.verzendadres) ? input.verzendadres.trim() : '';
+  const regels = veiligVerzend
+    ? veiligVerzend.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+    : [];
+  return {
+    geadresseerdeNaam: (input.eigenaarNaam ?? '').trim(),
+    bedrijfsnaam: (input.eigenaarBedrijfsnaam ?? '').trim(),
+    verzendadresRegels: regels,
+    verzendadres: veiligVerzend,
+    heeftVerzendadres: regels.length > 0,
+    objectomschrijving: (input.objectomschrijving ?? '').trim(),
+    onderwerp: (input.onderwerp ?? '').trim() || bepaalOnderwerp(),
+    brieftekst: input.brieftekst ?? '',
+    datum: formatDatumNL(),
+    contact: BITO_CONTACT,
+  };
+}
+
+/** Brief als platte tekst (voor kopieeractie). */
+export function briefAlsPlatteTekst(vm: BriefViewModel): string {
+  const lines: string[] = [];
+  if (vm.bedrijfsnaam) lines.push(vm.bedrijfsnaam);
+  if (vm.geadresseerdeNaam) lines.push(vm.geadresseerdeNaam);
+  for (const r of vm.verzendadresRegels) lines.push(r);
+  lines.push('');
+  lines.push(vm.datum);
+  lines.push('');
+  lines.push(`Betreft: ${vm.onderwerp}`);
+  lines.push('');
+  lines.push(vm.brieftekst);
+  return lines.join('\n');
+}
+
