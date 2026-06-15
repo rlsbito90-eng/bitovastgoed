@@ -122,17 +122,26 @@ export default function SignaalKerngegevens({ signaal: s }: Props) {
       <section className="section-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground">Bron</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Field label="Bron-URL">
-            {s.bron_url ? (
-              <a href={s.bron_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline break-all">
-                <ExternalLink className="h-3 w-3 shrink-0" /> {s.bron_url}
-              </a>
-            ) : null}
-          </Field>
           <Field label="Bron-referentie">{val(s.bron_referentie)}</Field>
           <Field label="Brondatum">{formatDateNL(s.bron_datum)}</Field>
         </div>
+        {s.bron_url && (
+          <div className="space-y-1.5">
+            <a
+              href={s.bron_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={knopClass}
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Open bekendmaking
+            </a>
+            <p className="hidden sm:block text-[11px] text-muted-foreground break-all">
+              {s.bron_url}
+            </p>
+          </div>
+        )}
       </section>
+
 
       <section className="section-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-foreground">Waarde & strategie</h2>
