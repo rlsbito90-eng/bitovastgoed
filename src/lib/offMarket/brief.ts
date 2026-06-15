@@ -265,9 +265,16 @@ function normaliseerNaamUitPersoon(po: Record<string, unknown>): string | null {
 function normaliseerBedrijfsnaamUitEntiteit(po: Record<string, unknown>): string | null {
   const nested = asObj(po.naamNietNatuurlijkPersoon) ?? asObj(po.rechtspersoon)
     ?? asObj(po.nietNatuurlijkPersoon) ?? asObj(po.onderneming) ?? asObj(po.organisatie);
-  const bron = nested ?? po;
-  return asStr(bron.statutaireNaam) ?? asStr(bron.handelsnaam) ?? asStr(bron.organisatieNaam)
-    ?? asStr(bron.bedrijfsnaam) ?? asStr(bron.naam);
+  // Alleen als er echt een rechtspersoon-blok aanwezig is, of als top-level
+  // velden expliciet een bedrijfsnaam aanduiden. Een generiek `naam`-veld op
+  // een natuurlijk persoon mag NOOIT als bedrijfsnaam worden hergebruikt;
+  // dat veroorzaakte dubbele kandidaten bij dedup.
+  if (nested) {
+    return asStr(nested.statutaireNaam) ?? asStr(nested.handelsnaam)
+      ?? asStr(nested.organisatieNaam) ?? asStr(nested.bedrijfsnaam) ?? asStr(nested.naam);
+  }
+  return asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
+    ?? asStr(po.organisatieNaam) ?? asStr(po.bedrijfsnaam);
 }
 
 const RECHTHEBBENDE_KEYS_BREED = [
