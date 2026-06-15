@@ -89,12 +89,13 @@ describe('brief — objectomschrijving voorstel', () => {
 });
 
 describe('brief — aanhef', () => {
-  it('valt terug op neutrale aanhef zonder achternaam', () => {
+  it('gebruikt altijd neutrale standaardaanhef (geslacht onbekend)', () => {
     expect(bepaalAanhef(null)).toBe('Geachte heer/mevrouw,');
     expect(bepaalAanhef('')).toBe('Geachte heer/mevrouw,');
+    expect(bepaalAanhef('Jan de Jong')).toBe('Geachte heer/mevrouw,');
+    expect(bepaalAanhef('Anneka Treon')).toBe('Geachte heer/mevrouw,');
   });
-  it('gebruikt de achternaam wanneer beschikbaar', () => {
-    expect(bepaalAanhef('Jan de Jong')).toBe('Geachte heer/mevrouw Jong,');
+  it('getAchternaam blijft beschikbaar voor andere doeleinden', () => {
     expect(getAchternaam('P. van der Berg')).toBe('Berg');
   });
 });
