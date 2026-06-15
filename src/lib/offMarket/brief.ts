@@ -578,7 +578,7 @@ export function bouwBriefPrefill(
   const objectadres = bouwObjectAdresVoorBrief(signaal);
   const objectomschrijving = bouwObjectOmschrijvingVoorstel(signaal) || objectadres;
   const aanhef = bepaalAanhef(eigenaarNaam || null);
-  const onderwerp = bepaalOnderwerp();
+  const onderwerp = bepaalOnderwerp(objectomschrijving);
   const brieftekst = bouwBriefTekst({ aanhef, objectadres: objectomschrijving });
   return {
     eigenaarNaam, eigenaarBedrijfsnaam, verzendadres,
