@@ -116,7 +116,8 @@ export function verfijnAdresUitTekst(
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
   // Transformatie eerst — heeft voorrang op losse 'kantoor'/'winkel' match
   [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
-  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel|gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
+  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
+  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
   // Wonen-groep — splitsing/woonvorming/appartementsrechten zijn altijd woon-acquisities
   [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming)\b/i, 'wonen'],
   [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
