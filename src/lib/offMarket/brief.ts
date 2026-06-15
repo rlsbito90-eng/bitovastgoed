@@ -236,8 +236,8 @@ export function extraheerRechthebbendenUitRecord(
       const voornamen = asStr(po.voornamen);
       const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
         ?? asStr((po as Record<string, unknown>).achternaam);
-      const volledig = asStr(po.volledigeNaam)
-        ?? [voornamen, achternaam].filter(Boolean).join(' ').trim() || null;
+      const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
+      const volledig = asStr(po.volledigeNaam) ?? (samengesteld || null);
       const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
         ?? asStr((po as Record<string, unknown>).organisatieNaam)
         ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
