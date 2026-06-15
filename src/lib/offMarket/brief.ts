@@ -35,7 +35,25 @@ export interface EigenaarKandidaat {
   bedrijfsnaam: string | null;
   /** Aanbevolen verzendadres indien bekend. Multiline. */
   verzendadres: string | null;
-  bron: 'signaal' | 'kadaster';
+  bron: 'signaal' | 'kadaster' | 'brief';
+  recordId?: string | null;
+  fetchedAt?: string | null;
+  debugBron?: string | null;
+}
+
+export interface KadasterAdresDebugInfo {
+  gevonden: boolean;
+  bronLabel: string | null;
+  parsedLabel: string | null;
+  aantalKandidaten: number;
+}
+
+export interface HistorischBriefAdres {
+  eigenaar_naam?: string | null;
+  eigenaar_bedrijfsnaam?: string | null;
+  verzendadres?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
 }
 
 // ---------------------------------------------------------------------
