@@ -107,9 +107,11 @@ export function getAchternaam(naam: string | null | undefined): string | null {
   return delen[delen.length - 1];
 }
 
-export function bepaalAanhef(eigenaarNaam: string | null | undefined): string {
-  const achter = getAchternaam(eigenaarNaam);
-  return achter ? `Geachte heer/mevrouw ${achter},` : 'Geachte heer/mevrouw,';
+export function bepaalAanhef(_eigenaarNaam?: string | null | undefined): string {
+  // Standaard altijd neutraal — geslacht wordt niet automatisch bepaald.
+  // De volledige naam staat al in het geadresseerdeblok. Gebruiker kan
+  // de aanhef desgewenst handmatig aanpassen (bijv. "Geachte mevrouw Treon,").
+  return 'Geachte heer/mevrouw,';
 }
 
 export function bepaalOnderwerp(): string {

@@ -1,12 +1,14 @@
 // src/lib/pdf/logo.ts
 //
-// Het Bito logo (PNG, transparant) als asset import. React-PDF accepteert
-// zowel een URL als een data URI. We importeren het PNG-bestand zodat Vite
-// de juiste asset URL of data URI inlined.
+// Bito Vastgoed logo assets voor PDF-rendering.
 //
-// Het logo-bestand staat in src/assets/bito-logo.png — Vite/Lovable lossen
-// dat automatisch op tot een werkende URL bij build.
+// - BITO_ICON_URL: icon-only beeldmerk (huis met B). Te combineren met
+//   een tekstuele "BITO VASTGOED" lockup in de PDF-header.
+// - BITO_LOGO_URL: volledige logo dat de bedrijfsnaam al bevat
+//   (fallback wanneer alleen de tekstuele variant niet gewenst is).
 
 import bitoLogo from '@/assets/bito-logo.png';
+import bitoIcon from '@/assets/bito-icon.png.asset.json';
 
 export const BITO_LOGO_URL = bitoLogo;
+export const BITO_ICON_URL = bitoIcon.url;
