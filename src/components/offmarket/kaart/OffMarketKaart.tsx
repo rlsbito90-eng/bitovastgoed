@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Map, {
   Layer, Source, NavigationControl, Popup, type MapRef,
@@ -7,8 +7,9 @@ import Map, {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { FeatureCollection, Point } from 'geojson';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw, ExternalLink } from 'lucide-react';
 import type { OffMarketSignaal, OffMarketPrioriteit } from '@/lib/offMarket/types';
 import { OffMarketPriorityBadge, OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { SIGNAALTYPE_LABEL, BRON_TYPE_LABEL } from '@/lib/offMarket/types';
@@ -21,6 +22,7 @@ const PDOK_TILE = 'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standa
 const PDOK_ATTRIBUTION = '&copy; <a href="https://www.pdok.nl">PDOK</a> / <a href="https://www.kadaster.nl">Kadaster</a>';
 
 const VIEWPORT_KEY = 'off-market-kaart:viewport';
+const SELECTED_KEY = 'off-market-kaart:selectedSignalId';
 const FALLBACK_VIEWPORT = { longitude: 5.1, latitude: 52.1, zoom: 6.6 };
 
 const PRIO_COLOR: Record<OffMarketPrioriteit, string> = {
@@ -76,7 +78,13 @@ interface Props {
 export default function OffMarketKaart({ signalen }: Props) {
   const navigate = useNavigate();
   const mapRef = useRef<MapRef | null>(null);
-  const [geselecteerd, setGeselecteerd] = useState<OffMarketSignaal | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const restoredSelectionRef = useRef(false);
+
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    try { return sessionStorage.getItem(SELECTED_KEY); } catch { return null; }
+  });
   const [sidepanelOpen, setSidepanelOpen] = useState(true);
   const [controleerOpen, setControleerOpen] = useState(false);
   const [zonderOpen, setZonderOpen] = useState(false);
@@ -98,6 +106,19 @@ export default function OffMarketKaart({ signalen }: Props) {
   );
   const geojson = useMemo(() => bouwGeoJson(signalen), [signalen]);
 
+  const geselecteerd = useMemo(
+    () => (selectedId ? signalen.find(s => s.id === selectedId) ?? null : null),
+    [selectedId, signalen],
+  );
+
+  // Bewaar selectie in sessionStorage zodat we na detail-terugkeer dezelfde selectie hebben.
+  useEffect(() => {
+    try {
+      if (selectedId) sessionStorage.setItem(SELECTED_KEY, selectedId);
+      else sessionStorage.removeItem(SELECTED_KEY);
+    } catch {}
+  }, [selectedId]);
+
   // viewport persisteren
   useEffect(() => {
     const t = setTimeout(() => {
@@ -106,9 +127,54 @@ export default function OffMarketKaart({ signalen }: Props) {
     return () => clearTimeout(t);
   }, [viewport]);
 
+  // Pan/zoom naar opgeslagen selectie zodra signalen geladen zijn (eenmalig).
+  useEffect(() => {
+    if (restoredSelectionRef.current) return;
+    if (signalen.length === 0) return;
+    if (!selectedId) { restoredSelectionRef.current = true; return; }
+    const s = signalen.find(x => x.id === selectedId);
+    if (!s) { restoredSelectionRef.current = true; return; }
+    restoredSelectionRef.current = true;
+    if (heeftLocatie(s)) {
+      requestAnimationFrame(() => {
+        mapRef.current?.easeTo({
+          center: [(s as any).lng as number, (s as any).lat as number],
+          zoom: Math.max(viewport.zoom ?? 0, 14),
+          duration: 600,
+        });
+      });
+    }
+    // scroll lijstrij in beeld
+    requestAnimationFrame(() => {
+      rowRefs.current[selectedId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }, [signalen, selectedId, viewport.zoom]);
+
+  const panNaarSignaal = useCallback((s: OffMarketSignaal) => {
+    if (!heeftLocatie(s)) return;
+    mapRef.current?.easeTo({
+      center: [(s as any).lng as number, (s as any).lat as number],
+      zoom: Math.max(viewport.zoom ?? 0, 14),
+      duration: 500,
+    });
+  }, [viewport.zoom]);
+
+  const selecteer = useCallback((s: OffMarketSignaal, opties: { pan?: boolean; scrollList?: boolean } = {}) => {
+    setSelectedId(s.id);
+    if (opties.pan !== false) {
+      if (heeftLocatie(s)) panNaarSignaal(s);
+      else toast.info('Geen kaartlocatie beschikbaar voor dit signaal.');
+    }
+    if (opties.scrollList) {
+      requestAnimationFrame(() => {
+        rowRefs.current[s.id]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
+  }, [panNaarSignaal]);
+
   const onClickKaart = (e: MapLayerMouseEvent) => {
     const f = e.features?.[0];
-    if (!f) { setGeselecteerd(null); return; }
+    if (!f) { setSelectedId(null); return; }
     if (f.layer.id === 'clusters') {
       const clusterId = f.properties?.cluster_id as number;
       const src = mapRef.current?.getMap().getSource('signalen') as maplibregl.GeoJSONSource | undefined;
@@ -125,19 +191,16 @@ export default function OffMarketKaart({ signalen }: Props) {
     }
     if (f.layer.id === 'pinnen') {
       const id = f.properties?.id as string;
-      const sig = signalen.find(s => s.id === id) ?? null;
-      setGeselecteerd(sig);
+      const sig = signalen.find(s => s.id === id);
+      if (sig) selecteer(sig, { pan: false, scrollList: true });
     }
   };
 
-  const panNaar = (s: OffMarketSignaal) => {
-    if (!heeftLocatie(s)) return;
-    setGeselecteerd(s);
-    mapRef.current?.easeTo({
-      center: [(s as any).lng as number, (s as any).lat as number],
-      zoom: Math.max(viewport.zoom ?? 0, 14),
-      duration: 500,
-    });
+  const openDetail = (s: OffMarketSignaal) => {
+    // bewaar selectie expliciet vóór navigatie zodat terugkeer betrouwbaar werkt
+    try { sessionStorage.setItem(SELECTED_KEY, s.id); } catch {}
+    try { sessionStorage.setItem('off-market-filter:tab', 'kaart'); } catch {}
+    navigate(`/off-market/${s.id}`);
   };
 
   return (
@@ -151,7 +214,7 @@ export default function OffMarketKaart({ signalen }: Props) {
           <button
             type="button"
             onClick={() => setControleerOpen(true)}
-            className="px-3 py-1.5 text-xs rounded-md bg-accent text-accent-foreground border border-accent shadow-sm hover:bg-accent/90 active:bg-accent/80 inline-flex items-center gap-1.5 font-semibold min-h-[32px]"
+            className="px-3 py-1.5 text-xs rounded-md bg-accent text-accent-foreground border border-accent shadow-sm hover:bg-accent/90 active:bg-accent/80 inline-flex items-center gap-1.5 font-semibold min-h-[32px] cursor-pointer"
           >
             <ListChecks className="h-3.5 w-3.5" />
             Locatie controleren ({onzeker.length})
@@ -161,7 +224,7 @@ export default function OffMarketKaart({ signalen }: Props) {
           <button
             type="button"
             onClick={() => setZonderOpen(true)}
-            className="px-3 py-1.5 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px]"
+            className="px-3 py-1.5 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px] cursor-pointer"
           >
             <MapPinOff className="h-3.5 w-3.5" />
             Zonder locatie ({zonderLocatie.length})
@@ -177,7 +240,7 @@ export default function OffMarketKaart({ signalen }: Props) {
           <button
             type="button"
             onClick={opnieuwProberen}
-            className="px-2.5 py-1 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px]"
+            className="px-2.5 py-1 text-xs rounded-md bg-background text-foreground border border-border shadow-sm hover:bg-muted inline-flex items-center gap-1.5 font-medium min-h-[32px] cursor-pointer"
             title="Locaties opnieuw controleren via PDOK"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -246,9 +309,21 @@ export default function OffMarketKaart({ signalen }: Props) {
             filter={['!', ['has', 'point_count']]}
             paint={{
               'circle-color': ['get', 'kleur'],
-              'circle-radius': 8,
-              'circle-stroke-color': '#ffffff',
-              'circle-stroke-width': 2,
+              'circle-radius': [
+                'case',
+                ['==', ['get', 'id'], selectedId ?? ''], 11,
+                7,
+              ],
+              'circle-stroke-color': [
+                'case',
+                ['==', ['get', 'id'], selectedId ?? ''], '#1f2937',
+                '#ffffff',
+              ],
+              'circle-stroke-width': [
+                'case',
+                ['==', ['get', 'id'], selectedId ?? ''], 3,
+                2,
+              ],
             }}
           />
         </Source>
@@ -259,11 +334,12 @@ export default function OffMarketKaart({ signalen }: Props) {
             latitude={(geselecteerd as any).lat as number}
             anchor="bottom"
             closeOnClick={false}
-            onClose={() => setGeselecteerd(null)}
-            offset={14}
+            onClose={() => setSelectedId(null)}
+            offset={18}
             maxWidth="320px"
+            className="off-market-popup"
           >
-            <PinPreview signaal={geselecteerd} onOpen={() => navigate(`/off-market/${geselecteerd.id}`)} />
+            <PinPreview signaal={geselecteerd} onOpen={() => openDetail(geselecteerd)} />
           </Popup>
         )}
       </Map>
@@ -271,37 +347,57 @@ export default function OffMarketKaart({ signalen }: Props) {
       {/* Sidepanel desktop */}
       <div className={`hidden lg:block absolute top-0 right-0 h-full transition-all ${sidepanelOpen ? 'w-[340px]' : 'w-0'}`}>
         {sidepanelOpen && (
-          <div className="h-full w-full bg-background/95 border-l border-border overflow-y-auto">
-            <div className="sticky top-0 px-3 py-2 border-b border-border bg-background/95 flex items-center justify-between">
+          <div className="h-full w-full bg-background/95 border-l border-border overflow-hidden flex flex-col">
+            <div className="sticky top-0 px-3 py-2 border-b border-border bg-background/95 flex items-center justify-between flex-shrink-0">
               <div className="text-sm font-medium">Signalen op kaart ({metLocatie.length})</div>
               <button
                 type="button"
                 onClick={() => setSidepanelOpen(false)}
-                className="p-1 rounded hover:bg-muted"
+                className="p-1 rounded hover:bg-muted cursor-pointer"
                 aria-label="Sidepanel sluiten"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-            <ul className="divide-y divide-border">
-              {metLocatie.map(s => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => panNaar(s)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-muted ${geselecteerd?.id === s.id ? 'bg-muted' : ''}`}
-                  >
-                    <div className="font-medium truncate">{s.titel}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {[s.adres, s.plaats].filter(Boolean).join(', ')}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      <OffMarketPriorityBadge prioriteit={s.prioriteit} />
-                      <OffMarketStatusBadge status={s.status} />
-                    </div>
-                  </button>
-                </li>
-              ))}
+            <ul ref={listRef} className="divide-y divide-border overflow-y-auto flex-1">
+              {metLocatie.map(s => {
+                const isSelected = s.id === selectedId;
+                return (
+                  <li key={s.id}>
+                    <button
+                      ref={(el) => { rowRefs.current[s.id] = el; }}
+                      type="button"
+                      onClick={() => selecteer(s, { pan: true })}
+                      onDoubleClick={() => openDetail(s)}
+                      aria-current={isSelected ? 'true' : undefined}
+                      className={`group w-full text-left px-3 py-2 text-sm cursor-pointer transition-colors border-l-2 ${
+                        isSelected
+                          ? 'bg-accent/15 border-accent'
+                          : 'border-transparent hover:bg-muted/70 hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className={`font-medium truncate ${isSelected ? 'text-foreground' : ''}`}>{s.titel}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {[s.adres, s.plaats].filter(Boolean).join(', ') || '—'}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <OffMarketPriorityBadge prioriteit={s.prioriteit} />
+                            <OffMarketStatusBadge status={s.status} />
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <ExternalLink
+                            className="h-3.5 w-3.5 text-accent flex-shrink-0 mt-0.5"
+                            onClick={(ev) => { ev.stopPropagation(); openDetail(s); }}
+                          />
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
               {metLocatie.length === 0 && (
                 <li className="px-3 py-6 text-sm text-muted-foreground text-center">
                   Geen signalen met locatie in de huidige selectie.
@@ -315,7 +411,7 @@ export default function OffMarketKaart({ signalen }: Props) {
         <button
           type="button"
           onClick={() => setSidepanelOpen(true)}
-          className="hidden lg:flex absolute top-3 right-14 z-10 px-2 py-1 rounded-md bg-background/95 border border-border text-xs items-center gap-1 hover:bg-muted"
+          className="hidden lg:flex absolute top-3 right-14 z-10 px-2 py-1 rounded-md bg-background/95 border border-border text-xs items-center gap-1 hover:bg-muted cursor-pointer"
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Sidepanel
         </button>
@@ -342,10 +438,15 @@ export default function OffMarketKaart({ signalen }: Props) {
 
 function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: () => void }) {
   return (
-    <div className="space-y-1.5 min-w-[240px]">
-      <div className="text-sm font-semibold leading-snug">{signaal.titel}</div>
-      <div className="text-xs text-muted-foreground">
-        {[signaal.adres, [signaal.postcode, signaal.plaats].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}
+    <div className="space-y-2 min-w-[240px] max-w-[300px]">
+      <div
+        className="text-sm font-semibold leading-snug text-foreground"
+        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+      >
+        {signaal.titel}
+      </div>
+      <div className="text-xs text-muted-foreground leading-snug">
+        {[signaal.adres, [signaal.postcode, signaal.plaats].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
       </div>
       <div className="flex flex-wrap gap-1">
         <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
@@ -356,7 +457,12 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         {signaal.bron_type ? ` · ${BRON_TYPE_LABEL[signaal.bron_type] ?? signaal.bron_type}` : ''}
         {signaal.bron_datum ? ` · ${new Date(signaal.bron_datum).toLocaleDateString('nl-NL')}` : ''}
       </div>
-      <Button size="sm" className="w-full mt-1" onClick={onOpen}>
+      <Button
+        size="sm"
+        className="w-full mt-1 bg-accent text-accent-foreground hover:bg-accent/90 font-medium"
+        onClick={onOpen}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
         Open signaal
       </Button>
     </div>
