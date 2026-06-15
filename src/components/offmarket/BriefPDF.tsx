@@ -5,13 +5,13 @@
 // éénpagina A4-brief, zonder browserheaders en zonder about:srcdoc.
 
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
-import { BITO_LOGO_URL } from '@/lib/pdf/logo';
+import { BITO_ICON_URL } from '@/lib/pdf/logo';
 import type { BriefViewModel } from '@/lib/offMarket/brief';
 
 // Compacte, ingetogen typografie. Bewust géén Playfair (te zwaar voor een brief).
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 48,    // ~17mm
+    paddingTop: 48,
     paddingBottom: 50,
     paddingHorizontal: 56,
     backgroundColor: '#FFFFFF',
@@ -30,12 +30,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C89C69',
   },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
-  // ~30mm visueel breed op A4 (1mm ≈ 2.835pt) → 85pt
-  logo: { width: 85, height: 85, marginRight: 14, objectFit: 'contain' },
-  brandTextFallback: { flexDirection: 'column' },
+  icon: { width: 42, height: 42, marginRight: 12, objectFit: 'contain' },
+  fullLogo: { width: 150, height: 50, objectFit: 'contain' },
+  brandTextCol: { flexDirection: 'column' },
   brandName: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 16,
+    fontSize: 14,
     letterSpacing: 1.2,
     color: '#1A1A1A',
   },
@@ -43,7 +43,14 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: '#6B6B6B',
     fontStyle: 'italic',
-    marginTop: 3,
+    marginTop: 2,
+    letterSpacing: 0.4,
+  },
+  taglineUnderLogo: {
+    fontSize: 8.5,
+    color: '#6B6B6B',
+    fontStyle: 'italic',
+    marginTop: 4,
     letterSpacing: 0.4,
   },
   datum: { fontSize: 9.5, color: '#1A1A1A' },
@@ -71,32 +78,51 @@ const styles = StyleSheet.create({
 
 export interface BriefPDFProps {
   vm: BriefViewModel;
-  /** Logo URL — defaultet naar de gebundelde Bito asset. */
-  logoUrl?: string;
+  /**
+   * Optionele logo-override. Default: icon-only beeldmerk + tekstuele
+   * "BITO VASTGOED" lockup. Geef `mode: 'full'` mee om alleen het
+   * volledige logo (inclusief bedrijfsnaam) te tonen zonder dubbele tekst.
+   */
+  logo?:
+    | { mode?: 'icon'; url?: string }
+    | { mode: 'full'; url: string };
 }
 
-export default function BriefPDF({ vm, logoUrl }: BriefPDFProps) {
-  // Splits de brieftekst in alinea's (op lege regels) zodat react-pdf
-  // alinea-afstand normaal toepast en de tekst niet over één gigantisch
-  // tekstblok hoeft te renderen.
+export default function BriefPDF({ vm, logo }: BriefPDFProps) {
   const alineas = (vm.brieftekst ?? '')
     .replace(/\r\n/g, '\n')
     .split(/\n\s*\n/)
     .map(p => p.trim())
     .filter(Boolean);
 
-  const src = logoUrl ?? BITO_LOGO_URL;
+  const mode = logo?.mode ?? 'icon';
+  const iconSrc = mode === 'icon' ? (logo?.url ?? BITO_ICON_URL) : null;
+  const fullSrc = mode === 'full' ? logo!.url : null;
 
   return (
     <Document title={`Brief — ${vm.contact.bedrijf} — ${vm.onderwerp}`}>
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.header} fixed>
           <View style={styles.brandRow}>
-            {src ? <Image src={src} style={styles.logo} /> : null}
-            <View>
-              <Text style={styles.brandName}>BITO VASTGOED</Text>
-              <Text style={styles.brandTagline}>Onafhankelijk. Gericht. Discreet.</Text>
-            </View>
+            {iconSrc ? (
+              <>
+                <Image src={iconSrc} style={styles.icon} />
+                <View style={styles.brandTextCol}>
+                  <Text style={styles.brandName}>BITO VASTGOED</Text>
+                  <Text style={styles.brandTagline}>Onafhankelijk. Gericht. Discreet.</Text>
+                </View>
+              </>
+            ) : fullSrc ? (
+              <View style={styles.brandTextCol}>
+                <Image src={fullSrc} style={styles.fullLogo} />
+                <Text style={styles.taglineUnderLogo}>Onafhankelijk. Gericht. Discreet.</Text>
+              </View>
+            ) : (
+              <View style={styles.brandTextCol}>
+                <Text style={styles.brandName}>BITO VASTGOED</Text>
+                <Text style={styles.brandTagline}>Onafhankelijk. Gericht. Discreet.</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.datum}>{vm.datum}</Text>
         </View>
