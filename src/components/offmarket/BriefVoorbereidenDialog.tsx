@@ -24,7 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  bouwBriefPrefill, bepaalAanhef, bouwBriefTekst,
+  bouwBriefPrefill, bepaalAanhef, bepaalOnderwerp, bouwBriefTekst,
   buildBriefViewModel, briefAlsPlatteTekst,
   buildKadasterAdresDebug, kadasterAdresKandidaten,
   VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
@@ -96,6 +96,7 @@ export default function BriefVoorbereidenDialog({
   const [bezig, setBezig] = useState(false);
   const [pdfBezig, setPdfBezig] = useState(false);
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
+  const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -109,11 +110,12 @@ export default function BriefVoorbereidenDialog({
     setOnderwerp(prefill.onderwerp);
     setBrieftekst(prefill.brieftekst);
     setBriefId(null);
+    setOnderwerpHandmatig(false);
   }, [open, prefill]);
 
   const upsert = useUpsertBrief();
   const markVerstuurd = useMarkBriefVerstuurd();
-  const { addTaak } = useDataStore();
+  const { addTaak, taken } = useDataStore();
 
   // Centraal viewmodel — exact dezelfde data gebruikt door modal-preview,
   // kopieerbrief én PDF.
@@ -238,15 +240,27 @@ export default function BriefVoorbereidenDialog({
       await markVerstuurd.mutateAsync(id);
 
       try {
-        await addTaak({
-          titel: 'Brief opvolgen',
-          type: 'Follow-up',
-          deadline: deadlineOverDagen(14),
-          prioriteit: 'normaal',
-          status: 'open',
-          offMarketSignaalId: signaal.id,
-          notities: `Brief verzonden naar ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
-        } as any);
+        // Dedup: maak geen nieuwe opvolgtaak aan wanneer er al een open
+        // Brief 2-opvolgtaak voor dit signaal bestaat.
+        const bestaat = (taken ?? []).some((t: any) =>
+          t?.offMarketSignaalId === signaal.id
+          && t?.type === 'Follow-up'
+          && t?.status === 'open'
+          && typeof t?.titel === 'string'
+          && /brief\s*2|brief opvolgen/i.test(t.titel),
+        );
+        if (!bestaat) {
+          await addTaak({
+            titel: 'Brief 2 voorbereiden / opvolgen',
+            type: 'Follow-up',
+            deadline: deadlineOverDagen(21),
+            prioriteit: 'normaal',
+            status: 'open',
+            offMarketSignaalId: signaal.id,
+            relatieId: (signaal as any).eigenaar_relatie_id ?? undefined,
+            notities: `Bereid Brief 2 voor of neem opvolgend contact op naar aanleiding van de eerste brief aan ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
+          } as any);
+        }
       } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
 
       try {
@@ -397,8 +411,12 @@ export default function BriefVoorbereidenDialog({
               id="brief-objomschrijving"
               value={objectomschrijving}
               onChange={(e) => {
-                setObjectomschrijving(e.target.value);
-                setBrieftekst(bouwBriefTekst({ aanhef, objectadres: e.target.value }));
+                const nieuw = e.target.value;
+                setObjectomschrijving(nieuw);
+                setBrieftekst(bouwBriefTekst({ aanhef, objectadres: nieuw }));
+                // Onderwerp volgt automatisch zolang de gebruiker het niet
+                // handmatig heeft aangepast.
+                if (!onderwerpHandmatig) setOnderwerp(bepaalOnderwerp(nieuw));
               }}
             />
             <p className="text-[11px] text-muted-foreground">
@@ -424,7 +442,11 @@ export default function BriefVoorbereidenDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="brief-onderwerp">Onderwerp</Label>
-              <Input id="brief-onderwerp" value={onderwerp} onChange={(e) => setOnderwerp(e.target.value)} />
+              <Input
+                id="brief-onderwerp"
+                value={onderwerp}
+                onChange={(e) => { setOnderwerp(e.target.value); setOnderwerpHandmatig(true); }}
+              />
             </div>
           </div>
 
