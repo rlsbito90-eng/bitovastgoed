@@ -24,7 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  bouwBriefPrefill, bepaalAanhef, bouwBriefTekst,
+  bouwBriefPrefill, bepaalAanhef, bepaalOnderwerp, bouwBriefTekst,
   buildBriefViewModel, briefAlsPlatteTekst,
   buildKadasterAdresDebug, kadasterAdresKandidaten,
   VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
