@@ -268,6 +268,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
     msg: string; httpStatus?: number; debug?: KadasterDebug | null;
   } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
+  const [detailRecord, setDetailRecord] = useState<KadasterDataRecord | null>(null);
 
   // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
   const [selPdf, setSelPdf] = useState(false);
