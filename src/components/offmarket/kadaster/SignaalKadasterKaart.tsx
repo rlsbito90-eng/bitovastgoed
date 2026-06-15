@@ -104,12 +104,23 @@ function Row({ label, value }: { label: string; value: string | number | null | 
 
 
 function RecordKop({
-  titel, r, pdf,
-}: { titel: string; r: KadasterDataRecord; pdf?: KadasterDocument }) {
+  titel, r, pdf, isLatest, onDetails,
+}: {
+  titel: string;
+  r: KadasterDataRecord;
+  pdf?: KadasterDocument;
+  isLatest?: boolean;
+  onDetails?: () => void;
+}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium">{titel}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium">{titel}</p>
+          {isLatest && (
+            <Badge variant="secondary" className="text-[10px]">Laatste aanvraag</Badge>
+          )}
+        </div>
         <span className="text-[10px] font-mono-data text-muted-foreground whitespace-nowrap">
           {fmtDatum(r.fetched_at)}
         </span>
@@ -118,20 +129,40 @@ function RecordKop({
         Zoekadres: <span className="font-mono-data">{fmtZoekadres(r.zoekadres)}</span>
         {' · '}Status: <span className="font-mono-data">{r.status}</span>
       </p>
-      {pdf && (
-        <div className="flex items-center justify-between gap-2 rounded border border-primary/30 bg-primary/5 px-2 py-1.5">
-          <span className="text-[11px] text-foreground">Kadasterbericht opgeslagen</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {pdf ? (
           <KadasterPdfKnop document={pdf} label="Kadasterbericht openen" />
-        </div>
-      )}
+        ) : (
+          <span
+            className="text-[10px] text-muted-foreground italic"
+            title="Geen Kadasterbericht/PDF opgeslagen bij deze aanvraag"
+          >
+            Geen PDF beschikbaar
+          </span>
+        )}
+        {onDetails && (
+          <button
+            type="button"
+            onClick={onDetails}
+            className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md border border-border bg-card hover:border-accent/50 hover:text-accent text-foreground"
+          >
+            <Info className="h-3 w-3" /> Details bekijken
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
+function WaardeRecordBlok({
+  r, pdf, isLatest, onDetails,
+}: {
+  r: KadasterDataRecord; pdf?: KadasterDocument;
+  isLatest?: boolean; onDetails?: () => void;
+}) {
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-2">
-      <RecordKop titel="Kadaster-koopsom" r={r} pdf={pdf} />
+      <RecordKop titel="Kadaster-koopsom" r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />
       <p className="text-[11px] text-muted-foreground">
         Historische transactie volgens Kadaster — geen marktwaarde, vraagprijs
         of taxatiewaarde.
@@ -147,7 +178,12 @@ function WaardeRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDoc
   );
 }
 
-function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
+function RechtenRecordBlok({
+  r, pdf, isLatest, onDetails,
+}: {
+  r: KadasterDataRecord; pdf?: KadasterDocument;
+  isLatest?: boolean; onDetails?: () => void;
+}) {
   const rawRechten = (r.raw_limited as Record<string, unknown> | null | undefined)?.rechten;
   let blokken = mapRechtenBlokken(rawRechten);
   if (blokken.length === 0) {
@@ -156,7 +192,7 @@ function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDo
   }
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-3">
-      <RecordKop titel="Rechten / eigendomsinformatie" r={r} pdf={pdf} />
+      <RecordKop titel="Rechten / eigendomsinformatie" r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />
       <KadasterRechtenBlokken
         blokken={blokken}
         pdf={pdf ?? null}
@@ -167,14 +203,19 @@ function RechtenRecordBlok({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDo
   );
 }
 
-function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument }) {
+function RecordKaart({
+  r, pdf, isLatest, onDetails,
+}: {
+  r: KadasterDataRecord; pdf?: KadasterDocument;
+  isLatest?: boolean; onDetails?: () => void;
+}) {
   const titel = r.product_code === 'waarde' ? 'Kadaster-koopsom'
     : r.product_code === 'rechten' ? 'Rechten / eigendomsinformatie'
     : String(r.product_code);
   if (r.status !== 'geleverd' && r.status !== 'gedeeltelijk') {
     return (
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1.5">
-        <RecordKop titel={titel} r={r} pdf={pdf} />
+        <RecordKop titel={titel} r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />
         <p className="text-[11px] text-muted-foreground">
           Eerder geprobeerd voor dit adres — geen gegevens geleverd door Kadaster.
           De aanvraag blijft zichtbaar voor audit.
@@ -182,12 +223,11 @@ function RecordKaart({ r, pdf }: { r: KadasterDataRecord; pdf?: KadasterDocument
       </div>
     );
   }
-  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} pdf={pdf} />;
-  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} />;
-  // Fallback voor onbekende producten — record blijft zichtbaar.
+  if (r.product_code === 'waarde') return <WaardeRecordBlok r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />;
+  if (r.product_code === 'rechten') return <RechtenRecordBlok r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />;
   return (
     <div className="rounded-md border border-border bg-card p-3 space-y-1.5">
-      <RecordKop titel={titel} r={r} pdf={pdf} />
+      <RecordKop titel={titel} r={r} pdf={pdf} isLatest={isLatest} onDetails={onDetails} />
       <p className="text-[11px] text-muted-foreground">
         Geleverd — geen specifieke weergave voor dit product. Bekijk
         technische details voor de opgeslagen velden.
