@@ -14,6 +14,7 @@
 import { schoonAdresTekst } from '@/lib/offMarket/onderzoeksAdres';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
+import { mapRechtenBlokken } from '@/lib/kadaster/rechtenBlokken';
 
 export const BITO_CONTACT = {
   naam: 'Ramysh Bito',
