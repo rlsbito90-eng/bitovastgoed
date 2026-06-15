@@ -221,62 +221,70 @@ export function extraheerRechthebbendenUitRecord(
   record: KadasterDataRecord,
 ): RechthebbendeUitKadaster[] {
   const raw = (record.raw_limited as Record<string, unknown> | null) ?? {};
-  const out: RechthebbendeUitKadaster[] = [];
-  const gezien = new Set<string>();
+  const verzameld: RechthebbendeUitKadaster[] = [];
 
-  // 1) Primair: gedeelde Kadaster-rechtenparser. Vangt alle gangbare
-  //    shapes af (naamNatuurlijkPersoon, naamNietNatuurlijkPersoon,
-  //    persons/entities, gerechtigden, tenaamstellingen, etc.).
-  //    We proberen zowel raw_limited zelf als raw_limited.rechten.
+  // 1) Primair: gedeelde Kadaster-rechtenparser. Vangt naamNatuurlijkPersoon,
+  //    naamNietNatuurlijkPersoon, persons/entities, tenaamstellingen etc.
   const bronnen: unknown[] = [raw];
   const rechtenSub = asObj((raw as Record<string, unknown>).rechten);
   if (rechtenSub) bronnen.push(rechtenSub);
   for (const bron of bronnen) {
-    const blokken = mapRechtenBlokken(bron);
-    for (const b of blokken) {
+    for (const b of mapRechtenBlokken(bron)) {
       const naam = b.naam ?? null;
       const bedrijfsnaam = b.bedrijfsnaam ?? null;
       const adresRegel1 = b.adresRegels[0] ?? null;
       const adresRegel2 = [b.postcode, b.plaats].filter(Boolean).join(' ').trim();
       const verzendadres = [adresRegel1, adresRegel2 || null].filter(Boolean).join('\n').trim() || null;
       if (!naam && !bedrijfsnaam && !verzendadres) continue;
-      const key = `${(naam ?? '').toLowerCase()}|${(bedrijfsnaam ?? '').toLowerCase()}`;
-      if (gezien.has(key)) continue;
-      gezien.add(key);
-      out.push({ naam, bedrijfsnaam, verzendadres });
+      verzameld.push({ naam, bedrijfsnaam, verzendadres });
     }
-    if (out.length > 0) break;
   }
 
-  // 2) Secundair: legacy `raw_limited.rechten.blokken[*].persons` shape
-  //    voor records geschreven vóór de gedeelde parser. Adres-extractie
-  //    via `bouwAdresUitBlok` (string-adres of platte velden).
-  if (out.length === 0) {
-    const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
-    const blokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
-    for (const blok of blokken) {
-      const b = asObj(blok); if (!b) continue;
-      const lijsten: unknown[] = [];
-      for (const k of ['persons', 'entities', 'rechthebbenden', 'personen']) {
-        const v = (b as Record<string, unknown>)[k];
-        if (Array.isArray(v)) lijsten.push(...v);
-      }
-      for (const p of lijsten) {
-        const po = asObj(p); if (!po) continue;
-        const voornamen = asStr(po.voornamen);
-        const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
-          ?? asStr((po as Record<string, unknown>).achternaam);
-        const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
-        const volledig = asStr(po.volledigeNaam) ?? (samengesteld || null);
-        const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
-          ?? asStr((po as Record<string, unknown>).organisatieNaam)
-          ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
-        const adres = bouwAdresUitBlok(po);
-        if (!volledig && !bedrijfsnaam && !adres) continue;
-        out.push({ naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres });
-      }
+  // 2) Secundair: legacy/extra `raw_limited.rechten.blokken[*].persons` shape.
+  //    Vult vaak een fuller naam (voornamen + achternaam) of een
+  //    voorgeformatteerd string-adres aan dat de generieke parser laat liggen.
+  const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
+  const legacyBlokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
+  for (const blok of legacyBlokken) {
+    const b = asObj(blok); if (!b) continue;
+    const lijsten: unknown[] = [];
+    for (const k of ['persons', 'entities', 'rechthebbenden', 'personen']) {
+      const v = (b as Record<string, unknown>)[k];
+      if (Array.isArray(v)) lijsten.push(...v);
+    }
+    for (const p of lijsten) {
+      const po = asObj(p); if (!po) continue;
+      const voornamen = asStr(po.voornamen);
+      const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
+        ?? asStr((po as Record<string, unknown>).achternaam);
+      const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
+      const volledig = asStr(po.volledigeNaam) ?? (samengesteld || null);
+      const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
+        ?? asStr((po as Record<string, unknown>).organisatieNaam)
+        ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
+      const adres = bouwAdresUitBlok(po);
+      if (!volledig && !bedrijfsnaam && !adres) continue;
+      verzameld.push({ naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres });
     }
   }
+
+  // Merge: dedup op (achternaam-token | bedrijfsnaam), kies rijkste naam +
+  //        bewaar elk gevonden verzendadres.
+  const merged = new Map<string, RechthebbendeUitKadaster>();
+  for (const rh of verzameld) {
+    const naamLast = (rh.naam ?? '').trim().split(/\s+/).pop()?.toLowerCase() ?? '';
+    const key = `${naamLast}|${(rh.bedrijfsnaam ?? '').toLowerCase()}`;
+    if (!key.replace('|', '')) continue;
+    const bestaand = merged.get(key);
+    if (!bestaand) { merged.set(key, { ...rh }); continue; }
+    // Kies rijkste naam (meer woorden) en eerste niet-lege adres.
+    const woordenNieuw = (rh.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+    const woordenOud = (bestaand.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+    if (woordenNieuw > woordenOud) bestaand.naam = rh.naam;
+    if (!bestaand.bedrijfsnaam && rh.bedrijfsnaam) bestaand.bedrijfsnaam = rh.bedrijfsnaam;
+    if (!bestaand.verzendadres && rh.verzendadres) bestaand.verzendadres = rh.verzendadres;
+  }
+  const out = Array.from(merged.values());
 
   // 3) Allerlaatste fallback: top-level rechthebbende_naam zonder adres.
   if (out.length === 0 && record.rechthebbende_naam) {
