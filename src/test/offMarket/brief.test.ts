@@ -263,7 +263,7 @@ describe('brief — viewmodel (modal / kopie / PDF gebruiken dezelfde data)', ()
     expect(tekst).toContain('Anneka Treon');
     expect(tekst).toContain('De Borcht 3');
     expect(tekst).toContain('1083AC Amsterdam');
-    expect(tekst).toContain('Betreft: Vrijblijvende interesse in vastgoedbezit');
+    expect(tekst).toContain('Betreft: Interesse in uw pand aan Prinsengracht 340-B te Amsterdam');
     expect(tekst).toContain('Prinsengracht 340-B te Amsterdam');
   });
 
