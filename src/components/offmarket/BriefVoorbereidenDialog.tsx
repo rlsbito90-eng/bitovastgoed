@@ -1,18 +1,18 @@
-// BriefVoorbereidenDialog — V1.1 Off-Market signaal.
+// BriefVoorbereidenDialog — V1.3 Off-Market signaal.
 //
-// Wijzigingen t.o.v. V1:
-//  - apart editable veld "Objectomschrijving in brief" (mag breder zijn
-//    dan het feitelijke objectadres);
-//  - Kadaster-verzendadres prefill via extraheerEigenaarKandidaten;
-//  - placeholdertekst voor verzendadres wordt nooit als echte waarde
-//    opgeslagen/gekopieerd/geprint;
-//  - print/PDF via verborgen iframe in dezelfde tab — geen window.open()
-//    en dus geen pop-up blocker afhankelijkheid;
-//  - bevestiging bij "Markeer als verstuurd" als verzendadres leeg is.
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Wijzigingen t.o.v. V1.1/V1.2:
+//  - Eén centraal viewmodel (`buildBriefViewModel`) gedeeld door modal,
+//    kopieeractie en PDF;
+//  - Echte PDF-generatie via @react-pdf/renderer (geen iframe / geen
+//    about:srcdoc / geen browserheader/-footer);
+//  - Verzendadres wordt zichtbaar in de modal als geadresseerde-preview
+//    (zelfde data als in de PDF);
+//  - "Download PDF" als primaire actie, "Print brief" valt weg;
+//  - Bevestiging als verzendadres ontbreekt vóór PDF en vóór verstuurd.
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Printer, Send, FileText } from 'lucide-react';
-import bitoLogo from '@/assets/bito-logo.png';
+import { pdf } from '@react-pdf/renderer';
+import { Copy, FileDown, Send, FileText, Loader2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -24,9 +24,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  bouwBriefPrefill, bouwGeadresseerdeBlok, bepaalAanhef, bouwBriefTekst,
-  formatDatumNL, BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
+  bouwBriefPrefill, bepaalAanhef, bouwBriefTekst,
+  buildBriefViewModel, briefAlsPlatteTekst,
+  VERZENDADRES_PLACEHOLDER,
 } from '@/lib/offMarket/brief';
+import BriefPDF from '@/components/offmarket/BriefPDF';
 import { useUpsertBrief, useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
 import { useDataStore } from '@/hooks/useDataStore';
 import { logSystemContactMoment } from '@/lib/contactMoments';
@@ -41,13 +43,18 @@ interface Props {
   kadasterRecords: KadasterDataRecord[];
 }
 
-/** Placeholdertekst mag nooit als echte waarde tellen. */
 function isEchteWaarde(v: string | null | undefined): boolean {
   if (!v) return false;
   const norm = v.replace(/\s+/g, ' ').trim().toLowerCase();
   if (!norm) return false;
   const ph = VERZENDADRES_PLACEHOLDER.replace(/\s+/g, ' ').trim().toLowerCase();
   return norm !== ph;
+}
+
+function safeFilename(s: string): string {
+  return (s || 'brief')
+    .replace(/[^a-zA-Z0-9 \-_]/g, '')
+    .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
 }
 
 export default function BriefVoorbereidenDialog({
@@ -69,8 +76,8 @@ export default function BriefVoorbereidenDialog({
   const [onderwerp, setOnderwerp] = useState(prefill.onderwerp);
   const [brieftekst, setBrieftekst] = useState(prefill.brieftekst);
   const [briefId, setBriefId] = useState<string | null>(null);
-  const printIframeRef = useRef<HTMLIFrameElement | null>(null);
   const [bezig, setBezig] = useState(false);
+  const [pdfBezig, setPdfBezig] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -90,6 +97,16 @@ export default function BriefVoorbereidenDialog({
   const markVerstuurd = useMarkBriefVerstuurd();
   const { addTaak } = useDataStore();
 
+  // Centraal viewmodel — exact dezelfde data gebruikt door modal-preview,
+  // kopieerbrief én PDF.
+  const vm = useMemo(
+    () => buildBriefViewModel({
+      eigenaarNaam, eigenaarBedrijfsnaam,
+      verzendadres, objectomschrijving, onderwerp, brieftekst,
+    }),
+    [eigenaarNaam, eigenaarBedrijfsnaam, verzendadres, objectomschrijving, onderwerp, brieftekst],
+  );
+
   const handleKandidaatWissel = (label: string) => {
     setKandidaatLabel(label);
     const k = prefill.kandidaten.find(x => x.label === label);
@@ -108,7 +125,6 @@ export default function BriefVoorbereidenDialog({
     toast.success('Standaardtekst hersteld');
   };
 
-  /** Verzendadres veilig opslaan: placeholdertekst → null. */
   const verzendadresVoorOpslag = (): string | null =>
     isEchteWaarde(verzendadres) ? verzendadres.trim() : null;
 
@@ -122,9 +138,7 @@ export default function BriefVoorbereidenDialog({
         verzendadres: verzendadresVoorOpslag(),
         objectadres: objectadres || null,
         objectomschrijving: objectomschrijving || null,
-        aanhef,
-        onderwerp,
-        brieftekst,
+        aanhef, onderwerp, brieftekst,
         status,
       });
       setBriefId(res.id);
@@ -137,59 +151,43 @@ export default function BriefVoorbereidenDialog({
 
   const kopieer = async () => {
     try {
-      await navigator.clipboard.writeText(brieftekst);
+      await navigator.clipboard.writeText(briefAlsPlatteTekst(vm));
       toast.success('Brief gekopieerd');
     } catch {
       toast.error('Kopiëren mislukt');
     }
   };
 
-  /**
-   * Browserproof print: render brief in een verborgen iframe binnen
-   * dezelfde tab en roep `iframe.contentWindow.print()` aan. Geen
-   * `window.open()` dus geen pop-up blocker. Werkt op Chrome/Safari/iOS.
-   */
-  const print = () => {
-    // Geen await vóór de print — print moet binnen dezelfde
-    // user-gesture stack uitgevoerd worden. Save loopt parallel.
-    void ensureBriefOpgeslagen('concept');
-    if (typeof window === 'undefined') return;
-    const iframe = printIframeRef.current;
-    if (!iframe) {
-      toast.error('Printen mislukt. Probeer opnieuw of gebruik "Kopieer brief".');
-      return;
+  const downloadPdf = async () => {
+    if (!vm.heeftVerzendadres) {
+      const ok = typeof window !== 'undefined'
+        ? window.confirm('Er is geen verzendadres ingevuld. Wilt u toch doorgaan met het genereren van de PDF?')
+        : true;
+      if (!ok) return;
     }
-    const html = bouwPrintbareHtml({
-      eigenaarNaam, eigenaarBedrijfsnaam,
-      verzendadres: verzendadresVoorOpslag() ?? '',
-      onderwerp, brieftekst,
-      logoUrl: typeof window !== 'undefined'
-        ? new URL(bitoLogo, window.location.origin).href
-        : undefined,
-    });
+    setPdfBezig(true);
     try {
-      iframe.srcdoc = html;
-      // Wacht op load → trigger print binnen iframe.
-      const onLoad = () => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (e) {
-          console.warn('Iframe print mislukt', e);
-          toast.error('Printen mislukt. Gebruik "Kopieer brief" als fallback.');
-        } finally {
-          iframe.removeEventListener('load', onLoad);
-        }
-      };
-      iframe.addEventListener('load', onLoad);
-    } catch (e) {
-      console.warn('Print voorbereiding mislukt', e);
-      toast.error('Printen mislukt. Gebruik "Kopieer brief" als fallback.');
+      void ensureBriefOpgeslagen('concept');
+      const blob = await pdf(<BriefPDF vm={vm} />).toBlob();
+      const datum = new Date().toISOString().split('T')[0];
+      const naam = safeFilename(vm.geadresseerdeNaam || vm.bedrijfsnaam || vm.objectomschrijving);
+      const filename = `Bito-brief-${naam}-${datum}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = filename;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('PDF gegenereerd');
+    } catch (e: any) {
+      console.error('PDF genereren mislukt', e);
+      toast.error(`PDF genereren mislukt: ${e?.message ?? 'onbekende fout'}`);
+    } finally {
+      setPdfBezig(false);
     }
   };
 
   const markeerVerstuurd = async () => {
-    if (!isEchteWaarde(verzendadres)) {
+    if (!vm.heeftVerzendadres) {
       const ok = typeof window !== 'undefined'
         ? window.confirm('Er is geen verzendadres ingevuld. Weet u zeker dat u deze brief als verstuurd wilt markeren?')
         : true;
@@ -198,10 +196,7 @@ export default function BriefVoorbereidenDialog({
     setBezig(true);
     try {
       let id = briefId;
-      if (!id) {
-        id = await ensureBriefOpgeslagen('concept');
-        if (!id) return;
-      }
+      if (!id) { id = await ensureBriefOpgeslagen('concept'); if (!id) return; }
       await markVerstuurd.mutateAsync(id);
 
       try {
@@ -212,24 +207,20 @@ export default function BriefVoorbereidenDialog({
           prioriteit: 'normaal',
           status: 'open',
           offMarketSignaalId: signaal.id,
-          notities: `Brief verzonden naar ${eigenaarBedrijfsnaam || eigenaarNaam || 'eigenaar/rechthebbende'} (${objectomschrijving || objectadres || signaal.titel}).`,
+          notities: `Brief verzonden naar ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
         } as any);
-      } catch (e) {
-        console.warn('Opvolgtaak aanmaken mislukt', e);
-      }
+      } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
 
       try {
         await logSystemContactMoment({
           type: 'notitie',
           title: 'Brief verzonden',
-          description: `Brief verzonden naar eigenaar/rechthebbende: ${eigenaarBedrijfsnaam || eigenaarNaam || '—'}${(objectomschrijving || objectadres) ? ` · ${objectomschrijving || objectadres}` : ''}.`,
+          description: `Brief verzonden naar eigenaar/rechthebbende: ${vm.bedrijfsnaam || vm.geadresseerdeNaam || '—'}${(vm.objectomschrijving || objectadres) ? ` · ${vm.objectomschrijving || objectadres}` : ''}.`,
           offMarketSignaalId: signaal.id,
           relatieId: (signaal as any).eigenaar_relatie_id ?? null,
           systemKey: `off_market_brief_verstuurd:${id}`,
         });
-      } catch (e) {
-        console.warn('Contactmoment loggen mislukt', e);
-      }
+      } catch (e) { console.warn('Contactmoment loggen mislukt', e); }
 
       toast.success('Brief gemarkeerd als verstuurd');
       onOpenChange(false);
@@ -241,7 +232,7 @@ export default function BriefVoorbereidenDialog({
   };
 
   const kandidaten = prefill.kandidaten;
-  const verzendadresOntbreekt = !isEchteWaarde(verzendadres);
+  const verzendadresOntbreekt = !vm.heeftVerzendadres;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -251,9 +242,8 @@ export default function BriefVoorbereidenDialog({
             <FileText className="h-4 w-4" /> Brief voorbereiden
           </DialogTitle>
           <DialogDescription>
-            Controleer de geadresseerde, het verzendadres en de
-            objectomschrijving in de brief. De brief wordt als concept
-            opgeslagen.
+            Controleer de geadresseerde, het verzendadres en de objectomschrijving.
+            De brief wordt als concept opgeslagen en is direct te downloaden als PDF.
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +267,23 @@ export default function BriefVoorbereidenDialog({
             </div>
           )}
 
-          {/* Blok 1 — Geadresseerde */}
+          {/* Geadresseerde-preview — exact zoals deze in PDF/kopie verschijnt. */}
+          <div
+            data-testid="brief-geadresseerde-preview"
+            className="rounded-md border bg-muted/30 p-3 text-sm leading-relaxed"
+          >
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+              Geadresseerde (zo verschijnt het in de PDF)
+            </div>
+            {vm.bedrijfsnaam && <div>{vm.bedrijfsnaam}</div>}
+            {vm.geadresseerdeNaam && <div>{vm.geadresseerdeNaam}</div>}
+            {vm.verzendadresRegels.map((r, i) => <div key={i}>{r}</div>)}
+            {!vm.bedrijfsnaam && !vm.geadresseerdeNaam && vm.verzendadresRegels.length === 0 && (
+              <div className="text-muted-foreground italic">Nog geen geadresseerde-gegevens</div>
+            )}
+          </div>
+
+          {/* Geadresseerde */}
           <div className="space-y-1.5">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Geadresseerde</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -286,8 +292,7 @@ export default function BriefVoorbereidenDialog({
                 <Input id="brief-naam" value={eigenaarNaam}
                   onChange={(e) => {
                     setEigenaarNaam(e.target.value);
-                    const a = bepaalAanhef(e.target.value || null);
-                    setAanhef(a);
+                    setAanhef(bepaalAanhef(e.target.value || null));
                   }}
                 />
               </div>
@@ -298,7 +303,7 @@ export default function BriefVoorbereidenDialog({
             </div>
           </div>
 
-          {/* Blok 2 — Verzendadres */}
+          {/* Verzendadres */}
           <div className="space-y-1.5">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Verzendadres</div>
             <Label htmlFor="brief-verzend" className="sr-only">Verzendadres</Label>
@@ -311,12 +316,12 @@ export default function BriefVoorbereidenDialog({
             />
             {verzendadresOntbreekt && (
               <p className="text-[11px] text-amber-600">
-                Geen verzendadres bekend. Vul dit handmatig aan voordat u de brief print.
+                Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.
               </p>
             )}
           </div>
 
-          {/* Blok 3 — Objectomschrijving in brief */}
+          {/* Objectomschrijving */}
           <div className="space-y-1.5">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Objectomschrijving in brief</div>
             <Label htmlFor="brief-objomschrijving" className="sr-only">Objectomschrijving</Label>
@@ -339,8 +344,7 @@ export default function BriefVoorbereidenDialog({
             <div className="pt-2">
               <Input value={objectadres} onChange={(e) => setObjectadres(e.target.value)} />
               <p className="mt-1 text-[11px]">
-                Wordt bewaard voor administratie. De brief gebruikt
-                "Objectomschrijving in brief".
+                Wordt bewaard voor administratie. De brief gebruikt "Objectomschrijving in brief".
               </p>
             </div>
           </details>
@@ -375,18 +379,6 @@ export default function BriefVoorbereidenDialog({
               className="font-mono text-xs leading-relaxed"
             />
           </div>
-
-          {/* Verborgen print-iframe — vermijdt pop-up blocker. */}
-          <iframe
-            ref={printIframeRef}
-            title="Brief print"
-            aria-hidden="true"
-            tabIndex={-1}
-            style={{
-              position: 'fixed', right: 0, bottom: 0,
-              width: 0, height: 0, border: 0, opacity: 0, pointerEvents: 'none',
-            }}
-          />
         </div>
 
         <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
@@ -394,8 +386,9 @@ export default function BriefVoorbereidenDialog({
           <Button variant="outline" onClick={kopieer}>
             <Copy className="h-4 w-4" /> Kopieer brief
           </Button>
-          <Button variant="outline" onClick={print}>
-            <Printer className="h-4 w-4" /> Print brief / Opslaan als PDF
+          <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig}>
+            {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Download PDF
           </Button>
           <Button onClick={markeerVerstuurd} disabled={bezig}>
             <Send className="h-4 w-4" /> Markeer als verstuurd
@@ -404,147 +397,4 @@ export default function BriefVoorbereidenDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-// ---------------------------------------------------------------------
-// Printbare HTML — professionele Bito Vastgoed A4-brief.
-//
-// Bewust een dedicated A4-template:
-//  - eigen <html> binnen verborgen iframe → geen app/modal styling;
-//  - alleen inline CSS, geen externe stylesheets;
-//  - logo via absolute URL (data-URL/asset URL) ingebed wanneer beschikbaar,
-//    anders een nette tekstfallback;
-//  - de brieftekst bevat reeds de afsluiting / handtekening — er wordt
-//    daarom géén tweede handtekeningblok toegevoegd.
-// ---------------------------------------------------------------------
-export function bouwPrintbareHtml(input: {
-  eigenaarNaam: string;
-  eigenaarBedrijfsnaam: string;
-  verzendadres: string;
-  onderwerp: string;
-  brieftekst: string;
-  logoUrl?: string;
-}): string {
-  // Placeholdertekst mag nooit in een printbare brief verschijnen.
-  const veiligVerzend = isEchteWaarde(input.verzendadres) ? input.verzendadres : '';
-  const geadresseerde = bouwGeadresseerdeBlok({
-    naam: input.eigenaarNaam,
-    bedrijfsnaam: input.eigenaarBedrijfsnaam,
-    verzendadres: veiligVerzend,
-  });
-  const datum = formatDatumNL();
-  const esc = (s: string) => s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  const logoBlok = input.logoUrl
-    ? `<img class="logo-img" src="${esc(input.logoUrl)}" alt="Bito Vastgoed" />`
-    : `<div class="logo-fallback" aria-hidden="true">B</div>`;
-
-  return `<!doctype html><html lang="nl"><head>
-<meta charset="utf-8" />
-<title>Brief — ${esc(BITO_CONTACT.bedrijf)} — ${esc(input.onderwerp)}</title>
-<style>
-  @page { size: A4 portrait; margin: 20mm 22mm; }
-  * { box-sizing: border-box; }
-  html, body { background: #ffffff; }
-  body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    color: #1a1a1a;
-    font-size: 10.75pt;
-    line-height: 1.5;
-    margin: 0;
-    padding: 0;
-    -webkit-font-smoothing: antialiased;
-  }
-  .sheet { width: 100%; max-width: 170mm; margin: 0 auto; }
-  .header {
-    display: flex;
-    align-items: flex-start;
-    gap: 14mm;
-    padding-bottom: 6mm;
-    border-bottom: 0.5pt solid #c89c69;
-    margin-bottom: 12mm;
-  }
-  .logo { flex: 0 0 auto; }
-  .logo-img { display: block; height: 18mm; width: auto; }
-  .logo-fallback {
-    width: 14mm; height: 14mm;
-    display: flex; align-items: center; justify-content: center;
-    border: 1pt solid #c89c69; color: #c89c69;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 22pt; font-weight: 700;
-  }
-  .brand { flex: 1 1 auto; padding-top: 1mm; }
-  .brand-naam {
-    font-size: 13pt; font-weight: 700; letter-spacing: 0.18em;
-    color: #1a1a1a; text-transform: uppercase;
-  }
-  .brand-tagline {
-    margin-top: 1.5mm;
-    font-size: 9pt; color: #6b6b6b; font-style: italic; letter-spacing: 0.02em;
-  }
-  .addressee {
-    margin-bottom: 14mm;
-    line-height: 1.45;
-  }
-  .addressee .line { display: block; }
-  .meta {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    margin-bottom: 10mm;
-  }
-  .datum { font-size: 10.5pt; color: #1a1a1a; }
-  .onderwerp {
-    margin: 0 0 8mm 0;
-    font-size: 11pt; font-weight: 600; color: #1a1a1a;
-  }
-  .body {
-    white-space: pre-wrap;
-    font-size: 10.75pt;
-    line-height: 1.55;
-    color: #1a1a1a;
-    /* Zorg dat de brief normaal gesproken op één pagina past en
-       afsluiting niet los van laatste alinea afbreekt. */
-    orphans: 3;
-    widows: 3;
-  }
-  .footer-rule {
-    margin-top: 14mm;
-    border-top: 0.5pt solid #e7d9c2;
-    padding-top: 3mm;
-    font-size: 8pt; color: #8a8a8a; text-align: center; letter-spacing: 0.04em;
-  }
-  @media print {
-    body { font-size: 10.75pt; }
-    .noprint { display: none !important; }
-  }
-</style>
-</head><body>
-<div class="sheet">
-  <div class="header">
-    <div class="logo">${logoBlok}</div>
-    <div class="brand">
-      <div class="brand-naam">${esc(BITO_CONTACT.bedrijf)}</div>
-      <div class="brand-tagline">Onafhankelijk. Gericht. Discreet.</div>
-    </div>
-  </div>
-
-  <div class="addressee">
-    ${geadresseerde.length > 0
-      ? geadresseerde.map(l => `<span class="line">${esc(l)}</span>`).join('')
-      : ''}
-  </div>
-
-  <div class="meta">
-    <div class="datum">${esc(datum)}</div>
-  </div>
-
-  <p class="onderwerp">Betreft: ${esc(input.onderwerp)}</p>
-
-  <div class="body">${esc(input.brieftekst)}</div>
-
-  <div class="footer-rule">${esc(BITO_CONTACT.bedrijf)} · ${esc(BITO_CONTACT.website)}</div>
-</div>
-</body></html>`;
 }
