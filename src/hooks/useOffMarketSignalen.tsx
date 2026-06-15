@@ -120,11 +120,12 @@ export function useCreateOffMarketSignaal() {
 
 export function useUpdateOffMarketSignaal() {
   const qc = useQueryClient();
+  const latLngChangedRef = { current: false } as { current: boolean };
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: SignaalUpdate }) => {
       const { data: u } = await supabase.auth.getUser();
       const finalPatch = { ...patch, updated_by: u.user?.id ?? null };
-      const latLngChanged = Object.prototype.hasOwnProperty.call(patch, 'lat')
+      latLngChangedRef.current = Object.prototype.hasOwnProperty.call(patch, 'lat')
         || Object.prototype.hasOwnProperty.call(patch, 'lng');
       if (import.meta.env.DEV) {
         // eslint-disable-next-line no-console
@@ -139,11 +140,11 @@ export function useUpdateOffMarketSignaal() {
         .update(finalPatch)
         .eq('id', id).select('*').single();
       if (error) throw error;
-      return { row: data as OffMarketSignaal, latLngChanged };
+      return data as OffMarketSignaal;
     },
-    onSuccess: ({ row, latLngChanged }) => {
+    onSuccess: (row) => {
       invalidateAll(qc, row.id);
-      if (latLngChanged && (row as any).lat != null && (row as any).lng != null
+      if (latLngChangedRef.current && (row as any).lat != null && (row as any).lng != null
         && (row as any).geo_status !== 'verrijkt') {
         triggerGeoVerrijking(row.id);
       }
