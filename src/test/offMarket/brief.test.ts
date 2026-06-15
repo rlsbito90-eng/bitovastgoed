@@ -268,7 +268,6 @@ describe('brief — printbare html', () => {
       brieftekst: bouwBriefTekst({ aanhef: 'Geachte heer/mevrouw Treon,', objectadres: 'Prinsengracht 340-B te Amsterdam' }),
     });
     // Branding
-    expect(html).toContain('BITO VASTGOED'.toLowerCase()) ;
     expect(html.toLowerCase()).toContain('bito vastgoed');
     expect(html).toContain('Onafhankelijk. Gericht. Discreet.');
     // Functietitel zakelijk NL, niet Engels
