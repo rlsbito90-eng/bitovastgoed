@@ -57,6 +57,12 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+vi.mock('@/hooks/useOffMarketBrieven', () => ({
+  useOffMarketBrievenForSignaal: () => ({ data: [], isLoading: false }),
+  useUpsertBrief: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useMarkBriefVerstuurd: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}));
+
 const baseSignaal = {
   id: 'sig-1',
   status: 'nieuw_signaal',
