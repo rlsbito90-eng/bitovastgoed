@@ -703,3 +703,26 @@
     font-size: 16px;
   }
 }
+
+/* MapLibre popup — leesbaar in light en dark mode, Bito-stijl. */
+.maplibregl-popup-content {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.35), 0 4px 10px -4px rgb(0 0 0 / 0.2);
+}
+.maplibregl-popup-tip {
+  border-top-color: hsl(var(--popover)) !important;
+  border-bottom-color: hsl(var(--popover)) !important;
+}
+.maplibregl-popup-close-button {
+  color: hsl(var(--muted-foreground));
+  font-size: 1.1rem;
+  padding: 0 0.4rem;
+}
+.maplibregl-popup-close-button:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
