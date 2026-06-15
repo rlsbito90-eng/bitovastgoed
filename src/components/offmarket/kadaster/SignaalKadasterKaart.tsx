@@ -16,7 +16,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   FileSearch, Coins, MapPin, AlertCircle, Archive, ChevronDown, ChevronUp,
+  Info,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
