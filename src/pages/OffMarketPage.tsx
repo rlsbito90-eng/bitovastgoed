@@ -269,6 +269,9 @@ export default function OffMarketPage() {
   if (regioFilter) activeFilters.push({ key: 'regio', label: `Regio: ${regioFilter}`, clear: () => setRegioFilter('') });
   if (bronFilter) activeFilters.push({ key: 'bron', label: `Bron: ${BRON_TYPE_LABEL[bronFilter]}`, clear: () => setBronFilter('') });
   if (aiStatusFilter) activeFilters.push({ key: 'ai', label: `AI: ${AI_STATUS_LABEL[aiStatusFilter]}`, clear: () => setAiStatusFilter('') });
+  if (geoGemeenteFilter) activeFilters.push({ key: 'geo_g', label: `Gemeente: ${geoGemeenteFilter}`, clear: () => { setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
+  if (geoWijkFilter) activeFilters.push({ key: 'geo_w', label: `Wijk: ${geoWijkFilter}`, clear: () => { setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
+  if (geoBuurtFilter) activeFilters.push({ key: 'geo_b', label: `Buurt: ${geoBuurtFilter}`, clear: () => setGeoBuurtFilter('') });
   if (bucketFilter !== null) {
     const found = bucketTellingen.find(b => b.rang === bucketFilter);
     if (found) activeFilters.push({ key: 'bucket', label: `Type: ${found.label}`, clear: () => setBucketFilter(null) });
@@ -276,6 +279,7 @@ export default function OffMarketPage() {
   const wisAlleFilters = () => {
     setZoek(''); setStatusFilter(''); setPrioFilter(''); setAssetFilter('');
     setRegioFilter(''); setBronFilter(''); setAiStatusFilter(''); setBucketFilter(null);
+    setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter('');
   };
 
 
