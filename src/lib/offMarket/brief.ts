@@ -669,7 +669,7 @@ export function buildBriefViewModel(input: BriefBronInput): BriefViewModel {
     verzendadres: veiligVerzend,
     heeftVerzendadres: regels.length > 0,
     objectomschrijving: (input.objectomschrijving ?? '').trim(),
-    onderwerp: (input.onderwerp ?? '').trim() || bepaalOnderwerp(),
+    onderwerp: (input.onderwerp ?? '').trim() || bepaalOnderwerp(input.objectomschrijving),
     brieftekst: input.brieftekst ?? '',
     datum: formatDatumNL(),
     contact: BITO_CONTACT,
