@@ -236,7 +236,7 @@ describe('brief — viewmodel (modal / kopie / PDF gebruiken dezelfde data)', ()
     eigenaarBedrijfsnaam: '',
     verzendadres: 'De Borcht 3\n1083AC Amsterdam',
     objectomschrijving: 'Prinsengracht 340-B te Amsterdam',
-    onderwerp: 'Vrijblijvende interesse in vastgoedbezit',
+    onderwerp: 'Interesse in uw pand aan Prinsengracht 340-B te Amsterdam',
     brieftekst: bouwBriefTekst({
       aanhef: 'Geachte heer/mevrouw Treon,',
       objectadres: 'Prinsengracht 340-B te Amsterdam',
