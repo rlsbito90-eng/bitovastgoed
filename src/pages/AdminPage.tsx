@@ -18,6 +18,7 @@ import type { JaarDoel } from '@/data/mock-data';
 import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
 import OffMarketBronnenSectie from '@/components/admin/OffMarketBronnenSectie';
 import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
+import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
 import { mapDbError } from '@/lib/errors';
 
 type Rol = 'admin' | 'medewerker';
@@ -113,6 +114,10 @@ export default function AdminPage() {
 
       {/* ---- AFGEKEURDE RUWE RECORDS ---- */}
       <OffMarketGeskiptRecordsSectie />
+
+      {/* ---- GEO-VERRIJKING BACKFILL ---- */}
+      <OffMarketGeoBackfillPanel />
+
 
 
       {/* ---- GEBRUIKERS ---- */}

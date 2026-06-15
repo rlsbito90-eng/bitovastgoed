@@ -98,7 +98,18 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
     label: 'Adres',
     defaultVisible: true,
     cellClassName: 'max-w-[260px]',
-    render: (s) => <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>,
+    render: (s) => {
+      const a = s as any;
+      const gebied = a.geo_status === 'verrijkt'
+        ? [a.geo_gemeente_naam, a.geo_buurt_naam ?? a.geo_wijk_naam].filter(Boolean).join(' · ')
+        : null;
+      return (
+        <div className="min-w-0">
+          <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>
+          {gebied && <p className="text-[11px] text-muted-foreground truncate">{gebied}</p>}
+        </div>
+      );
+    },
   },
   {
     id: 'postcode',
