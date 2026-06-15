@@ -74,6 +74,11 @@ function parseAdres(text: string) {
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
   [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
   [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
+  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
+  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming)\b/i, 'wonen'],
+  [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
+  [/\b(studentenhuisvesting|studentenwoning(?:en)?|studentencomplex)\b/i, 'studentenhuisvesting'],
+  [/\b(woonhuis|herenhuis|grachtenpand|eengezinswoning)\b/i, 'woonhuis'],
   [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],
@@ -85,6 +90,13 @@ const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
 function detectAssettype(t: string): string {
   for (const [re, type] of ASSETTYPE_KEYWORDS) if (re.test(t)) return type;
   return 'overig';
+}
+function detectStrategie(text: string): string | null {
+  if (!text) return null;
+  if (/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming|kadastrale\s+splitsing|juridische\s+splitsing)\b/i.test(text)) return 'Splitsingspotentie';
+  if (/\b(uitponding|uitponden)\b/i.test(text)) return 'Uitponding';
+  if (/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen)\b/i.test(text)) return 'Transformatie';
+  return null;
 }
 const SIGNAALTYPE_KEYWORDS: Array<[RegExp, string]> = [
   [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen)\b/i, 'transformatiepotentie'],
@@ -359,6 +371,7 @@ Deno.serve(async (req) => {
         status: 'nieuw_signaal',
         ai_status: 'niet_verrijkt',
         dedupe_hash: dedupeHash,
+        potentiele_strategie: detectStrategie(blobText),
         notities: `[auto-import] score=${score}\nscore_componenten: ${scoreComponentenStr}`,
       };
 

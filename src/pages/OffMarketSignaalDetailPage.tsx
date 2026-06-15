@@ -141,6 +141,11 @@ export default function OffMarketSignaalDetailPage() {
         />
       </div>
 
+      {/* Mobiel: directe onderzoeksacties direct na de cockpit/KPI's */}
+      <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6">
+        <SignaalOnderzoeksacties signaal={signaal} variant="compact" withHeader={false} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
         {/* Hoofdkolom met tabs */}
         <div className="min-w-0">
