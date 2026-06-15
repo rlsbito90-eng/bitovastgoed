@@ -9,7 +9,7 @@
  */
 
 const NOISE_PATTONS: RegExp[] = [
-  /\baanvragen?\b/gi,
+  /\baanvra(?:ag|gen)\b/gi,
   /\baangevraagde?\b/gi,
   /\bbesluit(?:en)?\b/gi,
   /\bverleend(?:e)?\b/gi,
