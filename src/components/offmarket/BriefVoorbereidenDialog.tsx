@@ -115,7 +115,7 @@ export default function BriefVoorbereidenDialog({
 
   const upsert = useUpsertBrief();
   const markVerstuurd = useMarkBriefVerstuurd();
-  const { addTaak } = useDataStore();
+  const { addTaak, taken } = useDataStore();
 
   // Centraal viewmodel — exact dezelfde data gebruikt door modal-preview,
   // kopieerbrief én PDF.
