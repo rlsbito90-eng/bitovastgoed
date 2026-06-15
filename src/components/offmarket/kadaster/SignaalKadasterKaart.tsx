@@ -583,19 +583,24 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
         </Button>
       </div>
 
-      {/* Opgeslagen records */}
-      {recordList.length > 0 && (
+      {/* Kadasterberichten — alle ooit opgevraagde records bij dit signaal */}
+      {recordList.length > 0 ? (
         <div className="space-y-3 pt-2 border-t border-border/60">
           <div className="flex items-center gap-2">
             <Archive className="h-3.5 w-3.5 text-muted-foreground" />
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Opgeslagen bij dit signaal
+              Kadasterberichten ({recordList.length})
             </p>
           </div>
-          {Array.from(laatsteMap.entries()).map(([code, r]) => (
-            <RecordKaart key={code} r={r} pdf={pdfPerRecord.get(r.id)} />
+          {recordList.map((r, i) => (
+            <RecordKaart
+              key={r.id}
+              r={r}
+              pdf={pdfPerRecord.get(r.id)}
+              isLatest={i === 0}
+              onDetails={() => setDetailRecord(r)}
+            />
           ))}
-          <KadasterHistorieLijst records={recordList} />
 
           <Collapsible open={techOpen} onOpenChange={setTechOpen}>
             <CollapsibleTrigger className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
@@ -616,6 +621,12 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
               </pre>
             </CollapsibleContent>
           </Collapsible>
+        </div>
+      ) : (
+        <div className="pt-2 border-t border-border/60">
+          <p className="text-[11px] text-muted-foreground italic">
+            Nog geen Kadasterberichten opgevraagd voor dit signaal.
+          </p>
         </div>
       )}
 
