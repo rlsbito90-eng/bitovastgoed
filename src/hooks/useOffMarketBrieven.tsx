@@ -65,6 +65,7 @@ export function useUpsertBrief() {
         eigenaar_bedrijfsnaam: input.eigenaar_bedrijfsnaam ?? null,
         verzendadres: input.verzendadres ?? null,
         objectadres: input.objectadres ?? null,
+        objectomschrijving: input.objectomschrijving ?? null,
         aanhef: input.aanhef ?? null,
         onderwerp: input.onderwerp ?? null,
         brieftekst: input.brieftekst,
