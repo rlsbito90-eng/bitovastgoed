@@ -10,6 +10,7 @@ export interface OffMarketBrief {
   eigenaar_bedrijfsnaam: string | null;
   verzendadres: string | null;
   objectadres: string | null;
+  objectomschrijving: string | null;
   aanhef: string | null;
   onderwerp: string | null;
   brieftekst: string;
@@ -26,6 +27,7 @@ export interface BriefInsert {
   eigenaar_bedrijfsnaam?: string | null;
   verzendadres?: string | null;
   objectadres?: string | null;
+  objectomschrijving?: string | null;
   aanhef?: string | null;
   onderwerp?: string | null;
   brieftekst: string;
