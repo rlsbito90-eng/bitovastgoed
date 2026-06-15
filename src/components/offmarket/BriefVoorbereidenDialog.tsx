@@ -399,8 +399,12 @@ export default function BriefVoorbereidenDialog({
               id="brief-objomschrijving"
               value={objectomschrijving}
               onChange={(e) => {
-                setObjectomschrijving(e.target.value);
-                setBrieftekst(bouwBriefTekst({ aanhef, objectadres: e.target.value }));
+                const nieuw = e.target.value;
+                setObjectomschrijving(nieuw);
+                setBrieftekst(bouwBriefTekst({ aanhef, objectadres: nieuw }));
+                // Onderwerp volgt automatisch zolang de gebruiker het niet
+                // handmatig heeft aangepast.
+                if (!onderwerpHandmatig) setOnderwerp(bepaalOnderwerp(nieuw));
               }}
             />
             <p className="text-[11px] text-muted-foreground">
