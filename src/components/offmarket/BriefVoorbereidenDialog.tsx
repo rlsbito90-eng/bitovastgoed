@@ -96,6 +96,7 @@ export default function BriefVoorbereidenDialog({
   const [bezig, setBezig] = useState(false);
   const [pdfBezig, setPdfBezig] = useState(false);
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
+  const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -109,6 +110,7 @@ export default function BriefVoorbereidenDialog({
     setOnderwerp(prefill.onderwerp);
     setBrieftekst(prefill.brieftekst);
     setBriefId(null);
+    setOnderwerpHandmatig(false);
   }, [open, prefill]);
 
   const upsert = useUpsertBrief();
