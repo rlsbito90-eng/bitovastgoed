@@ -92,6 +92,14 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>, id?: string) {
   if (id) qc.invalidateQueries({ queryKey: ['off-market-signaal', id] });
 }
 
+/** Fire-and-forget geo-verrijking; faalt stil. */
+function triggerGeoVerrijking(signaalId: string) {
+  if (!signaalId) return;
+  supabase.functions
+    .invoke('off-market-geo-verrijk', { body: { signaal_id: signaalId, force: false } })
+    .catch(() => { /* ignore — backfill vangt later op */ });
+}
+
 export function useCreateOffMarketSignaal() {
   const qc = useQueryClient();
   return useMutation({
@@ -103,18 +111,23 @@ export function useCreateOffMarketSignaal() {
       if (error) throw error;
       return data as OffMarketSignaal;
     },
-    onSuccess: (row) => invalidateAll(qc, row.id),
+    onSuccess: (row) => {
+      invalidateAll(qc, row.id);
+      if ((row as any).lat != null && (row as any).lng != null) triggerGeoVerrijking(row.id);
+    },
   });
 }
 
 export function useUpdateOffMarketSignaal() {
   const qc = useQueryClient();
+  const latLngChangedRef = { current: false } as { current: boolean };
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: SignaalUpdate }) => {
       const { data: u } = await supabase.auth.getUser();
       const finalPatch = { ...patch, updated_by: u.user?.id ?? null };
+      latLngChangedRef.current = Object.prototype.hasOwnProperty.call(patch, 'lat')
+        || Object.prototype.hasOwnProperty.call(patch, 'lng');
       if (import.meta.env.DEV) {
-        // Tijdelijke debug-log voor Off-Market update — focus op indicatieve_waarde.
         // eslint-disable-next-line no-console
         console.debug('[off_market_signalen.update]', id, {
           indicatieve_waarde: finalPatch.indicatieve_waarde,
@@ -129,7 +142,13 @@ export function useUpdateOffMarketSignaal() {
       if (error) throw error;
       return data as OffMarketSignaal;
     },
-    onSuccess: (row) => invalidateAll(qc, row.id),
+    onSuccess: (row) => {
+      invalidateAll(qc, row.id);
+      if (latLngChangedRef.current && (row as any).lat != null && (row as any).lng != null
+        && (row as any).geo_status !== 'verrijkt') {
+        triggerGeoVerrijking(row.id);
+      }
+    },
   });
 }
 

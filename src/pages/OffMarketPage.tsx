@@ -73,6 +73,9 @@ export default function OffMarketPage() {
   const [regioFilter, setRegioFilter] = useStored<string>('regio', '');
   const [bronFilter, setBronFilter] = useStored<OffMarketBronType | ''>('bron', '');
   const [aiStatusFilter, setAiStatusFilter] = useStored<OffMarketAiStatus | ''>('ai_status', '');
+  const [geoGemeenteFilter, setGeoGemeenteFilter] = useStored<string>('geo_gemeente', '');
+  const [geoWijkFilter, setGeoWijkFilter] = useStored<string>('geo_wijk', '');
+  const [geoBuurtFilter, setGeoBuurtFilter] = useStored<string>('geo_buurt', '');
   const [bucketFilter, setBucketFilterRaw] = useState<number | null>(() => {
     try {
       const v = sessionStorage.getItem('off-market-filter:bucket');
@@ -151,11 +154,15 @@ export default function OffMarketPage() {
   const preBucket = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     return signalen.filter(s => {
+      const a = s as any;
       if (statusFilter && s.status !== statusFilter) return false;
       if (prioFilter && s.prioriteit !== prioFilter) return false;
       if (assetFilter && s.assettype !== assetFilter) return false;
       if (bronFilter && s.bron_type !== bronFilter) return false;
       if (aiStatusFilter && (s as any).ai_status !== aiStatusFilter) return false;
+      if (geoGemeenteFilter && a.geo_gemeente_naam !== geoGemeenteFilter) return false;
+      if (geoWijkFilter && a.geo_wijk_naam !== geoWijkFilter) return false;
+      if (geoBuurtFilter && a.geo_buurt_naam !== geoBuurtFilter) return false;
       if (regioFilter) {
         const blob = `${s.provincie ?? ''} ${s.regio ?? ''}`.toLowerCase();
         if (!blob.includes(regioFilter.toLowerCase())) return false;
@@ -166,7 +173,29 @@ export default function OffMarketPage() {
       }
       return true;
     });
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter]);
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, geoGemeenteFilter, geoWijkFilter, geoBuurtFilter]);
+
+  // Beschikbare geo-opties (cascade: wijken binnen gekozen gemeente, buurten binnen gekozen wijk/gemeente)
+  const geoOpties = useMemo(() => {
+    const gemeenten = new Set<string>();
+    const wijken = new Set<string>();
+    const buurten = new Set<string>();
+    for (const s of signalen) {
+      const a = s as any;
+      if (a.geo_status !== 'verrijkt') continue;
+      if (a.geo_gemeente_naam) gemeenten.add(a.geo_gemeente_naam);
+      if (a.geo_wijk_naam && (!geoGemeenteFilter || a.geo_gemeente_naam === geoGemeenteFilter)) wijken.add(a.geo_wijk_naam);
+      if (a.geo_buurt_naam
+        && (!geoGemeenteFilter || a.geo_gemeente_naam === geoGemeenteFilter)
+        && (!geoWijkFilter || a.geo_wijk_naam === geoWijkFilter)) buurten.add(a.geo_buurt_naam);
+    }
+    const sort = (a: string, b: string) => a.localeCompare(b, 'nl');
+    return {
+      gemeenten: [...gemeenten].sort(sort),
+      wijken: [...wijken].sort(sort),
+      buurten: [...buurten].sort(sort),
+    };
+  }, [signalen, geoGemeenteFilter, geoWijkFilter]);
 
   const bucketTellingen = useMemo(() => {
     const tellingen = new Map<number, { label: string; aantal: number }>();
@@ -240,6 +269,9 @@ export default function OffMarketPage() {
   if (regioFilter) activeFilters.push({ key: 'regio', label: `Regio: ${regioFilter}`, clear: () => setRegioFilter('') });
   if (bronFilter) activeFilters.push({ key: 'bron', label: `Bron: ${BRON_TYPE_LABEL[bronFilter]}`, clear: () => setBronFilter('') });
   if (aiStatusFilter) activeFilters.push({ key: 'ai', label: `AI: ${AI_STATUS_LABEL[aiStatusFilter]}`, clear: () => setAiStatusFilter('') });
+  if (geoGemeenteFilter) activeFilters.push({ key: 'geo_g', label: `Gemeente: ${geoGemeenteFilter}`, clear: () => { setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
+  if (geoWijkFilter) activeFilters.push({ key: 'geo_w', label: `Wijk: ${geoWijkFilter}`, clear: () => { setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
+  if (geoBuurtFilter) activeFilters.push({ key: 'geo_b', label: `Buurt: ${geoBuurtFilter}`, clear: () => setGeoBuurtFilter('') });
   if (bucketFilter !== null) {
     const found = bucketTellingen.find(b => b.rang === bucketFilter);
     if (found) activeFilters.push({ key: 'bucket', label: `Type: ${found.label}`, clear: () => setBucketFilter(null) });
@@ -247,6 +279,7 @@ export default function OffMarketPage() {
   const wisAlleFilters = () => {
     setZoek(''); setStatusFilter(''); setPrioFilter(''); setAssetFilter('');
     setRegioFilter(''); setBronFilter(''); setAiStatusFilter(''); setBucketFilter(null);
+    setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter('');
   };
 
 
@@ -327,6 +360,23 @@ export default function OffMarketPage() {
             <select className={selectCls} value={aiStatusFilter} onChange={e => setAiStatusFilter(e.target.value as OffMarketAiStatus | '')}>
               <option value="">Alle AI-statussen</option>
               {AI_STATUS_VOLGORDE.map(a => <option key={a} value={a}>{AI_STATUS_LABEL[a]}</option>)}
+            </select>
+            <select className={selectCls} value={geoGemeenteFilter}
+              onChange={e => { setGeoGemeenteFilter(e.target.value); setGeoWijkFilter(''); setGeoBuurtFilter(''); }}>
+              <option value="">Alle gemeenten</option>
+              {geoOpties.gemeenten.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select className={selectCls} value={geoWijkFilter}
+              onChange={e => { setGeoWijkFilter(e.target.value); setGeoBuurtFilter(''); }}
+              disabled={geoOpties.wijken.length === 0}>
+              <option value="">Alle wijken</option>
+              {geoOpties.wijken.map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+            <select className={selectCls} value={geoBuurtFilter}
+              onChange={e => setGeoBuurtFilter(e.target.value)}
+              disabled={geoOpties.buurten.length === 0}>
+              <option value="">Alle buurten</option>
+              {geoOpties.buurten.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
             {tab === 'signalen' && (
               <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">

@@ -2920,6 +2920,16 @@ export type Database = {
           gearchiveerd_op: string | null
           gekoppeld_object_id: string | null
           gekoppelde_deal_id: string | null
+          geo_bron: string | null
+          geo_buurt_code: string | null
+          geo_buurt_naam: string | null
+          geo_foutmelding: string | null
+          geo_gemeente_code: string | null
+          geo_gemeente_naam: string | null
+          geo_status: Database["public"]["Enums"]["off_market_geo_status"]
+          geo_verrijkt_op: string | null
+          geo_wijk_code: string | null
+          geo_wijk_naam: string | null
           id: string
           indicatieve_waarde: number | null
           kadaster_check_op: string | null
@@ -2998,6 +3008,16 @@ export type Database = {
           gearchiveerd_op?: string | null
           gekoppeld_object_id?: string | null
           gekoppelde_deal_id?: string | null
+          geo_bron?: string | null
+          geo_buurt_code?: string | null
+          geo_buurt_naam?: string | null
+          geo_foutmelding?: string | null
+          geo_gemeente_code?: string | null
+          geo_gemeente_naam?: string | null
+          geo_status?: Database["public"]["Enums"]["off_market_geo_status"]
+          geo_verrijkt_op?: string | null
+          geo_wijk_code?: string | null
+          geo_wijk_naam?: string | null
           id?: string
           indicatieve_waarde?: number | null
           kadaster_check_op?: string | null
@@ -3076,6 +3096,16 @@ export type Database = {
           gearchiveerd_op?: string | null
           gekoppeld_object_id?: string | null
           gekoppelde_deal_id?: string | null
+          geo_bron?: string | null
+          geo_buurt_code?: string | null
+          geo_buurt_naam?: string | null
+          geo_foutmelding?: string | null
+          geo_gemeente_code?: string | null
+          geo_gemeente_naam?: string | null
+          geo_status?: Database["public"]["Enums"]["off_market_geo_status"]
+          geo_verrijkt_op?: string | null
+          geo_wijk_code?: string | null
+          geo_wijk_naam?: string | null
           id?: string
           indicatieve_waarde?: number | null
           kadaster_check_op?: string | null
@@ -4851,6 +4881,12 @@ export type Database = {
         | "vve"
         | "overheid"
         | "onbekend"
+      off_market_geo_status:
+        | "niet_verrijkt"
+        | "verrijkt"
+        | "geen_coordinaten"
+        | "geen_match"
+        | "fout"
       off_market_kadaster_modus: "mock" | "handmatig" | "api"
       off_market_kadaster_status:
         | "geslaagd"
@@ -5402,6 +5438,13 @@ export const Constants = {
         "vve",
         "overheid",
         "onbekend",
+      ],
+      off_market_geo_status: [
+        "niet_verrijkt",
+        "verrijkt",
+        "geen_coordinaten",
+        "geen_match",
+        "fout",
       ],
       off_market_kadaster_modus: ["mock", "handmatig", "api"],
       off_market_kadaster_status: [

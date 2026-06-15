@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, BadgeCheck, FileText, Search, Lan
 import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
 import SignaalKpiBar from '@/components/offmarket/SignaalKpiBar';
 import SignaalCockpit from '@/components/offmarket/SignaalCockpit';
+import SignaalGebiedsindeling from '@/components/offmarket/SignaalGebiedsindeling';
 import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksacties';
 import SignaalClassificatieBlok from '@/components/offmarket/SignaalClassificatieBlok';
 import SignaalDossierNotities from '@/components/offmarket/SignaalDossierNotities';
@@ -181,6 +182,7 @@ export default function OffMarketSignaalDetailPage() {
 
             <TabsContent value="onderzoek" className="space-y-5 mt-4">
               <SignaalOnderzoeksacties signaal={signaal} />
+              <SignaalGebiedsindeling signaal={signaal} />
               <SignaalKadasterKaart signaal={signaal} />
             </TabsContent>
 

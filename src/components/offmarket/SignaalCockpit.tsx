@@ -17,6 +17,7 @@ import {
   bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
 } from '@/lib/offMarket/onderzoeksAdres';
 import { ASSETTYPE_LABEL, type OffMarketSignaal } from '@/lib/offMarket/types';
+import { formatGebiedsindeling } from '@/lib/offMarket/geo';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
@@ -101,6 +102,9 @@ export default function SignaalCockpit({
           )}
         </Row>
         <Row label="Briefstatus"><SignaalBriefStatusBadge status={briefStatus} /></Row>
+        <Row label="Gebied">
+          <span className="text-xs text-foreground truncate">{formatGebiedsindeling(signaal as any)}</span>
+        </Row>
       </div>
 
       {/* Next action */}
