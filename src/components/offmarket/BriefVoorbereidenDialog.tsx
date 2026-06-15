@@ -430,7 +430,11 @@ export default function BriefVoorbereidenDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="brief-onderwerp">Onderwerp</Label>
-              <Input id="brief-onderwerp" value={onderwerp} onChange={(e) => setOnderwerp(e.target.value)} />
+              <Input
+                id="brief-onderwerp"
+                value={onderwerp}
+                onChange={(e) => { setOnderwerp(e.target.value); setOnderwerpHandmatig(true); }}
+              />
             </div>
           </div>
 
