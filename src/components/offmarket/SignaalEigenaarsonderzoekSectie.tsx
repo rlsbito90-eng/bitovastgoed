@@ -37,6 +37,7 @@ import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import KadasterCheckDialog from '@/components/offmarket/kadaster/KadasterCheckDialog';
+import BriefVoorbereidenKnop from '@/components/offmarket/BriefVoorbereidenKnop';
 import {
   signaalNaarRelatiePrefill,
   EIGENAAR_TAAK_TEMPLATES,
@@ -412,6 +413,8 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
         <ActieKnop onClick={() => setContactOpen(true)} icon={<MessageSquarePlus className="h-3.5 w-3.5" />}>
           Contactmoment loggen
         </ActieKnop>
+
+        <BriefVoorbereidenKnop signaal={signaal} />
       </div>
 
       {/* Inline-koppelpicker (collapsed onder de knop) */}
