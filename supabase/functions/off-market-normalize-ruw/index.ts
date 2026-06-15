@@ -371,6 +371,7 @@ Deno.serve(async (req) => {
         status: 'nieuw_signaal',
         ai_status: 'niet_verrijkt',
         dedupe_hash: dedupeHash,
+        potentiele_strategie: detectStrategie(blobText),
         notities: `[auto-import] score=${score}\nscore_componenten: ${scoreComponentenStr}`,
       };
 
