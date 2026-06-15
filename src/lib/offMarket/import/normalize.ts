@@ -116,7 +116,12 @@ export function verfijnAdresUitTekst(
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
   // Transformatie eerst — heeft voorrang op losse 'kantoor'/'winkel' match
   [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
-  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
+  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel|gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
+  // Wonen-groep — splitsing/woonvorming/appartementsrechten zijn altijd woon-acquisities
+  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming)\b/i, 'wonen'],
+  [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
+  [/\b(studentenhuisvesting|studentenwoning(?:en)?|studentencomplex)\b/i, 'studentenhuisvesting'],
+  [/\b(woonhuis|herenhuis|grachtenpand|eengezinswoning)\b/i, 'woonhuis'],
   [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],
@@ -129,6 +134,21 @@ const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
 export function detectAssettype(text: string): string {
   for (const [re, type] of ASSETTYPE_KEYWORDS) if (re.test(text)) return type;
   return 'overig';
+}
+
+/**
+ * Detecteer of de tekst om een woon-/splitsingsacquisitie gaat en stel een
+ * potentiele_strategie voor. Geeft `null` als er geen duidelijk signaal is —
+ * dan moet de bestaande (handmatige) strategie ongemoeid blijven.
+ */
+export function detectStrategie(text: string): string | null {
+  if (!text) return null;
+  if (/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming|kadastrale\s+splitsing|juridische\s+splitsing)\b/i.test(text)) {
+    return 'Splitsingspotentie';
+  }
+  if (/\b(uitponding|uitponden)\b/i.test(text)) return 'Uitponding';
+  if (/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen)\b/i.test(text)) return 'Transformatie';
+  return null;
 }
 
 const SIGNAALTYPE_KEYWORDS: Array<[RegExp, string]> = [
