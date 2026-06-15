@@ -124,10 +124,10 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
       </div>
 
       <EntityPicker
-        label="Eigenaar / relatie"
+        label="CRM-relatie"
         pickerTitle="Kies relatie"
         searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
-        emptyLabel="Nog geen eigenaar gekoppeld"
+        emptyLabel="CRM-relatie nog niet gekoppeld"
         value={signaal.eigenaar_relatie_id ?? ''}
         onChange={handleRelatieChange}
         items={relatieItems}

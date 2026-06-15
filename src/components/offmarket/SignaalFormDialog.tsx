@@ -8,9 +8,9 @@ import { NumberField } from '@/components/ui/number-field';
 import { toast } from 'sonner';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import {
-  ASSETTYPE_LABEL, BRON_TYPE_LABEL, SIGNAALTYPE_LABEL,
+  ASSETTYPE_LABEL, ASSETTYPE_VOLGORDE, BRON_TYPE_LABEL, SIGNAALTYPE_LABEL,
   STATUS_LABEL, STATUS_VOLGORDE, PRIORITEIT_LABEL, PRIORITEIT_VOLGORDE,
-  PROVINCIES,
+  PROVINCIES, STRATEGIE_OPTIES,
   type OffMarketAssettype, type OffMarketBronType, type OffMarketSignaaltype,
   type OffMarketStatus, type OffMarketPrioriteit, type OffMarketSignaal,
 } from '@/lib/offMarket/types';
@@ -130,7 +130,7 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
             <div>
               <Label>Assettype <span className="text-destructive">*</span></Label>
               <select className={selectCls} value={form.assettype} onChange={e => upd('assettype', e.target.value as OffMarketAssettype)}>
-                {(Object.keys(ASSETTYPE_LABEL) as OffMarketAssettype[]).map(a => (
+                {ASSETTYPE_VOLGORDE.map(a => (
                   <option key={a} value={a}>{ASSETTYPE_LABEL[a]}</option>
                 ))}
               </select>
@@ -232,7 +232,13 @@ function InnerForm({ signaal, onOpenChange, onSaved }: InnerProps) {
 
           <div>
             <Label>Potentiële strategie</Label>
-            <Input value={form.potentiele_strategie} onChange={e => upd('potentiele_strategie', e.target.value)} placeholder="Aankoop, bemiddeling, transformatie…" />
+            <select className={selectCls} value={form.potentiele_strategie} onChange={e => upd('potentiele_strategie', e.target.value)}>
+              <option value="">—</option>
+              {STRATEGIE_OPTIES.map(s => <option key={s} value={s}>{s}</option>)}
+              {form.potentiele_strategie && !(STRATEGIE_OPTIES as readonly string[]).includes(form.potentiele_strategie) && (
+                <option value={form.potentiele_strategie}>{form.potentiele_strategie} (handmatig)</option>
+              )}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
