@@ -1,14 +1,14 @@
-// Tests voor de "Brief voorbereiden"-helpers (V1.1).
+// Tests voor de "Brief voorbereiden"-helpers (V1.3).
 import { describe, it, expect } from 'vitest';
 import {
   BITO_CONTACT, VERZENDADRES_PLACEHOLDER,
   bepaalAanhef, bouwBriefPrefill, bouwBriefTekst,
   bouwGeadresseerdeBlok, bouwObjectAdresVoorBrief,
   bouwObjectOmschrijvingVoorstel,
+  buildBriefViewModel, briefAlsPlatteTekst,
   extraheerEigenaarKandidaten, extraheerRechthebbendenUitRecord,
   getAchternaam, kanBriefVoorbereiden,
 } from '@/lib/offMarket/brief';
-import { bouwPrintbareHtml } from '@/components/offmarket/BriefVoorbereidenDialog';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 
