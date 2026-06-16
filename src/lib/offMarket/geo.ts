@@ -109,11 +109,16 @@ export interface BackfillTellers {
 }
 
 export async function startGeoBackfill(
-  opts: { limit?: number; force?: boolean } = {},
+  opts: { limit?: number; force?: boolean; retryFailed?: boolean } = {},
 ): Promise<{ ok: boolean; tellers?: BackfillTellers; error?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke(GEO_FUNCTION_NAME, {
-      body: { batch: true, limit: opts.limit ?? 50, force: !!opts.force },
+      body: {
+        batch: true,
+        limit: opts.limit ?? 50,
+        force: !!opts.force,
+        retry_failed: !!opts.retryFailed,
+      },
     });
     if (error) return { ok: false, error: await leesInvokeError(error) };
     if (data && (data as any).ok === false) {
