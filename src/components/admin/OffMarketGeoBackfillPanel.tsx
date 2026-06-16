@@ -37,9 +37,15 @@ export default function OffMarketGeoBackfillPanel() {
     if (bezig) return;
     setBezig(true);
     setTellers(null);
+    setFoutmelding(null);
     const res = await startGeoBackfill({ limit, force });
     setBezig(false);
-    if (!res.ok) { toast.error(res.error ?? 'Backfill mislukt.'); return; }
+    if (!res.ok) {
+      const msg = res.error ?? 'Geo-backfill mislukt.';
+      setFoutmelding(msg);
+      toast.error(`Geo-verrijking kon niet worden gestart: ${msg}`);
+      return;
+    }
     setTellers(res.tellers ?? null);
     toast.success(`Geo-backfill klaar: ${res.tellers?.verrijkt ?? 0} verrijkt`);
     await ladenCounts();
