@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { startGeoBackfill, type BackfillTellers } from '@/lib/offMarket/geo';
+import { startGeoBackfill, GEO_FUNCTION_NAME, type BackfillTellers } from '@/lib/offMarket/geo';
 
 interface Counts { totaal: number; verrijkt: number; niet_verrijkt: number; geen_coordinaten: number; geen_match: number; fout: number; }
 
@@ -15,6 +15,7 @@ export default function OffMarketGeoBackfillPanel() {
   const [bezig, setBezig] = useState(false);
   const [tellers, setTellers] = useState<BackfillTellers | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   const ladenCounts = async () => {
     const statussen = ['verrijkt', 'niet_verrijkt', 'geen_coordinaten', 'geen_match', 'fout'] as const;
