@@ -109,14 +109,15 @@ export default function AdminPage() {
       {/* ---- AGENDA-FEED ---- */}
       <FeedTokensSectie />
 
+      {/* ---- GEO-VERRIJKING BACKFILL ---- */}
+      <OffMarketGeoBackfillPanel />
+
       {/* ---- OFF-MARKET BRONNEN ---- */}
       <OffMarketBronnenSectie />
 
       {/* ---- AFGEKEURDE RUWE RECORDS ---- */}
       <OffMarketGeskiptRecordsSectie />
 
-      {/* ---- GEO-VERRIJKING BACKFILL ---- */}
-      <OffMarketGeoBackfillPanel />
 
 
 
