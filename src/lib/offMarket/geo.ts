@@ -56,15 +56,43 @@ export function formatGeoBron(bron?: string | null): string {
   return GEO_BRON_LABEL[bron] ?? bron;
 }
 
+export const GEO_FUNCTION_NAME = 'off-market-geo-verrijk';
+
+/** Probeer een leesbare foutmelding te halen uit een Functions-invoke fout. */
+async function leesInvokeError(error: any): Promise<string> {
+  const resp: Response | undefined = error?.context?.response ?? error?.context;
+  if (resp && typeof (resp as any).text === 'function') {
+    try {
+      const txt = await (resp as Response).text();
+      try {
+        const j = JSON.parse(txt);
+        if (j?.message) return String(j.message);
+        if (j?.error) return String(j.error);
+      } catch { /* not json */ }
+      const status = (resp as Response).status;
+      if (txt) return `Edge Function status ${status}: ${txt.slice(0, 200)}`;
+      return `Edge Function gaf status ${status}`;
+    } catch { /* ignore */ }
+  }
+  const msg = String(error?.message ?? error ?? '');
+  if (msg.toLowerCase().includes('failed to send')) {
+    return `Edge Function ${GEO_FUNCTION_NAME} niet bereikbaar. Probeer opnieuw of controleer de deploy.`;
+  }
+  return msg || 'Onbekende fout bij aanroep van Edge Function.';
+}
+
 export async function verrijkSignaalGeo(
   signaalId: string,
   opts: { force?: boolean } = {},
 ): Promise<{ ok: boolean; status?: OffMarketGeoStatus; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('off-market-geo-verrijk', {
+    const { data, error } = await supabase.functions.invoke(GEO_FUNCTION_NAME, {
       body: { signaal_id: signaalId, force: !!opts.force },
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: await leesInvokeError(error) };
+    if (data && (data as any).ok === false) {
+      return { ok: false, error: (data as any).message ?? (data as any).error ?? 'Geo-verrijking mislukt.' };
+    }
     return { ok: true, status: (data as any)?.status as OffMarketGeoStatus };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? String(e) };
@@ -84,10 +112,13 @@ export async function startGeoBackfill(
   opts: { limit?: number; force?: boolean } = {},
 ): Promise<{ ok: boolean; tellers?: BackfillTellers; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('off-market-geo-verrijk', {
+    const { data, error } = await supabase.functions.invoke(GEO_FUNCTION_NAME, {
       body: { batch: true, limit: opts.limit ?? 50, force: !!opts.force },
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: await leesInvokeError(error) };
+    if (data && (data as any).ok === false) {
+      return { ok: false, error: (data as any).message ?? (data as any).error ?? 'Geo-backfill mislukt.' };
+    }
     return { ok: true, tellers: data as BackfillTellers };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? String(e) };
