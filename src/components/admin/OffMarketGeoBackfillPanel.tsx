@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { startGeoBackfill, type BackfillTellers } from '@/lib/offMarket/geo';
+import { startGeoBackfill, GEO_FUNCTION_NAME, type BackfillTellers } from '@/lib/offMarket/geo';
 
 interface Counts { totaal: number; verrijkt: number; niet_verrijkt: number; geen_coordinaten: number; geen_match: number; fout: number; }
 
@@ -15,6 +15,7 @@ export default function OffMarketGeoBackfillPanel() {
   const [bezig, setBezig] = useState(false);
   const [tellers, setTellers] = useState<BackfillTellers | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   const ladenCounts = async () => {
     const statussen = ['verrijkt', 'niet_verrijkt', 'geen_coordinaten', 'geen_match', 'fout'] as const;
@@ -36,9 +37,15 @@ export default function OffMarketGeoBackfillPanel() {
     if (bezig) return;
     setBezig(true);
     setTellers(null);
+    setFoutmelding(null);
     const res = await startGeoBackfill({ limit, force });
     setBezig(false);
-    if (!res.ok) { toast.error(res.error ?? 'Backfill mislukt.'); return; }
+    if (!res.ok) {
+      const msg = res.error ?? 'Geo-backfill mislukt.';
+      setFoutmelding(msg);
+      toast.error(`Geo-verrijking kon niet worden gestart: ${msg}`);
+      return;
+    }
     setTellers(res.tellers ?? null);
     toast.success(`Geo-backfill klaar: ${res.tellers?.verrijkt ?? 0} verrijkt`);
     await ladenCounts();
@@ -88,6 +95,16 @@ export default function OffMarketGeoBackfillPanel() {
             Geo-verrijking draaien
           </Button>
         </div>
+
+        <p className="text-[11px] text-muted-foreground font-mono-data">
+          Function: {GEO_FUNCTION_NAME}
+        </p>
+
+        {foutmelding && (
+          <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">
+            {foutmelding}
+          </div>
+        )}
 
         {tellers && (
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs pt-2 border-t border-border">
