@@ -1,6 +1,6 @@
 // Admin-paneel voor backfill van geo-verrijking via PDOK.
 import { useEffect, useState } from 'react';
-import { Globe2, Loader2, Play } from 'lucide-react';
+import { Globe2, Loader2, Play, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,9 +10,9 @@ import { startGeoBackfill, GEO_FUNCTION_NAME, type BackfillTellers } from '@/lib
 interface Counts { totaal: number; verrijkt: number; niet_verrijkt: number; geen_coordinaten: number; geen_match: number; fout: number; }
 
 export default function OffMarketGeoBackfillPanel() {
-  const [limit, setLimit] = useState<number>(50);
+  const [limit, setLimit] = useState<number>(25);
   const [force, setForce] = useState(false);
-  const [bezig, setBezig] = useState(false);
+  const [bezig, setBezig] = useState<null | 'normal' | 'retry'>(null);
   const [tellers, setTellers] = useState<BackfillTellers | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
@@ -33,13 +33,17 @@ export default function OffMarketGeoBackfillPanel() {
 
   useEffect(() => { ladenCounts(); }, []);
 
-  const draaien = async () => {
+  const draaien = async (mode: 'normal' | 'retry') => {
     if (bezig) return;
-    setBezig(true);
+    setBezig(mode);
     setTellers(null);
     setFoutmelding(null);
-    const res = await startGeoBackfill({ limit, force });
-    setBezig(false);
+    const res = await startGeoBackfill({
+      limit,
+      force: mode === 'normal' ? force : false,
+      retryFailed: mode === 'retry',
+    });
+    setBezig(null);
     if (!res.ok) {
       const msg = res.error ?? 'Geo-backfill mislukt.';
       setFoutmelding(msg);
@@ -64,12 +68,13 @@ export default function OffMarketGeoBackfillPanel() {
 
       <div className="bg-card border border-border rounded-lg p-4 space-y-4">
         {counts && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
             <Stat label="Totaal" value={counts.totaal} />
             <Stat label="Verrijkt" value={counts.verrijkt} tone="success" />
             <Stat label="Niet verrijkt" value={counts.niet_verrijkt} />
             <Stat label="Geen coördinaten" value={counts.geen_coordinaten} />
-            <Stat label="Geen match / fout" value={counts.geen_match + counts.fout} tone={counts.fout > 0 ? 'destructive' : undefined} />
+            <Stat label="Geen match" value={counts.geen_match} />
+            <Stat label="Fout" value={counts.fout} tone={counts.fout > 0 ? 'destructive' : undefined} />
           </div>
         )}
 
@@ -81,6 +86,7 @@ export default function OffMarketGeoBackfillPanel() {
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
             >
+              <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
@@ -90,10 +96,16 @@ export default function OffMarketGeoBackfillPanel() {
             <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
             <span>Ook reeds verrijkte signalen opnieuw doen</span>
           </label>
-          <Button onClick={draaien} disabled={bezig} className="ml-auto">
-            {bezig ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Play className="h-4 w-4 mr-1.5" />}
-            Geo-verrijking draaien
-          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => draaien('retry')} disabled={!!bezig}>
+              {bezig === 'retry' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-1.5" />}
+              Mislukte opnieuw proberen
+            </Button>
+            <Button onClick={() => draaien('normal')} disabled={!!bezig}>
+              {bezig === 'normal' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Play className="h-4 w-4 mr-1.5" />}
+              Geo-verrijking draaien
+            </Button>
+          </div>
         </div>
 
         <p className="text-[11px] text-muted-foreground font-mono-data">
