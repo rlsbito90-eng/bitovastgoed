@@ -5,14 +5,14 @@ import {
 } from '@/lib/offMarket/geo';
 
 describe('PDOK buildPatch', () => {
-  it('mapt gemeente/wijk/buurt uit gemengde response', () => {
+  it('mapt gemeente/wijk/buurt uit volledige response (met fl=*)', () => {
     const pdok = {
       response: {
         docs: [
-          { type: 'gemeente', gemeentenaam: 'Amsterdam', gemeentecode: '0363' },
-          { type: 'wijk', wijknaam: 'Centrum', wijkcode: '036301' },
+          { type: 'gemeente', gemeentenaam: 'Amsterdam', gemeentecode: '0363', weergavenaam: 'Gemeente Amsterdam' },
+          { type: 'wijk', wijknaam: 'Centrum', wijkcode: '036301', gemeentenaam: 'Amsterdam', gemeentecode: '0363' },
           { type: 'buurt', buurtnaam: 'Grachtengordel-West', buurtcode: 'BU03630101',
-            gemeentenaam: 'Amsterdam', gemeentecode: '0363' },
+            wijknaam: 'Centrum', wijkcode: '036301', gemeentenaam: 'Amsterdam', gemeentecode: '0363' },
         ],
       },
     };
@@ -24,6 +24,24 @@ describe('PDOK buildPatch', () => {
     expect(p.geo_wijk_code).toBe('036301');
     expect(p.geo_buurt_naam).toBe('Grachtengordel-West');
     expect(p.geo_buurt_code).toBe('BU03630101');
+  });
+
+  it('valt terug op weergavenaam (zonder gemeentenaam veld)', () => {
+    const pdok = {
+      response: {
+        docs: [
+          { type: 'gemeente', weergavenaam: 'Gemeente Utrecht' },
+          { type: 'wijk', weergavenaam: 'Binnenstad' },
+          { type: 'buurt', weergavenaam: 'Domplein' },
+        ],
+      },
+    };
+    const p = buildPatch(pdok);
+    expect(p.hasAny).toBe(true);
+    expect(p.geo_gemeente_naam).toBe('Utrecht'); // "Gemeente " gestripped
+    expect(p.geo_wijk_naam).toBe('Binnenstad');
+    expect(p.geo_buurt_naam).toBe('Domplein');
+    expect(p.geo_gemeente_code).toBeNull();
   });
 
   it('valt terug op gemeente/wijk uit buurt-doc als losse docs ontbreken', () => {
@@ -39,9 +57,24 @@ describe('PDOK buildPatch', () => {
     expect(p.geo_buurt_naam).toBe('X');
   });
 
+  it('accepteert ook dubbel-verpakte response.response.docs', () => {
+    const pdok = { response: { response: { docs: [
+      { type: 'gemeente', gemeentenaam: 'Rotterdam', gemeentecode: '0599' },
+    ] } } };
+    const p = buildPatch(pdok);
+    expect(p.geo_gemeente_naam).toBe('Rotterdam');
+  });
+
   it('lege response → hasAny=false', () => {
     expect(buildPatch({ response: { docs: [] } }).hasAny).toBe(false);
     expect(buildPatch({}).hasAny).toBe(false);
+  });
+
+  it('alleen weergavenaam zonder velden levert nog steeds match', () => {
+    const pdok = { response: { docs: [{ type: 'gemeente', weergavenaam: 'Gemeente Amsterdam' }] } };
+    const p = buildPatch(pdok);
+    expect(p.hasAny).toBe(true);
+    expect(p.geo_gemeente_naam).toBe('Amsterdam');
   });
 });
 
