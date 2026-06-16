@@ -2,8 +2,8 @@
 // Verrijkt signalen met officiële gemeente/wijk/buurt op basis van lat/lng
 // via PDOK Locatieserver reverse geocoder (open data, geen sleutel).
 //
-// Input: { signaal_id: uuid, force?: boolean }
-//      | { batch: true, limit?: number, force?: boolean }
+// Input: { signaal_id: uuid, force?: boolean, debug?: boolean }
+//      | { batch: true, limit?: number, force?: boolean, retry_failed?: boolean }
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -13,23 +13,10 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const PDOK_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/reverse';
+const PDOK_BASE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/reverse';
 const BRON = 'pdok_locatieserver';
 
 type GeoStatus = 'niet_verrijkt' | 'verrijkt' | 'geen_coordinaten' | 'geen_match' | 'fout';
-
-interface GeoPatch {
-  geo_gemeente_naam: string | null;
-  geo_gemeente_code: string | null;
-  geo_wijk_naam: string | null;
-  geo_wijk_code: string | null;
-  geo_buurt_naam: string | null;
-  geo_buurt_code: string | null;
-  geo_bron: string | null;
-  geo_verrijkt_op: string;
-  geo_status: GeoStatus;
-  geo_foutmelding: string | null;
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,74 +25,115 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function pdokReverse(lat: number, lon: number): Promise<any> {
-  const url = `${PDOK_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&type=gemeente,wijk,buurt&rows=10`;
+function buildPdokUrl(lat: number, lon: number): string {
+  const params = new URLSearchParams();
+  params.append('lat', String(lat));
+  params.append('lon', String(lon));
+  // Meerdere type-parameters (PDOK verwacht aparte values, geen comma-list).
+  params.append('type', 'gemeente');
+  params.append('type', 'wijk');
+  params.append('type', 'buurt');
+  params.append('rows', '20');
+  // CRITICAL: zonder fl=* retourneert PDOK alleen type/weergavenaam/id/score/afstand.
+  params.append('fl', '*');
+  params.append('wt', 'json');
+  return `${PDOK_BASE}?${params.toString()}`;
+}
+
+async function pdokReverse(
+  lat: number,
+  lon: number,
+): Promise<{ pdok: any; httpStatus: number; url: string }> {
+  const url = buildPdokUrl(lat, lon);
+  let lastStatus = 0;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      lastStatus = res.status;
       if (res.status === 429 || res.status >= 500) {
         await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
         continue;
       }
-      if (!res.ok) {
-        throw new Error(`PDOK HTTP ${res.status}`);
-      }
-      return await res.json();
+      if (!res.ok) throw new Error(`PDOK HTTP ${res.status}`);
+      const pdok = await res.json();
+      return { pdok, httpStatus: res.status, url };
     } catch (err) {
       if (attempt === 2) throw err;
       await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
     }
   }
-  throw new Error('PDOK onbereikbaar');
+  throw new Error(`PDOK onbereikbaar (laatste status ${lastStatus})`);
 }
 
-/** Extract eerste doc per gewenst type uit PDOK response. */
-function extractGeo(pdok: any): {
-  gemeente?: { naam: string; code: string };
-  wijk?: { naam: string; code: string };
-  buurt?: { naam: string; code: string };
+/** Strip suffix " Amsterdam" of "Gemeente " etc. uit weergavenaam wanneer mogelijk. */
+function cleanWeergave(w: string | undefined, kind: 'gemeente' | 'wijk' | 'buurt'): string | null {
+  if (!w) return null;
+  let s = String(w).trim();
+  if (kind === 'gemeente') s = s.replace(/^Gemeente\s+/i, '');
+  return s || null;
+}
+
+function pickName(d: any, namen: string[], fallbackKind: 'gemeente' | 'wijk' | 'buurt'): string | null {
+  for (const n of namen) {
+    const v = d?.[n];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return cleanWeergave(d?.weergavenaam, fallbackKind);
+}
+
+function pickCode(d: any, codes: string[]): string | null {
+  for (const c of codes) {
+    const v = d?.[c];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return null;
+}
+
+export function buildPatch(pdok: any): {
+  geo_gemeente_naam: string | null;
+  geo_gemeente_code: string | null;
+  geo_wijk_naam: string | null;
+  geo_wijk_code: string | null;
+  geo_buurt_naam: string | null;
+  geo_buurt_code: string | null;
+  hasAny: boolean;
 } {
-  const docs: any[] = pdok?.response?.docs ?? [];
-  const pick = (type: string) => docs.find((d) => d?.type === type);
-  const out: any = {};
-  const g = pick('gemeente');
-  if (g?.gemeentenaam && g?.gemeentecode) {
-    out.gemeente = { naam: String(g.gemeentenaam), code: String(g.gemeentecode) };
-  }
-  const w = pick('wijk');
-  if (w?.wijknaam && w?.wijkcode) {
-    out.wijk = { naam: String(w.wijknaam), code: String(w.wijkcode) };
-  }
-  const b = pick('buurt');
-  if (b?.buurtnaam && b?.buurtcode) {
-    out.buurt = { naam: String(b.buurtnaam), code: String(b.buurtcode) };
-  }
-  // Fallback: vul gemeente/wijk vanuit buurt-doc indien apart record ontbreekt.
-  if (!out.gemeente && b?.gemeentenaam && b?.gemeentecode) {
-    out.gemeente = { naam: String(b.gemeentenaam), code: String(b.gemeentecode) };
-  }
-  if (!out.wijk && b?.wijknaam && b?.wijkcode) {
-    out.wijk = { naam: String(b.wijknaam), code: String(b.wijkcode) };
-  }
-  return out;
-}
+  // Tolerant: accepteer zowel response.docs als response.response.docs.
+  const docs: any[] =
+    pdok?.response?.docs ??
+    pdok?.response?.response?.docs ??
+    pdok?.docs ??
+    [];
 
-export function buildPatch(
-  pdok: any,
-): Pick<GeoPatch,
-  'geo_gemeente_naam' | 'geo_gemeente_code' |
-  'geo_wijk_naam' | 'geo_wijk_code' |
-  'geo_buurt_naam' | 'geo_buurt_code'
-> & { hasAny: boolean } {
-  const g = extractGeo(pdok);
+  const byType = (t: string) =>
+    docs.find((d) => String(d?.type ?? '').toLowerCase() === t);
+
+  const g = byType('gemeente');
+  const w = byType('wijk');
+  const b = byType('buurt');
+
+  let gemeenteNaam = pickName(g, ['gemeentenaam', 'gemeente_naam'], 'gemeente');
+  let gemeenteCode = pickCode(g, ['gemeentecode', 'gemeente_code']);
+  // Fallback: pak gemeente uit wijk/buurt doc als losse doc ontbreekt.
+  if (!gemeenteNaam) gemeenteNaam = pickName(w, ['gemeentenaam'], 'gemeente') ?? pickName(b, ['gemeentenaam'], 'gemeente');
+  if (!gemeenteCode) gemeenteCode = pickCode(w, ['gemeentecode']) ?? pickCode(b, ['gemeentecode']);
+
+  let wijkNaam = pickName(w, ['wijknaam', 'wijk_naam'], 'wijk');
+  let wijkCode = pickCode(w, ['wijkcode', 'wijk_code']);
+  if (!wijkNaam) wijkNaam = pickName(b, ['wijknaam'], 'wijk');
+  if (!wijkCode) wijkCode = pickCode(b, ['wijkcode']);
+
+  const buurtNaam = pickName(b, ['buurtnaam', 'buurt_naam'], 'buurt');
+  const buurtCode = pickCode(b, ['buurtcode', 'buurt_code']);
+
   return {
-    geo_gemeente_naam: g.gemeente?.naam ?? null,
-    geo_gemeente_code: g.gemeente?.code ?? null,
-    geo_wijk_naam: g.wijk?.naam ?? null,
-    geo_wijk_code: g.wijk?.code ?? null,
-    geo_buurt_naam: g.buurt?.naam ?? null,
-    geo_buurt_code: g.buurt?.code ?? null,
-    hasAny: Boolean(g.gemeente || g.wijk || g.buurt),
+    geo_gemeente_naam: gemeenteNaam,
+    geo_gemeente_code: gemeenteCode,
+    geo_wijk_naam: wijkNaam,
+    geo_wijk_code: wijkCode,
+    geo_buurt_naam: buurtNaam,
+    geo_buurt_code: buurtCode,
+    hasAny: Boolean(gemeenteNaam || wijkNaam || buurtNaam),
   };
 }
 
@@ -113,7 +141,8 @@ async function verrijkOne(
   supabase: ReturnType<typeof createClient>,
   signaalId: string,
   force: boolean,
-): Promise<{ id: string; status: GeoStatus; skipped?: boolean; error?: string }> {
+  debug = false,
+): Promise<{ id: string; status: GeoStatus; skipped?: boolean; error?: string; debug?: any }> {
   const { data: signaal, error } = await supabase
     .from('off_market_signalen')
     .select('id, lat, lng, geo_status')
@@ -138,16 +167,24 @@ async function verrijkOne(
   }
 
   try {
-    const pdok = await pdokReverse(lat, lng);
+    const { pdok, httpStatus, url } = await pdokReverse(lat, lng);
     const p = buildPatch(pdok);
     const now = new Date().toISOString();
+    const dbg = debug ? {
+      url, httpStatus,
+      numFound: pdok?.response?.numFound,
+      types: (pdok?.response?.docs ?? []).slice(0, 5).map((d: any) => d?.type),
+      sample: (pdok?.response?.docs ?? [])[0],
+      patch: p,
+    } : undefined;
+
     if (!p.hasAny) {
       await supabase.from('off_market_signalen').update({
         geo_status: 'geen_match',
         geo_verrijkt_op: now,
         geo_foutmelding: null,
       }).eq('id', signaalId);
-      return { id: signaalId, status: 'geen_match' };
+      return { id: signaalId, status: 'geen_match', debug: dbg };
     }
     await supabase.from('off_market_signalen').update({
       geo_gemeente_naam: p.geo_gemeente_naam,
@@ -161,7 +198,7 @@ async function verrijkOne(
       geo_status: 'verrijkt',
       geo_foutmelding: null,
     }).eq('id', signaalId);
-    return { id: signaalId, status: 'verrijkt' };
+    return { id: signaalId, status: 'verrijkt', debug: dbg };
   } catch (e: any) {
     const msg = e?.message ?? String(e);
     await supabase.from('off_market_signalen').update({
@@ -193,13 +230,24 @@ Deno.serve(async (req) => {
     if (body?.batch === true) {
       const limit = Math.min(Math.max(Number(body.limit ?? 50), 1), 100);
       const force = body.force === true;
+      const retryFailed = body.retry_failed === true;
+
       let q = supabase
         .from('off_market_signalen')
-        .select('id')
+        .select('id, geo_gemeente_naam')
         .not('lat', 'is', null)
         .not('lng', 'is', null)
         .limit(limit);
-      if (!force) q = q.eq('geo_status', 'niet_verrijkt');
+
+      if (force) {
+        // Geen extra filter — verwerk alles inclusief reeds verrijkt.
+      } else if (retryFailed) {
+        // Retry mislukte/niet-gematchte records die nog geen gemeente hebben.
+        q = q.in('geo_status', ['niet_verrijkt', 'geen_match', 'fout']).is('geo_gemeente_naam', null);
+      } else {
+        q = q.eq('geo_status', 'niet_verrijkt');
+      }
+
       const { data: rows, error } = await q;
       if (error) return jsonResponse({ error: error.message }, 500);
 
@@ -211,7 +259,6 @@ Deno.serve(async (req) => {
         else if (res.status === 'geen_coordinaten') tellers.geen_coordinaten++;
         else if (res.status === 'geen_match') tellers.geen_match++;
         else if (res.status === 'fout') tellers.fout++;
-        // lichte throttle om PDOK te ontzien
         await new Promise((r) => setTimeout(r, 60));
       }
       return jsonResponse({ ok: true, ...tellers });
@@ -221,7 +268,7 @@ Deno.serve(async (req) => {
     if (!signaalId || typeof signaalId !== 'string') {
       return jsonResponse({ error: 'signaal_id ontbreekt' }, 400);
     }
-    const res = await verrijkOne(supabase, signaalId, body?.force === true);
+    const res = await verrijkOne(supabase, signaalId, body?.force === true, body?.debug === true);
     return jsonResponse({ ok: true, ...res });
   } catch (e: any) {
     return jsonResponse({ ok: false, error: e?.message ?? String(e) }, 500);

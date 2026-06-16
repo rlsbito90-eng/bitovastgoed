@@ -109,11 +109,16 @@ export interface BackfillTellers {
 }
 
 export async function startGeoBackfill(
-  opts: { limit?: number; force?: boolean } = {},
+  opts: { limit?: number; force?: boolean; retryFailed?: boolean } = {},
 ): Promise<{ ok: boolean; tellers?: BackfillTellers; error?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke(GEO_FUNCTION_NAME, {
-      body: { batch: true, limit: opts.limit ?? 50, force: !!opts.force },
+      body: {
+        batch: true,
+        limit: opts.limit ?? 50,
+        force: !!opts.force,
+        retry_failed: !!opts.retryFailed,
+      },
     });
     if (error) return { ok: false, error: await leesInvokeError(error) };
     if (data && (data as any).ok === false) {
@@ -133,7 +138,7 @@ export function formatGeoDatum(iso?: string | null): string {
 }
 
 /** Parse PDOK Locatieserver reverse-response naar onze geo-velden.
- *  Geëxporteerd los van de edge function zodat het ook in unit tests testbaar is. */
+ *  Tolerant voor verschillende veldnamen en wrappers. */
 export function buildGeoPatchFromPdok(pdok: any): {
   geo_gemeente_naam: string | null;
   geo_gemeente_code: string | null;
@@ -143,33 +148,58 @@ export function buildGeoPatchFromPdok(pdok: any): {
   geo_buurt_code: string | null;
   hasAny: boolean;
 } {
-  const docs: any[] = pdok?.response?.docs ?? [];
-  const pick = (type: string) => docs.find((d) => d?.type === type);
-  const g = pick('gemeente');
-  const w = pick('wijk');
-  const b = pick('buurt');
+  const docs: any[] =
+    pdok?.response?.docs ??
+    pdok?.response?.response?.docs ??
+    pdok?.docs ??
+    [];
+  const byType = (t: string) => docs.find((d) => String(d?.type ?? '').toLowerCase() === t);
 
-  const gemeente = g?.gemeentenaam && g?.gemeentecode
-    ? { naam: String(g.gemeentenaam), code: String(g.gemeentecode) }
-    : b?.gemeentenaam && b?.gemeentecode
-      ? { naam: String(b.gemeentenaam), code: String(b.gemeentecode) }
-      : null;
-  const wijk = w?.wijknaam && w?.wijkcode
-    ? { naam: String(w.wijknaam), code: String(w.wijkcode) }
-    : b?.wijknaam && b?.wijkcode
-      ? { naam: String(b.wijknaam), code: String(b.wijkcode) }
-      : null;
-  const buurt = b?.buurtnaam && b?.buurtcode
-    ? { naam: String(b.buurtnaam), code: String(b.buurtcode) }
-    : null;
+  const cleanWeergave = (w: any, kind: 'gemeente' | 'wijk' | 'buurt'): string | null => {
+    if (typeof w !== 'string') return null;
+    let s = w.trim();
+    if (kind === 'gemeente') s = s.replace(/^Gemeente\s+/i, '');
+    return s || null;
+  };
+  const pickName = (d: any, namen: string[], kind: 'gemeente' | 'wijk' | 'buurt'): string | null => {
+    for (const n of namen) {
+      const v = d?.[n];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return cleanWeergave(d?.weergavenaam, kind);
+  };
+  const pickCode = (d: any, codes: string[]): string | null => {
+    for (const c of codes) {
+      const v = d?.[c];
+      if (v != null && String(v).trim()) return String(v).trim();
+    }
+    return null;
+  };
+
+  const g = byType('gemeente');
+  const w = byType('wijk');
+  const b = byType('buurt');
+
+  let gemeenteNaam = pickName(g, ['gemeentenaam', 'gemeente_naam'], 'gemeente');
+  let gemeenteCode = pickCode(g, ['gemeentecode', 'gemeente_code']);
+  if (!gemeenteNaam) gemeenteNaam = pickName(w, ['gemeentenaam'], 'gemeente') ?? pickName(b, ['gemeentenaam'], 'gemeente');
+  if (!gemeenteCode) gemeenteCode = pickCode(w, ['gemeentecode']) ?? pickCode(b, ['gemeentecode']);
+
+  let wijkNaam = pickName(w, ['wijknaam', 'wijk_naam'], 'wijk');
+  let wijkCode = pickCode(w, ['wijkcode', 'wijk_code']);
+  if (!wijkNaam) wijkNaam = pickName(b, ['wijknaam'], 'wijk');
+  if (!wijkCode) wijkCode = pickCode(b, ['wijkcode']);
+
+  const buurtNaam = pickName(b, ['buurtnaam', 'buurt_naam'], 'buurt');
+  const buurtCode = pickCode(b, ['buurtcode', 'buurt_code']);
 
   return {
-    geo_gemeente_naam: gemeente?.naam ?? null,
-    geo_gemeente_code: gemeente?.code ?? null,
-    geo_wijk_naam: wijk?.naam ?? null,
-    geo_wijk_code: wijk?.code ?? null,
-    geo_buurt_naam: buurt?.naam ?? null,
-    geo_buurt_code: buurt?.code ?? null,
-    hasAny: Boolean(gemeente || wijk || buurt),
+    geo_gemeente_naam: gemeenteNaam,
+    geo_gemeente_code: gemeenteCode,
+    geo_wijk_naam: wijkNaam,
+    geo_wijk_code: wijkCode,
+    geo_buurt_naam: buurtNaam,
+    geo_buurt_code: buurtCode,
+    hasAny: Boolean(gemeenteNaam || wijkNaam || buurtNaam),
   };
 }
