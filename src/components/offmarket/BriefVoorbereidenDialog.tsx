@@ -36,6 +36,7 @@ import { logSystemContactMoment } from '@/lib/contactMoments';
 import { deadlineOverDagen } from '@/lib/offMarket/eigenaar';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
+import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 
 interface Props {
   open: boolean;
@@ -43,6 +44,18 @@ interface Props {
   signaal: OffMarketSignaal;
   kadasterRecords: KadasterDataRecord[];
   historischeBrieven?: HistorischBriefAdres[];
+  /**
+   * Open een bestaand briefrecord (concept of verstuurd) i.p.v. een nieuw
+   * concept aan te maken. Wordt gebruikt vanuit de geadresseerdekaart om
+   * te voorkomen dat per klik een nieuw record ontstaat.
+   */
+  initialBrief?: OffMarketBrief | null;
+  /**
+   * Forceer een specifieke geadresseerde-kandidaat (op label) bij het
+   * starten van een nieuwe brief — zodat "Nieuwe opvolgbrief" voor één
+   * eigenaar werkt en niet automatisch voor alle eigenaren tegelijk.
+   */
+  forceKandidaatLabel?: string | null;
 }
 
 function isEchteWaarde(v: string | null | undefined): boolean {
