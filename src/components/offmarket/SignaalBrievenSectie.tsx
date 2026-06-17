@@ -280,10 +280,6 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         kandidaten={kandidaten}
       />
 
-      {/* Silence unused-import warning when group has no key */}
-      <span className="sr-only" data-test-key={geadresseerdeKey({
-        id: 'x', eigenaar_naam: null, eigenaar_bedrijfsnaam: null, verzendadres: null,
-      } as any)} />
     </section>
   );
 }
