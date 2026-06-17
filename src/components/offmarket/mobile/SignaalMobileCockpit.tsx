@@ -108,22 +108,35 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
   );
 }
 
-function Cel({ label, waarde, accent }: { label: string; waarde: string; accent?: boolean }) {
+function Cel({ label, waarde, accent, clamp, title }: { label: string; waarde: string; accent?: boolean; clamp?: boolean; title?: string }) {
   return (
     <div className="min-w-0">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         {label}
       </p>
       <p
-        className={`text-[14px] font-semibold mt-0.5 leading-tight break-words ${
-          accent ? 'text-accent' : 'text-foreground'
-        }`}
-        title={waarde}
+        className={`text-[14px] font-semibold mt-0.5 leading-tight ${
+          clamp ? 'line-clamp-1' : 'break-words'
+        } ${accent ? 'text-accent' : 'text-foreground'}`}
+        title={title ?? waarde}
       >
         {waarde}
       </p>
     </div>
   );
+}
+
+// Korte, scanbare strategie-label. Lange AI-strategie wordt teruggebracht naar
+// een paar woorden voor in de cockpit. Volledige tekst blijft in AI-analyse.
+function korteStrategie(ruw: string): string {
+  const t = ruw.trim();
+  if (!t) return 'Nog te bepalen';
+  // pak deel voor eerste leesteken / dubbelepunt
+  const eerste = t.split(/[:.\n;–—]/)[0].trim();
+  const kort = eerste.length > 0 ? eerste : t;
+  // max ~40 tekens
+  if (kort.length <= 40) return kort;
+  return kort.slice(0, 38).trimEnd() + '…';
 }
 
 function Rij({ label, children }: { label: string; children: React.ReactNode }) {
