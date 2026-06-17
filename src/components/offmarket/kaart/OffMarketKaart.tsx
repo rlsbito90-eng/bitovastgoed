@@ -160,6 +160,40 @@ export default function OffMarketKaart({ signalen }: Props) {
     });
   }, [viewport.zoom]);
 
+  // Smart pan: zorgt dat de popup volledig binnen de kaartcontainer valt na render.
+  const panPopupIntoView = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const container = map.getContainer();
+    const popup = container.querySelector('.maplibregl-popup') as HTMLElement | null;
+    if (!popup) return;
+
+    const isMobiel = window.innerWidth < 768;
+    const padTop = isMobiel ? 32 : 24;
+    const padBottom = isMobiel ? 110 : 64; // ruimte voor legenda/zwevende UI
+    const padLeft = isMobiel ? 16 : 24;
+    const padRight = isMobiel ? 16 : 24;
+
+    const cRect = container.getBoundingClientRect();
+    const pRect = popup.getBoundingClientRect();
+
+    let dx = 0;
+    let dy = 0;
+    const overTop = (cRect.top + padTop) - pRect.top;
+    const overBottom = pRect.bottom - (cRect.bottom - padBottom);
+    const overLeft = (cRect.left + padLeft) - pRect.left;
+    const overRight = pRect.right - (cRect.right - padRight);
+
+    if (overTop > 0) dy = -overTop;
+    else if (overBottom > 0) dy = overBottom;
+
+    if (overLeft > 0) dx = -overLeft;
+    else if (overRight > 0) dx = overRight;
+
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    map.panBy([dx, dy], { duration: 350, easing: (t: number) => t * (2 - t) });
+  }, []);
+
   const selecteer = useCallback((s: OffMarketSignaal, opties: { pan?: boolean; scrollList?: boolean } = {}) => {
     setSelectedId(s.id);
     if (opties.pan !== false) {
@@ -172,6 +206,18 @@ export default function OffMarketKaart({ signalen }: Props) {
       });
     }
   }, [panNaarSignaal]);
+
+  // Trigger smart pan zodra de popup is gerenderd na selectiewijziging.
+  useEffect(() => {
+    if (!selectedId || !geselecteerd || !heeftLocatie(geselecteerd)) return;
+    // Wacht tot eventuele easeTo/panNaarSignaal animatie klaar is, daarna meten en bijsturen.
+    const t1 = window.setTimeout(() => {
+      requestAnimationFrame(() => panPopupIntoView());
+    }, 80);
+    const t2 = window.setTimeout(panPopupIntoView, 560);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, [selectedId, geselecteerd, panPopupIntoView]);
+
 
   const onClickKaart = (e: MapLayerMouseEvent) => {
     const f = e.features?.[0];
