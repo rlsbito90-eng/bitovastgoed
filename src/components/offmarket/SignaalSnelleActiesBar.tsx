@@ -42,7 +42,7 @@ export default function SignaalSnelleActiesBar({ signaal }: Props) {
       data-testid="signaal-snelle-acties"
       className="sticky top-0 z-20 -mx-4 sm:mx-0 sm:static px-4 sm:px-0 py-2 sm:py-0 bg-background/95 sm:bg-transparent backdrop-blur sm:backdrop-blur-none border-b sm:border-0 border-border/60"
     >
-      <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap -mx-1 px-1 sm:mx-0 sm:px-0">
+      <div className="flex flex-wrap gap-1.5">
         {ACTIES.map(({ status, label, Icon }) => {
           const actief = signaal.status === status;
           return (
