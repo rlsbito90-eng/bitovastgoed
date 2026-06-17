@@ -102,26 +102,27 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
 
   return (
     <section className="section-card p-5 space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
         <h2 className="text-sm font-semibold text-foreground">Koppelingen</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setNieuwRelatieOpen(true)}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap w-full sm:w-auto">
+          <Button variant="outline" size="sm" onClick={() => setNieuwRelatieOpen(true)} className="w-full sm:w-auto justify-center">
             <UserPlus className="h-4 w-4" /> Nieuwe relatie
           </Button>
           {gekoppeldObject ? (
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto justify-center">
               <Link to={`/objecten/${gekoppeldObject.id}`}>
                 <Building2 className="h-4 w-4" /> Open object
                 <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />
               </Link>
             </Button>
           ) : (
-            <Button size="sm" onClick={openPromote} disabled={promote.isPending}>
+            <Button size="sm" onClick={openPromote} disabled={promote.isPending} className="w-full sm:w-auto justify-center">
               <Plus className="h-4 w-4" /> {promote.isPending ? 'Bezig…' : 'Omzetten naar object'}
             </Button>
           )}
         </div>
       </div>
+
 
       <EntityPicker
         label="CRM-relatie"

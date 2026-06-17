@@ -54,8 +54,9 @@ export default function SignaalMobileEigenaarWorkflow({ signaal }: Props) {
       </Stap>
 
       <Stap nummer={3} titel="Eigenaarsonderzoek" Icon={UserSearch}>
-        <SignaalEigenaarsonderzoekSectie signaal={signaal} />
+        <SignaalEigenaarsonderzoekSectie signaal={signaal} mobileCompact />
       </Stap>
+
 
       <Stap nummer={4} titel="Koppeling" Icon={Link2}>
         <SignaalKoppelingenSectie signaal={signaal} />

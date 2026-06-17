@@ -55,7 +55,9 @@ import {
 
 interface Props {
   signaal: OffMarketSignaal;
+  mobileCompact?: boolean;
 }
+
 
 interface EigenaarForm {
   eigenaarstatus: OffMarketEigenaarstatus;
@@ -102,7 +104,7 @@ function formatDateTimeNL(iso: string | null | undefined): string {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
+export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact = false }: Props) {
   const update = useUpdateOffMarketSignaal();
   const linkRelatie = useLinkRelatieToSignaal();
   const { relaties, contactpersonen, getRelatieById } = useDataStore();
@@ -441,8 +443,9 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
       )}
 
       {!editMode ? (
-        <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} />
+        <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} mobileCompact={mobileCompact} />
       ) : (
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field label="Eigenaarstatus">
             <Select value={form.eigenaarstatus} onValueChange={(v) => setF('eigenaarstatus', v as OffMarketEigenaarstatus)}>
@@ -619,26 +622,45 @@ function ReadRow({ label, value, mono, link }: { label: string; value: string | 
   );
 }
 
-function ReadView({ signaal, kadasterCheckOp }: { signaal: OffMarketSignaal; kadasterCheckOp: string | null }) {
+function ReadView({ signaal, kadasterCheckOp, mobileCompact = false }: { signaal: OffMarketSignaal; kadasterCheckOp: string | null; mobileCompact?: boolean }) {
   const a = signaal as any;
   const type = a.eigenaar_type as OffMarketEigenaartype | null;
   const bron = a.eigenaarbron as OffMarketEigenaarbron | null;
+
+  const rijen: { label: string; value: string | null | undefined; mono?: boolean; link?: 'url' | 'email' | 'tel'; wide?: boolean }[] = [
+    { label: 'Eigenaar naam', value: a.eigenaar_naam },
+    { label: 'Eigenaar type', value: type ? EIGENAARTYPE_LABEL[type] : null },
+    { label: 'Bedrijfsnaam', value: a.eigenaar_bedrijfsnaam },
+    { label: 'KvK-nummer', value: a.eigenaar_kvk, mono: true },
+    { label: 'Telefoon', value: a.eigenaar_telefoon, link: 'tel', mono: true },
+    { label: 'E-mail', value: a.eigenaar_email, link: 'email' },
+    { label: 'Website', value: a.eigenaar_website, link: 'url' },
+    { label: 'LinkedIn', value: a.eigenaar_linkedin, link: 'url' },
+    { label: 'Kadastrale aanduiding', value: a.kadastrale_aanduiding, mono: true },
+    { label: 'Eigenaarbron', value: bron ? EIGENAARBRON_LABEL[bron] : null },
+    { label: 'Onderzoeknotities', value: a.eigenaar_onderzoek_notities, wide: true },
+  ];
+
+  const zichtbaar = mobileCompact ? rijen.filter((r) => !!(r.value && String(r.value).trim())) : rijen;
+
+  if (mobileCompact && zichtbaar.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-3 text-[12.5px] text-muted-foreground">
+        Nog geen eigenaargegevens vastgelegd.
+        <input type="hidden" data-kadaster-check-op={kadasterCheckOp ?? ''} />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-      <ReadRow label="Eigenaar naam" value={a.eigenaar_naam} />
-      <ReadRow label="Eigenaar type" value={type ? EIGENAARTYPE_LABEL[type] : null} />
-      <ReadRow label="Bedrijfsnaam" value={a.eigenaar_bedrijfsnaam} />
-      <ReadRow label="KvK-nummer" value={a.eigenaar_kvk} mono />
-      <ReadRow label="Telefoon" value={a.eigenaar_telefoon} link="tel" mono />
-      <ReadRow label="E-mail" value={a.eigenaar_email} link="email" />
-      <ReadRow label="Website" value={a.eigenaar_website} link="url" />
-      <ReadRow label="LinkedIn" value={a.eigenaar_linkedin} link="url" />
-      <ReadRow label="Kadastrale aanduiding" value={a.kadastrale_aanduiding} mono />
-      <ReadRow label="Eigenaarbron" value={bron ? EIGENAARBRON_LABEL[bron] : null} />
-      <div className="md:col-span-2">
-        <ReadRow label="Onderzoeknotities" value={a.eigenaar_onderzoek_notities} />
-      </div>
+      {zichtbaar.map((r) => (
+        <div key={r.label} className={r.wide ? 'md:col-span-2' : ''}>
+          <ReadRow label={r.label} value={r.value} mono={r.mono} link={r.link} />
+        </div>
+      ))}
       <input type="hidden" data-kadaster-check-op={kadasterCheckOp ?? ''} />
     </div>
   );
 }
+
