@@ -35,13 +35,7 @@ export default function SignaalMobileHeader({ signaal, onEdit, onArchive }: Prop
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <h1
-            className="text-[17px] font-semibold text-foreground leading-snug break-words"
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
+            className="text-[17px] font-semibold text-foreground leading-snug break-words hyphens-auto"
             title={signaal.titel}
           >
             {signaal.titel}
