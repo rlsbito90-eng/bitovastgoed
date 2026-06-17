@@ -60,7 +60,7 @@ const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[]
   { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
 ];
 
-function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
+function GebruikerMenu({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const { user, isAdmin, signOut } = useAuth();
   if (!user) {
     return (
@@ -97,12 +97,12 @@ function GebruikerMenu({ collapsed = false }: { collapsed?: boolean }) {
         <DropdownMenuSeparator />
         {isAdmin && (
           <DropdownMenuItem asChild>
-            <Link to="/admin">
+            <Link to="/admin#gebruikersbeheer" onClick={() => onNavigate?.()} data-testid="menu-gebruikersbeheer">
               <Shield className="h-4 w-4 mr-2" /> Gebruikersbeheer
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => signOut()}>
+        <DropdownMenuItem onClick={() => { onNavigate?.(); signOut(); }}>
           <LogOut className="h-4 w-4 mr-2" /> Uitloggen
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -346,7 +346,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 })}
               </nav>
               <div className="border-t border-sidebar-border pt-3">
-                <GebruikerMenu />
+                <GebruikerMenu onNavigate={() => setMobileOpen(false)} />
               </div>
             </div>
           </div>

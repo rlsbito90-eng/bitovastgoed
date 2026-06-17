@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -7,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
-import { ShieldCheck, User as UserIcon, Loader2, Target, Plus, Trash2, Pencil } from 'lucide-react';
+import {
+  ShieldCheck, User as UserIcon, Loader2, Target, Plus, Trash2, Pencil,
+  Radio, MapPin, ShieldQuestion, CalendarClock, Users as UsersIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -19,6 +23,8 @@ import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
 import OffMarketBronnenSectie from '@/components/admin/OffMarketBronnenSectie';
 import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
 import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
+import AdminSectionCard from '@/components/admin/AdminSectionCard';
+import AdminSectionNav from '@/components/admin/AdminSectionNav';
 import { mapDbError } from '@/lib/errors';
 
 type Rol = 'admin' | 'medewerker';
@@ -31,9 +37,120 @@ interface GebruikerRow {
   rollen: Rol[];
 }
 
+const VALID_HASHES = new Set([
+  'off-market-bronnen',
+  'geo-verrijking',
+  'afgekeurde-records',
+  'jaardoelen',
+  'agenda-feed',
+  'gebruikersbeheer',
+]);
+
 export default function AdminPage() {
+  const location = useLocation();
+  const [openHash, setOpenHash] = useState<string | null>(null);
+
+  const jumpNaar = useCallback((hash: string) => {
+    if (!VALID_HASHES.has(hash)) return;
+    setOpenHash(hash);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `#${hash}`);
+      requestAnimationFrame(() => {
+        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const raw = location.hash.replace(/^#/, '');
+    if (raw && VALID_HASHES.has(raw)) {
+      setOpenHash(raw);
+      requestAnimationFrame(() => {
+        document.getElementById(raw)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [location.hash]);
+
+  return (
+    <div className="page-shell-narrow space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Beheer</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Off-market bronnen, jaardoelen en gebruikerstoegang.
+        </p>
+      </div>
+
+      <AdminSectionNav onJump={jumpNaar} />
+
+      <AdminSectionCard
+        id="off-market-bronnen"
+        title="Off-market bronnen"
+        subtitle="Automatische import van gemeentelijke bekendmakingen. Records gaan eerst naar de ruwe buffer, daarna naar de signalenlijst."
+        icon={<Radio className="h-4 w-4" />}
+        forceOpen={openHash === 'off-market-bronnen'}
+      >
+        <OffMarketBronnenSectie />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="geo-verrijking"
+        title="Geo-verrijking"
+        subtitle="Backfill van coördinaten en gemeente voor bestaande signalen."
+        icon={<MapPin className="h-4 w-4" />}
+        forceOpen={openHash === 'geo-verrijking'}
+      >
+        <OffMarketGeoBackfillPanel />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="afgekeurde-records"
+        title="Afgekeurde records"
+        subtitle="Geskipte bekendmakingen — controleer of de radar terecht filtert. Promoveer alsnog of verberg."
+        icon={<ShieldQuestion className="h-4 w-4" />}
+        forceOpen={openHash === 'afgekeurde-records'}
+      >
+        <OffMarketGeskiptRecordsSectie />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="jaardoelen"
+        title="Jaardoelen"
+        subtitle="Commissie- en dealwaarde-doel per jaar. Zichtbaar als voortgangsbalk op het dashboard."
+        icon={<Target className="h-4 w-4" />}
+        forceOpen={openHash === 'jaardoelen'}
+      >
+        <JaarDoelenSectie />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="agenda-feed"
+        title="Agenda-feed"
+        subtitle="Persoonlijke iCal-feed-tokens voor agenda-koppelingen."
+        icon={<CalendarClock className="h-4 w-4" />}
+        forceOpen={openHash === 'agenda-feed'}
+      >
+        <FeedTokensSectie />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="gebruikersbeheer"
+        title="Gebruikersbeheer"
+        subtitle="Ken rollen toe aan medewerkers en beheer toegang tot de werkomgeving."
+        icon={<UsersIcon className="h-4 w-4" />}
+        forceOpen={openHash === 'gebruikersbeheer'}
+      >
+        <GebruikersBeheerSectie />
+      </AdminSectionCard>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Gebruikersbeheer-sectie
+// ---------------------------------------------------------------------
+
+function GebruikersBeheerSectie() {
   const { user: huidigeGebruiker } = useAuth();
-  const store = useDataStore();
   const [gebruikers, setGebruikers] = useState<GebruikerRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,132 +212,98 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="page-shell-narrow">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Beheer</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Jaardoelen en gebruikerstoegang.
+    <div className="space-y-4">
+      <div className="bg-warning/5 border border-warning/20 rounded-md p-4 text-sm">
+        <p className="text-foreground font-medium mb-1">Hoe werkt toegang?</p>
+        <p className="text-muted-foreground">
+          Nieuwe gebruikers kunnen zich registreren via de loginpagina, maar krijgen pas toegang als
+          jij ze de rol <strong>medewerker</strong> of <strong>admin</strong> toekent. Zonder rol zien
+          zij alleen een wachtscherm.
         </p>
       </div>
 
-      {/* ---- JAAR-DOELEN ---- */}
-      <JaarDoelenSectie />
-
-      {/* ---- AGENDA-FEED ---- */}
-      <FeedTokensSectie />
-
-      {/* ---- GEO-VERRIJKING BACKFILL ---- */}
-      <OffMarketGeoBackfillPanel />
-
-      {/* ---- OFF-MARKET BRONNEN ---- */}
-      <OffMarketBronnenSectie />
-
-      {/* ---- AFGEKEURDE RUWE RECORDS ---- */}
-      <OffMarketGeskiptRecordsSectie />
-
-
-
-
-      {/* ---- GEBRUIKERS ---- */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Gebruikersbeheer
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Ken rollen toe aan medewerkers en beheer toegang tot de werkomgeving.
-          </p>
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            Alle gebruikers ({gebruikers.length})
+          </h3>
         </div>
 
-        <div className="bg-warning/5 border border-warning/20 rounded-md p-4 text-sm">
-          <p className="text-foreground font-medium mb-1">Hoe werkt toegang?</p>
-          <p className="text-muted-foreground">
-            Nieuwe gebruikers kunnen zich registreren via de loginpagina, maar krijgen pas toegang als
-            jij ze de rol <strong>medewerker</strong> of <strong>admin</strong> toekent. Zonder rol zien
-            zij alleen een wachtscherm.
-          </p>
-        </div>
-
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">Alle gebruikers ({gebruikers.length})</h3>
+        {loading ? (
+          <div className="px-5 py-12 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-
-          {loading ? (
-            <div className="px-5 py-12 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {gebruikers.map(g => (
-                <div key={g.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="min-w-0 flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {g.volledige_naam || '—'}
-                        {g.id === huidigeGebruiker?.id && (
-                          <span className="ml-2 text-xs text-muted-foreground">(jij)</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">{g.email}</p>
-                      <div className="flex gap-1.5 mt-1.5">
-                        {g.rollen.length === 0 && (
-                          <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">geen toegang</Badge>
-                        )}
-                        {g.rollen.map(r => (
-                          <Badge key={r} variant="outline" className={r === 'admin' ? 'text-xs bg-accent/10 text-accent border-accent/20' : 'text-xs bg-success/10 text-success border-success/20'}>
-                            {r === 'admin' && <ShieldCheck className="h-3 w-3 mr-1" />}
-                            {r}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {gebruikers.map(g => (
+              <div key={g.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0 flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <UserIcon className="h-4 w-4 text-muted-foreground" />
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {!g.rollen.includes('medewerker') && (
-                      <Button size="sm" variant="outline" onClick={() => rolToekennen(g.id, 'medewerker')}>
-                        + Medewerker
-                      </Button>
-                    )}
-                    {!g.rollen.includes('admin') && (
-                      <Button size="sm" variant="outline" onClick={() => rolToekennen(g.id, 'admin')}>
-                        + Admin
-                      </Button>
-                    )}
-                    {g.rollen.map(r => (
-                      <AlertDialog key={`del-${r}`}>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10">
-                            − {r}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Rol intrekken?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Weet je zeker dat je de rol '{r}' wilt intrekken voor {g.email}?
-                              {g.rollen.length === 1 && ' Deze gebruiker verliest dan alle toegang tot de app.'}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => rolIntrekken(g.id, r)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Intrekken
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ))}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {g.volledige_naam || '—'}
+                      {g.id === huidigeGebruiker?.id && (
+                        <span className="ml-2 text-xs text-muted-foreground">(jij)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{g.email}</p>
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {g.rollen.length === 0 && (
+                        <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">geen toegang</Badge>
+                      )}
+                      {g.rollen.map(r => (
+                        <Badge key={r} variant="outline" className={r === 'admin' ? 'text-xs bg-accent/10 text-accent border-accent/20' : 'text-xs bg-success/10 text-success border-success/20'}>
+                          {r === 'admin' && <ShieldCheck className="h-3 w-3 mr-1" />}
+                          {r}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {!g.rollen.includes('medewerker') && (
+                    <Button size="sm" variant="outline" onClick={() => rolToekennen(g.id, 'medewerker')}>
+                      + Medewerker
+                    </Button>
+                  )}
+                  {!g.rollen.includes('admin') && (
+                    <Button size="sm" variant="outline" onClick={() => rolToekennen(g.id, 'admin')}>
+                      + Admin
+                    </Button>
+                  )}
+                  {g.rollen.map(r => (
+                    <AlertDialog key={`del-${r}`}>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                          − {r}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Rol intrekken?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Weet je zeker dat je de rol '{r}' wilt intrekken voor {g.email}?
+                            {g.rollen.length === 1 && ' Deze gebruiker verliest dan alle toegang tot de app.'}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => rolIntrekken(g.id, r)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Intrekken
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -238,7 +321,6 @@ function JaarDoelenSectie() {
 
   const openNieuw = () => {
     const huidigJaar = new Date().getFullYear();
-    // Start met volgend jaar dat nog geen doel heeft, anders huidig
     const eerstVrije = [huidigJaar, huidigJaar + 1, huidigJaar + 2]
       .find(j => !store.jaarDoelen.some(d => d.jaar === j)) ?? huidigJaar;
     setEditing({
@@ -268,15 +350,7 @@ function JaarDoelenSectie() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" /> Jaardoelen
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Commissie- en dealwaarde-doel per jaar. Zichtbaar als voortgangsbalk op het dashboard.
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant="outline" onClick={openNieuw}>
           <Plus className="h-4 w-4 mr-1" /> Doel toevoegen
         </Button>
@@ -329,8 +403,6 @@ function JaarDoelDialog({ doel, onClose }: { doel: JaarDoel; onClose: () => void
   const [form, setForm] = useState(doel);
   const [bezig, setBezig] = useState(false);
   const isNieuw = !doel.id;
-
-  const num = (v: string) => v === '' ? undefined : Number(v);
 
   const handleSave = async () => {
     if (bezig) return;
