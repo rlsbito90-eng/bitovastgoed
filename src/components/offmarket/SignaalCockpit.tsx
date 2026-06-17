@@ -83,7 +83,13 @@ export default function SignaalCockpit({
           <span className="text-sm text-foreground truncate">{ASSETTYPE_LABEL[signaal.assettype]}</span>
         </Row>
         <Row label="Strategie">
-          <span className="text-sm text-foreground truncate">{signaal.potentiele_strategie || '—'}</span>
+          <span
+            className="text-sm text-foreground break-words"
+            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            title={signaal.potentiele_strategie ?? undefined}
+          >
+            {signaal.potentiele_strategie || '—'}
+          </span>
         </Row>
         <Row label="Eigenaar">
           <div className="flex items-center gap-2 min-w-0">
