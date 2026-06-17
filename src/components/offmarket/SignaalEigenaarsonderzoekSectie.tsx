@@ -443,8 +443,9 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
       )}
 
       {!editMode ? (
-        <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} />
+        <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} mobileCompact={mobileCompact} />
       ) : (
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field label="Eigenaarstatus">
             <Select value={form.eigenaarstatus} onValueChange={(v) => setF('eigenaarstatus', v as OffMarketEigenaarstatus)}>
