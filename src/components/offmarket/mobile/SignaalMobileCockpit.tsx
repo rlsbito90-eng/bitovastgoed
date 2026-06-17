@@ -32,12 +32,14 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
   const relatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
   const relatie = relatieId ? getRelatieById(relatieId) : null;
 
+  const [strategieOpen, setStrategieOpen] = useState(false);
+
   const aiScore = typeof signaal.ai_score === 'number' ? String(signaal.ai_score) : '—';
   const verkoopkans = typeof signaal.ai_verkoopkans === 'number'
     ? `${Math.round(Number(signaal.ai_verkoopkans) * 100)}%`
     : '—';
-  const strategieRuw = signaal.potentiele_strategie || signaal.ai_strategie_suggestie || '';
-  const strategie = strategieRuw ? korteStrategie(strategieRuw) : 'Nog te bepalen';
+  const strategieRuw = (signaal.potentiele_strategie || signaal.ai_strategie_suggestie || '').trim();
+  const strategieLang = strategieRuw.length > 90;
   const gebied = formatGebiedsindeling(signaal as any);
 
   return (
@@ -49,8 +51,35 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
         <Cel label="AI-score" waarde={aiScore} accent />
         <Cel label="Verkoopkans" waarde={verkoopkans} accent />
         <Cel label="Assettype" waarde={ASSETTYPE_LABEL[signaal.assettype]} />
-        <Cel label="Strategie" waarde={strategie} clamp title={strategieRuw || undefined} />
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Strategie
+          </p>
+          {strategieRuw ? (
+            <>
+              <p
+                className={`text-[13.5px] font-medium text-foreground mt-0.5 leading-snug break-words ${
+                  strategieLang && !strategieOpen ? 'line-clamp-2' : ''
+                }`}
+              >
+                {strategieRuw}
+              </p>
+              {strategieLang && (
+                <button
+                  type="button"
+                  onClick={() => setStrategieOpen((v) => !v)}
+                  className="mt-1 text-[11px] text-accent hover:underline"
+                >
+                  {strategieOpen ? 'Minder tonen' : 'Meer tonen'}
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-[13.5px] font-medium text-muted-foreground mt-0.5">Nog te bepalen</p>
+          )}
+        </div>
       </div>
+
 
       <hr className="border-border/60" />
 
