@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw, ExternalLi
 import type { OffMarketSignaal, OffMarketPrioriteit } from '@/lib/offMarket/types';
 import { OffMarketPriorityBadge, OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { SIGNAALTYPE_LABEL, BRON_TYPE_LABEL } from '@/lib/offMarket/types';
+import { formatSignaalAdres, formatSignaalTitel, cleanPlaats, cleanAdres } from '@/lib/offMarket/adresNormalisatie';
 import { useKaartGeocoding } from '@/hooks/useKaartGeocoding';
 import LocatieControlerenDialog from './LocatieControlerenDialog';
 import ZonderLocatieDialog from './ZonderLocatieDialog';
