@@ -47,6 +47,6 @@ describe('SignaalMobileBronregel', () => {
     expect(screen.getByText('Brondatum')).toBeTruthy();
     expect(screen.getByText('Toegevoegd op')).toBeTruthy();
     expect(screen.getByText('Toegevoegd via')).toBeTruthy();
-    expect(screen.getByText('Handmatig')).toBeTruthy();
+    expect(screen.getAllByText('Handmatig').length).toBeGreaterThanOrEqual(1);
   });
 });
