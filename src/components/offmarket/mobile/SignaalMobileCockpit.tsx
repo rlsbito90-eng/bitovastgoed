@@ -156,18 +156,9 @@ function Cel({ label, waarde, accent, clamp, title }: { label: string; waarde: s
   );
 }
 
-// Korte, scanbare strategie-label. Lange AI-strategie wordt teruggebracht naar
-// een paar woorden voor in de cockpit. Volledige tekst blijft in AI-analyse.
-function korteStrategie(ruw: string): string {
-  const t = ruw.trim();
-  if (!t) return 'Nog te bepalen';
-  // pak deel voor eerste leesteken / dubbelepunt
-  const eerste = t.split(/[:.\n;–—]/)[0].trim();
-  const kort = eerste.length > 0 ? eerste : t;
-  // max ~40 tekens
-  if (kort.length <= 40) return kort;
-  return kort.slice(0, 38).trimEnd() + '…';
-}
+// (oude korteStrategie helper verwijderd — strategie wordt nu volledig getoond
+// met een Meer/Minder-toggle wanneer hij lang is.)
+
 
 function Rij({ label, children }: { label: string; children: React.ReactNode }) {
   return (
