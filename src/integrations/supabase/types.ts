@@ -2546,6 +2546,8 @@ export type Database = {
         Row: {
           aangemaakt_door: string | null
           aanhef: string | null
+          archived_at: string | null
+          archived_reason: string | null
           brieftekst: string
           created_at: string
           eigenaar_bedrijfsnaam: string | null
@@ -2563,6 +2565,8 @@ export type Database = {
         Insert: {
           aangemaakt_door?: string | null
           aanhef?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           brieftekst: string
           created_at?: string
           eigenaar_bedrijfsnaam?: string | null
@@ -2580,6 +2584,8 @@ export type Database = {
         Update: {
           aangemaakt_door?: string | null
           aanhef?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           brieftekst?: string
           created_at?: string
           eigenaar_bedrijfsnaam?: string | null
