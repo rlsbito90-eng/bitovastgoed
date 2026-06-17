@@ -451,13 +451,13 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
   return (
     <div className="space-y-2 min-w-[240px] max-w-[300px]">
       <div
-        className="text-sm font-semibold leading-snug text-foreground"
+        className="text-sm font-semibold leading-snug text-foreground break-words"
         style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
       >
-        {signaal.titel}
+        {formatSignaalTitel(signaal)}
       </div>
-      <div className="text-xs text-muted-foreground leading-snug">
-        {[signaal.adres, [signaal.postcode, signaal.plaats].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
+      <div className="text-xs text-muted-foreground leading-snug break-words">
+        {[cleanAdres(signaal.adres), [signaal.postcode, cleanPlaats(signaal.plaats)].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
       </div>
       {gebied && (
         <div className="text-[11px] text-muted-foreground leading-snug">{gebied}</div>
