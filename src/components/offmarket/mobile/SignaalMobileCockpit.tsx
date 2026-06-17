@@ -35,7 +35,8 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
   const verkoopkans = typeof signaal.ai_verkoopkans === 'number'
     ? `${Math.round(Number(signaal.ai_verkoopkans) * 100)}%`
     : '—';
-  const strategie = signaal.potentiele_strategie || signaal.ai_strategie_suggestie || '—';
+  const strategieRuw = signaal.potentiele_strategie || signaal.ai_strategie_suggestie || '';
+  const strategie = strategieRuw ? korteStrategie(strategieRuw) : 'Nog te bepalen';
   const gebied = formatGebiedsindeling(signaal as any);
 
   return (
