@@ -11,6 +11,7 @@ import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
 import SignaalKpiBar from '@/components/offmarket/SignaalKpiBar';
 import SignaalCockpit from '@/components/offmarket/SignaalCockpit';
 import SignaalGebiedsindeling from '@/components/offmarket/SignaalGebiedsindeling';
+import SignaalMobileGebiedsindeling from '@/components/offmarket/mobile/SignaalMobileGebiedsindeling';
 import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksacties';
 import SignaalClassificatieBlok from '@/components/offmarket/SignaalClassificatieBlok';
 import SignaalDossierNotities from '@/components/offmarket/SignaalDossierNotities';
@@ -261,7 +262,7 @@ export default function OffMarketSignaalDetailPage() {
           </TabsContent>
 
           <TabsContent value="onderzoek" className="space-y-3 mt-3">
-            <SignaalGebiedsindeling signaal={signaal} />
+            <SignaalMobileGebiedsindeling signaal={signaal} />
             <SignaalMobileBronregel signaal={signaal} />
             <MeerOnderzoeksactiesDisclosure signaal={signaal} />
           </TabsContent>
