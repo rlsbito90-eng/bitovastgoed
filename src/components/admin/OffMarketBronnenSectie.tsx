@@ -163,51 +163,40 @@ export default function OffMarketBronnenSectie() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Radio className="h-4 w-4 text-muted-foreground" /> Off-Market bronnen
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Automatische import van gemeentelijke bekendmakingen. Records gaan eerst naar de ruwe buffer,
-            daarna naar de signalenlijst na normalisatie.
-          </p>
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="text-xs text-muted-foreground mr-auto">
+          Onverwerkt in buffer: <span className="font-mono-data text-foreground">{onverwerkt}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xs text-muted-foreground">
-            Onverwerkt in buffer: <span className="font-mono-data text-foreground">{onverwerkt}</span>
-          </div>
-          <Select
-            value={String(normalizeBatch)}
-            onValueChange={(v) => setNormalizeBatch(Number(v))}
-            disabled={normalize.isPending || volledig.isPending}
-          >
-            <SelectTrigger className="h-8 w-[110px] text-xs" aria-label="Batchgrootte">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[100, 200, 500, 1000].map(n => (
-                <SelectItem key={n} value={String(n)} className="text-xs">{n} per chunk</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" variant="outline"
-            onClick={() => handleNormalize()}
-            disabled={normalize.isPending || volledig.isPending}>
-            {normalize.isPending
-              ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              : <ListFilter className="h-4 w-4 mr-1" />}
-            Wachtrij verwerken
-          </Button>
-          <Button size="sm" variant="default"
-            onClick={() => handleVolledig()}
-            disabled={normalize.isPending || volledig.isPending}>
-            {volledig.isPending
-              ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              : <Zap className="h-4 w-4 mr-1" />}
-            Verwerk volledige wachtrij
-          </Button>
-        </div>
+        <Select
+          value={String(normalizeBatch)}
+          onValueChange={(v) => setNormalizeBatch(Number(v))}
+          disabled={normalize.isPending || volledig.isPending}
+        >
+          <SelectTrigger className="h-8 w-[120px] text-xs" aria-label="Batchgrootte">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[100, 200, 500, 1000].map(n => (
+              <SelectItem key={n} value={String(n)} className="text-xs">{n} per chunk</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="outline"
+          onClick={() => handleNormalize()}
+          disabled={normalize.isPending || volledig.isPending}>
+          {normalize.isPending
+            ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            : <ListFilter className="h-4 w-4 mr-1" />}
+          Wachtrij verwerken
+        </Button>
+        <Button size="sm" variant="default"
+          onClick={() => handleVolledig()}
+          disabled={normalize.isPending || volledig.isPending}>
+          {volledig.isPending
+            ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            : <Zap className="h-4 w-4 mr-1" />}
+          Verwerk volledige wachtrij
+        </Button>
       </div>
 
       {volledig.isPending && progress && (
@@ -223,150 +212,150 @@ export default function OffMarketBronnenSectie() {
         </div>
       )}
 
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
-        {isLoading ? (
-          <div className="px-5 py-12 flex items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : bronnen.length === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <p className="text-sm text-muted-foreground">Nog geen bronnen geconfigureerd.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {bronnen.map(b => {
-              const last = parseLaatsteRun(b.laatste_run_status);
-              const stats: OffMarketBronStats | undefined = statsPerBron[b.id];
-              const bezig = runBron.isPending && (runBron.variables as { bronId?: string } | string | undefined) !== undefined &&
-                ((typeof runBron.variables === 'string' && runBron.variables === b.id) ||
-                 (typeof runBron.variables === 'object' && (runBron.variables as { bronId?: string })?.bronId === b.id));
-              const batch = getBatch(b.id);
-              return (
-                <div key={b.id} className="px-4 sm:px-5 py-4 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-foreground">{b.naam}</p>
-                        <Badge variant="outline" className="text-xs text-muted-foreground">{b.type}</Badge>
-                        <StatusBadge bron={b} />
-                        {last?.afgebroken && (
-                          <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
-                            afgebroken
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Laatste run: {formatDatum(b.laatste_run_op)}
-                        {last?.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
-                      </div>
-                      {b.laatste_fout && (
-                        <div className="text-xs text-destructive mt-1 flex items-start gap-1">
-                          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                          <span className="break-all">{b.laatste_fout}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Switch checked={b.actief}
-                          onCheckedChange={(v) => handleToggle(b, v)}
-                          disabled={toggleBron.isPending} />
-                        Actief
-                      </label>
-                      <Select
-                        value={String(batch)}
-                        onValueChange={(v) => setBatchPerBron(prev => ({ ...prev, [b.id]: Number(v) }))}
-                        disabled={bezig}
-                      >
-                        <SelectTrigger className="h-8 w-[110px] text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BATCH_OPTIES.map(n => (
-                            <SelectItem key={n} value={String(n)} className="text-xs">
-                              {n} records
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" variant="ghost"
-                        disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b, 'test')}
-                        title="Testmodus: 30 dagen lookback">
-                        Test
-                      </Button>
-                      <Button size="sm" variant="ghost"
-                        disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b, 'sync')}
-                        title="Sync: alleen nieuw/recent op basis van laatste sync + overlap">
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Sync nu
-                      </Button>
-                      <Button size="sm" variant="outline"
-                        disabled={!b.actief || bezig}
-                        onClick={() => handleRun(b, 'handmatig')}>
-                        {bezig
-                          ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          : <Play className="h-4 w-4 mr-1" />}
-                        Nu draaien
-                      </Button>
-                      <Button size="sm" variant="ghost"
-                        onClick={() => toggleInstellingen(b.id)}
-                        title="Instellingen">
-                        <Settings2 className="h-4 w-4 mr-1" />
-                        Instellingen
-                        <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${instellingenOpen[b.id] ? 'rotate-180' : ''}`} />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {last && (
-                    <div className="text-xs text-muted-foreground font-mono-data">
-                      {(last.modus ?? (last.test_mode ? 'test' : 'handmatig'))} · query {formatPeriode(last.query_vanaf, last.query_tot)}
-                      {' · '}server {last.totaal_server ?? '—'}
-                      {' · '}opgehaald {last.opgehaald ?? '—'}
-                      {' · '}nieuw {last.nieuw ?? '—'}
-                      {' · '}dubbel {last.dubbel ?? '—'}
-                      {last.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
-                    </div>
-                  )}
-
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-                    <span>Laatste sync: <span className="text-foreground">{formatDatum(b.laatste_sync_op)}</span></span>
-                    <span>Volgende run: <span className="text-foreground">{formatDatum(b.volgende_run_op)}</span></span>
-                    <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
-                    <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
-                    <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
-                    {(!b.auto_import || b.frequentie === 'handmatig') ? (
-                      <span className="text-muted-foreground">Auto-sync uit · geen automatische run gepland</span>
-                    ) : (
-                      <span className="text-success">
-                        Scheduler actief · volgende run: {formatDatum(b.volgende_run_op)}
-                      </span>
+      {isLoading ? (
+        <div className="bg-card border border-border rounded-lg px-5 py-12 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : bronnen.length === 0 ? (
+        <div className="bg-card border border-border rounded-lg px-5 py-8 text-center">
+          <p className="text-sm text-muted-foreground">Nog geen bronnen geconfigureerd.</p>
+        </div>
+      ) : (
+        <div className="space-y-4 sm:space-y-5" data-testid="off-market-bronnen-lijst">
+          {bronnen.map(b => {
+            const last = parseLaatsteRun(b.laatste_run_status);
+            const stats: OffMarketBronStats | undefined = statsPerBron[b.id];
+            const bezig = runBron.isPending && (runBron.variables as { bronId?: string } | string | undefined) !== undefined &&
+              ((typeof runBron.variables === 'string' && runBron.variables === b.id) ||
+               (typeof runBron.variables === 'object' && (runBron.variables as { bronId?: string })?.bronId === b.id));
+            const batch = getBatch(b.id);
+            return (
+              <div
+                key={b.id}
+                data-testid="off-market-bron-kaart"
+                className="section-card bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3 min-w-0 overflow-hidden"
+              >
+                <div className="flex flex-col gap-2 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate min-w-0">{b.naam}</p>
+                    <Badge variant="outline" className="text-xs text-muted-foreground">{b.type}</Badge>
+                    <StatusBadge bron={b} />
+                    {last?.afgebroken && (
+                      <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
+                        afgebroken
+                      </Badge>
                     )}
                   </div>
-
-
-                  {(last || stats) && (
-                    <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 pt-2 border-t border-border/60">
-                      <Teller label="server" value={last?.totaal_server ?? '—'} tone="muted" />
-                      <Teller label="opgehaald" value={last?.opgehaald ?? '—'} />
-                      <Teller label="nieuw" value={last?.nieuw ?? '—'} tone="success" />
-                      <Teller label="dubbel" value={last?.dubbel ?? '—'} tone="muted" />
-                      <Teller label="verwerkt" value={stats?.verwerkt ?? '—'} />
-                      <Teller label="gepromoveerd" value={stats?.gepromoveerd ?? '—'} tone="success" />
-                      <Teller label="geskipt" value={stats?.geskipt ?? '—'} tone="muted" />
+                  <div className="text-xs text-muted-foreground">
+                    Laatste run: {formatDatum(b.laatste_run_op)}
+                    {last?.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
+                  </div>
+                  {b.laatste_fout && (
+                    <div className="text-xs text-destructive flex items-start gap-1">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span className="break-all">{b.laatste_fout}</span>
                     </div>
                   )}
-
-                  {instellingenOpen[b.id] && <BronInstellingenPanel bron={b} />}
-                  {instellingenOpen[b.id] && <BronBackfillPanel bron={b} />}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Switch checked={b.actief}
+                      onCheckedChange={(v) => handleToggle(b, v)}
+                      disabled={toggleBron.isPending} />
+                    Actief
+                  </label>
+                  <Select
+                    value={String(batch)}
+                    onValueChange={(v) => setBatchPerBron(prev => ({ ...prev, [b.id]: Number(v) }))}
+                    disabled={bezig}
+                  >
+                    <SelectTrigger className="h-8 w-[110px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BATCH_OPTIES.map(n => (
+                        <SelectItem key={n} value={String(n)} className="text-xs">
+                          {n} records
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="ghost"
+                    disabled={!b.actief || bezig}
+                    onClick={() => handleRun(b, 'test')}
+                    title="Testmodus: 30 dagen lookback">
+                    Test
+                  </Button>
+                  <Button size="sm" variant="ghost"
+                    disabled={!b.actief || bezig}
+                    onClick={() => handleRun(b, 'sync')}
+                    title="Sync: alleen nieuw/recent op basis van laatste sync + overlap">
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Sync nu
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    disabled={!b.actief || bezig}
+                    onClick={() => handleRun(b, 'handmatig')}>
+                    {bezig
+                      ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      : <Play className="h-4 w-4 mr-1" />}
+                    Nu draaien
+                  </Button>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => toggleInstellingen(b.id)}
+                    title="Instellingen">
+                    <Settings2 className="h-4 w-4 mr-1" />
+                    Instellingen
+                    <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${instellingenOpen[b.id] ? 'rotate-180' : ''}`} />
+                  </Button>
+                </div>
+
+                {last && (
+                  <div className="text-xs text-muted-foreground font-mono-data break-words">
+                    {(last.modus ?? (last.test_mode ? 'test' : 'handmatig'))} · query {formatPeriode(last.query_vanaf, last.query_tot)}
+                    {' · '}server {last.totaal_server ?? '—'}
+                    {' · '}opgehaald {last.opgehaald ?? '—'}
+                    {' · '}nieuw {last.nieuw ?? '—'}
+                    {' · '}dubbel {last.dubbel ?? '—'}
+                    {last.duur_ms !== undefined && ` · ${(last.duur_ms / 1000).toFixed(1)}s`}
+                  </div>
+                )}
+
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Laatste sync: <span className="text-foreground">{formatDatum(b.laatste_sync_op)}</span></span>
+                  <span>Volgende run: <span className="text-foreground">{formatDatum(b.volgende_run_op)}</span></span>
+                  <span>Frequentie: <span className="text-foreground">{b.frequentie}</span></span>
+                  <span>Auto-import: <span className="text-foreground">{b.auto_import ? 'aan' : 'uit'}</span></span>
+                  <span>Auto-verwerken: <span className="text-foreground">{b.auto_verwerken ? 'aan' : 'uit'}</span></span>
+                  {(!b.auto_import || b.frequentie === 'handmatig') ? (
+                    <span className="text-muted-foreground">Auto-sync uit · geen automatische run gepland</span>
+                  ) : (
+                    <span className="text-success">
+                      Scheduler actief · volgende run: {formatDatum(b.volgende_run_op)}
+                    </span>
+                  )}
+                </div>
+
+                {(last || stats) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-2 border-t border-border/60 tabular-nums">
+                    <Teller label="server" value={last?.totaal_server ?? '—'} tone="muted" />
+                    <Teller label="opgehaald" value={last?.opgehaald ?? '—'} />
+                    <Teller label="nieuw" value={last?.nieuw ?? '—'} tone="success" />
+                    <Teller label="dubbel" value={last?.dubbel ?? '—'} tone="muted" />
+                    <Teller label="verwerkt" value={stats?.verwerkt ?? '—'} />
+                    <Teller label="gepromoveerd" value={stats?.gepromoveerd ?? '—'} tone="success" />
+                    <Teller label="geskipt" value={stats?.geskipt ?? '—'} tone="muted" />
+                  </div>
+                )}
+
+                {instellingenOpen[b.id] && <BronInstellingenPanel bron={b} />}
+                {instellingenOpen[b.id] && <BronBackfillPanel bron={b} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
