@@ -74,6 +74,7 @@ function safeFilename(s: string): string {
 
 export default function BriefVoorbereidenDialog({
   open, onOpenChange, signaal, kadasterRecords, historischeBrieven = [],
+  initialBrief = null, forceKandidaatLabel = null,
 }: Props) {
   const prefill = useMemo(
     () => bouwBriefPrefill(signaal, kadasterRecords, historischeBrieven),
@@ -97,34 +98,53 @@ export default function BriefVoorbereidenDialog({
   }, [kadasterAdresOpties, historischeBrieven]);
 
   const [kandidaatLabel, setKandidaatLabel] = useState<string>(prefill.kandidaten[0]?.label ?? '');
-  const [eigenaarNaam, setEigenaarNaam] = useState(prefill.eigenaarNaam);
-  const [eigenaarBedrijfsnaam, setEigenaarBedrijfsnaam] = useState(prefill.eigenaarBedrijfsnaam);
-  const [verzendadres, setVerzendadres] = useState(prefill.verzendadres);
-  const [objectadres, setObjectadres] = useState(prefill.objectadres);
-  const [objectomschrijving, setObjectomschrijving] = useState(prefill.objectomschrijving);
-  const [aanhef, setAanhef] = useState(prefill.aanhef);
-  const [onderwerp, setOnderwerp] = useState(prefill.onderwerp);
-  const [brieftekst, setBrieftekst] = useState(prefill.brieftekst);
-  const [briefId, setBriefId] = useState<string | null>(null);
+  const [eigenaarNaam, setEigenaarNaam] = useState(initialBrief?.eigenaar_naam ?? prefill.eigenaarNaam);
+  const [eigenaarBedrijfsnaam, setEigenaarBedrijfsnaam] = useState(initialBrief?.eigenaar_bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
+  const [verzendadres, setVerzendadres] = useState(initialBrief?.verzendadres ?? prefill.verzendadres);
+  const [objectadres, setObjectadres] = useState(initialBrief?.objectadres ?? prefill.objectadres);
+  const [objectomschrijving, setObjectomschrijving] = useState(initialBrief?.objectomschrijving ?? prefill.objectomschrijving);
+  const [aanhef, setAanhef] = useState(initialBrief?.aanhef ?? prefill.aanhef);
+  const [onderwerp, setOnderwerp] = useState(initialBrief?.onderwerp ?? prefill.onderwerp);
+  const [brieftekst, setBrieftekst] = useState(initialBrief?.brieftekst ?? prefill.brieftekst);
+  const [briefId, setBriefId] = useState<string | null>(initialBrief?.id ?? null);
   const [bezig, setBezig] = useState(false);
   const [pdfBezig, setPdfBezig] = useState(false);
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
-  const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(false);
+  const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(!!initialBrief);
 
   useEffect(() => {
     if (!open) return;
-    setKandidaatLabel(prefill.kandidaten[0]?.label ?? '');
-    setEigenaarNaam(prefill.eigenaarNaam);
-    setEigenaarBedrijfsnaam(prefill.eigenaarBedrijfsnaam);
-    setVerzendadres(prefill.verzendadres);
+    if (initialBrief) {
+      // Bestaande brief openen — gebruik die data, geen nieuw record aanmaken.
+      setKandidaatLabel(forceKandidaatLabel ?? '');
+      setEigenaarNaam(initialBrief.eigenaar_naam ?? '');
+      setEigenaarBedrijfsnaam(initialBrief.eigenaar_bedrijfsnaam ?? '');
+      setVerzendadres(initialBrief.verzendadres ?? '');
+      setObjectadres(initialBrief.objectadres ?? '');
+      setObjectomschrijving(initialBrief.objectomschrijving ?? '');
+      setAanhef(initialBrief.aanhef ?? '');
+      setOnderwerp(initialBrief.onderwerp ?? '');
+      setBrieftekst(initialBrief.brieftekst ?? '');
+      setBriefId(initialBrief.id);
+      setOnderwerpHandmatig(true);
+      return;
+    }
+    const forced = forceKandidaatLabel
+      ? prefill.kandidaten.find(x => x.label === forceKandidaatLabel) ?? null
+      : null;
+    const k = forced ?? prefill.kandidaten[0] ?? null;
+    setKandidaatLabel(k?.label ?? '');
+    setEigenaarNaam(forced?.naam ?? prefill.eigenaarNaam);
+    setEigenaarBedrijfsnaam(forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
+    setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
     setObjectadres(prefill.objectadres);
     setObjectomschrijving(prefill.objectomschrijving);
-    setAanhef(prefill.aanhef);
+    setAanhef(forced ? bepaalAanhef(forced.naam) : prefill.aanhef);
     setOnderwerp(prefill.onderwerp);
     setBrieftekst(prefill.brieftekst);
     setBriefId(null);
     setOnderwerpHandmatig(false);
-  }, [open, prefill]);
+  }, [open, prefill, initialBrief, forceKandidaatLabel]);
 
   const upsert = useUpsertBrief();
   const markVerstuurd = useMarkBriefVerstuurd();
