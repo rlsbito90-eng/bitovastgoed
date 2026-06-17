@@ -150,9 +150,9 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     background-image:
-      radial-gradient(900px 600px at 0% -10%, hsl(38 60% 88% / 0.35), transparent 60%),
-      radial-gradient(800px 600px at 100% 0%, hsl(31 47% 82% / 0.28), transparent 65%),
-      radial-gradient(1000px 700px at 50% 110%, hsl(206 50% 88% / 0.22), transparent 65%);
+      radial-gradient(900px 600px at 0% -10%, hsl(38 65% 84% / 0.50), transparent 60%),
+      radial-gradient(800px 600px at 100% 0%, hsl(31 50% 78% / 0.40), transparent 65%),
+      radial-gradient(1000px 700px at 50% 110%, hsl(206 50% 86% / 0.32), transparent 65%);
     background-attachment: fixed;
   }
 
