@@ -233,13 +233,13 @@ export default function OffMarketSignaalDetailPage() {
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="pt-1">
           <TabsList
             data-testid="signaal-mobile-tabs"
-            className="tabs-scroll bg-transparent p-0 h-auto"
+            className="tabs-scroll bg-transparent p-0 h-auto rounded-none"
           >
             {MOBILE_TABS.map((t) => (
               <TabsTrigger
                 key={t.value}
                 value={t.value}
-                className="dossier-tab-pill data-[state=active]:shadow-none"
+                className="!rounded-full px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground data-[state=active]:!bg-accent/15 data-[state=active]:!text-accent data-[state=active]:shadow-none data-[state=active]:ring-1 data-[state=active]:ring-accent/40 transition-colors border border-transparent"
               >
                 <t.Icon className="h-3.5 w-3.5 mr-1" />
                 {t.label}
