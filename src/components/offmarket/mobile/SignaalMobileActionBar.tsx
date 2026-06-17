@@ -1,5 +1,5 @@
-// Compacte mobiele actiebar — primaire onderzoeksacties in één grid.
-// Vervangt op mobiel de losse SignaalOnderzoeksacties-chiplijst boven de tabs.
+// Compacte mobiele actiebar — horizontale pill-rij met icon + label,
+// scrollbaar indien nodig. Vervangt de eerdere 2-rij grid.
 import { Copy, Landmark, Map as MapIcon, MapPin, Search, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -56,48 +56,54 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
     { key: 'copy', kort: 'Kopieer', aria: 'Kopieer adres', href: null, onClick: kopieer, Icon: Copy, disabled: !query },
   ];
 
-  const knopBase = 'glass-mobile-action-btn';
+  const pillBase =
+    'shrink-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-full text-[12.5px] font-medium ' +
+    'text-foreground/85 border border-transparent transition-colors ' +
+    'hover:text-accent hover:bg-accent/[0.06] hover:border-accent/25 ' +
+    'active:bg-accent/15 active:text-accent active:border-accent/40 ' +
+    'disabled:opacity-40 disabled:cursor-not-allowed';
 
   return (
     <section
       data-testid="signaal-mobile-actionbar"
-      className="glass-mobile-action p-1.5 grid grid-cols-3 gap-1"
+      className="glass-mobile-action px-1.5 py-1"
     >
-      {acties.map(({ key, kort, aria, href, onClick, Icon, disabled }) => {
-        const inhoud = (
-          <>
-            <Icon className="h-[18px] w-[18px]" />
-            <span className="leading-none">{kort}</span>
-          </>
-        );
-        if (href && !disabled) {
+      <div className="tabs-scroll flex items-center gap-1 overflow-x-auto no-scrollbar">
+        {acties.map(({ key, kort, aria, href, onClick, Icon, disabled }) => {
+          const inhoud = (
+            <>
+              <Icon className="h-4 w-4" />
+              <span className="leading-none">{kort}</span>
+            </>
+          );
+          if (href && !disabled) {
+            return (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={pillBase}
+                aria-label={aria}
+              >
+                {inhoud}
+              </a>
+            );
+          }
           return (
-            <a
+            <button
               key={key}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={knopBase}
+              type="button"
+              onClick={onClick}
+              disabled={disabled}
               aria-label={aria}
+              className={pillBase}
             >
               {inhoud}
-            </a>
+            </button>
           );
-        }
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            aria-label={aria}
-            className={knopBase}
-          >
-            {inhoud}
-          </button>
-        );
-      })}
+        })}
+      </div>
     </section>
   );
 }
-
