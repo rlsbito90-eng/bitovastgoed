@@ -636,6 +636,38 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   .value-in { animation: valueIn .5s ease-out both; }
+
+  /* ============================================================
+     Liquid Glass — opt-in utilities (niet automatisch toegepast).
+     Beschikbaar voor toekomstig gebruik op page-wrappers en KPI's.
+     ============================================================ */
+  .liquid-page-bg {
+    position: relative;
+    background-image:
+      radial-gradient(900px 600px at 0% -10%, hsl(var(--glass-accent-glow) / 0.18), transparent 60%),
+      radial-gradient(800px 600px at 100% 0%, hsl(31 50% 78% / 0.22), transparent 65%),
+      radial-gradient(1000px 700px at 50% 110%, hsl(206 50% 86% / 0.18), transparent 65%);
+  }
+  .glass-kpi {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    background:
+      radial-gradient(120% 80% at 100% 0%, hsl(var(--accent) / 0.08), transparent 55%),
+      linear-gradient(180deg, hsl(var(--card) / 0.82), hsl(var(--card) / 0.62));
+    border: 1px solid hsl(var(--glass-border) / 0.55);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    box-shadow:
+      0 1px 0 hsl(var(--glass-highlight) / 0.55) inset,
+      0 12px 30px -18px hsl(var(--shadow-color) / 0.22),
+      0 2px 6px -2px hsl(var(--shadow-color) / 0.08);
+  }
+  .glass-kpi::before {
+    content: '';
+    position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--glass-accent-glow) / 0.55), transparent);
+  }
 }
 
 
