@@ -106,7 +106,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
         : null;
       return (
         <div className="min-w-0">
-          <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>
+          <p className="text-sm text-foreground truncate">{cleanAdres(s.adres) || '—'}</p>
           {gebied && <p className="text-[11px] text-muted-foreground truncate">{gebied}</p>}
         </div>
       );
