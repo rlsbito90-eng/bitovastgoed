@@ -124,7 +124,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
     label: 'Plaats',
     defaultVisible: true,
     cellClassName: 'text-sm text-foreground',
-    render: (s) => s.plaats || '—',
+    render: (s) => cleanPlaats(s.plaats) || '—',
   },
   {
     id: 'provincie',
