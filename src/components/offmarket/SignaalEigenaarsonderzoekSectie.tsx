@@ -104,7 +104,7 @@ function formatDateTimeNL(iso: string | null | undefined): string {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function SignaalEigenaarsonderzoekSectie({ signaal }: Props) {
+export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact = false }: Props) {
   const update = useUpdateOffMarketSignaal();
   const linkRelatie = useLinkRelatieToSignaal();
   const { relaties, contactpersonen, getRelatieById } = useDataStore();
