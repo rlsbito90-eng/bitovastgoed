@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Radar } from 'lucide-react';
 import { useSignalenVoorRelatie } from '@/hooks/useOffMarketLinks';
 import { ASSETTYPE_LABEL } from '@/lib/offMarket/types';
+import { formatSignaalTitel, cleanPlaats } from '@/lib/offMarket/adresNormalisatie';
 import {
   OffMarketPriorityBadge,
   OffMarketStatusBadge,
