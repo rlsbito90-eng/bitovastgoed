@@ -56,21 +56,17 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
     { key: 'copy', kort: 'Kopieer', aria: 'Kopieer adres', href: null, onClick: kopieer, Icon: Copy, disabled: !query },
   ];
 
-  const knopBase =
-    'flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-md border text-[11px] font-medium ' +
-    'border-border/70 bg-card/80 backdrop-blur-sm text-foreground transition-colors ' +
-    'hover:border-accent/50 hover:text-accent ' +
-    'disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-border/70 disabled:hover:text-foreground';
+  const knopBase = 'glass-mobile-action-btn';
 
   return (
     <section
       data-testid="signaal-mobile-actionbar"
-      className="grid grid-cols-3 gap-1.5"
+      className="glass-mobile-action p-1.5 grid grid-cols-3 gap-1"
     >
       {acties.map(({ key, kort, aria, href, onClick, Icon, disabled }) => {
         const inhoud = (
           <>
-            <Icon className="h-4 w-4" />
+            <Icon className="h-[18px] w-[18px]" />
             <span className="leading-none">{kort}</span>
           </>
         );
@@ -104,3 +100,4 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
     </section>
   );
 }
+
