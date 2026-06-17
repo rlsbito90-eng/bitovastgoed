@@ -262,7 +262,7 @@ export default function OffMarketSignaalDetailPage() {
           </TabsContent>
 
           <TabsContent value="onderzoek" className="space-y-3 mt-3">
-            <SignaalGebiedsindeling signaal={signaal} />
+            <SignaalMobileGebiedsindeling signaal={signaal} />
             <SignaalMobileBronregel signaal={signaal} />
             <MeerOnderzoeksactiesDisclosure signaal={signaal} />
           </TabsContent>
