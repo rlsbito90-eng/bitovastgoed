@@ -133,6 +133,8 @@
 
       --glass-highlight: 215 30% 55%;
       --glass-tint: 215 28% 18%;
+      --glass-border: 215 18% 28%;
+      --glass-accent-glow: 38 65% 55%;
       --shadow-color: 0 0% 0%;
     }
   }
