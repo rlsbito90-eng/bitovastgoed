@@ -6,6 +6,7 @@ import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, SIGNAALTYPE_LABEL,
   type OffMarketSignaal,
 } from '@/lib/offMarket/types';
+import { formatSignaalTitel } from '@/lib/offMarket/adresNormalisatie';
 
 interface Props {
   signaal: OffMarketSignaal;
