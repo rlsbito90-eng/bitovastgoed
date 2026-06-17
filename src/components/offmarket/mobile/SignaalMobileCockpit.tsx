@@ -2,6 +2,7 @@
 // Vervangt op mobiel zowel SignaalKpiBar als SignaalCockpit. Geen horizontale
 // scroll, geen afgekapte teksten, rustige hiërarchie.
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import {
   OffMarketEigenaarstatusBadge,
