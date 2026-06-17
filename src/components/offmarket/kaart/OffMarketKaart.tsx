@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, MapPinOff, ListChecks, RefreshCw, ExternalLi
 import type { OffMarketSignaal, OffMarketPrioriteit } from '@/lib/offMarket/types';
 import { OffMarketPriorityBadge, OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { SIGNAALTYPE_LABEL, BRON_TYPE_LABEL } from '@/lib/offMarket/types';
+import { formatSignaalAdres, formatSignaalTitel, cleanPlaats, cleanAdres } from '@/lib/offMarket/adresNormalisatie';
 import { useKaartGeocoding } from '@/hooks/useKaartGeocoding';
 import LocatieControlerenDialog from './LocatieControlerenDialog';
 import ZonderLocatieDialog from './ZonderLocatieDialog';
@@ -378,9 +379,9 @@ export default function OffMarketKaart({ signalen }: Props) {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className={`font-medium truncate ${isSelected ? 'text-foreground' : ''}`}>{s.titel}</div>
+                          <div className={`font-medium truncate ${isSelected ? 'text-foreground' : ''}`}>{formatSignaalTitel(s)}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {[s.adres, s.plaats].filter(Boolean).join(', ') || '—'}
+                            {formatSignaalAdres(s) || '—'}
                           </div>
                           {(s as any).geo_status === 'verrijkt' && ((s as any).geo_gemeente_naam || (s as any).geo_buurt_naam) && (
                             <div className="text-[11px] text-muted-foreground truncate">
@@ -450,13 +451,13 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
   return (
     <div className="space-y-2 min-w-[240px] max-w-[300px]">
       <div
-        className="text-sm font-semibold leading-snug text-foreground"
+        className="text-sm font-semibold leading-snug text-foreground break-words"
         style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
       >
-        {signaal.titel}
+        {formatSignaalTitel(signaal)}
       </div>
-      <div className="text-xs text-muted-foreground leading-snug">
-        {[signaal.adres, [signaal.postcode, signaal.plaats].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
+      <div className="text-xs text-muted-foreground leading-snug break-words">
+        {[cleanAdres(signaal.adres), [signaal.postcode, cleanPlaats(signaal.plaats)].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
       </div>
       {gebied && (
         <div className="text-[11px] text-muted-foreground leading-snug">{gebied}</div>

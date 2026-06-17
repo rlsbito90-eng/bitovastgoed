@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Radar } from 'lucide-react';
 import { useSignalenVoorRelatie } from '@/hooks/useOffMarketLinks';
 import { ASSETTYPE_LABEL } from '@/lib/offMarket/types';
+import { formatSignaalTitel, cleanPlaats } from '@/lib/offMarket/adresNormalisatie';
 import {
   OffMarketPriorityBadge,
   OffMarketStatusBadge,
@@ -36,10 +37,10 @@ export default function OffMarketSignalenSectie({ relatieId }: Props) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-foreground truncate">{s.titel}</p>
+                <p className="text-sm text-foreground truncate">{formatSignaalTitel(s)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   {ASSETTYPE_LABEL[s.assettype]}
-                  {s.plaats ? ` · ${s.plaats}` : ''}
+                  {cleanPlaats(s.plaats) ? ` · ${cleanPlaats(s.plaats)}` : ''}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">

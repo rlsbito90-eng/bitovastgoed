@@ -11,6 +11,7 @@ import {
   type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
+import { cleanPlaats, cleanAdres, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
 
@@ -105,7 +106,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
         : null;
       return (
         <div className="min-w-0">
-          <p className="text-sm text-foreground truncate">{s.adres || '—'}</p>
+          <p className="text-sm text-foreground truncate">{cleanAdres(s.adres) || '—'}</p>
           {gebied && <p className="text-[11px] text-muted-foreground truncate">{gebied}</p>}
         </div>
       );
@@ -123,7 +124,7 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
     label: 'Plaats',
     defaultVisible: true,
     cellClassName: 'text-sm text-foreground',
-    render: (s) => s.plaats || '—',
+    render: (s) => cleanPlaats(s.plaats) || '—',
   },
   {
     id: 'provincie',
@@ -275,7 +276,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                     )}
                   </div>
                   <p className="text-sm font-medium text-foreground mt-1 truncate">
-                    {s.adres || '—'}{s.plaats ? ` · ${s.plaats}` : ''}
+                    {formatSignaalAdres(s) || cleanAdres(s.adres) || '—'}
                   </p>
                 </div>
                 {typeof s.ai_score === 'number' && (

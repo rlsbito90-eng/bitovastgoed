@@ -65,20 +65,57 @@ function parseAdres(text: string) {
     const inTe = norm.match(PLAATS_IN_TE_RE);
     if (inTe) plaats = inTe[1].trim();
   }
+  // Strip vergunnings-/bekendmakingsruis uit plaatsnaam.
+  if (plaats) plaats = cleanPlaatsImport(plaats) || null;
   return {
     adres,
     postcode: p ? `${p[1]} ${p[2]}` : null,
     plaats,
   };
 }
+
+// TODO: consolideren met src/lib/offMarket/adresNormalisatie.ts#cleanPlaats
+// zodra Deno/Node een gedeelde module ondersteunt voor deze edge function.
+const PLAATS_NOISE_IMPORT = new Set<string>([
+  'aanvraag','aanvragen','aangevraagd','aangevraagde',
+  'vergunning','vergunningen','vergunningaanvraag',
+  'omgevingsvergunning','splitsingsvergunning','omzettingsvergunning',
+  'woonvormingsvergunning','onttrekkingsvergunning','kamerverhuurvergunning',
+  'sloopvergunning','bouwvergunning',
+  'woonvorming','omzetting','onttrekking','ontrekkingsvergunning',
+  'bekendmaking','bekendmakingen',
+  'het','de','een',
+  'besluit','besluiten','intrekkingsbesluit','ontwerpbesluit',
+  'melding','meldingen','ontwerp','kennisgeving','kennisgevingen',
+  'verleend','verleende','ingetrokken','geweigerd','geweigerde',
+]);
+function cleanPlaatsImport(raw: string): string {
+  const tokens = raw.replace(/\s+/g, ' ').trim().split(' ');
+  const keep = tokens.filter(t => {
+    const low = t.toLowerCase().replace(/[.,;:]+$/g, '');
+    return low.length > 0 && !PLAATS_NOISE_IMPORT.has(low);
+  });
+  if (keep.length === 0) return '';
+  const out = keep.join(' ');
+  if (out === out.toLowerCase() || out === out.toUpperCase()) {
+    return out
+      .toLowerCase()
+      .split(/(\s|-)/)
+      .map(p => (p === ' ' || p === '-' ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+      .join('');
+  }
+  return out;
+}
+
+// TODO: consolideren met src/lib/offMarket/import/normalize.ts#ASSETTYPE_KEYWORDS
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
-  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
-  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
-  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
-  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming)\b/i, 'wonen'],
   [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
   [/\b(studentenhuisvesting|studentenwoning(?:en)?|studentencomplex)\b/i, 'studentenhuisvesting'],
   [/\b(woonhuis|herenhuis|grachtenpand|eengezinswoning)\b/i, 'woonhuis'],
+  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
+  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
+  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
+  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrecht(?:en)?|woonvormingsvergunning|woonvorming|woningvorm(?:ing|en)|omzettingsvergunning|onttrekkingsvergunning|onttrekking\s+woonruimte|samenvoegen\s+woonruimte|kamergewijze\s+verhuur|kamerverhuur|woningdelen|woonfunctie|appartement(?:en)?)\b/i, 'wonen'],
   [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],

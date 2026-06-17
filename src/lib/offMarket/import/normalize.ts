@@ -79,11 +79,54 @@ export function parseAdres(text: string): AdresParseResult {
     const inTe = norm.match(PLAATS_IN_TE_RE);
     if (inTe) plaats = inTe[1].trim();
   }
+  // Strip vergunnings-/bekendmakingsruis uit plaatsnaam (bv. "Amsterdam Aanvraag" → "Amsterdam").
+  if (plaats) {
+    plaats = cleanPlaatsImport(plaats) || null;
+  }
   return {
     adres,
     postcode: postcode ? `${postcode[1]} ${postcode[2]}` : null,
     plaats,
   };
+}
+
+/**
+ * Inline plaatsnaam-cleaner voor importpad (gedupliceerd zodat edge function
+ * dezelfde regels kan gebruiken zonder runtime dependency op de UI-helper).
+ * TODO: consolideren met `src/lib/offMarket/adresNormalisatie.ts#cleanPlaats`
+ * zodra een gedeelde Deno/Node module beschikbaar is.
+ */
+const PLAATS_NOISE_IMPORT = new Set([
+  'aanvraag','aanvragen','aangevraagd','aangevraagde',
+  'vergunning','vergunningen','vergunningaanvraag',
+  'omgevingsvergunning','splitsingsvergunning','omzettingsvergunning',
+  'woonvormingsvergunning','onttrekkingsvergunning','kamerverhuurvergunning',
+  'sloopvergunning','bouwvergunning',
+  'woonvorming','omzetting','onttrekking','ontrekkingsvergunning',
+  'bekendmaking','bekendmakingen',
+  'het','de','een',
+  'besluit','besluiten','intrekkingsbesluit','ontwerpbesluit',
+  'melding','meldingen','ontwerp','kennisgeving','kennisgevingen',
+  'verleend','verleende','ingetrokken','geweigerd','geweigerde',
+]);
+export function cleanPlaatsImport(raw: string): string {
+  const tokens = raw.replace(/\s+/g, ' ').trim().split(' ');
+  const keep = tokens.filter(t => {
+    const low = t.toLowerCase().replace(/[.,;:]+$/g, '');
+    return low.length > 0 && !PLAATS_NOISE_IMPORT.has(low);
+  });
+  if (keep.length === 0) return '';
+  const out = keep.join(' ');
+  const low = out.toLowerCase();
+  // Lichtgewicht title-case voor hele plaats.
+  if (low === out || out === out.toUpperCase()) {
+    return out
+      .toLowerCase()
+      .split(/(\s|-)/)
+      .map(p => (p === ' ' || p === '-' ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+      .join('');
+  }
+  return out;
 }
 
 /**
@@ -114,15 +157,18 @@ export function verfijnAdresUitTekst(
 }
 
 const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
-  // Transformatie eerst — heeft voorrang op losse 'kantoor'/'winkel' match
-  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
-  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
-  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
-  // Wonen-groep — splitsing/woonvorming/appartementsrechten zijn altijd woon-acquisities
-  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming)\b/i, 'wonen'],
+  // Specifieke woon-subtypes winnen van generiek 'wonen'
   [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
   [/\b(studentenhuisvesting|studentenwoning(?:en)?|studentencomplex)\b/i, 'studentenhuisvesting'],
   [/\b(woonhuis|herenhuis|grachtenpand|eengezinswoning)\b/i, 'woonhuis'],
+  // Transformatie (kantoor/winkel naar wonen) heeft voorrang op losse 'kantoor'/'winkel'
+  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
+  [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
+  [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
+  // Wonen-groep — splitsing/woonvorming/omzetting/onttrekking/kamerverhuur/appartementsrechten
+  // zijn altijd woon-acquisities. Uitgebreide keyword-set zodat 'overig' verdwijnt
+  // wanneer de broninhoud duidelijk over wonen gaat.
+  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrecht(?:en)?|woonvormingsvergunning|woonvorming|woningvorm(?:ing|en)|omzettingsvergunning|onttrekkingsvergunning|onttrekking\s+woonruimte|samenvoegen\s+woonruimte|kamergewijze\s+verhuur|kamerverhuur|woningdelen|woonfunctie|appartement(?:en)?)\b/i, 'wonen'],
   [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],

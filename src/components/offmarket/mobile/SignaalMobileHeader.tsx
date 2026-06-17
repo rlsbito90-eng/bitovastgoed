@@ -12,6 +12,7 @@ import {
   SIGNAALTYPE_LABEL,
   type OffMarketSignaal,
 } from '@/lib/offMarket/types';
+import { formatSignaalAdres, formatSignaalTitel } from '@/lib/offMarket/adresNormalisatie';
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -21,7 +22,8 @@ interface Props {
 
 export default function SignaalMobileHeader({ signaal, onEdit, onArchive }: Props) {
   const isArchief = !!signaal.gearchiveerd_op;
-  const adresParts = [signaal.adres, signaal.plaats].filter(Boolean).join(', ');
+  const titel = formatSignaalTitel(signaal);
+  const adresParts = formatSignaalAdres(signaal);
   const sub = [
     SIGNAALTYPE_LABEL[signaal.type_signaal],
     BRON_TYPE_LABEL[signaal.bron_type],
@@ -36,9 +38,9 @@ export default function SignaalMobileHeader({ signaal, onEdit, onArchive }: Prop
         <div className="min-w-0 flex-1">
           <h1
             className="text-[17px] font-semibold text-foreground leading-snug break-words hyphens-auto"
-            title={signaal.titel}
+            title={titel}
           >
-            {signaal.titel}
+            {titel}
           </h1>
           {adresParts && (
             <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">

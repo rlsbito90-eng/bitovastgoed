@@ -6,6 +6,7 @@ import {
   ASSETTYPE_LABEL, BRON_TYPE_LABEL, SIGNAALTYPE_LABEL,
   type OffMarketSignaal,
 } from '@/lib/offMarket/types';
+import { formatSignaalTitel } from '@/lib/offMarket/adresNormalisatie';
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -30,7 +31,7 @@ export default function SignaalDetailHeader({ signaal, onEdit, onArchive }: Prop
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">
-            {signaal.titel}
+            {formatSignaalTitel(signaal)}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">{sub}</p>
           <div className="flex items-center flex-wrap gap-1.5 mt-3">

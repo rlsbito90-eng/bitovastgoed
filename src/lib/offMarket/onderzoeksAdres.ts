@@ -28,6 +28,11 @@ const NOISE_PATTONS: RegExp[] = [
   /\bbouwvergunning(?:en)?\b/gi,
   /\bmelding(?:en)?\b/gi,
   /\bbekendmaking(?:en)?\b/gi,
+  /\bintrekkingsbesluit\b/gi,
+  /\bomzetting(?:svergunning)?\b/gi,
+  /\bonttrekking(?:svergunning)?\b/gi,
+  /\bontrekkingsvergunning\b/gi,
+  /\bwoonvorming\b/gi,
 ];
 
 export function schoonAdresTekst(input: string | null | undefined): string {
