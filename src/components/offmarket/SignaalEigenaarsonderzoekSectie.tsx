@@ -55,7 +55,9 @@ import {
 
 interface Props {
   signaal: OffMarketSignaal;
+  mobileCompact?: boolean;
 }
+
 
 interface EigenaarForm {
   eigenaarstatus: OffMarketEigenaarstatus;
