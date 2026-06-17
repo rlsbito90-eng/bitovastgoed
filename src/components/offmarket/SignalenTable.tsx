@@ -276,7 +276,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                     )}
                   </div>
                   <p className="text-sm font-medium text-foreground mt-1 truncate">
-                    {s.adres || '—'}{s.plaats ? ` · ${s.plaats}` : ''}
+                    {formatSignaalAdres(s) || cleanAdres(s.adres) || '—'}
                   </p>
                 </div>
                 {typeof s.ai_score === 'number' && (
