@@ -48,7 +48,7 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
         <Cel label="AI-score" waarde={aiScore} accent />
         <Cel label="Verkoopkans" waarde={verkoopkans} accent />
         <Cel label="Assettype" waarde={ASSETTYPE_LABEL[signaal.assettype]} />
-        <Cel label="Strategie" waarde={strategie} />
+        <Cel label="Strategie" waarde={strategie} clamp title={strategieRuw || undefined} />
       </div>
 
       <hr className="border-border/60" />
