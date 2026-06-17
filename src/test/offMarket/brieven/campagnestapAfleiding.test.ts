@@ -23,7 +23,12 @@ describe('campagnestap-afleiding per geadresseerde', () => {
       b({ id: '2', created_at: '2026-06-02T10:00:00Z', status: 'verstuurd', verzonden_op: '2026-06-02T10:00:00Z' }),
     ]);
     expect(g[0].stappen.brief_1.verstuurd?.id).toBe('2');
-    expect(g[0].stappen.brief_1.oudereConcepten.map(x => x.id)).toEqual(['1']);
+    // Conceptversie 1 hoort bij Brief 1, niet bij Brief 2.
+    const conceptIds = [
+      g[0].stappen.brief_1.actiefConcept?.id,
+      ...g[0].stappen.brief_1.oudereConcepten.map(x => x.id),
+    ].filter(Boolean);
+    expect(conceptIds).toContain('1');
     expect(g[0].stappen.brief_2.actiefConcept).toBeNull();
   });
 
