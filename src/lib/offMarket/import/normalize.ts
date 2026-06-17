@@ -79,11 +79,54 @@ export function parseAdres(text: string): AdresParseResult {
     const inTe = norm.match(PLAATS_IN_TE_RE);
     if (inTe) plaats = inTe[1].trim();
   }
+  // Strip vergunnings-/bekendmakingsruis uit plaatsnaam (bv. "Amsterdam Aanvraag" → "Amsterdam").
+  if (plaats) {
+    plaats = cleanPlaatsImport(plaats) || null;
+  }
   return {
     adres,
     postcode: postcode ? `${postcode[1]} ${postcode[2]}` : null,
     plaats,
   };
+}
+
+/**
+ * Inline plaatsnaam-cleaner voor importpad (gedupliceerd zodat edge function
+ * dezelfde regels kan gebruiken zonder runtime dependency op de UI-helper).
+ * TODO: consolideren met `src/lib/offMarket/adresNormalisatie.ts#cleanPlaats`
+ * zodra een gedeelde Deno/Node module beschikbaar is.
+ */
+const PLAATS_NOISE_IMPORT = new Set([
+  'aanvraag','aanvragen','aangevraagd','aangevraagde',
+  'vergunning','vergunningen','vergunningaanvraag',
+  'omgevingsvergunning','splitsingsvergunning','omzettingsvergunning',
+  'woonvormingsvergunning','onttrekkingsvergunning','kamerverhuurvergunning',
+  'sloopvergunning','bouwvergunning',
+  'woonvorming','omzetting','onttrekking','ontrekkingsvergunning',
+  'bekendmaking','bekendmakingen',
+  'het','de','een',
+  'besluit','besluiten','intrekkingsbesluit','ontwerpbesluit',
+  'melding','meldingen','ontwerp','kennisgeving','kennisgevingen',
+  'verleend','verleende','ingetrokken','geweigerd','geweigerde',
+]);
+export function cleanPlaatsImport(raw: string): string {
+  const tokens = raw.replace(/\s+/g, ' ').trim().split(' ');
+  const keep = tokens.filter(t => {
+    const low = t.toLowerCase().replace(/[.,;:]+$/g, '');
+    return low.length > 0 && !PLAATS_NOISE_IMPORT.has(low);
+  });
+  if (keep.length === 0) return '';
+  const out = keep.join(' ');
+  const low = out.toLowerCase();
+  // Lichtgewicht title-case voor hele plaats.
+  if (low === out || out === out.toUpperCase()) {
+    return out
+      .toLowerCase()
+      .split(/(\s|-)/)
+      .map(p => (p === ' ' || p === '-' ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+      .join('');
+  }
+  return out;
 }
 
 /**
