@@ -28,6 +28,13 @@ const NOISE_PATTONS: RegExp[] = [
   /\bbouwvergunning(?:en)?\b/gi,
   /\bmelding(?:en)?\b/gi,
   /\bbekendmaking(?:en)?\b/gi,
+  /\bintrekkingsbesluit\b/gi,
+  /\bomzetting(?:svergunning)?\b/gi,
+  /\bonttrekking(?:svergunning)?\b/gi,
+  /\bontrekkingsvergunning\b/gi,
+  /\bwoonvorming\b/gi,
+  // Stand-alone "het" als losse vervuiling (zoals in "Amsterdam Het")
+  /(?<=\s)het(?=\s|$)/gi,
 ];
 
 export function schoonAdresTekst(input: string | null | undefined): string {
