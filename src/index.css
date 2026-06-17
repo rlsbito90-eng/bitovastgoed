@@ -16,15 +16,15 @@
 
 @layer base {
   :root {
-    --background: 33 33% 94%;
+    --background: 33 30% 92%;
     --foreground: 212 30% 12%;
 
-    --card: 33 40% 99%;
+    --card: 33 45% 98%;
     --card-foreground: 212 30% 12%;
-    --surface: 33 40% 99%;
+    --surface: 33 38% 96%;
     --surface-elevated: 0 0% 100%;
 
-    --popover: 33 40% 99%;
+    --popover: 33 45% 98%;
     --popover-foreground: 212 30% 12%;
 
     --primary: 206 79% 12%;
@@ -43,7 +43,7 @@
     --destructive: 0 62% 45%;
     --destructive-foreground: 33 33% 96%;
 
-    --border: 33 24% 82%;
+    --border: 33 28% 80%;
     --input: 33 24% 84%;
     --ring: 38 60% 56%;
 
@@ -70,16 +70,18 @@
     --sidebar-ring: 38 60% 56%;
 
     /* Glass surfaces — adapt per mode */
-    --glass-highlight: 33 60% 99%;
-    --glass-tint: 33 45% 97%;
-    --shadow-color: 206 60% 16%;
+    --glass-highlight: 38 70% 100%;
+    --glass-tint: 33 50% 94%;
+    --glass-border: 33 30% 78%;
+    --glass-accent-glow: 38 70% 60%;
+    --shadow-color: 206 50% 22%;
 
 
     /* Premium shadows */
     --shadow-xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.04);
-    --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.04), 0 1px 3px 0 hsl(var(--shadow-color) / 0.06);
-    --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.06), 0 2px 4px -2px hsl(var(--shadow-color) / 0.05);
-    --shadow-lg: 0 12px 32px -8px hsl(var(--shadow-color) / 0.10), 0 4px 12px -4px hsl(var(--shadow-color) / 0.06);
+    --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.05), 0 1px 3px 0 hsl(var(--shadow-color) / 0.07);
+    --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.08), 0 2px 4px -2px hsl(var(--shadow-color) / 0.06);
+    --shadow-lg: 0 14px 36px -10px hsl(var(--shadow-color) / 0.14), 0 4px 14px -4px hsl(var(--shadow-color) / 0.08);
   }
 
   @media (prefers-color-scheme: dark) {
