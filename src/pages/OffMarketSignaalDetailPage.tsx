@@ -11,6 +11,7 @@ import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
 import SignaalKpiBar from '@/components/offmarket/SignaalKpiBar';
 import SignaalCockpit from '@/components/offmarket/SignaalCockpit';
 import SignaalGebiedsindeling from '@/components/offmarket/SignaalGebiedsindeling';
+import SignaalMobileGebiedsindeling from '@/components/offmarket/mobile/SignaalMobileGebiedsindeling';
 import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksacties';
 import SignaalClassificatieBlok from '@/components/offmarket/SignaalClassificatieBlok';
 import SignaalDossierNotities from '@/components/offmarket/SignaalDossierNotities';
