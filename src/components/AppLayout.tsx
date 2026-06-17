@@ -346,7 +346,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 })}
               </nav>
               <div className="border-t border-sidebar-border pt-3">
-                <GebruikerMenu />
+                <GebruikerMenu onNavigate={() => setMobileOpen(false)} />
               </div>
             </div>
           </div>
