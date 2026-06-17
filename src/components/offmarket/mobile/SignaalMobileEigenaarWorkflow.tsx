@@ -20,7 +20,7 @@ export default function SignaalMobileEigenaarWorkflow({ signaal }: Props) {
     lat: (signaal as any).lat ?? null, lng: (signaal as any).lng ?? null,
   });
   const bagUrl = bouwBagViewerUrl();
-  const adres = [signaal.adres, signaal.postcode, signaal.plaats].filter(Boolean).join(', ') || '—';
+  const adres = [cleanAdres(signaal.adres), signaal.postcode, cleanPlaats(signaal.plaats)].filter(Boolean).join(', ') || '—';
 
   return (
     <div className="space-y-4" data-testid="eigenaar-workflow">
