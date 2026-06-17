@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Play, Radio, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown, Zap } from 'lucide-react';
+import { Loader2, Play, ListFilter, AlertTriangle, Settings2, RefreshCw, ChevronDown, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
