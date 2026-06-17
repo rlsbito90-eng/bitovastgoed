@@ -52,9 +52,12 @@ describe('bepaalBriefStatus', () => {
     );
     expect(res).toBe('brief1_verstuurd');
   });
-  it('twee verstuurde brieven → brief2_verstuurd', () => {
+  it('twee verstuurde brieven aan dezelfde geadresseerde → brief2_verstuurd', () => {
     expect(bepaalBriefStatus(
-      [brief({ id: '1', status: 'verstuurd' }), brief({ id: '2', status: 'verstuurd' })],
+      [
+        brief({ id: '1', status: 'verstuurd', verzonden_op: '2026-06-01', eigenaar_naam: 'Eigenaar X', verzendadres: 'Adres 1' }),
+        brief({ id: '2', status: 'verstuurd', verzonden_op: '2026-06-22', eigenaar_naam: 'Eigenaar X', verzendadres: 'Adres 1' }),
+      ],
       [], 's1',
     )).toBe('brief2_verstuurd');
   });
