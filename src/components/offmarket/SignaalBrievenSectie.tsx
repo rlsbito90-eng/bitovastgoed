@@ -1,113 +1,289 @@
-// Tab "Brieven & opvolging" — toont alle brieven van een signaal,
-// gekoppelde opvolgtaak (Brief 2) en duidelijke status per brief.
-import { useMemo } from 'react';
-import { Mail, Plus, FileDown, ArrowUpRight } from 'lucide-react';
+// Tab "Brieven & opvolging" — gegroepeerd per geadresseerde/eigenaar.
+//
+// Per geadresseerde wordt Brief 1 / Brief 2 / Brief 3 getoond; nooit
+// globale Brief 4/5/6-nummering. Conceptversies worden samengeklapt en
+// veilige testconcepten kunnen worden opgeschoond.
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { pdf } from '@react-pdf/renderer';
+import { Mail, Inbox, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
+import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 import { useDataStore } from '@/hooks/useDataStore';
-import { bepaalVolgendeActie, formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
 import BriefVoorbereidenKnop from '@/components/offmarket/BriefVoorbereidenKnop';
-import { Link } from 'react-router-dom';
+import BriefVoorbereidenDialog from '@/components/offmarket/BriefVoorbereidenDialog';
+import GeadresseerdeKaart, { type EmailContactRegel }
+  from '@/components/offmarket/brieven/GeadresseerdeKaart';
+import BrievenSamenvattingRegel from '@/components/offmarket/brieven/BrievenSamenvatting';
+import OpschoonConceptenDialog from '@/components/offmarket/brieven/OpschoonConceptenDialog';
+import MarkeerVerstuurdDialog from '@/components/offmarket/brieven/MarkeerVerstuurdDialog';
+import BriefPDF from '@/components/offmarket/BriefPDF';
+import {
+  buildBriefViewModel, briefAlsPlatteTekst,
+} from '@/lib/offMarket/brief';
+import {
+  groepeerBrievenPerGeadresseerde, samenvatting,
+  type CampagneStap, type GeadresseerdeGroep,
+} from '@/lib/offMarket/brieven/groepering';
+import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
+import { veiligeOpschoonkandidaten } from '@/lib/offMarket/brieven/opschoon';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
+import type { ContactMoment } from '@/lib/contactMoments';
 
 interface Props {
   signaal: OffMarketSignaal;
 }
 
-function formatDateNL(d: string | null | undefined): string {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' }); }
-  catch { return d; }
+function safeFilename(s: string): string {
+  return (s || 'brief')
+    .replace(/[^a-zA-Z0-9 \-_]/g, '')
+    .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
+}
+
+/**
+ * Koppel een e-mail-contactmoment aan een geadresseerde-key. We doen dit
+ * conservatief op naam-/bedrijfsnaam-substring; geen match → 'overig'.
+ */
+function emailMatchKey(
+  cm: ContactMoment,
+  groepen: GeadresseerdeGroep[],
+): string | null {
+  const hay = `${cm.title ?? ''} ${cm.description ?? ''}`.toLowerCase();
+  for (const g of groepen) {
+    const naam = (g.naam ?? '').toLowerCase().trim();
+    const bedrijf = (g.bedrijfsnaam ?? '').toLowerCase().trim();
+    if (naam && naam.length > 2 && hay.includes(naam)) return g.key;
+    if (bedrijf && bedrijf.length > 2 && hay.includes(bedrijf)) return g.key;
+  }
+  return null;
 }
 
 export default function SignaalBrievenSectie({ signaal }: Props) {
   const { data: brieven = [], isLoading } = useOffMarketBrievenForSignaal(signaal.id);
-  const { taken } = useDataStore();
-  const va = useMemo(() => bepaalVolgendeActie(signaal, taken, signaal.id), [signaal, taken]);
+  const { data: kadasterRecords = [] } = useKadasterDataRecordsForSignaal(signaal.id);
+  const { taken, contactMoments } = useDataStore();
 
-  // Brieven al nieuwste-eerst; voor weergave keren we om zodat Brief 1 bovenaan
-  // staat (chronologisch, sluit aan bij briefnummering).
-  const chronologisch = useMemo(() => [...brieven].reverse(), [brieven]);
+  const groepen = useMemo(() => groepeerBrievenPerGeadresseerde(brieven), [brieven]);
+  const sv = useMemo(() => samenvatting(groepen, taken ?? [], signaal.id), [groepen, taken, signaal.id]);
+  const kandidaten = useMemo(() => veiligeOpschoonkandidaten(brieven, taken ?? []), [brieven, taken]);
+
+  // E-mailcontactmomenten voor dit signaal, gegroepeerd per geadresseerde-key.
+  const emailsPerKey = useMemo(() => {
+    const map = new Map<string, EmailContactRegel[]>();
+    const overig: EmailContactRegel[] = [];
+    const items = (contactMoments ?? []).filter(
+      (cm) => cm.offMarketSignaalId === signaal.id && cm.type === 'email',
+    );
+    for (const cm of items) {
+      const regel: EmailContactRegel = {
+        id: cm.id,
+        datum: cm.momentDate,
+        titel: cm.title || 'E-mail',
+      };
+      const k = emailMatchKey(cm, groepen);
+      if (k) {
+        const arr = map.get(k) ?? [];
+        arr.push(regel);
+        map.set(k, arr);
+      } else {
+        overig.push(regel);
+      }
+    }
+    return { map, overig };
+  }, [contactMoments, signaal.id, groepen]);
+
+  // Brief-openen / opvolg-knop state
+  const [openBrief, setOpenBrief] = useState<OffMarketBrief | null>(null);
+  const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: CampagneStap } | null>(null);
+  const [markeerBrief, setMarkeerBrief] = useState<OffMarketBrief | null>(null);
+  const [opschoonOpen, setOpschoonOpen] = useState(false);
+
+  // ---- Acties op een bestaande brief ----
+  const handleOpen = (b: OffMarketBrief) => setOpenBrief(b);
+
+  const handleNieuw = (g: GeadresseerdeGroep, stap: CampagneStap) => {
+    // Controleer eerst of er al een actief concept bestaat voor dezelfde
+    // geadresseerde + stap — open dat dan in plaats van een nieuw record.
+    const actief = g.stappen[stap].actiefConcept;
+    if (actief) {
+      setOpenBrief(actief);
+      return;
+    }
+    setOpvolgVoor({ groep: g, stap });
+  };
+
+  const handleDownloadPdf = async (b: OffMarketBrief) => {
+    try {
+      const vm = buildBriefViewModel({
+        eigenaarNaam: b.eigenaar_naam ?? '',
+        eigenaarBedrijfsnaam: b.eigenaar_bedrijfsnaam ?? '',
+        verzendadres: b.verzendadres ?? '',
+        objectomschrijving: b.objectomschrijving ?? '',
+        onderwerp: b.onderwerp ?? '',
+        brieftekst: b.brieftekst ?? '',
+      });
+      const blob = await pdf(<BriefPDF vm={vm} />).toBlob();
+      const datum = (b.verzonden_op ?? b.created_at ?? new Date().toISOString()).split('T')[0];
+      const naam = safeFilename(vm.geadresseerdeNaam || vm.bedrijfsnaam || vm.objectomschrijving);
+      const filename = `Bito-brief-${naam}-${datum}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = filename;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('PDF gegenereerd');
+    } catch (e: any) {
+      toast.error(`PDF genereren mislukt: ${e?.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const handleKopieer = async (b: OffMarketBrief) => {
+    try {
+      const vm = buildBriefViewModel({
+        eigenaarNaam: b.eigenaar_naam ?? '',
+        eigenaarBedrijfsnaam: b.eigenaar_bedrijfsnaam ?? '',
+        verzendadres: b.verzendadres ?? '',
+        objectomschrijving: b.objectomschrijving ?? '',
+        onderwerp: b.onderwerp ?? '',
+        brieftekst: b.brieftekst ?? '',
+      });
+      await navigator.clipboard.writeText(briefAlsPlatteTekst(vm));
+      toast.success('Brief gekopieerd');
+    } catch {
+      toast.error('Kopiëren mislukt');
+    }
+  };
+
+  const handleMarkeerVerstuurd = (b: OffMarketBrief) => setMarkeerBrief(b);
+
+  // Label voor forceKandidaatLabel — exposeert in BriefVoorbereidenDialog
+  // de juiste geadresseerde-context bij "Nieuwe opvolgbrief".
+  const forceLabel = useMemo(() => {
+    if (!opvolgVoor) return null;
+    const g = opvolgVoor.groep;
+    return g.bedrijfsnaam || g.naam;
+  }, [opvolgVoor]);
 
   return (
     <section className="section-card p-5 space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Mail className="h-4 w-4 text-muted-foreground" />
-          Brieven & opvolging ({brieven.length})
+          Brieven & opvolging
         </h2>
-        <BriefVoorbereidenKnop signaal={signaal} />
+        <div className="flex items-center gap-2">
+          {kandidaten.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpschoonOpen(true)}
+              data-testid="brieven-opschonen-knop"
+              className="text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Opschonen ({kandidaten.length})
+            </Button>
+          )}
+          <BriefVoorbereidenKnop signaal={signaal} />
+        </div>
       </div>
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Brieven laden…</p>
-      ) : chronologisch.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nog geen brieven voorbereid voor dit signaal.</p>
+      ) : groepen.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Nog geen brieven voorbereid voor dit signaal.
+        </p>
       ) : (
-        <ul className="divide-y divide-border/70 -mx-1">
-          {chronologisch.map((b, i) => (
-            <li key={b.id} className="px-1 py-3">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    Brief {i + 1}{' '}
-                    <span className={`ml-1 text-[11px] px-2 py-0.5 rounded-full border ${
-                      b.status === 'verstuurd'
-                        ? 'bg-success/10 text-success border-success/25'
-                        : 'bg-secondary/15 text-foreground border-secondary/30'
-                    }`}>
-                      {b.status === 'verstuurd' ? 'Verstuurd' : 'Concept'}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {b.status === 'verstuurd'
-                      ? `Verzonden op ${formatDateNL(b.verzonden_op)}`
-                      : `Aangemaakt ${formatDateNL(b.created_at)}`}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-2 text-xs">
-                <Veld label="Aan" value={b.eigenaar_naam || b.eigenaar_bedrijfsnaam} />
-                <Veld label="Verzendadres" value={b.verzendadres} />
-                <Veld label="Object" value={b.objectomschrijving || b.objectadres} />
-                <Veld label="Onderwerp" value={b.onderwerp} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <BrievenSamenvattingRegel data={sv} />
+          <div className="space-y-3">
+            {groepen.map((g) => (
+              <GeadresseerdeKaart
+                key={g.key}
+                groep={g}
+                emails={emailsPerKey.map.get(g.key) ?? []}
+                onOpenBrief={handleOpen}
+                onNieuweBrief={handleNieuw}
+                onDownloadPdf={handleDownloadPdf}
+                onKopieer={handleKopieer}
+                onMarkeerVerstuurd={handleMarkeerVerstuurd}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Gekoppelde opvolgtaak */}
-      <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-          Volgende actie
-        </p>
-        {va ? (
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <p className="text-sm text-foreground">{va.titel}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">{formatDeadlineNL(va.deadline)}</p>
-            </div>
-            {va.bron === 'taak' && va.taakId && (
-              <Link to={`/taken/${va.taakId}`} className="text-xs text-accent hover:underline inline-flex items-center gap-1">
-                Open taak <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Geen open opvolgtaak. Bij "Markeer als verstuurd" wordt automatisch een Brief 2-taak aangemaakt.
+      {emailsPerKey.overig.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Overige contactpogingen
           </p>
-        )}
-      </div>
-    </section>
-  );
-}
+          <ul className="space-y-1">
+            {emailsPerKey.overig.map((e) => (
+              <li key={e.id} className="flex items-center gap-2 text-xs text-foreground">
+                <Inbox className="h-3 w-3 text-muted-foreground" />
+                <span className="tabular-nums text-muted-foreground">
+                  {new Date(e.datum).toLocaleDateString('nl-NL')}
+                </span>
+                <span className="opacity-40">·</span>
+                <span className="truncate">{e.titel}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-muted-foreground italic">
+            Niet betrouwbaar te koppelen aan een specifieke geadresseerde.
+          </p>
+        </div>
+      )}
 
-function Veld({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="min-w-0">
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="text-foreground break-words">{value || '—'}</span>
-    </div>
+      {/* Open bestaande brief (concept of verstuurd) */}
+      {openBrief && (
+        <BriefVoorbereidenDialog
+          open={!!openBrief}
+          onOpenChange={(v) => { if (!v) setOpenBrief(null); }}
+          signaal={signaal}
+          kadasterRecords={kadasterRecords}
+          historischeBrieven={brieven}
+          initialBrief={openBrief}
+        />
+      )}
+
+      {/* Nieuwe opvolgbrief voor één specifieke geadresseerde */}
+      {opvolgVoor && (
+        <BriefVoorbereidenDialog
+          open={!!opvolgVoor}
+          onOpenChange={(v) => { if (!v) setOpvolgVoor(null); }}
+          signaal={signaal}
+          kadasterRecords={kadasterRecords}
+          historischeBrieven={brieven}
+          forceKandidaatLabel={forceLabel}
+        />
+      )}
+
+      {/* Markeer als verstuurd */}
+      <MarkeerVerstuurdDialog
+        open={!!markeerBrief}
+        onOpenChange={(v) => { if (!v) setMarkeerBrief(null); }}
+        brief={markeerBrief}
+        signaalId={signaal.id}
+        relatieId={(signaal as any).eigenaar_relatie_id ?? null}
+      />
+
+      {/* Opschoon-dialoog */}
+      <OpschoonConceptenDialog
+        open={opschoonOpen}
+        onOpenChange={setOpschoonOpen}
+        kandidaten={kandidaten}
+      />
+
+      {/* Silence unused-import warning when group has no key */}
+      <span className="sr-only" data-test-key={geadresseerdeKey({
+        id: 'x', eigenaar_naam: null, eigenaar_bedrijfsnaam: null, verzendadres: null,
+      } as any)} />
+    </section>
   );
 }
