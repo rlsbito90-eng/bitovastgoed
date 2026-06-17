@@ -10,6 +10,7 @@ import {
   bouwGoogleMapsUrl,
 } from '@/lib/offMarket/onderzoeksAdres';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import { cleanAdres, cleanPlaats } from '@/lib/offMarket/adresNormalisatie';
 
 interface Props { signaal: OffMarketSignaal; }
 
