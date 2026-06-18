@@ -209,11 +209,50 @@ export function useMarkBriefVerstuurd() {
           metadata: { taak_id: taakId, deadline: opvolgdatum },
         });
       }
+
+      // Statuspromotie signaal → 'benaderd' (fail-soft).
+      // Wijzigt niets wanneer het signaal al verder in de funnel staat.
+      try {
+        const { data: huidig } = await (supabase as any)
+          .from('off_market_signalen')
+          .select('id,status')
+          .eq('id', brief.signaal_id)
+          .maybeSingle();
+        const huidigeStatus = (huidig?.status ?? null) as string | null;
+        if (moetPromoverenNaarBenaderd(huidigeStatus) && huidigeStatus !== 'benaderd') {
+          const { error: updFout } = await (supabase as any)
+            .from('off_market_signalen')
+            .update({ status: 'benaderd' })
+            .eq('id', brief.signaal_id);
+          if (!updFout) {
+            await logBriefEvent({
+              signaal_id: brief.signaal_id,
+              brief_id: brief.id,
+              geadresseerde_key: brief.geadresseerde_key ?? null,
+              campagne_stap: brief.campagne_stap ?? null,
+              kanaal: brief.kanaal ?? 'post',
+              event_type: 'posted',
+              status: 'benaderd',
+              metadata: {
+                statuspromotie: true,
+                van: huidigeStatus,
+                naar: 'benaderd',
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Statuspromotie naar benaderd mislukt:', e);
+      }
+
       return brief;
     },
     onSuccess: (b) => {
       qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
       qc.invalidateQueries({ queryKey: ['off_market_brief_events', b.signaal_id] });
+      qc.invalidateQueries({ queryKey: ['off-market-signaal', b.signaal_id] });
+      qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
+      qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
     },
   });
 }
