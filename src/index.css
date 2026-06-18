@@ -454,6 +454,39 @@
       0 6px 16px -8px hsl(var(--accent) / 0.45);
   }
 
+  /* === Desktop dossier tabbar — Liquid Glass container + pills === */
+  .glass-tabbar {
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.72), hsl(var(--card) / 0.55));
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid hsl(var(--glass-highlight) / 0.22);
+    box-shadow:
+      0 1px 0 hsl(var(--glass-highlight) / 0.35) inset,
+      0 8px 22px -16px hsl(var(--shadow-color) / 0.35);
+    border-radius: 9999px;
+  }
+  .glass-tab-pill {
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-full px-3.5 py-2 text-xs sm:text-sm font-medium text-muted-foreground transition-all;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+  .glass-tab-pill:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--accent) / 0.06);
+  }
+  .glass-tab-pill[data-state="active"] {
+    color: hsl(var(--accent));
+    background: linear-gradient(180deg, hsl(var(--accent) / 0.22), hsl(var(--accent) / 0.12));
+    border-color: hsl(var(--accent) / 0.45);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--glass-highlight) / 0.45),
+      0 0 0 1px hsl(var(--accent) / 0.25),
+      0 6px 16px -8px hsl(var(--accent) / 0.45);
+  }
+
+
+
   /* Verberg scrollbars zonder scrollen te blokkeren */
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -752,7 +785,8 @@
   /* Tab pills (dossier / modal / mobile) — warm gold halo when active */
   .dossier-tab-pill[data-state="active"],
   .modal-tab-pill[data-state="active"],
-  .mobile-tab-pill[data-state="active"] {
+  .mobile-tab-pill[data-state="active"],
+  .glass-tab-pill[data-state="active"] {
     background: linear-gradient(180deg, hsl(38 70% 92%), hsl(38 60% 86%));
     color: hsl(206 79% 14%);
     box-shadow:
@@ -761,6 +795,18 @@
       0 6px 14px -6px hsl(38 60% 50% / 0.38),
       0 0 16px -4px hsl(var(--glass-accent-glow) / 0.38);
   }
+
+  .glass-tabbar {
+    background:
+      linear-gradient(180deg, hsl(33 50% 99% / 0.86), hsl(33 40% 96% / 0.70));
+    border-color: hsl(31 30% 78% / 0.55);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.85) inset,
+      0 1px 0 hsl(31 30% 78% / 0.30),
+      0 10px 26px -16px hsl(206 60% 16% / 0.22);
+  }
+
+
 
   /* Mobile glass tabbar / action bar — warmer, more depth */
   .glass-mobile-tabbar,
