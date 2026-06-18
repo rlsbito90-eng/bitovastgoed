@@ -12,7 +12,9 @@ import {
   OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketEigenaarstatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
-import { bepaalVolgendeActie, formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
+import {
+  bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
+} from '@/lib/offMarket/onderzoeksAdres';
 import {
   bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
 } from '@/lib/offMarket/onderzoeksAdres';
