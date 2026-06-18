@@ -187,6 +187,7 @@ export default function OffMarketSignaalDetailPage() {
                     <StatusWijzigDropdown signaal={signaal} variant="inline" />
                   </div>
                 </div>
+                <SignaalAiAnalyse signaal={signaal} />
                 <SignaalClassificatieBlok signaal={signaal} onOpenFullForm={() => setEditOpen(true)} />
                 <SignaalOnderzoeksacties signaal={signaal} />
                 <SignaalBrievenSectie signaal={signaal} />
