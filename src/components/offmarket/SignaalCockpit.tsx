@@ -125,32 +125,13 @@ export default function SignaalCockpit({
         </Row>
       </div>
 
-      {/* Next action */}
-      <div className="section-card p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-            Volgende actie
-          </h3>
-          {va && (
-            <span className="text-[10px] uppercase tracking-wider text-accent">
-              {va.bron === 'taak' ? 'Open taak' : 'Gepland'}
-            </span>
-          )}
-        </div>
-        {va ? (
-          <>
-            <p className="text-sm font-medium text-foreground leading-tight">{va.titel}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">{formatDeadlineNL(va.deadline)}</p>
-            {va.bron === 'taak' && va.taakId && (
-              <Button asChild size="sm" className="w-full mt-2">
-                <Link to={`/taken/${va.taakId}`}>Open taak</Link>
-              </Button>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">Geen open taak gepland.</p>
-        )}
-      </div>
+      {/* Volgende acties — toont meerdere open opvolgingen */}
+      <VolgendeActiesBlok
+        signaalId={signaal.id}
+        taken={taken}
+        brieven={brieven}
+        onAllesBekijken={onOpenTaken}
+      />
 
       {/* Quick actions */}
       <div className="section-card p-2 sm:p-3">
