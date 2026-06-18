@@ -18,6 +18,7 @@ import GeadresseerdeKaart, { type EmailContactRegel }
 import BrievenSamenvattingRegel from '@/components/offmarket/brieven/BrievenSamenvatting';
 import OpschoonConceptenDialog from '@/components/offmarket/brieven/OpschoonConceptenDialog';
 import MarkeerVerstuurdDialog from '@/components/offmarket/brieven/MarkeerVerstuurdDialog';
+import RegistreerResponsDialog from '@/components/offmarket/brieven/RegistreerResponsDialog';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   buildBriefViewModel, briefAlsPlatteTekst,
@@ -26,11 +27,13 @@ import {
   groepeerBrievenPerGeadresseerde, samenvatting,
   type CampagneStap, type GeadresseerdeGroep,
 } from '@/lib/offMarket/brieven/groepering';
+import type { Responsstatus } from '@/lib/offMarket/brieven/respons';
 
 import { veiligeOpschoonkandidaten } from '@/lib/offMarket/brieven/opschoon';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { ContactMoment } from '@/lib/contactMoments';
+
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -98,7 +101,9 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   const [openBrief, setOpenBrief] = useState<OffMarketBrief | null>(null);
   const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: CampagneStap } | null>(null);
   const [markeerBrief, setMarkeerBrief] = useState<OffMarketBrief | null>(null);
+  const [responsBrief, setResponsBrief] = useState<{ brief: OffMarketBrief; initialStatus?: Responsstatus } | null>(null);
   const [opschoonOpen, setOpschoonOpen] = useState(false);
+
 
   // ---- Acties op een bestaande brief ----
   const handleOpen = (b: OffMarketBrief) => setOpenBrief(b);
@@ -211,11 +216,13 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
                 onDownloadPdf={handleDownloadPdf}
                 onKopieer={handleKopieer}
                 onMarkeerVerstuurd={handleMarkeerVerstuurd}
+                onRegistreerRespons={(b, s) => setResponsBrief({ brief: b, initialStatus: s })}
               />
             ))}
           </div>
         </>
       )}
+
 
       {emailsPerKey.overig.length > 0 && (
         <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
@@ -273,12 +280,23 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         relatieId={(signaal as any).eigenaar_relatie_id ?? null}
       />
 
+      {/* Responsregistratie V1 */}
+      <RegistreerResponsDialog
+        open={!!responsBrief}
+        onOpenChange={(v) => { if (!v) setResponsBrief(null); }}
+        brief={responsBrief?.brief ?? null}
+        signaalId={signaal.id}
+        relatieId={(signaal as any).eigenaar_relatie_id ?? null}
+        initialResponsstatus={responsBrief?.initialStatus}
+      />
+
       {/* Opschoon-dialoog */}
       <OpschoonConceptenDialog
         open={opschoonOpen}
         onOpenChange={setOpschoonOpen}
         kandidaten={kandidaten}
       />
+
 
     </section>
   );

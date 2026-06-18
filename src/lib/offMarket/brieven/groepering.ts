@@ -146,6 +146,10 @@ export interface BrievenSamenvatting {
   aantalGeadresseerden: number;
   brief1Verstuurd: number;
   actieveConcepten: number;
+  /** Aantal geadresseerden met een ingevulde responsstatus (≠ geen_reactie). */
+  reacties: number;
+  /** Aantal brieven met opvolgdatum waarop geen actieve respons is. */
+  openOpvolgingen: number;
   /** Eerstvolgende open opvolgtaak voor dit signaal (datum YYYY-MM-DD). */
   eerstvolgendeOpvolging: { titel: string; deadline: string | null; taakId: string } | null;
 }
@@ -157,12 +161,23 @@ export function samenvatting(
 ): BrievenSamenvatting {
   let brief1Verstuurd = 0;
   let actieveConcepten = 0;
+  let reacties = 0;
+  let openOpvolgingen = 0;
   for (const g of groepen) {
     for (const stap of STAP_VOLGORDE) {
       const s = g.stappen[stap];
       if (s.actiefConcept) actieveConcepten += 1;
     }
     if (g.stappen.brief_1.verstuurd) brief1Verstuurd += 1;
+    // Reacties + open opvolgingen op basis van briefvelden (V2).
+    const heeftReactie = g.brieven.some((b: any) =>
+      b.responsstatus && b.responsstatus !== 'geen_reactie',
+    );
+    if (heeftReactie) reacties += 1;
+    const heeftOpenOpvolg = g.brieven.some((b: any) =>
+      b.opvolgdatum && (!b.responsstatus || b.responsstatus === 'geen_reactie'),
+    );
+    if (heeftOpenOpvolg) openOpvolgingen += 1;
   }
 
   const open = openTaken
@@ -176,11 +191,14 @@ export function samenvatting(
     aantalGeadresseerden: groepen.length,
     brief1Verstuurd,
     actieveConcepten,
+    reacties,
+    openOpvolgingen,
     eerstvolgendeOpvolging: eerst
       ? { titel: eerst.titel, deadline: eerst.deadline || null, taakId: eerst.id }
       : null,
   };
 }
+
 
 /** Vind voor een specifieke geadresseerde-key de bestaande groep. */
 export function groepVoorKey(

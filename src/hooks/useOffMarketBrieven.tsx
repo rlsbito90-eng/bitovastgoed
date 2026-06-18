@@ -5,6 +5,11 @@
 // uitgefilterd. Verstuurde brieven worden nooit gearchiveerd.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
+import { logBriefEvent } from '@/lib/offMarket/brieven/events';
+import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
+import type { Kanaal, Verzendstatus } from '@/lib/offMarket/brieven/verzendstatus';
+import type { CampagneStap } from '@/lib/offMarket/brieven/groepering';
 
 export interface OffMarketBrief {
   id: string;
@@ -25,6 +30,19 @@ export interface OffMarketBrief {
   /** Soft-archive timestamp; null betekent actief/zichtbaar. */
   archived_at: string | null;
   archived_reason: string | null;
+  // Brieven & opvolging V2 — nullable voor backward compatibility.
+  kanaal?: Kanaal | null;
+  campagne_stap?: CampagneStap | null;
+  geadresseerde_key?: string | null;
+  printdatum?: string | null;
+  postdatum?: string | null;
+  verzendstatus?: Verzendstatus | null;
+  opvolgdatum?: string | null;
+  gekoppelde_taak_id?: string | null;
+  responsstatus?: string | null;
+  responsdatum?: string | null;
+  respons_kanaal?: string | null;
+  respons_samenvatting?: string | null;
 }
 
 export interface BriefInsert {
@@ -38,6 +56,10 @@ export interface BriefInsert {
   onderwerp?: string | null;
   brieftekst: string;
   status?: 'concept' | 'verstuurd';
+  kanaal?: Kanaal | null;
+  campagne_stap?: CampagneStap | null;
+  geadresseerde_key?: string | null;
+  verzendstatus?: Verzendstatus | null;
 }
 
 const TABLE = 'off_market_brieven';
@@ -70,6 +92,13 @@ export function useUpsertBrief() {
       input: BriefInsert & { id?: string },
     ): Promise<OffMarketBrief> => {
       const { data: u } = await supabase.auth.getUser();
+      // Bereken geadresseerde_key wanneer niet meegegeven.
+      const key = input.geadresseerde_key ?? geadresseerdeKey({
+        id: input.id ?? `_nieuw|${Date.now()}`,
+        eigenaar_naam: input.eigenaar_naam ?? null,
+        eigenaar_bedrijfsnaam: input.eigenaar_bedrijfsnaam ?? null,
+        verzendadres: input.verzendadres ?? null,
+      });
       const payload: any = {
         signaal_id: input.signaal_id,
         eigenaar_naam: input.eigenaar_naam ?? null,
@@ -82,8 +111,15 @@ export function useUpsertBrief() {
         brieftekst: input.brieftekst,
         status: input.status ?? 'concept',
         aangemaakt_door: u.user?.id ?? null,
+        kanaal: input.kanaal ?? 'post',
+        campagne_stap: input.campagne_stap ?? null,
+        geadresseerde_key: key,
+        verzendstatus: input.verzendstatus ?? 'concept',
       };
       if (input.id) {
+        // Bestaand record — wijzig kanaal/verzendstatus niet zomaar.
+        delete payload.kanaal;
+        delete payload.verzendstatus;
         const { data, error } = await (supabase as any)
           .from(TABLE).update(payload).eq('id', input.id).select().single();
         if (error) throw new Error(error.message);
@@ -92,6 +128,16 @@ export function useUpsertBrief() {
       const { data, error } = await (supabase as any)
         .from(TABLE).insert(payload).select().single();
       if (error) throw new Error(error.message);
+      // Audit-event voor nieuw concept (fail-soft).
+      await logBriefEvent({
+        signaal_id: input.signaal_id,
+        brief_id: (data as any).id,
+        geadresseerde_key: key,
+        campagne_stap: input.campagne_stap ?? null,
+        kanaal: input.kanaal ?? 'post',
+        event_type: 'concept_created',
+        status: payload.status,
+      });
       return data as OffMarketBrief;
     },
     onSuccess: (b) => {
@@ -101,35 +147,103 @@ export function useUpsertBrief() {
 }
 
 /**
- * Markeer brief als verstuurd. Postdatum is leidend voor `verzonden_op`
- * en bepaalt later ook de follow-up (postdatum + 21 dagen).
+ * Markeer brief als verstuurd. Postdatum is leidend voor `verzonden_op`,
+ * `postdatum` en de follow-up (postdatum + 21 dagen → `opvolgdatum`).
  *
  * - postdatum is YYYY-MM-DD (lokale datum); we bewaren als 12:00 UTC van
  *   die dag zodat tijdzone-shifts geen dag opschuiven.
  * - default is vandaag.
+ * - Optioneel: `gekoppelde_taak_id` om de opvolgtaak meteen te koppelen.
+ * - Schrijft audit-events `posted` en (indien taak gekoppeld) `follow_up_created`.
  */
 export function useMarkBriefVerstuurd() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      input: string | { id: string; postdatum?: string },
+      input: string | { id: string; postdatum?: string; gekoppelde_taak_id?: string | null },
     ): Promise<OffMarketBrief> => {
       const id = typeof input === 'string' ? input : input.id;
       const postdatum = typeof input === 'string' ? undefined : input.postdatum;
+      const taakId = typeof input === 'string' ? null : (input.gekoppelde_taak_id ?? null);
       const iso = postdatum
         ? new Date(`${postdatum}T12:00:00.000Z`).toISOString()
         : new Date().toISOString();
+      const dagY = postdatum ?? new Date().toISOString().slice(0, 10);
+      const opvolgdatum = berekenFollowUpDeadline(dagY);
+      const patch: any = {
+        status: 'verstuurd',
+        verzonden_op: iso,
+        verzendstatus: 'gepost',
+        postdatum: dagY,
+        opvolgdatum,
+      };
+      if (taakId) patch.gekoppelde_taak_id = taakId;
       const { data, error } = await (supabase as any)
         .from(TABLE)
-        .update({ status: 'verstuurd', verzonden_op: iso })
+        .update(patch)
         .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+
+      const brief = data as OffMarketBrief;
+      await logBriefEvent({
+        signaal_id: brief.signaal_id,
+        brief_id: brief.id,
+        geadresseerde_key: brief.geadresseerde_key ?? null,
+        campagne_stap: brief.campagne_stap ?? null,
+        kanaal: brief.kanaal ?? 'post',
+        event_type: 'posted',
+        status: 'gepost',
+        metadata: { postdatum: dagY, opvolgdatum },
+      });
+      if (taakId) {
+        await logBriefEvent({
+          signaal_id: brief.signaal_id,
+          brief_id: brief.id,
+          geadresseerde_key: brief.geadresseerde_key ?? null,
+          campagne_stap: brief.campagne_stap ?? null,
+          kanaal: brief.kanaal ?? 'post',
+          event_type: 'follow_up_created',
+          metadata: { taak_id: taakId, deadline: opvolgdatum },
+        });
+      }
+      return brief;
+    },
+    onSuccess: (b) => {
+      qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
+      qc.invalidateQueries({ queryKey: ['off_market_brief_events', b.signaal_id] });
+    },
+  });
+}
+
+/**
+ * Koppel een (later aangemaakte) opvolgtaak aan een bestaande brief.
+ * Idempotent: schrijft niet wanneer er al een taak gekoppeld is.
+ */
+export function useKoppelOpvolgtaak() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { brief_id: string; taak_id: string }) => {
+      const { data: huidig } = await (supabase as any)
+        .from(TABLE)
+        .select('id,gekoppelde_taak_id,signaal_id')
+        .eq('id', input.brief_id)
+        .single();
+      if (huidig?.gekoppelde_taak_id) return huidig as OffMarketBrief;
+      const { data, error } = await (supabase as any)
+        .from(TABLE)
+        .update({ gekoppelde_taak_id: input.taak_id })
+        .eq('id', input.brief_id)
         .select()
         .single();
       if (error) throw new Error(error.message);
       return data as OffMarketBrief;
     },
-    onSuccess: (b) => {
-      qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
+    onSuccess: (b: any) => {
+      if (b?.signaal_id) {
+        qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
+      }
     },
   });
 }
@@ -162,6 +276,15 @@ export function useArchiveerBrief() {
         .select()
         .single();
       if (error) throw new Error(error.message);
+      await logBriefEvent({
+        signaal_id: (data as any).signaal_id,
+        brief_id: (data as any).id,
+        geadresseerde_key: (data as any).geadresseerde_key ?? null,
+        campagne_stap: (data as any).campagne_stap ?? null,
+        kanaal: (data as any).kanaal ?? null,
+        event_type: 'archived',
+        metadata: { reden: input.reden ?? 'testconcept opgeschoond' },
+      });
       return data as OffMarketBrief;
     },
     onSuccess: (b) => {

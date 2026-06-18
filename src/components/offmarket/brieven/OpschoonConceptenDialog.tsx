@@ -6,6 +6,10 @@ import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { CAMPAGNE_STAP_LABEL } from '@/lib/offMarket/brieven/groepering';
@@ -18,6 +22,13 @@ function formatDateNL(d: string | null | undefined): string {
   catch { return d; }
 }
 
+const REDENEN = [
+  'testconcept opgeschoond',
+  'dubbel concept',
+  'verkeerd adres',
+  'overig',
+] as const;
+
 export default function OpschoonConceptenDialog({
   open, onOpenChange, kandidaten,
 }: {
@@ -28,6 +39,7 @@ export default function OpschoonConceptenDialog({
   const archiveer = useArchiveerBrief();
   const [bevestigd, setBevestigd] = useState(false);
   const [bezig, setBezig] = useState(false);
+  const [reden, setReden] = useState<typeof REDENEN[number]>('testconcept opgeschoond');
   const aantal = useMemo(() => kandidaten.length, [kandidaten]);
 
   const uitvoeren = async () => {
@@ -35,7 +47,7 @@ export default function OpschoonConceptenDialog({
     let ok = 0, fout = 0;
     for (const k of kandidaten) {
       try {
-        await archiveer.mutateAsync({ id: k.brief.id, reden: 'testconcept opgeschoond' });
+        await archiveer.mutateAsync({ id: k.brief.id, reden });
         ok += 1;
       } catch (e) {
         console.warn('Archiveren mislukt', e);
@@ -48,6 +60,7 @@ export default function OpschoonConceptenDialog({
     onOpenChange(false);
     setBevestigd(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setBevestigd(false); }}>
@@ -91,6 +104,19 @@ export default function OpschoonConceptenDialog({
                 </li>
               ))}
             </ul>
+            <div className="space-y-1.5">
+              <Label htmlFor="opschoon-reden">Reden</Label>
+              <Select value={reden} onValueChange={(v) => setReden(v as typeof REDENEN[number])}>
+                <SelectTrigger id="opschoon-reden" data-testid="opschoon-reden-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REDENEN.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <label className="flex items-start gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
@@ -103,6 +129,7 @@ export default function OpschoonConceptenDialog({
             </label>
           </div>
         )}
+
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>
