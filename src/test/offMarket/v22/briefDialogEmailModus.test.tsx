@@ -104,11 +104,4 @@ describe('BriefVoorbereidenDialog — V2.2 kanaal & e-mail', () => {
     expect(EMAIL_PROFIEL_VOLGORDE).toHaveLength(9);
   });
 
-    // Profielen-select aanwezig
-    expect(screen.getByTestId('brief-email-profiel-trigger')).toBeInTheDocument();
-    // Open via klik
-    fireEvent.pointerDown(screen.getByTestId('brief-email-profiel-trigger'));
-    // Niet alle UI-libs renderen items synchroon; check totaal aantal profielen in helper.
-    expect(EMAIL_PROFIEL_VOLGORDE).toHaveLength(9);
-  });
 });
