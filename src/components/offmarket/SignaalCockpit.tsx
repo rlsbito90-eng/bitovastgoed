@@ -15,9 +15,6 @@ import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBa
 import {
   bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
 } from '@/lib/offMarket/onderzoeksAdres';
-import {
-  bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
-} from '@/lib/offMarket/onderzoeksAdres';
 import { ASSETTYPE_LABEL, type OffMarketSignaal } from '@/lib/offMarket/types';
 import { formatGebiedsindeling } from '@/lib/offMarket/geo';
 import { useDataStore } from '@/hooks/useDataStore';
