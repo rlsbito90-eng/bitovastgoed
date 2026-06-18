@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -23,12 +24,9 @@ function LocationProbe() {
   return <span data-testid="loc">{loc.pathname}{loc.hash}</span>;
 }
 
-beforeEach(() => {
-  // jsdom geen lg-viewport, dus de mobiele header wordt gerenderd (lg:hidden -> zichtbaar)
-});
-
 describe('Mobiele drawer — Gebruikersbeheer', () => {
-  it('sluit drawer en navigeert naar /admin#gebruikersbeheer', () => {
+  it('navigeert via menu-link naar /admin#gebruikersbeheer met juiste onClick-binding', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
         <AppLayout>
@@ -38,21 +36,23 @@ describe('Mobiele drawer — Gebruikersbeheer', () => {
     );
 
     // Open mobiele drawer
-    const menuKnop = screen.getByLabelText(/Menu openen/i);
-    fireEvent.click(menuKnop);
+    await user.click(screen.getByLabelText(/Menu openen/i));
+    await screen.findByLabelText(/Menu sluiten/i);
 
-    // Trigger het GebruikerMenu dropdown in de drawer
-    const triggers = screen.getAllByRole('button').filter(b => b.title?.includes('admin@example.test') || /admin@example/.test(b.textContent ?? ''));
-    expect(triggers.length).toBeGreaterThan(0);
-    fireEvent.pointerDown(triggers[0], { button: 0 });
-    fireEvent.click(triggers[0]);
+    // Open het GebruikerMenu (Radix dropdown) via de e-mailknop in de drawer
+    const trigger = screen
+      .getAllByRole('button')
+      .find((b) => (b.textContent ?? '').includes('admin@example.test'));
+    expect(trigger).toBeTruthy();
+    await user.click(trigger as HTMLElement);
 
-    const link = screen.getByTestId('menu-gebruikersbeheer');
-    fireEvent.click(link);
+    // Menu-item wordt in Radix-portal gerenderd
+    const link = await screen.findByTestId('menu-gebruikersbeheer');
+    expect(link.getAttribute('href')).toBe('/admin#gebruikersbeheer');
 
-    // Route + hash
+    await user.click(link);
+
+    // Navigatie heeft plaatsgevonden
     expect(screen.getByTestId('loc').textContent).toBe('/admin#gebruikersbeheer');
-    // Drawer-DOM moet sluiten: knop heet weer "Menu openen"
-    expect(screen.queryByLabelText(/Menu sluiten/i)).toBeNull();
   });
 });

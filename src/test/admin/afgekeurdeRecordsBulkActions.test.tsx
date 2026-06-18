@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
 
@@ -17,7 +18,11 @@ const toastWarning = vi.fn();
 const toastSuccess = vi.fn();
 
 vi.mock('sonner', () => ({
-  toast: { success: (...a: any[]) => toastSuccess(...a), error: vi.fn(), warning: (...a: any[]) => toastWarning(...a) },
+  toast: {
+    success: (...a: any[]) => toastSuccess(...a),
+    error: vi.fn(),
+    warning: (...a: any[]) => toastWarning(...a),
+  },
 }));
 vi.mock('@/hooks/useGeskipteRuwRecords', () => ({
   useGeskipteRuwRecords: () => ({ data: records, isLoading: false }),
@@ -31,21 +36,35 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 describe('Afgekeurde records — bulk verbergen', () => {
   it('verbergt geselecteerde records via confirm-dialog', async () => {
+    const user = userEvent.setup();
     const qc = new QueryClient();
-    render(<QueryClientProvider client={qc}><OffMarketGeskiptRecordsSectie /></QueryClientProvider>);
+    render(
+      <QueryClientProvider client={qc}>
+        <OffMarketGeskiptRecordsSectie />
+      </QueryClientProvider>,
+    );
 
-    fireEvent.click(screen.getByTestId('select-r0'));
-    fireEvent.click(screen.getByTestId('select-r1'));
-    fireEvent.click(screen.getByTestId('select-r2'));
+    // Selecteer 3 records via checkbox
+    await user.click(screen.getByTestId('select-r0'));
+    await user.click(screen.getByTestId('select-r1'));
+    await user.click(screen.getByTestId('select-r2'));
 
-    expect(screen.getByTestId('bulk-toolbar')).toBeInTheDocument();
+    const toolbar = await screen.findByTestId('bulk-toolbar');
+    expect(toolbar).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Verbergen$/i }));
-    fireEvent.click(screen.getByTestId('bulk-bevestig'));
+    // Open dialog via Verbergen-knop in toolbar
+    const verbergKnop = within(toolbar).getByRole('button', { name: /Verbergen/i });
+    await user.click(verbergKnop);
+
+    // Bevestig (AlertDialog in portal)
+    const bevestig = await screen.findByTestId('bulk-bevestig');
+    await user.click(bevestig);
 
     await waitFor(() => expect(negeerMock).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
-    // Selectie leeg → toolbar weg
     await waitFor(() => expect(screen.queryByTestId('bulk-toolbar')).toBeNull());
   });
 });
+
+// Helper import zonder extra dep
+import { within } from '@testing-library/react';
