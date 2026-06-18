@@ -1,13 +1,15 @@
 // Compacte samenvattingsregel boven Brieven & opvolging.
-import { Users, Mail, FileEdit, CalendarClock } from 'lucide-react';
+import { Users, Mail, FileEdit, CalendarClock, MessageSquare, BellRing } from 'lucide-react';
 import type { BrievenSamenvatting } from '@/lib/offMarket/brieven/groepering';
 import { formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
 
 export default function BrievenSamenvattingRegel({ data }: { data: BrievenSamenvatting }) {
   const items = [
     { Icon: Users, label: `${data.aantalGeadresseerden} geadresseerden` },
-    { Icon: Mail, label: `${data.brief1Verstuurd}× Brief 1 verstuurd` },
+    { Icon: Mail, label: `${data.brief1Verstuurd}× Brief 1 gepost` },
     { Icon: FileEdit, label: `${data.actieveConcepten} actieve concepten` },
+    { Icon: MessageSquare, label: `${data.reacties} reacties` },
+    { Icon: BellRing, label: `${data.openOpvolgingen} open opvolgingen` },
   ];
   if (data.eerstvolgendeOpvolging) {
     items.push({

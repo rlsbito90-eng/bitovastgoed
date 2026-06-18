@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { pdf } from '@react-pdf/renderer';
-import { Copy, FileDown, Send, FileText, Loader2 } from 'lucide-react';
+import { Copy, FileDown, Send, FileText, Loader2, Save } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -31,12 +31,16 @@ import {
 } from '@/lib/offMarket/brief';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import { useUpsertBrief, useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
+import { useUpdateVerzendstatus } from '@/hooks/useUpdateVerzendstatus';
 import { useDataStore } from '@/hooks/useDataStore';
 import { logSystemContactMoment } from '@/lib/contactMoments';
+import { logBriefEvent } from '@/lib/offMarket/brieven/events';
+import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 import { deadlineOverDagen } from '@/lib/offMarket/eigenaar';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
+
 
 interface Props {
   open: boolean;
@@ -148,6 +152,8 @@ export default function BriefVoorbereidenDialog({
 
   const upsert = useUpsertBrief();
   const markVerstuurd = useMarkBriefVerstuurd();
+  const updateVerzendstatus = useUpdateVerzendstatus();
+
   const { addTaak, taken } = useDataStore();
 
   // Centraal viewmodel — exact dezelfde data gebruikt door modal-preview,
@@ -213,12 +219,24 @@ export default function BriefVoorbereidenDialog({
         objectomschrijving: objectomschrijving || null,
         aanhef, onderwerp, brieftekst,
         status,
+        kanaal: 'post',
+        campagne_stap: (initialBrief?.campagne_stap as any) ?? 'brief_1',
       });
       setBriefId(res.id);
       return res.id;
     } catch (e: any) {
       toast.error(e?.message ?? 'Opslaan brief mislukt');
       return null;
+    }
+  };
+
+  const opslaanAlsConcept = async () => {
+    setBezig(true);
+    try {
+      const id = await ensureBriefOpgeslagen('concept');
+      if (id) toast.success('Brief opgeslagen als concept');
+    } finally {
+      setBezig(false);
     }
   };
 
@@ -240,7 +258,7 @@ export default function BriefVoorbereidenDialog({
     }
     setPdfBezig(true);
     try {
-      void ensureBriefOpgeslagen('concept');
+      // PDF-generatie zelf is mutatievrij — geen insert op off_market_brieven.
       const blob = await pdf(<BriefPDF vm={vm} />).toBlob();
       const datum = new Date().toISOString().split('T')[0];
       const naam = safeFilename(vm.geadresseerdeNaam || vm.bedrijfsnaam || vm.objectomschrijving);
@@ -250,7 +268,32 @@ export default function BriefVoorbereidenDialog({
       link.href = url; link.download = filename;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success('PDF gegenereerd');
+
+      if (briefId) {
+        // Alleen wanneer er al een briefrecord bestaat → upgrade verzendstatus
+        // van concept naar pdf_gegenereerd + audit-event. Geen insert.
+        await updateVerzendstatus.mutateAsync({
+          id: briefId,
+          signaal_id: signaal.id,
+          campagne_stap: (initialBrief?.campagne_stap as any) ?? null,
+          kanaal: (initialBrief?.kanaal as any) ?? 'post',
+          nieuweStatus: 'pdf_gegenereerd',
+          event: 'pdf_generated',
+        });
+      } else {
+        // Geen bestaand record → alleen audit-event loggen, geen insert.
+        await logBriefEvent({
+          signaal_id: signaal.id,
+          brief_id: null,
+          event_type: 'pdf_generated',
+          status: 'pdf_gegenereerd',
+          metadata: { context: 'voorbereiden_zonder_record' },
+        });
+      }
+
+      toast.success(briefId
+        ? 'PDF gegenereerd'
+        : 'PDF gegenereerd — sla op als concept om verzendstatus te bewaren');
     } catch (e: any) {
       console.error('PDF genereren mislukt', e);
       toast.error(`PDF genereren mislukt: ${e?.message ?? 'onbekende fout'}`);
@@ -258,6 +301,7 @@ export default function BriefVoorbereidenDialog({
       setPdfBezig(false);
     }
   };
+
 
   const markeerVerstuurd = async () => {
     if (!vm.heeftVerzendadres) {
@@ -270,31 +314,42 @@ export default function BriefVoorbereidenDialog({
     try {
       let id = briefId;
       if (!id) { id = await ensureBriefOpgeslagen('concept'); if (!id) return; }
-      await markVerstuurd.mutateAsync(id);
 
+      const vandaag = new Date().toISOString().slice(0, 10);
+      const opvolgdatum = berekenFollowUpDeadline(vandaag);
+
+      // Maak eerst de opvolgtaak (dedupe op signaal + eigenaar), zodat we de
+      // taak-id meteen kunnen koppelen aan de brief.
+      let taakId: string | null = null;
       try {
-        // Dedup: maak geen nieuwe opvolgtaak aan wanneer er al een open
-        // Brief 2-opvolgtaak voor dit signaal bestaat.
-        const bestaat = (taken ?? []).some((t: any) =>
+        const eigenaarKey = (eigenaarNaam || eigenaarBedrijfsnaam || '').trim().toLowerCase();
+        const bestaande = (taken ?? []).find((t: any) =>
           t?.offMarketSignaalId === signaal.id
-          && t?.type === 'Follow-up'
           && t?.status === 'open'
           && typeof t?.titel === 'string'
-          && /brief\s*2|brief opvolgen/i.test(t.titel),
+          && /brief\s*2|brief opvolgen/i.test(t.titel)
+          && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
         );
-        if (!bestaat) {
-          await addTaak({
+        if (bestaande) {
+          taakId = bestaande.id ?? null;
+        } else {
+          const nieuw = await addTaak({
             titel: 'Brief 2 voorbereiden / opvolgen',
             type: 'Follow-up',
-            deadline: deadlineOverDagen(21),
+            deadline: opvolgdatum || deadlineOverDagen(21),
             prioriteit: 'normaal',
             status: 'open',
             offMarketSignaalId: signaal.id,
             relatieId: (signaal as any).eigenaar_relatie_id ?? undefined,
             notities: `Bereid Brief 2 voor of neem opvolgend contact op naar aanleiding van de eerste brief aan ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
           } as any);
+          taakId = nieuw?.id ?? null;
         }
       } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
+
+      await markVerstuurd.mutateAsync({
+        id, postdatum: vandaag, gekoppelde_taak_id: taakId,
+      });
 
       try {
         await logSystemContactMoment({
@@ -315,6 +370,7 @@ export default function BriefVoorbereidenDialog({
       setBezig(false);
     }
   };
+
 
   const kandidaten = prefill.kandidaten;
   const verzendadresOntbreekt = !vm.heeftVerzendadres;
@@ -506,17 +562,21 @@ export default function BriefVoorbereidenDialog({
 
         <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Sluiten</Button>
+          <Button variant="outline" onClick={opslaanAlsConcept} disabled={bezig} data-testid="brief-opslaan-concept">
+            <Save className="h-4 w-4" /> Opslaan als concept
+          </Button>
           <Button variant="outline" onClick={kopieer}>
             <Copy className="h-4 w-4" /> Kopieer brief
           </Button>
-          <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig}>
+          <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig} data-testid="brief-download-pdf">
             {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
             Download PDF
           </Button>
-          <Button onClick={markeerVerstuurd} disabled={bezig}>
+          <Button onClick={markeerVerstuurd} disabled={bezig} data-testid="brief-markeer-verstuurd">
             <Send className="h-4 w-4" /> Markeer als verstuurd
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

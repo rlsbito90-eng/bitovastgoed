@@ -2542,6 +2542,73 @@ export type Database = {
           },
         ]
       }
+      off_market_brief_events: {
+        Row: {
+          brief_id: string | null
+          campagne_stap: string | null
+          created_at: string
+          created_by: string | null
+          event_date: string
+          event_type: string
+          geadresseerde_key: string | null
+          id: string
+          kanaal: string | null
+          metadata: Json
+          signaal_id: string
+          status: string | null
+        }
+        Insert: {
+          brief_id?: string | null
+          campagne_stap?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_type: string
+          geadresseerde_key?: string | null
+          id?: string
+          kanaal?: string | null
+          metadata?: Json
+          signaal_id: string
+          status?: string | null
+        }
+        Update: {
+          brief_id?: string | null
+          campagne_stap?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_type?: string
+          geadresseerde_key?: string | null
+          id?: string
+          kanaal?: string | null
+          metadata?: Json
+          signaal_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_brief_events_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_brieven"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_brief_events_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_brief_events_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       off_market_brieven: {
         Row: {
           aangemaakt_door: string | null
@@ -2549,17 +2616,29 @@ export type Database = {
           archived_at: string | null
           archived_reason: string | null
           brieftekst: string
+          campagne_stap: string | null
           created_at: string
           eigenaar_bedrijfsnaam: string | null
           eigenaar_naam: string | null
+          geadresseerde_key: string | null
+          gekoppelde_taak_id: string | null
           id: string
+          kanaal: string
           objectadres: string | null
           objectomschrijving: string | null
           onderwerp: string | null
+          opvolgdatum: string | null
+          postdatum: string | null
+          printdatum: string | null
+          respons_kanaal: string | null
+          respons_samenvatting: string | null
+          responsdatum: string | null
+          responsstatus: string | null
           signaal_id: string
           status: string
           updated_at: string
           verzendadres: string | null
+          verzendstatus: string
           verzonden_op: string | null
         }
         Insert: {
@@ -2568,17 +2647,29 @@ export type Database = {
           archived_at?: string | null
           archived_reason?: string | null
           brieftekst: string
+          campagne_stap?: string | null
           created_at?: string
           eigenaar_bedrijfsnaam?: string | null
           eigenaar_naam?: string | null
+          geadresseerde_key?: string | null
+          gekoppelde_taak_id?: string | null
           id?: string
+          kanaal?: string
           objectadres?: string | null
           objectomschrijving?: string | null
           onderwerp?: string | null
+          opvolgdatum?: string | null
+          postdatum?: string | null
+          printdatum?: string | null
+          respons_kanaal?: string | null
+          respons_samenvatting?: string | null
+          responsdatum?: string | null
+          responsstatus?: string | null
           signaal_id: string
           status?: string
           updated_at?: string
           verzendadres?: string | null
+          verzendstatus?: string
           verzonden_op?: string | null
         }
         Update: {
@@ -2587,20 +2678,39 @@ export type Database = {
           archived_at?: string | null
           archived_reason?: string | null
           brieftekst?: string
+          campagne_stap?: string | null
           created_at?: string
           eigenaar_bedrijfsnaam?: string | null
           eigenaar_naam?: string | null
+          geadresseerde_key?: string | null
+          gekoppelde_taak_id?: string | null
           id?: string
+          kanaal?: string
           objectadres?: string | null
           objectomschrijving?: string | null
           onderwerp?: string | null
+          opvolgdatum?: string | null
+          postdatum?: string | null
+          printdatum?: string | null
+          respons_kanaal?: string | null
+          respons_samenvatting?: string | null
+          responsdatum?: string | null
+          responsstatus?: string | null
           signaal_id?: string
           status?: string
           updated_at?: string
           verzendadres?: string | null
+          verzendstatus?: string
           verzonden_op?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "off_market_brieven_gekoppelde_taak_id_fkey"
+            columns: ["gekoppelde_taak_id"]
+            isOneToOne: false
+            referencedRelation: "taken"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "off_market_brieven_signaal_id_fkey"
             columns: ["signaal_id"]

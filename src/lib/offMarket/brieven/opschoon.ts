@@ -1,5 +1,7 @@
 // Veilige opschoon-detectie voor testconcepten in off-market brieven.
 // Verstuurde brieven worden NOOIT als opschoonkandidaat gemarkeerd.
+// Brieven met een gekoppelde opvolgtaak (`gekoppelde_taak_id`) zijn ook
+// uitgesloten van automatische opschoonvoorstellen.
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { Taak } from '@/data/mock-data';
 import { groepeerBrievenPerGeadresseerde, STAP_VOLGORDE, type CampagneStap } from './groepering';
@@ -17,9 +19,10 @@ export interface OpschoonKandidaat {
  * Een concept is alleen opschoonkandidaat wanneer:
  *  - status === 'concept'
  *  - geen verzonden_op
+ *  - verzendstatus is concept of pdf_gegenereerd (niet geprint/gepost/retour)
+ *  - geen gekoppelde_taak_id
  *  - niet de actieve (= meest recente) conceptversie binnen
  *    (geadresseerde, campagnestap)
- *  - geen gekoppelde open opvolgtaak voor het signaal
  *  - niet al gearchiveerd
  */
 export function veiligeOpschoonkandidaten(
@@ -35,7 +38,6 @@ export function veiligeOpschoonkandidaten(
   }
 
   const out: OpschoonKandidaat[] = [];
-  // Groepeer per signaal zodat we per-signaal kunnen redeneren.
   const perSignaal = new Map<string, OffMarketBrief[]>();
   for (const b of brieven) {
     if (b.archived_at) continue;
@@ -51,11 +53,12 @@ export function veiligeOpschoonkandidaten(
       for (const stap of STAP_VOLGORDE) {
         const s = g.stappen[stap];
         for (const oud of s.oudereConcepten) {
-          // Verstuurde brieven kunnen hier niet voorkomen (filter al toegepast
-          // in groepering), maar defensief dubbelchecken.
           if (oud.status === 'verstuurd') continue;
           if (oud.verzonden_op) continue;
           if (oud.archived_at) continue;
+          if (oud.gekoppelde_taak_id) continue;
+          const vs = (oud as any).verzendstatus;
+          if (vs && vs !== 'concept' && vs !== 'pdf_gegenereerd') continue;
           out.push({
             brief: oud,
             geadresseerdeNaam: g.naam,
