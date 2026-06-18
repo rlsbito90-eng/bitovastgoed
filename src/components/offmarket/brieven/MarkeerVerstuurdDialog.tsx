@@ -35,23 +35,22 @@ export default function MarkeerVerstuurdDialog({
     if (!brief) return;
     setBezig(true);
     try {
-      await markeer.mutateAsync({ id: brief.id, postdatum });
-
-      // Dedupe opvolgtaak per (signaal, eigenaar).
+      // Maak eerst de opvolgtaak aan (dedupe), zodat we het taak-id meteen
+      // kunnen koppelen aan de brief in dezelfde mutation-keten.
+      let taakId: string | null = null;
       const eigenaarKey = (brief.eigenaar_naam ?? brief.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
-      const bestaat = (taken ?? []).some((t: any) =>
+      const bestaande = (taken ?? []).find((t: any) =>
         t?.offMarketSignaalId === signaalId
         && t?.status === 'open'
         && typeof t?.titel === 'string'
         && /brief\s*2|brief opvolgen/i.test(t.titel)
-        && (
-          !eigenaarKey
-          || (t.notities ?? '').toLowerCase().includes(eigenaarKey)
-        ),
+        && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
       );
-      if (!bestaat) {
+      if (bestaande) {
+        taakId = (bestaande as any).id ?? null;
+      } else {
         try {
-          await addTaak({
+          const nieuw = await addTaak({
             titel: 'Brief 2 voorbereiden / opvolgen',
             type: 'Follow-up',
             deadline: followUp,
@@ -61,8 +60,11 @@ export default function MarkeerVerstuurdDialog({
             relatieId: relatieId ?? undefined,
             notities: `Opvolging voor brief aan ${brief.eigenaar_bedrijfsnaam || brief.eigenaar_naam || 'eigenaar'} · post ${postdatum} · deadline ${followUp}.`,
           } as any);
+          taakId = nieuw?.id ?? null;
         } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
       }
+
+      await markeer.mutateAsync({ id: brief.id, postdatum, gekoppelde_taak_id: taakId });
 
       try {
         await logSystemContactMoment({
@@ -83,6 +85,7 @@ export default function MarkeerVerstuurdDialog({
       setBezig(false);
     }
   };
+
 
   const fmt = (d: string) => {
     try { return new Date(d + 'T00:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }); }
