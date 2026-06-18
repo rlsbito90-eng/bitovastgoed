@@ -164,13 +164,23 @@ export default function OffMarketSignaalDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
           <div className="min-w-0">
             <Tabs value={desktopTab} onValueChange={setDesktopTab}>
-              <TabsList className="flex w-full justify-start overflow-x-auto h-auto p-1">
-                {DESKTOP_TABS.map((t) => (
-                  <TabsTrigger key={t.value} value={t.value} className="text-xs sm:text-sm">
-                    <t.Icon className="h-3.5 w-3.5 mr-1.5" /> {t.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              <div className="glass-tabbar px-1.5 py-1 overflow-hidden">
+                <TabsList
+                  data-testid="signaal-desktop-tabs"
+                  className="tabs-scroll bg-transparent p-0 h-auto rounded-none gap-1 flex w-full justify-start"
+                >
+                  {DESKTOP_TABS.map((t) => (
+                    <TabsTrigger
+                      key={t.value}
+                      value={t.value}
+                      className="glass-tab-pill data-[state=active]:!shadow-none"
+                    >
+                      <t.Icon className="h-3.5 w-3.5 mr-1.5" /> {t.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+
 
               <TabsContent value="overzicht" className="space-y-5 mt-4">
                 <div className="flex flex-wrap items-center gap-3 justify-between">
