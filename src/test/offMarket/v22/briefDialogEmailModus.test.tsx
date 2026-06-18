@@ -87,7 +87,7 @@ describe('BriefVoorbereidenDialog — V2.2 kanaal & e-mail', () => {
     expect(screen.getByTestId('brief-markeer-verzonden')).toBeInTheDocument();
   });
 
-  it('e-mailmodus toont alle 9 profielen in dropdown', () => {
+  it('e-mailmodus toont profielenselect en kopieerknop', () => {
     render(wrap(
       <BriefVoorbereidenDialog
         open={true}
@@ -98,9 +98,11 @@ describe('BriefVoorbereidenDialog — V2.2 kanaal & e-mail', () => {
       />,
     ));
     fireEvent.click(screen.getByTestId('brief-kanaal-email'));
-    // Verberg PDF-knop
     expect(screen.queryByTestId('brief-download-pdf')).toBeNull();
     expect(screen.getByTestId('brief-kopieer-email')).toBeInTheDocument();
+    expect(screen.getByTestId('brief-email-profiel-trigger')).toBeInTheDocument();
+    expect(EMAIL_PROFIEL_VOLGORDE).toHaveLength(9);
+  });
 
     // Profielen-select aanwezig
     expect(screen.getByTestId('brief-email-profiel-trigger')).toBeInTheDocument();
