@@ -49,7 +49,7 @@ export default function SignaalCockpit({
 }: Props) {
   const { getRelatieById } = useDataStore();
   const { data: brieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
-  void bepaalVolgendeActie; // bewust ongebruikt: nu via VolgendeActiesBlok
+  // VolgendeActiesBlok vervangt de oude bepaalVolgendeActie-call.
   const eigenaarstatus = (signaal as any).eigenaarstatus ?? 'onbekend';
   const eigenaarNaam = (signaal as any).eigenaar_naam ?? null;
   const relatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
