@@ -191,17 +191,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div key={item.path}>
                 <Link
                   to={item.path}
+                  data-active={isActive ? "true" : "false"}
                   title={desktopCollapsed ? item.label : undefined}
-                  className={`relative flex items-center rounded-lg text-sm transition-colors ${
+                  className={`relative flex items-center rounded-lg text-sm transition-all duration-200 ${
                     desktopCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
                   } ${
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? "bg-sidebar-accent text-sidebar-foreground font-medium shadow-[0_0_0_1px_hsl(var(--accent)/0.25),0_8px_22px_-12px_hsl(var(--accent)/0.55)] ring-1 ring-accent/30"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
                   }`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-accent" aria-hidden />
+                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-accent shadow-[0_0_10px_hsl(var(--accent)/0.6)]" aria-hidden />
                   )}
                   <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-accent" : ""}`} />
                   {!desktopCollapsed && <span className="tracking-tight">{item.label}</span>}
