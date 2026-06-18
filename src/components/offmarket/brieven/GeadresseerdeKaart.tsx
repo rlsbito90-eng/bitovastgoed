@@ -1,16 +1,23 @@
 // Kaart per geadresseerde binnen Brieven & opvolging.
-// Toont Brief 1 / 2 / 3 als rijen met statusbadge, datum en acties.
-// De hele rij is klikbaar (toetsenbord + muis); action-knoppen
-// gebruiken stopPropagation zodat ze geen rij-click triggeren.
+// Toont Brief 1 / 2 / 3 als rijen met statusbadge, datum, verzendstatus,
+// postdatum, opvolgdatum en responsstatus. De hele rij is klikbaar; action-
+// knoppen gebruiken stopPropagation zodat ze geen rij-click triggeren.
 import { useState } from 'react';
 import {
   Mail, MailCheck, FileEdit, ChevronDown, ChevronRight,
-  Copy, FileDown, Send, Plus, Inbox,
+  Copy, FileDown, Send, Plus, Inbox, MessageSquare, Undo2, X,
 } from 'lucide-react';
 import {
   STAP_VOLGORDE, CAMPAGNE_STAP_LABEL,
   type CampagneStap, type GeadresseerdeGroep,
 } from '@/lib/offMarket/brieven/groepering';
+import {
+  VERZENDSTATUS_LABEL, badgeClassVoorVerzendstatus,
+  type Verzendstatus,
+} from '@/lib/offMarket/brieven/verzendstatus';
+import {
+  RESPONS_LABEL, badgeClassVoorRespons, type Responsstatus,
+} from '@/lib/offMarket/brieven/respons';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 
 function formatDateNL(d: string | null | undefined): string {
@@ -55,11 +62,13 @@ export interface GeadresseerdeKaartProps {
   onDownloadPdf: (brief: OffMarketBrief) => void;
   onKopieer: (brief: OffMarketBrief) => void;
   onMarkeerVerstuurd: (brief: OffMarketBrief) => void;
+  onRegistreerRespons?: (brief: OffMarketBrief, initialStatus?: Responsstatus) => void;
 }
 
 export default function GeadresseerdeKaart({
   groep, emails = [],
   onOpenBrief, onNieuweBrief, onDownloadPdf, onKopieer, onMarkeerVerstuurd,
+  onRegistreerRespons,
 }: GeadresseerdeKaartProps) {
   return (
     <article
@@ -98,6 +107,7 @@ export default function GeadresseerdeKaart({
               onDownloadPdf={onDownloadPdf}
               onKopieer={onKopieer}
               onMarkeerVerstuurd={onMarkeerVerstuurd}
+              onRegistreerRespons={onRegistreerRespons}
             />
           );
         })}
@@ -134,11 +144,12 @@ interface StapRijProps {
   onDownloadPdf: (b: OffMarketBrief) => void;
   onKopieer: (b: OffMarketBrief) => void;
   onMarkeerVerstuurd: (b: OffMarketBrief) => void;
+  onRegistreerRespons?: (b: OffMarketBrief, initialStatus?: Responsstatus) => void;
 }
 
 function StapRij({
   stap, status, actief, oudereConcepten,
-  onOpen, onNieuw, onDownloadPdf, onKopieer, onMarkeerVerstuurd,
+  onOpen, onNieuw, onDownloadPdf, onKopieer, onMarkeerVerstuurd, onRegistreerRespons,
 }: StapRijProps) {
   const [open, setOpen] = useState(false);
 
@@ -162,6 +173,9 @@ function StapRij({
         ? `Aangemaakt ${formatDateNL(actief.created_at)}`
         : '';
 
+  const verzendstatus = (actief?.verzendstatus ?? null) as Verzendstatus | null;
+  const responsstatus = (actief?.responsstatus ?? null) as Responsstatus | null;
+
   return (
     <li>
       <div
@@ -178,7 +192,7 @@ function StapRij({
             : 'cursor-default',
         ].join(' ')}
       >
-        <div className="min-w-0 flex items-center gap-2">
+        <div className="min-w-0 flex items-center gap-2 flex-wrap">
           {status === 'verstuurd'
             ? <MailCheck className="h-3.5 w-3.5 text-success shrink-0" />
             : status === 'concept'
@@ -188,6 +202,22 @@ function StapRij({
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClass(status)}`}>
             {badgeLabel(status)}
           </span>
+          {verzendstatus && verzendstatus !== 'concept' && (
+            <span
+              data-testid={`verzendstatus-${stap}`}
+              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorVerzendstatus(verzendstatus)}`}
+            >
+              {VERZENDSTATUS_LABEL[verzendstatus]}
+            </span>
+          )}
+          {responsstatus && (
+            <span
+              data-testid={`responsstatus-${stap}`}
+              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorRespons(responsstatus)}`}
+            >
+              {RESPONS_LABEL[responsstatus]}
+            </span>
+          )}
           {datum && <span className="text-[11px] text-muted-foreground tabular-nums hidden sm:inline">{datum}</span>}
         </div>
 
@@ -207,6 +237,30 @@ function StapRij({
           )}
           {actief && status === 'verstuurd' && (
             <>
+              {onRegistreerRespons && (
+                <>
+                  <ActieKnop
+                    title="Reactie registreren"
+                    onClick={stop(() => onRegistreerRespons(actief, 'reactie_ontvangen'))}
+                    data-testid={`respons-knop-${stap}`}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                  </ActieKnop>
+                  <ActieKnop
+                    title="Retour post"
+                    onClick={stop(() => onRegistreerRespons(actief, 'retour_post'))}
+                    data-testid={`retour-knop-${stap}`}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                  </ActieKnop>
+                  <ActieKnop
+                    title="Geen reactie"
+                    onClick={stop(() => onRegistreerRespons(actief, 'geen_reactie'))}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </ActieKnop>
+                </>
+              )}
               <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
                 <FileDown className="h-3.5 w-3.5" />
               </ActieKnop>
@@ -227,6 +281,16 @@ function StapRij({
           )}
         </div>
       </div>
+
+      {actief && (actief.postdatum || actief.opvolgdatum) && (
+        <div className="px-3 pb-2 -mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
+          {actief.postdatum && <span>Postdatum {formatDateNL(actief.postdatum)}</span>}
+          {actief.opvolgdatum && <span>Opvolging {formatDateNL(actief.opvolgdatum)}</span>}
+          {actief.gekoppelde_taak_id && (
+            <span className="text-[10px] italic opacity-70">taak gekoppeld</span>
+          )}
+        </div>
+      )}
 
       {actief && datum && (
         <div className="sm:hidden px-3 pb-2 -mt-1 text-[11px] text-muted-foreground tabular-nums">
@@ -268,8 +332,13 @@ function StapRij({
 }
 
 function ActieKnop({
-  title, onClick, children,
-}: { title: string; onClick: (e: React.MouseEvent) => void; children: React.ReactNode }) {
+  title, onClick, children, ...rest
+}: {
+  title: string;
+  onClick: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+  [k: string]: any;
+}) {
   return (
     <button
       type="button"
@@ -277,6 +346,7 @@ function ActieKnop({
       aria-label={title}
       onClick={onClick}
       className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-border bg-card/80 text-muted-foreground hover:text-foreground hover:border-accent/40"
+      {...rest}
     >
       {children}
     </button>
