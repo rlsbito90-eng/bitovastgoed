@@ -34,7 +34,7 @@ export interface OffMarketBrief {
   archived_reason: string | null;
   // Brieven & opvolging V2 — nullable voor backward compatibility.
   kanaal?: Kanaal | null;
-  campagne_stap?: CampagneStap | null;
+  campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;
   geadresseerde_key?: string | null;
   printdatum?: string | null;
   postdatum?: string | null;
