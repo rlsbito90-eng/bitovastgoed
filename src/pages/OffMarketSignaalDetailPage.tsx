@@ -24,6 +24,7 @@ import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
 import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBar';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
 
@@ -172,7 +173,20 @@ export default function OffMarketSignaalDetailPage() {
               </TabsList>
 
               <TabsContent value="overzicht" className="space-y-5 mt-4">
-                <SignaalSnelleActiesBar signaal={signaal} />
+                <div className="flex flex-wrap items-center gap-3 justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Snelle acties
+                    </p>
+                    <SignaalSnelleActiesBar signaal={signaal} />
+                  </div>
+                  <div className="shrink-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Status wijzigen
+                    </p>
+                    <StatusWijzigDropdown signaal={signaal} variant="inline" />
+                  </div>
+                </div>
                 <SignaalAiAnalyse signaal={signaal} />
                 <SignaalClassificatieBlok signaal={signaal} onOpenFullForm={() => setEditOpen(true)} />
                 <SignaalOnderzoeksacties signaal={signaal} />
@@ -215,6 +229,7 @@ export default function OffMarketSignaalDetailPage() {
                 briefStatus={briefStatus}
                 onBewerken={() => setEditOpen(true)}
                 onTaakAanmaken={() => setTaakOpen(true)}
+                onOpenTaken={() => setDesktopTab('taken')}
               />
             </div>
           </div>

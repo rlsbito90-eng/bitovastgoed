@@ -377,7 +377,7 @@ export default function BriefVoorbereidenDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-4 w-4" /> Brief voorbereiden
@@ -560,19 +560,38 @@ export default function BriefVoorbereidenDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Sluiten</Button>
-          <Button variant="outline" onClick={opslaanAlsConcept} disabled={bezig} data-testid="brief-opslaan-concept">
-            <Save className="h-4 w-4" /> Opslaan als concept
+        <DialogFooter
+          data-testid="brief-dialog-footer"
+          className="flex flex-wrap gap-2 items-center sm:justify-between sticky bottom-0 bg-background/95 backdrop-blur border-t pt-3 -mx-6 px-6 sm:flex-nowrap"
+        >
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="order-1"
+          >
+            Sluiten
           </Button>
-          <Button variant="outline" onClick={kopieer}>
-            <Copy className="h-4 w-4" /> Kopieer brief
-          </Button>
-          <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig} data-testid="brief-download-pdf">
-            {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Download PDF
-          </Button>
-          <Button onClick={markeerVerstuurd} disabled={bezig} data-testid="brief-markeer-verstuurd">
+          <div
+            data-testid="brief-dialog-footer-secundair"
+            className="order-2 flex flex-wrap gap-2 sm:flex-1 sm:justify-center"
+          >
+            <Button variant="outline" onClick={opslaanAlsConcept} disabled={bezig} data-testid="brief-opslaan-concept">
+              <Save className="h-4 w-4" /> Opslaan als concept
+            </Button>
+            <Button variant="outline" onClick={kopieer}>
+              <Copy className="h-4 w-4" /> Kopieer brief
+            </Button>
+            <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig} data-testid="brief-download-pdf">
+              {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Download PDF
+            </Button>
+          </div>
+          <Button
+            onClick={markeerVerstuurd}
+            disabled={bezig}
+            data-testid="brief-markeer-verstuurd"
+            className="order-3 w-full sm:w-auto"
+          >
             <Send className="h-4 w-4" /> Markeer als verstuurd
           </Button>
         </DialogFooter>

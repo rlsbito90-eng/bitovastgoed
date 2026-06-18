@@ -7,18 +7,20 @@ import {
   Sparkles, MapPin, MapIcon, Landmark, Mail, ListPlus, FileSearch,
   ArrowUpRight, ZapIcon, Pencil,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+// Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
 import {
   OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketEigenaarstatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
-import { bepaalVolgendeActie, formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
 import {
   bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
 } from '@/lib/offMarket/onderzoeksAdres';
 import { ASSETTYPE_LABEL, type OffMarketSignaal } from '@/lib/offMarket/types';
 import { formatGebiedsindeling } from '@/lib/offMarket/geo';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
+import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
 
@@ -36,14 +38,18 @@ interface Props {
   onTaakAanmaken?: () => void;
   /** Optioneel: open volledige bewerk-dialog. */
   onBewerken?: () => void;
+  /** Optioneel: navigeer naar tab "Taken & tijdlijn". */
+  onOpenTaken?: () => void;
 }
 
 export default function SignaalCockpit({
   signaal, taken, briefStatus,
   onAiVerrijken, onKadasterOphalen, onBriefVoorbereiden, onTaakAanmaken, onBewerken,
+  onOpenTaken,
 }: Props) {
   const { getRelatieById } = useDataStore();
-  const va = bepaalVolgendeActie(signaal, taken, signaal.id);
+  const { data: brieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
+  // VolgendeActiesBlok vervangt de oude bepaalVolgendeActie-call.
   const eigenaarstatus = (signaal as any).eigenaarstatus ?? 'onbekend';
   const eigenaarNaam = (signaal as any).eigenaar_naam ?? null;
   const relatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
@@ -71,7 +77,12 @@ export default function SignaalCockpit({
             </button>
           )}
         </div>
-        <Row label="Status"><OffMarketStatusBadge status={signaal.status} /></Row>
+        <Row label="Status">
+          <div className="flex items-center gap-1.5">
+            <OffMarketStatusBadge status={signaal.status} />
+            <StatusWijzigDropdown signaal={signaal} variant="compact" />
+          </div>
+        </Row>
         <Row label="Prioriteit"><OffMarketPriorityBadge prioriteit={signaal.prioriteit} /></Row>
         <Row label="AI-score">
           <span className="text-sm font-medium text-foreground">{typeof signaal.ai_score === 'number' ? signaal.ai_score : '—'}</span>
@@ -113,32 +124,13 @@ export default function SignaalCockpit({
         </Row>
       </div>
 
-      {/* Next action */}
-      <div className="section-card p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-            Volgende actie
-          </h3>
-          {va && (
-            <span className="text-[10px] uppercase tracking-wider text-accent">
-              {va.bron === 'taak' ? 'Open taak' : 'Gepland'}
-            </span>
-          )}
-        </div>
-        {va ? (
-          <>
-            <p className="text-sm font-medium text-foreground leading-tight">{va.titel}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">{formatDeadlineNL(va.deadline)}</p>
-            {va.bron === 'taak' && va.taakId && (
-              <Button asChild size="sm" className="w-full mt-2">
-                <Link to={`/taken/${va.taakId}`}>Open taak</Link>
-              </Button>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">Geen open taak gepland.</p>
-        )}
-      </div>
+      {/* Volgende acties — toont meerdere open opvolgingen */}
+      <VolgendeActiesBlok
+        signaalId={signaal.id}
+        taken={taken}
+        brieven={brieven}
+        onAllesBekijken={onOpenTaken}
+      />
 
       {/* Quick actions */}
       <div className="section-card p-2 sm:p-3">
