@@ -3,8 +3,8 @@
 // Belangrijk:
 //   - Dit bestand bouwt UITSLUITEND e-mailtekst (concept, lokaal).
 //   - Er wordt nergens een e-mail daadwerkelijk verstuurd.
-//   - Geen Gmail, geen SMTP, geen Resend, geen tracking, geen fetch.
-//   - Profielen zijn bewerkbare templates; gebruikers passen tekst aan in de UI.
+//   - Geen externe mailservice, geen verzendprotocol, geen tracking.
+//   - Geen netwerkverkeer vanuit dit bestand.
 
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 
