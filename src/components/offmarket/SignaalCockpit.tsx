@@ -78,7 +78,12 @@ export default function SignaalCockpit({
             </button>
           )}
         </div>
-        <Row label="Status"><OffMarketStatusBadge status={signaal.status} /></Row>
+        <Row label="Status">
+          <div className="flex items-center gap-1.5">
+            <OffMarketStatusBadge status={signaal.status} />
+            <StatusWijzigDropdown signaal={signaal} variant="compact" />
+          </div>
+        </Row>
         <Row label="Prioriteit"><OffMarketPriorityBadge prioriteit={signaal.prioriteit} /></Row>
         <Row label="AI-score">
           <span className="text-sm font-medium text-foreground">{typeof signaal.ai_score === 'number' ? signaal.ai_score : '—'}</span>
