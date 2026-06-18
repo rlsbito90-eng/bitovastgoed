@@ -18,6 +18,7 @@ import GeadresseerdeKaart, { type EmailContactRegel }
 import BrievenSamenvattingRegel from '@/components/offmarket/brieven/BrievenSamenvatting';
 import OpschoonConceptenDialog from '@/components/offmarket/brieven/OpschoonConceptenDialog';
 import MarkeerVerstuurdDialog from '@/components/offmarket/brieven/MarkeerVerstuurdDialog';
+import RegistreerResponsDialog from '@/components/offmarket/brieven/RegistreerResponsDialog';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   buildBriefViewModel, briefAlsPlatteTekst,
@@ -26,11 +27,13 @@ import {
   groepeerBrievenPerGeadresseerde, samenvatting,
   type CampagneStap, type GeadresseerdeGroep,
 } from '@/lib/offMarket/brieven/groepering';
+import type { Responsstatus } from '@/lib/offMarket/brieven/respons';
 
 import { veiligeOpschoonkandidaten } from '@/lib/offMarket/brieven/opschoon';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { ContactMoment } from '@/lib/contactMoments';
+
 
 interface Props {
   signaal: OffMarketSignaal;
