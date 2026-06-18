@@ -280,12 +280,23 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         relatieId={(signaal as any).eigenaar_relatie_id ?? null}
       />
 
+      {/* Responsregistratie V1 */}
+      <RegistreerResponsDialog
+        open={!!responsBrief}
+        onOpenChange={(v) => { if (!v) setResponsBrief(null); }}
+        brief={responsBrief?.brief ?? null}
+        signaalId={signaal.id}
+        relatieId={(signaal as any).eigenaar_relatie_id ?? null}
+        initialResponsstatus={responsBrief?.initialStatus}
+      />
+
       {/* Opschoon-dialoog */}
       <OpschoonConceptenDialog
         open={opschoonOpen}
         onOpenChange={setOpschoonOpen}
         kandidaten={kandidaten}
       />
+
 
     </section>
   );
