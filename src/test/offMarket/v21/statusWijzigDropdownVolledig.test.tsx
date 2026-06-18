@@ -1,10 +1,22 @@
 // V2.1 — StatusWijzigDropdown bevat alle keys uit STATUS_LABEL.
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import { STATUS_LABEL, STATUS_VOLGORDE } from '@/lib/offMarket/types';
+
+// Radix Select gebruikt PointerCapture API die jsdom niet implementeert.
+beforeAll(() => {
+  if (!(HTMLElement.prototype as any).hasPointerCapture) {
+    (HTMLElement.prototype as any).hasPointerCapture = () => false;
+    (HTMLElement.prototype as any).releasePointerCapture = () => {};
+    (HTMLElement.prototype as any).setPointerCapture = () => {};
+  }
+  if (!(HTMLElement.prototype as any).scrollIntoView) {
+    (HTMLElement.prototype as any).scrollIntoView = () => {};
+  }
+});
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -24,7 +36,12 @@ const baseSignaal: any = {
 };
 
 describe('StatusWijzigDropdown — alle statussen', () => {
-  it('toont alle keys uit STATUS_LABEL', async () => {
+  it('STATUS_VOLGORDE bevat alle keys uit STATUS_LABEL', () => {
+    const labelKeys = Object.keys(STATUS_LABEL).sort();
+    expect([...STATUS_VOLGORDE].sort()).toEqual(labelKeys);
+  });
+
+  it('toont alle keys uit STATUS_LABEL na openen', async () => {
     const user = userEvent.setup();
     render(wrap(<StatusWijzigDropdown signaal={baseSignaal} variant="inline" />));
     await user.click(screen.getByTestId('status-wijzig-dropdown'));
