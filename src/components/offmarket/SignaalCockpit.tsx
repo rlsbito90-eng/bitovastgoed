@@ -7,7 +7,7 @@ import {
   Sparkles, MapPin, MapIcon, Landmark, Mail, ListPlus, FileSearch,
   ArrowUpRight, ZapIcon, Pencil,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+// Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
 import {
   OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketEigenaarstatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
