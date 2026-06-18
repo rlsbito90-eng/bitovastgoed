@@ -9,6 +9,7 @@ export type BriefEventType =
   | 'enveloped'
   | 'posted'
   | 'sent'
+  | 'email_text_copied'
   | 'response_received'
   | 'returned_mail'
   | 'follow_up_created'

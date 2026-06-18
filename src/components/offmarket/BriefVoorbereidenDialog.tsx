@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { pdf } from '@react-pdf/renderer';
-import { Copy, FileDown, Send, FileText, Loader2, Save } from 'lucide-react';
+import { Copy, FileDown, Send, FileText, Loader2, Save, Mail, Inbox } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -30,13 +30,21 @@ import {
   VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
 } from '@/lib/offMarket/brief';
 import BriefPDF from '@/components/offmarket/BriefPDF';
-import { useUpsertBrief, useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
+import {
+  useUpsertBrief, useMarkBriefVerstuurd,
+  useOffMarketBrievenForSignaal,
+} from '@/hooks/useOffMarketBrieven';
 import { useUpdateVerzendstatus } from '@/hooks/useUpdateVerzendstatus';
 import { useDataStore } from '@/hooks/useDataStore';
 import { logSystemContactMoment } from '@/lib/contactMoments';
 import { logBriefEvent } from '@/lib/offMarket/brieven/events';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 import { deadlineOverDagen } from '@/lib/offMarket/eigenaar';
+import {
+  buildEmailTemplate, defaultFollowupDagen, volgendeEmailStap,
+  EMAIL_PROFIEL_LABEL, EMAIL_PROFIEL_VOLGORDE, type EmailProfiel,
+} from '@/lib/offMarket/email/emailProfielen';
+import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -116,6 +124,14 @@ export default function BriefVoorbereidenDialog({
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
   const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(!!initialBrief);
 
+  // V2.2 — kanaal & e-mailprofiel
+  const initialKanaal: Kanaal = (initialBrief?.kanaal as Kanaal | undefined) ?? 'post';
+  const [kanaal, setKanaal] = useState<Kanaal>(initialKanaal);
+  const [emailProfiel, setEmailProfiel] = useState<EmailProfiel>('algemene_acquisitie');
+  // Houd bij of de gebruiker de e-mailtekst handmatig heeft aangepast,
+  // zodat we templates niet ongevraagd overschrijven.
+  const [emailTekstHandmatig, setEmailTekstHandmatig] = useState(!!initialBrief);
+
   useEffect(() => {
     if (!open) return;
     if (initialBrief) {
@@ -131,6 +147,8 @@ export default function BriefVoorbereidenDialog({
       setBrieftekst(initialBrief.brieftekst ?? '');
       setBriefId(initialBrief.id);
       setOnderwerpHandmatig(true);
+      setKanaal((initialBrief.kanaal as Kanaal | undefined) ?? 'post');
+      setEmailTekstHandmatig(true);
       return;
     }
     const forced = forceKandidaatLabel
@@ -148,7 +166,12 @@ export default function BriefVoorbereidenDialog({
     setBrieftekst(prefill.brieftekst);
     setBriefId(null);
     setOnderwerpHandmatig(false);
+    setKanaal('post');
+    setEmailTekstHandmatig(false);
   }, [open, prefill, initialBrief, forceKandidaatLabel]);
+
+  // Brieven van dit signaal — voor het bepalen van de volgende e-mailstap.
+  const { data: signaalBrieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
 
   const upsert = useUpsertBrief();
   const markVerstuurd = useMarkBriefVerstuurd();
@@ -207,6 +230,13 @@ export default function BriefVoorbereidenDialog({
   const verzendadresVoorOpslag = (): string | null =>
     isEchteWaarde(verzendadres) ? verzendadres.trim() : null;
 
+  // Bepaal welke campagne-stap geldt voor een nieuwe brief in dit kanaal.
+  const huidigeCampagneStap = useMemo<string>(() => {
+    if (initialBrief?.campagne_stap) return initialBrief.campagne_stap as string;
+    if (kanaal === 'email') return volgendeEmailStap(signaalBrieven);
+    return 'brief_1';
+  }, [initialBrief, kanaal, signaalBrieven]);
+
   const ensureBriefOpgeslagen = async (status: 'concept' | 'verstuurd' = 'concept'): Promise<string | null> => {
     try {
       const res = await upsert.mutateAsync({
@@ -219,10 +249,23 @@ export default function BriefVoorbereidenDialog({
         objectomschrijving: objectomschrijving || null,
         aanhef, onderwerp, brieftekst,
         status,
-        kanaal: 'post',
-        campagne_stap: (initialBrief?.campagne_stap as any) ?? 'brief_1',
+        kanaal,
+        campagne_stap: huidigeCampagneStap as any,
       });
       setBriefId(res.id);
+      // E-mailprofiel apart loggen als metadata-event (geen extra kolom).
+      if (kanaal === 'email' && !briefId) {
+        await logBriefEvent({
+          signaal_id: signaal.id,
+          brief_id: res.id,
+          geadresseerde_key: res.geadresseerde_key ?? null,
+          campagne_stap: huidigeCampagneStap,
+          kanaal: 'email',
+          event_type: 'concept_created',
+          status: status,
+          metadata: { kanaal: 'email', email_profiel: emailProfiel },
+        });
+      }
       return res.id;
     } catch (e: any) {
       toast.error(e?.message ?? 'Opslaan brief mislukt');
@@ -234,7 +277,7 @@ export default function BriefVoorbereidenDialog({
     setBezig(true);
     try {
       const id = await ensureBriefOpgeslagen('concept');
-      if (id) toast.success('Brief opgeslagen als concept');
+      if (id) toast.success(kanaal === 'email' ? 'E-mailconcept opgeslagen' : 'Brief opgeslagen als concept');
     } finally {
       setBezig(false);
     }
@@ -248,6 +291,50 @@ export default function BriefVoorbereidenDialog({
       toast.error('Kopiëren mislukt');
     }
   };
+
+  /** V2.2 — kopieer onderwerp + e-mailtekst en log audit-event. Geen verzending. */
+  const kopieerEmail = async () => {
+    try {
+      const tekst = `Onderwerp: ${onderwerp}\n\n${brieftekst}`;
+      await navigator.clipboard.writeText(tekst);
+      toast.success('E-mailtekst gekopieerd');
+      await logBriefEvent({
+        signaal_id: signaal.id,
+        brief_id: briefId,
+        campagne_stap: huidigeCampagneStap,
+        kanaal: 'email',
+        event_type: 'email_text_copied',
+        metadata: { email_profiel: emailProfiel },
+      });
+    } catch {
+      toast.error('Kopiëren mislukt');
+    }
+  };
+
+  /** V2.2 — pas template van het gekozen profiel opnieuw toe. */
+  const pasTemplateToe = (profiel: EmailProfiel) => {
+    const t = buildEmailTemplate({
+      profiel,
+      adres: objectomschrijving || objectadres || null,
+      plaats: signaal.plaats ?? null,
+      geadresseerdeNaam: eigenaarNaam || null,
+      bedrijfsnaam: eigenaarBedrijfsnaam || null,
+    });
+    setOnderwerp(t.onderwerp);
+    setBrieftekst(t.brieftekst);
+    setOnderwerpHandmatig(false);
+    setEmailTekstHandmatig(false);
+  };
+
+  // Bij switch naar e-mail: vul template in als de tekst nog niet handmatig
+  // is aangepast. Bij switch terug naar post wordt de bestaande tekst
+  // niet aangeraakt (gebruiker kan handmatig herstellen).
+  useEffect(() => {
+    if (kanaal !== 'email') return;
+    if (emailTekstHandmatig) return;
+    pasTemplateToe(emailProfiel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kanaal, emailProfiel]);
 
   const downloadPdf = async () => {
     if (!vm.heeftVerzendadres) {
@@ -304,7 +391,8 @@ export default function BriefVoorbereidenDialog({
 
 
   const markeerVerstuurd = async () => {
-    if (!vm.heeftVerzendadres) {
+    const isEmail = kanaal === 'email';
+    if (!isEmail && !vm.heeftVerzendadres) {
       const ok = typeof window !== 'undefined'
         ? window.confirm('Er is geen verzendadres ingevuld. Weet u zeker dat u deze brief als verstuurd wilt markeren?')
         : true;
@@ -316,10 +404,19 @@ export default function BriefVoorbereidenDialog({
       if (!id) { id = await ensureBriefOpgeslagen('concept'); if (!id) return; }
 
       const vandaag = new Date().toISOString().slice(0, 10);
-      const opvolgdatum = berekenFollowUpDeadline(vandaag);
+      const dagen = defaultFollowupDagen(kanaal);
+      const opvolgdatum = berekenFollowUpDeadline(vandaag, dagen);
+      const geadresseerdeLabel =
+        vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende';
 
-      // Maak eerst de opvolgtaak (dedupe op signaal + eigenaar), zodat we de
-      // taak-id meteen kunnen koppelen aan de brief.
+      // Bouw kanaal-specifieke taakinformatie.
+      const stapNummer = huidigeCampagneStap.endsWith('_2') ? 2
+        : huidigeCampagneStap.endsWith('_3') ? 3 : 1;
+      const taakTitel = isEmail
+        ? `E-mail opvolgen — ${geadresseerdeLabel} — E-mail ${stapNummer}`
+        : 'Brief 2 voorbereiden / opvolgen';
+      const taakRegex = isEmail ? /e-mail opvolgen/i : /brief\s*2|brief opvolgen/i;
+
       let taakId: string | null = null;
       try {
         const eigenaarKey = (eigenaarNaam || eigenaarBedrijfsnaam || '').trim().toLowerCase();
@@ -327,21 +424,24 @@ export default function BriefVoorbereidenDialog({
           t?.offMarketSignaalId === signaal.id
           && t?.status === 'open'
           && typeof t?.titel === 'string'
-          && /brief\s*2|brief opvolgen/i.test(t.titel)
+          && taakRegex.test(t.titel)
           && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
         );
         if (bestaande) {
           taakId = bestaande.id ?? null;
         } else {
+          const notities = isEmail
+            ? `Volg op naar aanleiding van de e-mail aan ${geadresseerdeLabel} (${vm.objectomschrijving || objectadres || signaal.titel}).`
+            : `Bereid Brief 2 voor of neem opvolgend contact op naar aanleiding van de eerste brief aan ${geadresseerdeLabel} (${vm.objectomschrijving || objectadres || signaal.titel}).`;
           const nieuw = await addTaak({
-            titel: 'Brief 2 voorbereiden / opvolgen',
+            titel: taakTitel,
             type: 'Follow-up',
-            deadline: opvolgdatum || deadlineOverDagen(21),
+            deadline: opvolgdatum || deadlineOverDagen(dagen),
             prioriteit: 'normaal',
             status: 'open',
             offMarketSignaalId: signaal.id,
             relatieId: (signaal as any).eigenaar_relatie_id ?? undefined,
-            notities: `Bereid Brief 2 voor of neem opvolgend contact op naar aanleiding van de eerste brief aan ${vm.bedrijfsnaam || vm.geadresseerdeNaam || 'eigenaar/rechthebbende'} (${vm.objectomschrijving || objectadres || signaal.titel}).`,
+            notities,
           } as any);
           taakId = nieuw?.id ?? null;
         }
@@ -349,20 +449,22 @@ export default function BriefVoorbereidenDialog({
 
       await markVerstuurd.mutateAsync({
         id, postdatum: vandaag, gekoppelde_taak_id: taakId,
+        kanaal,
+        email_profiel: isEmail ? emailProfiel : null,
       });
 
       try {
         await logSystemContactMoment({
-          type: 'notitie',
-          title: 'Brief verzonden',
-          description: `Brief verzonden naar eigenaar/rechthebbende: ${vm.bedrijfsnaam || vm.geadresseerdeNaam || '—'}${(vm.objectomschrijving || objectadres) ? ` · ${vm.objectomschrijving || objectadres}` : ''}.`,
+          type: isEmail ? 'email' : 'notitie',
+          title: isEmail ? 'E-mail verzonden' : 'Brief verzonden',
+          description: `${isEmail ? 'E-mail' : 'Brief'} verzonden naar eigenaar/rechthebbende: ${geadresseerdeLabel}${(vm.objectomschrijving || objectadres) ? ` · ${vm.objectomschrijving || objectadres}` : ''}.`,
           offMarketSignaalId: signaal.id,
           relatieId: (signaal as any).eigenaar_relatie_id ?? null,
           systemKey: `off_market_brief_verstuurd:${id}`,
         });
       } catch (e) { console.warn('Contactmoment loggen mislukt', e); }
 
-      toast.success('Brief gemarkeerd als verstuurd');
+      toast.success(isEmail ? 'E-mail gemarkeerd als verzonden' : 'Brief gemarkeerd als verstuurd');
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message ?? 'Markeren als verstuurd mislukt');
@@ -380,15 +482,72 @@ export default function BriefVoorbereidenDialog({
       <DialogContent className="sm:max-w-3xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-4 w-4" /> Brief voorbereiden
+            {kanaal === 'email'
+              ? <Mail className="h-4 w-4" />
+              : <FileText className="h-4 w-4" />}
+            {kanaal === 'email' ? 'E-mail voorbereiden' : 'Brief voorbereiden'}
           </DialogTitle>
           <DialogDescription>
-            Controleer de geadresseerde, het verzendadres en de objectomschrijving.
-            De brief wordt als concept opgeslagen en is direct te downloaden als PDF.
+            {kanaal === 'email'
+              ? 'Stel een e-mailtekst samen via een strategieprofiel. Er wordt geen e-mail verstuurd — gebruik "Kopieer e-mailtekst" of "Markeer verzonden".'
+              : 'Controleer de geadresseerde, het verzendadres en de objectomschrijving. De brief wordt als concept opgeslagen en is direct te downloaden als PDF.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4" data-testid="brief-voorbereiden-dialog">
+          {/* V2.2 — kanaal segmented control */}
+          <div
+            data-testid="brief-kanaal-toggle"
+            className="glass-tabbar inline-flex gap-1 p-1 rounded-full"
+            role="tablist"
+            aria-label="Kanaal"
+          >
+            {(['post', 'email'] as Kanaal[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={kanaal === k}
+                data-state={kanaal === k ? 'active' : 'inactive'}
+                data-testid={`brief-kanaal-${k}`}
+                onClick={() => setKanaal(k)}
+                className="glass-tab-pill text-xs px-3 py-1.5"
+              >
+                {k === 'post' ? 'Post' : 'E-mail'}
+              </button>
+            ))}
+          </div>
+
+          {kanaal === 'email' && (
+            <div className="space-y-1.5" data-testid="brief-email-profiel">
+              <Label>Strategieprofiel</Label>
+              <Select
+                value={emailProfiel}
+                onValueChange={(v) => {
+                  setEmailProfiel(v as EmailProfiel);
+                  // Bij wisselen profiel altijd template opnieuw toepassen,
+                  // tenzij de gebruiker tekst expliciet handmatig wil houden.
+                  if (!emailTekstHandmatig) pasTemplateToe(v as EmailProfiel);
+                }}
+              >
+                <SelectTrigger data-testid="brief-email-profiel-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMAIL_PROFIEL_VOLGORDE.map((p) => (
+                    <SelectItem key={p} value={p} data-testid={`brief-email-profiel-optie-${p}`}>
+                      {EMAIL_PROFIEL_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Templates zijn bewerkbaar. Onderwerp en tekst worden alleen
+                automatisch ingevuld zolang u ze nog niet handmatig hebt aangepast.
+              </p>
+            </div>
+          )}
+
           {kandidaten.length > 1 && (
             <div className="space-y-1.5">
               <Label>Geadresseerde kiezen</Label>
@@ -534,26 +693,45 @@ export default function BriefVoorbereidenDialog({
               <Input
                 id="brief-onderwerp"
                 value={onderwerp}
-                onChange={(e) => { setOnderwerp(e.target.value); setOnderwerpHandmatig(true); }}
+                onChange={(e) => {
+                  setOnderwerp(e.target.value); setOnderwerpHandmatig(true);
+                  if (kanaal === 'email') setEmailTekstHandmatig(true);
+                }}
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="brief-tekst">Brieftekst</Label>
-              <button
-                type="button"
-                onClick={herstelStandaard}
-                className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-              >
-                Herstel standaardtekst
-              </button>
+              <Label htmlFor="brief-tekst">
+                {kanaal === 'email' ? 'E-mailtekst' : 'Brieftekst'}
+              </Label>
+              {kanaal === 'email' ? (
+                <button
+                  type="button"
+                  onClick={() => pasTemplateToe(emailProfiel)}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  data-testid="brief-email-template-opnieuw"
+                >
+                  Template opnieuw toepassen
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={herstelStandaard}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  Herstel standaardtekst
+                </button>
+              )}
             </div>
             <Textarea
               id="brief-tekst"
               value={brieftekst}
-              onChange={(e) => setBrieftekst(e.target.value)}
+              onChange={(e) => {
+                setBrieftekst(e.target.value);
+                if (kanaal === 'email') setEmailTekstHandmatig(true);
+              }}
               rows={18}
               className="font-mono text-xs leading-relaxed"
             />
@@ -564,37 +742,50 @@ export default function BriefVoorbereidenDialog({
           data-testid="brief-dialog-footer"
           className="flex flex-wrap gap-2 items-center sm:justify-between sticky bottom-0 bg-background/95 backdrop-blur border-t pt-3 -mx-6 px-6 sm:flex-nowrap"
         >
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="order-1"
-          >
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="order-1">
             Sluiten
           </Button>
           <div
             data-testid="brief-dialog-footer-secundair"
             className="order-2 flex flex-wrap gap-2 sm:flex-1 sm:justify-center"
           >
-            <Button variant="outline" onClick={opslaanAlsConcept} disabled={bezig} data-testid="brief-opslaan-concept">
-              <Save className="h-4 w-4" /> Opslaan als concept
+            <Button
+              variant="outline" onClick={opslaanAlsConcept} disabled={bezig}
+              data-testid="brief-opslaan-concept"
+            >
+              <Save className="h-4 w-4" />
+              {kanaal === 'email' ? 'Opslaan als e-mailconcept' : 'Opslaan als concept'}
             </Button>
-            <Button variant="outline" onClick={kopieer}>
-              <Copy className="h-4 w-4" /> Kopieer brief
-            </Button>
-            <Button variant="outline" onClick={downloadPdf} disabled={pdfBezig} data-testid="brief-download-pdf">
-              {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Download PDF
-            </Button>
+            {kanaal === 'email' ? (
+              <Button variant="outline" onClick={kopieerEmail} data-testid="brief-kopieer-email">
+                <Copy className="h-4 w-4" /> Kopieer e-mailtekst
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={kopieer}>
+                  <Copy className="h-4 w-4" /> Kopieer brief
+                </Button>
+                <Button
+                  variant="outline" onClick={downloadPdf} disabled={pdfBezig}
+                  data-testid="brief-download-pdf"
+                >
+                  {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  Download PDF
+                </Button>
+              </>
+            )}
           </div>
           <Button
             onClick={markeerVerstuurd}
             disabled={bezig}
-            data-testid="brief-markeer-verstuurd"
+            data-testid={kanaal === 'email' ? 'brief-markeer-verzonden' : 'brief-markeer-verstuurd'}
             className="order-3 w-full sm:w-auto"
           >
-            <Send className="h-4 w-4" /> Markeer als verstuurd
+            <Send className="h-4 w-4" />
+            {kanaal === 'email' ? 'Markeer verzonden' : 'Markeer als verstuurd'}
           </Button>
         </DialogFooter>
+
 
       </DialogContent>
     </Dialog>

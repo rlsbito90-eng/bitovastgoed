@@ -4,13 +4,18 @@ import type { BrievenSamenvatting } from '@/lib/offMarket/brieven/groepering';
 import { formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
 
 export default function BrievenSamenvattingRegel({ data }: { data: BrievenSamenvatting }) {
-  const items = [
+  const items: { Icon: typeof Users; label: string }[] = [
     { Icon: Users, label: `${data.aantalGeadresseerden} geadresseerden` },
     { Icon: Mail, label: `${data.brief1Verstuurd}× Brief 1 gepost` },
+  ];
+  if (data.emailsVerstuurd > 0) {
+    items.push({ Icon: Mail, label: `${data.emailsVerstuurd}× E-mail verzonden` });
+  }
+  items.push(
     { Icon: FileEdit, label: `${data.actieveConcepten} actieve concepten` },
     { Icon: MessageSquare, label: `${data.reacties} reacties` },
     { Icon: BellRing, label: `${data.openOpvolgingen} open opvolgingen` },
-  ];
+  );
   if (data.eerstvolgendeOpvolging) {
     items.push({
       Icon: CalendarClock,
