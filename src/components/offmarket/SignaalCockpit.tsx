@@ -39,14 +39,18 @@ interface Props {
   onTaakAanmaken?: () => void;
   /** Optioneel: open volledige bewerk-dialog. */
   onBewerken?: () => void;
+  /** Optioneel: navigeer naar tab "Taken & tijdlijn". */
+  onOpenTaken?: () => void;
 }
 
 export default function SignaalCockpit({
   signaal, taken, briefStatus,
   onAiVerrijken, onKadasterOphalen, onBriefVoorbereiden, onTaakAanmaken, onBewerken,
+  onOpenTaken,
 }: Props) {
   const { getRelatieById } = useDataStore();
-  const va = bepaalVolgendeActie(signaal, taken, signaal.id);
+  const { data: brieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
+  void bepaalVolgendeActie; // bewust ongebruikt: nu via VolgendeActiesBlok
   const eigenaarstatus = (signaal as any).eigenaarstatus ?? 'onbekend';
   const eigenaarNaam = (signaal as any).eigenaar_naam ?? null;
   const relatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
