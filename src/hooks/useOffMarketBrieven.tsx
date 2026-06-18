@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { logBriefEvent } from '@/lib/offMarket/brieven/events';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
+import { moetPromoverenNaarBenaderd } from '@/lib/offMarket/statusPromotie';
 import type { Kanaal, Verzendstatus } from '@/lib/offMarket/brieven/verzendstatus';
 import type { CampagneStap } from '@/lib/offMarket/brieven/groepering';
 
