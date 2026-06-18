@@ -229,6 +229,7 @@ export default function OffMarketSignaalDetailPage() {
                 briefStatus={briefStatus}
                 onBewerken={() => setEditOpen(true)}
                 onTaakAanmaken={() => setTaakOpen(true)}
+                onOpenTaken={() => setDesktopTab('taken')}
               />
             </div>
           </div>
