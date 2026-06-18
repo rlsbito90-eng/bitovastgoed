@@ -24,6 +24,7 @@ import SignaalTakenSectie from '@/components/offmarket/SignaalTakenSectie';
 import SignaalTijdlijnSectie from '@/components/offmarket/SignaalTijdlijnSectie';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
 import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBar';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
 
