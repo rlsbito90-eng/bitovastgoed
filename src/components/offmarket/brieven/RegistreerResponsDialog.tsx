@@ -40,7 +40,9 @@ export default function RegistreerResponsDialog({
   const vandaag = new Date().toISOString().slice(0, 10);
   const [responsstatus, setResponsstatus] = useState<Responsstatus>(initialResponsstatus);
   const [responsdatum, setResponsdatum] = useState(vandaag);
-  const [respons_kanaal, setRespons_kanaal] = useState<Kanaal>('email');
+  // V2.2 — default-responskanaal volgt het kanaal van de brief.
+  const defaultKanaal: Kanaal = ((brief?.kanaal as Kanaal | undefined) ?? 'email');
+  const [respons_kanaal, setRespons_kanaal] = useState<Kanaal>(defaultKanaal);
   const [samenvatting, setSamenvatting] = useState('');
   const [maakContactmoment, setMaakContactmoment] = useState(true);
   const [maakVervolgtaak, setMaakVervolgtaak] = useState(false);
@@ -53,7 +55,7 @@ export default function RegistreerResponsDialog({
   const reset = () => {
     setResponsstatus(initialResponsstatus);
     setResponsdatum(vandaag);
-    setRespons_kanaal('email');
+    setRespons_kanaal(((brief?.kanaal as Kanaal | undefined) ?? 'email'));
     setSamenvatting('');
     setMaakContactmoment(true);
     setMaakVervolgtaak(false);

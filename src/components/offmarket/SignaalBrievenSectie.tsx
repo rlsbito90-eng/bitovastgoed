@@ -99,7 +99,7 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
 
   // Brief-openen / opvolg-knop state
   const [openBrief, setOpenBrief] = useState<OffMarketBrief | null>(null);
-  const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: CampagneStap } | null>(null);
+  const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: string } | null>(null);
   const [markeerBrief, setMarkeerBrief] = useState<OffMarketBrief | null>(null);
   const [responsBrief, setResponsBrief] = useState<{ brief: OffMarketBrief; initialStatus?: Responsstatus } | null>(null);
   const [opschoonOpen, setOpschoonOpen] = useState(false);
@@ -108,10 +108,14 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   // ---- Acties op een bestaande brief ----
   const handleOpen = (b: OffMarketBrief) => setOpenBrief(b);
 
-  const handleNieuw = (g: GeadresseerdeGroep, stap: CampagneStap) => {
+  const handleNieuw = (g: GeadresseerdeGroep, stap: CampagneStap | string) => {
     // Controleer eerst of er al een actief concept bestaat voor dezelfde
     // geadresseerde + stap — open dat dan in plaats van een nieuw record.
-    const actief = g.stappen[stap].actiefConcept;
+    const isEmail = typeof stap === 'string' && stap.startsWith('email_');
+    const slot = isEmail
+      ? (g.emailStappen?.[stap as 'email_1'] ?? null)
+      : (g.stappen[stap as CampagneStap] ?? null);
+    const actief = slot?.actiefConcept ?? null;
     if (actief) {
       setOpenBrief(actief);
       return;
@@ -120,6 +124,8 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   };
 
   const handleDownloadPdf = async (b: OffMarketBrief) => {
+    // PDF-download blijft post-only. Voor e-mail doen we niets.
+    if ((b.kanaal ?? 'post') === 'email') return;
     try {
       const vm = buildBriefViewModel({
         eigenaarNaam: b.eigenaar_naam ?? '',
@@ -146,6 +152,12 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
 
   const handleKopieer = async (b: OffMarketBrief) => {
     try {
+      if ((b.kanaal ?? 'post') === 'email') {
+        const tekst = `Onderwerp: ${b.onderwerp ?? ''}\n\n${b.brieftekst ?? ''}`;
+        await navigator.clipboard.writeText(tekst);
+        toast.success('E-mailtekst gekopieerd');
+        return;
+      }
       const vm = buildBriefViewModel({
         eigenaarNaam: b.eigenaar_naam ?? '',
         eigenaarBedrijfsnaam: b.eigenaar_bedrijfsnaam ?? '',
@@ -162,6 +174,7 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   };
 
   const handleMarkeerVerstuurd = (b: OffMarketBrief) => setMarkeerBrief(b);
+
 
   // Label voor forceKandidaatLabel — exposeert in BriefVoorbereidenDialog
   // de juiste geadresseerde-context bij "Nieuwe opvolgbrief".

@@ -12,6 +12,9 @@ import {
   type CampagneStap, type GeadresseerdeGroep,
 } from '@/lib/offMarket/brieven/groepering';
 import {
+  EMAIL_STAP_VOLGORDE, EMAIL_STAP_LABEL, type EmailStap,
+} from '@/lib/offMarket/email/emailProfielen';
+import {
   VERZENDSTATUS_LABEL, badgeClassVoorVerzendstatus,
   type Verzendstatus,
 } from '@/lib/offMarket/brieven/verzendstatus';
@@ -58,7 +61,7 @@ export interface GeadresseerdeKaartProps {
   groep: GeadresseerdeGroep;
   emails?: EmailContactRegel[];
   onOpenBrief: (brief: OffMarketBrief) => void;
-  onNieuweBrief: (groep: GeadresseerdeGroep, stap: CampagneStap) => void;
+  onNieuweBrief: (groep: GeadresseerdeGroep, stap: CampagneStap | EmailStap) => void;
   onDownloadPdf: (brief: OffMarketBrief) => void;
   onKopieer: (brief: OffMarketBrief) => void;
   onMarkeerVerstuurd: (brief: OffMarketBrief) => void;
@@ -70,6 +73,10 @@ export default function GeadresseerdeKaart({
   onOpenBrief, onNieuweBrief, onDownloadPdf, onKopieer, onMarkeerVerstuurd,
   onRegistreerRespons,
 }: GeadresseerdeKaartProps) {
+  const heeftEmailBrieven = EMAIL_STAP_VOLGORDE.some((s) => {
+    const stap = groep.emailStappen?.[s];
+    return !!(stap?.verstuurd || stap?.actiefConcept || stap?.oudereConcepten.length);
+  });
   return (
     <article
       data-testid="geadresseerde-kaart"
@@ -85,9 +92,22 @@ export default function GeadresseerdeKaart({
             </p>
           )}
         </div>
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-muted-foreground">
-          <Mail className="h-3 w-3" /> Brief
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span
+            data-testid={`kanaalbadge-post-${groep.key}`}
+            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-muted-foreground"
+          >
+            <Mail className="h-3 w-3" /> Brief
+          </span>
+          {heeftEmailBrieven && (
+            <span
+              data-testid={`kanaalbadge-email-${groep.key}`}
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 bg-accent/15 text-accent-foreground"
+            >
+              <Inbox className="h-3 w-3" /> E-mail
+            </span>
+          )}
+        </div>
       </header>
 
       <ul className="divide-y divide-border/60 border border-border/60 rounded-md overflow-hidden">
@@ -99,6 +119,8 @@ export default function GeadresseerdeKaart({
             <StapRij
               key={stap}
               stap={stap}
+              label={CAMPAGNE_STAP_LABEL[stap]}
+              isEmail={false}
               status={status}
               actief={actief}
               oudereConcepten={s.oudereConcepten}
@@ -113,9 +135,39 @@ export default function GeadresseerdeKaart({
         })}
       </ul>
 
+      {heeftEmailBrieven && (
+        <ul
+          data-testid="email-stappen-lijst"
+          className="divide-y divide-border/60 border border-border/60 rounded-md overflow-hidden"
+        >
+          {EMAIL_STAP_VOLGORDE.map((stap) => {
+            const s = groep.emailStappen[stap];
+            const actief: OffMarketBrief | null = s.verstuurd ?? s.actiefConcept ?? null;
+            const status: Status = s.verstuurd ? 'verstuurd' : s.actiefConcept ? 'concept' : 'niet_gestart';
+            return (
+              <StapRij
+                key={stap}
+                stap={stap}
+                label={EMAIL_STAP_LABEL[stap]}
+                isEmail={true}
+                status={status}
+                actief={actief}
+                oudereConcepten={s.oudereConcepten}
+                onOpen={onOpenBrief}
+                onNieuw={() => onNieuweBrief(groep, stap as any)}
+                onDownloadPdf={onDownloadPdf}
+                onKopieer={onKopieer}
+                onMarkeerVerstuurd={onMarkeerVerstuurd}
+                onRegistreerRespons={onRegistreerRespons}
+              />
+            );
+          })}
+        </ul>
+      )}
+
       {emails.length > 0 && (
         <div className="border-t border-border/60 pt-2 space-y-1">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">E-mailcontact</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Overige e-mailcontactmomenten</p>
           <ul className="space-y-1">
             {emails.map((e) => (
               <li key={e.id} className="flex items-center gap-2 text-xs text-foreground">
@@ -135,7 +187,9 @@ export default function GeadresseerdeKaart({
 // ---------- Stap-rij ----------
 
 interface StapRijProps {
-  stap: CampagneStap;
+  stap: string;
+  label: string;
+  isEmail?: boolean;
   status: Status;
   actief: OffMarketBrief | null;
   oudereConcepten: OffMarketBrief[];
@@ -148,7 +202,7 @@ interface StapRijProps {
 }
 
 function StapRij({
-  stap, status, actief, oudereConcepten,
+  stap, label, isEmail = false, status, actief, oudereConcepten,
   onOpen, onNieuw, onDownloadPdf, onKopieer, onMarkeerVerstuurd, onRegistreerRespons,
 }: StapRijProps) {
   const [open, setOpen] = useState(false);
@@ -198,7 +252,15 @@ function StapRij({
             : status === 'concept'
               ? <FileEdit className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               : <Mail className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />}
-          <span className="text-sm font-medium text-foreground">{CAMPAGNE_STAP_LABEL[stap]}</span>
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {isEmail && (
+            <span
+              data-testid={`stap-rij-kanaal-${stap}`}
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 bg-accent/15 text-accent-foreground"
+            >
+              <Inbox className="h-3 w-3" /> E-mail
+            </span>
+          )}
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClass(status)}`}>
             {badgeLabel(status)}
           </span>
@@ -224,13 +286,21 @@ function StapRij({
         <div className="flex items-center gap-1 shrink-0">
           {actief && status === 'concept' && (
             <>
-              <ActieKnop title="Markeer als verstuurd" onClick={stop(() => onMarkeerVerstuurd(actief))}>
+              <ActieKnop
+                title={isEmail ? 'Markeer verzonden' : 'Markeer als verstuurd'}
+                onClick={stop(() => onMarkeerVerstuurd(actief))}
+              >
                 <Send className="h-3.5 w-3.5" />
               </ActieKnop>
-              <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
-                <FileDown className="h-3.5 w-3.5" />
-              </ActieKnop>
-              <ActieKnop title="Kopieer brief" onClick={stop(() => onKopieer(actief))}>
+              {!isEmail && (
+                <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
+                  <FileDown className="h-3.5 w-3.5" />
+                </ActieKnop>
+              )}
+              <ActieKnop
+                title={isEmail ? 'Kopieer e-mailtekst' : 'Kopieer brief'}
+                onClick={stop(() => onKopieer(actief))}
+              >
                 <Copy className="h-3.5 w-3.5" />
               </ActieKnop>
             </>
@@ -246,31 +316,45 @@ function StapRij({
                   >
                     <MessageSquare className="h-3.5 w-3.5" />
                   </ActieKnop>
-                  <ActieKnop
-                    title="Retour post"
-                    onClick={stop(() => onRegistreerRespons(actief, 'retour_post'))}
-                    data-testid={`retour-knop-${stap}`}
-                  >
-                    <Undo2 className="h-3.5 w-3.5" />
-                  </ActieKnop>
+                  {!isEmail && (
+                    <ActieKnop
+                      title="Retour post"
+                      onClick={stop(() => onRegistreerRespons(actief, 'retour_post'))}
+                      data-testid={`retour-knop-${stap}`}
+                    >
+                      <Undo2 className="h-3.5 w-3.5" />
+                    </ActieKnop>
+                  )}
                   <ActieKnop
                     title="Geen reactie"
                     onClick={stop(() => onRegistreerRespons(actief, 'geen_reactie'))}
                   >
                     <X className="h-3.5 w-3.5" />
                   </ActieKnop>
+                  <ActieKnop
+                    title="Later opnieuw benaderen"
+                    onClick={stop(() => onRegistreerRespons(actief, 'later_opnieuw_benaderen'))}
+                    data-testid={`later-knop-${stap}`}
+                  >
+                    <Undo2 className="h-3.5 w-3.5 rotate-180" />
+                  </ActieKnop>
                 </>
               )}
-              <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
-                <FileDown className="h-3.5 w-3.5" />
-              </ActieKnop>
-              <ActieKnop title="Kopieer brief" onClick={stop(() => onKopieer(actief))}>
+              {!isEmail && (
+                <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
+                  <FileDown className="h-3.5 w-3.5" />
+                </ActieKnop>
+              )}
+              <ActieKnop
+                title={isEmail ? 'Kopieer e-mailtekst' : 'Kopieer brief'}
+                onClick={stop(() => onKopieer(actief))}
+              >
                 <Copy className="h-3.5 w-3.5" />
               </ActieKnop>
             </>
           )}
           {!actief && (
-            <ActieKnop title={`${CAMPAGNE_STAP_LABEL[stap]} voorbereiden`} onClick={stop(onNieuw)}>
+            <ActieKnop title={`${label} voorbereiden`} onClick={stop(onNieuw)}>
               <Plus className="h-3.5 w-3.5" />
             </ActieKnop>
           )}

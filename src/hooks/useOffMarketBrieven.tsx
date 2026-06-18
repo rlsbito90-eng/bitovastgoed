@@ -9,6 +9,7 @@ import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { logBriefEvent } from '@/lib/offMarket/brieven/events';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 import { moetPromoverenNaarBenaderd } from '@/lib/offMarket/statusPromotie';
+import { defaultFollowupDagen } from '@/lib/offMarket/email/emailProfielen';
 import type { Kanaal, Verzendstatus } from '@/lib/offMarket/brieven/verzendstatus';
 import type { CampagneStap } from '@/lib/offMarket/brieven/groepering';
 
@@ -33,7 +34,7 @@ export interface OffMarketBrief {
   archived_reason: string | null;
   // Brieven & opvolging V2 — nullable voor backward compatibility.
   kanaal?: Kanaal | null;
-  campagne_stap?: CampagneStap | null;
+  campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;
   geadresseerde_key?: string | null;
   printdatum?: string | null;
   postdatum?: string | null;
@@ -58,7 +59,7 @@ export interface BriefInsert {
   brieftekst: string;
   status?: 'concept' | 'verstuurd';
   kanaal?: Kanaal | null;
-  campagne_stap?: CampagneStap | null;
+  campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;
   geadresseerde_key?: string | null;
   verzendstatus?: Verzendstatus | null;
 }
@@ -161,20 +162,47 @@ export function useMarkBriefVerstuurd() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      input: string | { id: string; postdatum?: string; gekoppelde_taak_id?: string | null },
+      input:
+        | string
+        | {
+            id: string;
+            postdatum?: string;
+            gekoppelde_taak_id?: string | null;
+            /** V2.2 — kanaal override. Default valt terug op kanaal uit DB-record. */
+            kanaal?: Kanaal | null;
+            /** V2.2 — strategieprofiel voor e-mail, alleen voor audit-metadata. */
+            email_profiel?: string | null;
+          },
     ): Promise<OffMarketBrief> => {
       const id = typeof input === 'string' ? input : input.id;
       const postdatum = typeof input === 'string' ? undefined : input.postdatum;
       const taakId = typeof input === 'string' ? null : (input.gekoppelde_taak_id ?? null);
+      const overrideKanaal: Kanaal | null =
+        typeof input === 'string' ? null : (input.kanaal ?? null);
+      const emailProfiel: string | null =
+        typeof input === 'string' ? null : (input.email_profiel ?? null);
+
+      // Bepaal kanaal: override > DB-record > 'post'.
+      let kanaal: Kanaal = overrideKanaal ?? 'post';
+      if (!overrideKanaal) {
+        try {
+          const { data: huidig } = await (supabase as any)
+            .from(TABLE).select('id,kanaal').eq('id', id).maybeSingle();
+          const k = (huidig?.kanaal ?? null) as Kanaal | null;
+          if (k) kanaal = k;
+        } catch { /* fail-soft */ }
+      }
+
+      const isEmail = kanaal === 'email';
       const iso = postdatum
         ? new Date(`${postdatum}T12:00:00.000Z`).toISOString()
         : new Date().toISOString();
       const dagY = postdatum ?? new Date().toISOString().slice(0, 10);
-      const opvolgdatum = berekenFollowUpDeadline(dagY);
+      const opvolgdatum = berekenFollowUpDeadline(dagY, defaultFollowupDagen(kanaal));
       const patch: any = {
         status: 'verstuurd',
         verzonden_op: iso,
-        verzendstatus: 'gepost',
+        verzendstatus: isEmail ? 'verzonden' : 'gepost',
         postdatum: dagY,
         opvolgdatum,
       };
@@ -188,15 +216,20 @@ export function useMarkBriefVerstuurd() {
       if (error) throw new Error(error.message);
 
       const brief = data as OffMarketBrief;
+      const eventType = isEmail ? 'sent' : 'posted';
+      const eventStatus = isEmail ? 'verzonden' : 'gepost';
+      const baseMeta: Record<string, unknown> = isEmail
+        ? { verzenddatum: dagY, opvolgdatum, kanaal: 'email', email_profiel: emailProfiel }
+        : { postdatum: dagY, opvolgdatum };
       await logBriefEvent({
         signaal_id: brief.signaal_id,
         brief_id: brief.id,
         geadresseerde_key: brief.geadresseerde_key ?? null,
         campagne_stap: brief.campagne_stap ?? null,
-        kanaal: brief.kanaal ?? 'post',
-        event_type: 'posted',
-        status: 'gepost',
-        metadata: { postdatum: dagY, opvolgdatum },
+        kanaal: brief.kanaal ?? kanaal,
+        event_type: eventType,
+        status: eventStatus,
+        metadata: baseMeta,
       });
       if (taakId) {
         await logBriefEvent({
@@ -204,9 +237,9 @@ export function useMarkBriefVerstuurd() {
           brief_id: brief.id,
           geadresseerde_key: brief.geadresseerde_key ?? null,
           campagne_stap: brief.campagne_stap ?? null,
-          kanaal: brief.kanaal ?? 'post',
+          kanaal: brief.kanaal ?? kanaal,
           event_type: 'follow_up_created',
-          metadata: { taak_id: taakId, deadline: opvolgdatum },
+          metadata: { taak_id: taakId, deadline: opvolgdatum, kanaal },
         });
       }
 
