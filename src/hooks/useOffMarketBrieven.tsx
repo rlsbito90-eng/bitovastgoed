@@ -59,7 +59,7 @@ export interface BriefInsert {
   brieftekst: string;
   status?: 'concept' | 'verstuurd';
   kanaal?: Kanaal | null;
-  campagne_stap?: CampagneStap | null;
+  campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;
   geadresseerde_key?: string | null;
   verzendstatus?: Verzendstatus | null;
 }
