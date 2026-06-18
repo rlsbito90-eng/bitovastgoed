@@ -101,7 +101,9 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   const [openBrief, setOpenBrief] = useState<OffMarketBrief | null>(null);
   const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: CampagneStap } | null>(null);
   const [markeerBrief, setMarkeerBrief] = useState<OffMarketBrief | null>(null);
+  const [responsBrief, setResponsBrief] = useState<{ brief: OffMarketBrief; initialStatus?: Responsstatus } | null>(null);
   const [opschoonOpen, setOpschoonOpen] = useState(false);
+
 
   // ---- Acties op een bestaande brief ----
   const handleOpen = (b: OffMarketBrief) => setOpenBrief(b);
