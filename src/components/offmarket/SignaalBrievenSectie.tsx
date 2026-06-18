@@ -216,11 +216,13 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
                 onDownloadPdf={handleDownloadPdf}
                 onKopieer={handleKopieer}
                 onMarkeerVerstuurd={handleMarkeerVerstuurd}
+                onRegistreerRespons={(b, s) => setResponsBrief({ brief: b, initialStatus: s })}
               />
             ))}
           </div>
         </>
       )}
+
 
       {emailsPerKey.overig.length > 0 && (
         <div className="rounded-md border border-border bg-muted/20 p-3 space-y-1">
