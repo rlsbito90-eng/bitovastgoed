@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 
@@ -23,12 +24,9 @@ function LocationProbe() {
   return <span data-testid="loc">{loc.pathname}{loc.hash}</span>;
 }
 
-beforeEach(() => {
-  // jsdom geen lg-viewport, dus de mobiele header wordt gerenderd (lg:hidden -> zichtbaar)
-});
-
 describe('Mobiele drawer — Gebruikersbeheer', () => {
-  it('sluit drawer en navigeert naar /admin#gebruikersbeheer', () => {
+  it('sluit drawer en navigeert naar /admin#gebruikersbeheer', async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
         <AppLayout>
@@ -38,21 +36,28 @@ describe('Mobiele drawer — Gebruikersbeheer', () => {
     );
 
     // Open mobiele drawer
-    const menuKnop = screen.getByLabelText(/Menu openen/i);
-    fireEvent.click(menuKnop);
+    await user.click(screen.getByLabelText(/Menu openen/i));
 
-    // Trigger het GebruikerMenu dropdown in de drawer
-    const triggers = screen.getAllByRole('button').filter(b => b.title?.includes('admin@example.test') || /admin@example/.test(b.textContent ?? ''));
-    expect(triggers.length).toBeGreaterThan(0);
-    fireEvent.pointerDown(triggers[0], { button: 0 });
-    fireEvent.click(triggers[0]);
+    // Wacht tot drawer open is (sluit-knop verschijnt)
+    await screen.findByLabelText(/Menu sluiten/i);
 
-    const link = screen.getByTestId('menu-gebruikersbeheer');
-    fireEvent.click(link);
+    // Open het GebruikerMenu dropdown door op trigger met e-mail te klikken
+    const trigger = await screen.findByTitle('admin@example.test').catch(() => null)
+      ?? screen.getAllByRole('button').find(b => (b.textContent ?? '').includes('admin@example.test'));
+    expect(trigger).toBeTruthy();
+    await user.click(trigger as HTMLElement);
 
-    // Route + hash
-    expect(screen.getByTestId('loc').textContent).toBe('/admin#gebruikersbeheer');
-    // Drawer-DOM moet sluiten: knop heet weer "Menu openen"
-    expect(screen.queryByLabelText(/Menu sluiten/i)).toBeNull();
+    // Wacht op menu-item in Radix portal
+    const link = await screen.findByTestId('menu-gebruikersbeheer');
+    await user.click(link);
+
+    // Route + hash via react-router
+    await waitFor(() => {
+      expect(screen.getByTestId('loc').textContent).toBe('/admin#gebruikersbeheer');
+    });
+    // Drawer is gesloten: sluit-knop bestaat niet meer
+    await waitFor(() => {
+      expect(screen.queryByLabelText(/Menu sluiten/i)).toBeNull();
+    });
   });
 });
