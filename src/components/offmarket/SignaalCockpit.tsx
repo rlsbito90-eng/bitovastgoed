@@ -19,6 +19,9 @@ import {
 import { ASSETTYPE_LABEL, type OffMarketSignaal } from '@/lib/offMarket/types';
 import { formatGebiedsindeling } from '@/lib/offMarket/geo';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
+import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
 
