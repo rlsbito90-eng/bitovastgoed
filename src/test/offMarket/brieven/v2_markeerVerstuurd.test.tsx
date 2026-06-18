@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 
 // We mocken supabase volledig — onafhankelijke unit test op de mutatielaag.
-const insertMock = vi.fn(() => Promise.resolve({ error: null }));
+const insertMock = vi.fn((_payload: any) => Promise.resolve({ error: null }));
 const updateMock = vi.fn();
 const fromMock = vi.fn();
 

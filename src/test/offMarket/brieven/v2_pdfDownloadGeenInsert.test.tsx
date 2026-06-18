@@ -2,7 +2,7 @@
 // op off_market_brieven. Wel een audit-event pdf_generated.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const insertMock = vi.fn(() => Promise.resolve({ error: null }));
+const insertMock = vi.fn((_payload: any) => Promise.resolve({ error: null }));
 const updateMock = vi.fn();
 const fromMock = vi.fn();
 

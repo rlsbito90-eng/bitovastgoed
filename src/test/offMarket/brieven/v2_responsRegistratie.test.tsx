@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const eventInsertMock = vi.fn(() => Promise.resolve({ error: null }));
+const eventInsertMock = vi.fn((_payload: any) => Promise.resolve({ error: null }));
 const briefUpdateMock = vi.fn();
 const fromMock = vi.fn();
 
