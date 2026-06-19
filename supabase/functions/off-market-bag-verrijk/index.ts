@@ -985,11 +985,11 @@ async function verrijk(
     });
 
     // V2.4 — auto-doelobject: één exact match via toevoeging → meteen Mode C draaien.
-    if (doelobjectIdx != null) {
-      const doel = kandidaten[doelobjectIdx];
-      const lookupId = doel.pdok_id;
+    if (doelobjectIdx != null && doelobjectIdx >= 0 && doelobjectIdx < kandidaten.length) {
+      const doel = kandidaten[doelobjectIdx] ?? null;
+      const lookupId = doel?.pdok_id ?? doel?.vbo_id ?? doel?.nummeraanduiding_id ?? null;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
-      if (det) {
+      if (det && doel) {
         const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, doel.adres));
         const res = await persistSelectedFlow(supabase, signaalId, gekozen);
         return { ...res, auto_doelobject: true };
