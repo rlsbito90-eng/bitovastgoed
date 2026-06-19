@@ -211,6 +211,8 @@ interface BagMatchKandidaat {
   adres: string;
   vbo_id?: string | null;
   nummeraanduiding_id?: string | null;
+  /** PDOK locatieserver doc-id ("adr-..."). Nodig voor latere lookup. */
+  pdok_id?: string | null;
   opp_m2?: number | null;
   gebruiksdoel?: string[] | null;
   status?: string | null;
