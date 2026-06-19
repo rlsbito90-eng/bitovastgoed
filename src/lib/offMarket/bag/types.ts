@@ -36,6 +36,8 @@ export interface BagMatchKandidaat {
   adres: string;
   vbo_id?: string | null;
   nummeraanduiding_id?: string | null;
+  /** PDOK locatieserver document-id (vorm "adr-..."). Nodig voor latere lookup. */
+  pdok_id?: string | null;
   opp_m2?: number | null;
   gebruiksdoel?: string[] | null;
   status?: string | null;
