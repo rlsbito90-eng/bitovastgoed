@@ -912,6 +912,16 @@ async function verrijk(
         return { status: 'fout', error: 'Gekozen BAG-match niet gevonden' };
       }
       const gekozen = await enrichLookupVboFromWfs(detailToVbo(det));
+      const v = validateDoelobject(s, {
+        postcode: gekozen.postcode,
+        huisnummer: gekozen.huisnummer,
+        huisletter: gekozen.huisletter,
+        huisnummertoevoeging: gekozen.huisnummertoevoeging,
+      });
+      if (!v.ok) {
+        await rejectSelection(supabase, signaalId, v.reden ?? 'andere huisnummer/postcode');
+        return { status: 'meerdere_matches', error: v.reden };
+      }
       const res = await persistSelectedFlow(supabase, signaalId, gekozen);
       return res;
     }
