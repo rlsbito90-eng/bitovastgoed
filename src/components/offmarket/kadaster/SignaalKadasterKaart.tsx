@@ -257,8 +257,9 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
 
   // Off Market Radar V1: alleen rechten + waarde. `object` (WOZ) wordt bewust
   // niet aangeboden — daar focust de signaalfase niet op.
-  const [selWaarde, setSelWaarde] = useState(true);
-  const [selRechten, setSelRechten] = useState(false);
+  // V2.3 — workflow-default: Rechten + PDF aan, Koopsom uit.
+  const [selWaarde, setSelWaarde] = useState(false);
+  const [selRechten, setSelRechten] = useState(true);
 
   const [kostenOpen, setKostenOpen] = useState(false);
   const [rechtenPrivacyOpen, setRechtenPrivacyOpen] = useState(false);
