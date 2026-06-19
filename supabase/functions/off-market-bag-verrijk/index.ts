@@ -958,13 +958,13 @@ async function verrijk(
       };
     });
 
-    // Lookup-verrijking best-effort
+    // Lookup-verrijking best-effort (PDOK Locatieserver + WFS-detail).
     const enriched = await runParallel(ranked, PARALLEL, async (d) => {
       const id = d.id;
       if (!id) return null;
       const det = await pdokLookup(String(id));
       if (!det) return null;
-      return detailToVbo(det, d.weergavenaam ?? '');
+      return await enrichLookupVboFromWfs(detailToVbo(det, d.weergavenaam ?? ''));
     });
 
     const kandidaten: BagMatchKandidaat[] = basisKandidaten.map((basis, i) => {
@@ -980,6 +980,8 @@ async function verrijk(
           gebruiksdoel: v.gebruiksdoel?.length ? v.gebruiksdoel : null,
           status: v.status,
           pandid: v.pandid,
+          pand_bouwjaar: v.bouwjaar,
+          pand_status: v.pandstatus,
           huisletter: basis.huisletter ?? v.huisletter,
           huisnummertoevoeging: basis.huisnummertoevoeging ?? v.huisnummertoevoeging,
         };
@@ -993,11 +995,10 @@ async function verrijk(
       const lookupId = doel.pdok_id;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det) {
-        const gekozen = detailToVbo(det, doel.adres);
+        const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, doel.adres));
         const res = await persistSelectedFlow(supabase, signaalId, gekozen);
         return { ...res, auto_doelobject: true };
       }
-
     }
 
     // Exact één hit op huisnummer (geen toevoeging in signaal) → behandel als directe verrijking.
@@ -1006,11 +1007,10 @@ async function verrijk(
       const lookupId = d.id;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det) {
-        const gekozen = detailToVbo(det, d.weergavenaam ?? '');
+        const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, d.weergavenaam ?? ''));
         const res = await persistSelectedFlow(supabase, signaalId, gekozen);
         return res;
       }
-
     }
 
     const matchKw = primair.length > 0 ? 'waarschijnlijk' : 'onzeker';
