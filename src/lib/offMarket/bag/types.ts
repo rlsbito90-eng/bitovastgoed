@@ -29,6 +29,12 @@ export interface BagVbo {
   opp_m2: number | null;
   gebruiksdoel: string[];
   status: string | null;
+  /** V2.4 — BAG-pand identificatie. */
+  pandid?: string | null;
+  /** V2.4 — Oorspronkelijk bouwjaar (van pand). */
+  pand_bouwjaar?: number | null;
+  /** V2.4 — Status van het pand (bv "Pand in gebruik"). */
+  pand_status?: string | null;
   /** V2.4 — true voor het gekozen doelobject. */
   is_doelobject?: boolean;
   /** V2.4 — UI-badge ("MATCH" / "Zelfde BAG-pand"). */
