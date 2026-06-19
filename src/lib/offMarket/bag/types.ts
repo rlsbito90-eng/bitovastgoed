@@ -1,6 +1,6 @@
-// V2.3 — BAG pre-check types.
+// V2.3 + V2.4 — BAG pre-check types.
 // Loose input-type i.p.v. afhankelijkheid van de auto-gen Database['off_market_signalen']['Row']
-// zodat helpers test- en evolutiebestendig zijn (nieuwe kolommen worden via `as any` doorgegeven).
+// zodat helpers test- en evolutiebestendig zijn.
 
 export type BagStatus =
   | 'niet_verrijkt'
@@ -31,6 +31,19 @@ export interface BagVbo {
   status: string | null;
 }
 
+/** V2.4 — kandidaat tijdens multiple-match resolver. */
+export interface BagMatchKandidaat {
+  adres: string;
+  vbo_id?: string | null;
+  nummeraanduiding_id?: string | null;
+  opp_m2?: number | null;
+  gebruiksdoel?: string[] | null;
+  status?: string | null;
+  pandid?: string | null;
+  match_kwaliteit?: string | null;
+  match_reden?: string | null;
+}
+
 /** Subset-input voor pure helpers — ondersteunt zowel verse rows als test-fixtures. */
 export interface SignaalBagInput {
   id?: string;
@@ -57,6 +70,16 @@ export interface SignaalBagInput {
   bag_bouwjaar?: number | null;
   bag_pand_status?: string | null;
   bag_vbos?: BagVbo[] | null;
+
+  // V2.4 — doelobject + pandcontext + matchkandidaten
+  bag_match_kandidaten?: BagMatchKandidaat[] | null;
+  bag_geselecteerd_vbo_id?: string | null;
+  bag_geselecteerd_nummeraanduiding_id?: string | null;
+  bag_geselecteerd_adres?: string | null;
+  bag_geselecteerd_opp_m2?: number | null;
+  bag_geselecteerd_gebruiksdoel?: string[] | null;
+  bag_pandcontext_aantal_vbo?: number | null;
+  bag_pandcontext_totaal_opp_m2?: number | null;
 }
 
 export const BAG_STATUS_LABEL: Record<BagStatus, string> = {
