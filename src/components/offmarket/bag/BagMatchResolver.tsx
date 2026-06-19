@@ -56,8 +56,8 @@ function badgeForKandidaat(k: BagMatchKandidaat): { label: string; tone: 'match'
 }
 
 const TONE_CLASS: Record<string, string> = {
-  match: 'bg-emerald-100 text-emerald-900 border-emerald-300/70',
-  pand: 'bg-sky-100 text-sky-900 border-sky-300/70',
+  match: 'bg-emerald-500/15 text-emerald-900 border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-100 dark:border-emerald-300/40',
+  pand: 'bg-sky-500/10 text-sky-900 border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-100 dark:border-sky-300/40',
   nearby: 'bg-muted text-muted-foreground border-border',
   neutraal: 'bg-muted text-muted-foreground border-border',
 };
