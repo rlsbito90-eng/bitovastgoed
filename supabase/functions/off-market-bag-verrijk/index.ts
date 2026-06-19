@@ -655,11 +655,13 @@ Deno.serve(async (req) => {
   const selectedVboId = typeof body?.selected_vbo_id === 'string' ? body.selected_vbo_id : undefined;
   const selectedNaId = typeof body?.selected_nummeraanduiding_id === 'string'
     ? body.selected_nummeraanduiding_id : undefined;
+  const selectedPdokId = typeof body?.selected_pdok_id === 'string'
+    ? body.selected_pdok_id : undefined;
 
   try {
     const res = await verrijk(supabase, signaalId, {
       force: body?.force === true,
-      selectedVboId, selectedNaId,
+      selectedVboId, selectedNaId, selectedPdokId,
     });
     return jsonResponse({ ok: true, id: signaalId, ...res });
   } catch (e: any) {
