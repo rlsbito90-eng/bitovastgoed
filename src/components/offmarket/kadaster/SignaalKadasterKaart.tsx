@@ -272,7 +272,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
   const [detailRecord, setDetailRecord] = useState<KadasterDataRecord | null>(null);
 
   // Fase 4K.5 — checkbox "Kadasterbericht/PDF intern opslaan".
-  const [selPdf, setSelPdf] = useState(false);
+  const [selPdf, setSelPdf] = useState(true);
 
   const mutation = useKadasterObjectinformatie();
   const queryClient = useQueryClient();
