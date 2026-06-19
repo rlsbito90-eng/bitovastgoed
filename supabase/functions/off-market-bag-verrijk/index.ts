@@ -660,57 +660,10 @@ async function verrijk(
         return { status: 'fout', error: 'Gekozen BAG-match niet gevonden' };
       }
       const gekozen = detailToVbo(det);
-
-      const ctx: PandContext = gekozen.pandid
-        ? await fetchPandContext(gekozen.pandid)
-        : {
-            vbos: [{
-              nummeraanduiding_id: gekozen.nummeraanduiding_id,
-              vbo_id: gekozen.vbo_id,
-              adres: gekozen.adres,
-              opp_m2: gekozen.opp_m2,
-              gebruiksdoel: gekozen.gebruiksdoel,
-              status: gekozen.status,
-            }],
-            pandIds: [],
-            vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
-            gebruiksdoelen: gekozen.gebruiksdoel,
-            totaalOpp: gekozen.opp_m2 ?? 0,
-            bouwjaar: gekozen.bouwjaar,
-            pandStatus: gekozen.pandstatus,
-            meerVbosBeschikbaar: false,
-            incompleet: false,
-          };
-
-      const vbosMarked = markeerDoelobject(ctx.vbos, gekozen.vbo_id || null, gekozen.nummeraanduiding_id || null);
-
-      await supabase.from('off_market_signalen').update({
-        bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
-        bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
-        bag_geselecteerd_adres: gekozen.adres || null,
-        bag_geselecteerd_opp_m2: gekozen.opp_m2,
-        bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
-        bag_status: 'verrijkt',
-        bag_match_kwaliteit: 'exact',
-        bag_match_kandidaten: null,
-        bag_vbos: vbosMarked,
-        bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
-        bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
-        bag_aantal_panden: ctx.pandIds.length || null,
-        bag_gebruiksdoelen: ctx.gebruiksdoelen,
-        bag_bouwjaar: ctx.bouwjaar,
-        bag_pand_status: ctx.pandStatus,
-        bag_pand_ids: ctx.pandIds,
-        bag_vbo_ids: ctx.vboIds,
-        bag_pandcontext_aantal_vbo: ctx.vbos.length,
-        bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
-        bag_pandcontext_incompleet: ctx.incompleet,
-        bag_verrijkt_op: new Date().toISOString(),
-        bag_foutmelding: null,
-      }).eq('id', signaalId);
-
-      return { status: 'verrijkt', aantal_vbo: ctx.vbos.length };
+      const res = await persistSelectedFlow(supabase, signaalId, gekozen);
+      return res;
     }
+
 
     // ====== Mode A — initial enrich ======
     const queries = buildSearchQueries(s);
