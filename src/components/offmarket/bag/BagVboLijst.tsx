@@ -100,16 +100,16 @@ export default function BagVboLijst({
                   <dt className="text-foreground/70">Oppervlakte:</dt>
                   <dd className="text-foreground">{v.opp_m2 != null ? `${v.opp_m2} m²` : '—'}</dd>
                 </div>
-                <div className="flex gap-1.5">
-                  <dt className="text-foreground/70">Verblijfsobject:</dt>
-                  <dd className="font-mono-data text-foreground" title={v.vbo_id || ''} data-testid="bag-vbo-vboid">
-                    {fmtId(v.vbo_id)}
+                <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+                  <dt className="text-foreground/70 shrink-0">Verblijfsobject:</dt>
+                  <dd className="min-w-0 flex-1">
+                    <BagIdCopy value={v.vbo_id} testId="bag-vbo-vboid" ariaLabel="Kopieer VBO-ID" />
                   </dd>
                 </div>
-                <div className="flex gap-1.5">
-                  <dt className="text-foreground/70">Pand:</dt>
-                  <dd className="font-mono-data text-foreground" title={v.pandid || ''} data-testid="bag-vbo-pandid">
-                    {fmtId(v.pandid)}
+                <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+                  <dt className="text-foreground/70 shrink-0">Pand:</dt>
+                  <dd className="min-w-0 flex-1">
+                    <BagIdCopy value={v.pandid ?? null} testId="bag-vbo-pandid" ariaLabel="Kopieer Pand-ID" />
                   </dd>
                 </div>
                 <div className="flex gap-1.5">
