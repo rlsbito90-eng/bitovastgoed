@@ -49,6 +49,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const gekozenGebruik = (s.bag_geselecteerd_gebruiksdoel as string[] | null | undefined) ?? null;
   const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
   const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
+  const pandcontextIncompleet = (s.bag_pandcontext_incompleet as boolean | null | undefined) === true;
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
