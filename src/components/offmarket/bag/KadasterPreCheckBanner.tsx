@@ -18,6 +18,8 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
   const aantalVbo = (s.bag_aantal_vbo as number | null | undefined) ?? null;
   const gebruiksdoelen = (s.bag_gebruiksdoelen as string[] | null | undefined) ?? [];
   const matchKw = (s.bag_match_kwaliteit as string | null | undefined) ?? null;
+  const bouwjaar = (s.bag_bouwjaar as number | null | undefined) ?? null;
+  const pandStatus = (s.bag_pand_status as string | null | undefined) ?? null;
 
   // V2.4
   const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
@@ -27,6 +29,7 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
 
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
+  const detailsOntbreken = bagStatus === 'verrijkt' && pandTotaalOpp == null && gebruiksdoelen.length === 0;
 
   return (
     <div
