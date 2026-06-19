@@ -591,6 +591,7 @@ async function persistSelectedFlow(
   return { status: 'verrijkt', aantal_vbo: aantal };
 }
 
+interface VerrijkResult {
   status: string;
   aantal_vbo?: number;
   kandidaten?: number;
