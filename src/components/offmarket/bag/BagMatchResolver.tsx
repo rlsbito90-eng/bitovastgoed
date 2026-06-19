@@ -69,7 +69,10 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
   const { primair, nearby } = useMemo(() => {
     const prim: BagMatchKandidaat[] = [];
     const near: BagMatchKandidaat[] = [];
-    for (const k of kandidaten) {
+    const raw = Array.isArray(kandidaten) ? kandidaten : [];
+    for (const entry of raw) {
+      const k = normalizeBagKandidaat(entry);
+      if (!k) continue;
       if (isNearby(k)) near.push(k);
       else prim.push(k);
     }
