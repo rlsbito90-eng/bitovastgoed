@@ -54,21 +54,43 @@ export interface ParsedHuisnummer {
 function stripPostcode(s: string): string {
   return s.replace(/\b\d{4}\s?[A-Za-z]{2}\b/g, ' ');
 }
+// V2.4 — stopwoorden die NOOIT als huisletter/toevoeging mogen gelden.
+const STOPWORDS_NA_HUISNUMMER = new Set<string>([
+  'IN','TE','AAN','BIJ','VOOR','VAN','OP','NABIJ','NA','MET','UIT','OM','DE','HET','EEN',
+  'AMSTERDAM','ROTTERDAM','UTRECHT','HAAG','DEN','HAARLEM','EINDHOVEN','GRONINGEN',
+  'TILBURG','ALMERE','BREDA','NIJMEGEN','APELDOORN','ARNHEM','ZAANSTAD','HAARLEMMERMEER',
+  'AMERSFOORT','LEIDEN','MAASTRICHT','DORDRECHT','ZOETERMEER','ZWOLLE','DELFT','DEVENTER',
+]);
+/** Echte toevoeging/huisletter? Patroon: enkele letter, cijfers, cijfer+letter, letter+cijfer, of Romeins II/III/IV. */
+export function isRealToevoeging(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  const t = String(raw).trim().toUpperCase();
+  if (!t) return false;
+  if (STOPWORDS_NA_HUISNUMMER.has(t)) return false;
+  if (/^\d{4}[A-Z]{0,2}$/.test(t)) return false; // postcode-fragment
+  if (/^[A-Z]$/.test(t)) return true;
+  if (/^\d{1,4}$/.test(t)) return true;
+  if (/^\d{1,3}[A-Z]$/.test(t)) return true;
+  if (/^[A-Z]\d{1,3}$/.test(t)) return true;
+  if (/^(II|III|IV|V|VI|VII|VIII|IX|X)$/.test(t)) return true;
+  return false;
+}
 function parseHuisnummer(raw: string | null | undefined): ParsedHuisnummer {
   if (!raw) return { huisnummer: null, huisletter: null, toevoeging: null };
   const s = stripPostcode(String(raw));
-  // 1) "<nr>-<rest>" of "<nr> <rest>" met spatie/streepje
-  let m = s.match(/\b(\d{1,5})[\s\-]+([A-Za-z0-9]{1,6})\b/);
-  if (m) {
-    const nr = m[1];
-    const tv = m[2];
-    // extra veiligheid: skip als token zelf op postcode-fragment lijkt
-    if (!/^\d{4}[A-Za-z]{0,2}$/.test(tv)) {
-      if (/^[A-Za-z]$/.test(tv)) {
-        return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
-      }
-      return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
-    }
+  // 1a) "<nr>-<rest>" met streepje — accepteer alleen echte toevoeging
+  let m = s.match(/\b(\d{1,5})-([A-Za-z0-9]{1,6})\b/);
+  if (m && isRealToevoeging(m[2])) {
+    const nr = m[1]; const tv = m[2].toUpperCase();
+    if (/^[A-Z]$/.test(tv)) return { huisnummer: nr, huisletter: tv, toevoeging: null };
+    return { huisnummer: nr, huisletter: null, toevoeging: tv };
+  }
+  // 1b) "<nr> <rest>" met spatie — strenger; alleen echte toevoeging accepteren
+  m = s.match(/\b(\d{1,5})\s+([A-Za-z0-9]{1,6})\b/);
+  if (m && isRealToevoeging(m[2])) {
+    const nr = m[1]; const tv = m[2].toUpperCase();
+    if (/^[A-Z]$/.test(tv)) return { huisnummer: nr, huisletter: tv, toevoeging: null };
+    return { huisnummer: nr, huisletter: null, toevoeging: tv };
   }
   // 2) "<nr><letter>"  bv 330A, 332B
   m = s.match(/\b(\d{1,5})([A-Za-z])\b/);
