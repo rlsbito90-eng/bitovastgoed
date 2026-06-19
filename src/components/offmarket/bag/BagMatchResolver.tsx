@@ -28,6 +28,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
         force: true,
         selected_vbo_id: k.vbo_id ?? undefined,
         selected_nummeraanduiding_id: k.nummeraanduiding_id ?? undefined,
+        selected_pdok_id: k.pdok_id ?? undefined,
       });
       toast.success('BAG-match gekozen en pandcontext opgehaald.');
     } catch (e: any) {
