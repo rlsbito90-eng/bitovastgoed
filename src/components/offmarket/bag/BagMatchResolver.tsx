@@ -12,12 +12,31 @@ import type { BagMatchKandidaat, BagMatchType } from '@/lib/offMarket/bag/types'
 
 interface Props {
   signaalId: string;
-  kandidaten: BagMatchKandidaat[];
+  kandidaten: Array<BagMatchKandidaat | null | undefined> | null | undefined;
 }
 
-function shortId(v: string | null | undefined, len = 8): string {
-  if (!v) return '';
-  return v.length > len ? `${v.slice(0, len)}…` : v;
+function normalizeBagKandidaat(
+  k?: Partial<BagMatchKandidaat> | null,
+): BagMatchKandidaat | null {
+  if (!k || typeof k !== 'object') return null;
+  return {
+    adres: k.adres ?? 'Onbekend BAG-adres',
+    pdok_id: k.pdok_id ?? null,
+    vbo_id: k.vbo_id ?? null,
+    nummeraanduiding_id: k.nummeraanduiding_id ?? null,
+    opp_m2: typeof k.opp_m2 === 'number' ? k.opp_m2 : null,
+    gebruiksdoel: Array.isArray(k.gebruiksdoel) ? k.gebruiksdoel : [],
+    status: k.status ?? null,
+    pandid: k.pandid ?? null,
+    match_type: (k.match_type as BagMatchType | undefined) ?? 'onzeker',
+    is_doelobject_match: k.is_doelobject_match ?? false,
+    match_kwaliteit: k.match_kwaliteit ?? 'onzeker',
+    match_reden: k.match_reden ?? null,
+  };
+}
+
+function hasSelectableId(k: BagMatchKandidaat): boolean {
+  return !!(k.pdok_id || k.vbo_id || k.nummeraanduiding_id);
 }
 
 function isNearby(k: BagMatchKandidaat): boolean {
