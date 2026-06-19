@@ -250,6 +250,9 @@ interface BagVbo {
   opp_m2: number | null;
   gebruiksdoel: string[];
   status: string | null;
+  pandid?: string | null;
+  pand_bouwjaar?: number | null;
+  pand_status?: string | null;
   is_doelobject?: boolean;
   match_badge?: string | null;
 }
@@ -270,6 +273,8 @@ interface BagMatchKandidaat {
   gebruiksdoel?: string[] | null;
   status?: string | null;
   pandid?: string | null;
+  pand_bouwjaar?: number | null;
+  pand_status?: string | null;
   postcode?: string | null;
   postcode_normalized?: string | null;
   huisnummer?: string | number | null;
@@ -299,19 +304,8 @@ interface LookupVbo {
   postcode: string | null;
 }
 
+/** PDOK Locatieserver (BAG basis-adres). Geeft géén oppervlakte/gebruiksdoel/pandid. */
 function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
-  const oppRaw = pickFirst<any>(det.oppervlakte);
-  const opp = oppRaw == null ? null
-    : (typeof oppRaw === 'number' ? oppRaw
-      : Number.isFinite(Number(oppRaw)) ? Number(oppRaw) : null);
-  const gdArr = Array.isArray(det.gebruiksdoel)
-    ? det.gebruiksdoel.map((x: any) => String(x))
-    : (det.gebruiksdoel ? [String(det.gebruiksdoel)] : []);
-  const pandId = pickFirst<any>(det.pandid);
-  const bjRaw = pickFirst<any>(det.bouwjaar);
-  const bj = bjRaw != null && Number.isFinite(Number(bjRaw)) ? Number(bjRaw) : null;
-  const ps = pickFirst<any>(det.pandstatus);
-  const status = pickFirst<any>(det.status);
   const hn = det.huisnummer != null ? String(det.huisnummer) : null;
   const hl = det.huisletter ? String(det.huisletter).toUpperCase() : null;
   const ht = det.huisnummertoevoeging ? String(det.huisnummertoevoeging).toUpperCase() : null;
@@ -320,18 +314,172 @@ function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
     nummeraanduiding_id: String(det.nummeraanduiding_id ?? ''),
     vbo_id: String(det.adresseerbaarobject_id ?? det.adresseerbaar_object_id ?? ''),
     adres: String(det.weergavenaam ?? fallbackAdres ?? ''),
-    opp_m2: typeof opp === 'number' && Number.isFinite(opp) ? Math.round(opp) : null,
-    gebruiksdoel: gdArr,
-    status: status ? String(status) : null,
-    pandid: pandId ? String(pandId) : null,
-    bouwjaar: bj,
-    pandstatus: ps ? String(ps) : null,
+    opp_m2: null,
+    gebruiksdoel: [],
+    status: null,
+    pandid: null,
+    bouwjaar: null,
+    pandstatus: null,
     huisnummer: hn,
     huisletter: hl,
     huisnummertoevoeging: ht,
     postcode: pc,
   };
 }
+
+// ============================================================================
+// PDOK BAG WFS v2 (gratis, geen key) — bron voor oppervlakte, gebruiksdoel,
+// bouwjaar, pandid, pandstatus. Heel defensief in mapping.
+// ============================================================================
+const PDOK_BAG_WFS = 'https://service.pdok.nl/lv/bag/wfs/v2_0';
+
+interface WfsVboProps {
+  vbo_id: string | null;
+  adres: string;
+  opp_m2: number | null;
+  gebruiksdoel: string[];
+  status: string | null;
+  pandid: string | null;
+  pand_bouwjaar: number | null;
+  pand_status: string | null;
+  postcode: string | null;
+  huisnummer: string | null;
+  huisletter: string | null;
+  toevoeging: string | null;
+  openbare_ruimte: string | null;
+  woonplaats: string | null;
+}
+
+function pickField(o: any, keys: string[]): any {
+  for (const k of keys) {
+    if (o && o[k] != null && o[k] !== '') return o[k];
+  }
+  return null;
+}
+
+function wfsPropsToVbo(p: any): WfsVboProps {
+  const oppRaw = pickField(p, ['oppervlakte', 'oppervlakte_m2', 'oppervlakteverblijfsobject', 'gebruiksoppervlakte']);
+  const opp = oppRaw == null ? null : (Number.isFinite(Number(oppRaw)) ? Math.round(Number(oppRaw)) : null);
+  const gdRaw = pickField(p, ['gebruiksdoel', 'gebruiksdoelen', 'gebruiksdoelVerblijfsobject']);
+  const gd: string[] = Array.isArray(gdRaw)
+    ? gdRaw.map((x: any) => String(x))
+    : (gdRaw ? String(gdRaw).split(/[,;]/).map((s) => s.trim()).filter(Boolean) : []);
+  const bjRaw = pickField(p, ['bouwjaar', 'oorspronkelijk_bouwjaar', 'oorspronkelijkBouwjaar']);
+  const bj = bjRaw != null && Number.isFinite(Number(bjRaw)) ? Number(bjRaw) : null;
+  const pcRaw = pickField(p, ['postcode']);
+  const pc = pcRaw ? String(pcRaw).replace(/\s+/g, '').toUpperCase() : null;
+  const hn = pickField(p, ['huisnummer']);
+  const hl = pickField(p, ['huisletter']);
+  const tv = pickField(p, ['toevoeging', 'huisnummertoevoeging']);
+  const oh = pickField(p, ['openbare_ruimte', 'openbareruimte', 'straatnaam']);
+  const wp = pickField(p, ['woonplaats', 'woonplaatsnaam']);
+  const vboId = pickField(p, ['identificatie', 'verblijfsobject_id', 'adresseerbaarobject_id', 'adresseerbaar_object_id']);
+  const pandId = pickField(p, ['pandidentificatie', 'pandid', 'pand_id', 'pand_identificatie']);
+  const status = pickField(p, ['status', 'statusVerblijfsobject', 'verblijfsobjectstatus']);
+  const pandStatus = pickField(p, ['pandstatus', 'pand_status', 'statusPand']);
+  const huisnr = hn != null ? String(hn) : null;
+  const huisletter = hl ? String(hl).toUpperCase() : null;
+  const toev = tv ? String(tv).toUpperCase() : null;
+  const adres = [
+    oh ? String(oh) : null,
+    huisnr ? `${huisnr}${huisletter ?? ''}${toev ? '-' + toev : ''}` : null,
+    pc ? `${pc.slice(0, 4)}${pc.slice(4)}` : null,
+    wp ? String(wp) : null,
+  ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  return {
+    vbo_id: vboId ? String(vboId) : null,
+    adres: adres || (oh && huisnr ? `${oh} ${huisnr}` : ''),
+    opp_m2: opp,
+    gebruiksdoel: gd,
+    status: status ? String(status) : null,
+    pandid: pandId ? String(pandId) : null,
+    pand_bouwjaar: bj,
+    pand_status: pandStatus ? String(pandStatus) : null,
+    postcode: pc,
+    huisnummer: huisnr,
+    huisletter,
+    toevoeging: toev,
+    openbare_ruimte: oh ? String(oh) : null,
+    woonplaats: wp ? String(wp) : null,
+  };
+}
+
+async function wfsFetch(filterXml: string): Promise<any[]> {
+  const params = new URLSearchParams({
+    service: 'WFS',
+    version: '2.0.0',
+    request: 'GetFeature',
+    typeNames: 'bag:verblijfsobject',
+    outputFormat: 'application/json',
+    count: String(MAX_VBOS),
+    filter: filterXml,
+  });
+  try {
+    const r = await fetch(`${PDOK_BAG_WFS}?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!r.ok) {
+      console.warn('[wfsFetch] HTTP', r.status);
+      return [];
+    }
+    const j = await r.json();
+    return Array.isArray(j?.features) ? j.features : [];
+  } catch (e) {
+    console.warn('[wfsFetch] error', (e as Error).message);
+    return [];
+  }
+}
+
+async function wfsVbosByPandid(pandid: string): Promise<WfsVboProps[]> {
+  const filter = `<Filter xmlns="http://www.opengis.net/ogc"><PropertyIsEqualTo><PropertyName>pandidentificatie</PropertyName><Literal>${pandid}</Literal></PropertyIsEqualTo></Filter>`;
+  const feats = await wfsFetch(filter);
+  return feats.map((f) => wfsPropsToVbo(f.properties ?? {}));
+}
+
+async function wfsVbosByPostcodeHuisnr(postcode: string, huisnummer: string): Promise<WfsVboProps[]> {
+  const filter = `<Filter xmlns="http://www.opengis.net/ogc"><And><PropertyIsEqualTo><PropertyName>postcode</PropertyName><Literal>${postcode}</Literal></PropertyIsEqualTo><PropertyIsEqualTo><PropertyName>huisnummer</PropertyName><Literal>${huisnummer}</Literal></PropertyIsEqualTo></And></Filter>`;
+  const feats = await wfsFetch(filter);
+  return feats.map((f) => wfsPropsToVbo(f.properties ?? {}));
+}
+
+async function wfsVboById(vboId: string): Promise<WfsVboProps | null> {
+  const filter = `<Filter xmlns="http://www.opengis.net/ogc"><PropertyIsEqualTo><PropertyName>identificatie</PropertyName><Literal>${vboId}</Literal></PropertyIsEqualTo></Filter>`;
+  const feats = await wfsFetch(filter);
+  if (feats.length === 0) return null;
+  return wfsPropsToVbo(feats[0].properties ?? {});
+}
+
+/** Vul LookupVbo aan met WFS-details (oppervlakte, gebruiksdoel, pandid, bouwjaar, pandstatus). */
+async function enrichLookupVboFromWfs(v: LookupVbo): Promise<LookupVbo> {
+  if (v.opp_m2 != null && v.pandid && v.bouwjaar != null) return v;
+  let wfs: WfsVboProps | null = null;
+  if (v.vbo_id) wfs = await wfsVboById(v.vbo_id);
+  if (!wfs && v.postcode && v.huisnummer) {
+    const list = await wfsVbosByPostcodeHuisnr(v.postcode, v.huisnummer);
+    wfs = list.find((w) => {
+      if (v.vbo_id && w.vbo_id === v.vbo_id) return true;
+      const tA = (v.huisnummertoevoeging ?? '').toUpperCase();
+      const tB = (w.toevoeging ?? '').toUpperCase();
+      const lA = (v.huisletter ?? '').toUpperCase();
+      const lB = (w.huisletter ?? '').toUpperCase();
+      return tA === tB && lA === lB;
+    }) ?? null;
+  }
+  if (!wfs) return v;
+  return {
+    ...v,
+    vbo_id: v.vbo_id || (wfs.vbo_id ?? ''),
+    opp_m2: v.opp_m2 ?? wfs.opp_m2,
+    gebruiksdoel: v.gebruiksdoel.length ? v.gebruiksdoel : wfs.gebruiksdoel,
+    status: v.status ?? wfs.status,
+    pandid: v.pandid ?? wfs.pandid,
+    bouwjaar: v.bouwjaar ?? wfs.pand_bouwjaar,
+    pandstatus: v.pandstatus ?? wfs.pand_status,
+    huisletter: v.huisletter ?? wfs.huisletter,
+    huisnummertoevoeging: v.huisnummertoevoeging ?? wfs.toevoeging,
+  };
+}
+
 
 async function runParallel<T, R>(
   items: T[], parallel: number, fn: (it: T) => Promise<R>,
