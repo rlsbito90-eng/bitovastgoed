@@ -3023,6 +3023,7 @@ export type Database = {
           bag_pand_ids: string[] | null
           bag_pand_status: string | null
           bag_pandcontext_aantal_vbo: number | null
+          bag_pandcontext_bron: string | null
           bag_pandcontext_incompleet: boolean | null
           bag_pandcontext_totaal_opp_m2: number | null
           bag_status: Database["public"]["Enums"]["off_market_bag_status"]
@@ -3136,6 +3137,7 @@ export type Database = {
           bag_pand_ids?: string[] | null
           bag_pand_status?: string | null
           bag_pandcontext_aantal_vbo?: number | null
+          bag_pandcontext_bron?: string | null
           bag_pandcontext_incompleet?: boolean | null
           bag_pandcontext_totaal_opp_m2?: number | null
           bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
@@ -3249,6 +3251,7 @@ export type Database = {
           bag_pand_ids?: string[] | null
           bag_pand_status?: string | null
           bag_pandcontext_aantal_vbo?: number | null
+          bag_pandcontext_bron?: string | null
           bag_pandcontext_incompleet?: boolean | null
           bag_pandcontext_totaal_opp_m2?: number | null
           bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
