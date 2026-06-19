@@ -289,7 +289,7 @@ async function fetchPandContext(pandid: string): Promise<PandContext> {
   try {
     primair = await pdokFreeByPandid(pandid);
     lookupIds = primair
-      .map((d) => d.nummeraanduiding_id ?? d.id)
+      .map((d) => d.id) // PDOK lookup vereist "adr-..." doc-id
       .filter((v) => typeof v === 'string') as string[];
   } catch { /* fall through */ }
 
