@@ -155,20 +155,36 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
       )}
 
       {/* V2.4 — Doelobject */}
-      {gekozenAdres && (
-        <div data-testid="bag-doelobject-sectie" className="rounded-md border border-border bg-card/60 p-3 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Doelobject</p>
-          <p className="text-sm text-foreground" data-testid="bag-doelobject-adres">
-            {gekozenAdres}
-            {gekozenOpp != null ? ` · ${gekozenOpp} m²` : ''}
-            {gekozenGebruik?.length ? ` · ${gekozenGebruik.join(', ')}` : ''}
-          </p>
-          <p className="text-[11px] text-muted-foreground font-mono-data">
-            {gekozenVboId ? `VBO ${gekozenVboId.slice(0, 12)}…` : ''}
-            {matchKw ? ` · matchkwaliteit: ${matchKw}` : ''}
-          </p>
-        </div>
-      )}
+      {gekozenAdres && (() => {
+        const doel = vbos?.find((v) =>
+          v.is_doelobject === true ||
+          (gekozenVboId && v.vbo_id === gekozenVboId) ||
+          (gekozenNaId && v.nummeraanduiding_id === gekozenNaId),
+        ) ?? null;
+        const gebruik = (gekozenGebruik?.length ? gekozenGebruik : doel?.gebruiksdoel) ?? [];
+        const opp = gekozenOpp ?? doel?.opp_m2 ?? null;
+        const vboId = gekozenVboId || doel?.vbo_id || null;
+        const pandId = doel?.pandid ?? null;
+        const bj = doel?.pand_bouwjaar ?? bouwjaar ?? null;
+        const ps = doel?.pand_status ?? pandStatus ?? null;
+        const fmtId = (id: string | null) =>
+          id ? (id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id) : '—';
+        return (
+          <div data-testid="bag-doelobject-sectie" className="rounded-md border border-border bg-card/60 p-3 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Doelobject</p>
+            <p className="text-sm text-foreground" data-testid="bag-doelobject-adres">{gekozenAdres}</p>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Gebruiksdoel:</dt><dd className="text-foreground" data-testid="bag-doelobject-gebruik">{gebruik.length ? gebruik.map((g) => g.charAt(0).toUpperCase() + g.slice(1)).join(', ') : '—'}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Oppervlakte:</dt><dd className="text-foreground" data-testid="bag-doelobject-opp">{opp != null ? `${opp} m²` : '—'}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Verblijfsobject:</dt><dd className="font-mono-data text-foreground" title={vboId ?? ''} data-testid="bag-doelobject-vboid">{fmtId(vboId)}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Pand:</dt><dd className="font-mono-data text-foreground" title={pandId ?? ''} data-testid="bag-doelobject-pandid">{fmtId(pandId)}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Oorspronkelijk bouwjaar:</dt><dd className="text-foreground" data-testid="bag-doelobject-bouwjaar">{bj ?? '—'}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Pandstatus:</dt><dd className="text-foreground" data-testid="bag-doelobject-pandstatus">{ps || '—'}</dd></div>
+              <div className="flex gap-1.5"><dt className="text-foreground/70">Matchkwaliteit:</dt><dd className="text-foreground">{matchKw ?? '—'}</dd></div>
+            </dl>
+          </div>
+        );
+      })()}
 
       {/* V2.4 — BAG-pandcontext */}
       <div data-testid="bag-pandcontext-sectie" className="space-y-3">
