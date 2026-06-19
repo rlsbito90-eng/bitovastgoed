@@ -956,16 +956,13 @@ async function verrijk(
     const sigToevoeging = (parsed.toevoeging || '').toUpperCase() || null;
     const sigLetter = (parsed.huisletter || '').toUpperCase() || null;
 
-    // Split docs in primair (zelfde pc+huisnr) en nearby (rest)
+    // Split docs in primair (zelfde pc+huisnr) en nearby (rest).
+    // Strikt: als pc+huisnr bekend zijn, mogen andere huisnummers NOOIT primair worden.
     let primair: any[] = docs;
     let nearby: any[] = [];
     if (pc && huisnr) {
-      const same = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
-      const other = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
-      if (same.length > 0) {
-        primair = same;
-        nearby = other;
-      }
+      primair = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
+      nearby = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
     }
 
     // Bouw basis-kandidaten (eerst primair, dan nearby) tot MAX_KANDIDATEN
