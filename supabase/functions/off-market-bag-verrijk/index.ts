@@ -573,12 +573,7 @@ async function fetchPandContext(
       vbosHuisnummer = list.map(wfsToContextVbo);
       // Als pandid onbekend was: leid af uit doelobject in deze lijst.
       if (!selected.pandid) {
-        const target = list.find((w) => w.vbo_id && w.vbo_id === selected.vbo_id)
-          ?? list.find((w) => {
-            const t = (selected.bouwjaar ? '' : '');
-            void t;
-            return false;
-          });
+        const target = list.find((w) => w.vbo_id && w.vbo_id === selected.vbo_id);
         if (target?.pandid) {
           selected.pandid = target.pandid;
           try {
