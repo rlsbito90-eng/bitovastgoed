@@ -1,10 +1,16 @@
-// Off-Market Radar V2.3 — BAG-verrijking als pre-check vóór betaald Kadaster.
+// Off-Market Radar V2.3 + V2.4 — BAG-verrijking als pre-check vóór betaald Kadaster.
 // Gebruikt PDOK Locatieserver (gratis, geen key):
-//   /search/v3_1/free   → vind nummeraanduidingen op adres
+//   /search/v3_1/free   → vind nummeraanduidingen op adres of pandid
 //   /search/v3_1/lookup → haal volledige BAG-velden per nummeraanduiding/VBO
+// Fallback BAG Individuele Bevragingen v2 wordt geprobeerd indien Locatieserver
+// geen VBO's vindt voor een pandid.
 //
-// Schrijft alleen bag_*-velden. Overschrijft GEEN business-velden.
-// Roept GEEN betaalde Kadaster-API aan.
+// Modes:
+//   A) zonder selectie  → eerste match of matchkandidaten + meerdere_matches
+//   B) met selectie     → bewaar doelobject, dan Mode C
+//   C) pandcontext      → haal alle VBO's binnen hetzelfde BAG-pand
+//
+// Schrijft alleen bag_*-velden. Roept GEEN betaalde Kadaster-API aan.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -16,7 +22,11 @@ const corsHeaders = {
 
 const PDOK_FREE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 const PDOK_LOOKUP = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup';
-const MAX_VBOS = 6;
+const BAG_IB_PAND_VBOS =
+  'https://api.bag.kadaster.nl/lvbag/individuelebevragingen/v2/panden';
+const MAX_VBOS = 50;
+const MAX_KANDIDATEN = 10;
+const PARALLEL = 6;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -87,6 +97,19 @@ async function pdokFree(q: string): Promise<any[]> {
   return (j?.response?.docs ?? []) as any[];
 }
 
+async function pdokFreeByPandid(pandid: string): Promise<any[]> {
+  const url = new URL(PDOK_FREE);
+  url.searchParams.set('q', '*');
+  url.searchParams.append('fq', 'type:adres');
+  url.searchParams.append('fq', `pandid:${pandid}`);
+  url.searchParams.set('fl',
+    'id,weergavenaam,straatnaam,huisnummer,huisletter,huisnummertoevoeging,' +
+    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaar_object_id,pandid');
+  url.searchParams.set('rows', String(MAX_VBOS));
+  const j = await pdokFetch(url.toString());
+  return (j?.response?.docs ?? []) as any[];
+}
+
 async function pdokLookup(id: string): Promise<any | null> {
   const url = new URL(PDOK_LOOKUP);
   url.searchParams.set('id', id);
@@ -94,6 +117,27 @@ async function pdokLookup(id: string): Promise<any | null> {
   const j = await pdokFetch(url.toString());
   const docs = (j?.response?.docs ?? []) as any[];
   return docs[0] ?? null;
+}
+
+/** Fallback — BAG Individuele Bevragingen v2 (publiek). Best-effort. */
+async function bagIbVbosByPand(pandid: string): Promise<string[]> {
+  try {
+    const url = `${BAG_IB_PAND_VBOS}/${encodeURIComponent(pandid)}/adresseerbareobjecten`;
+    const r = await fetch(url, {
+      headers: { Accept: 'application/hal+json', 'X-Api-Version': '2' },
+    });
+    if (!r.ok) {
+      await r.text();
+      return [];
+    }
+    const j = await r.json();
+    const list = (j?._embedded?.adresseerbareObjecten ?? []) as any[];
+    return list
+      .map((a) => a?.identificatie ?? a?.adresseerbaarObjectIdentificatie)
+      .filter((v): v is string => typeof v === 'string');
+  } catch {
+    return [];
+  }
 }
 
 function pickFirst<T>(v: T | T[] | null | undefined): T | null {
@@ -115,7 +159,6 @@ function bepaalMatchKwaliteit(s: SignaalShallow, docs: any[]): string {
     if (d.straatnaam && d.huisnummer) return 'straat_huisnummer';
     return 'onzeker';
   }
-  // Filter docs op exact postcode+huisnummer; bij 1 hit → exact.
   if (pc && huisnr) {
     const exacte = docs.filter((d) =>
       String(d.postcode ?? '').replace(/\s+/g, '').toUpperCase() === pc
@@ -134,9 +177,148 @@ interface BagVbo {
   status: string | null;
 }
 
+interface BagMatchKandidaat {
+  adres: string;
+  vbo_id?: string | null;
+  nummeraanduiding_id?: string | null;
+  opp_m2?: number | null;
+  gebruiksdoel?: string[] | null;
+  status?: string | null;
+  pandid?: string | null;
+  match_kwaliteit?: string | null;
+  match_reden?: string | null;
+}
+
+interface LookupVbo {
+  nummeraanduiding_id: string;
+  vbo_id: string;
+  adres: string;
+  opp_m2: number | null;
+  gebruiksdoel: string[];
+  status: string | null;
+  pandid: string | null;
+  bouwjaar: number | null;
+  pandstatus: string | null;
+}
+
+function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
+  const oppRaw = pickFirst<any>(det.oppervlakte);
+  const opp = oppRaw == null ? null
+    : (typeof oppRaw === 'number' ? oppRaw
+      : Number.isFinite(Number(oppRaw)) ? Number(oppRaw) : null);
+  const gdArr = Array.isArray(det.gebruiksdoel)
+    ? det.gebruiksdoel.map((x: any) => String(x))
+    : (det.gebruiksdoel ? [String(det.gebruiksdoel)] : []);
+  const pandId = pickFirst<any>(det.pandid);
+  const bjRaw = pickFirst<any>(det.bouwjaar);
+  const bj = bjRaw != null && Number.isFinite(Number(bjRaw)) ? Number(bjRaw) : null;
+  const ps = pickFirst<any>(det.pandstatus);
+  const status = pickFirst<any>(det.status);
+  return {
+    nummeraanduiding_id: String(det.nummeraanduiding_id ?? det.id ?? ''),
+    vbo_id: String(det.adresseerbaar_object_id ?? det.id ?? ''),
+    adres: String(det.weergavenaam ?? fallbackAdres ?? ''),
+    opp_m2: typeof opp === 'number' && Number.isFinite(opp) ? Math.round(opp) : null,
+    gebruiksdoel: gdArr,
+    status: status ? String(status) : null,
+    pandid: pandId ? String(pandId) : null,
+    bouwjaar: bj,
+    pandstatus: ps ? String(ps) : null,
+  };
+}
+
+async function runParallel<T, R>(
+  items: T[], parallel: number, fn: (it: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const out: PromiseSettledResult<R>[] = [];
+  for (let i = 0; i < items.length; i += parallel) {
+    const slice = items.slice(i, i + parallel);
+    const res = await Promise.allSettled(slice.map(fn));
+    out.push(...res);
+  }
+  return out;
+}
+
+interface PandContext {
+  vbos: BagVbo[];
+  pandIds: string[];
+  vboIds: string[];
+  gebruiksdoelen: string[];
+  totaalOpp: number;
+  bouwjaar: number | null;
+  pandStatus: string | null;
+  meerVbosBeschikbaar: boolean;
+}
+
+async function fetchPandContext(pandid: string): Promise<PandContext> {
+  // 1. Locatieserver eerst.
+  let lookupIds: string[] = [];
+  let primair: any[] = [];
+  try {
+    primair = await pdokFreeByPandid(pandid);
+    lookupIds = primair
+      .map((d) => d.nummeraanduiding_id ?? d.id)
+      .filter((v) => typeof v === 'string') as string[];
+  } catch { /* fall through */ }
+
+  // 2. Fallback — BAG IB v2.
+  if (lookupIds.length === 0) {
+    const vboIds = await bagIbVbosByPand(pandid);
+    lookupIds = vboIds; // worden ook door /lookup geaccepteerd op vbo-id
+  }
+
+  const meerVbosBeschikbaar = lookupIds.length > MAX_VBOS;
+  const beperkt = lookupIds.slice(0, MAX_VBOS);
+
+  const results = await runParallel(beperkt, PARALLEL, async (id) => {
+    const det = await pdokLookup(String(id));
+    if (!det) return null;
+    return detailToVbo(det);
+  });
+
+  const vbos: BagVbo[] = [];
+  const pandIds = new Set<string>([pandid]);
+  const vboIds = new Set<string>();
+  const gebruiksdoelen = new Set<string>();
+  let totaalOpp = 0;
+  let bouwjaar: number | null = null;
+  let pandStatus: string | null = null;
+
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const v = r.value;
+    if (v.vbo_id) vboIds.add(v.vbo_id);
+    if (v.pandid) pandIds.add(v.pandid);
+    v.gebruiksdoel.forEach((g) => gebruiksdoelen.add(g));
+    if (typeof v.opp_m2 === 'number') totaalOpp += v.opp_m2;
+    if (v.bouwjaar != null) bouwjaar = bouwjaar == null ? v.bouwjaar : Math.min(bouwjaar, v.bouwjaar);
+    if (!pandStatus && v.pandstatus) pandStatus = v.pandstatus;
+    vbos.push({
+      nummeraanduiding_id: v.nummeraanduiding_id,
+      vbo_id: v.vbo_id,
+      adres: v.adres,
+      opp_m2: v.opp_m2,
+      gebruiksdoel: v.gebruiksdoel,
+      status: v.status,
+    });
+  }
+
+  return {
+    vbos,
+    pandIds: Array.from(pandIds),
+    vboIds: Array.from(vboIds),
+    gebruiksdoelen: Array.from(gebruiksdoelen),
+    totaalOpp,
+    bouwjaar,
+    pandStatus,
+    meerVbosBeschikbaar,
+  };
+}
+
 interface VerrijkResult {
   status: string;
   aantal_vbo?: number;
+  kandidaten?: number;
   error?: string;
   skipped?: boolean;
 }
@@ -144,7 +326,7 @@ interface VerrijkResult {
 async function verrijk(
   supabase: any,
   signaalId: string,
-  force: boolean,
+  opts: { force?: boolean; selectedVboId?: string; selectedNaId?: string },
 ): Promise<VerrijkResult> {
   const { data: s, error } = await supabase
     .from('off_market_signalen')
@@ -154,11 +336,15 @@ async function verrijk(
   if (error) throw new Error(error.message);
   if (!s) throw new Error('Signaal niet gevonden');
 
-  if (s.bag_status === 'verrijkt' && !force) {
-    return { status: 'verrijkt', skipped: true };
-  }
-  if (s.bag_status === 'bezig' && !force) {
-    return { status: 'bezig', skipped: true };
+  const hasSelection = !!(opts.selectedVboId || opts.selectedNaId);
+
+  if (!hasSelection) {
+    if (s.bag_status === 'verrijkt' && !opts.force) {
+      return { status: 'verrijkt', skipped: true };
+    }
+    if (s.bag_status === 'bezig' && !opts.force) {
+      return { status: 'bezig', skipped: true };
+    }
   }
 
   await supabase.from('off_market_signalen').update({
@@ -167,6 +353,78 @@ async function verrijk(
   }).eq('id', signaalId);
 
   try {
+    // ====== Mode B + C — met selectie ======
+    if (hasSelection) {
+      const lookupId = opts.selectedNaId || opts.selectedVboId!;
+      const det = await pdokLookup(lookupId);
+      if (!det) {
+        await supabase.from('off_market_signalen').update({
+          bag_status: 'fout',
+          bag_foutmelding: 'Gekozen BAG-match niet gevonden in PDOK',
+          bag_verrijkt_op: new Date().toISOString(),
+        }).eq('id', signaalId);
+        return { status: 'fout', error: 'Gekozen BAG-match niet gevonden' };
+      }
+      const gekozen = detailToVbo(det);
+
+      // Doelobject-velden persisteren
+      const doelPatch: Record<string, unknown> = {
+        bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
+        bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
+        bag_geselecteerd_adres: gekozen.adres || null,
+        bag_geselecteerd_opp_m2: gekozen.opp_m2,
+        bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
+      };
+
+      // Mode C — pandcontext
+      let ctx: PandContext;
+      if (gekozen.pandid) {
+        ctx = await fetchPandContext(gekozen.pandid);
+      } else {
+        // geen pandid → alleen het gekozen VBO als context
+        ctx = {
+          vbos: [{
+            nummeraanduiding_id: gekozen.nummeraanduiding_id,
+            vbo_id: gekozen.vbo_id,
+            adres: gekozen.adres,
+            opp_m2: gekozen.opp_m2,
+            gebruiksdoel: gekozen.gebruiksdoel,
+            status: gekozen.status,
+          }],
+          pandIds: [],
+          vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
+          gebruiksdoelen: gekozen.gebruiksdoel,
+          totaalOpp: gekozen.opp_m2 ?? 0,
+          bouwjaar: gekozen.bouwjaar,
+          pandStatus: gekozen.pandstatus,
+          meerVbosBeschikbaar: false,
+        };
+      }
+
+      await supabase.from('off_market_signalen').update({
+        ...doelPatch,
+        bag_status: 'verrijkt',
+        bag_match_kwaliteit: 'exact',
+        bag_match_kandidaten: null,
+        bag_vbos: ctx.vbos,
+        bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
+        bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
+        bag_aantal_panden: ctx.pandIds.length || null,
+        bag_gebruiksdoelen: ctx.gebruiksdoelen,
+        bag_bouwjaar: ctx.bouwjaar,
+        bag_pand_status: ctx.pandStatus,
+        bag_pand_ids: ctx.pandIds,
+        bag_vbo_ids: ctx.vboIds,
+        bag_pandcontext_aantal_vbo: ctx.vbos.length,
+        bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
+        bag_verrijkt_op: new Date().toISOString(),
+        bag_foutmelding: null,
+      }).eq('id', signaalId);
+
+      return { status: 'verrijkt', aantal_vbo: ctx.vbos.length };
+    }
+
+    // ====== Mode A — initial enrich ======
     const q = buildFreeQuery(s);
     if (!q) {
       await supabase.from('off_market_signalen').update({
@@ -188,86 +446,112 @@ async function verrijk(
     }
 
     const matchKw = bepaalMatchKwaliteit(s, docs);
-    const isMeerdere = docs.length > 1 && matchKw !== 'exact';
-
-    // Filter naar exacte matches als die er zijn, anders eerste N.
     const pc = normPostcode(s.postcode);
     const huisnr = extractHuisnummer(s.adres);
-    let docsKlein = docs;
+    let exacte: any[] = docs;
     if (pc && huisnr) {
-      const exact = docs.filter((d) =>
+      const ex = docs.filter((d) =>
         String(d.postcode ?? '').replace(/\s+/g, '').toUpperCase() === pc
         && String(d.huisnummer ?? '') === huisnr);
-      if (exact.length > 0) docsKlein = exact;
+      if (ex.length > 0) exacte = ex;
     }
-    docsKlein = docsKlein.slice(0, MAX_VBOS);
 
-    const vbos: BagVbo[] = [];
-    const pandIds = new Set<string>();
-    const vboIds = new Set<string>();
-    const gebruiksdoelen = new Set<string>();
-    let totaalOpp = 0;
-    let bouwjaar: number | null = null;
-    let pandStatus: string | null = null;
-
-    for (const d of docsKlein) {
+    // Eén exacte hit → behandel als directe verrijking via Mode B-pad.
+    if (exacte.length === 1 && matchKw === 'exact') {
+      const d = exacte[0];
       const lookupId = d.nummeraanduiding_id ?? d.id;
-      if (!lookupId) continue;
-      let det: any = null;
-      try { det = await pdokLookup(String(lookupId)); } catch { continue; }
-      if (!det) continue;
-      const vboId = det.adresseerbaar_object_id ?? det.id ?? '';
-      const oppRaw = pickFirst<any>(det.oppervlakte);
-      const opp = oppRaw == null ? null
-        : (typeof oppRaw === 'number' ? oppRaw
-          : Number.isFinite(Number(oppRaw)) ? Number(oppRaw) : null);
-      const gdArr = Array.isArray(det.gebruiksdoel)
-        ? det.gebruiksdoel.map((x: any) => String(x))
-        : (det.gebruiksdoel ? [String(det.gebruiksdoel)] : []);
-      gdArr.forEach((x: string) => gebruiksdoelen.add(x));
-      if (typeof opp === 'number' && Number.isFinite(opp)) totaalOpp += opp;
-      const pandId = pickFirst<any>(det.pandid);
-      if (pandId) pandIds.add(String(pandId));
-      if (vboId) vboIds.add(String(vboId));
-      const bjRaw = pickFirst<any>(det.bouwjaar);
-      if (bjRaw != null) {
-        const bj = Number(bjRaw);
-        if (Number.isFinite(bj)) bouwjaar = bouwjaar == null ? bj : Math.min(bouwjaar, bj);
+      if (lookupId) {
+        const det = await pdokLookup(String(lookupId));
+        if (det) {
+          const gekozen = detailToVbo(det, d.weergavenaam ?? '');
+          const ctx = gekozen.pandid
+            ? await fetchPandContext(gekozen.pandid)
+            : {
+                vbos: [{
+                  nummeraanduiding_id: gekozen.nummeraanduiding_id,
+                  vbo_id: gekozen.vbo_id,
+                  adres: gekozen.adres,
+                  opp_m2: gekozen.opp_m2,
+                  gebruiksdoel: gekozen.gebruiksdoel,
+                  status: gekozen.status,
+                }],
+                pandIds: [],
+                vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
+                gebruiksdoelen: gekozen.gebruiksdoel,
+                totaalOpp: gekozen.opp_m2 ?? 0,
+                bouwjaar: gekozen.bouwjaar,
+                pandStatus: gekozen.pandstatus,
+                meerVbosBeschikbaar: false,
+              };
+
+          await supabase.from('off_market_signalen').update({
+            bag_status: 'verrijkt',
+            bag_match_kwaliteit: 'exact',
+            bag_match_kandidaten: null,
+            bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
+            bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
+            bag_geselecteerd_adres: gekozen.adres || null,
+            bag_geselecteerd_opp_m2: gekozen.opp_m2,
+            bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
+            bag_vbos: ctx.vbos,
+            bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
+            bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
+            bag_aantal_panden: ctx.pandIds.length || null,
+            bag_gebruiksdoelen: ctx.gebruiksdoelen,
+            bag_bouwjaar: ctx.bouwjaar,
+            bag_pand_status: ctx.pandStatus,
+            bag_pand_ids: ctx.pandIds,
+            bag_vbo_ids: ctx.vboIds,
+            bag_pandcontext_aantal_vbo: ctx.vbos.length,
+            bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
+            bag_verrijkt_op: new Date().toISOString(),
+            bag_foutmelding: null,
+          }).eq('id', signaalId);
+
+          return { status: 'verrijkt', aantal_vbo: ctx.vbos.length };
+        }
       }
-      if (!pandStatus) {
-        const ps = pickFirst<any>(det.pandstatus);
-        if (ps) pandStatus = String(ps);
-      }
-      const status = pickFirst<any>(det.status);
-      vbos.push({
-        nummeraanduiding_id: String(lookupId),
-        vbo_id: String(vboId),
-        adres: String(det.weergavenaam ?? d.weergavenaam ?? ''),
-        opp_m2: typeof opp === 'number' && Number.isFinite(opp) ? Math.round(opp) : null,
-        gebruiksdoel: gdArr,
-        status: status ? String(status) : null,
-      });
     }
 
-    const eindStatus = isMeerdere ? 'meerdere_matches' : 'verrijkt';
+    // Meerdere/onzekere matches → lichte kandidaten via lookup, max MAX_KANDIDATEN.
+    const docsKandidaat = docs.slice(0, MAX_KANDIDATEN);
+    const results = await runParallel(docsKandidaat, PARALLEL, async (d) => {
+      const id = d.nummeraanduiding_id ?? d.id;
+      if (!id) return null;
+      try {
+        const det = await pdokLookup(String(id));
+        if (!det) return null;
+        const v = detailToVbo(det, d.weergavenaam ?? '');
+        const k: BagMatchKandidaat = {
+          adres: v.adres,
+          vbo_id: v.vbo_id || null,
+          nummeraanduiding_id: v.nummeraanduiding_id || null,
+          opp_m2: v.opp_m2,
+          gebruiksdoel: v.gebruiksdoel,
+          status: v.status,
+          pandid: v.pandid,
+          match_kwaliteit: matchKw,
+          match_reden: docs.length > 1 ? 'Meerdere PDOK-treffers' : 'Onzekere PDOK-treffer',
+        };
+        return k;
+      } catch {
+        return null;
+      }
+    });
+    const kandidaten = results
+      .filter((r): r is PromiseFulfilledResult<BagMatchKandidaat | null> => r.status === 'fulfilled')
+      .map((r) => r.value)
+      .filter((k): k is BagMatchKandidaat => !!k);
 
     await supabase.from('off_market_signalen').update({
-      bag_status: eindStatus,
-      bag_totaal_oppervlakte_m2: Math.round(totaalOpp) || null,
-      bag_aantal_panden: pandIds.size || null,
-      bag_aantal_vbo: vboIds.size || vbos.length || null,
-      bag_gebruiksdoelen: Array.from(gebruiksdoelen),
-      bag_bouwjaar: bouwjaar,
-      bag_pand_status: pandStatus,
-      bag_pand_ids: Array.from(pandIds),
-      bag_vbo_ids: Array.from(vboIds),
+      bag_status: 'meerdere_matches',
       bag_match_kwaliteit: matchKw,
+      bag_match_kandidaten: kandidaten,
       bag_verrijkt_op: new Date().toISOString(),
       bag_foutmelding: null,
-      bag_vbos: vbos,
     }).eq('id', signaalId);
 
-    return { status: eindStatus, aantal_vbo: vbos.length };
+    return { status: 'meerdere_matches', kandidaten: kandidaten.length };
   } catch (e: any) {
     const msg = e?.message ?? String(e);
     await supabase.from('off_market_signalen').update({
@@ -298,9 +582,15 @@ Deno.serve(async (req) => {
   if (!signaalId || typeof signaalId !== 'string') {
     return jsonResponse({ error: 'signaal_id ontbreekt' }, 400);
   }
+  const selectedVboId = typeof body?.selected_vbo_id === 'string' ? body.selected_vbo_id : undefined;
+  const selectedNaId = typeof body?.selected_nummeraanduiding_id === 'string'
+    ? body.selected_nummeraanduiding_id : undefined;
 
   try {
-    const res = await verrijk(supabase, signaalId, body?.force === true);
+    const res = await verrijk(supabase, signaalId, {
+      force: body?.force === true,
+      selectedVboId, selectedNaId,
+    });
     return jsonResponse({ ok: true, id: signaalId, ...res });
   } catch (e: any) {
     return jsonResponse({ ok: false, error: e?.message ?? String(e) }, 500);
