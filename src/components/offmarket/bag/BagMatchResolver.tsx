@@ -107,8 +107,12 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
         data-testid="bag-match-kandidaat"
         data-match-type={k.match_type ?? 'onbekend'}
         data-doelobject={doelobject ? 'true' : 'false'}
-        className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between ${
-          doelobject ? 'border-emerald-400/70 bg-emerald-50/60' : 'border-border bg-card'
+        data-variant={doelobject ? 'doelobject' : 'kandidaat'}
+        data-theme-safe="true"
+        className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between transition-colors ${
+          doelobject
+            ? 'border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20 dark:bg-emerald-400/[0.06] dark:border-emerald-300/40 dark:ring-emerald-300/15'
+            : 'border-border bg-card'
         }`}
       >
         <div className="min-w-0 flex-1">
