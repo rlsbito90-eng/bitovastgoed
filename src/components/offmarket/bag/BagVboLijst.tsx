@@ -1,8 +1,10 @@
 // V2.3 + V2.4 — Lijst met BAG-verblijfsobjecten in de BAG-pandcontext.
 // V2.4: toont MATCH/Doelobject-badge, "Zelfde BAG-pand"-badge en per VBO
 // gebruiksdoel, oppervlakte, VBO-ID, pand-ID, bouwjaar en pandstatus.
+// V2.4 fix: VBO-ID en Pand-ID worden volledig getoond (geen ellipsis) + kopieerknop.
 import { Check } from 'lucide-react';
 import type { BagVbo } from '@/lib/offMarket/bag/types';
+import BagIdCopy from './BagIdCopy';
 
 interface Props {
   vbos: BagVbo[] | null | undefined;
@@ -11,9 +13,8 @@ interface Props {
   maxItems?: number;
 }
 
-function fmtId(id: string | null | undefined): string {
-  if (!id) return '—';
-  return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 function cap(s: string): string {
