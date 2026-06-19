@@ -29,7 +29,19 @@ export interface BagVbo {
   opp_m2: number | null;
   gebruiksdoel: string[];
   status: string | null;
+  /** V2.4 — true voor het gekozen doelobject. */
+  is_doelobject?: boolean;
+  /** V2.4 — UI-badge ("MATCH" / "Zelfde BAG-pand"). */
+  match_badge?: string | null;
 }
+
+/** V2.4 — Match-type voor een kandidaat. */
+export type BagMatchType =
+  | 'exact_doelobject'
+  | 'zelfde_huisnummer'
+  | 'zelfde_bag_pand'
+  | 'nabijgelegen_adres'
+  | 'onzeker';
 
 /** V2.4 — kandidaat tijdens multiple-match resolver. */
 export interface BagMatchKandidaat {
@@ -42,6 +54,18 @@ export interface BagMatchKandidaat {
   gebruiksdoel?: string[] | null;
   status?: string | null;
   pandid?: string | null;
+
+  // Adresvelden (V2.4)
+  postcode?: string | null;
+  postcode_normalized?: string | null;
+  huisnummer?: string | number | null;
+  huisletter?: string | null;
+  huisnummertoevoeging?: string | null;
+  openbareruimte?: string | null;
+  woonplaats?: string | null;
+
+  match_type?: BagMatchType | null;
+  is_doelobject_match?: boolean | null;
   match_kwaliteit?: string | null;
   match_reden?: string | null;
 }
@@ -82,6 +106,7 @@ export interface SignaalBagInput {
   bag_geselecteerd_gebruiksdoel?: string[] | null;
   bag_pandcontext_aantal_vbo?: number | null;
   bag_pandcontext_totaal_opp_m2?: number | null;
+  bag_pandcontext_incompleet?: boolean | null;
 }
 
 export const BAG_STATUS_LABEL: Record<BagStatus, string> = {

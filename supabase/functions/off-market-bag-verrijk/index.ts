@@ -7,6 +7,7 @@
 //
 // Modes:
 //   A) zonder selectie  → eerste match of matchkandidaten + meerdere_matches
+//      (V2.4: filter strikt op postcode+basis-huisnummer; auto-doelobject bij toevoeging-match)
 //   B) met selectie     → bewaar doelobject, dan Mode C
 //   C) pandcontext      → haal alle VBO's binnen hetzelfde BAG-pand
 //
@@ -41,10 +42,56 @@ function normPostcode(raw: string | null | undefined): string | null {
   return /^\d{4}[A-Z]{2}$/.test(c) ? c : null;
 }
 
-function extractHuisnummer(adres: string | null | undefined): string | null {
-  if (!adres) return null;
-  const m = String(adres).match(/\b(\d{1,5})\b/);
-  return m ? m[1] : null;
+/** V2.4 — parse basis-huisnummer + huisletter + toevoeging defensief.
+ *  Voorbeelden: "330", "330-1", "330 1", "330H", "330-H", "330A", "330 II". */
+export interface ParsedHuisnummer {
+  huisnummer: string | null;
+  huisletter: string | null;
+  toevoeging: string | null;
+}
+function parseHuisnummer(raw: string | null | undefined): ParsedHuisnummer {
+  if (!raw) return { huisnummer: null, huisletter: null, toevoeging: null };
+  const s = String(raw);
+  // 1) "<nr>-<rest>" of "<nr> <rest>" met spatie/streepje
+  let m = s.match(/\b(\d{1,5})[\s\-]+([A-Za-z0-9]{1,6})\b/);
+  if (m) {
+    const nr = m[1];
+    const tv = m[2];
+    if (/^[A-Za-z]$/.test(tv)) {
+      return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
+    }
+    return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
+  }
+  // 2) "<nr><letter>"  bv 330A, 332B
+  m = s.match(/\b(\d{1,5})([A-Za-z])\b/);
+  if (m) {
+    return { huisnummer: m[1], huisletter: m[2].toUpperCase(), toevoeging: null };
+  }
+  // 3) alleen nummer
+  m = s.match(/\b(\d{1,5})\b/);
+  if (m) return { huisnummer: m[1], huisletter: null, toevoeging: null };
+  return { huisnummer: null, huisletter: null, toevoeging: null };
+}
+
+/** Combineer informatie uit adres + titel om de meest complete parse te krijgen. */
+function parseSignaalHuisnummer(s: SignaalShallow): ParsedHuisnummer {
+  const a = parseHuisnummer(s.adres);
+  if (a.huisnummer && (a.huisletter || a.toevoeging)) return a;
+  const t = parseHuisnummer(s.titel);
+  // Prefer adres-huisnummer als basis, anders titel.
+  const huisnummer = a.huisnummer ?? t.huisnummer ?? null;
+  // Pak toevoeging/huisletter uit eerste die past bij huisnummer.
+  let huisletter: string | null = null;
+  let toevoeging: string | null = null;
+  if (a.huisnummer && huisnummer && a.huisnummer === huisnummer) {
+    huisletter = a.huisletter;
+    toevoeging = a.toevoeging;
+  }
+  if (!huisletter && !toevoeging && t.huisnummer === huisnummer) {
+    huisletter = t.huisletter;
+    toevoeging = t.toevoeging;
+  }
+  return { huisnummer, huisletter, toevoeging };
 }
 
 interface SignaalShallow {
@@ -68,7 +115,8 @@ function buildFreeQuery(s: SignaalShallow): string {
 /** Geordende lijst zoekvarianten. Postcode + huisnummer is leidend bij NL-adressen. */
 function buildSearchQueries(s: SignaalShallow): string[] {
   const pc = normPostcode(s.postcode);
-  const huisnr = extractHuisnummer(s.adres);
+  const parsed = parseSignaalHuisnummer(s);
+  const huisnr = parsed.huisnummer;
   const out: string[] = [];
   if (pc && huisnr) {
     const pcFmt = `${pc.slice(0, 4)} ${pc.slice(4)}`;
@@ -78,7 +126,6 @@ function buildSearchQueries(s: SignaalShallow): string[] {
   const volledig = buildFreeQuery(s);
   if (volledig) out.push(volledig);
   if (s.adres && s.plaats) out.push(`${s.adres} ${s.plaats}`);
-  // De-dup
   return Array.from(new Set(out.map((q) => q.trim()).filter(Boolean)));
 }
 
@@ -109,12 +156,11 @@ async function pdokFree(q: string): Promise<any[]> {
   url.searchParams.set('fl',
     'id,weergavenaam,straatnaam,huisnummer,huisletter,huisnummertoevoeging,' +
     'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaarobject_id');
-  url.searchParams.set('rows', '10');
+  url.searchParams.set('rows', '20');
   const j = await pdokFetch(url.toString());
   return (j?.response?.docs ?? []) as any[];
 }
 
-/** Probeer queries op volgorde tot er resultaten zijn. */
 async function pdokFreeMulti(queries: string[]): Promise<{ docs: any[]; usedQuery: string }> {
   for (const q of queries) {
     try {
@@ -149,7 +195,6 @@ async function pdokLookup(id: string): Promise<any | null> {
   return docs[0] ?? null;
 }
 
-/** Fallback — BAG Individuele Bevragingen v2 (publiek). Best-effort. */
 async function bagIbVbosByPand(pandid: string): Promise<string[]> {
   try {
     const url = `${BAG_IB_PAND_VBOS}/${encodeURIComponent(pandid)}/adresseerbareobjecten`;
@@ -175,27 +220,8 @@ function pickFirst<T>(v: T | T[] | null | undefined): T | null {
   return Array.isArray(v) ? (v.length > 0 ? v[0] : null) : v;
 }
 
-function bepaalMatchKwaliteit(s: SignaalShallow, docs: any[]): string {
-  if (docs.length === 0) return 'onzeker';
-  const pc = normPostcode(s.postcode);
-  const huisnr = extractHuisnummer(s.adres);
-  if (docs.length === 1) {
-    const d = docs[0];
-    const docPc = String(d.postcode ?? '').replace(/\s+/g, '').toUpperCase();
-    if (pc && huisnr && docPc === pc && String(d.huisnummer ?? '') === huisnr) {
-      return 'exact';
-    }
-    if (pc && docPc === pc) return 'postcode_huisnummer';
-    if (d.straatnaam && d.huisnummer) return 'straat_huisnummer';
-    return 'onzeker';
-  }
-  if (pc && huisnr) {
-    const exacte = docs.filter((d) =>
-      String(d.postcode ?? '').replace(/\s+/g, '').toUpperCase() === pc
-      && String(d.huisnummer ?? '') === huisnr);
-    if (exacte.length === 1) return 'exact';
-  }
-  return 'onzeker';
+function docPc(d: any): string {
+  return String(d?.postcode ?? '').replace(/\s+/g, '').toUpperCase();
 }
 
 interface BagVbo {
@@ -205,18 +231,35 @@ interface BagVbo {
   opp_m2: number | null;
   gebruiksdoel: string[];
   status: string | null;
+  is_doelobject?: boolean;
+  match_badge?: string | null;
 }
+
+type BagMatchType =
+  | 'exact_doelobject'
+  | 'zelfde_huisnummer'
+  | 'zelfde_bag_pand'
+  | 'nabijgelegen_adres'
+  | 'onzeker';
 
 interface BagMatchKandidaat {
   adres: string;
   vbo_id?: string | null;
   nummeraanduiding_id?: string | null;
-  /** PDOK locatieserver doc-id ("adr-..."). Nodig voor latere lookup. */
   pdok_id?: string | null;
   opp_m2?: number | null;
   gebruiksdoel?: string[] | null;
   status?: string | null;
   pandid?: string | null;
+  postcode?: string | null;
+  postcode_normalized?: string | null;
+  huisnummer?: string | number | null;
+  huisletter?: string | null;
+  huisnummertoevoeging?: string | null;
+  openbareruimte?: string | null;
+  woonplaats?: string | null;
+  match_type?: BagMatchType | null;
+  is_doelobject_match?: boolean | null;
   match_kwaliteit?: string | null;
   match_reden?: string | null;
 }
@@ -231,6 +274,10 @@ interface LookupVbo {
   pandid: string | null;
   bouwjaar: number | null;
   pandstatus: string | null;
+  huisnummer: string | null;
+  huisletter: string | null;
+  huisnummertoevoeging: string | null;
+  postcode: string | null;
 }
 
 function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
@@ -246,6 +293,10 @@ function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
   const bj = bjRaw != null && Number.isFinite(Number(bjRaw)) ? Number(bjRaw) : null;
   const ps = pickFirst<any>(det.pandstatus);
   const status = pickFirst<any>(det.status);
+  const hn = det.huisnummer != null ? String(det.huisnummer) : null;
+  const hl = det.huisletter ? String(det.huisletter).toUpperCase() : null;
+  const ht = det.huisnummertoevoeging ? String(det.huisnummertoevoeging).toUpperCase() : null;
+  const pc = det.postcode ? String(det.postcode).replace(/\s+/g, '').toUpperCase() : null;
   return {
     nummeraanduiding_id: String(det.nummeraanduiding_id ?? ''),
     vbo_id: String(det.adresseerbaarobject_id ?? det.adresseerbaar_object_id ?? ''),
@@ -256,6 +307,10 @@ function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
     pandid: pandId ? String(pandId) : null,
     bouwjaar: bj,
     pandstatus: ps ? String(ps) : null,
+    huisnummer: hn,
+    huisletter: hl,
+    huisnummertoevoeging: ht,
+    postcode: pc,
   };
 }
 
@@ -280,23 +335,24 @@ interface PandContext {
   bouwjaar: number | null;
   pandStatus: string | null;
   meerVbosBeschikbaar: boolean;
+  incompleet: boolean;
 }
 
 async function fetchPandContext(pandid: string): Promise<PandContext> {
-  // 1. Locatieserver eerst.
   let lookupIds: string[] = [];
   let primair: any[] = [];
   try {
     primair = await pdokFreeByPandid(pandid);
-    lookupIds = primair
-      .map((d) => d.id) // PDOK lookup vereist "adr-..." doc-id
-      .filter((v) => typeof v === 'string') as string[];
+    lookupIds = primair.map((d) => d.id).filter((v) => typeof v === 'string') as string[];
   } catch { /* fall through */ }
 
-  // 2. Fallback — BAG IB v2.
-  if (lookupIds.length === 0) {
+  let fallbackUsed = false;
+  if (lookupIds.length <= 1) {
     const vboIds = await bagIbVbosByPand(pandid);
-    lookupIds = vboIds; // worden ook door /lookup geaccepteerd op vbo-id
+    if (vboIds.length > lookupIds.length) {
+      lookupIds = vboIds;
+      fallbackUsed = true;
+    }
   }
 
   const meerVbosBeschikbaar = lookupIds.length > MAX_VBOS;
@@ -335,6 +391,11 @@ async function fetchPandContext(pandid: string): Promise<PandContext> {
     });
   }
 
+  // Incompleet: na PDOK + fallback BAG-IB nog steeds 1 VBO terwijl fallback heeft gedraaid.
+  const incompleet = vbos.length === 1 && fallbackUsed === false
+    ? false // alleen 1 PDOK-hit gevonden, fallback niet getest (zou hier wel uitgevoerd zijn)
+    : vbos.length <= 1 && fallbackUsed;
+
   return {
     vbos,
     pandIds: Array.from(pandIds),
@@ -344,7 +405,26 @@ async function fetchPandContext(pandid: string): Promise<PandContext> {
     bouwjaar,
     pandStatus,
     meerVbosBeschikbaar,
+    incompleet,
   };
+}
+
+/** V2.4 — markeer doelobject + match_badge per VBO. */
+function markeerDoelobject(
+  vbos: BagVbo[],
+  gekozenVboId: string | null,
+  gekozenNaId: string | null,
+): BagVbo[] {
+  return vbos.map((v) => {
+    const isDoel =
+      (!!gekozenVboId && v.vbo_id === gekozenVboId) ||
+      (!!gekozenNaId && v.nummeraanduiding_id === gekozenNaId);
+    return {
+      ...v,
+      is_doelobject: isDoel,
+      match_badge: isDoel ? 'MATCH · Doelobject' : 'Zelfde BAG-pand',
+    };
+  });
 }
 
 interface VerrijkResult {
@@ -353,6 +433,7 @@ interface VerrijkResult {
   kandidaten?: number;
   error?: string;
   skipped?: boolean;
+  auto_doelobject?: boolean;
 }
 
 async function verrijk(
@@ -392,7 +473,6 @@ async function verrijk(
   try {
     // ====== Mode B + C — met selectie ======
     if (hasSelection) {
-      // 1) Direct pdok_id (adr-...) is leidend; anders match terugzoeken in opgeslagen kandidaten.
       let lookupId: string | null = opts.selectedPdokId ?? null;
       if (!lookupId) {
         const kandidaten = Array.isArray(s.bag_match_kandidaten)
@@ -404,7 +484,6 @@ async function verrijk(
         lookupId = match?.pdok_id ?? null;
       }
       if (!lookupId) {
-        // Laatste redmiddel — direct PDOK searchen op id (alleen adr- vorm werkt).
         lookupId = opts.selectedVboId ?? opts.selectedNaId ?? null;
       }
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
@@ -418,46 +497,39 @@ async function verrijk(
       }
       const gekozen = detailToVbo(det);
 
-      // Doelobject-velden persisteren
-      const doelPatch: Record<string, unknown> = {
+      const ctx: PandContext = gekozen.pandid
+        ? await fetchPandContext(gekozen.pandid)
+        : {
+            vbos: [{
+              nummeraanduiding_id: gekozen.nummeraanduiding_id,
+              vbo_id: gekozen.vbo_id,
+              adres: gekozen.adres,
+              opp_m2: gekozen.opp_m2,
+              gebruiksdoel: gekozen.gebruiksdoel,
+              status: gekozen.status,
+            }],
+            pandIds: [],
+            vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
+            gebruiksdoelen: gekozen.gebruiksdoel,
+            totaalOpp: gekozen.opp_m2 ?? 0,
+            bouwjaar: gekozen.bouwjaar,
+            pandStatus: gekozen.pandstatus,
+            meerVbosBeschikbaar: false,
+            incompleet: false,
+          };
+
+      const vbosMarked = markeerDoelobject(ctx.vbos, gekozen.vbo_id || null, gekozen.nummeraanduiding_id || null);
+
+      await supabase.from('off_market_signalen').update({
         bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
         bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
         bag_geselecteerd_adres: gekozen.adres || null,
         bag_geselecteerd_opp_m2: gekozen.opp_m2,
         bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
-      };
-
-      // Mode C — pandcontext
-      let ctx: PandContext;
-      if (gekozen.pandid) {
-        ctx = await fetchPandContext(gekozen.pandid);
-      } else {
-        // geen pandid → alleen het gekozen VBO als context
-        ctx = {
-          vbos: [{
-            nummeraanduiding_id: gekozen.nummeraanduiding_id,
-            vbo_id: gekozen.vbo_id,
-            adres: gekozen.adres,
-            opp_m2: gekozen.opp_m2,
-            gebruiksdoel: gekozen.gebruiksdoel,
-            status: gekozen.status,
-          }],
-          pandIds: [],
-          vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
-          gebruiksdoelen: gekozen.gebruiksdoel,
-          totaalOpp: gekozen.opp_m2 ?? 0,
-          bouwjaar: gekozen.bouwjaar,
-          pandStatus: gekozen.pandstatus,
-          meerVbosBeschikbaar: false,
-        };
-      }
-
-      await supabase.from('off_market_signalen').update({
-        ...doelPatch,
         bag_status: 'verrijkt',
         bag_match_kwaliteit: 'exact',
         bag_match_kandidaten: null,
-        bag_vbos: ctx.vbos,
+        bag_vbos: vbosMarked,
         bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
         bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
         bag_aantal_panden: ctx.pandIds.length || null,
@@ -468,6 +540,7 @@ async function verrijk(
         bag_vbo_ids: ctx.vboIds,
         bag_pandcontext_aantal_vbo: ctx.vbos.length,
         bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
+        bag_pandcontext_incompleet: ctx.incompleet,
         bag_verrijkt_op: new Date().toISOString(),
         bag_foutmelding: null,
       }).eq('id', signaalId);
@@ -497,93 +570,79 @@ async function verrijk(
       return { status: 'geen_match' };
     }
 
-    const matchKw = bepaalMatchKwaliteit(s, docs);
+    // V2.4 — parse signaal-toevoeging
     const pc = normPostcode(s.postcode);
-    const huisnr = extractHuisnummer(s.adres);
-    let exacte: any[] = docs;
+    const parsed = parseSignaalHuisnummer(s);
+    const huisnr = parsed.huisnummer;
+    const sigToevoeging = (parsed.toevoeging || '').toUpperCase() || null;
+    const sigLetter = (parsed.huisletter || '').toUpperCase() || null;
+
+    // Split docs in primair (zelfde pc+huisnr) en nearby (rest)
+    let primair: any[] = docs;
+    let nearby: any[] = [];
     if (pc && huisnr) {
-      const ex = docs.filter((d) =>
-        String(d.postcode ?? '').replace(/\s+/g, '').toUpperCase() === pc
-        && String(d.huisnummer ?? '') === huisnr);
-      if (ex.length > 0) exacte = ex;
-    }
-
-    // Eén exacte hit → behandel als directe verrijking via Mode B-pad.
-    if (exacte.length === 1 && matchKw === 'exact') {
-      const d = exacte[0];
-      const lookupId = d.id; // PDOK lookup vereist het "adr-..." doc-id
-      if (lookupId) {
-        const det = await pdokLookup(String(lookupId));
-        if (det) {
-          const gekozen = detailToVbo(det, d.weergavenaam ?? '');
-          const ctx = gekozen.pandid
-            ? await fetchPandContext(gekozen.pandid)
-            : {
-                vbos: [{
-                  nummeraanduiding_id: gekozen.nummeraanduiding_id,
-                  vbo_id: gekozen.vbo_id,
-                  adres: gekozen.adres,
-                  opp_m2: gekozen.opp_m2,
-                  gebruiksdoel: gekozen.gebruiksdoel,
-                  status: gekozen.status,
-                }],
-                pandIds: [],
-                vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
-                gebruiksdoelen: gekozen.gebruiksdoel,
-                totaalOpp: gekozen.opp_m2 ?? 0,
-                bouwjaar: gekozen.bouwjaar,
-                pandStatus: gekozen.pandstatus,
-                meerVbosBeschikbaar: false,
-              };
-
-          await supabase.from('off_market_signalen').update({
-            bag_status: 'verrijkt',
-            bag_match_kwaliteit: 'exact',
-            bag_match_kandidaten: null,
-            bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
-            bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
-            bag_geselecteerd_adres: gekozen.adres || null,
-            bag_geselecteerd_opp_m2: gekozen.opp_m2,
-            bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
-            bag_vbos: ctx.vbos,
-            bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
-            bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
-            bag_aantal_panden: ctx.pandIds.length || null,
-            bag_gebruiksdoelen: ctx.gebruiksdoelen,
-            bag_bouwjaar: ctx.bouwjaar,
-            bag_pand_status: ctx.pandStatus,
-            bag_pand_ids: ctx.pandIds,
-            bag_vbo_ids: ctx.vboIds,
-            bag_pandcontext_aantal_vbo: ctx.vbos.length,
-            bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
-            bag_verrijkt_op: new Date().toISOString(),
-            bag_foutmelding: null,
-          }).eq('id', signaalId);
-
-          return { status: 'verrijkt', aantal_vbo: ctx.vbos.length };
-        }
+      const same = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
+      const other = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
+      if (same.length > 0) {
+        primair = same;
+        nearby = other;
       }
     }
 
-    // Meerdere/onzekere matches → bouw eerst ALTIJD basis-kandidaten uit search docs.
-    // Lookup-verrijking is best-effort en mag falen zonder de kandidaat te verwijderen.
-    const docsKandidaat = docs.slice(0, MAX_KANDIDATEN);
-    const basisReden = docs.length > 1 ? 'Meerdere PDOK-treffers' : 'Onzekere PDOK-treffer';
-    const basisKandidaten: BagMatchKandidaat[] = docsKandidaat.map((d) => ({
-      adres: String(d.weergavenaam ?? ''),
-      vbo_id: d.adresseerbaarobject_id ? String(d.adresseerbaarobject_id) : null,
-      nummeraanduiding_id: d.nummeraanduiding_id ? String(d.nummeraanduiding_id) : null,
-      pdok_id: d.id ? String(d.id) : null,
-      opp_m2: null,
-      gebruiksdoel: null,
-      status: null,
-      pandid: null,
-      match_kwaliteit: matchKw,
-      match_reden: basisReden,
-    }));
+    // Bouw basis-kandidaten (eerst primair, dan nearby) tot MAX_KANDIDATEN
+    const ranked = [...primair, ...nearby].slice(0, MAX_KANDIDATEN);
+    const basisReden = primair.length > 1 ? 'Meerdere PDOK-treffers op huisnummer' : 'Onzekere PDOK-treffer';
 
-    const enriched = await runParallel(docsKandidaat, PARALLEL, async (d) => {
-      const id = d.id; // adr-... voor lookup
+    // Bepaal doelobject-match in primair op basis van toevoeging
+    let doelobjectIdx: number | null = null;
+    if (sigToevoeging || sigLetter) {
+      for (let i = 0; i < primair.length; i++) {
+        const d = primair[i];
+        const dToe = String(d.huisnummertoevoeging ?? '').toUpperCase();
+        const dLet = String(d.huisletter ?? '').toUpperCase();
+        if (sigToevoeging && dToe === sigToevoeging) { doelobjectIdx = i; break; }
+        if (sigLetter && dLet === sigLetter) { doelobjectIdx = i; break; }
+      }
+    }
+
+    const basisKandidaten: BagMatchKandidaat[] = ranked.map((d, i) => {
+      const dPc = docPc(d);
+      const isPrimair = pc && huisnr ? (dPc === pc && String(d.huisnummer ?? '') === huisnr) : true;
+      const dToe = d.huisnummertoevoeging ? String(d.huisnummertoevoeging).toUpperCase() : null;
+      const dLet = d.huisletter ? String(d.huisletter).toUpperCase() : null;
+      const isDoel = doelobjectIdx != null && i === doelobjectIdx;
+      let match_type: BagMatchType;
+      if (isDoel) match_type = 'exact_doelobject';
+      else if (isPrimair) match_type = 'zelfde_huisnummer';
+      else match_type = 'nabijgelegen_adres';
+      return {
+        adres: String(d.weergavenaam ?? ''),
+        vbo_id: d.adresseerbaarobject_id ? String(d.adresseerbaarobject_id) : null,
+        nummeraanduiding_id: d.nummeraanduiding_id ? String(d.nummeraanduiding_id) : null,
+        pdok_id: d.id ? String(d.id) : null,
+        opp_m2: null,
+        gebruiksdoel: null,
+        status: null,
+        pandid: null,
+        postcode: d.postcode ? String(d.postcode) : null,
+        postcode_normalized: dPc || null,
+        huisnummer: d.huisnummer != null ? String(d.huisnummer) : null,
+        huisletter: dLet,
+        huisnummertoevoeging: dToe,
+        openbareruimte: d.straatnaam ? String(d.straatnaam) : null,
+        woonplaats: d.woonplaatsnaam ? String(d.woonplaatsnaam) : null,
+        match_type,
+        is_doelobject_match: isDoel,
+        match_kwaliteit: isDoel ? 'exact' : (isPrimair ? 'waarschijnlijk' : 'onzeker'),
+        match_reden: isDoel
+          ? `Toevoeging "${sigToevoeging ?? sigLetter}" matcht exact`
+          : (isPrimair ? basisReden : 'Nabijgelegen huisnummer'),
+      };
+    });
+
+    // Lookup-verrijking best-effort
+    const enriched = await runParallel(ranked, PARALLEL, async (d) => {
+      const id = d.id;
       if (!id) return null;
       const det = await pdokLookup(String(id));
       if (!det) return null;
@@ -603,12 +662,130 @@ async function verrijk(
           gebruiksdoel: v.gebruiksdoel?.length ? v.gebruiksdoel : null,
           status: v.status,
           pandid: v.pandid,
+          huisletter: basis.huisletter ?? v.huisletter,
+          huisnummertoevoeging: basis.huisnummertoevoeging ?? v.huisnummertoevoeging,
         };
       }
       return basis;
     });
 
-    console.log('[bag-verrijk] kandidaten geschreven:', kandidaten.length);
+    // V2.4 — auto-doelobject: één exact match via toevoeging → meteen Mode C draaien.
+    if (doelobjectIdx != null) {
+      const doel = kandidaten[doelobjectIdx];
+      const lookupId = doel.pdok_id;
+      const det = lookupId ? await pdokLookup(String(lookupId)) : null;
+      if (det) {
+        const gekozen = detailToVbo(det, doel.adres);
+        const ctx: PandContext = gekozen.pandid
+          ? await fetchPandContext(gekozen.pandid)
+          : {
+              vbos: [{
+                nummeraanduiding_id: gekozen.nummeraanduiding_id,
+                vbo_id: gekozen.vbo_id,
+                adres: gekozen.adres,
+                opp_m2: gekozen.opp_m2,
+                gebruiksdoel: gekozen.gebruiksdoel,
+                status: gekozen.status,
+              }],
+              pandIds: [],
+              vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
+              gebruiksdoelen: gekozen.gebruiksdoel,
+              totaalOpp: gekozen.opp_m2 ?? 0,
+              bouwjaar: gekozen.bouwjaar,
+              pandStatus: gekozen.pandstatus,
+              meerVbosBeschikbaar: false,
+              incompleet: false,
+            };
+        const vbosMarked = markeerDoelobject(ctx.vbos, gekozen.vbo_id || null, gekozen.nummeraanduiding_id || null);
+
+        await supabase.from('off_market_signalen').update({
+          bag_status: 'verrijkt',
+          bag_match_kwaliteit: 'exact',
+          bag_match_kandidaten: null,
+          bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
+          bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
+          bag_geselecteerd_adres: gekozen.adres || null,
+          bag_geselecteerd_opp_m2: gekozen.opp_m2,
+          bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
+          bag_vbos: vbosMarked,
+          bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
+          bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
+          bag_aantal_panden: ctx.pandIds.length || null,
+          bag_gebruiksdoelen: ctx.gebruiksdoelen,
+          bag_bouwjaar: ctx.bouwjaar,
+          bag_pand_status: ctx.pandStatus,
+          bag_pand_ids: ctx.pandIds,
+          bag_vbo_ids: ctx.vboIds,
+          bag_pandcontext_aantal_vbo: ctx.vbos.length,
+          bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
+          bag_pandcontext_incompleet: ctx.incompleet,
+          bag_verrijkt_op: new Date().toISOString(),
+          bag_foutmelding: null,
+        }).eq('id', signaalId);
+
+        return { status: 'verrijkt', aantal_vbo: ctx.vbos.length, auto_doelobject: true };
+      }
+    }
+
+    // Exact één hit op huisnummer (geen toevoeging in signaal) → behandel als directe verrijking.
+    if (primair.length === 1 && !sigToevoeging && !sigLetter) {
+      const d = primair[0];
+      const lookupId = d.id;
+      const det = lookupId ? await pdokLookup(String(lookupId)) : null;
+      if (det) {
+        const gekozen = detailToVbo(det, d.weergavenaam ?? '');
+        const ctx: PandContext = gekozen.pandid
+          ? await fetchPandContext(gekozen.pandid)
+          : {
+              vbos: [{
+                nummeraanduiding_id: gekozen.nummeraanduiding_id,
+                vbo_id: gekozen.vbo_id,
+                adres: gekozen.adres,
+                opp_m2: gekozen.opp_m2,
+                gebruiksdoel: gekozen.gebruiksdoel,
+                status: gekozen.status,
+              }],
+              pandIds: [],
+              vboIds: gekozen.vbo_id ? [gekozen.vbo_id] : [],
+              gebruiksdoelen: gekozen.gebruiksdoel,
+              totaalOpp: gekozen.opp_m2 ?? 0,
+              bouwjaar: gekozen.bouwjaar,
+              pandStatus: gekozen.pandstatus,
+              meerVbosBeschikbaar: false,
+              incompleet: false,
+            };
+        const vbosMarked = markeerDoelobject(ctx.vbos, gekozen.vbo_id || null, gekozen.nummeraanduiding_id || null);
+        await supabase.from('off_market_signalen').update({
+          bag_status: 'verrijkt',
+          bag_match_kwaliteit: 'exact',
+          bag_match_kandidaten: null,
+          bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
+          bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
+          bag_geselecteerd_adres: gekozen.adres || null,
+          bag_geselecteerd_opp_m2: gekozen.opp_m2,
+          bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
+          bag_vbos: vbosMarked,
+          bag_totaal_oppervlakte_m2: Math.round(ctx.totaalOpp) || null,
+          bag_aantal_vbo: ctx.vboIds.length || ctx.vbos.length || null,
+          bag_aantal_panden: ctx.pandIds.length || null,
+          bag_gebruiksdoelen: ctx.gebruiksdoelen,
+          bag_bouwjaar: ctx.bouwjaar,
+          bag_pand_status: ctx.pandStatus,
+          bag_pand_ids: ctx.pandIds,
+          bag_vbo_ids: ctx.vboIds,
+          bag_pandcontext_aantal_vbo: ctx.vbos.length,
+          bag_pandcontext_totaal_opp_m2: Math.round(ctx.totaalOpp) || null,
+          bag_pandcontext_incompleet: ctx.incompleet,
+          bag_verrijkt_op: new Date().toISOString(),
+          bag_foutmelding: null,
+        }).eq('id', signaalId);
+        return { status: 'verrijkt', aantal_vbo: ctx.vbos.length };
+      }
+    }
+
+    const matchKw = primair.length > 0 ? 'waarschijnlijk' : 'onzeker';
+    console.log('[bag-verrijk] kandidaten geschreven:', kandidaten.length,
+      'primair:', primair.length, 'nearby:', nearby.length);
     await supabase.from('off_market_signalen').update({
       bag_status: 'meerdere_matches',
       bag_match_kwaliteit: matchKw,
@@ -620,7 +797,6 @@ async function verrijk(
     return {
       status: 'meerdere_matches',
       kandidaten: kandidaten.length,
-      used_query: usedQuery,
     };
   } catch (e: any) {
     const msg = e?.message ?? String(e);

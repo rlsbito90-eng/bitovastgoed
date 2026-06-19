@@ -49,6 +49,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const gekozenGebruik = (s.bag_geselecteerd_gebruiksdoel as string[] | null | undefined) ?? null;
   const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
   const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
+  const pandcontextIncompleet = (s.bag_pandcontext_incompleet as boolean | null | undefined) === true;
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
@@ -194,6 +195,16 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
             </p>
           </div>
         </div>
+
+        {pandcontextIncompleet && (
+          <div
+            data-testid="bag-pandcontext-incompleet-waarschuwing"
+            className="flex items-start gap-1.5 text-[11px] text-amber-900 bg-amber-100/60 border border-amber-300/60 rounded px-2 py-1"
+          >
+            <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+            <span>Pandcontext mogelijk incompleet. Er is slechts één VBO opgehaald voor dit BAG-pand.</span>
+          </div>
+        )}
 
         <div className="border-t border-border/60 pt-3 space-y-2">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
