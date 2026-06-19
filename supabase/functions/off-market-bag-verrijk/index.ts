@@ -535,7 +535,62 @@ function buildMergedVbos(
   return out;
 }
 
-interface VerrijkResult {
+/** V2.4 — eindfase voor "gekozen doelobject" → context ophalen, mergen, persisteren. */
+async function persistSelectedFlow(
+  supabase: any,
+  signaalId: string,
+  gekozen: LookupVbo,
+): Promise<{ status: 'verrijkt'; aantal_vbo: number; auto_doelobject?: boolean }> {
+  const ctx = await fetchPandContext({
+    vbo_id: gekozen.vbo_id,
+    nummeraanduiding_id: gekozen.nummeraanduiding_id,
+    pandid: gekozen.pandid,
+    postcode: gekozen.postcode,
+    huisnummer: gekozen.huisnummer,
+    adres: gekozen.adres,
+    opp_m2: gekozen.opp_m2,
+    gebruiksdoel: gekozen.gebruiksdoel,
+    status: gekozen.status,
+    bouwjaar: gekozen.bouwjaar,
+    pandstatus: gekozen.pandstatus,
+  });
+  const vbosMarked = buildMergedVbos(ctx, {
+    vbo_id: gekozen.vbo_id,
+    nummeraanduiding_id: gekozen.nummeraanduiding_id,
+    pandid: gekozen.pandid,
+  });
+  const totaalOpp = vbosMarked.reduce((s, v) => s + (typeof v.opp_m2 === 'number' ? v.opp_m2 : 0), 0);
+  const aantal = vbosMarked.length;
+
+  await supabase.from('off_market_signalen').update({
+    bag_geselecteerd_vbo_id: gekozen.vbo_id || null,
+    bag_geselecteerd_nummeraanduiding_id: gekozen.nummeraanduiding_id || null,
+    bag_geselecteerd_adres: gekozen.adres || null,
+    bag_geselecteerd_opp_m2: gekozen.opp_m2,
+    bag_geselecteerd_gebruiksdoel: gekozen.gebruiksdoel,
+    bag_status: 'verrijkt',
+    bag_match_kwaliteit: 'exact',
+    bag_match_kandidaten: null,
+    bag_vbos: vbosMarked,
+    bag_totaal_oppervlakte_m2: Math.round(totaalOpp) || null,
+    bag_aantal_vbo: aantal || null,
+    bag_aantal_panden: ctx.pandIds.length || null,
+    bag_gebruiksdoelen: ctx.gebruiksdoelen,
+    bag_bouwjaar: ctx.bouwjaar,
+    bag_pand_status: ctx.pandStatus,
+    bag_pand_ids: ctx.pandIds,
+    bag_vbo_ids: ctx.vboIds,
+    bag_pandcontext_aantal_vbo: aantal,
+    bag_pandcontext_totaal_opp_m2: Math.round(totaalOpp) || null,
+    bag_pandcontext_incompleet: ctx.incompleet,
+    bag_pandcontext_bron: ctx.bron,
+    bag_verrijkt_op: new Date().toISOString(),
+    bag_foutmelding: null,
+  }).eq('id', signaalId);
+
+  return { status: 'verrijkt', aantal_vbo: aantal };
+}
+
   status: string;
   aantal_vbo?: number;
   kandidaten?: number;
