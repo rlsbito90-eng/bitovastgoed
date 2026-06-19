@@ -65,12 +65,24 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
               <p className="text-xs text-foreground" data-testid="precheck-bag-cijfers">
                 BAG-precheck: {pandAantalVbo ?? 0} VBO{pandAantalVbo === 1 ? '' : "'s"}
                 {pandTotaalOpp != null ? ` · ${pandTotaalOpp} m² totaal` : ''}
-                {gebruiksdoelen.length ? ` · ${gebruiksdoelen.join(', ')}` : ''}.
+                {gebruiksdoelen.length ? ` · ${gebruiksdoelen.map((g) => g.charAt(0).toUpperCase() + g.slice(1)).join(', ')}` : ''}.
               </p>
+              {(bouwjaar != null || pandStatus) && (
+                <p className="text-xs text-foreground" data-testid="precheck-bag-pand">
+                  {bouwjaar != null ? `Bouwjaar: ${bouwjaar}` : ''}
+                  {bouwjaar != null && pandStatus ? ' · ' : ''}
+                  {pandStatus ? `Pandstatus: ${pandStatus}` : ''}.
+                </p>
+              )}
               {gekozenAdres && (
                 <p className="text-xs text-foreground" data-testid="precheck-doelobject">
                   Doelobject: {gekozenAdres}
                   {gekozenOpp != null ? ` · ${gekozenOpp} m²` : ''}.
+                </p>
+              )}
+              {detailsOntbreken && (
+                <p className="text-[11px] text-amber-900" data-testid="precheck-details-ontbreken">
+                  BAG-detailgegevens beperkt opgehaald. Controleer BAG Viewer.
                 </p>
               )}
             </>
