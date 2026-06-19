@@ -50,6 +50,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
   const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
   const pandcontextIncompleet = (s.bag_pandcontext_incompleet as boolean | null | undefined) === true;
+  const pandcontextBron = (s.bag_pandcontext_bron as string | null | undefined) ?? null;
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
@@ -207,8 +208,16 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         )}
 
         <div className="border-t border-border/60 pt-3 space-y-2">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Verblijfsobjecten in zelfde BAG-pand
+          <p
+            className="text-[11px] uppercase tracking-wider text-muted-foreground"
+            data-testid="bag-vbo-lijst-titel"
+            data-bron={pandcontextBron ?? 'onbekend'}
+          >
+            {pandcontextBron === 'huisnummer'
+              ? 'Verblijfsobjecten binnen dezelfde BAG-adrescontext'
+              : pandcontextBron === 'gemengd'
+                ? 'Verblijfsobjecten in zelfde BAG-pand en adrescontext'
+                : 'Verblijfsobjecten in zelfde BAG-pand'}
           </p>
           <BagVboLijst
             vbos={vbos}
