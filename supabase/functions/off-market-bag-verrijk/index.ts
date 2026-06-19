@@ -94,6 +94,62 @@ function parseSignaalHuisnummer(s: SignaalShallow): ParsedHuisnummer {
   return { huisnummer, huisletter, toevoeging };
 }
 
+/** V2.4 — Strikte validatie of een BAG-kandidaat bij het signaal hoort.
+ *  Voorkomt dat een ander basis-huisnummer/postcode als doelobject wordt opgeslagen. */
+export function validateDoelobject(
+  s: SignaalShallow,
+  c: {
+    postcode: string | null;
+    huisnummer: string | number | null;
+    huisletter: string | null;
+    huisnummertoevoeging: string | null;
+  },
+): { ok: boolean; reden?: string } {
+  const sPc = normPostcode(s.postcode);
+  const parsed = parseSignaalHuisnummer(s);
+  const sHn = parsed.huisnummer;
+  const sLet = (parsed.huisletter ?? '').toUpperCase() || null;
+  const sToe = (parsed.toevoeging ?? '').toUpperCase() || null;
+
+  const cPc = c.postcode ? String(c.postcode).replace(/\s+/g, '').toUpperCase() : null;
+  const cHn = c.huisnummer != null ? String(c.huisnummer) : null;
+  const cLet = c.huisletter ? String(c.huisletter).toUpperCase() : null;
+  const cToe = c.huisnummertoevoeging ? String(c.huisnummertoevoeging).toUpperCase() : null;
+
+  if (!sHn) return { ok: false, reden: 'Signaal mist huisnummer' };
+  if (!cHn) return { ok: false, reden: 'Kandidaat mist huisnummer' };
+  if (sHn !== cHn) {
+    return { ok: false, reden: `huisnummer ${cHn} wijkt af van signaal ${sHn}` };
+  }
+  if (sPc && cPc && sPc !== cPc) {
+    return { ok: false, reden: `postcode ${cPc} wijkt af van signaal ${sPc}` };
+  }
+  if (sLet || sToe) {
+    const ok =
+      (sLet && (cLet === sLet || cToe === sLet)) ||
+      (sToe && (cToe === sToe || cLet === sToe));
+    if (!ok) {
+      return {
+        ok: false,
+        reden: `toevoeging "${cLet ?? cToe ?? '-'}" wijkt af van signaal "${sLet ?? sToe}"`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+async function rejectSelection(
+  supabase: any,
+  signaalId: string,
+  reden: string,
+): Promise<void> {
+  await supabase.from('off_market_signalen').update({
+    bag_status: 'meerdere_matches',
+    bag_foutmelding: `BAG-match afgewezen: ${reden}`,
+    bag_verrijkt_op: new Date().toISOString(),
+  }).eq('id', signaalId);
+}
+
 interface SignaalShallow {
   id: string;
   adres: string | null;
