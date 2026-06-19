@@ -3013,9 +3013,17 @@ export type Database = {
           bag_bouwjaar: number | null
           bag_foutmelding: string | null
           bag_gebruiksdoelen: string[] | null
+          bag_geselecteerd_adres: string | null
+          bag_geselecteerd_gebruiksdoel: string[] | null
+          bag_geselecteerd_nummeraanduiding_id: string | null
+          bag_geselecteerd_opp_m2: number | null
+          bag_geselecteerd_vbo_id: string | null
+          bag_match_kandidaten: Json | null
           bag_match_kwaliteit: string | null
           bag_pand_ids: string[] | null
           bag_pand_status: string | null
+          bag_pandcontext_aantal_vbo: number | null
+          bag_pandcontext_totaal_opp_m2: number | null
           bag_status: Database["public"]["Enums"]["off_market_bag_status"]
           bag_totaal_oppervlakte_m2: number | null
           bag_vbo_ids: string[] | null
@@ -3117,9 +3125,17 @@ export type Database = {
           bag_bouwjaar?: number | null
           bag_foutmelding?: string | null
           bag_gebruiksdoelen?: string[] | null
+          bag_geselecteerd_adres?: string | null
+          bag_geselecteerd_gebruiksdoel?: string[] | null
+          bag_geselecteerd_nummeraanduiding_id?: string | null
+          bag_geselecteerd_opp_m2?: number | null
+          bag_geselecteerd_vbo_id?: string | null
+          bag_match_kandidaten?: Json | null
           bag_match_kwaliteit?: string | null
           bag_pand_ids?: string[] | null
           bag_pand_status?: string | null
+          bag_pandcontext_aantal_vbo?: number | null
+          bag_pandcontext_totaal_opp_m2?: number | null
           bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
           bag_totaal_oppervlakte_m2?: number | null
           bag_vbo_ids?: string[] | null
@@ -3221,9 +3237,17 @@ export type Database = {
           bag_bouwjaar?: number | null
           bag_foutmelding?: string | null
           bag_gebruiksdoelen?: string[] | null
+          bag_geselecteerd_adres?: string | null
+          bag_geselecteerd_gebruiksdoel?: string[] | null
+          bag_geselecteerd_nummeraanduiding_id?: string | null
+          bag_geselecteerd_opp_m2?: number | null
+          bag_geselecteerd_vbo_id?: string | null
+          bag_match_kandidaten?: Json | null
           bag_match_kwaliteit?: string | null
           bag_pand_ids?: string[] | null
           bag_pand_status?: string | null
+          bag_pandcontext_aantal_vbo?: number | null
+          bag_pandcontext_totaal_opp_m2?: number | null
           bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
           bag_totaal_oppervlakte_m2?: number | null
           bag_vbo_ids?: string[] | null

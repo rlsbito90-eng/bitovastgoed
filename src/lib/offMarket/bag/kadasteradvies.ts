@@ -1,5 +1,5 @@
-// V2.3 — Kadasteradvies o.b.v. AI-score, strategie en BAG-uitkomst.
-// Pure helper, geen IO. Wordt na elke AI/BAG-update opnieuw berekend.
+// V2.3 + V2.4 — Kadasteradvies o.b.v. AI-score, strategie, BAG-uitkomst,
+// gekozen doelobject en BAG-pandcontext. Pure helper, geen IO.
 
 import { strategieMatchVoorBag } from './autoTrigger';
 import type { Kadasteradvies, SignaalBagInput } from './types';
@@ -16,6 +16,14 @@ function strategieSterk(s: SignaalBagInput): boolean {
     s.vergunningtype ?? '',
   ].join(' ').toLowerCase();
   return /splits|transformatie|herontwikkel|ontwikkellocatie|ontwikkeling/.test(blob);
+}
+
+function strategieKamerverhuur(s: SignaalBagInput): boolean {
+  const blob = [
+    s.ai_strategie_suggestie ?? '',
+    s.potentiele_strategie ?? '',
+  ].join(' ').toLowerCase();
+  return /kamerverhuur|verhuur|exploitatie/.test(blob);
 }
 
 export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResultaat {
@@ -40,8 +48,26 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
   const matchOnzeker = s.bag_match_kwaliteit === 'onzeker' || bag === 'meerdere_matches';
   const strategieAlgemeen = strategieMatchVoorBag(s);
 
-  // Lage AI-score: blijft altijd 'laag', ongeacht BAG.
+  // V2.4 — doelobject + pandcontext (alleen actief wanneer doelobject gekozen is).
+  const doelOpp = typeof s.bag_geselecteerd_opp_m2 === 'number' ? s.bag_geselecteerd_opp_m2 : null;
+  const pandOpp = typeof s.bag_pandcontext_totaal_opp_m2 === 'number'
+    ? s.bag_pandcontext_totaal_opp_m2 : opp;
+  const pandVbo = typeof s.bag_pandcontext_aantal_vbo === 'number'
+    ? s.bag_pandcontext_aantal_vbo : vbo;
+  const heeftDoelobject = doelOpp != null;
+  const doelKlein = doelOpp != null && doelOpp < 60;
+  const pandKlein = pandOpp > 0 && pandOpp < 150 && pandVbo > 0 && pandVbo <= 2;
+  const pandGroot = pandVbo >= 3 || pandOpp >= 200;
+
+  // Lage AI-score blokkeert altijd, behalve wanneer kamerverhuur/exploitatie strategie
+  // expliciet relevant blijft voor een klein doelobject. Buiten dat: laag.
   if (aiScore < 50) {
+    if (heeftDoelobject && doelKlein && strategieKamerverhuur(s)) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Doelobject circa ${doelOpp} m² en BAG-pandcontext circa ${pandOpp} m². Het object is kleinschalig, maar kan door kamerverhuur-, verhuur- of exploitatieoptimalisatiepotentie relevant blijven. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      };
+    }
     return {
       niveau: 'laag',
       reden: 'Lage AI-score — betaald Kadasteronderzoek heeft lage prioriteit',
@@ -52,46 +78,91 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
   if (matchOnzeker) {
     return {
       niveau: 'voorzichtig',
-      reden: 'Meerdere of onzekere BAG-matches — controleer eerst het juiste adres',
+      reden: 'Meerdere of onzekere BAG-matches — kies eerst het juiste BAG-adres voordat Kadaster wordt aangevraagd',
     };
   }
 
-  // Sterk aanbevolen
-  if (aiScore >= 80 && vbo >= 2 && opp >= 150) {
+  // V2.4 — Doelobject-aware paden.
+  if (heeftDoelobject) {
+    // Klein doelobject + grote pandcontext + AI ≥ 70 → aanbevolen.
+    if (doelKlein && pandGroot && aiScore >= 70) {
+      return {
+        niveau: 'aanbevolen',
+        reden: `Doelobject is beperkt (${doelOpp} m²), maar de bredere BAG-pandcontext bevat ${pandVbo} VBO's en ${pandOpp} m². AI-score ${aiScore} — Kadasteronderzoek aanbevolen.`,
+      };
+    }
+    // Klein doelobject + kamerverhuur/exploitatie → minimaal voorzichtig (nooit laag).
+    if (doelKlein && strategieKamerverhuur(s)) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Doelobject circa ${doelOpp} m² en BAG-pandcontext circa ${pandOpp} m². Het object is kleinschalig, maar kan door kamerverhuur-, verhuur- of exploitatieoptimalisatiepotentie relevant blijven. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      };
+    }
+    // Klein doelobject + kleine pandcontext → voorzichtig.
+    if (doelKlein && pandKlein) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Doelobject circa ${doelOpp} m² en BAG-pandcontext circa ${pandOpp} m². Kleinschalig — Kadasteronderzoek met bewuste afweging.`,
+      };
+    }
+    // Groot doelobject ≥150 m² + AI ≥ 70.
+    if (doelOpp != null && doelOpp >= 150 && aiScore >= 70) {
+      if (aiScore >= 80) {
+        return {
+          niveau: 'sterk_aanbevolen',
+          reden: `Groot doelobject (${doelOpp} m²) en hoge AI-score (${aiScore}) — Kadasteronderzoek sterk aanbevolen.`,
+        };
+      }
+      return {
+        niveau: 'aanbevolen',
+        reden: `Groot doelobject (${doelOpp} m²) en AI-score ${aiScore} — Kadasteronderzoek aanbevolen.`,
+      };
+    }
+  }
+
+  // Sterk aanbevolen (zonder doelobject, op pandcontext-totalen).
+  if (aiScore >= 80 && pandVbo >= 2 && pandOpp >= 150) {
     return {
       niveau: 'sterk_aanbevolen',
-      reden: `Hoge AI-score (${aiScore}), ${vbo} VBO's en ${opp} m² — Kadasteronderzoek sterk aanbevolen`,
+      reden: `Hoge AI-score (${aiScore}), ${pandVbo} VBO's en ${pandOpp} m² — Kadasteronderzoek sterk aanbevolen.`,
     };
   }
 
-  // Aanbevolen
-  if (aiScore >= 70 && (vbo >= 2 || strategieSterk(s))) {
+  // Strategie splitsing/transformatie + ≥2 VBO → aanbevolen.
+  if (strategieSterk(s) && pandVbo >= 2) {
     return {
       niveau: 'aanbevolen',
-      reden: vbo >= 2
-        ? `AI-score ${aiScore} en ${vbo} VBO's — Kadasteronderzoek aanbevolen`
-        : `AI-score ${aiScore} en strategie-fit (splitsing/transformatie/ontwikkeling) — Kadasteronderzoek aanbevolen`,
+      reden: `Strategie splitsing/transformatie en ${pandVbo} VBO's in de BAG-pandcontext — Kadasteronderzoek aanbevolen.`,
+    };
+  }
+
+  // Aanbevolen — AI ≥70 + (≥2 VBO of strategie sterk).
+  if (aiScore >= 70 && (pandVbo >= 2 || strategieSterk(s))) {
+    return {
+      niveau: 'aanbevolen',
+      reden: pandVbo >= 2
+        ? `AI-score ${aiScore} en ${pandVbo} VBO's in de BAG-pandcontext — Kadasteronderzoek aanbevolen.`
+        : `AI-score ${aiScore} en strategie-fit (splitsing/transformatie/ontwikkeling) — Kadasteronderzoek aanbevolen.`,
     };
   }
 
   // Klein/enkelvoudig object — voorzichtig bij strategie-kans, anders laag.
-  const isKlein = (opp > 0 && opp < 120) || vbo <= 1;
+  const isKlein = (pandOpp > 0 && pandOpp < 120) || pandVbo <= 1;
   if (isKlein) {
     if (strategieAlgemeen) {
       return {
         niveau: 'voorzichtig',
-        reden: 'Beperkte schaal, maar strategie biedt mogelijk kans — overweeg eerst bron/vergunning te controleren',
+        reden: 'Beperkte schaal, maar strategie biedt mogelijk kans — overweeg eerst bron/vergunning te controleren.',
       };
     }
     return {
       niveau: 'laag',
-      reden: 'Kleinschalig of enkelvoudig object zonder duidelijke strategie-fit',
+      reden: 'Kleinschalig of enkelvoudig object zonder duidelijke strategie-fit.',
     };
   }
 
-  // Default — voldoende AI, geen sterke trigger.
   return {
     niveau: 'voorzichtig',
-    reden: 'Object lijkt redelijk maar mist duidelijke schaal- of strategie-fit',
+    reden: 'Object lijkt redelijk maar mist duidelijke schaal- of strategie-fit.',
   };
 }

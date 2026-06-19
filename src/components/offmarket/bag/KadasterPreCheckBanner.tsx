@@ -1,4 +1,5 @@
-// V2.3 — Banner boven Kadaster-aanvraagblok met BAG-pre-check en advies.
+// V2.3 + V2.4 — Banner boven Kadaster-aanvraagblok met BAG-pre-check,
+// doelobject + pandcontext, en advies.
 import { Info, AlertTriangle } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { BagStatus, SignaalBagInput } from '@/lib/offMarket/bag/types';
@@ -17,8 +18,14 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
   const aantalVbo = (s.bag_aantal_vbo as number | null | undefined) ?? null;
   const gebruiksdoelen = (s.bag_gebruiksdoelen as string[] | null | undefined) ?? [];
   const matchKw = (s.bag_match_kwaliteit as string | null | undefined) ?? null;
-  const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
 
+  // V2.4
+  const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
+  const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
+  const gekozenAdres = (s.bag_geselecteerd_adres as string | null | undefined) ?? null;
+  const gekozenOpp = (s.bag_geselecteerd_opp_m2 as number | null | undefined) ?? null;
+
+  const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
 
   return (
@@ -40,12 +47,30 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
             <KadasteradviesBadge niveau={advies.niveau} />
           </div>
 
-          {bagStatus === 'verrijkt' || bagStatus === 'meerdere_matches' ? (
-            <p className="text-xs text-foreground" data-testid="precheck-bag-cijfers">
-              {aantalVbo ?? 0} VBO{aantalVbo === 1 ? '' : "'s"}
-              {totaalOpp != null ? ` · ${totaalOpp} m² totaal` : ''}
-              {gebruiksdoelen.length ? ` · ${gebruiksdoelen.join(', ')}` : ''}
-            </p>
+          {onzeker ? (
+            <div
+              data-testid="precheck-onzeker-waarschuwing"
+              className="flex items-start gap-1.5 text-[11px] text-amber-900 bg-amber-100/60 border border-amber-300/60 rounded px-2 py-1"
+            >
+              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+              <span>
+                Meerdere of onzekere BAG-matches. Kies eerst het juiste BAG-adres voordat Kadaster wordt aangevraagd.
+              </span>
+            </div>
+          ) : (bagStatus === 'verrijkt') ? (
+            <>
+              <p className="text-xs text-foreground" data-testid="precheck-bag-cijfers">
+                BAG-precheck: {pandAantalVbo ?? 0} VBO{pandAantalVbo === 1 ? '' : "'s"}
+                {pandTotaalOpp != null ? ` · ${pandTotaalOpp} m² totaal` : ''}
+                {gebruiksdoelen.length ? ` · ${gebruiksdoelen.join(', ')}` : ''}.
+              </p>
+              {gekozenAdres && (
+                <p className="text-xs text-foreground" data-testid="precheck-doelobject">
+                  Doelobject: {gekozenAdres}
+                  {gekozenOpp != null ? ` · ${gekozenOpp} m²` : ''}.
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">
               BAG-data nog niet beschikbaar. Verrijk eerst BAG via de Onderzoek-tab voor een betere pre-check.
@@ -54,15 +79,8 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
 
           {advies.niveau && (
             <p className="text-xs text-muted-foreground" data-testid="precheck-advies-reden">
-              <span className="text-foreground">Reden:</span> {advies.reden}
+              <span className="text-foreground">Kadasteradvies:</span> {advies.reden}
             </p>
-          )}
-
-          {onzeker && (
-            <div className="flex items-start gap-1.5 text-[11px] text-amber-900 bg-amber-100/60 border border-amber-300/60 rounded px-2 py-1">
-              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-              <span>Meerdere of onzekere BAG-matches — controleer eerst het juiste adres voordat Kadaster wordt aangevraagd.</span>
-            </div>
           )}
 
           <p className="text-[11px] text-muted-foreground">
