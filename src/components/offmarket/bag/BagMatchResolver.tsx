@@ -56,8 +56,8 @@ function badgeForKandidaat(k: BagMatchKandidaat): { label: string; tone: 'match'
 }
 
 const TONE_CLASS: Record<string, string> = {
-  match: 'bg-emerald-100 text-emerald-900 border-emerald-300/70',
-  pand: 'bg-sky-100 text-sky-900 border-sky-300/70',
+  match: 'bg-emerald-500/15 text-emerald-900 border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-100 dark:border-emerald-300/40',
+  pand: 'bg-sky-500/10 text-sky-900 border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-100 dark:border-sky-300/40',
   nearby: 'bg-muted text-muted-foreground border-border',
   neutraal: 'bg-muted text-muted-foreground border-border',
 };
@@ -107,8 +107,12 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
         data-testid="bag-match-kandidaat"
         data-match-type={k.match_type ?? 'onbekend'}
         data-doelobject={doelobject ? 'true' : 'false'}
-        className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between ${
-          doelobject ? 'border-emerald-400/70 bg-emerald-50/60' : 'border-border bg-card'
+        data-variant={doelobject ? 'doelobject' : 'kandidaat'}
+        data-theme-safe="true"
+        className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between transition-colors ${
+          doelobject
+            ? 'border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20 dark:bg-emerald-400/[0.06] dark:border-emerald-300/40 dark:ring-emerald-300/15'
+            : 'border-border bg-card'
         }`}
       >
         <div className="min-w-0 flex-1">
@@ -148,7 +152,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             size="sm"
             variant="default"
             onClick={() => kies(k)}
-            disabled={bag.isPending || !selectable}
+            disabled={bag.isPending || !selectable || isNearby(k)}
             data-testid="bag-match-kies-knop"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />

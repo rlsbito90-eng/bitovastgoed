@@ -94,6 +94,62 @@ function parseSignaalHuisnummer(s: SignaalShallow): ParsedHuisnummer {
   return { huisnummer, huisletter, toevoeging };
 }
 
+/** V2.4 — Strikte validatie of een BAG-kandidaat bij het signaal hoort.
+ *  Voorkomt dat een ander basis-huisnummer/postcode als doelobject wordt opgeslagen. */
+export function validateDoelobject(
+  s: SignaalShallow,
+  c: {
+    postcode: string | null;
+    huisnummer: string | number | null;
+    huisletter: string | null;
+    huisnummertoevoeging: string | null;
+  },
+): { ok: boolean; reden?: string } {
+  const sPc = normPostcode(s.postcode);
+  const parsed = parseSignaalHuisnummer(s);
+  const sHn = parsed.huisnummer;
+  const sLet = (parsed.huisletter ?? '').toUpperCase() || null;
+  const sToe = (parsed.toevoeging ?? '').toUpperCase() || null;
+
+  const cPc = c.postcode ? String(c.postcode).replace(/\s+/g, '').toUpperCase() : null;
+  const cHn = c.huisnummer != null ? String(c.huisnummer) : null;
+  const cLet = c.huisletter ? String(c.huisletter).toUpperCase() : null;
+  const cToe = c.huisnummertoevoeging ? String(c.huisnummertoevoeging).toUpperCase() : null;
+
+  if (!sHn) return { ok: false, reden: 'Signaal mist huisnummer' };
+  if (!cHn) return { ok: false, reden: 'Kandidaat mist huisnummer' };
+  if (sHn !== cHn) {
+    return { ok: false, reden: `huisnummer ${cHn} wijkt af van signaal ${sHn}` };
+  }
+  if (sPc && cPc && sPc !== cPc) {
+    return { ok: false, reden: `postcode ${cPc} wijkt af van signaal ${sPc}` };
+  }
+  if (sLet || sToe) {
+    const ok =
+      (sLet && (cLet === sLet || cToe === sLet)) ||
+      (sToe && (cToe === sToe || cLet === sToe));
+    if (!ok) {
+      return {
+        ok: false,
+        reden: `toevoeging "${cLet ?? cToe ?? '-'}" wijkt af van signaal "${sLet ?? sToe}"`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+async function rejectSelection(
+  supabase: any,
+  signaalId: string,
+  reden: string,
+): Promise<void> {
+  await supabase.from('off_market_signalen').update({
+    bag_status: 'meerdere_matches',
+    bag_foutmelding: `BAG-match afgewezen: ${reden}`,
+    bag_verrijkt_op: new Date().toISOString(),
+  }).eq('id', signaalId);
+}
+
 interface SignaalShallow {
   id: string;
   adres: string | null;
@@ -856,6 +912,16 @@ async function verrijk(
         return { status: 'fout', error: 'Gekozen BAG-match niet gevonden' };
       }
       const gekozen = await enrichLookupVboFromWfs(detailToVbo(det));
+      const v = validateDoelobject(s, {
+        postcode: gekozen.postcode,
+        huisnummer: gekozen.huisnummer,
+        huisletter: gekozen.huisletter,
+        huisnummertoevoeging: gekozen.huisnummertoevoeging,
+      });
+      if (!v.ok) {
+        await rejectSelection(supabase, signaalId, v.reden ?? 'andere huisnummer/postcode');
+        return { status: 'meerdere_matches', error: v.reden };
+      }
       const res = await persistSelectedFlow(supabase, signaalId, gekozen);
       return res;
     }
@@ -890,16 +956,13 @@ async function verrijk(
     const sigToevoeging = (parsed.toevoeging || '').toUpperCase() || null;
     const sigLetter = (parsed.huisletter || '').toUpperCase() || null;
 
-    // Split docs in primair (zelfde pc+huisnr) en nearby (rest)
+    // Split docs in primair (zelfde pc+huisnr) en nearby (rest).
+    // Strikt: als pc+huisnr bekend zijn, mogen andere huisnummers NOOIT primair worden.
     let primair: any[] = docs;
     let nearby: any[] = [];
     if (pc && huisnr) {
-      const same = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
-      const other = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
-      if (same.length > 0) {
-        primair = same;
-        nearby = other;
-      }
+      primair = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
+      nearby = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
     }
 
     // Bouw basis-kandidaten (eerst primair, dan nearby) tot MAX_KANDIDATEN
@@ -984,27 +1047,47 @@ async function verrijk(
       return basis;
     });
 
-    // V2.4 — auto-doelobject: één exact match via toevoeging → meteen Mode C draaien.
+    // V2.4 — auto-doelobject: precies één exacte toevoeging-match in primair → Mode C.
+    // Strikte validatie zorgt dat ander huisnummer/postcode nooit als doelobject wordt opgeslagen.
     if (doelobjectIdx != null && doelobjectIdx >= 0 && doelobjectIdx < kandidaten.length) {
       const doel = kandidaten[doelobjectIdx] ?? null;
       const lookupId = doel?.pdok_id ?? doel?.vbo_id ?? doel?.nummeraanduiding_id ?? null;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det && doel) {
         const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, doel.adres));
-        const res = await persistSelectedFlow(supabase, signaalId, gekozen);
-        return { ...res, auto_doelobject: true };
+        const v = validateDoelobject(s, {
+          postcode: gekozen.postcode,
+          huisnummer: gekozen.huisnummer,
+          huisletter: gekozen.huisletter,
+          huisnummertoevoeging: gekozen.huisnummertoevoeging,
+        });
+        if (v.ok) {
+          const res = await persistSelectedFlow(supabase, signaalId, gekozen);
+          return { ...res, auto_doelobject: true };
+        }
+        console.warn('[bag-verrijk] auto-doelobject afgewezen:', v.reden);
       }
     }
 
-    // Exact één hit op huisnummer (geen toevoeging in signaal) → behandel als directe verrijking.
+    // Exact één hit op huisnummer (geen toevoeging in signaal) → directe verrijking,
+    // maar alleen na strikte validatie tegen het signaal.
     if (primair.length === 1 && !sigToevoeging && !sigLetter) {
       const d = primair[0];
       const lookupId = d.id;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det) {
         const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, d.weergavenaam ?? ''));
-        const res = await persistSelectedFlow(supabase, signaalId, gekozen);
-        return res;
+        const v = validateDoelobject(s, {
+          postcode: gekozen.postcode,
+          huisnummer: gekozen.huisnummer,
+          huisletter: gekozen.huisletter,
+          huisnummertoevoeging: gekozen.huisnummertoevoeging,
+        });
+        if (v.ok) {
+          const res = await persistSelectedFlow(supabase, signaalId, gekozen);
+          return res;
+        }
+        console.warn('[bag-verrijk] single-primair afgewezen:', v.reden);
       }
     }
 

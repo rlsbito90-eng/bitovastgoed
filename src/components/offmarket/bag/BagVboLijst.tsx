@@ -51,8 +51,8 @@ export default function BagVboLijst({
             ? (v.match_badge || 'MATCH · Doelobject')
             : (v.match_badge || 'Zelfde BAG-pand');
           const badgeClass = doelobject
-            ? 'bg-emerald-100 text-emerald-900 border-emerald-300/70'
-            : 'bg-sky-100 text-sky-900 border-sky-300/70';
+            ? 'bg-emerald-500/15 text-emerald-900 border-emerald-500/40 dark:bg-emerald-400/15 dark:text-emerald-100 dark:border-emerald-300/40'
+            : 'bg-sky-500/10 text-sky-900 border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-100 dark:border-sky-300/40';
           const gebruik = v.gebruiksdoel?.length ? v.gebruiksdoel.map(cap).join(', ') : 'Onbekend gebruik';
           return (
             <li
@@ -60,16 +60,18 @@ export default function BagVboLijst({
               data-testid="bag-vbo-item"
               data-gekozen={doelobject ? 'true' : 'false'}
               data-doelobject={doelobject ? 'true' : 'false'}
-              className={`rounded-md border px-3 py-2 text-xs ${
+              data-variant={doelobject ? 'doelobject' : 'context'}
+              data-theme-safe="true"
+              className={`rounded-md border px-3 py-2 text-xs transition-colors ${
                 doelobject
-                  ? 'border-emerald-400/70 bg-emerald-50/60'
+                  ? 'border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20 dark:bg-emerald-400/[0.06] dark:border-emerald-300/40 dark:ring-emerald-300/15 shadow-[0_0_0_1px_rgba(16,185,129,0.08)]'
                   : 'border-border/70 bg-card/60'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex items-start gap-2">
                   {doelobject ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-700 mt-0.5 shrink-0" data-testid="bag-vbo-gekozen-icoon" />
+                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" data-testid="bag-vbo-gekozen-icoon" />
                   ) : (
                     <span className="h-3.5 w-3.5 shrink-0" />
                   )}
