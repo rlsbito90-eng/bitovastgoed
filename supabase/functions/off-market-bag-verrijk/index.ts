@@ -245,8 +245,8 @@ function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
   const ps = pickFirst<any>(det.pandstatus);
   const status = pickFirst<any>(det.status);
   return {
-    nummeraanduiding_id: String(det.nummeraanduiding_id ?? det.id ?? ''),
-    vbo_id: String(det.adresseerbaar_object_id ?? det.id ?? ''),
+    nummeraanduiding_id: String(det.nummeraanduiding_id ?? ''),
+    vbo_id: String(det.adresseerbaarobject_id ?? det.adresseerbaar_object_id ?? ''),
     adres: String(det.weergavenaam ?? fallbackAdres ?? ''),
     opp_m2: typeof opp === 'number' && Number.isFinite(opp) ? Math.round(opp) : null,
     gebruiksdoel: gdArr,
