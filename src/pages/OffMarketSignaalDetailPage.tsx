@@ -27,6 +27,7 @@ import SignaalSnelleActiesBar from '@/components/offmarket/SignaalSnelleActiesBa
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
+import BagOverzichtKaart from '@/components/offmarket/bag/BagOverzichtKaart';
 
 // Mobiel
 import SignaalMobileHeader from '@/components/offmarket/mobile/SignaalMobileHeader';
@@ -207,6 +208,7 @@ export default function OffMarketSignaalDetailPage() {
               <TabsContent value="onderzoek" className="space-y-5 mt-4">
                 <SignaalOnderzoeksacties signaal={signaal} />
                 <SignaalGebiedsindeling signaal={signaal} />
+                <BagOverzichtKaart signaal={signaal} onOpenKadaster={() => setDesktopTab('kadaster')} />
                 <SignaalKadasterKaart signaal={signaal} />
               </TabsContent>
 

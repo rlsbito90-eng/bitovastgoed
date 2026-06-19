@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import { triggerAiAutoVerrijking } from '@/lib/offMarket/bag/triggers';
+import type { SignaalBagInput } from '@/lib/offMarket/bag/types';
 
 type SignaalInsert = Database['public']['Tables']['off_market_signalen']['Insert'];
 type SignaalUpdate = Database['public']['Tables']['off_market_signalen']['Update'];
@@ -114,6 +116,8 @@ export function useCreateOffMarketSignaal() {
     onSuccess: (row) => {
       invalidateAll(qc, row.id);
       if ((row as any).lat != null && (row as any).lng != null) triggerGeoVerrijking(row.id);
+      // V2.3 — fire-and-forget AI-verrijking voor nieuw signaal.
+      triggerAiAutoVerrijking(row as unknown as SignaalBagInput & { id: string });
     },
   });
 }

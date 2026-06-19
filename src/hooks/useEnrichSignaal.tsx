@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { triggerBagAutoNaAi } from '@/lib/offMarket/bag/triggers';
 
 export interface EnrichArgs {
   signaalId: string;
@@ -21,6 +22,9 @@ export function useEnrichSignaal() {
     onSuccess: (_, { signaalId }) => {
       qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });
       qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
+      // V2.3 — fire-and-forget BAG-cascade na succesvolle AI-verrijking.
+      void triggerBagAutoNaAi(signaalId);
     },
   });
 }
+
