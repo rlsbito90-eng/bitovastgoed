@@ -1047,27 +1047,47 @@ async function verrijk(
       return basis;
     });
 
-    // V2.4 — auto-doelobject: één exact match via toevoeging → meteen Mode C draaien.
+    // V2.4 — auto-doelobject: precies één exacte toevoeging-match in primair → Mode C.
+    // Strikte validatie zorgt dat ander huisnummer/postcode nooit als doelobject wordt opgeslagen.
     if (doelobjectIdx != null && doelobjectIdx >= 0 && doelobjectIdx < kandidaten.length) {
       const doel = kandidaten[doelobjectIdx] ?? null;
       const lookupId = doel?.pdok_id ?? doel?.vbo_id ?? doel?.nummeraanduiding_id ?? null;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det && doel) {
         const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, doel.adres));
-        const res = await persistSelectedFlow(supabase, signaalId, gekozen);
-        return { ...res, auto_doelobject: true };
+        const v = validateDoelobject(s, {
+          postcode: gekozen.postcode,
+          huisnummer: gekozen.huisnummer,
+          huisletter: gekozen.huisletter,
+          huisnummertoevoeging: gekozen.huisnummertoevoeging,
+        });
+        if (v.ok) {
+          const res = await persistSelectedFlow(supabase, signaalId, gekozen);
+          return { ...res, auto_doelobject: true };
+        }
+        console.warn('[bag-verrijk] auto-doelobject afgewezen:', v.reden);
       }
     }
 
-    // Exact één hit op huisnummer (geen toevoeging in signaal) → behandel als directe verrijking.
+    // Exact één hit op huisnummer (geen toevoeging in signaal) → directe verrijking,
+    // maar alleen na strikte validatie tegen het signaal.
     if (primair.length === 1 && !sigToevoeging && !sigLetter) {
       const d = primair[0];
       const lookupId = d.id;
       const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (det) {
         const gekozen = await enrichLookupVboFromWfs(detailToVbo(det, d.weergavenaam ?? ''));
-        const res = await persistSelectedFlow(supabase, signaalId, gekozen);
-        return res;
+        const v = validateDoelobject(s, {
+          postcode: gekozen.postcode,
+          huisnummer: gekozen.huisnummer,
+          huisletter: gekozen.huisletter,
+          huisnummertoevoeging: gekozen.huisnummertoevoeging,
+        });
+        if (v.ok) {
+          const res = await persistSelectedFlow(supabase, signaalId, gekozen);
+          return res;
+        }
+        console.warn('[bag-verrijk] single-primair afgewezen:', v.reden);
       }
     }
 
