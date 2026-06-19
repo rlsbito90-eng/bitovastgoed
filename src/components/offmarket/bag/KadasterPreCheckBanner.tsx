@@ -18,6 +18,8 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
   const aantalVbo = (s.bag_aantal_vbo as number | null | undefined) ?? null;
   const gebruiksdoelen = (s.bag_gebruiksdoelen as string[] | null | undefined) ?? [];
   const matchKw = (s.bag_match_kwaliteit as string | null | undefined) ?? null;
+  const bouwjaar = (s.bag_bouwjaar as number | null | undefined) ?? null;
+  const pandStatus = (s.bag_pand_status as string | null | undefined) ?? null;
 
   // V2.4
   const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
@@ -27,6 +29,7 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
 
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
+  const detailsOntbreken = bagStatus === 'verrijkt' && pandTotaalOpp == null && gebruiksdoelen.length === 0;
 
   return (
     <div
@@ -62,12 +65,24 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
               <p className="text-xs text-foreground" data-testid="precheck-bag-cijfers">
                 BAG-precheck: {pandAantalVbo ?? 0} VBO{pandAantalVbo === 1 ? '' : "'s"}
                 {pandTotaalOpp != null ? ` · ${pandTotaalOpp} m² totaal` : ''}
-                {gebruiksdoelen.length ? ` · ${gebruiksdoelen.join(', ')}` : ''}.
+                {gebruiksdoelen.length ? ` · ${gebruiksdoelen.map((g) => g.charAt(0).toUpperCase() + g.slice(1)).join(', ')}` : ''}.
               </p>
+              {(bouwjaar != null || pandStatus) && (
+                <p className="text-xs text-foreground" data-testid="precheck-bag-pand">
+                  {bouwjaar != null ? `Bouwjaar: ${bouwjaar}` : ''}
+                  {bouwjaar != null && pandStatus ? ' · ' : ''}
+                  {pandStatus ? `Pandstatus: ${pandStatus}` : ''}.
+                </p>
+              )}
               {gekozenAdres && (
                 <p className="text-xs text-foreground" data-testid="precheck-doelobject">
                   Doelobject: {gekozenAdres}
                   {gekozenOpp != null ? ` · ${gekozenOpp} m²` : ''}.
+                </p>
+              )}
+              {detailsOntbreken && (
+                <p className="text-[11px] text-amber-900" data-testid="precheck-details-ontbreken">
+                  BAG-detailgegevens beperkt opgehaald. Controleer BAG Viewer.
                 </p>
               )}
             </>
