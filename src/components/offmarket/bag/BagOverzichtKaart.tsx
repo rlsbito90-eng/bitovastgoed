@@ -14,7 +14,6 @@ import type {
   BagStatus, BagVbo, BagMatchKandidaat, SignaalBagInput,
 } from '@/lib/offMarket/bag/types';
 import KadasteradviesBadge from './KadasteradviesBadge';
-import KadasteradviesBadge from './KadasteradviesBadge';
 import BagVboLijst from './BagVboLijst';
 import BagMatchResolver from './BagMatchResolver';
 import BagIdCopy from './BagIdCopy';
