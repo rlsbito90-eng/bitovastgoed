@@ -186,6 +186,25 @@ async function pdokFreeByPandid(pandid: string): Promise<any[]> {
   return (j?.response?.docs ?? []) as any[];
 }
 
+/** V2.4 — adres-/huisnummercontext: exact postcode + basis-huisnummer. */
+async function pdokFreeByPostcodeHuisnummer(postcode: string, huisnummer: string): Promise<any[]> {
+  const pcFmt = `${postcode.slice(0, 4)} ${postcode.slice(4)}`;
+  const url = new URL(PDOK_FREE);
+  url.searchParams.set('q', `${pcFmt} ${huisnummer}`);
+  url.searchParams.append('fq', 'type:adres');
+  url.searchParams.set('fl',
+    'id,weergavenaam,straatnaam,huisnummer,huisletter,huisnummertoevoeging,' +
+    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaarobject_id,pandid');
+  url.searchParams.set('rows', String(MAX_VBOS));
+  const j = await pdokFetch(url.toString());
+  const docs = (j?.response?.docs ?? []) as any[];
+  // Defensief: filter strikt op exact pc + huisnummer.
+  return docs.filter((d) =>
+    String(d?.postcode ?? '').replace(/\s+/g, '').toUpperCase() === postcode &&
+    String(d?.huisnummer ?? '') === huisnummer
+  );
+}
+
 async function pdokLookup(id: string): Promise<any | null> {
   const url = new URL(PDOK_LOOKUP);
   url.searchParams.set('id', id);
