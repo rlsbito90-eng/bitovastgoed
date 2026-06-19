@@ -71,7 +71,7 @@ export default function BagVboLijst({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex items-start gap-2">
                   {doelobject ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-700 mt-0.5 shrink-0" data-testid="bag-vbo-gekozen-icoon" />
+                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" data-testid="bag-vbo-gekozen-icoon" />
                   ) : (
                     <span className="h-3.5 w-3.5 shrink-0" />
                   )}
