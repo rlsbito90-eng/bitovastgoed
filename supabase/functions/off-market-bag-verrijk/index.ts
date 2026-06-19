@@ -43,24 +43,32 @@ function normPostcode(raw: string | null | undefined): string | null {
 }
 
 /** V2.4 — parse basis-huisnummer + huisletter + toevoeging defensief.
- *  Voorbeelden: "330", "330-1", "330 1", "330H", "330-H", "330A", "330 II". */
+ *  Voorbeelden: "330", "330-1", "330 1", "330H", "330-H", "330A", "330 II".
+ *  Belangrijk: een postcode (vorm 1234 AB) mag NOOIT als huisletter/toevoeging
+ *  worden gezien — daarom strippen we postcodes voordat we parsen. */
 export interface ParsedHuisnummer {
   huisnummer: string | null;
   huisletter: string | null;
   toevoeging: string | null;
 }
+function stripPostcode(s: string): string {
+  return s.replace(/\b\d{4}\s?[A-Za-z]{2}\b/g, ' ');
+}
 function parseHuisnummer(raw: string | null | undefined): ParsedHuisnummer {
   if (!raw) return { huisnummer: null, huisletter: null, toevoeging: null };
-  const s = String(raw);
+  const s = stripPostcode(String(raw));
   // 1) "<nr>-<rest>" of "<nr> <rest>" met spatie/streepje
   let m = s.match(/\b(\d{1,5})[\s\-]+([A-Za-z0-9]{1,6})\b/);
   if (m) {
     const nr = m[1];
     const tv = m[2];
-    if (/^[A-Za-z]$/.test(tv)) {
-      return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
+    // extra veiligheid: skip als token zelf op postcode-fragment lijkt
+    if (!/^\d{4}[A-Za-z]{0,2}$/.test(tv)) {
+      if (/^[A-Za-z]$/.test(tv)) {
+        return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
+      }
+      return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
     }
-    return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
   }
   // 2) "<nr><letter>"  bv 330A, 332B
   m = s.match(/\b(\d{1,5})([A-Za-z])\b/);

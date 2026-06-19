@@ -51,7 +51,7 @@ describe('BagOverzichtKaart — Doelobject vs BAG-pandcontext', () => {
     expect(getByTestId('bag-doelobject-sectie')).toBeInTheDocument();
     expect(getByTestId('bag-pandcontext-sectie')).toBeInTheDocument();
     expect(getByTestId('bag-doelobject-adres').textContent).toMatch(/330-1/);
-    expect(getByTestId('bag-doelobject-adres').textContent).toMatch(/56 m²/);
+    expect(getByTestId('bag-doelobject-opp').textContent).toMatch(/56\s?m²/);
     expect(getByTestId('bag-stat-opp').textContent).toContain('103');
     expect(getByTestId('bag-stat-vbo').textContent).toContain('2');
   });
