@@ -10,6 +10,7 @@ export interface BagVerrijkArgs {
   force?: boolean;
   selected_vbo_id?: string;
   selected_nummeraanduiding_id?: string;
+  selected_pdok_id?: string;
 }
 
 export function useBagVerrijken() {
@@ -20,6 +21,7 @@ export function useBagVerrijken() {
       force,
       selected_vbo_id,
       selected_nummeraanduiding_id,
+      selected_pdok_id,
     }: BagVerrijkArgs) => {
       const body: Record<string, unknown> = {
         signaal_id: signaalId,
@@ -29,6 +31,7 @@ export function useBagVerrijken() {
       if (selected_nummeraanduiding_id) {
         body.selected_nummeraanduiding_id = selected_nummeraanduiding_id;
       }
+      if (selected_pdok_id) body.selected_pdok_id = selected_pdok_id;
       const { data, error } = await supabase.functions.invoke('off-market-bag-verrijk', {
         body,
       });

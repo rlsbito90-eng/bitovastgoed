@@ -65,6 +65,23 @@ function buildFreeQuery(s: SignaalShallow): string {
   return parts.filter(Boolean).join(' ').trim();
 }
 
+/** Geordende lijst zoekvarianten. Postcode + huisnummer is leidend bij NL-adressen. */
+function buildSearchQueries(s: SignaalShallow): string[] {
+  const pc = normPostcode(s.postcode);
+  const huisnr = extractHuisnummer(s.adres);
+  const out: string[] = [];
+  if (pc && huisnr) {
+    const pcFmt = `${pc.slice(0, 4)} ${pc.slice(4)}`;
+    if (s.plaats) out.push(`${pcFmt} ${huisnr} ${s.plaats}`);
+    out.push(`${pcFmt} ${huisnr}`);
+  }
+  const volledig = buildFreeQuery(s);
+  if (volledig) out.push(volledig);
+  if (s.adres && s.plaats) out.push(`${s.adres} ${s.plaats}`);
+  // De-dup
+  return Array.from(new Set(out.map((q) => q.trim()).filter(Boolean)));
+}
+
 async function pdokFetch(url: string): Promise<any> {
   let lastStatus = 0;
   for (let i = 0; i < 3; i++) {
@@ -91,10 +108,23 @@ async function pdokFree(q: string): Promise<any[]> {
   url.searchParams.set('fq', 'type:adres');
   url.searchParams.set('fl',
     'id,weergavenaam,straatnaam,huisnummer,huisletter,huisnummertoevoeging,' +
-    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaar_object_id');
+    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaarobject_id');
   url.searchParams.set('rows', '10');
   const j = await pdokFetch(url.toString());
   return (j?.response?.docs ?? []) as any[];
+}
+
+/** Probeer queries op volgorde tot er resultaten zijn. */
+async function pdokFreeMulti(queries: string[]): Promise<{ docs: any[]; usedQuery: string }> {
+  for (const q of queries) {
+    try {
+      const docs = await pdokFree(q);
+      if (docs.length > 0) return { docs, usedQuery: q };
+    } catch (e) {
+      console.warn('[pdokFreeMulti] query faalde', q, (e as Error).message);
+    }
+  }
+  return { docs: [], usedQuery: queries[queries.length - 1] ?? '' };
 }
 
 async function pdokFreeByPandid(pandid: string): Promise<any[]> {
@@ -181,6 +211,8 @@ interface BagMatchKandidaat {
   adres: string;
   vbo_id?: string | null;
   nummeraanduiding_id?: string | null;
+  /** PDOK locatieserver doc-id ("adr-..."). Nodig voor latere lookup. */
+  pdok_id?: string | null;
   opp_m2?: number | null;
   gebruiksdoel?: string[] | null;
   status?: string | null;
@@ -215,8 +247,8 @@ function detailToVbo(det: any, fallbackAdres = ''): LookupVbo {
   const ps = pickFirst<any>(det.pandstatus);
   const status = pickFirst<any>(det.status);
   return {
-    nummeraanduiding_id: String(det.nummeraanduiding_id ?? det.id ?? ''),
-    vbo_id: String(det.adresseerbaar_object_id ?? det.id ?? ''),
+    nummeraanduiding_id: String(det.nummeraanduiding_id ?? ''),
+    vbo_id: String(det.adresseerbaarobject_id ?? det.adresseerbaar_object_id ?? ''),
     adres: String(det.weergavenaam ?? fallbackAdres ?? ''),
     opp_m2: typeof opp === 'number' && Number.isFinite(opp) ? Math.round(opp) : null,
     gebruiksdoel: gdArr,
@@ -257,7 +289,7 @@ async function fetchPandContext(pandid: string): Promise<PandContext> {
   try {
     primair = await pdokFreeByPandid(pandid);
     lookupIds = primair
-      .map((d) => d.nummeraanduiding_id ?? d.id)
+      .map((d) => d.id) // PDOK lookup vereist "adr-..." doc-id
       .filter((v) => typeof v === 'string') as string[];
   } catch { /* fall through */ }
 
@@ -326,17 +358,22 @@ interface VerrijkResult {
 async function verrijk(
   supabase: any,
   signaalId: string,
-  opts: { force?: boolean; selectedVboId?: string; selectedNaId?: string },
+  opts: {
+    force?: boolean;
+    selectedVboId?: string;
+    selectedNaId?: string;
+    selectedPdokId?: string;
+  },
 ): Promise<VerrijkResult> {
   const { data: s, error } = await supabase
     .from('off_market_signalen')
-    .select('id, adres, postcode, plaats, titel, bag_status')
+    .select('id, adres, postcode, plaats, titel, bag_status, bag_match_kandidaten')
     .eq('id', signaalId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!s) throw new Error('Signaal niet gevonden');
 
-  const hasSelection = !!(opts.selectedVboId || opts.selectedNaId);
+  const hasSelection = !!(opts.selectedVboId || opts.selectedNaId || opts.selectedPdokId);
 
   if (!hasSelection) {
     if (s.bag_status === 'verrijkt' && !opts.force) {
@@ -355,8 +392,22 @@ async function verrijk(
   try {
     // ====== Mode B + C — met selectie ======
     if (hasSelection) {
-      const lookupId = opts.selectedNaId || opts.selectedVboId!;
-      const det = await pdokLookup(lookupId);
+      // 1) Direct pdok_id (adr-...) is leidend; anders match terugzoeken in opgeslagen kandidaten.
+      let lookupId: string | null = opts.selectedPdokId ?? null;
+      if (!lookupId) {
+        const kandidaten = Array.isArray(s.bag_match_kandidaten)
+          ? (s.bag_match_kandidaten as BagMatchKandidaat[]) : [];
+        const match = kandidaten.find((k) =>
+          (opts.selectedVboId && k.vbo_id === opts.selectedVboId) ||
+          (opts.selectedNaId && k.nummeraanduiding_id === opts.selectedNaId),
+        );
+        lookupId = match?.pdok_id ?? null;
+      }
+      if (!lookupId) {
+        // Laatste redmiddel — direct PDOK searchen op id (alleen adr- vorm werkt).
+        lookupId = opts.selectedVboId ?? opts.selectedNaId ?? null;
+      }
+      const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (!det) {
         await supabase.from('off_market_signalen').update({
           bag_status: 'fout',
@@ -425,8 +476,8 @@ async function verrijk(
     }
 
     // ====== Mode A — initial enrich ======
-    const q = buildFreeQuery(s);
-    if (!q) {
+    const queries = buildSearchQueries(s);
+    if (queries.length === 0) {
       await supabase.from('off_market_signalen').update({
         bag_status: 'geen_match',
         bag_foutmelding: 'Onvoldoende adresdata',
@@ -435,7 +486,8 @@ async function verrijk(
       return { status: 'geen_match' };
     }
 
-    const docs = await pdokFree(q);
+    const { docs, usedQuery } = await pdokFreeMulti(queries);
+    console.log('[bag-verrijk] PDOK queries tried', queries, '→ used:', usedQuery, '→ docs:', docs.length);
     if (docs.length === 0) {
       await supabase.from('off_market_signalen').update({
         bag_status: 'geen_match',
@@ -459,7 +511,7 @@ async function verrijk(
     // Eén exacte hit → behandel als directe verrijking via Mode B-pad.
     if (exacte.length === 1 && matchKw === 'exact') {
       const d = exacte[0];
-      const lookupId = d.nummeraanduiding_id ?? d.id;
+      const lookupId = d.id; // PDOK lookup vereist het "adr-..." doc-id
       if (lookupId) {
         const det = await pdokLookup(String(lookupId));
         if (det) {
@@ -513,36 +565,50 @@ async function verrijk(
       }
     }
 
-    // Meerdere/onzekere matches → lichte kandidaten via lookup, max MAX_KANDIDATEN.
+    // Meerdere/onzekere matches → bouw eerst ALTIJD basis-kandidaten uit search docs.
+    // Lookup-verrijking is best-effort en mag falen zonder de kandidaat te verwijderen.
     const docsKandidaat = docs.slice(0, MAX_KANDIDATEN);
-    const results = await runParallel(docsKandidaat, PARALLEL, async (d) => {
-      const id = d.nummeraanduiding_id ?? d.id;
+    const basisReden = docs.length > 1 ? 'Meerdere PDOK-treffers' : 'Onzekere PDOK-treffer';
+    const basisKandidaten: BagMatchKandidaat[] = docsKandidaat.map((d) => ({
+      adres: String(d.weergavenaam ?? ''),
+      vbo_id: d.adresseerbaarobject_id ? String(d.adresseerbaarobject_id) : null,
+      nummeraanduiding_id: d.nummeraanduiding_id ? String(d.nummeraanduiding_id) : null,
+      pdok_id: d.id ? String(d.id) : null,
+      opp_m2: null,
+      gebruiksdoel: null,
+      status: null,
+      pandid: null,
+      match_kwaliteit: matchKw,
+      match_reden: basisReden,
+    }));
+
+    const enriched = await runParallel(docsKandidaat, PARALLEL, async (d) => {
+      const id = d.id; // adr-... voor lookup
       if (!id) return null;
-      try {
-        const det = await pdokLookup(String(id));
-        if (!det) return null;
-        const v = detailToVbo(det, d.weergavenaam ?? '');
-        const k: BagMatchKandidaat = {
-          adres: v.adres,
-          vbo_id: v.vbo_id || null,
-          nummeraanduiding_id: v.nummeraanduiding_id || null,
+      const det = await pdokLookup(String(id));
+      if (!det) return null;
+      return detailToVbo(det, d.weergavenaam ?? '');
+    });
+
+    const kandidaten: BagMatchKandidaat[] = basisKandidaten.map((basis, i) => {
+      const r = enriched[i];
+      if (r && r.status === 'fulfilled' && r.value) {
+        const v = r.value;
+        return {
+          ...basis,
+          adres: basis.adres || v.adres,
+          vbo_id: basis.vbo_id || v.vbo_id || null,
+          nummeraanduiding_id: basis.nummeraanduiding_id || v.nummeraanduiding_id || null,
           opp_m2: v.opp_m2,
-          gebruiksdoel: v.gebruiksdoel,
+          gebruiksdoel: v.gebruiksdoel?.length ? v.gebruiksdoel : null,
           status: v.status,
           pandid: v.pandid,
-          match_kwaliteit: matchKw,
-          match_reden: docs.length > 1 ? 'Meerdere PDOK-treffers' : 'Onzekere PDOK-treffer',
         };
-        return k;
-      } catch {
-        return null;
       }
+      return basis;
     });
-    const kandidaten = results
-      .filter((r): r is PromiseFulfilledResult<BagMatchKandidaat | null> => r.status === 'fulfilled')
-      .map((r) => r.value)
-      .filter((k): k is BagMatchKandidaat => !!k);
 
+    console.log('[bag-verrijk] kandidaten geschreven:', kandidaten.length);
     await supabase.from('off_market_signalen').update({
       bag_status: 'meerdere_matches',
       bag_match_kwaliteit: matchKw,
@@ -551,7 +617,11 @@ async function verrijk(
       bag_foutmelding: null,
     }).eq('id', signaalId);
 
-    return { status: 'meerdere_matches', kandidaten: kandidaten.length };
+    return {
+      status: 'meerdere_matches',
+      kandidaten: kandidaten.length,
+      used_query: usedQuery,
+    };
   } catch (e: any) {
     const msg = e?.message ?? String(e);
     await supabase.from('off_market_signalen').update({
@@ -585,11 +655,13 @@ Deno.serve(async (req) => {
   const selectedVboId = typeof body?.selected_vbo_id === 'string' ? body.selected_vbo_id : undefined;
   const selectedNaId = typeof body?.selected_nummeraanduiding_id === 'string'
     ? body.selected_nummeraanduiding_id : undefined;
+  const selectedPdokId = typeof body?.selected_pdok_id === 'string'
+    ? body.selected_pdok_id : undefined;
 
   try {
     const res = await verrijk(supabase, signaalId, {
       force: body?.force === true,
-      selectedVboId, selectedNaId,
+      selectedVboId, selectedNaId, selectedPdokId,
     });
     return jsonResponse({ ok: true, id: signaalId, ...res });
   } catch (e: any) {

@@ -143,9 +143,12 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
       {toonResolver && (!kandidaten || kandidaten.length === 0) && (
         <div
           data-testid="bag-resolver-leeg-waarschuwing"
+          data-variant={kandidaten == null ? 'oude_data' : 'geen_kandidaten'}
           className="text-xs text-amber-900 bg-amber-50/70 border border-amber-300/60 rounded-md p-2.5"
         >
-          Meerdere of onzekere BAG-matches. Verrijk BAG opnieuw om kandidaten op te halen, of controleer eerst het signaaladres.
+          {kandidaten == null
+            ? 'Dit signaal heeft nog oude BAG-matchdata zonder kandidaten. Klik op BAG verrijken om kandidaten op te halen.'
+            : 'Er zijn geen bruikbare BAG-kandidaten opgeslagen. Controleer het signaaladres of probeer te zoeken op postcode + huisnummer.'}
         </div>
       )}
 
