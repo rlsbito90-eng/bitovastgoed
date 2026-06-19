@@ -100,6 +100,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
     const id = k.vbo_id ?? k.nummeraanduiding_id ?? k.pdok_id ?? String(idx);
     const badge = badgeForKandidaat(k);
     const doelobject = isDoelobject(k);
+    const selectable = hasSelectableId(k);
     return (
       <li
         key={id}
