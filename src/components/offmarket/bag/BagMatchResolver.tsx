@@ -65,7 +65,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-foreground">{k.adres || '—'}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {k.opp_m2 != null ? `${k.opp_m2} m²` : 'oppervlak onbekend'}
+                  {k.opp_m2 != null ? `${k.opp_m2} m²` : 'Oppervlakte onbekend'}
                   {k.gebruiksdoel?.length ? ` · ${k.gebruiksdoel.join(', ')}` : ''}
                   {k.status ? ` · ${k.status}` : ''}
                 </p>
