@@ -125,13 +125,21 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             {k.gebruiksdoel?.length ? ` · ${k.gebruiksdoel.join(', ')}` : ''}
             {k.status ? ` · ${k.status}` : ''}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono-data">
-            {k.vbo_id ? `VBO ${shortId(k.vbo_id)}` : ''}
-            {k.nummeraanduiding_id ? ` · NA ${shortId(k.nummeraanduiding_id)}` : ''}
+          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono break-all">
+            {k.vbo_id ? <>VBO {k.vbo_id}</> : null}
+            {k.nummeraanduiding_id ? <> · NA {k.nummeraanduiding_id}</> : null}
             {k.match_kwaliteit ? ` · ${k.match_kwaliteit}` : ''}
           </p>
           {k.match_reden && (
             <p className="text-[10px] text-muted-foreground italic">{k.match_reden}</p>
+          )}
+          {!selectable && (
+            <p
+              data-testid="bag-match-onbruikbaar-melding"
+              className="text-[11px] text-amber-900 italic mt-1"
+            >
+              Deze BAG-kandidaat mist een technisch ID. Controleer via BAG Viewer.
+            </p>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
@@ -139,7 +147,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             size="sm"
             variant="default"
             onClick={() => kies(k)}
-            disabled={bag.isPending}
+            disabled={bag.isPending || !selectable}
             data-testid="bag-match-kies-knop"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
