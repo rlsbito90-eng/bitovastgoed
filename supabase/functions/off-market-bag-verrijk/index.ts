@@ -860,7 +860,7 @@ async function verrijk(
         }).eq('id', signaalId);
         return { status: 'fout', error: 'Gekozen BAG-match niet gevonden' };
       }
-      const gekozen = detailToVbo(det);
+      const gekozen = await enrichLookupVboFromWfs(detailToVbo(det));
       const res = await persistSelectedFlow(supabase, signaalId, gekozen);
       return res;
     }
