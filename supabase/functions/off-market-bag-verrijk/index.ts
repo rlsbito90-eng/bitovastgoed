@@ -158,12 +158,12 @@ export function validateDoelobject(
   const sToeReal = isRealToevoeging(sToe) ? sToe : null;
   if (sLetReal || sToeReal) {
     const ok =
-      (sLet && (cLet === sLet || cToe === sLet)) ||
-      (sToe && (cToe === sToe || cLet === sToe));
+      (sLetReal && (cLet === sLetReal || cToe === sLetReal)) ||
+      (sToeReal && (cToe === sToeReal || cLet === sToeReal));
     if (!ok) {
       return {
         ok: false,
-        reden: `toevoeging "${cLet ?? cToe ?? '-'}" wijkt af van signaal "${sLet ?? sToe}"`,
+        reden: `toevoeging "${cLet ?? cToe ?? '-'}" wijkt af van signaal "${sLetReal ?? sToeReal}"`,
       };
     }
   }
