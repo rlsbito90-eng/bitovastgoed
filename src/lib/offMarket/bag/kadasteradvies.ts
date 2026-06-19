@@ -82,6 +82,22 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
     };
   }
 
+  // V2.4 — Kleinschalige BAG-adrescontext (≤2 VBO én <150 m²) beperkt het advies
+  // maximaal tot 'voorzichtig', ongeacht AI-score. Reden noemt de schaal expliciet.
+  const kleineContext = pandVbo > 0 && pandVbo <= 2 && pandOpp > 0 && pandOpp < 150;
+  if (kleineContext) {
+    if (strategieKamerverhuur(s)) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Door mogelijke verhuur-, kamerverhuur- of exploitatieoptimalisatie kan het signaal nog relevant zijn, maar betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      };
+    }
+    return {
+      niveau: 'voorzichtig',
+      reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+    };
+  }
+
   // V2.4 — Doelobject-aware paden.
   if (heeftDoelobject) {
     // Klein doelobject + grote pandcontext + AI ≥ 70 → aanbevolen.
@@ -136,8 +152,8 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
     };
   }
 
-  // Aanbevolen — AI ≥70 + (≥2 VBO of strategie sterk).
-  if (aiScore >= 70 && (pandVbo >= 2 || strategieSterk(s))) {
+  // Aanbevolen — AI ≥70 + (≥2 VBO of strategie sterk), ENKEL bij voldoende schaal.
+  if (aiScore >= 70 && pandOpp >= 150 && (pandVbo >= 2 || strategieSterk(s))) {
     return {
       niveau: 'aanbevolen',
       reden: pandVbo >= 2
