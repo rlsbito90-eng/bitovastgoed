@@ -59,6 +59,7 @@ import type {
   KadasterProductCode, KadasterRequestInput,
 } from '@/lib/kadaster/types';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import KadasterPreCheckBanner from '@/components/offmarket/bag/KadasterPreCheckBanner';
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -442,6 +443,8 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
           </p>
         </div>
       </div>
+
+      <KadasterPreCheckBanner signaal={signaal} />
 
       {/* Zoekadres */}
       <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">

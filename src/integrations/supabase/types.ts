@@ -3008,6 +3008,19 @@ export type Database = {
           ai_verkoopkans: number | null
           archief_reden: string | null
           assettype: Database["public"]["Enums"]["off_market_assettype"]
+          bag_aantal_panden: number | null
+          bag_aantal_vbo: number | null
+          bag_bouwjaar: number | null
+          bag_foutmelding: string | null
+          bag_gebruiksdoelen: string[] | null
+          bag_match_kwaliteit: string | null
+          bag_pand_ids: string[] | null
+          bag_pand_status: string | null
+          bag_status: Database["public"]["Enums"]["off_market_bag_status"]
+          bag_totaal_oppervlakte_m2: number | null
+          bag_vbo_ids: string[] | null
+          bag_vbos: Json | null
+          bag_verrijkt_op: string | null
           bron_datum: string | null
           bron_id: string | null
           bron_referentie: string | null
@@ -3049,6 +3062,9 @@ export type Database = {
           id: string
           indicatieve_waarde: number | null
           kadaster_check_op: string | null
+          kadasteradvies: string | null
+          kadasteradvies_berekend_op: string | null
+          kadasteradvies_reden: string | null
           kadastrale_aanduiding: string | null
           lat: number | null
           lng: number | null
@@ -3096,6 +3112,19 @@ export type Database = {
           ai_verkoopkans?: number | null
           archief_reden?: string | null
           assettype?: Database["public"]["Enums"]["off_market_assettype"]
+          bag_aantal_panden?: number | null
+          bag_aantal_vbo?: number | null
+          bag_bouwjaar?: number | null
+          bag_foutmelding?: string | null
+          bag_gebruiksdoelen?: string[] | null
+          bag_match_kwaliteit?: string | null
+          bag_pand_ids?: string[] | null
+          bag_pand_status?: string | null
+          bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
+          bag_totaal_oppervlakte_m2?: number | null
+          bag_vbo_ids?: string[] | null
+          bag_vbos?: Json | null
+          bag_verrijkt_op?: string | null
           bron_datum?: string | null
           bron_id?: string | null
           bron_referentie?: string | null
@@ -3137,6 +3166,9 @@ export type Database = {
           id?: string
           indicatieve_waarde?: number | null
           kadaster_check_op?: string | null
+          kadasteradvies?: string | null
+          kadasteradvies_berekend_op?: string | null
+          kadasteradvies_reden?: string | null
           kadastrale_aanduiding?: string | null
           lat?: number | null
           lng?: number | null
@@ -3184,6 +3216,19 @@ export type Database = {
           ai_verkoopkans?: number | null
           archief_reden?: string | null
           assettype?: Database["public"]["Enums"]["off_market_assettype"]
+          bag_aantal_panden?: number | null
+          bag_aantal_vbo?: number | null
+          bag_bouwjaar?: number | null
+          bag_foutmelding?: string | null
+          bag_gebruiksdoelen?: string[] | null
+          bag_match_kwaliteit?: string | null
+          bag_pand_ids?: string[] | null
+          bag_pand_status?: string | null
+          bag_status?: Database["public"]["Enums"]["off_market_bag_status"]
+          bag_totaal_oppervlakte_m2?: number | null
+          bag_vbo_ids?: string[] | null
+          bag_vbos?: Json | null
+          bag_verrijkt_op?: string | null
           bron_datum?: string | null
           bron_id?: string | null
           bron_referentie?: string | null
@@ -3225,6 +3270,9 @@ export type Database = {
           id?: string
           indicatieve_waarde?: number | null
           kadaster_check_op?: string | null
+          kadasteradvies?: string | null
+          kadasteradvies_berekend_op?: string | null
+          kadasteradvies_reden?: string | null
           kadastrale_aanduiding?: string | null
           lat?: number | null
           lng?: number | null
@@ -4965,6 +5013,13 @@ export type Database = {
         | "woonhuis"
         | "studentenhuisvesting"
         | "gemengd_vastgoed"
+      off_market_bag_status:
+        | "niet_verrijkt"
+        | "bezig"
+        | "verrijkt"
+        | "geen_match"
+        | "meerdere_matches"
+        | "fout"
       off_market_bron_type:
         | "handmatig"
         | "bekendmaking"
@@ -5518,6 +5573,14 @@ export const Constants = {
         "woonhuis",
         "studentenhuisvesting",
         "gemengd_vastgoed",
+      ],
+      off_market_bag_status: [
+        "niet_verrijkt",
+        "bezig",
+        "verrijkt",
+        "geen_match",
+        "meerdere_matches",
+        "fout",
       ],
       off_market_bron_type: [
         "handmatig",
