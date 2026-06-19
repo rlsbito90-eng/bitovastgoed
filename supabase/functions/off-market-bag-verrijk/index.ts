@@ -65,6 +65,23 @@ function buildFreeQuery(s: SignaalShallow): string {
   return parts.filter(Boolean).join(' ').trim();
 }
 
+/** Geordende lijst zoekvarianten. Postcode + huisnummer is leidend bij NL-adressen. */
+function buildSearchQueries(s: SignaalShallow): string[] {
+  const pc = normPostcode(s.postcode);
+  const huisnr = extractHuisnummer(s.adres);
+  const out: string[] = [];
+  if (pc && huisnr) {
+    const pcFmt = `${pc.slice(0, 4)} ${pc.slice(4)}`;
+    if (s.plaats) out.push(`${pcFmt} ${huisnr} ${s.plaats}`);
+    out.push(`${pcFmt} ${huisnr}`);
+  }
+  const volledig = buildFreeQuery(s);
+  if (volledig) out.push(volledig);
+  if (s.adres && s.plaats) out.push(`${s.adres} ${s.plaats}`);
+  // De-dup
+  return Array.from(new Set(out.map((q) => q.trim()).filter(Boolean)));
+}
+
 async function pdokFetch(url: string): Promise<any> {
   let lastStatus = 0;
   for (let i = 0; i < 3; i++) {
@@ -91,10 +108,23 @@ async function pdokFree(q: string): Promise<any[]> {
   url.searchParams.set('fq', 'type:adres');
   url.searchParams.set('fl',
     'id,weergavenaam,straatnaam,huisnummer,huisletter,huisnummertoevoeging,' +
-    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaar_object_id');
+    'postcode,woonplaatsnaam,nummeraanduiding_id,adresseerbaarobject_id');
   url.searchParams.set('rows', '10');
   const j = await pdokFetch(url.toString());
   return (j?.response?.docs ?? []) as any[];
+}
+
+/** Probeer queries op volgorde tot er resultaten zijn. */
+async function pdokFreeMulti(queries: string[]): Promise<{ docs: any[]; usedQuery: string }> {
+  for (const q of queries) {
+    try {
+      const docs = await pdokFree(q);
+      if (docs.length > 0) return { docs, usedQuery: q };
+    } catch (e) {
+      console.warn('[pdokFreeMulti] query faalde', q, (e as Error).message);
+    }
+  }
+  return { docs: [], usedQuery: queries[queries.length - 1] ?? '' };
 }
 
 async function pdokFreeByPandid(pandid: string): Promise<any[]> {
