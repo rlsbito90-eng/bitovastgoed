@@ -152,7 +152,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             size="sm"
             variant="default"
             onClick={() => kies(k)}
-            disabled={bag.isPending || !selectable}
+            disabled={bag.isPending || !selectable || isNearby(k)}
             data-testid="bag-match-kies-knop"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
