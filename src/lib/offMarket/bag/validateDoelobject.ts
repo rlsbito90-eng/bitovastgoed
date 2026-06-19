@@ -22,14 +22,21 @@ function normPc(raw: string | null | undefined): string | null {
 
 interface Parsed { huisnummer: string | null; huisletter: string | null; toevoeging: string | null; }
 
+function stripPostcode(s: string): string {
+  // Voorkom dat postcode (1234AB / 1234 AB) als huisletter/toevoeging wordt gelezen.
+  return s.replace(/\b\d{4}\s?[A-Za-z]{2}\b/g, ' ');
+}
+
 function parseHuisnummer(raw: string | null | undefined): Parsed {
   if (!raw) return { huisnummer: null, huisletter: null, toevoeging: null };
-  const s = String(raw);
+  const s = stripPostcode(String(raw));
   let m = s.match(/\b(\d{1,5})[\s\-]+([A-Za-z0-9]{1,6})\b/);
   if (m) {
     const nr = m[1]; const tv = m[2];
-    if (/^[A-Za-z]$/.test(tv)) return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
-    return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
+    if (!/^\d{4}[A-Za-z]{0,2}$/.test(tv)) {
+      if (/^[A-Za-z]$/.test(tv)) return { huisnummer: nr, huisletter: tv.toUpperCase(), toevoeging: null };
+      return { huisnummer: nr, huisletter: null, toevoeging: tv.toUpperCase() };
+    }
   }
   m = s.match(/\b(\d{1,5})([A-Za-z])\b/);
   if (m) return { huisnummer: m[1], huisletter: m[2].toUpperCase(), toevoeging: null };
