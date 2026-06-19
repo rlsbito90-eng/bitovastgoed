@@ -12,8 +12,6 @@ const bron = readFileSync(
 
 describe('SignaalKadasterKaart — default productselectie', () => {
   it('Rechten is standaard aangevinkt', () => {
-    expect(bron).toMatch(/useState<[^>]*>\(true\)\s*;[^]*?selRechten/);
-    // robuuster: directe match op de declaratie
     expect(bron).toMatch(/const\s+\[selRechten,\s*setSelRechten\]\s*=\s*useState\(true\)/);
   });
 
