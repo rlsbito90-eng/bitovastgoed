@@ -358,17 +358,22 @@ interface VerrijkResult {
 async function verrijk(
   supabase: any,
   signaalId: string,
-  opts: { force?: boolean; selectedVboId?: string; selectedNaId?: string },
+  opts: {
+    force?: boolean;
+    selectedVboId?: string;
+    selectedNaId?: string;
+    selectedPdokId?: string;
+  },
 ): Promise<VerrijkResult> {
   const { data: s, error } = await supabase
     .from('off_market_signalen')
-    .select('id, adres, postcode, plaats, titel, bag_status')
+    .select('id, adres, postcode, plaats, titel, bag_status, bag_match_kandidaten')
     .eq('id', signaalId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!s) throw new Error('Signaal niet gevonden');
 
-  const hasSelection = !!(opts.selectedVboId || opts.selectedNaId);
+  const hasSelection = !!(opts.selectedVboId || opts.selectedNaId || opts.selectedPdokId);
 
   if (!hasSelection) {
     if (s.bag_status === 'verrijkt' && !opts.force) {
@@ -387,8 +392,22 @@ async function verrijk(
   try {
     // ====== Mode B + C — met selectie ======
     if (hasSelection) {
-      const lookupId = opts.selectedNaId || opts.selectedVboId!;
-      const det = await pdokLookup(lookupId);
+      // 1) Direct pdok_id (adr-...) is leidend; anders match terugzoeken in opgeslagen kandidaten.
+      let lookupId: string | null = opts.selectedPdokId ?? null;
+      if (!lookupId) {
+        const kandidaten = Array.isArray(s.bag_match_kandidaten)
+          ? (s.bag_match_kandidaten as BagMatchKandidaat[]) : [];
+        const match = kandidaten.find((k) =>
+          (opts.selectedVboId && k.vbo_id === opts.selectedVboId) ||
+          (opts.selectedNaId && k.nummeraanduiding_id === opts.selectedNaId),
+        );
+        lookupId = match?.pdok_id ?? null;
+      }
+      if (!lookupId) {
+        // Laatste redmiddel — direct PDOK searchen op id (alleen adr- vorm werkt).
+        lookupId = opts.selectedVboId ?? opts.selectedNaId ?? null;
+      }
+      const det = lookupId ? await pdokLookup(String(lookupId)) : null;
       if (!det) {
         await supabase.from('off_market_signalen').update({
           bag_status: 'fout',
