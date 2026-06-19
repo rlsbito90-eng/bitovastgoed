@@ -12,12 +12,31 @@ import type { BagMatchKandidaat, BagMatchType } from '@/lib/offMarket/bag/types'
 
 interface Props {
   signaalId: string;
-  kandidaten: BagMatchKandidaat[];
+  kandidaten: Array<BagMatchKandidaat | null | undefined> | null | undefined;
 }
 
-function shortId(v: string | null | undefined, len = 8): string {
-  if (!v) return '';
-  return v.length > len ? `${v.slice(0, len)}…` : v;
+function normalizeBagKandidaat(
+  k?: Partial<BagMatchKandidaat> | null,
+): BagMatchKandidaat | null {
+  if (!k || typeof k !== 'object') return null;
+  return {
+    adres: k.adres ?? 'Onbekend BAG-adres',
+    pdok_id: k.pdok_id ?? null,
+    vbo_id: k.vbo_id ?? null,
+    nummeraanduiding_id: k.nummeraanduiding_id ?? null,
+    opp_m2: typeof k.opp_m2 === 'number' ? k.opp_m2 : null,
+    gebruiksdoel: Array.isArray(k.gebruiksdoel) ? k.gebruiksdoel : [],
+    status: k.status ?? null,
+    pandid: k.pandid ?? null,
+    match_type: (k.match_type as BagMatchType | undefined) ?? 'onzeker',
+    is_doelobject_match: k.is_doelobject_match ?? false,
+    match_kwaliteit: k.match_kwaliteit ?? 'onzeker',
+    match_reden: k.match_reden ?? null,
+  };
+}
+
+function hasSelectableId(k: BagMatchKandidaat): boolean {
+  return !!(k.pdok_id || k.vbo_id || k.nummeraanduiding_id);
 }
 
 function isNearby(k: BagMatchKandidaat): boolean {
@@ -50,7 +69,10 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
   const { primair, nearby } = useMemo(() => {
     const prim: BagMatchKandidaat[] = [];
     const near: BagMatchKandidaat[] = [];
-    for (const k of kandidaten) {
+    const raw = Array.isArray(kandidaten) ? kandidaten : [];
+    for (const entry of raw) {
+      const k = normalizeBagKandidaat(entry);
+      if (!k) continue;
       if (isNearby(k)) near.push(k);
       else prim.push(k);
     }
@@ -78,6 +100,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
     const id = k.vbo_id ?? k.nummeraanduiding_id ?? k.pdok_id ?? String(idx);
     const badge = badgeForKandidaat(k);
     const doelobject = isDoelobject(k);
+    const selectable = hasSelectableId(k);
     return (
       <li
         key={id}
@@ -103,13 +126,21 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             {k.gebruiksdoel?.length ? ` · ${k.gebruiksdoel.join(', ')}` : ''}
             {k.status ? ` · ${k.status}` : ''}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono-data">
-            {k.vbo_id ? `VBO ${shortId(k.vbo_id)}` : ''}
-            {k.nummeraanduiding_id ? ` · NA ${shortId(k.nummeraanduiding_id)}` : ''}
+          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono break-all">
+            {k.vbo_id ? <>VBO {k.vbo_id}</> : null}
+            {k.nummeraanduiding_id ? <> · NA {k.nummeraanduiding_id}</> : null}
             {k.match_kwaliteit ? ` · ${k.match_kwaliteit}` : ''}
           </p>
           {k.match_reden && (
             <p className="text-[10px] text-muted-foreground italic">{k.match_reden}</p>
+          )}
+          {!selectable && (
+            <p
+              data-testid="bag-match-onbruikbaar-melding"
+              className="text-[11px] text-amber-900 italic mt-1"
+            >
+              Deze BAG-kandidaat mist een technisch ID. Controleer via BAG Viewer.
+            </p>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
@@ -117,7 +148,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
             size="sm"
             variant="default"
             onClick={() => kies(k)}
-            disabled={bag.isPending}
+            disabled={bag.isPending || !selectable}
             data-testid="bag-match-kies-knop"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />

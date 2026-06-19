@@ -1,8 +1,10 @@
 // V2.3 + V2.4 — Lijst met BAG-verblijfsobjecten in de BAG-pandcontext.
 // V2.4: toont MATCH/Doelobject-badge, "Zelfde BAG-pand"-badge en per VBO
 // gebruiksdoel, oppervlakte, VBO-ID, pand-ID, bouwjaar en pandstatus.
+// V2.4 fix: VBO-ID en Pand-ID worden volledig getoond (geen ellipsis) + kopieerknop.
 import { Check } from 'lucide-react';
 import type { BagVbo } from '@/lib/offMarket/bag/types';
+import BagIdCopy from './BagIdCopy';
 
 interface Props {
   vbos: BagVbo[] | null | undefined;
@@ -11,14 +13,10 @@ interface Props {
   maxItems?: number;
 }
 
-function fmtId(id: string | null | undefined): string {
-  if (!id) return '—';
-  return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
-}
-
 function cap(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
+
 
 export default function BagVboLijst({
   vbos,
@@ -102,16 +100,16 @@ export default function BagVboLijst({
                   <dt className="text-foreground/70">Oppervlakte:</dt>
                   <dd className="text-foreground">{v.opp_m2 != null ? `${v.opp_m2} m²` : '—'}</dd>
                 </div>
-                <div className="flex gap-1.5">
-                  <dt className="text-foreground/70">Verblijfsobject:</dt>
-                  <dd className="font-mono-data text-foreground" title={v.vbo_id || ''} data-testid="bag-vbo-vboid">
-                    {fmtId(v.vbo_id)}
+                <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+                  <dt className="text-foreground/70 shrink-0">Verblijfsobject:</dt>
+                  <dd className="min-w-0 flex-1">
+                    <BagIdCopy value={v.vbo_id} testId="bag-vbo-vboid" ariaLabel="Kopieer VBO-ID" />
                   </dd>
                 </div>
-                <div className="flex gap-1.5">
-                  <dt className="text-foreground/70">Pand:</dt>
-                  <dd className="font-mono-data text-foreground" title={v.pandid || ''} data-testid="bag-vbo-pandid">
-                    {fmtId(v.pandid)}
+                <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+                  <dt className="text-foreground/70 shrink-0">Pand:</dt>
+                  <dd className="min-w-0 flex-1">
+                    <BagIdCopy value={v.pandid ?? null} testId="bag-vbo-pandid" ariaLabel="Kopieer Pand-ID" />
                   </dd>
                 </div>
                 <div className="flex gap-1.5">
