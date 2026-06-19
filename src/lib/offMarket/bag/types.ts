@@ -107,6 +107,8 @@ export interface SignaalBagInput {
   bag_pandcontext_aantal_vbo?: number | null;
   bag_pandcontext_totaal_opp_m2?: number | null;
   bag_pandcontext_incompleet?: boolean | null;
+  /** V2.4 — 'pandid' | 'huisnummer' | 'gemengd' | 'leeg' */
+  bag_pandcontext_bron?: string | null;
 }
 
 export const BAG_STATUS_LABEL: Record<BagStatus, string> = {
