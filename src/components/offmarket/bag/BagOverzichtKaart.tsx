@@ -208,8 +208,16 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         )}
 
         <div className="border-t border-border/60 pt-3 space-y-2">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Verblijfsobjecten in zelfde BAG-pand
+          <p
+            className="text-[11px] uppercase tracking-wider text-muted-foreground"
+            data-testid="bag-vbo-lijst-titel"
+            data-bron={pandcontextBron ?? 'onbekend'}
+          >
+            {pandcontextBron === 'huisnummer'
+              ? 'Verblijfsobjecten binnen dezelfde BAG-adrescontext'
+              : pandcontextBron === 'gemengd'
+                ? 'Verblijfsobjecten in zelfde BAG-pand en adrescontext'
+                : 'Verblijfsobjecten in zelfde BAG-pand'}
           </p>
           <BagVboLijst
             vbos={vbos}
