@@ -154,7 +154,9 @@ export function validateDoelobject(
   if (sPc && cPc && sPc !== cPc) {
     return { ok: false, reden: `postcode ${cPc} wijkt af van signaal ${sPc}` };
   }
-  if (sLet || sToe) {
+  const sLetReal = isRealToevoeging(sLet) ? sLet : null;
+  const sToeReal = isRealToevoeging(sToe) ? sToe : null;
+  if (sLetReal || sToeReal) {
     const ok =
       (sLet && (cLet === sLet || cToe === sLet)) ||
       (sToe && (cToe === sToe || cLet === sToe));
