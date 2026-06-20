@@ -14,10 +14,11 @@
 // Schrijft alleen bag_*-velden. Roept GEEN betaalde Kadaster-API aan.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { berekenKadasteradvies, type SignaalKadasterInput } from '../_shared/kadasteradvies.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
