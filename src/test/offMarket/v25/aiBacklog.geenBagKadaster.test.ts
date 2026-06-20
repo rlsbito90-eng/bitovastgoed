@@ -29,8 +29,8 @@ describe('AI-achterstand — geen BAG/Kadaster/cascade', () => {
         expect(inhoud.includes(term)).toBe(false);
       });
     }
-    it(`${pad} stuurt cascade_bag:false (alleen panel/hook hoeft dit te bevatten — runner is payload-agnostisch)`, () => {
-      if (pad.endsWith('runner.ts')) return; // runner is payload-agnostisch
+    it(`${pad} stuurt cascade_bag:false (payload alleen in hook)`, () => {
+      if (!pad.endsWith('useAiBacklog.tsx')) return;
       expect(inhoud.includes('cascade_bag')).toBe(true);
       expect(inhoud.match(/cascade_bag:\s*false/)).not.toBeNull();
     });
