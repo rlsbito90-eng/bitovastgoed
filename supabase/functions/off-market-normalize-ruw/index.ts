@@ -6,6 +6,14 @@
 //   - markeert ruw-rij als verwerkt + signaal_id of skip_reden
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  AI_TRIGGER_CAP_PER_RUN,
+  magAiAutoVerrijken,
+  type SignaalAutoInput,
+} from '../_shared/offMarketAutoTrigger.ts';
+
+// EdgeRuntime is geïnjecteerd door Supabase Edge Runtime; type-shim voor TS.
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
