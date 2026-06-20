@@ -11,6 +11,7 @@ import {
   magAiAutoVerrijken,
   type SignaalAutoInput,
 } from '../_shared/offMarketAutoTrigger.ts';
+import { GEO_TRIGGER_CAP_PER_RUN } from '../_shared/offMarketGeocode.ts';
 
 // EdgeRuntime is geïnjecteerd door Supabase Edge Runtime; type-shim voor TS.
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -334,7 +335,9 @@ Deno.serve(async (req) => {
 
     let gepromoveerd = 0, geskipt = 0, merged = 0, fouten = 0;
     let aiGetriggerd = 0;
+    let geoGetriggerd = 0;
     const aiTriggerTaken: Array<Promise<unknown>> = [];
+    const geoTriggerTaken: Array<Promise<unknown>> = [];
 
     function planAiTrigger(signaalId: string) {
       if (aiGetriggerd >= AI_TRIGGER_CAP_PER_RUN) return;
@@ -376,6 +379,48 @@ Deno.serve(async (req) => {
           }),
       );
     }
+
+    function planGeoTrigger(signaalId: string) {
+      if (geoGetriggerd >= GEO_TRIGGER_CAP_PER_RUN) return;
+      if (!cronSecret) {
+        console.error(
+          '[normalize-ruw] GEO auto-trigger overgeslagen: OFF_MARKET_CRON_SECRET ontbreekt in runtime',
+          signaalId,
+        );
+        return;
+      }
+      geoGetriggerd++;
+      geoTriggerTaken.push(
+        admin.functions
+          .invoke('off-market-geo-verrijk', {
+            body: { signaal_id: signaalId, force: false },
+            headers: { 'x-cron-secret': cronSecret },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(
+                '[normalize-ruw] GEO auto-trigger invoke-fout:',
+                signaalId,
+                error.message ?? error,
+              );
+              return null;
+            }
+            if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error) {
+              console.error(
+                '[normalize-ruw] GEO auto-trigger response-fout:',
+                signaalId,
+                (data as { error: unknown }).error,
+              );
+            }
+            return data;
+          })
+          .catch((e) => {
+            console.error('[normalize-ruw] GEO auto-trigger faalde:', signaalId, e);
+            return null;
+          }),
+      );
+    }
+
 
 
     for (const r of (ruw ?? []) as any[]) {
@@ -505,11 +550,15 @@ Deno.serve(async (req) => {
       if (beslissing.toegestaan) {
         planAiTrigger(nieuwSig.id as string);
       }
+      // Automatische GEO-verrijking — onafhankelijk van AI-beslissing.
+      // Alleen voor nieuwe promoties; merges/dubbelen hierboven via `continue` afgevangen.
+      planGeoTrigger(nieuwSig.id as string);
     }
 
     // Achtergrond-invocations veilig laten doorlopen na response.
-    if (aiTriggerTaken.length > 0) {
-      const settle = Promise.allSettled(aiTriggerTaken);
+    const achtergrondTaken = [...aiTriggerTaken, ...geoTriggerTaken];
+    if (achtergrondTaken.length > 0) {
+      const settle = Promise.allSettled(achtergrondTaken);
       if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
         EdgeRuntime.waitUntil(settle);
       } else {
@@ -521,6 +570,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true, verwerkt: (ruw ?? []).length, gepromoveerd, geskipt, merged, fouten,
       ai_getriggerd: aiGetriggerd, ai_trigger_cap: AI_TRIGGER_CAP_PER_RUN,
+      geo_getriggerd: geoGetriggerd, geo_trigger_cap: GEO_TRIGGER_CAP_PER_RUN,
       duur_ms: Date.now() - start,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {

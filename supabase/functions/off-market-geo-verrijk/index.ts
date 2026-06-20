@@ -1,19 +1,26 @@
-// Off-Market Geo-verrijking V1
-// Verrijkt signalen met officiële gemeente/wijk/buurt op basis van lat/lng
-// via PDOK Locatieserver reverse geocoder (open data, geen sleutel).
+// Off-Market Geo-verrijking V2
+// Tweetraps: ensureCoords (PDOK free, adres → lat/lng) + reverse (PDOK reverse, lat/lng → gebied).
+// Open data, geen sleutel. Geen BAG, geen Kadaster.
 //
-// Input: { signaal_id: uuid, force?: boolean, debug?: boolean }
-//      | { batch: true, limit?: number, force?: boolean, retry_failed?: boolean }
+// Auth: bestaande JWT/intern-gebruikercontrole, plus `x-cron-secret`-bypass voor
+// server-trigger vanuit `off-market-normalize-ruw`.
+//
+// Single  : { signaal_id: uuid, force?: boolean, debug?: boolean }
+// Batch   : { batch: true, limit?: number, force?: boolean, retry_failed?: boolean }
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  ensureCoords,
+  type GeocodeInput,
+} from '../_shared/offMarketGeocode.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const PDOK_BASE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/reverse';
+const PDOK_REVERSE = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/reverse';
 const BRON = 'pdok_locatieserver';
 
 type GeoStatus = 'niet_verrijkt' | 'verrijkt' | 'geen_coordinaten' | 'geen_match' | 'fout';
@@ -25,26 +32,21 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function buildPdokUrl(lat: number, lon: number): string {
+function buildReverseUrl(lat: number, lon: number): string {
   const params = new URLSearchParams();
   params.append('lat', String(lat));
   params.append('lon', String(lon));
-  // Meerdere type-parameters (PDOK verwacht aparte values, geen comma-list).
   params.append('type', 'gemeente');
   params.append('type', 'wijk');
   params.append('type', 'buurt');
   params.append('rows', '20');
-  // CRITICAL: zonder fl=* retourneert PDOK alleen type/weergavenaam/id/score/afstand.
   params.append('fl', '*');
   params.append('wt', 'json');
-  return `${PDOK_BASE}?${params.toString()}`;
+  return `${PDOK_REVERSE}?${params.toString()}`;
 }
 
-async function pdokReverse(
-  lat: number,
-  lon: number,
-): Promise<{ pdok: any; httpStatus: number; url: string }> {
-  const url = buildPdokUrl(lat, lon);
+async function pdokReverse(lat: number, lon: number): Promise<{ pdok: any; httpStatus: number; url: string }> {
+  const url = buildReverseUrl(lat, lon);
   let lastStatus = 0;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -55,8 +57,7 @@ async function pdokReverse(
         continue;
       }
       if (!res.ok) throw new Error(`PDOK HTTP ${res.status}`);
-      const pdok = await res.json();
-      return { pdok, httpStatus: res.status, url };
+      return { pdok: await res.json(), httpStatus: res.status, url };
     } catch (err) {
       if (attempt === 2) throw err;
       await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
@@ -65,22 +66,19 @@ async function pdokReverse(
   throw new Error(`PDOK onbereikbaar (laatste status ${lastStatus})`);
 }
 
-/** Strip suffix " Amsterdam" of "Gemeente " etc. uit weergavenaam wanneer mogelijk. */
 function cleanWeergave(w: string | undefined, kind: 'gemeente' | 'wijk' | 'buurt'): string | null {
   if (!w) return null;
   let s = String(w).trim();
   if (kind === 'gemeente') s = s.replace(/^Gemeente\s+/i, '');
   return s || null;
 }
-
-function pickName(d: any, namen: string[], fallbackKind: 'gemeente' | 'wijk' | 'buurt'): string | null {
+function pickName(d: any, namen: string[], kind: 'gemeente' | 'wijk' | 'buurt'): string | null {
   for (const n of namen) {
     const v = d?.[n];
     if (typeof v === 'string' && v.trim()) return v.trim();
   }
-  return cleanWeergave(d?.weergavenaam, fallbackKind);
+  return cleanWeergave(d?.weergavenaam, kind);
 }
-
 function pickCode(d: any, codes: string[]): string | null {
   for (const c of codes) {
     const v = d?.[c];
@@ -89,43 +87,22 @@ function pickCode(d: any, codes: string[]): string | null {
   return null;
 }
 
-export function buildPatch(pdok: any): {
-  geo_gemeente_naam: string | null;
-  geo_gemeente_code: string | null;
-  geo_wijk_naam: string | null;
-  geo_wijk_code: string | null;
-  geo_buurt_naam: string | null;
-  geo_buurt_code: string | null;
-  hasAny: boolean;
-} {
-  // Tolerant: accepteer zowel response.docs als response.response.docs.
-  const docs: any[] =
-    pdok?.response?.docs ??
-    pdok?.response?.response?.docs ??
-    pdok?.docs ??
-    [];
-
-  const byType = (t: string) =>
-    docs.find((d) => String(d?.type ?? '').toLowerCase() === t);
-
+export function buildPatch(pdok: any) {
+  const docs: any[] = pdok?.response?.docs ?? pdok?.response?.response?.docs ?? pdok?.docs ?? [];
+  const byType = (t: string) => docs.find((d) => String(d?.type ?? '').toLowerCase() === t);
   const g = byType('gemeente');
   const w = byType('wijk');
   const b = byType('buurt');
-
   let gemeenteNaam = pickName(g, ['gemeentenaam', 'gemeente_naam'], 'gemeente');
   let gemeenteCode = pickCode(g, ['gemeentecode', 'gemeente_code']);
-  // Fallback: pak gemeente uit wijk/buurt doc als losse doc ontbreekt.
   if (!gemeenteNaam) gemeenteNaam = pickName(w, ['gemeentenaam'], 'gemeente') ?? pickName(b, ['gemeentenaam'], 'gemeente');
   if (!gemeenteCode) gemeenteCode = pickCode(w, ['gemeentecode']) ?? pickCode(b, ['gemeentecode']);
-
   let wijkNaam = pickName(w, ['wijknaam', 'wijk_naam'], 'wijk');
   let wijkCode = pickCode(w, ['wijkcode', 'wijk_code']);
   if (!wijkNaam) wijkNaam = pickName(b, ['wijknaam'], 'wijk');
   if (!wijkCode) wijkCode = pickCode(b, ['wijkcode']);
-
   const buurtNaam = pickName(b, ['buurtnaam', 'buurt_naam'], 'buurt');
   const buurtCode = pickCode(b, ['buurtcode', 'buurt_code']);
-
   return {
     geo_gemeente_naam: gemeenteNaam,
     geo_gemeente_code: gemeenteCode,
@@ -137,15 +114,24 @@ export function buildPatch(pdok: any): {
   };
 }
 
+interface VerrijkResultaat {
+  id: string;
+  status: GeoStatus;
+  skipped?: boolean;
+  ensured_coords?: boolean;
+  error?: string;
+  debug?: unknown;
+}
+
 async function verrijkOne(
   supabase: ReturnType<typeof createClient>,
   signaalId: string,
   force: boolean,
   debug = false,
-): Promise<{ id: string; status: GeoStatus; skipped?: boolean; error?: string; debug?: any }> {
+): Promise<VerrijkResultaat> {
   const { data: signaal, error } = await supabase
     .from('off_market_signalen')
-    .select('id, lat, lng, geo_status')
+    .select('id, lat, lng, geo_status, adres, postcode, plaats')
     .eq('id', signaalId)
     .maybeSingle();
   if (error) return { id: signaalId, status: 'fout', error: error.message };
@@ -155,36 +141,61 @@ async function verrijkOne(
     return { id: signaalId, status: 'verrijkt', skipped: true };
   }
 
-  const lat = signaal.lat == null ? null : Number(signaal.lat);
-  const lng = signaal.lng == null ? null : Number(signaal.lng);
+  let lat: number | null = signaal.lat == null ? null : Number(signaal.lat);
+  let lng: number | null = signaal.lng == null ? null : Number(signaal.lng);
+  let ensured = false;
+
   if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) {
-    await supabase.from('off_market_signalen').update({
-      geo_status: 'geen_coordinaten',
-      geo_verrijkt_op: new Date().toISOString(),
-      geo_foutmelding: null,
-    }).eq('id', signaalId);
-    return { id: signaalId, status: 'geen_coordinaten' };
+    const inv: GeocodeInput = {
+      adres: (signaal as any).adres ?? null,
+      postcode: (signaal as any).postcode ?? null,
+      plaats: (signaal as any).plaats ?? null,
+    };
+    try {
+      const r = await ensureCoords(inv);
+      if (r.status === 'ok') {
+        lat = r.match.lat;
+        lng = r.match.lng;
+        ensured = true;
+        await supabase.from('off_market_signalen').update({ lat, lng } as never).eq('id', signaalId);
+      } else if (r.status === 'geen_adres') {
+        await supabase.from('off_market_signalen').update({
+          geo_status: 'geen_coordinaten',
+          geo_verrijkt_op: new Date().toISOString(),
+          geo_foutmelding: null,
+        }).eq('id', signaalId);
+        return { id: signaalId, status: 'geen_coordinaten' };
+      } else {
+        await supabase.from('off_market_signalen').update({
+          geo_status: 'geen_match',
+          geo_verrijkt_op: new Date().toISOString(),
+          geo_foutmelding: `ensureCoords: ${r.reden}`.slice(0, 500),
+        }).eq('id', signaalId);
+        return { id: signaalId, status: 'geen_match' };
+      }
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      await supabase.from('off_market_signalen').update({
+        geo_status: 'fout',
+        geo_foutmelding: `ensureCoords: ${msg}`.slice(0, 500),
+        geo_verrijkt_op: new Date().toISOString(),
+      }).eq('id', signaalId);
+      return { id: signaalId, status: 'fout', error: msg };
+    }
   }
 
   try {
-    const { pdok, httpStatus, url } = await pdokReverse(lat, lng);
+    const { pdok, httpStatus, url } = await pdokReverse(lat!, lng!);
     const p = buildPatch(pdok);
     const now = new Date().toISOString();
-    const dbg = debug ? {
-      url, httpStatus,
-      numFound: pdok?.response?.numFound,
-      types: (pdok?.response?.docs ?? []).slice(0, 5).map((d: any) => d?.type),
-      sample: (pdok?.response?.docs ?? [])[0],
-      patch: p,
-    } : undefined;
-
+    const dbg = debug ? { url, httpStatus, ensured_coords: ensured, patch: p } : undefined;
     if (!p.hasAny) {
       await supabase.from('off_market_signalen').update({
         geo_status: 'geen_match',
         geo_verrijkt_op: now,
         geo_foutmelding: null,
       }).eq('id', signaalId);
-      return { id: signaalId, status: 'geen_match', debug: dbg };
+      return { id: signaalId, status: 'geen_match', ensured_coords: ensured, debug: dbg };
     }
     await supabase.from('off_market_signalen').update({
       geo_gemeente_naam: p.geo_gemeente_naam,
@@ -198,12 +209,12 @@ async function verrijkOne(
       geo_status: 'verrijkt',
       geo_foutmelding: null,
     }).eq('id', signaalId);
-    return { id: signaalId, status: 'verrijkt', debug: dbg };
+    return { id: signaalId, status: 'verrijkt', ensured_coords: ensured, debug: dbg };
   } catch (e: any) {
     const msg = e?.message ?? String(e);
     await supabase.from('off_market_signalen').update({
       geo_status: 'fout',
-      geo_foutmelding: msg.slice(0, 500),
+      geo_foutmelding: `reverse: ${msg}`.slice(0, 500),
       geo_verrijkt_op: new Date().toISOString(),
     }).eq('id', signaalId);
     return { id: signaalId, status: 'fout', error: msg };
@@ -214,14 +225,29 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
-  const auth = req.headers.get('Authorization') ?? '';
-  if (!auth.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
-  }
-
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const cronSecret = Deno.env.get('OFF_MARKET_CRON_SECRET');
+  const providedCron = req.headers.get('x-cron-secret') ?? req.headers.get('X-Cron-Secret');
+  const isCronCall = !!cronSecret && !!providedCron && providedCron === cronSecret;
+
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+  if (!isCronCall) {
+    const auth = req.headers.get('Authorization') ?? '';
+    if (!auth.toLowerCase().startsWith('bearer ')) {
+      return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
+    }
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: auth } } });
+    const token = auth.replace(/^Bearer\s+/i, '');
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims) {
+      return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
+    }
+    const { data: isIntern } = await supabase.rpc('is_intern_gebruiker', { _user_id: claimsData.claims.sub as string });
+    if (!isIntern) return jsonResponse({ error: 'Geen toegang' }, 403);
+  }
 
   let body: any;
   try { body = await req.json(); } catch { body = {}; }
@@ -232,18 +258,17 @@ Deno.serve(async (req) => {
       const force = body.force === true;
       const retryFailed = body.retry_failed === true;
 
+      // Selecteer alle nog niet-verrijkte signalen (incl. zonder lat/lng).
       let q = supabase
         .from('off_market_signalen')
-        .select('id, geo_gemeente_naam')
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
+        .select('id, lat, lng, geo_status, geo_gemeente_naam, adres, postcode, plaats')
         .limit(limit);
 
       if (force) {
-        // Geen extra filter — verwerk alles inclusief reeds verrijkt.
+        // Geen extra filter — verwerk alles.
       } else if (retryFailed) {
-        // Retry mislukte/niet-gematchte records die nog geen gemeente hebben.
-        q = q.in('geo_status', ['niet_verrijkt', 'geen_match', 'fout']).is('geo_gemeente_naam', null);
+        q = q.in('geo_status', ['niet_verrijkt', 'geen_match', 'geen_coordinaten', 'fout'])
+             .is('geo_gemeente_naam', null);
       } else {
         q = q.eq('geo_status', 'niet_verrijkt');
       }
@@ -251,7 +276,12 @@ Deno.serve(async (req) => {
       const { data: rows, error } = await q;
       if (error) return jsonResponse({ error: error.message }, 500);
 
-      const tellers = { totaal: rows?.length ?? 0, verrijkt: 0, skipped: 0, geen_coordinaten: 0, geen_match: 0, fout: 0 };
+      const tellers = {
+        totaal: rows?.length ?? 0,
+        verrijkt: 0, skipped: 0,
+        geen_coordinaten: 0, geen_match: 0, fout: 0,
+        ensured_coords: 0,
+      };
       for (const r of rows ?? []) {
         const res = await verrijkOne(supabase, r.id as string, force);
         if (res.skipped) tellers.skipped++;
@@ -259,6 +289,7 @@ Deno.serve(async (req) => {
         else if (res.status === 'geen_coordinaten') tellers.geen_coordinaten++;
         else if (res.status === 'geen_match') tellers.geen_match++;
         else if (res.status === 'fout') tellers.fout++;
+        if (res.ensured_coords) tellers.ensured_coords++;
         await new Promise((r) => setTimeout(r, 60));
       }
       return jsonResponse({ ok: true, ...tellers });
