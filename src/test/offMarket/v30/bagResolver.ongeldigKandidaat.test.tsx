@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BagMatchResolver from '@/components/offmarket/bag/BagMatchResolver';
 import type { BagMatchKandidaat } from '@/lib/offMarket/bag/types';
 
-const invokeMock = vi.fn(async () => ({ data: { ok: true }, error: null }));
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn(async () => ({ data: { ok: true }, error: null })) }));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     functions: { invoke: invokeMock },
@@ -17,6 +17,7 @@ vi.mock('@/integrations/supabase/client', () => ({
     }),
   },
 }));
+
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
