@@ -279,7 +279,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         </div>
       )}
 
-      )}
+
     </section>
   );
 }
