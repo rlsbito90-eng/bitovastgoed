@@ -380,6 +380,48 @@ Deno.serve(async (req) => {
       );
     }
 
+    function planGeoTrigger(signaalId: string) {
+      if (geoGetriggerd >= GEO_TRIGGER_CAP_PER_RUN) return;
+      if (!cronSecret) {
+        console.error(
+          '[normalize-ruw] GEO auto-trigger overgeslagen: OFF_MARKET_CRON_SECRET ontbreekt in runtime',
+          signaalId,
+        );
+        return;
+      }
+      geoGetriggerd++;
+      geoTriggerTaken.push(
+        admin.functions
+          .invoke('off-market-geo-verrijk', {
+            body: { signaal_id: signaalId, force: false },
+            headers: { 'x-cron-secret': cronSecret },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(
+                '[normalize-ruw] GEO auto-trigger invoke-fout:',
+                signaalId,
+                error.message ?? error,
+              );
+              return null;
+            }
+            if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error) {
+              console.error(
+                '[normalize-ruw] GEO auto-trigger response-fout:',
+                signaalId,
+                (data as { error: unknown }).error,
+              );
+            }
+            return data;
+          })
+          .catch((e) => {
+            console.error('[normalize-ruw] GEO auto-trigger faalde:', signaalId, e);
+            return null;
+          }),
+      );
+    }
+
+
 
     for (const r of (ruw ?? []) as any[]) {
       const cfg = cfgPerBron.get(r.bron_id) ?? {};
