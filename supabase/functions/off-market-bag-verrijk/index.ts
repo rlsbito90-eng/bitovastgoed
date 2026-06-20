@@ -1040,7 +1040,8 @@ async function verrijk(
 
     const basisKandidaten: BagMatchKandidaat[] = ranked.map((d, i) => {
       const dPc = docPc(d);
-      const isPrimair = pc && huisnr ? (dPc === pc && String(d.huisnummer ?? '') === huisnr) : true;
+      const isPrimair = huisnr ? (String(d.huisnummer ?? '') === huisnr && (!pc || dPc === pc)) : true;
+
       const dToe = d.huisnummertoevoeging ? String(d.huisnummertoevoeging).toUpperCase() : null;
       const dLet = d.huisletter ? String(d.huisletter).toUpperCase() : null;
       const isDoel = doelobjectIdx != null && i === doelobjectIdx;
