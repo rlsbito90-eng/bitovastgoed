@@ -173,7 +173,7 @@ export function useBagBacklogVerwerken(): UseBagBacklogVerwerken {
       setProgress(initial);
       return verwerkBagAchterstand({
         snapshot,
-        invoke: invokeBagDirect,
+        invoke: invokeBagSignaal,
         chunkSize: DEFAULT_BAG_CHUNK_SIZE,
         concurrency: DEFAULT_BAG_CONCURRENCY,
         onProgress: setProgress,
