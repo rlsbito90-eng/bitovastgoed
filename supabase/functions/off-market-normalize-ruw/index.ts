@@ -335,7 +335,9 @@ Deno.serve(async (req) => {
 
     let gepromoveerd = 0, geskipt = 0, merged = 0, fouten = 0;
     let aiGetriggerd = 0;
+    let geoGetriggerd = 0;
     const aiTriggerTaken: Array<Promise<unknown>> = [];
+    const geoTriggerTaken: Array<Promise<unknown>> = [];
 
     function planAiTrigger(signaalId: string) {
       if (aiGetriggerd >= AI_TRIGGER_CAP_PER_RUN) return;
