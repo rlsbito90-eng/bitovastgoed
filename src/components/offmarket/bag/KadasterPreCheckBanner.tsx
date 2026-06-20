@@ -47,7 +47,7 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
             >
               {BAG_STATUS_LABEL[bagStatus] ?? bagStatus}
             </span>
-            <KadasteradviesBadge niveau={advies.niveau} />
+            {bagStatus === 'verrijkt' && <KadasteradviesBadge niveau={advies.niveau} />}
           </div>
 
           {onzeker ? (
