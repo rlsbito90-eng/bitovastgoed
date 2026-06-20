@@ -55,8 +55,12 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
+  const bagVerrijkt = bagStatus === 'verrijkt';
 
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
+  // V2.5 — toon definitief advies pas wanneer BAG echt verrijkt is.
+  const adviesToegestaan = bagVerrijkt;
+
 
   const bag = useBagVerrijken();
   const ai = useEnrichSignaal();
@@ -98,7 +102,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           >
             {BAG_STATUS_LABEL[bagStatus] ?? bagStatus}
           </span>
-          <KadasteradviesBadge niveau={advies.niveau} />
+          {adviesToegestaan && <KadasteradviesBadge niveau={advies.niveau} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -123,12 +127,16 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           </Button>
           <Button
             size="sm"
-            onClick={onOpenKadaster}
+            onClick={bagVerrijkt ? onOpenKadaster : undefined}
+            disabled={!bagVerrijkt}
+            aria-disabled={!bagVerrijkt}
+            title={!bagVerrijkt ? 'Kies eerst een geldige BAG-match.' : undefined}
             data-testid="kadaster-ophalen-knop"
           >
             <FileSearch className="h-3.5 w-3.5" />
             Kadaster ophalen
           </Button>
+
         </div>
       </div>
 
@@ -141,8 +149,13 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
 
       {/* V2.4 — Multiple-match resolver bovenaan */}
       {toonResolver && kandidaten && kandidaten.length > 0 && (
-        <BagMatchResolver signaalId={signaal.id} kandidaten={kandidaten} />
+        <BagMatchResolver
+          signaalId={signaal.id}
+          kandidaten={kandidaten}
+          signaal={{ adres: signaal.adres, postcode: signaal.postcode, titel: signaal.titel }}
+        />
       )}
+
       {toonResolver && (!kandidaten || kandidaten.length === 0) && (
         <div
           data-testid="bag-resolver-leeg-waarschuwing"
@@ -248,7 +261,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         </div>
       </div>
 
-      {advies.niveau && (
+      {adviesToegestaan && advies.niveau && (
         <div
           data-testid="bag-advies-reden"
           className="rounded-md bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground"
@@ -256,6 +269,17 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           <span className="text-foreground font-medium">Kadasteradvies:</span> {advies.reden}
         </div>
       )}
+
+      {bagStatus === 'meerdere_matches' && (
+        <div
+          data-testid="bag-advies-blokkade"
+          className="rounded-md border border-amber-300/60 bg-amber-50/60 px-3 py-2 text-xs text-amber-900"
+        >
+          Kies eerst de juiste BAG-match om het Kadasteradvies te berekenen.
+        </div>
+      )}
+
+
     </section>
   );
 }

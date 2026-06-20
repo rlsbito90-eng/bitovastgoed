@@ -8,12 +8,22 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useBagVerrijken } from '@/hooks/useBagVerrijken';
 import { buildBagViewerUrl } from '@/lib/offMarket/bag/bagViewer';
+import { validateDoelobject } from '@/lib/offMarket/bag/validateDoelobject';
 import type { BagMatchKandidaat, BagMatchType } from '@/lib/offMarket/bag/types';
+
+export interface BagMatchResolverSignaal {
+  adres?: string | null;
+  postcode?: string | null;
+  titel?: string | null;
+}
 
 interface Props {
   signaalId: string;
   kandidaten: Array<BagMatchKandidaat | null | undefined> | null | undefined;
+  /** V2.5 — bron-signaal voor client-side validateDoelobject (huisnummer/postcode/toevoeging). */
+  signaal?: BagMatchResolverSignaal | null;
 }
+
 
 function normalizeBagKandidaat(
   k?: Partial<BagMatchKandidaat> | null,
@@ -32,8 +42,16 @@ function normalizeBagKandidaat(
     is_doelobject_match: k.is_doelobject_match ?? false,
     match_kwaliteit: k.match_kwaliteit ?? 'onzeker',
     match_reden: k.match_reden ?? null,
+    postcode: k.postcode ?? null,
+    postcode_normalized: k.postcode_normalized ?? null,
+    huisnummer: k.huisnummer ?? null,
+    huisletter: k.huisletter ?? null,
+    huisnummertoevoeging: k.huisnummertoevoeging ?? null,
+    openbareruimte: k.openbareruimte ?? null,
+    woonplaats: k.woonplaats ?? null,
   };
 }
+
 
 function hasSelectableId(k: BagMatchKandidaat): boolean {
   return !!(k.pdok_id || k.vbo_id || k.nummeraanduiding_id);
@@ -62,7 +80,7 @@ const TONE_CLASS: Record<string, string> = {
   neutraal: 'bg-muted text-muted-foreground border-border',
 };
 
-export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
+export default function BagMatchResolver({ signaalId, kandidaten, signaal }: Props) {
   const bag = useBagVerrijken();
   const [toonNearby, setToonNearby] = useState(false);
 
@@ -81,7 +99,28 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
     return { primair: prim, nearby: near };
   }, [kandidaten]);
 
+  /** V2.5 — client-side validatie identiek aan backend validateDoelobject.
+   *  Voorkomt dat een kandidaat met afwijkend basis-huisnummer of postcode
+   *  selectief wordt aangeboden. */
+  const validateKandidaat = (k: BagMatchKandidaat): { ok: boolean; reden?: string } => {
+    if (!signaal) return { ok: true };
+    return validateDoelobject(
+      { adres: signaal.adres ?? null, postcode: signaal.postcode ?? null, titel: signaal.titel ?? null },
+      {
+        postcode: k.postcode ?? k.postcode_normalized ?? null,
+        huisnummer: k.huisnummer ?? null,
+        huisletter: k.huisletter ?? null,
+        huisnummertoevoeging: k.huisnummertoevoeging ?? null,
+      },
+    );
+  };
+
   const kies = async (k: BagMatchKandidaat) => {
+    const v = validateKandidaat(k);
+    if (!v.ok) {
+      toast.error(v.reden ?? 'Deze BAG-kandidaat past niet bij het signaal');
+      return;
+    }
     try {
       await bag.mutateAsync({
         signaalId,
@@ -91,8 +130,9 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
         selected_pdok_id: k.pdok_id ?? undefined,
       });
       toast.success('BAG-match gekozen en pandcontext opgehaald.');
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Match-selectie mislukt');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Match-selectie mislukt';
+      toast.error(msg);
     }
   };
 
@@ -101,6 +141,9 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
     const badge = badgeForKandidaat(k);
     const doelobject = isDoelobject(k);
     const selectable = hasSelectableId(k);
+    const validatie = validateKandidaat(k);
+    const nearbyKandidaat = isNearby(k);
+    const disabled = bag.isPending || !selectable || nearbyKandidaat || !validatie.ok;
     return (
       <li
         key={id}
@@ -108,6 +151,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
         data-match-type={k.match_type ?? 'onbekend'}
         data-doelobject={doelobject ? 'true' : 'false'}
         data-variant={doelobject ? 'doelobject' : 'kandidaat'}
+        data-valide={validatie.ok ? 'true' : 'false'}
         data-theme-safe="true"
         className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between transition-colors ${
           doelobject
@@ -146,13 +190,23 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
               Deze BAG-kandidaat mist een technisch ID. Controleer via BAG Viewer.
             </p>
           )}
+          {!validatie.ok && (
+            <p
+              data-testid="bag-match-ongeldig-reden"
+              className="text-[11px] text-amber-900 italic mt-1"
+            >
+              Niet selecteerbaar: {validatie.reden ?? 'past niet bij het signaal'}.
+            </p>
+          )}
         </div>
         <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
           <Button
             size="sm"
             variant="default"
-            onClick={() => kies(k)}
-            disabled={bag.isPending || !selectable || isNearby(k)}
+            onClick={() => { if (!disabled) void kies(k); }}
+            disabled={disabled}
+            aria-disabled={disabled}
+            title={!validatie.ok ? (validatie.reden ?? 'Niet selecteerbaar') : undefined}
             data-testid="bag-match-kies-knop"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -172,6 +226,7 @@ export default function BagMatchResolver({ signaalId, kandidaten }: Props) {
       </li>
     );
   };
+
 
   return (
     <section

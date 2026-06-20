@@ -142,10 +142,17 @@ export default function SignaalCockpit({
           {mapsUrl && <QuickActionLink icon={MapPin} label="Google Maps" href={mapsUrl} />}
           <QuickActionLink icon={MapIcon} label="BAG Viewer" href={bouwBagViewerUrl()} />
           <QuickActionLink icon={Landmark} label="KadastraleKaart" href={bouwKadastraleKaartUrl()} />
-          <QuickAction icon={FileSearch} label="Kadaster ophalen" onClick={onKadasterOphalen} />
+          <QuickAction
+            icon={FileSearch}
+            label="Kadaster ophalen"
+            onClick={onKadasterOphalen}
+            disabled={(signaal as unknown as { bag_status?: string | null }).bag_status !== 'verrijkt'}
+            disabledReden="Kies eerst een geldige BAG-match."
+          />
           <QuickAction icon={Mail} label="Brief voorbereiden" onClick={onBriefVoorbereiden} />
           <QuickAction icon={ListPlus} label="Taak aanmaken" onClick={onTaakAanmaken} />
         </ul>
+
       </div>
     </aside>
   );
@@ -160,14 +167,28 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function QuickAction({ icon: Icon, label, onClick }: { icon: any; label: string; onClick?: () => void }) {
-  const disabled = !onClick;
+function QuickAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled: disabledProp,
+  disabledReden,
+}: {
+  icon: any;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  disabledReden?: string;
+}) {
+  const disabled = disabledProp || !onClick;
   return (
     <li>
       <button
         type="button"
-        onClick={onClick}
+        onClick={disabled ? undefined : onClick}
         disabled={disabled}
+        aria-disabled={disabled}
+        title={disabled && disabledReden ? disabledReden : undefined}
         className="w-full flex items-center justify-between gap-2 px-2 py-2 text-sm rounded-md hover:bg-muted text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2"><Icon className="h-4 w-4 text-muted-foreground" />{label}</span>
@@ -176,6 +197,7 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: any; label: string;
     </li>
   );
 }
+
 
 function QuickActionLink({ icon: Icon, label, href }: { icon: any; label: string; href: string }) {
   return (
