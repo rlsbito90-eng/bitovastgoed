@@ -10,7 +10,7 @@ import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import {
   ShieldCheck, User as UserIcon, Loader2, Target, Plus, Trash2, Pencil,
-  Radio, MapPin, ShieldQuestion, CalendarClock, Users as UsersIcon,
+  Radio, MapPin, ShieldQuestion, CalendarClock, Users as UsersIcon, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -23,6 +23,7 @@ import FeedTokensSectie from '@/components/admin/FeedTokensSectie';
 import OffMarketBronnenSectie from '@/components/admin/OffMarketBronnenSectie';
 import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
 import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
+import AiAchterstandPanel from '@/components/admin/AiAchterstandPanel';
 import AdminSectionCard from '@/components/admin/AdminSectionCard';
 import AdminSectionNav from '@/components/admin/AdminSectionNav';
 import { mapDbError } from '@/lib/errors';
@@ -40,6 +41,7 @@ interface GebruikerRow {
 const VALID_HASHES = new Set([
   'off-market-bronnen',
   'geo-verrijking',
+  'ai-achterstand',
   'afgekeurde-records',
   'jaardoelen',
   'agenda-feed',
@@ -100,6 +102,16 @@ export default function AdminPage() {
         forceOpen={openHash === 'geo-verrijking'}
       >
         <OffMarketGeoBackfillPanel />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="ai-achterstand"
+        title="AI-achterstand"
+        subtitle="Verwerk in één klik bestaande off-market signalen zonder AI-score. Geen BAG- of Kadaster-aanroep."
+        icon={<Sparkles className="h-4 w-4" />}
+        forceOpen={openHash === 'ai-achterstand'}
+      >
+        <AiAchterstandPanel />
       </AdminSectionCard>
 
       <AdminSectionCard
