@@ -11,6 +11,7 @@ import {
   magAiAutoVerrijken,
   type SignaalAutoInput,
 } from '../_shared/offMarketAutoTrigger.ts';
+import { GEO_TRIGGER_CAP_PER_RUN } from '../_shared/offMarketGeocode.ts';
 
 // EdgeRuntime is geïnjecteerd door Supabase Edge Runtime; type-shim voor TS.
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
