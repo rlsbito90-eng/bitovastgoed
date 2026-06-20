@@ -1,7 +1,7 @@
 // V2.3 + V2.4 + V2.7 — handmatige/automatische BAG-verrijking via edge function,
 // inclusief multiple-match resolver (selected_vbo_id / selected_nummeraanduiding_id).
 // V2.7: Kadasteradvies wordt voortaan server-side door off-market-bag-verrijk
-// gepersisteerd; client roept geen persistKadasteradvies meer aan.
+// gepersisteerd; client schrijft geen advies meer.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
