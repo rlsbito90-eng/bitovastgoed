@@ -102,7 +102,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           >
             {BAG_STATUS_LABEL[bagStatus] ?? bagStatus}
           </span>
-          <KadasteradviesBadge niveau={advies.niveau} />
+          {adviesToegestaan && <KadasteradviesBadge niveau={advies.niveau} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
