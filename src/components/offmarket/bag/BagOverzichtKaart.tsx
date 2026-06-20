@@ -149,8 +149,13 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
 
       {/* V2.4 — Multiple-match resolver bovenaan */}
       {toonResolver && kandidaten && kandidaten.length > 0 && (
-        <BagMatchResolver signaalId={signaal.id} kandidaten={kandidaten} />
+        <BagMatchResolver
+          signaalId={signaal.id}
+          kandidaten={kandidaten}
+          signaal={{ adres: signaal.adres, postcode: signaal.postcode, titel: signaal.titel }}
+        />
       )}
+
       {toonResolver && (!kandidaten || kandidaten.length === 0) && (
         <div
           data-testid="bag-resolver-leeg-waarschuwing"
