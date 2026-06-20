@@ -439,7 +439,7 @@ Deno.serve(async (req) => {
 
 
       const { data: nieuwSig, error: insErr } = await admin
-        .from('off_market_signalen').insert(insertPayload).select('id').single();
+        .from('off_market_signalen').insert(insertPayload).select('*').single();
       if (insErr) {
         // Race condition: parallel insert met zelfde hash → merge alsnog
         if (insErr.code === '23505') {
@@ -468,10 +468,32 @@ Deno.serve(async (req) => {
         },
       }).eq('id', r.id);
       gepromoveerd++;
+
+      // Automatische AI-verrijking — fire-and-forget via EdgeRuntime.waitUntil.
+      // Gebruikt de volledige DB-row (incl. defaults) als input voor de guard;
+      // fallback naar insertPayload + id als de row onverwacht niet beschikbaar is.
+      const signaalVoorTrigger: SignaalAutoInput =
+        (nieuwSig as SignaalAutoInput | null) ?? { ...insertPayload, id: nieuwSig?.id };
+      const beslissing = magAiAutoVerrijken(signaalVoorTrigger);
+      if (beslissing.toegestaan) {
+        planAiTrigger(nieuwSig.id as string);
+      }
+    }
+
+    // Achtergrond-invocations veilig laten doorlopen na response.
+    if (aiTriggerTaken.length > 0) {
+      const settle = Promise.allSettled(aiTriggerTaken);
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+        EdgeRuntime.waitUntil(settle);
+      } else {
+        // Fallback (lokaal/tests): await zodat invocations niet stilletjes wegvallen.
+        await settle;
+      }
     }
 
     return new Response(JSON.stringify({
       ok: true, verwerkt: (ruw ?? []).length, gepromoveerd, geskipt, merged, fouten,
+      ai_getriggerd: aiGetriggerd, ai_trigger_cap: AI_TRIGGER_CAP_PER_RUN,
       duur_ms: Date.now() - start,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
