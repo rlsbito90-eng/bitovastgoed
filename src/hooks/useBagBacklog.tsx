@@ -117,8 +117,9 @@ async function refetchBagStatus(signaalId: string): Promise<BagBacklogKind> {
 /**
  * Eén BAG-invoke: actuele guard → invoke → klassificeren via respons-`status`,
  * met refetch als fallback. Inspecteert zowel `error` als `data.error`.
+ * Geëxporteerd voor unit-tests.
  */
-async function invokeBagDirect(signaalId: string): Promise<BagBacklogInvokeResult> {
+export async function invokeBagSignaal(signaalId: string): Promise<BagBacklogInvokeResult> {
   const toegestaan = await controleerActueleGuard(signaalId);
   if (!toegestaan) return { kind: 'overgeslagen' };
 
