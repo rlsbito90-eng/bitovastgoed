@@ -357,6 +357,8 @@ Deno.serve(async (req) => {
       latentie_ms: Date.now() - start,
     });
 
+    planBagCascade(signaalId);
+
     return new Response(JSON.stringify({ ok: true, cached: false, update }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
