@@ -42,8 +42,16 @@ function normalizeBagKandidaat(
     is_doelobject_match: k.is_doelobject_match ?? false,
     match_kwaliteit: k.match_kwaliteit ?? 'onzeker',
     match_reden: k.match_reden ?? null,
+    postcode: k.postcode ?? null,
+    postcode_normalized: k.postcode_normalized ?? null,
+    huisnummer: k.huisnummer ?? null,
+    huisletter: k.huisletter ?? null,
+    huisnummertoevoeging: k.huisnummertoevoeging ?? null,
+    openbareruimte: k.openbareruimte ?? null,
+    woonplaats: k.woonplaats ?? null,
   };
 }
+
 
 function hasSelectableId(k: BagMatchKandidaat): boolean {
   return !!(k.pdok_id || k.vbo_id || k.nummeraanduiding_id);
