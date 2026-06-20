@@ -6,6 +6,14 @@
 //   - markeert ruw-rij als verwerkt + signaal_id of skip_reden
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  AI_TRIGGER_CAP_PER_RUN,
+  magAiAutoVerrijken,
+  type SignaalAutoInput,
+} from '../_shared/offMarketAutoTrigger.ts';
+
+// EdgeRuntime is geïnjecteerd door Supabase Edge Runtime; type-shim voor TS.
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -325,6 +333,23 @@ Deno.serve(async (req) => {
     if (ruwErr) throw ruwErr;
 
     let gepromoveerd = 0, geskipt = 0, merged = 0, fouten = 0;
+    let aiGetriggerd = 0;
+    const aiTriggerTaken: Array<Promise<unknown>> = [];
+
+    function planAiTrigger(signaalId: string) {
+      if (aiGetriggerd >= AI_TRIGGER_CAP_PER_RUN) return;
+      aiGetriggerd++;
+      aiTriggerTaken.push(
+        admin.functions
+          .invoke('off-market-enrich-signaal', {
+            body: { signaal_id: signaalId, force: false },
+          })
+          .catch((e) => {
+            console.error('[normalize-ruw] AI auto-trigger faalde:', signaalId, e);
+            return null;
+          }),
+      );
+    }
 
     for (const r of (ruw ?? []) as any[]) {
       const cfg = cfgPerBron.get(r.bron_id) ?? {};
@@ -414,7 +439,7 @@ Deno.serve(async (req) => {
 
 
       const { data: nieuwSig, error: insErr } = await admin
-        .from('off_market_signalen').insert(insertPayload).select('id').single();
+        .from('off_market_signalen').insert(insertPayload).select('*').single();
       if (insErr) {
         // Race condition: parallel insert met zelfde hash → merge alsnog
         if (insErr.code === '23505') {
@@ -443,10 +468,32 @@ Deno.serve(async (req) => {
         },
       }).eq('id', r.id);
       gepromoveerd++;
+
+      // Automatische AI-verrijking — fire-and-forget via EdgeRuntime.waitUntil.
+      // Gebruikt de volledige DB-row (incl. defaults) als input voor de guard;
+      // fallback naar insertPayload + id als de row onverwacht niet beschikbaar is.
+      const signaalVoorTrigger: SignaalAutoInput =
+        (nieuwSig as SignaalAutoInput | null) ?? { ...insertPayload, id: nieuwSig?.id };
+      const beslissing = magAiAutoVerrijken(signaalVoorTrigger);
+      if (beslissing.toegestaan) {
+        planAiTrigger(nieuwSig.id as string);
+      }
+    }
+
+    // Achtergrond-invocations veilig laten doorlopen na response.
+    if (aiTriggerTaken.length > 0) {
+      const settle = Promise.allSettled(aiTriggerTaken);
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+        EdgeRuntime.waitUntil(settle);
+      } else {
+        // Fallback (lokaal/tests): await zodat invocations niet stilletjes wegvallen.
+        await settle;
+      }
     }
 
     return new Response(JSON.stringify({
       ok: true, verwerkt: (ruw ?? []).length, gepromoveerd, geskipt, merged, fouten,
+      ai_getriggerd: aiGetriggerd, ai_trigger_cap: AI_TRIGGER_CAP_PER_RUN,
       duur_ms: Date.now() - start,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
