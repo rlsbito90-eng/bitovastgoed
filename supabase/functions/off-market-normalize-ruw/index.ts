@@ -338,11 +338,37 @@ Deno.serve(async (req) => {
 
     function planAiTrigger(signaalId: string) {
       if (aiGetriggerd >= AI_TRIGGER_CAP_PER_RUN) return;
+      if (!cronSecret) {
+        console.error(
+          '[normalize-ruw] AI auto-trigger overgeslagen: OFF_MARKET_CRON_SECRET ontbreekt in runtime',
+          signaalId,
+        );
+        return;
+      }
       aiGetriggerd++;
       aiTriggerTaken.push(
         admin.functions
           .invoke('off-market-enrich-signaal', {
             body: { signaal_id: signaalId, force: false },
+            headers: { 'x-cron-secret': cronSecret },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error(
+                '[normalize-ruw] AI auto-trigger invoke-fout:',
+                signaalId,
+                error.message ?? error,
+              );
+              return null;
+            }
+            if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error) {
+              console.error(
+                '[normalize-ruw] AI auto-trigger response-fout:',
+                signaalId,
+                (data as { error: unknown }).error,
+              );
+            }
+            return data;
           })
           .catch((e) => {
             console.error('[normalize-ruw] AI auto-trigger faalde:', signaalId, e);
@@ -350,6 +376,7 @@ Deno.serve(async (req) => {
           }),
       );
     }
+
 
     for (const r of (ruw ?? []) as any[]) {
       const cfg = cfgPerBron.get(r.bron_id) ?? {};
