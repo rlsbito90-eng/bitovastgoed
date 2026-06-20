@@ -4,6 +4,7 @@
 // Overschrijft NOOIT business-velden (indicatieve_waarde, mogelijke_fee, prioriteit, etc.).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { magBagAutoVerrijken } from '../_shared/offMarketAutoTrigger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
