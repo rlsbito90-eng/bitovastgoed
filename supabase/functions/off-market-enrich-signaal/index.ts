@@ -295,6 +295,7 @@ Deno.serve(async (req) => {
           input_hash: hash, output: cached.output, kosten: 0,
           latentie_ms: Date.now() - start, succes: true,
         });
+        planBagCascade(signaalId);
         return new Response(JSON.stringify({ ok: true, cached: true, update }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
