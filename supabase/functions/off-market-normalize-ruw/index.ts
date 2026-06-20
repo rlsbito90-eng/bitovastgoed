@@ -550,11 +550,15 @@ Deno.serve(async (req) => {
       if (beslissing.toegestaan) {
         planAiTrigger(nieuwSig.id as string);
       }
+      // Automatische GEO-verrijking — onafhankelijk van AI-beslissing.
+      // Alleen voor nieuwe promoties; merges/dubbelen hierboven via `continue` afgevangen.
+      planGeoTrigger(nieuwSig.id as string);
     }
 
     // Achtergrond-invocations veilig laten doorlopen na response.
-    if (aiTriggerTaken.length > 0) {
-      const settle = Promise.allSettled(aiTriggerTaken);
+    const achtergrondTaken = [...aiTriggerTaken, ...geoTriggerTaken];
+    if (achtergrondTaken.length > 0) {
+      const settle = Promise.allSettled(achtergrondTaken);
       if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
         EdgeRuntime.waitUntil(settle);
       } else {
@@ -566,6 +570,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true, verwerkt: (ruw ?? []).length, gepromoveerd, geskipt, merged, fouten,
       ai_getriggerd: aiGetriggerd, ai_trigger_cap: AI_TRIGGER_CAP_PER_RUN,
+      geo_getriggerd: geoGetriggerd, geo_trigger_cap: GEO_TRIGGER_CAP_PER_RUN,
       duur_ms: Date.now() - start,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
