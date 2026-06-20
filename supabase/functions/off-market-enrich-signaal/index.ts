@@ -214,9 +214,60 @@ Deno.serve(async (req) => {
     const signaalId = body.signaal_id as string | undefined;
     const force = !!body.force;
     const model = (body.model as string | undefined) ?? DEFAULT_MODEL;
+    // BAG-cascade staat default aan. AI-backlog stuurt expliciet cascade_bag:false.
+    const cascadeBag = body.cascade_bag !== false;
     if (!signaalId) {
       return new Response(JSON.stringify({ error: 'signaal_id verplicht' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    /**
+     * Plan server-side BAG-cascade na succesvolle AI-persist.
+     * - Skip volledig wanneer cascade_bag:false werd meegegeven.
+     * - Re-fetch verse rij, evalueer guard, log geweigerde/falende invokes.
+     * - Achtergrond-invocatie via EdgeRuntime.waitUntil; geen retry.
+     */
+    function planBagCascade(sid: string) {
+      if (!cascadeBag) return;
+      if (!cronSecret) {
+        console.error('[enrich] BAG-cascade overgeslagen: OFF_MARKET_CRON_SECRET ontbreekt in runtime', sid);
+        return;
+      }
+      const task = (async () => {
+        try {
+          const { data: fresh, error: fetchErr } = await admin
+            .from('off_market_signalen').select('*').eq('id', sid).maybeSingle();
+          if (fetchErr || !fresh) {
+            console.error('[enrich] BAG-cascade: signaal niet gevonden', sid, fetchErr?.message);
+            return;
+          }
+          const beslissing = magBagAutoVerrijken(fresh as Record<string, unknown>);
+          if (!beslissing.toegestaan) {
+            console.log('[enrich] BAG-cascade geweigerd:', sid, beslissing.reden);
+            return;
+          }
+          const { data, error } = await admin.functions.invoke('off-market-bag-verrijk', {
+            body: { signaal_id: sid, force: false },
+            headers: { 'x-cron-secret': cronSecret! },
+          });
+          if (error) {
+            console.error('[enrich] BAG-cascade invoke-fout:', sid, error.message ?? error);
+            return;
+          }
+          if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error) {
+            console.error('[enrich] BAG-cascade response-fout:', sid, (data as { error: unknown }).error);
+          }
+        } catch (e) {
+          console.error('[enrich] BAG-cascade faalde:', sid, e);
+        }
+      })();
+      try {
+        // @ts-ignore EdgeRuntime is een runtime-globale van Supabase Edge Functions.
+        (globalThis as any).EdgeRuntime?.waitUntil?.(task);
+      } catch {
+        /* fail-soft: in lokale runtimes wordt task gewoon meegelopen. */
+      }
+    }
+
 
     const { data: signaal, error: sErr } = await admin
       .from('off_market_signalen').select('*').eq('id', signaalId).maybeSingle();
