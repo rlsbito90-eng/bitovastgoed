@@ -1150,18 +1150,65 @@ async function verrijk(
   }
 }
 
+async function persistKadasteradvies(supabase: any, signaalId: string): Promise<void> {
+  const { data: row, error } = await supabase
+    .from('off_market_signalen')
+    .select('*')
+    .eq('id', signaalId)
+    .maybeSingle();
+  if (error || !row) return;
+  if (row.bag_status !== 'verrijkt') {
+    // Alleen adviseren wanneer BAG definitief succesvol is.
+    return;
+  }
+  const advies = berekenKadasteradvies(row as SignaalKadasterInput);
+  await supabase
+    .from('off_market_signalen')
+    .update({
+      kadasteradvies: advies.niveau,
+      kadasteradvies_reden: advies.reden,
+      kadasteradvies_berekend_op: new Date().toISOString(),
+    })
+    .eq('id', signaalId);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
-  const auth = req.headers.get('Authorization') ?? '';
-  if (!auth.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
-  }
-
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+  // Auth: cron-secret OF echte JWT van een interne gebruiker. Bearer "x" wordt afgewezen.
+  const cronSecret = Deno.env.get('OFF_MARKET_CRON_SECRET');
+  const providedCron = req.headers.get('x-cron-secret') ?? req.headers.get('X-Cron-Secret');
+  const isCronCall = !!cronSecret && !!providedCron && providedCron === cronSecret;
+
+  if (!isCronCall) {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
+    }
+    const token = authHeader.slice(7).trim();
+    if (!token) {
+      return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
+    }
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims) {
+      return jsonResponse({ error: 'Niet geautoriseerd' }, 401);
+    }
+    const { data: isIntern } = await admin.rpc('is_intern_gebruiker', {
+      _user_id: claimsData.claims.sub as string,
+    });
+    if (!isIntern) {
+      return jsonResponse({ error: 'Geen toegang' }, 403);
+    }
+  }
 
   let body: any;
   try { body = await req.json(); } catch { body = {}; }
@@ -1176,10 +1223,16 @@ Deno.serve(async (req) => {
     ? body.selected_pdok_id : undefined;
 
   try {
-    const res = await verrijk(supabase, signaalId, {
+    const res = await verrijk(admin, signaalId, {
       force: body?.force === true,
       selectedVboId, selectedNaId, selectedPdokId,
     });
+    // Server-side Kadasteradvies persisteren — alleen bij definitief verrijkt.
+    try {
+      await persistKadasteradvies(admin, signaalId);
+    } catch (e) {
+      console.error('[bag-verrijk] kadasteradvies persist faalde:', signaalId, e);
+    }
     return jsonResponse({ ok: true, id: signaalId, ...res });
   } catch (e: any) {
     return jsonResponse({ ok: false, error: e?.message ?? String(e) }, 500);
