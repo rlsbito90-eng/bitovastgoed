@@ -127,11 +127,12 @@ describe('BagPopupDetailRegel', () => {
   });
   it('contextbron huisnummer en gemengd produceren correcte labels', () => {
     const a = maakBadgeFixture({ bag_status: 'verrijkt', bag_geselecteerd_opp_m2: 50, bag_pandcontext_bron: 'huisnummer' });
-    expect(render(<BagPopupDetailRegel signaal={a} />).getByTestId('bag-popup-detail-bron').textContent)
-      .toBe('Huisnummercontext');
+    const ra = render(<BagPopupDetailRegel signaal={a} />);
+    expect(ra.getByTestId('bag-popup-detail-bron').textContent).toBe('Huisnummercontext');
+    ra.unmount();
     const b = maakBadgeFixture({ bag_status: 'verrijkt', bag_geselecteerd_opp_m2: 50, bag_pandcontext_bron: 'gemengd' });
-    expect(render(<BagPopupDetailRegel signaal={b} />).getByTestId('bag-popup-detail-bron').textContent)
-      .toBe('Gemengde BAG-context');
+    const rb = render(<BagPopupDetailRegel signaal={b} />);
+    expect(rb.getByTestId('bag-popup-detail-bron').textContent).toBe('Gemengde BAG-context');
   });
   it('contextbron "leeg" of null → geen bronregel', () => {
     const sig = maakBadgeFixture({ bag_status: 'verrijkt', bag_geselecteerd_opp_m2: 50, bag_pandcontext_bron: 'leeg' });
