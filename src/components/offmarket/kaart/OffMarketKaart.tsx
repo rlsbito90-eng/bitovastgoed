@@ -517,6 +517,11 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
         <OffMarketStatusBadge status={signaal.status} />
       </div>
+      <div className="flex flex-wrap gap-1">
+        <AiScoreBadge score={signaal.ai_score} status={signaal.ai_status} />
+        <BagKaartBadge signaal={signaal} />
+      </div>
+      <BagPopupDetailRegel signaal={signaal} />
       <div className="text-[11px] text-muted-foreground">
         {SIGNAALTYPE_LABEL[signaal.type_signaal] ?? signaal.type_signaal}
         {signaal.bron_type ? ` · ${BRON_TYPE_LABEL[signaal.bron_type] ?? signaal.bron_type}` : ''}
