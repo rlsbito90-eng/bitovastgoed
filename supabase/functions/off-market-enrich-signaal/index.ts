@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
             console.error('[enrich] BAG-cascade: signaal niet gevonden', sid, fetchErr?.message);
             return;
           }
-          const beslissing = magBagAutoVerrijken(fresh as Record<string, unknown>);
+          const beslissing = magBagAutoVerrijken(fresh as unknown as Parameters<typeof magBagAutoVerrijken>[0]);
           if (!beslissing.toegestaan) {
             console.log('[enrich] BAG-cascade geweigerd:', sid, beslissing.reden);
             return;
