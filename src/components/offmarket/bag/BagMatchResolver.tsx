@@ -8,12 +8,22 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useBagVerrijken } from '@/hooks/useBagVerrijken';
 import { buildBagViewerUrl } from '@/lib/offMarket/bag/bagViewer';
+import { validateDoelobject } from '@/lib/offMarket/bag/validateDoelobject';
 import type { BagMatchKandidaat, BagMatchType } from '@/lib/offMarket/bag/types';
+
+export interface BagMatchResolverSignaal {
+  adres?: string | null;
+  postcode?: string | null;
+  titel?: string | null;
+}
 
 interface Props {
   signaalId: string;
   kandidaten: Array<BagMatchKandidaat | null | undefined> | null | undefined;
+  /** V2.5 — bron-signaal voor client-side validateDoelobject (huisnummer/postcode/toevoeging). */
+  signaal?: BagMatchResolverSignaal | null;
 }
+
 
 function normalizeBagKandidaat(
   k?: Partial<BagMatchKandidaat> | null,
