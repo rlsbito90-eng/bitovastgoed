@@ -38,8 +38,9 @@ function fixt(bag_status: string): OffMarketSignaal {
     titel: 'Testpand',
     adres: 'Teststraat 44',
     postcode: null,
-    status: 'nieuw',
-    prioriteit: 'normaal',
+    status: 'nieuw_signaal',
+    prioriteit: 'midden',
+
     assettype: 'wonen',
     ai_status: 'klaar',
     ai_score: 70,
