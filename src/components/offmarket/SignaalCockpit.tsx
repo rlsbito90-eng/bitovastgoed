@@ -142,10 +142,17 @@ export default function SignaalCockpit({
           {mapsUrl && <QuickActionLink icon={MapPin} label="Google Maps" href={mapsUrl} />}
           <QuickActionLink icon={MapIcon} label="BAG Viewer" href={bouwBagViewerUrl()} />
           <QuickActionLink icon={Landmark} label="KadastraleKaart" href={bouwKadastraleKaartUrl()} />
-          <QuickAction icon={FileSearch} label="Kadaster ophalen" onClick={onKadasterOphalen} />
+          <QuickAction
+            icon={FileSearch}
+            label="Kadaster ophalen"
+            onClick={onKadasterOphalen}
+            disabled={(signaal as unknown as { bag_status?: string | null }).bag_status !== 'verrijkt'}
+            disabledReden="Kies eerst een geldige BAG-match."
+          />
           <QuickAction icon={Mail} label="Brief voorbereiden" onClick={onBriefVoorbereiden} />
           <QuickAction icon={ListPlus} label="Taak aanmaken" onClick={onTaakAanmaken} />
         </ul>
+
       </div>
     </aside>
   );
