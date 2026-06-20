@@ -7,6 +7,7 @@ const ITEMS: NavItem[] = [
   { hash: 'off-market-bronnen', label: 'Off-market bronnen' },
   { hash: 'geo-verrijking', label: 'Geo-verrijking' },
   { hash: 'ai-achterstand', label: 'AI-achterstand' },
+  { hash: 'bag-achterstand', label: 'BAG-achterstand' },
   { hash: 'afgekeurde-records', label: 'Afgekeurde records' },
   { hash: 'jaardoelen', label: 'Jaardoelen' },
   { hash: 'agenda-feed', label: 'Agenda-feed' },
