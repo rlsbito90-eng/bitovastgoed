@@ -989,30 +989,54 @@ async function verrijk(
     const sigToevoeging = (parsed.toevoeging || '').toUpperCase() || null;
     const sigLetter = (parsed.huisletter || '').toUpperCase() || null;
 
-    // Split docs in primair (zelfde pc+huisnr) en nearby (rest).
-    // Strikt: als pc+huisnr bekend zijn, mogen andere huisnummers NOOIT primair worden.
+    // Split docs in primair (zelfde basis-huisnummer + zelfde pc indien beschikbaar) en nearby (rest).
+    // V2.5 — Strikt: ook zonder signaal-postcode mogen andere huisnummers NOOIT primair worden.
     let primair: any[] = docs;
     let nearby: any[] = [];
-    if (pc && huisnr) {
-      primair = docs.filter((d) => docPc(d) === pc && String(d.huisnummer ?? '') === huisnr);
-      nearby = docs.filter((d) => !(docPc(d) === pc && String(d.huisnummer ?? '') === huisnr));
+    if (huisnr) {
+      const matchesPrimair = (d: any) =>
+        String(d.huisnummer ?? '') === huisnr &&
+        (!pc || docPc(d) === pc);
+      primair = docs.filter(matchesPrimair);
+      nearby = docs.filter((d) => !matchesPrimair(d));
     }
 
     // Bouw basis-kandidaten (eerst primair, dan nearby) tot MAX_KANDIDATEN
     const ranked = [...primair, ...nearby].slice(0, MAX_KANDIDATEN);
     const basisReden = primair.length > 1 ? 'Meerdere PDOK-treffers op huisnummer' : 'Onzekere PDOK-treffer';
 
-    // Bepaal doelobject-match in primair op basis van toevoeging
+    // V2.5 — Bepaal doelobject-match KRUISGEWIJS:
+    //   signaal-letter mag matchen tegen kandidaat-letter of -toevoeging,
+    //   signaal-toevoeging idem. Verzamel ALLE exacte treffers, dedupliceer
+    //   op identifier. Alleen bij exact één unieke treffer auto-selecteren.
     let doelobjectIdx: number | null = null;
     if (sigToevoeging || sigLetter) {
+      const seen = new Set<string>();
+      const hits: number[] = [];
       for (let i = 0; i < primair.length; i++) {
         const d = primair[i];
         const dToe = String(d.huisnummertoevoeging ?? '').toUpperCase();
         const dLet = String(d.huisletter ?? '').toUpperCase();
-        if (sigToevoeging && dToe === sigToevoeging) { doelobjectIdx = i; break; }
-        if (sigLetter && dLet === sigLetter) { doelobjectIdx = i; break; }
+        const matchLetter = !!(sigLetter && (dLet === sigLetter || dToe === sigLetter));
+        const matchToev = !!(sigToevoeging && (dToe === sigToevoeging || dLet === sigToevoeging));
+        if (matchLetter || matchToev) {
+          const key = String(
+            d.adresseerbaarobject_id ??
+              d.adresseerbaar_object_id ??
+              d.nummeraanduiding_id ??
+              d.id ??
+              d.weergavenaam ??
+              i,
+          );
+          if (!seen.has(key)) {
+            seen.add(key);
+            hits.push(i);
+          }
+        }
       }
+      if (hits.length === 1) doelobjectIdx = hits[0];
     }
+
 
     const basisKandidaten: BagMatchKandidaat[] = ranked.map((d, i) => {
       const dPc = docPc(d);
