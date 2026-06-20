@@ -2,53 +2,55 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SignaalBagInput } from '@/lib/offMarket/bag/types';
 
 /**
- * Test de invoke-wrapper: defensieve guard vóór invoke, classificatie via
- * response-status, refetch-fallback en correcte mapping van fouten.
+ * Test de classificatie binnen invokeBagSignaal:
+ *  - actuele guard vlak vóór invoke (overgeslagen);
+ *  - response.status → kind;
+ *  - error of {ok:false} → fout;
+ *  - geen/ongeldig statusveld → refetch bag_status;
+ *  - meerdere_matches telt NIET als fout;
+ *  - alleen 'off-market-bag-verrijk' wordt aangeroepen.
  */
 
 type GuardRow = SignaalBagInput;
 
-interface MockSetup {
+interface State {
   guardRow: GuardRow | null;
-  guardRow2?: GuardRow | null;
-  invokeResp?: { data?: unknown; error?: unknown };
-  invokeRespBag?: { bag_status?: string | null };
+  invokeResp: { data?: unknown; error?: unknown };
+  bagStatusRow: { bag_status?: string | null } | null;
 }
 
-let setup: MockSetup = { guardRow: null };
-let invokeAanroepen: Array<{ naam: string; body: any }> = [];
+const state: State = {
+  guardRow: null,
+  invokeResp: { data: { ok: true, status: 'verrijkt' }, error: null },
+  bagStatusRow: null,
+};
 
-vi.mock('@/integrations/supabase/client', () => {
-  return {
-    supabase: {
-      from: (_table: string) => ({
-        select: (cols: string) => ({
-          eq: (_col: string, _val: string) => ({
-            maybeSingle: async () => {
-              if (cols.includes('bag_status') && !cols.includes('titel')) {
-                return { data: setup.invokeRespBag ?? null, error: null };
-              }
-              return { data: setup.guardRow, error: null };
-            },
-          }),
-        }),
-      }),
-      functions: {
-        invoke: vi.fn(async (naam: string, opts: any) => {
-          invokeAanroepen.push({ naam, body: opts?.body });
-          return setup.invokeResp ?? { data: { ok: true, status: 'verrijkt' }, error: null };
-        }),
-      },
-    },
-  };
+const invokeAanroepen: Array<{ naam: string; body: any }> = [];
+const invokeMock = vi.fn(async (naam: string, opts: any) => {
+  invokeAanroepen.push({ naam, body: opts?.body });
+  return state.invokeResp;
 });
 
-// Importeer ná de mock zodat de hook de mock-client gebruikt.
-async function loadModule() {
-  return await import('@/hooks/useBagBacklog');
-}
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: (_table: string) => ({
+      select: (cols: string) => ({
+        eq: (_col: string, _val: string) => ({
+          maybeSingle: async () => {
+            // Alleen bag_status-projectie → refetch-pad.
+            if (cols.trim() === 'bag_status') {
+              return { data: state.bagStatusRow, error: null };
+            }
+            return { data: state.guardRow, error: null };
+          },
+        }),
+      }),
+    }),
+    functions: { invoke: invokeMock },
+  },
+}));
 
-const geschiktSignaal: GuardRow = {
+const geschikt: GuardRow = {
   id: 'sig-1',
   titel: 'Generiek pand',
   adres: 'Teststraat 12',
@@ -62,30 +64,91 @@ const geschiktSignaal: GuardRow = {
 };
 
 beforeEach(() => {
-  setup = { guardRow: null };
-  invokeAanroepen = [];
+  state.guardRow = { ...geschikt };
+  state.invokeResp = { data: { ok: true, status: 'verrijkt' }, error: null };
+  state.bagStatusRow = null;
+  invokeAanroepen.length = 0;
+  invokeMock.mockClear();
 });
 
-describe('useBagBacklog — invokeBagDirect via runner', () => {
-  it('roept uitsluitend off-market-bag-verrijk met {signaal_id, force:false}', async () => {
-    setup = {
-      guardRow: geschiktSignaal,
-      invokeResp: { data: { ok: true, status: 'verrijkt' }, error: null },
-    };
-    const mod = await loadModule();
-    const result = await mod.useBagBacklogVerwerken; // type-only; we draaien runner direct
-    // We testen het pure pad via een nieuwe import: leen het private invoke door publiekelijke
-    // mutation niet beschikbaar. In plaats daarvan testen we via de runner-export.
-    expect(typeof result).toBe('function');
+async function loadInvoke() {
+  return (await import('@/hooks/useBagBacklog')).invokeBagSignaal;
+}
+
+describe('invokeBagSignaal — classificatie', () => {
+  it('overgeslagen wanneer actuele guard weigert (geen invoke)', async () => {
+    state.guardRow = { ...geschikt, bag_status: 'verrijkt' };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('overgeslagen');
+    expect(invokeAanroepen).toHaveLength(0);
   });
-});
 
-describe('useBagBacklog — classificatie via response.status', () => {
-  it('overgeslagen als guard vóór invoke weigert', async () => {
-    setup = { guardRow: { ...geschiktSignaal, ai_score: 40 } };
-    const { bouwBagSnapshot } = await loadModule();
-    // bouwBagSnapshot zelf is hier indirect — focus van deze test is de classificatie-mapping.
-    // We controleren dat de exports bestaan, classificatie wordt in de runner-test bewezen.
-    expect(typeof bouwBagSnapshot).toBe('function');
+  it('response.status="verrijkt" → verrijkt', async () => {
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('verrijkt');
+    expect(invokeAanroepen).toHaveLength(1);
+    expect(invokeAanroepen[0].naam).toBe('off-market-bag-verrijk');
+    expect(invokeAanroepen[0].body).toEqual({ signaal_id: 'sig-1', force: false });
+  });
+
+  it('response.status="meerdere_matches" → meerdere_matches (geen fout)', async () => {
+    state.invokeResp = {
+      data: { ok: true, status: 'meerdere_matches' },
+      error: null,
+    };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('meerdere_matches');
+  });
+
+  it('response.status="geen_match" → geen_match', async () => {
+    state.invokeResp = { data: { ok: true, status: 'geen_match' }, error: null };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('geen_match');
+  });
+
+  it('response.status="fout" → fout', async () => {
+    state.invokeResp = {
+      data: { ok: true, status: 'fout', error: 'parser' },
+      error: null,
+    };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('fout');
+  });
+
+  it('error op invoke → fout (non-2xx telt als fout, geen retry)', async () => {
+    state.invokeResp = { data: null, error: { message: 'http 500' } };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('fout');
+    expect(r.error).toBe('http 500');
+  });
+
+  it('data.ok=false zonder status → fout', async () => {
+    state.invokeResp = { data: { ok: false, error: 'mis' }, error: null };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('fout');
+    expect(r.error).toBe('mis');
+  });
+
+  it('status="bezig" → refetcht bag_status uit DB', async () => {
+    state.invokeResp = { data: { ok: true, status: 'bezig' }, error: null };
+    state.bagStatusRow = { bag_status: 'verrijkt' };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('verrijkt');
+  });
+
+  it('ontbrekend statusveld → refetcht; onbekende waarde → fout', async () => {
+    state.invokeResp = { data: { ok: true }, error: null };
+    state.bagStatusRow = { bag_status: 'iets_geks' };
+    const invoke = await loadInvoke();
+    const r = await invoke('sig-1');
+    expect(r.kind).toBe('fout');
   });
 });
