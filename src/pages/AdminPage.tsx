@@ -24,6 +24,7 @@ import OffMarketBronnenSectie from '@/components/admin/OffMarketBronnenSectie';
 import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRecordsSectie';
 import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
 import AiAchterstandPanel from '@/components/admin/AiAchterstandPanel';
+import BagAchterstandPanel from '@/components/admin/BagAchterstandPanel';
 import AdminSectionCard from '@/components/admin/AdminSectionCard';
 import AdminSectionNav from '@/components/admin/AdminSectionNav';
 import { mapDbError } from '@/lib/errors';
@@ -42,6 +43,7 @@ const VALID_HASHES = new Set([
   'off-market-bronnen',
   'geo-verrijking',
   'ai-achterstand',
+  'bag-achterstand',
   'afgekeurde-records',
   'jaardoelen',
   'agenda-feed',
@@ -112,6 +114,16 @@ export default function AdminPage() {
         forceOpen={openHash === 'ai-achterstand'}
       >
         <AiAchterstandPanel />
+      </AdminSectionCard>
+
+      <AdminSectionCard
+        id="bag-achterstand"
+        title="BAG-achterstand"
+        subtitle="Voer een gratis BAG-precheck uit voor bestaande AI-verrijkte signalen. Geen Kadaster-aanvraag."
+        icon={<Sparkles className="h-4 w-4" />}
+        forceOpen={openHash === 'bag-achterstand'}
+      >
+        <BagAchterstandPanel />
       </AdminSectionCard>
 
       <AdminSectionCard
