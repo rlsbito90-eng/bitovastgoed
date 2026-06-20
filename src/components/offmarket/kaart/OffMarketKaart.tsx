@@ -17,6 +17,7 @@ import { formatSignaalAdres, formatSignaalTitel, cleanPlaats, cleanAdres } from 
 import { useKaartGeocoding } from '@/hooks/useKaartGeocoding';
 import LocatieControlerenDialog from './LocatieControlerenDialog';
 import ZonderLocatieDialog from './ZonderLocatieDialog';
+import { AiScoreBadge, BagKaartBadge, BagPopupDetailRegel } from './KaartSignaalBadges';
 
 // PDOK BRT-Achtergrondkaart (gratis, geen key, NL).
 const PDOK_TILE = 'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png';
@@ -438,6 +439,10 @@ export default function OffMarketKaart({ signalen }: Props) {
                             <OffMarketPriorityBadge prioriteit={s.prioriteit} />
                             <OffMarketStatusBadge status={s.status} />
                           </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <AiScoreBadge score={s.ai_score} status={s.ai_status} size="sm" />
+                            <BagKaartBadge signaal={s} size="sm" />
+                          </div>
                         </div>
                         {isSelected && (
                           <ExternalLink
@@ -512,6 +517,11 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
         <OffMarketStatusBadge status={signaal.status} />
       </div>
+      <div className="flex flex-wrap gap-1">
+        <AiScoreBadge score={signaal.ai_score} status={signaal.ai_status} />
+        <BagKaartBadge signaal={signaal} />
+      </div>
+      <BagPopupDetailRegel signaal={signaal} />
       <div className="text-[11px] text-muted-foreground">
         {SIGNAALTYPE_LABEL[signaal.type_signaal] ?? signaal.type_signaal}
         {signaal.bron_type ? ` · ${BRON_TYPE_LABEL[signaal.bron_type] ?? signaal.bron_type}` : ''}
