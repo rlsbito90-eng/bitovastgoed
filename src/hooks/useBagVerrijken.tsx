@@ -1,9 +1,10 @@
-// V2.3 + V2.4 — handmatige/automatische BAG-verrijking via edge function,
+// V2.3 + V2.4 + V2.7 — handmatige/automatische BAG-verrijking via edge function,
 // inclusief multiple-match resolver (selected_vbo_id / selected_nummeraanduiding_id).
+// V2.7: Kadasteradvies wordt voortaan server-side door off-market-bag-verrijk
+// gepersisteerd; client roept geen persistKadasteradvies meer aan.
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { persistKadasteradvies } from '@/lib/offMarket/bag/triggers';
 
 export interface BagVerrijkArgs {
   signaalId: string;
@@ -39,15 +40,9 @@ export function useBagVerrijken() {
       if (data?.error) throw new Error(data.error);
       return data as { ok: true; status: string };
     },
-    onSuccess: async (_d, { signaalId }) => {
+    onSuccess: (_d, { signaalId }) => {
       qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });
       qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
-      try {
-        await persistKadasteradvies(signaalId);
-        qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });
-      } catch {
-        /* fail-soft */
-      }
     },
   });
 }
