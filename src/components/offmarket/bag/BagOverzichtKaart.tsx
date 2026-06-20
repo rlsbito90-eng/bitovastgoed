@@ -127,12 +127,16 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           </Button>
           <Button
             size="sm"
-            onClick={onOpenKadaster}
+            onClick={bagVerrijkt ? onOpenKadaster : undefined}
+            disabled={!bagVerrijkt}
+            aria-disabled={!bagVerrijkt}
+            title={!bagVerrijkt ? 'Kies eerst een geldige BAG-match.' : undefined}
             data-testid="kadaster-ophalen-knop"
           >
             <FileSearch className="h-3.5 w-3.5" />
             Kadaster ophalen
           </Button>
+
         </div>
       </div>
 
