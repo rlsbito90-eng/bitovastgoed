@@ -439,6 +439,10 @@ export default function OffMarketKaart({ signalen }: Props) {
                             <OffMarketPriorityBadge prioriteit={s.prioriteit} />
                             <OffMarketStatusBadge status={s.status} />
                           </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <AiScoreBadge score={s.ai_score} status={s.ai_status} size="sm" />
+                            <BagKaartBadge signaal={s} size="sm" />
+                          </div>
                         </div>
                         {isSelected && (
                           <ExternalLink
