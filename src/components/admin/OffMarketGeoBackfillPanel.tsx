@@ -18,8 +18,8 @@ export default function OffMarketGeoBackfillPanel() {
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   const ladenCounts = async () => {
-    const statussen = ['verrijkt', 'niet_verrijkt', 'geen_coordinaten', 'geen_match', 'fout'] as const;
-    const totals: any = { totaal: 0 };
+    const statussen = ['verrijkt', 'niet_verrijkt', 'geen_match', 'fout'] as const;
+    const totals: any = { totaal: 0, geen_coordinaten: 0 };
     for (const st of statussen) {
       const { count } = await supabase
         .from('off_market_signalen')
@@ -28,6 +28,13 @@ export default function OffMarketGeoBackfillPanel() {
       totals[st] = count ?? 0;
       totals.totaal += count ?? 0;
     }
+    // "Geen coördinaten" telt op werkelijk ontbrekende lat/lng — niet op enkel
+    // de statuswaarde. Signalen zonder coördinaten worden anders nooit zichtbaar.
+    const { count: zonderCoord } = await supabase
+      .from('off_market_signalen')
+      .select('id', { count: 'exact', head: true })
+      .or('lat.is.null,lng.is.null');
+    totals.geen_coordinaten = zonderCoord ?? 0;
     setCounts(totals);
   };
 
