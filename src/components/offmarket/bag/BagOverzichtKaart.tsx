@@ -261,13 +261,24 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         </div>
       </div>
 
-      {advies.niveau && (
+      {adviesToegestaan && advies.niveau && (
         <div
           data-testid="bag-advies-reden"
           className="rounded-md bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground"
         >
           <span className="text-foreground font-medium">Kadasteradvies:</span> {advies.reden}
         </div>
+      )}
+
+      {bagStatus === 'meerdere_matches' && (
+        <div
+          data-testid="bag-advies-blokkade"
+          className="rounded-md border border-amber-300/60 bg-amber-50/60 px-3 py-2 text-xs text-amber-900"
+        >
+          Kies eerst de juiste BAG-match om het Kadasteradvies te berekenen.
+        </div>
+      )}
+
       )}
     </section>
   );
