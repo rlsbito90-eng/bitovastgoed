@@ -55,8 +55,12 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
+  const bagVerrijkt = bagStatus === 'verrijkt';
 
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
+  // V2.5 — toon definitief advies pas wanneer BAG echt verrijkt is.
+  const adviesToegestaan = bagVerrijkt;
+
 
   const bag = useBagVerrijken();
   const ai = useEnrichSignaal();
