@@ -1,4 +1,7 @@
 // V2.3 — Fan-out-helpers voor automatische AI- en BAG-verrijking.
+// V2.7 DEPRECATED voor productiepad: server-side enrich-signaal regelt de
+// BAG-cascade én Kadasteradvies-persist met x-cron-secret. Deze helpers blijven
+// staan voor bestaande v23-tests en eventueel handmatig gebruik.
 // Fire-and-forget; faalt stil. Roept GEEN betaalde Kadaster-API aan.
 
 import { supabase } from '@/integrations/supabase/client';
