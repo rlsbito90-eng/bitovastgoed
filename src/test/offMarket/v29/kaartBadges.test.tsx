@@ -78,11 +78,12 @@ describe('BagKaartBadge — statussen', () => {
   });
   it('niet_verrijkt / null → "BAG niet verrijkt"', () => {
     const sig = maakBadgeFixture({ bag_status: 'niet_verrijkt' });
-    expect(render(<BagKaartBadge signaal={sig} />).getByTestId('bag-kaart-badge').textContent)
-      .toMatch(/BAG niet verrijkt/);
+    const r1 = render(<BagKaartBadge signaal={sig} />);
+    expect(r1.getByTestId('bag-kaart-badge').textContent).toMatch(/BAG niet verrijkt/);
+    r1.unmount();
     const sig2 = maakBadgeFixture({ bag_status: null as unknown as SignaalKaartBadgeData['bag_status'] });
-    expect(render(<BagKaartBadge signaal={sig2} />).getByTestId('bag-kaart-badge').textContent)
-      .toMatch(/BAG niet verrijkt/);
+    const r2 = render(<BagKaartBadge signaal={sig2} />);
+    expect(r2.getByTestId('bag-kaart-badge').textContent).toMatch(/BAG niet verrijkt/);
   });
 });
 
