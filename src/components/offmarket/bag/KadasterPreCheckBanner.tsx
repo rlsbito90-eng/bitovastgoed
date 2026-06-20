@@ -92,11 +92,12 @@ export default function KadasterPreCheckBanner({ signaal }: Props) {
             </p>
           )}
 
-          {advies.niveau && (
+          {bagStatus === 'verrijkt' && advies.niveau && (
             <p className="text-xs text-muted-foreground" data-testid="precheck-advies-reden">
               <span className="text-foreground">Kadasteradvies:</span> {advies.reden}
             </p>
           )}
+
 
           <p className="text-[11px] text-muted-foreground">
             Advies is informatief — Kadaster blijft altijd handmatig te bevestigen.
