@@ -333,6 +333,23 @@ Deno.serve(async (req) => {
     if (ruwErr) throw ruwErr;
 
     let gepromoveerd = 0, geskipt = 0, merged = 0, fouten = 0;
+    let aiGetriggerd = 0;
+    const aiTriggerTaken: Array<Promise<unknown>> = [];
+
+    function planAiTrigger(signaalId: string) {
+      if (aiGetriggerd >= AI_TRIGGER_CAP_PER_RUN) return;
+      aiGetriggerd++;
+      aiTriggerTaken.push(
+        admin.functions
+          .invoke('off-market-enrich-signaal', {
+            body: { signaal_id: signaalId, force: false },
+          })
+          .catch((e) => {
+            console.error('[normalize-ruw] AI auto-trigger faalde:', signaalId, e);
+            return null;
+          }),
+      );
+    }
 
     for (const r of (ruw ?? []) as any[]) {
       const cfg = cfgPerBron.get(r.bron_id) ?? {};
