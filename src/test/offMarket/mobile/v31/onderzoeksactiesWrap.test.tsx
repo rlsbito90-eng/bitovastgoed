@@ -8,8 +8,7 @@ describe('SignaalOnderzoeksacties — mobiele wrap', () => {
   it('container gebruikt flex-wrap zonder overflow-x-auto op mobiel', () => {
     render(<SignaalOnderzoeksacties signaal={maakTestSignaal()} />);
     const sectie = screen.getByTestId('signaal-onderzoeksacties');
-    // De directe knop-container is het laatste div-kind van de sectie.
-    const knopRij = sectie.querySelector('div.flex') as HTMLElement;
+    const knopRij = sectie.querySelector('div.flex.flex-wrap') as HTMLElement;
     expect(knopRij).toBeTruthy();
     expect(knopRij.className).toMatch(/flex-wrap/);
     expect(knopRij.className).not.toMatch(/overflow-x-auto/);
