@@ -29,7 +29,7 @@ const LANG =
 describe('SignaalMobileCockpit — strategie zonder harde afkapping', () => {
   it('toont volledige strategietekst (geen "…"-truncation) en biedt Meer/Minder toggle', () => {
     render(
-      <MemoryRouter>
+      wrap(
         <SignaalMobileCockpit
           signaal={maakTestSignaal({ ai_strategie_suggestie: LANG, potentiele_strategie: null } as any)}
           taken={[]}
@@ -47,7 +47,7 @@ describe('SignaalMobileCockpit — strategie zonder harde afkapping', () => {
 
   it('toont "Nog te bepalen" wanneer er geen strategie is', () => {
     render(
-      <MemoryRouter>
+      wrap(
         <SignaalMobileCockpit
           signaal={maakTestSignaal({ potentiele_strategie: null, ai_strategie_suggestie: null } as any)}
           taken={[]}
