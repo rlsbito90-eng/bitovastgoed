@@ -84,7 +84,7 @@ export default function SignaalOnderzoeksacties({ signaal, variant = 'standaard'
           )}
         </div>
       )}
-      <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap -mx-1 px-1 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
+      <div className="flex flex-wrap gap-1.5">
         {acties.map(({ key, label, kort, href, onClick, Icon, disabled }) => {
           const inhoud = (
             <>
