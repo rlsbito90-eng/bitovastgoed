@@ -33,8 +33,8 @@ import SignaalMobileHeader from '@/components/offmarket/mobile/SignaalMobileHead
 import SignaalMobileCockpit from '@/components/offmarket/mobile/SignaalMobileCockpit';
 import SignaalMobileActionBar from '@/components/offmarket/mobile/SignaalMobileActionBar';
 import SignaalMobileBronregel from '@/components/offmarket/mobile/SignaalMobileBronregel';
-import SignaalMobileEigenaarWorkflow from '@/components/offmarket/mobile/SignaalMobileEigenaarWorkflow';
 import ClassificatieReadonlyCard from '@/components/offmarket/mobile/ClassificatieReadonlyCard';
+import MobileTabbarScroller from '@/components/offmarket/mobile/MobileTabbarScroller';
 import MeerOnderzoeksactiesDisclosure from '@/components/offmarket/mobile/MeerOnderzoeksactiesDisclosure';
 
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
