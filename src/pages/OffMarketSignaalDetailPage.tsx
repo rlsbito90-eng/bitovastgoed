@@ -35,7 +35,7 @@ import SignaalMobileActionBar from '@/components/offmarket/mobile/SignaalMobileA
 import SignaalMobileBronregel from '@/components/offmarket/mobile/SignaalMobileBronregel';
 import ClassificatieReadonlyCard from '@/components/offmarket/mobile/ClassificatieReadonlyCard';
 import MobileTabbarScroller from '@/components/offmarket/mobile/MobileTabbarScroller';
-import MeerOnderzoeksactiesDisclosure from '@/components/offmarket/mobile/MeerOnderzoeksactiesDisclosure';
+
 
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ListNavigator from '@/components/ListNavigator';
