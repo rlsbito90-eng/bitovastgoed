@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ChevronLeft, ChevronRight,
-  BadgeCheck, FileText, Search, Landmark, Mail, CheckSquare, Server,
-  UserSearch, MoreHorizontal,
+  BadgeCheck, Search, Landmark, Mail, CheckSquare, Server,
 } from 'lucide-react';
 
 import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
