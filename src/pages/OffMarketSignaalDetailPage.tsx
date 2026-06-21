@@ -63,12 +63,14 @@ const DESKTOP_TABS: { value: string; label: string; Icon: any }[] = [
   { value: 'technisch', label: 'Technisch', Icon: Server },
 ];
 
+// Mobiel: dezelfde 6 dossier-tabs als desktop, met korte labels voor smalle viewports.
 const MOBILE_TABS: { value: string; label: string; Icon: any }[] = [
   { value: 'overzicht', label: 'Overzicht', Icon: BadgeCheck },
   { value: 'onderzoek', label: 'Onderzoek', Icon: Search },
-  { value: 'eigenaar', label: 'Eigenaar', Icon: UserSearch },
-  { value: 'opvolging', label: 'Opvolging', Icon: Mail },
-  { value: 'meer', label: 'Meer', Icon: MoreHorizontal },
+  { value: 'kadaster', label: 'Kadaster', Icon: Landmark },
+  { value: 'brieven', label: 'Brieven', Icon: Mail },
+  { value: 'taken', label: 'Taken', Icon: CheckSquare },
+  { value: 'technisch', label: 'Technisch', Icon: Server },
 ];
 
 export default function OffMarketSignaalDetailPage() {
