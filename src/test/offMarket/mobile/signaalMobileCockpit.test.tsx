@@ -29,9 +29,9 @@ describe('SignaalMobileCockpit', () => {
       potentiele_strategie: 'Splitsingspotentie',
     } as any);
     render(
-      <MemoryRouter>
+      WRAP_START
         <SignaalMobileCockpit signaal={signaal} taken={[]} briefStatus="geen" />
-      </MemoryRouter>,
+      WRAP_END,
     );
     expect(screen.getByTestId('signaal-mobile-cockpit')).toBeInTheDocument();
     expect(screen.getByText('76')).toBeInTheDocument();
@@ -46,9 +46,9 @@ describe('SignaalMobileCockpit', () => {
       volgende_actie_datum: '2026-07-01',
     } as any);
     render(
-      <MemoryRouter>
+      WRAP_START
         <SignaalMobileCockpit signaal={signaal} taken={[]} briefStatus="geen" />
-      </MemoryRouter>,
+      WRAP_END,
     );
     expect(screen.getByText('Eigenaar nabellen')).toBeInTheDocument();
   });
