@@ -51,7 +51,7 @@ export default function ScrollToTopButton() {
       type="button"
       onClick={naarBoven}
       aria-label="Naar boven"
-      className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full
+      className={`fixed right-5 sm:right-6 bottom-[calc(env(safe-area-inset-bottom)+5rem)] lg:bottom-6 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full
         glass-fab text-primary-foreground
         flex items-center justify-center
         ring-1 ring-accent/30

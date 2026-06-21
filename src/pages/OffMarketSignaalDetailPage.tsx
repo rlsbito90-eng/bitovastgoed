@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ChevronLeft, ChevronRight,
-  BadgeCheck, FileText, Search, Landmark, Mail, CheckSquare, Server,
-  UserSearch, MoreHorizontal,
+  BadgeCheck, Search, Landmark, Mail, CheckSquare, Server,
 } from 'lucide-react';
 
 import SignaalDetailHeader from '@/components/offmarket/SignaalDetailHeader';
@@ -34,9 +33,9 @@ import SignaalMobileHeader from '@/components/offmarket/mobile/SignaalMobileHead
 import SignaalMobileCockpit from '@/components/offmarket/mobile/SignaalMobileCockpit';
 import SignaalMobileActionBar from '@/components/offmarket/mobile/SignaalMobileActionBar';
 import SignaalMobileBronregel from '@/components/offmarket/mobile/SignaalMobileBronregel';
-import SignaalMobileEigenaarWorkflow from '@/components/offmarket/mobile/SignaalMobileEigenaarWorkflow';
 import ClassificatieReadonlyCard from '@/components/offmarket/mobile/ClassificatieReadonlyCard';
-import MeerOnderzoeksactiesDisclosure from '@/components/offmarket/mobile/MeerOnderzoeksactiesDisclosure';
+import MobileTabbarScroller from '@/components/offmarket/mobile/MobileTabbarScroller';
+
 
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ListNavigator from '@/components/ListNavigator';
@@ -64,12 +63,14 @@ const DESKTOP_TABS: { value: string; label: string; Icon: any }[] = [
   { value: 'technisch', label: 'Technisch', Icon: Server },
 ];
 
+// Mobiel: dezelfde 6 dossier-tabs als desktop, met korte labels voor smalle viewports.
 const MOBILE_TABS: { value: string; label: string; Icon: any }[] = [
   { value: 'overzicht', label: 'Overzicht', Icon: BadgeCheck },
   { value: 'onderzoek', label: 'Onderzoek', Icon: Search },
-  { value: 'eigenaar', label: 'Eigenaar', Icon: UserSearch },
-  { value: 'opvolging', label: 'Opvolging', Icon: Mail },
-  { value: 'meer', label: 'Meer', Icon: MoreHorizontal },
+  { value: 'kadaster', label: 'Kadaster', Icon: Landmark },
+  { value: 'brieven', label: 'Brieven', Icon: Mail },
+  { value: 'taken', label: 'Taken', Icon: CheckSquare },
+  { value: 'technisch', label: 'Technisch', Icon: Server },
 ];
 
 export default function OffMarketSignaalDetailPage() {
@@ -255,28 +256,35 @@ export default function OffMarketSignaalDetailPage() {
           onEdit={() => setEditOpen(true)}
           onArchive={() => setArchiveOpen(true)}
         />
-        <SignaalMobileCockpit signaal={signaal} taken={taken} briefStatus={briefStatus} />
+        <SignaalMobileCockpit
+          signaal={signaal}
+          taken={taken}
+          briefStatus={briefStatus}
+          onTaakAanmaken={() => setTaakOpen(true)}
+          onOpenTaken={() => setMobileTab('taken')}
+        />
         <SignaalMobileActionBar signaal={signaal} />
 
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="pt-1">
-          <div className="glass-mobile-tabbar px-1 py-1">
-            <TabsList
-              data-testid="signaal-mobile-tabs"
-              className="tabs-scroll bg-transparent p-0 h-auto rounded-none gap-0.5"
-            >
-              {MOBILE_TABS.map((t) => (
-                <TabsTrigger
-                  key={t.value}
-                  value={t.value}
-                  className="mobile-tab-pill data-[state=active]:!shadow-none"
-                >
-                  <t.Icon className="h-3.5 w-3.5 mr-1" />
-                  {t.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <div className="glass-tabbar px-1.5 py-1">
+            <MobileTabbarScroller activeValue={mobileTab}>
+              <TabsList
+                data-testid="signaal-mobile-tabs"
+                className="bg-transparent p-0 h-auto rounded-none gap-1 flex w-max justify-start"
+              >
+                {MOBILE_TABS.map((t) => (
+                  <TabsTrigger
+                    key={t.value}
+                    value={t.value}
+                    className="glass-tab-pill data-[state=active]:!shadow-none whitespace-nowrap"
+                  >
+                    <t.Icon className="h-3.5 w-3.5 mr-1" />
+                    {t.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </MobileTabbarScroller>
           </div>
-
 
           <TabsContent value="overzicht" className="space-y-3 mt-3">
             <SignaalSnelleActiesBar signaal={signaal} />
@@ -289,26 +297,36 @@ export default function OffMarketSignaalDetailPage() {
           </TabsContent>
 
           <TabsContent value="onderzoek" className="space-y-3 mt-3">
+            <SignaalOnderzoeksacties signaal={signaal} />
             <SignaalMobileGebiedsindeling signaal={signaal} />
             <SignaalMobileBronregel signaal={signaal} />
-            <MeerOnderzoeksactiesDisclosure signaal={signaal} />
+            <BagOverzichtKaart
+              signaal={signaal}
+              onOpenKadaster={() => setMobileTab('kadaster')}
+            />
           </TabsContent>
 
-          <TabsContent value="eigenaar" className="space-y-3 mt-3">
-            <SignaalMobileEigenaarWorkflow signaal={signaal} />
+          <TabsContent value="kadaster" className="space-y-3 mt-3">
+            <SignaalKadasterKaart signaal={signaal} />
+            <SignaalEigenaarsonderzoekSectie signaal={signaal} />
+            <SignaalKoppelingenSectie signaal={signaal} />
           </TabsContent>
 
-          <TabsContent value="opvolging" className="space-y-3 mt-3">
+          <TabsContent value="brieven" className="space-y-3 mt-3">
             <SignaalBrievenSectie signaal={signaal} />
+          </TabsContent>
+
+          <TabsContent value="taken" className="space-y-3 mt-3">
             <SignaalTakenSectie signaalId={signaal.id} />
             <SignaalTijdlijnSectie signaalId={signaal.id} />
           </TabsContent>
 
-          <TabsContent value="meer" className="space-y-3 mt-3">
+          <TabsContent value="technisch" className="space-y-3 mt-3">
             <SignaalTechnischeDetails signaal={signaal} />
           </TabsContent>
         </Tabs>
       </div>
+
 
       <SignaalFormDialog open={editOpen} onOpenChange={setEditOpen} signaal={signaal} />
       <OffMarketArchiveDialog open={archiveOpen} onOpenChange={setArchiveOpen} onConfirm={handleArchive} />

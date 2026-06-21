@@ -1,19 +1,26 @@
 // Compacte mobiele samenvatting voor signaaldetail.
 // Vervangt op mobiel zowel SignaalKpiBar als SignaalCockpit. Geen horizontale
 // scroll, geen afgekapte teksten, rustige hiërarchie.
+// V31 — uitgebreid met BAG-status, Kadasteradvies (alleen bij verrijkt),
+// compacte StatusWijzigDropdown en taakacties. Geen nieuwe queries.
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ListPlus, ListChecks } from 'lucide-react';
 import {
   OffMarketEigenaarstatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
+import KadasteradviesBadge from '@/components/offmarket/bag/KadasteradviesBadge';
 import {
   ASSETTYPE_LABEL,
   type OffMarketSignaal,
 } from '@/lib/offMarket/types';
 import { formatGebiedsindeling } from '@/lib/offMarket/geo';
 import { bepaalVolgendeActie, formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
+import { berekenKadasteradvies } from '@/lib/offMarket/bag/kadasteradvies';
+import type { SignaalBagInput } from '@/lib/offMarket/bag/types';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
@@ -22,9 +29,15 @@ interface Props {
   signaal: OffMarketSignaal;
   taken: Taak[];
   briefStatus: BriefStatus;
+  onTaakAanmaken?: () => void;
+  onOpenTaken?: () => void;
 }
 
-export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Props) {
+const OPEN_STATUSSEN = new Set(['open', 'in_uitvoering', 'wacht_op_reactie']);
+
+export default function SignaalMobileCockpit({
+  signaal, taken, briefStatus, onTaakAanmaken, onOpenTaken,
+}: Props) {
   const { getRelatieById } = useDataStore();
   const va = bepaalVolgendeActie(signaal, taken, signaal.id);
   const eigenaarstatus = (signaal as any).eigenaarstatus ?? 'onbekend';
@@ -41,6 +54,15 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
   const strategieRuw = (signaal.potentiele_strategie || signaal.ai_strategie_suggestie || '').trim();
   const strategieLang = strategieRuw.length > 90;
   const gebied = formatGebiedsindeling(signaal as any);
+
+  const bagStatus =
+    ((signaal as unknown as { bag_status?: string | null }).bag_status as string | null | undefined) ?? 'niet_verrijkt';
+  const bagVerrijkt = bagStatus === 'verrijkt';
+  const advies = berekenKadasteradvies(signaal as unknown as SignaalBagInput);
+
+  const heeftOpenTaken = taken.some(
+    (t) => t.offMarketSignaalId === signaal.id && OPEN_STATUSSEN.has(t.status) && !t.softDeletedAt,
+  );
 
   return (
     <section
@@ -80,14 +102,29 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
         </div>
       </div>
 
+      {/* BAG / Kadaster-samenvatting */}
+      <div
+        data-testid="mobile-cockpit-bag-rij"
+        className="flex flex-wrap items-center gap-1.5 pt-0.5"
+      >
+        <BagKaartBadge signaal={{ bag_status: bagStatus as any, kadasteradvies: null }} size="sm" />
+        {bagVerrijkt && (
+          <KadasteradviesBadge niveau={advies.niveau} size="sm" />
+        )}
+      </div>
 
       <hr className="border-border/60" />
 
-      <Rij label="Eigenaar">
+      <Rij label="Status">
         <div className="flex items-center gap-1.5 min-w-0 justify-end">
+          <StatusWijzigDropdown signaal={signaal} variant="compact" />
+        </div>
+      </Rij>
+      <Rij label="Eigenaar">
+        <div className="flex items-center gap-1.5 min-w-0 justify-end flex-wrap">
           <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
           {eigenaarNaam && (
-            <span className="text-[11px] text-muted-foreground truncate max-w-[110px]">
+            <span className="text-[11px] text-muted-foreground break-words max-w-[150px] text-right">
               {eigenaarNaam}
             </span>
           )}
@@ -100,9 +137,9 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
         <Rij label="Relatie">
           <Link
             to={`/relaties/${relatie.id}`}
-            className="text-[12px] text-accent hover:underline inline-flex items-center gap-1 truncate max-w-[180px]"
+            className="text-[12px] text-accent hover:underline inline-flex items-center gap-1 break-words max-w-[180px]"
           >
-            <span className="truncate">
+            <span className="break-words text-right">
               {relatie.bedrijfsnaam || relatie.contactpersoon || 'Relatie'}
             </span>
             <ArrowUpRight className="h-3 w-3 shrink-0" />
@@ -134,6 +171,33 @@ export default function SignaalMobileCockpit({ signaal, taken, briefStatus }: Pr
           <p className="text-[12px] text-muted-foreground">Geen open taak gepland.</p>
         )}
       </div>
+
+      {(onTaakAanmaken || (heeftOpenTaken && onOpenTaken)) && (
+        <div className="flex flex-wrap gap-1.5 pt-1" data-testid="mobile-cockpit-taakacties">
+          {onTaakAanmaken && (
+            <button
+              type="button"
+              onClick={onTaakAanmaken}
+              data-testid="mobile-cockpit-taak-aanmaken"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-card text-[12px] text-foreground hover:border-accent/50 hover:text-accent"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              Taak aanmaken
+            </button>
+          )}
+          {heeftOpenTaken && onOpenTaken && (
+            <button
+              type="button"
+              onClick={onOpenTaken}
+              data-testid="mobile-cockpit-open-taken"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-card text-[12px] text-foreground hover:border-accent/50 hover:text-accent"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              Open taken
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -155,10 +219,6 @@ function Cel({ label, waarde, accent, clamp, title }: { label: string; waarde: s
     </div>
   );
 }
-
-// (oude korteStrategie helper verwijderd — strategie wordt nu volledig getoond
-// met een Meer/Minder-toggle wanneer hij lang is.)
-
 
 function Rij({ label, children }: { label: string; children: React.ReactNode }) {
   return (

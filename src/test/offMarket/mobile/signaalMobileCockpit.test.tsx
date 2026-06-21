@@ -1,12 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SignaalMobileCockpit from '@/components/offmarket/mobile/SignaalMobileCockpit';
 import { maakTestSignaal } from './_fixture';
 
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({ getRelatieById: () => null }),
 }));
+vi.mock('@/hooks/useOffMarketSignalen', () => ({
+  useUpdateOffMarketSignaal: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+function wrap(ui: React.ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 describe('SignaalMobileCockpit', () => {
   it('rendert AI-score, verkoopkans en gebied-regel', () => {
@@ -16,9 +29,9 @@ describe('SignaalMobileCockpit', () => {
       potentiele_strategie: 'Splitsingspotentie',
     } as any);
     render(
-      <MemoryRouter>
+      wrap(
         <SignaalMobileCockpit signaal={signaal} taken={[]} briefStatus="geen" />
-      </MemoryRouter>,
+      ),
     );
     expect(screen.getByTestId('signaal-mobile-cockpit')).toBeInTheDocument();
     expect(screen.getByText('76')).toBeInTheDocument();
@@ -33,9 +46,9 @@ describe('SignaalMobileCockpit', () => {
       volgende_actie_datum: '2026-07-01',
     } as any);
     render(
-      <MemoryRouter>
+      wrap(
         <SignaalMobileCockpit signaal={signaal} taken={[]} briefStatus="geen" />
-      </MemoryRouter>,
+      ),
     );
     expect(screen.getByText('Eigenaar nabellen')).toBeInTheDocument();
   });
