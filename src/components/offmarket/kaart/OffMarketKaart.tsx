@@ -501,46 +501,64 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
     return [s.geo_gemeente_naam, s.geo_wijk_naam, s.geo_buurt_naam].filter(Boolean).join(' · ') || null;
   })();
   return (
-    <div className="space-y-2 min-w-[240px] max-w-[300px]">
+    <div
+      data-testid="pin-preview"
+      className="flex flex-col min-w-[240px] max-w-[300px]"
+      style={{ maxHeight: '60vh' }}
+    >
+      {/* Scrollbare inhoud — voorkomt clipping van acties bij volle popups. */}
       <div
-        className="text-sm font-semibold leading-snug text-foreground break-words"
-        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        className="space-y-2 overflow-y-auto overflow-x-hidden pr-0.5"
+        style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
       >
-        {formatSignaalTitel(signaal)}
+        <div
+          className="text-sm font-semibold leading-snug text-foreground break-words"
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        >
+          {formatSignaalTitel(signaal)}
+        </div>
+        <div className="text-xs text-muted-foreground leading-snug break-words">
+          {[cleanAdres(signaal.adres), [signaal.postcode, cleanPlaats(signaal.plaats)].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
+        </div>
+        {gebied && (
+          <div className="text-[11px] text-muted-foreground leading-snug">{gebied}</div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
+          <OffMarketStatusBadge status={signaal.status} />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <AiScoreBadge score={signaal.ai_score} status={signaal.ai_status} />
+          <BagKaartBadge signaal={signaal} />
+        </div>
+        <BagPopupDetailRegel signaal={signaal} />
+        <div className="text-[11px] text-muted-foreground">
+          {SIGNAALTYPE_LABEL[signaal.type_signaal] ?? signaal.type_signaal}
+          {signaal.bron_type ? ` · ${BRON_TYPE_LABEL[signaal.bron_type] ?? signaal.bron_type}` : ''}
+          {signaal.bron_datum ? ` · ${new Date(signaal.bron_datum).toLocaleDateString('nl-NL')}` : ''}
+        </div>
       </div>
-      <div className="text-xs text-muted-foreground leading-snug break-words">
-        {[cleanAdres(signaal.adres), [signaal.postcode, cleanPlaats(signaal.plaats)].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
-      </div>
-      {gebied && (
-        <div className="text-[11px] text-muted-foreground leading-snug">{gebied}</div>
-      )}
-      <div className="flex flex-wrap gap-1">
-        <OffMarketPriorityBadge prioriteit={signaal.prioriteit} />
-        <OffMarketStatusBadge status={signaal.status} />
-      </div>
-      <div className="flex flex-wrap gap-1">
-        <AiScoreBadge score={signaal.ai_score} status={signaal.ai_status} />
-        <BagKaartBadge signaal={signaal} />
-      </div>
-      <BagPopupDetailRegel signaal={signaal} />
-      <div className="text-[11px] text-muted-foreground">
-        {SIGNAALTYPE_LABEL[signaal.type_signaal] ?? signaal.type_signaal}
-        {signaal.bron_type ? ` · ${BRON_TYPE_LABEL[signaal.bron_type] ?? signaal.bron_type}` : ''}
-        {signaal.bron_datum ? ` · ${new Date(signaal.bron_datum).toLocaleDateString('nl-NL')}` : ''}
-      </div>
-      <Button
-        size="sm"
-        className="w-full mt-1 bg-accent text-accent-foreground hover:bg-accent/90 font-medium"
-        onClick={onOpen}
+
+      {/* Vaste actiezone — altijd bereikbaar, ook bij volle popups. */}
+      <div
+        data-testid="pin-preview-acties"
+        className="flex flex-col gap-1.5 pt-2 mt-2 border-t border-border/60 shrink-0"
       >
-        <ExternalLink className="h-3.5 w-3.5" />
-        Open signaal
-      </Button>
-      <ToevoegenAanAcquisitieSelectieKnop
-        signaalId={signaal.id}
-        variant="compact"
-        className="w-full"
-      />
+        <Button
+          size="sm"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-medium"
+          onClick={onOpen}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Open signaal
+        </Button>
+        <ToevoegenAanAcquisitieSelectieKnop
+          signaalId={signaal.id}
+          variant="compact"
+          className="w-full"
+        />
+      </div>
     </div>
   );
 }
+
