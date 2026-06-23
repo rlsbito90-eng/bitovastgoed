@@ -116,6 +116,7 @@ export default function AcquisitieSelectieTab() {
                   <ToevoegenAanAcquisitieSelectieKnop
                     signaalId={signaal.id}
                     variant="compact"
+                    labelMode="remove"
                     isInSelectie
                   />
                 </div>
