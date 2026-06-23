@@ -50,7 +50,7 @@ describe('SignalenTable mobiele card-actie', () => {
     expect(knop.getAttribute('aria-label')).toMatch(/acquisitieselectie/i);
   });
 
-  it('toont andere icoon en label wanneer reeds in selectie', () => {
+  it('toont "Uit selectie" wanneer reeds in selectie en behoudt aria-label', () => {
     selSet = new Set(['sig-mob']);
     render(
       <MemoryRouter>
@@ -59,8 +59,21 @@ describe('SignalenTable mobiele card-actie', () => {
     );
     const knop = screen.getAllByTestId('acquisitie-selectie-toggle')[0];
     expect(knop.getAttribute('data-in-selectie')).toBe('true');
-    expect(knop.textContent).toMatch(/In selectie/i);
-    // Icoon-element heeft een ander pad — controleer aanwezigheid van svg.
+    expect(knop.textContent).toMatch(/Uit selectie/i);
+    expect(knop.textContent).not.toMatch(/^In selectie$/);
     expect(knop.querySelector('svg')).not.toBeNull();
+  });
+
+  it('mobiele card heeft maximaal één zichtbare "In selectie"-tekst (badge, geen actieknop)', () => {
+    selSet = new Set(['sig-mob']);
+    const { container } = render(
+      <MemoryRouter>
+        <SignalenTable signalen={[sig]} laden={false} />
+      </MemoryRouter>,
+    );
+    const mobileCard = container.querySelector('.sm\\:hidden');
+    expect(mobileCard).not.toBeNull();
+    const occurrences = (mobileCard!.textContent || '').match(/In selectie/g) ?? [];
+    expect(occurrences.length).toBe(1);
   });
 });
