@@ -509,7 +509,13 @@ function OffMarketHoofdTabbar({
     >
       <div
         ref={ref}
-        className="flex items-center gap-1 border-b border-border/60 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        className="flex items-center gap-1 border-b border-border/60 flex-nowrap min-w-max overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          overscrollBehaviorX: 'contain',
+          overscrollBehaviorY: 'auto',
+          touchAction: 'pan-x',
+        }}
         data-testid="off-market-hoofd-tabbar"
       >
         {tabs.map(t => {
@@ -518,6 +524,8 @@ function OffMarketHoofdTabbar({
             <button
               key={t.id}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setTab(t.id)}
               data-testid={`off-market-tab-${t.id}`}
               data-state={active ? 'active' : 'inactive'}
@@ -540,4 +548,5 @@ function OffMarketHoofdTabbar({
     </div>
   );
 }
+
 
