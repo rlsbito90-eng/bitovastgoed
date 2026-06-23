@@ -9,6 +9,8 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
+import AcquisitieSelectieTab from '@/components/offmarket/acquisitie/AcquisitieSelectieTab';
+import { useAcquisitieSelectieCount } from '@/hooks/useAcquisitieSelectie';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
