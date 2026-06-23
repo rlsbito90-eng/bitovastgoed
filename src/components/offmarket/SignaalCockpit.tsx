@@ -125,6 +125,15 @@ export default function SignaalCockpit({
         </Row>
       </div>
 
+      {/* Acquisitieselectie-toggle */}
+      <div className="section-card p-3">
+        <ToevoegenAanAcquisitieSelectieKnop
+          signaalId={signaal.id}
+          variant="compact"
+          className="w-full justify-center"
+        />
+      </div>
+
       {/* Volgende acties — toont meerdere open opvolgingen */}
       <VolgendeActiesBlok
         signaalId={signaal.id}
