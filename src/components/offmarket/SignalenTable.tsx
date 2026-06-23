@@ -291,14 +291,22 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                       <Sparkles className="h-3 w-3" />{s.ai_score}
                     </span>
                   )}
-                  <ToevoegenAanAcquisitieSelectieKnop
-                    signaalId={s.id}
-                    variant="icon"
-                    isInSelectie={selectieIds.has(s.id)}
-                    stopPropagation
-                  />
                 </div>
               </div>
+              <div className="mt-2 flex justify-end">
+                <ToevoegenAanAcquisitieSelectieKnop
+                  signaalId={s.id}
+                  variant="compact"
+                  isInSelectie={selectieIds.has(s.id)}
+                  stopPropagation
+                  className={
+                    selectieIds.has(s.id)
+                      ? 'h-8 px-2 text-[12px] border-accent/60 bg-accent/10 text-accent'
+                      : 'h-8 px-2 text-[12px]'
+                  }
+                />
+              </div>
+
               <div className="flex items-center flex-wrap gap-1.5 mt-2">
                 <OffMarketStatusBadge status={s.status} />
                 <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />

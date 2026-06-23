@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, ListChecks } from 'lucide-react';
+
 import PageHeader from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -300,28 +301,8 @@ export default function OffMarketPage() {
       <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 
 
-      <div className="flex items-center gap-1 border-b border-border/60 overflow-x-auto">
-        {(['dashboard', 'signalen', 'kaart', 'acquisitieselectie'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            data-testid={`off-market-tab-${t}`}
-            className={`whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
-              tab === t
-                ? 'border-accent text-foreground font-medium'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'dashboard'
-              ? 'Dashboard'
-              : t === 'signalen'
-                ? `Signalen (${signalen.length})`
-                : t === 'kaart'
-                  ? 'Kaart'
-                  : `Acquisitieselectie (${selectieCount})`}
-          </button>
-        ))}
-      </div>
+      <OffMarketHoofdTabbar tab={tab} setTab={setTab} signalenCount={signalen.length} selectieCount={selectieCount} />
+
 
       {tab === 'dashboard' && (
         <section className="space-y-4">
@@ -475,9 +456,10 @@ export default function OffMarketPage() {
                 {DATUMBUCKET_LABEL[b]}
               </button>
             ))}
-            <span className="ml-auto text-xs text-muted-foreground self-center">
-              {gefilterd.filter(s => matchBucket(s, datumBucket)).length} signalen in selectie
+            <span className="ml-auto text-xs text-muted-foreground self-center" data-testid="kaart-filtertotaal">
+              {gefilterd.filter(s => matchBucket(s, datumBucket)).length} signalen binnen filters
             </span>
+
           </div>
           <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
         </section>
@@ -487,3 +469,75 @@ export default function OffMarketPage() {
     </div>
   );
 }
+
+// Horizontaal scrollbare hoofdtabbar met edge-fade en autoscroll naar actieve tab.
+// Desktop blijft visueel ongewijzigd (mask werkt alleen bij overflow).
+function OffMarketHoofdTabbar({
+  tab, setTab, signalenCount, selectieCount,
+}: {
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  signalenCount: number;
+  selectieCount: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const active = root.querySelector<HTMLElement>(`[data-state="active"]`);
+    if (active && typeof active.scrollIntoView === 'function') {
+      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+    }
+  }, [tab]);
+
+  const tabs: Array<{ id: Tab; mobileLabel: string; desktopLabel: string; icon?: boolean }> = [
+    { id: 'dashboard', mobileLabel: 'Dashboard', desktopLabel: 'Dashboard' },
+    { id: 'signalen', mobileLabel: `Signalen (${signalenCount})`, desktopLabel: `Signalen (${signalenCount})` },
+    { id: 'kaart', mobileLabel: 'Kaart', desktopLabel: 'Kaart' },
+    { id: 'acquisitieselectie', mobileLabel: `Selectie (${selectieCount})`, desktopLabel: `Acquisitieselectie (${selectieCount})`, icon: true },
+  ];
+
+  return (
+    <div
+      className="relative"
+      style={{
+        WebkitMaskImage:
+          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
+        maskImage:
+          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
+      }}
+    >
+      <div
+        ref={ref}
+        className="flex items-center gap-1 border-b border-border/60 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-testid="off-market-hoofd-tabbar"
+      >
+        {tabs.map(t => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              data-testid={`off-market-tab-${t.id}`}
+              data-state={active ? 'active' : 'inactive'}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                active
+                  ? 'border-accent text-foreground font-medium'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t.icon && <ListChecks className="h-3.5 w-3.5" />}
+              <span className="sm:hidden">{t.mobileLabel}</span>
+              <span className="hidden sm:inline">{t.desktopLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Fade-overlays mogen interactie nooit blokkeren. */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-3" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-3" aria-hidden="true" />
+    </div>
+  );
+}
+
