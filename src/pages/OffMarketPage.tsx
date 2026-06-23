@@ -29,7 +29,7 @@ import {
   type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
-type Tab = 'dashboard' | 'signalen' | 'kaart';
+type Tab = 'dashboard' | 'signalen' | 'kaart' | 'acquisitieselectie';
 
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
