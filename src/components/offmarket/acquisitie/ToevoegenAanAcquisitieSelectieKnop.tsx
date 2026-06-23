@@ -83,9 +83,12 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
   const label = pending
     ? (inSelectie ? 'Verwijderen…' : 'Toevoegen…')
     : inSelectie
-      ? 'Uit selectie'
-      : 'Toevoegen aan selectie';
-  const Icon = pending ? Loader2 : inSelectie ? X : ListPlus;
+      ? (variant === 'compact' ? 'In selectie' : 'Uit selectie')
+      : variant === 'compact' ? 'Toevoegen' : 'Toevoegen aan selectie';
+  const ariaLabel = inSelectie
+    ? 'Verwijder dit signaal uit de acquisitieselectie'
+    : 'Voeg dit signaal toe aan de acquisitieselectie';
+  const Icon = pending ? Loader2 : inSelectie ? ListChecks : ListPlus;
 
   return (
     <Button
@@ -95,7 +98,9 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
       onClick={handleClick}
       disabled={pending}
       aria-pressed={inSelectie}
+      aria-label={ariaLabel}
       data-testid="acquisitie-selectie-toggle"
+      data-variant={variant}
       data-in-selectie={inSelectie ? 'true' : 'false'}
       className={className}
     >
@@ -104,3 +109,4 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
     </Button>
   );
 }
+
