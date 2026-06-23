@@ -299,18 +299,25 @@ export default function OffMarketPage() {
       <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 
 
-      <div className="flex items-center gap-1 border-b border-border/60">
-        {(['dashboard', 'signalen', 'kaart'] as const).map(t => (
+      <div className="flex items-center gap-1 border-b border-border/60 overflow-x-auto">
+        {(['dashboard', 'signalen', 'kaart', 'acquisitieselectie'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+            data-testid={`off-market-tab-${t}`}
+            className={`whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
               tab === t
                 ? 'border-accent text-foreground font-medium'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'dashboard' ? 'Dashboard' : t === 'signalen' ? `Signalen (${signalen.length})` : 'Kaart'}
+            {t === 'dashboard'
+              ? 'Dashboard'
+              : t === 'signalen'
+                ? `Signalen (${signalen.length})`
+                : t === 'kaart'
+                  ? 'Kaart'
+                  : `Acquisitieselectie (${selectieCount})`}
           </button>
         ))}
       </div>
