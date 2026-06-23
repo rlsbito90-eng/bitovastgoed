@@ -14,6 +14,9 @@ import { relevantieBucket } from '@/lib/offMarket/relevantie';
 import { cleanPlaats, cleanAdres, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
+import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
+import InSelectieBadge from '@/components/offmarket/acquisitie/InSelectieBadge';
+import { useActieveSelectieIds } from '@/hooks/useAcquisitieSelectie';
 
 interface Props {
   signalen: OffMarketSignaal[];
