@@ -21,6 +21,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
 
