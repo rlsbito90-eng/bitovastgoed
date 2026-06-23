@@ -320,11 +320,13 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
               {actieveKolommen.map(k => (
                 <TableHead key={k.id} className={k.headerClassName}>{k.label}</TableHead>
               ))}
+              <TableHead className="w-12 text-right">Sel.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map(s => {
               const isHighlighted = highlightedId === s.id;
+              const inSelectie = selectieIds.has(s.id);
               return (
                 <TableRow
                   key={s.id}
@@ -335,16 +337,27 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                 >
                   {actieveKolommen.map((k, i) => (
                     <TableCell key={k.id} className={k.cellClassName}>
-                      {i === 0 && isHighlighted ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
-                            <Eye className="h-3 w-3" /> Laatst bekeken
-                          </span>
+                      {i === 0 && (isHighlighted || inSelectie) ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isHighlighted && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                              <Eye className="h-3 w-3" /> Laatst bekeken
+                            </span>
+                          )}
+                          {inSelectie && <InSelectieBadge />}
                           {k.render(s, ctx)}
                         </div>
                       ) : k.render(s, ctx)}
                     </TableCell>
                   ))}
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <ToevoegenAanAcquisitieSelectieKnop
+                      signaalId={s.id}
+                      variant="icon"
+                      isInSelectie={inSelectie}
+                      stopPropagation
+                    />
+                  </TableCell>
                 </TableRow>
               );
             })}
