@@ -16,20 +16,37 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
 import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 
 describe('ToevoegenAanAcquisitieSelectieKnop', () => {
-  it('toont "Toevoegen aan selectie" wanneer niet geselecteerd', () => {
+  it('toont "Toevoegen aan acquisitieselectie" wanneer niet geselecteerd (long)', () => {
     isIn = false;
     render(<ToevoegenAanAcquisitieSelectieKnop signaalId="sig-1" />);
     const btn = screen.getByTestId('acquisitie-selectie-toggle');
     expect(btn).toHaveAttribute('data-in-selectie', 'false');
-    expect(btn.textContent).toMatch(/Toevoegen aan selectie/i);
+    expect(btn.textContent).toMatch(/Toevoegen aan acquisitieselectie/i);
   });
 
-  it('toont "Uit selectie" wanneer wel geselecteerd', () => {
+  it('toont "Uit acquisitieselectie" wanneer wel geselecteerd (long)', () => {
     isIn = true;
     render(<ToevoegenAanAcquisitieSelectieKnop signaalId="sig-2" />);
     const btn = screen.getByTestId('acquisitie-selectie-toggle');
     expect(btn).toHaveAttribute('data-in-selectie', 'true');
-    expect(btn.textContent).toMatch(/Uit selectie/i);
+    expect(btn.textContent).toMatch(/Uit acquisitieselectie/i);
+  });
+
+  it('compact-variant gebruikt korte labels', () => {
+    isIn = false;
+    const { rerender } = render(<ToevoegenAanAcquisitieSelectieKnop signaalId="c-1" variant="compact" />);
+    expect(screen.getByTestId('acquisitie-selectie-toggle').textContent).toMatch(/^.*Aan selectie/i);
+    isIn = true;
+    rerender(<ToevoegenAanAcquisitieSelectieKnop signaalId="c-1" variant="compact" />);
+    expect(screen.getByTestId('acquisitie-selectie-toggle').textContent).toMatch(/Uit selectie/i);
+  });
+
+  it('labelMode="remove" toont "Verwijderen" met juist aria-label', () => {
+    isIn = true;
+    render(<ToevoegenAanAcquisitieSelectieKnop signaalId="r-1" variant="compact" labelMode="remove" />);
+    const btn = screen.getByTestId('acquisitie-selectie-toggle');
+    expect(btn.textContent).toMatch(/Verwijderen/);
+    expect(btn.getAttribute('aria-label')).toMatch(/Verwijder dit signaal uit de acquisitieselectie/i);
   });
 
   it('roept toevoegen aan bij klik', async () => {
