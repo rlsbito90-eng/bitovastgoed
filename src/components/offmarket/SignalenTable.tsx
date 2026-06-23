@@ -274,6 +274,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                     <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
                       {vergunningLabel(s)}
                     </span>
+                    {selectieIds.has(s.id) && <InSelectieBadge />}
                     {isHighlighted && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
                         <Eye className="h-3 w-3" /> Laatst bekeken
@@ -284,11 +285,19 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                     {formatSignaalAdres(s) || cleanAdres(s.adres) || '—'}
                   </p>
                 </div>
-                {typeof s.ai_score === 'number' && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-mono-data shrink-0">
-                    <Sparkles className="h-3 w-3" />{s.ai_score}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {typeof s.ai_score === 'number' && (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-mono-data">
+                      <Sparkles className="h-3 w-3" />{s.ai_score}
+                    </span>
+                  )}
+                  <ToevoegenAanAcquisitieSelectieKnop
+                    signaalId={s.id}
+                    variant="icon"
+                    isInSelectie={selectieIds.has(s.id)}
+                    stopPropagation
+                  />
+                </div>
               </div>
               <div className="flex items-center flex-wrap gap-1.5 mt-2">
                 <OffMarketStatusBadge status={s.status} />
