@@ -11,8 +11,10 @@ import {
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
 import KadasteradviesBadge from '@/components/offmarket/bag/KadasteradviesBadge';
+
 import {
   ASSETTYPE_LABEL,
   type OffMarketSignaal,
