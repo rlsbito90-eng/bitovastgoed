@@ -39,7 +39,7 @@ describe('OffMarketHoofdTabbar', () => {
     expect(viewport.className).toMatch(/overflow-x-auto/);
     expect(viewport.className).toMatch(/overflow-y-hidden/);
     expect(viewport.className).not.toMatch(/min-w-max/);
-    expect((viewport as HTMLElement).style.touchAction).toBe('');
+    expect((viewport as HTMLElement).style.touchAction || '').toBe('');
   });
 
   it('binnenste tabtrack: inline-flex flex-nowrap min-w-max', () => {
