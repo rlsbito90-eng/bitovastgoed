@@ -46,10 +46,10 @@ describe('AcquisitieSelectieTab', () => {
       { id: 'r1', signaal_id: 'sig-1', archived_at: null, toegevoegd_op: '2026-06-20T10:00:00Z', toegevoegd_door: null, notitie: null },
     ];
     const { container } = render(<MemoryRouter><AcquisitieSelectieTab /></MemoryRouter>);
-    // Geen horizontale page-scroll: rij gebruikt flex-col op mobiel.
+    // Rij bevat flex-col container voor mobielvriendelijke stacking.
     const rij = screen.getByTestId('acquisitie-selectie-rij');
-    expect(rij.className).toMatch(/flex-col|sm:flex-row/);
-    // En geen overflow-x of min-w op container.
+    expect(rij.querySelector('.flex-col')).not.toBeNull();
+    // En geen overflow-x op container.
     expect(container.querySelector('.overflow-x-auto')).toBeNull();
   });
 });
