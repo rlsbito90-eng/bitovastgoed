@@ -38,6 +38,7 @@ const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm
 
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
+  const selectieCount = useAcquisitieSelectieCount();
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
