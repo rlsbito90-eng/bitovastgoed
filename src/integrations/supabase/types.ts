@@ -2482,6 +2482,48 @@ export type Database = {
           },
         ]
       }
+      off_market_acquisitie_selectie: {
+        Row: {
+          archived_at: string | null
+          id: string
+          notitie: string | null
+          signaal_id: string
+          toegevoegd_door: string | null
+          toegevoegd_op: string
+        }
+        Insert: {
+          archived_at?: string | null
+          id?: string
+          notitie?: string | null
+          signaal_id: string
+          toegevoegd_door?: string | null
+          toegevoegd_op?: string
+        }
+        Update: {
+          archived_at?: string | null
+          id?: string
+          notitie?: string | null
+          signaal_id?: string
+          toegevoegd_door?: string | null
+          toegevoegd_op?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_market_acquisitie_selectie_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "off_market_signalen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_market_acquisitie_selectie_signaal_id_fkey"
+            columns: ["signaal_id"]
+            isOneToOne: false
+            referencedRelation: "view_off_market_dealpotentie"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       off_market_ai_runs: {
         Row: {
           created_at: string
