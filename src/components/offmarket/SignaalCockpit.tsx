@@ -123,16 +123,18 @@ export default function SignaalCockpit({
         <Row label="Gebied">
           <span className="text-xs text-foreground truncate">{formatGebiedsindeling(signaal as any)}</span>
         </Row>
+
+        {/* Acquisitieselectie-toggle — binnen cockpitkaart, met subtiele divider. */}
+        <div className="pt-3 mt-1 border-t border-border/60">
+          <ToevoegenAanAcquisitieSelectieKnop
+            signaalId={signaal.id}
+            variant="default"
+            labelMode="long"
+            className="w-full justify-center"
+          />
+        </div>
       </div>
 
-      {/* Acquisitieselectie-toggle */}
-      <div className="section-card p-3">
-        <ToevoegenAanAcquisitieSelectieKnop
-          signaalId={signaal.id}
-          variant="compact"
-          className="w-full justify-center"
-        />
-      </div>
 
       {/* Volgende acties — toont meerdere open opvolgingen */}
       <VolgendeActiesBlok
