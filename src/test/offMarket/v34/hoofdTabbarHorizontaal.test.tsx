@@ -1,4 +1,4 @@
-// V34 — Mobiele hoofdtabbar mag uitsluitend horizontaal scrollen.
+// V34 — Mobiele hoofdtabbar mag uitsluitend horizontaal scrollen binnen de tabviewport.
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -30,16 +30,24 @@ function renderPage() {
 }
 
 describe('OffMarketHoofdTabbar', () => {
-  it('heeft horizontale en geen verticale overflow', () => {
+  it('buitenste viewport: w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden, geen min-w-max, geen pan-x', () => {
     renderPage();
-    const bar = screen.getByTestId('off-market-hoofd-tabbar');
-    expect(bar.className).toMatch(/overflow-x-auto/);
-    expect(bar.className).toMatch(/overflow-y-hidden/);
-    expect(bar.className).toMatch(/flex-nowrap/);
-    expect(bar.className).toMatch(/min-w-max/);
-    // touch-action en overscroll-behavior gezet via inline style.
-    expect((bar as HTMLElement).style.touchAction).toBe('pan-x');
-    expect((bar as HTMLElement).style.overscrollBehaviorX).toBe('contain');
+    const viewport = screen.getByTestId('off-market-hoofd-tabbar');
+    expect(viewport.className).toMatch(/w-full/);
+    expect(viewport.className).toMatch(/min-w-0/);
+    expect(viewport.className).toMatch(/max-w-full/);
+    expect(viewport.className).toMatch(/overflow-x-auto/);
+    expect(viewport.className).toMatch(/overflow-y-hidden/);
+    expect(viewport.className).not.toMatch(/min-w-max/);
+    expect((viewport as HTMLElement).style.touchAction).toBe('');
+  });
+
+  it('binnenste tabtrack: inline-flex flex-nowrap min-w-max', () => {
+    renderPage();
+    const track = screen.getByTestId('off-market-hoofd-tabbar-track');
+    expect(track.className).toMatch(/inline-flex/);
+    expect(track.className).toMatch(/flex-nowrap/);
+    expect(track.className).toMatch(/min-w-max/);
   });
 
   it('rendert alle vier hoofdtabs', () => {
