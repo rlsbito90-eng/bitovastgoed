@@ -482,6 +482,8 @@ export default function OffMarketPage() {
           <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
         </section>
       )}
+
+      {tab === 'acquisitieselectie' && <AcquisitieSelectieTab />}
     </div>
   );
 }
