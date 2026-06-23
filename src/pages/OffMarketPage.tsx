@@ -480,13 +480,32 @@ function OffMarketHoofdTabbar({
   signalenCount: number;
   selectieCount: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // Scrolt uitsluitend de tabviewport (nooit window of parents) zodat de
+  // pagina niet horizontaal verschuift bij tabwisseling.
   useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const active = root.querySelector<HTMLElement>(`[data-state="active"]`);
-    if (active && typeof active.scrollIntoView === 'function') {
-      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+    const active = track.querySelector<HTMLElement>(`[data-state="active"]`);
+    if (!active) return;
+
+    const vRect = viewport.getBoundingClientRect();
+    const aRect = active.getBoundingClientRect();
+    const current = viewport.scrollLeft;
+    const relLeft = aRect.left - vRect.left + current;
+    const relRight = relLeft + aRect.width;
+
+    let next = current;
+    if (relLeft < current) {
+      next = Math.max(0, relLeft - 8);
+    } else if (relRight > current + viewport.clientWidth) {
+      next = relRight - viewport.clientWidth + 8;
+    }
+    if (next !== current) {
+      viewport.scrollTo({ left: next, behavior: 'smooth' });
     }
   }, [tab]);
 
@@ -499,7 +518,7 @@ function OffMarketHoofdTabbar({
 
   return (
     <div
-      className="relative"
+      className="relative w-full min-w-0 max-w-full"
       style={{
         WebkitMaskImage:
           'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
@@ -507,40 +526,44 @@ function OffMarketHoofdTabbar({
           'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
       }}
     >
+      {/* Buitenste scrollviewport: nooit breder dan parent. */}
       <div
-        ref={ref}
-        role="tablist"
-        className="flex items-center gap-1 border-b border-border/60 flex-nowrap min-w-max overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        style={{
-          overscrollBehaviorX: 'contain',
-          overscrollBehaviorY: 'auto',
-          touchAction: 'pan-x',
-        }}
+        ref={viewportRef}
         data-testid="off-market-hoofd-tabbar"
+        className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ overscrollBehaviorX: 'contain' }}
       >
-        {tabs.map(t => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.id)}
-              data-testid={`off-market-tab-${t.id}`}
-              data-state={active ? 'active' : 'inactive'}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
-                active
-                  ? 'border-accent text-foreground font-medium'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t.icon && <ListChecks className="h-3.5 w-3.5" />}
-              <span className="sm:hidden">{t.mobileLabel}</span>
-              <span className="hidden sm:inline">{t.desktopLabel}</span>
-            </button>
-          );
-        })}
+        {/* Binnenste tabtrack: mag breder zijn dan viewport. */}
+        <div
+          ref={trackRef}
+          role="tablist"
+          data-testid="off-market-hoofd-tabbar-track"
+          className="inline-flex items-center gap-1 border-b border-border/60 flex-nowrap min-w-max"
+        >
+          {tabs.map(t => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.id)}
+                data-testid={`off-market-tab-${t.id}`}
+                data-state={active ? 'active' : 'inactive'}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                  active
+                    ? 'border-accent text-foreground font-medium'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t.icon && <ListChecks className="h-3.5 w-3.5" />}
+                <span className="sm:hidden">{t.mobileLabel}</span>
+                <span className="hidden sm:inline">{t.desktopLabel}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       {/* Fade-overlays mogen interactie nooit blokkeren. */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-3" aria-hidden="true" />
