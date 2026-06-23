@@ -9,12 +9,14 @@ vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: [], isLoading: false }),
 }));
 vi.mock('@/hooks/useAcquisitieSelectie', () => ({
+  useAcquisitieSelectie: () => ({ data: [], isLoading: false }),
   useAcquisitieSelectieCount: () => 0,
   useActieveSelectieIds: () => new Set<string>(),
   useIsInAcquisitieSelectie: () => false,
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+
 vi.mock('@/components/offmarket/kaart/OffMarketKaart', () => ({
   default: () => <div data-testid="off-market-kaart-mock" />,
 }));

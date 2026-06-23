@@ -24,7 +24,7 @@ const sig: any = {
   plaats: 'Amsterdam',
   postcode: '1000AA',
   prioriteit: 'laag',
-  status: 'nieuw',
+  status: 'nieuw_signaal',
   type_signaal: 'vergunning',
   ai_score: 42,
   ai_status: 'open',
