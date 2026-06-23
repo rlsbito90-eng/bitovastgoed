@@ -1,7 +1,7 @@
 // V1A — Toggle-knop: voegt signaal toe of verwijdert het uit de centrale
 // Off-Market Acquisitieselectie. Pending-state voorkomt dubbelklik.
 import { useState } from 'react';
-import { ListPlus, ListChecks, Loader2 } from 'lucide-react';
+import { ListPlus, ListChecks, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -11,10 +11,18 @@ import {
 } from '@/hooks/useAcquisitieSelectie';
 
 type Variant = 'default' | 'compact' | 'icon';
+type LabelMode = 'long' | 'short' | 'remove';
 
 interface Props {
   signaalId: string;
   variant?: Variant;
+  /** Tekstvariant.
+   *  - 'long'   : "Toevoegen aan acquisitieselectie" / "Uit acquisitieselectie" (desktop detail)
+   *  - 'short'  : "Aan selectie" / "Uit selectie" (mobiel, kaartpopup, lijst)
+   *  - 'remove' : "Verwijderen" (binnen de Acquisitieselectie-tab)
+   *  Default volgt het variant: default→long, compact→short.
+   */
+  labelMode?: LabelMode;
   /** Eventueel forceren: handig wanneer ouder een eigen statusbron heeft. */
   isInSelectie?: boolean;
   className?: string;
@@ -25,6 +33,7 @@ interface Props {
 export default function ToevoegenAanAcquisitieSelectieKnop({
   signaalId,
   variant = 'default',
+  labelMode,
   isInSelectie,
   className = '',
   stopPropagation = false,
@@ -66,8 +75,9 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
         onClick={handleClick}
         disabled={pending}
         aria-pressed={inSelectie}
-        aria-label={inSelectie ? 'Uit acquisitieselectie verwijderen' : 'Aan acquisitieselectie toevoegen'}
+        aria-label={inSelectie ? 'Verwijder dit signaal uit de acquisitieselectie' : 'Voeg dit signaal toe aan de acquisitieselectie'}
         data-testid="acquisitie-selectie-toggle"
+        data-variant="icon"
         data-in-selectie={inSelectie ? 'true' : 'false'}
         className={`inline-flex items-center justify-center h-9 w-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8 rounded-md border transition-colors disabled:opacity-50 ${
           inSelectie
@@ -80,33 +90,44 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
     );
   }
 
+  const mode: LabelMode = labelMode ?? (variant === 'compact' ? 'short' : 'long');
+  const labelToevoegen =
+    mode === 'long' ? 'Toevoegen aan acquisitieselectie'
+    : mode === 'remove' ? 'Verwijderen'
+    : 'Aan selectie';
+  const labelVerwijderen =
+    mode === 'long' ? 'Uit acquisitieselectie'
+    : mode === 'remove' ? 'Verwijderen'
+    : 'Uit selectie';
   const label = pending
     ? (inSelectie ? 'Verwijderen…' : 'Toevoegen…')
-    : inSelectie
-      ? (variant === 'compact' ? 'In selectie' : 'Uit selectie')
-      : variant === 'compact' ? 'Toevoegen' : 'Toevoegen aan selectie';
-  const ariaLabel = inSelectie
+    : inSelectie ? labelVerwijderen : labelToevoegen;
+  const ariaLabel = inSelectie || mode === 'remove'
     ? 'Verwijder dit signaal uit de acquisitieselectie'
     : 'Voeg dit signaal toe aan de acquisitieselectie';
-  const Icon = pending ? Loader2 : inSelectie ? ListChecks : ListPlus;
+  const Icon = pending
+    ? Loader2
+    : mode === 'remove'
+      ? Trash2
+      : inSelectie ? ListChecks : ListPlus;
 
   return (
     <Button
       type="button"
       size={variant === 'compact' ? 'sm' : 'default'}
-      variant={inSelectie ? 'outline' : 'secondary'}
+      variant={mode === 'remove' ? 'outline' : (inSelectie ? 'outline' : 'secondary')}
       onClick={handleClick}
       disabled={pending}
       aria-pressed={inSelectie}
       aria-label={ariaLabel}
       data-testid="acquisitie-selectie-toggle"
       data-variant={variant}
+      data-label-mode={mode}
       data-in-selectie={inSelectie ? 'true' : 'false'}
-      className={className}
+      className={`min-h-[44px] sm:min-h-0 ${className}`}
     >
       <Icon className={`h-4 w-4 ${pending ? 'animate-spin' : ''}`} />
       {label}
     </Button>
   );
 }
-

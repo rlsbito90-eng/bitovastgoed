@@ -555,6 +555,7 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         <ToevoegenAanAcquisitieSelectieKnop
           signaalId={signaal.id}
           variant="compact"
+          labelMode="short"
           className="w-full"
         />
       </div>

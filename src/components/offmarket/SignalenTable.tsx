@@ -297,12 +297,13 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                 <ToevoegenAanAcquisitieSelectieKnop
                   signaalId={s.id}
                   variant="compact"
+                  labelMode="short"
                   isInSelectie={selectieIds.has(s.id)}
                   stopPropagation
                   className={
                     selectieIds.has(s.id)
-                      ? 'h-8 px-2 text-[12px] border-accent/60 bg-accent/10 text-accent'
-                      : 'h-8 px-2 text-[12px]'
+                      ? 'h-9 px-2 text-[12px] border-accent/60 bg-accent/10 text-accent'
+                      : 'h-9 px-2 text-[12px]'
                   }
                 />
               </div>

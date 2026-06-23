@@ -178,6 +178,7 @@ export default function SignaalMobileCockpit({
         <ToevoegenAanAcquisitieSelectieKnop
           signaalId={signaal.id}
           variant="compact"
+          labelMode="short"
         />
         {(onTaakAanmaken || (heeftOpenTaken && onOpenTaken)) && (
           <>

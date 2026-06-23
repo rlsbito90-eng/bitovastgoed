@@ -53,7 +53,7 @@ describe('PinPreview actiezone', () => {
     expect(acties.textContent).toMatch(/Open signaal/i);
     const toggle = screen.getByTestId('acquisitie-selectie-toggle');
     expect(acties.contains(toggle)).toBe(true);
-    expect(toggle.textContent).toMatch(/Toevoegen/i);
+    expect(toggle.textContent).toMatch(/Aan selectie/i);
   });
 
   it('popup-root respecteert max-hoogte en voorkomt horizontale overflow', () => {
