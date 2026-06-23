@@ -39,7 +39,7 @@ export default function OffMarketPage() {
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
-      return (t === 'signalen' || t === 'dashboard' || t === 'kaart') ? t : 'dashboard';
+      return (t === 'signalen' || t === 'dashboard' || t === 'kaart' || t === 'acquisitieselectie') ? t : 'dashboard';
     } catch { return 'dashboard'; }
   });
   const setTab = (t: Tab) => {
