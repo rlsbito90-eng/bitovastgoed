@@ -236,6 +236,8 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     return SIGNALEN_KOLOMMEN.filter(k => set.has(k.id));
   }, [zichtbareKolommen]);
 
+  const selectieIds = useActieveSelectieIds();
+
   const ctx: SignalenKolomCtx = { relatieNaam };
 
   if (laden) {
