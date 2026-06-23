@@ -7,6 +7,12 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({ relaties: [] }),
 }));
+vi.mock('@/hooks/useAcquisitieSelectie', () => ({
+  useActieveSelectieIds: () => new Set<string>(),
+  useIsInAcquisitieSelectie: () => false,
+  useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 
 const baseSignaal = {
   id: 's1',
