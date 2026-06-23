@@ -46,7 +46,7 @@ describe('SignalenTable mobiele card-actie', () => {
     // Eerste card = mobiele kaartvariant.
     const knop = knoppen[0];
     expect(knop.getAttribute('data-variant')).toBe('compact');
-    expect(knop.textContent).toMatch(/Toevoegen/i);
+    expect(knop.textContent).toMatch(/Aan selectie/i);
     expect(knop.getAttribute('aria-label')).toMatch(/acquisitieselectie/i);
   });
 

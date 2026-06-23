@@ -48,7 +48,7 @@ describe('SignaalMobileCockpit — acquisitie-selectie actie', () => {
     const acties = screen.getByTestId('mobile-cockpit-acties');
     const knop = screen.getByTestId('acquisitie-selectie-toggle');
     expect(acties.contains(knop)).toBe(true);
-    expect(knop.textContent).toMatch(/Toevoegen/i);
+    expect(knop.textContent).toMatch(/Aan selectie/i);
     expect(knop.getAttribute('data-variant')).toBe('compact');
   });
 
