@@ -204,8 +204,10 @@ export default function SignaalMobileCockpit({
               Open taken
             </button>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
+
     </section>
   );
 }
