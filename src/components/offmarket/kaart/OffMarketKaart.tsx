@@ -535,6 +535,11 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         <ExternalLink className="h-3.5 w-3.5" />
         Open signaal
       </Button>
+      <ToevoegenAanAcquisitieSelectieKnop
+        signaalId={signaal.id}
+        variant="compact"
+        className="w-full"
+      />
     </div>
   );
 }
