@@ -174,8 +174,14 @@ export default function SignaalMobileCockpit({
         )}
       </div>
 
-      {(onTaakAanmaken || (heeftOpenTaken && onOpenTaken)) && (
-        <div className="flex flex-wrap gap-1.5 pt-1" data-testid="mobile-cockpit-taakacties">
+      <div className="flex flex-wrap gap-1.5 pt-1" data-testid="mobile-cockpit-acties">
+        <ToevoegenAanAcquisitieSelectieKnop
+          signaalId={signaal.id}
+          variant="compact"
+        />
+        {(onTaakAanmaken || (heeftOpenTaken && onOpenTaken)) && (
+          <>
+
           {onTaakAanmaken && (
             <button
               type="button"
