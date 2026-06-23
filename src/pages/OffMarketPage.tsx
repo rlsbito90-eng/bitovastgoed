@@ -9,6 +9,8 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
+import AcquisitieSelectieTab from '@/components/offmarket/acquisitie/AcquisitieSelectieTab';
+import { useAcquisitieSelectieCount } from '@/hooks/useAcquisitieSelectie';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
@@ -29,17 +31,18 @@ import {
   type OffMarketStatus, type OffMarketSignaal, type OffMarketAiStatus,
 } from '@/lib/offMarket/types';
 
-type Tab = 'dashboard' | 'signalen' | 'kaart';
+type Tab = 'dashboard' | 'signalen' | 'kaart' | 'acquisitieselectie';
 
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
+  const selectieCount = useAcquisitieSelectieCount();
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
-      return (t === 'signalen' || t === 'dashboard' || t === 'kaart') ? t : 'dashboard';
+      return (t === 'signalen' || t === 'dashboard' || t === 'kaart' || t === 'acquisitieselectie') ? t : 'dashboard';
     } catch { return 'dashboard'; }
   });
   const setTab = (t: Tab) => {
@@ -297,18 +300,25 @@ export default function OffMarketPage() {
       <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 
 
-      <div className="flex items-center gap-1 border-b border-border/60">
-        {(['dashboard', 'signalen', 'kaart'] as const).map(t => (
+      <div className="flex items-center gap-1 border-b border-border/60 overflow-x-auto">
+        {(['dashboard', 'signalen', 'kaart', 'acquisitieselectie'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+            data-testid={`off-market-tab-${t}`}
+            className={`whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
               tab === t
                 ? 'border-accent text-foreground font-medium'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'dashboard' ? 'Dashboard' : t === 'signalen' ? `Signalen (${signalen.length})` : 'Kaart'}
+            {t === 'dashboard'
+              ? 'Dashboard'
+              : t === 'signalen'
+                ? `Signalen (${signalen.length})`
+                : t === 'kaart'
+                  ? 'Kaart'
+                  : `Acquisitieselectie (${selectieCount})`}
           </button>
         ))}
       </div>
@@ -472,6 +482,8 @@ export default function OffMarketPage() {
           <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
         </section>
       )}
+
+      {tab === 'acquisitieselectie' && <AcquisitieSelectieTab />}
     </div>
   );
 }

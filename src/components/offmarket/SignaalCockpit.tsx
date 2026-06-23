@@ -21,6 +21,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
 import type { Taak } from '@/data/mock-data';
 
@@ -122,6 +123,15 @@ export default function SignaalCockpit({
         <Row label="Gebied">
           <span className="text-xs text-foreground truncate">{formatGebiedsindeling(signaal as any)}</span>
         </Row>
+      </div>
+
+      {/* Acquisitieselectie-toggle */}
+      <div className="section-card p-3">
+        <ToevoegenAanAcquisitieSelectieKnop
+          signaalId={signaal.id}
+          variant="compact"
+          className="w-full justify-center"
+        />
       </div>
 
       {/* Volgende acties — toont meerdere open opvolgingen */}

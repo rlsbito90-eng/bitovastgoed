@@ -18,6 +18,7 @@ import { useKaartGeocoding } from '@/hooks/useKaartGeocoding';
 import LocatieControlerenDialog from './LocatieControlerenDialog';
 import ZonderLocatieDialog from './ZonderLocatieDialog';
 import { AiScoreBadge, BagKaartBadge, BagPopupDetailRegel } from './KaartSignaalBadges';
+import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 
 // PDOK BRT-Achtergrondkaart (gratis, geen key, NL).
 const PDOK_TILE = 'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png';
@@ -535,6 +536,11 @@ function PinPreview({ signaal, onOpen }: { signaal: OffMarketSignaal; onOpen: ()
         <ExternalLink className="h-3.5 w-3.5" />
         Open signaal
       </Button>
+      <ToevoegenAanAcquisitieSelectieKnop
+        signaalId={signaal.id}
+        variant="compact"
+        className="w-full"
+      />
     </div>
   );
 }
