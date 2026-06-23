@@ -3,7 +3,28 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
 import { maakTestSignaal } from '../mobile/_fixture';
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        in: () => ({ is: () => Promise.resolve({ data: [], error: null }) }),
+      }),
+    }),
+  },
+}));
+
+function wrap(node: React.ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>{node}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 let mockItems: Array<{ id: string; signaal_id: string; archived_at: null | string; toegevoegd_op: string; toegevoegd_door: null; notitie: null }> = [];
 const mockSignalen = [
