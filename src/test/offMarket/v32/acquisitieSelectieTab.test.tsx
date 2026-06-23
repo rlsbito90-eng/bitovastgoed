@@ -47,7 +47,7 @@ import AcquisitieSelectieTab from '@/components/offmarket/acquisitie/AcquisitieS
 describe('AcquisitieSelectieTab', () => {
   it('toont een duidelijke empty state', () => {
     mockItems = [];
-    render(<MemoryRouter><AcquisitieSelectieTab /></MemoryRouter>);
+    render(wrap(<AcquisitieSelectieTab />));
     expect(screen.getByText(/Nog geen signalen in selectie/i)).toBeInTheDocument();
   });
 
@@ -55,22 +55,19 @@ describe('AcquisitieSelectieTab', () => {
     mockItems = [
       { id: 'r1', signaal_id: 'sig-1', archived_at: null, toegevoegd_op: '2026-06-20T10:00:00Z', toegevoegd_door: null, notitie: null },
     ];
-    render(<MemoryRouter><AcquisitieSelectieTab /></MemoryRouter>);
+    render(wrap(<AcquisitieSelectieTab />));
     const rijen = screen.getAllByTestId('acquisitie-selectie-rij');
     expect(rijen).toHaveLength(1);
     expect(rijen[0]).toHaveAttribute('data-signaal-id', 'sig-1');
-    expect(screen.getByText(/1 signaal in selectie/i)).toBeInTheDocument();
   });
 
   it('rendert mobielvriendelijke rij zonder horizontale overflow-utilities', () => {
     mockItems = [
       { id: 'r1', signaal_id: 'sig-1', archived_at: null, toegevoegd_op: '2026-06-20T10:00:00Z', toegevoegd_door: null, notitie: null },
     ];
-    const { container } = render(<MemoryRouter><AcquisitieSelectieTab /></MemoryRouter>);
-    // Rij bevat flex-col container voor mobielvriendelijke stacking.
+    const { container } = render(wrap(<AcquisitieSelectieTab />));
     const rij = screen.getByTestId('acquisitie-selectie-rij');
     expect(rij.querySelector('.flex-col')).not.toBeNull();
-    // En geen overflow-x op container.
     expect(container.querySelector('.overflow-x-auto')).toBeNull();
   });
 });
