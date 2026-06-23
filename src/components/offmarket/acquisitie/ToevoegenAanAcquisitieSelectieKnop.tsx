@@ -1,7 +1,7 @@
 // V1A — Toggle-knop: voegt signaal toe of verwijdert het uit de centrale
 // Off-Market Acquisitieselectie. Pending-state voorkomt dubbelklik.
 import { useState } from 'react';
-import { ListPlus, ListChecks, X, Loader2 } from 'lucide-react';
+import { ListPlus, ListChecks, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import {
