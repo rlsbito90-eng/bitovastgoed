@@ -93,6 +93,13 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
     volgendeActie: 'Wacht op respons of opvolg',
     status: 'in_behandeling',
   },
+  email_verzonden: {
+    fase: 'email_verzonden',
+    label: 'E-mail verzonden',
+    reden: 'E-mail is verzonden; opvolging staat klaar.',
+    volgendeActie: 'Wacht op respons of opvolg',
+    status: 'in_behandeling',
+  },
   opvolging_open: {
     fase: 'opvolging_open',
     label: 'Opvolging open',
