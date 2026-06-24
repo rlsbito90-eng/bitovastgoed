@@ -157,6 +157,8 @@ export default function AcquisitieSelectieTab() {
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [markeerModus, setMarkeerModus] = useState<MarkeerModus | null>(null);
 
   // Focusmodus
   const [focusOpen, setFocusOpen] = useState(false);
