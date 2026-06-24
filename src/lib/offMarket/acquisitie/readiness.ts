@@ -233,26 +233,42 @@ export function geadresseerdenVoorSignaal(
 
   const out: GeadresseerdeReadiness[] = [];
   for (const [key, lijst] of perKey.entries()) {
+    // Splits per kanaal — fysieke pipeline (geprint/gepost) telt enkel
+    // voor postbrieven; e-mail krijgt eigen indicator.
+    const postBrieven = lijst.filter(b => ((b.kanaal as string | null) ?? 'post') === 'post');
+    const emailBrieven = lijst.filter(b => (b.kanaal as string | null) === 'email');
+
     const refSorted = [...lijst].sort((a, b) =>
       (b.updated_at ?? b.created_at ?? '').localeCompare(
         a.updated_at ?? a.created_at ?? '',
       ));
     const ref = refSorted[0];
-    const verstuurd = lijst.filter(b => b.status === 'verstuurd');
-    const concepten = lijst.filter(b => b.status === 'concept');
-    const verstgeprint = lijst.some(b => {
+
+    const postVerstuurd = postBrieven.filter(b => b.status === 'verstuurd');
+    const postConcepten = postBrieven.filter(b => b.status === 'concept');
+    const verstgeprint = postBrieven.some(b => {
       const v = (b.verzendstatus ?? '') as string;
       return v === 'geprint' || v === 'in_envelop';
     });
-    const verstgepost = lijst.some(b => {
+    const verstgepost = postBrieven.some(b => {
       const v = (b.verzendstatus ?? '') as string;
       return v === 'gepost' || v === 'verzonden';
-    }) || verstuurd.length > 0;
+    }) || postVerstuurd.length > 0;
+    const emailVerzonden = emailBrieven.some(b =>
+      b.status === 'verstuurd' || (b.verzendstatus as string | null) === 'verzonden'
+    );
     const opvolgOpen = lijst.some(b => isOpvolgingOpen(b));
     const responsBinnen = lijst.some(b => {
       const r = (b as any).responsstatus as string | null | undefined;
       return !!r && r !== 'geen_reactie';
     });
+
+    // "Beste" postadres voor volledigheidscheck: prefereer postbrieven,
+    // val terug op meest recente brief (ref) wanneer er geen postbrief is.
+    const postRef = [...postBrieven].sort((a, b) =>
+      (b.updated_at ?? b.created_at ?? '').localeCompare(
+        a.updated_at ?? a.created_at ?? '',
+      ))[0] ?? ref;
 
     // Sterkste laatste brief = hoogste verzendstatus, tie-break op updated_at.
     const sorted = [...lijst].sort((a, b) => {
@@ -268,18 +284,20 @@ export function geadresseerdenVoorSignaal(
       key,
       naam: ref.eigenaar_naam ?? null,
       bedrijfsnaam: ref.eigenaar_bedrijfsnaam ?? null,
-      verzendadres: ref.verzendadres ?? null,
-      volledigPostadres: isVolledigPostadres(ref.verzendadres),
+      verzendadres: postRef.verzendadres ?? ref.verzendadres ?? null,
+      volledigPostadres: isVolledigPostadres(postRef.verzendadres ?? ref.verzendadres),
       laatsteBrief: sorted[0] ?? null,
-      heeftActiefConcept: concepten.length > 0 && verstuurd.length === 0,
-      heeftVerstuurd: verstuurd.length > 0,
+      heeftActiefConcept: postConcepten.length > 0 && postVerstuurd.length === 0,
+      heeftVerstuurd: postVerstuurd.length > 0,
       heeftGeprint: verstgeprint,
       heeftGepost: verstgepost,
+      heeftEmailVerzonden: emailVerzonden,
       opvolgingOpen: opvolgOpen,
       responsBinnen,
       geblokkeerd: false,
     });
   }
+
 
   if (out.length === 0) {
     const a = signaal as any;
