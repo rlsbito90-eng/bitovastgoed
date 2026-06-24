@@ -412,10 +412,12 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
       fase = 'eigenaar_ontbreekt';
       blokkadeReden = 'Geen geadresseerde gevonden.';
     }
-  } else if (geadresseerden.every(g => !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd)) {
+  } else if (geadresseerden.every(g =>
+    !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd && !g.heeftEmailVerzonden
+  )) {
     fase = 'adres_ontbreekt';
     blokkadeReden = 'Geen geadresseerde heeft een volledig postadres.';
-  } else if (geadresseerden.every(g => g.responsBinnen && g.heeftVerstuurd)) {
+  } else if (geadresseerden.every(g => g.responsBinnen && (g.heeftVerstuurd || g.heeftEmailVerzonden))) {
     fase = 'afgerond';
   } else if (geadresseerden.some(g => g.opvolgingOpen)) {
     fase = 'opvolging_open';
@@ -423,6 +425,9 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
     fase = 'gepost';
   } else if (geadresseerden.some(g => g.heeftGeprint)) {
     fase = 'geprint';
+  } else if (geadresseerden.some(g => g.heeftEmailVerzonden)) {
+    // Alleen e-mail verstuurd, geen post-progressie.
+    fase = 'email_verzonden';
   } else if (geadresseerden.some(g => g.heeftActiefConcept && g.volledigPostadres)) {
     fase = 'gereed_voor_print';
   } else if (geadresseerden.some(g => g.heeftActiefConcept)) {
