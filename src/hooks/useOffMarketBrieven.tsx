@@ -187,15 +187,26 @@ export function useMarkBriefVerstuurd() {
         typeof input === 'string' ? null : (input.email_profiel ?? null);
 
       // Bepaal kanaal: override > DB-record > 'post'.
+      // Lees tegelijk huidige status zodat een herhaalde klik op
+      // "Markeer verzonden" geen dubbele events of statusovergangen
+      // veroorzaakt.
       let kanaal: Kanaal = overrideKanaal ?? 'post';
-      if (!overrideKanaal) {
-        try {
-          const { data: huidig } = await (supabase as any)
-            .from(TABLE).select('id,kanaal').eq('id', id).maybeSingle();
-          const k = (huidig?.kanaal ?? null) as Kanaal | null;
-          if (k) kanaal = k;
-        } catch { /* fail-soft */ }
+      let reedsVerstuurd = false;
+      try {
+        const { data: huidig } = await (supabase as any)
+          .from(TABLE).select('id,kanaal,status').eq('id', id).maybeSingle();
+        const k = (huidig?.kanaal ?? null) as Kanaal | null;
+        if (!overrideKanaal && k) kanaal = k;
+        if ((huidig?.status ?? null) === 'verstuurd') reedsVerstuurd = true;
+      } catch { /* fail-soft */ }
+
+      if (reedsVerstuurd) {
+        // Idempotent: lees bestaande rij terug en retourneer zonder mutatie.
+        const { data: bestaand } = await (supabase as any)
+          .from(TABLE).select('*').eq('id', id).single();
+        return bestaand as OffMarketBrief;
       }
+
 
       const isEmail = kanaal === 'email';
       const iso = postdatum
