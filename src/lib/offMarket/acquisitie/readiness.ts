@@ -316,6 +316,7 @@ export function geadresseerdenVoorSignaal(
         heeftVerstuurd: false,
         heeftGeprint: false,
         heeftGepost: false,
+        heeftEmailVerzonden: false,
         opvolgingOpen: false,
         responsBinnen: false,
         geblokkeerd: false,
