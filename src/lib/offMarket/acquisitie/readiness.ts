@@ -119,7 +119,7 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
 export const FASE_VOLGORDE: ReadinessFase[] = [
   'onderzoek_nodig', 'eigenaar_ontbreekt', 'adres_ontbreekt',
   'brief_voorbereiden', 'concept_gereed', 'gereed_voor_print',
-  'geprint', 'gepost', 'opvolging_open', 'afgerond',
+  'geprint', 'gepost', 'email_verzonden', 'opvolging_open', 'afgerond',
 ];
 
 export function faseInfo(fase: ReadinessFase): ReadinessFaseInfo {
