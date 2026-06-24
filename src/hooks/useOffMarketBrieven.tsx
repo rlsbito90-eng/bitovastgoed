@@ -119,9 +119,13 @@ export function useUpsertBrief() {
         verzendstatus: input.verzendstatus ?? 'concept',
       };
       if (input.id) {
-        // Bestaand record — wijzig kanaal/verzendstatus niet zomaar.
+        // Bestaand record — wijzig kanaal/verzendstatus/status niet zomaar.
+        // status wordt geregisseerd door useMarkBriefVerstuurd; een
+        // inhoudelijke upsert mag een verstuurd record nooit terugzetten
+        // naar concept.
         delete payload.kanaal;
         delete payload.verzendstatus;
+        delete payload.status;
         const { data, error } = await (supabase as any)
           .from(TABLE).update(payload).eq('id', input.id).select().single();
         if (error) throw new Error(error.message);
