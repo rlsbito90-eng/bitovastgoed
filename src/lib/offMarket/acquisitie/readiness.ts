@@ -23,6 +23,7 @@ export type ReadinessFase =
   | 'gereed_voor_print'
   | 'geprint'
   | 'gepost'
+  | 'email_verzonden'
   | 'opvolging_open'
   | 'afgerond';
 
