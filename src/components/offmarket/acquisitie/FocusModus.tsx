@@ -160,7 +160,7 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange 
                   {g.bedrijfsnaam && g.naam && (
                     <span className="text-muted-foreground"> — {g.bedrijfsnaam}</span>
                   )}
-                  {!g.volledigPostadres && (
+                  {!g.volledigPostadres && !g.heeftEmailVerzonden && (
                     <span className="ml-1 text-[10px] text-amber-700">· adres onvolledig</span>
                   )}
                 </li>
