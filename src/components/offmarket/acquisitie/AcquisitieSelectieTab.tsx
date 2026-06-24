@@ -1,11 +1,16 @@
-// V1B — Tab-inhoud "Acquisitieselectie": persistente werklijst met
-// afgeleide readiness, KPI's, filter en focusmodus. Geen bulkacties.
+// V1B+V2 — Tab-inhoud "Acquisitieselectie": persistente werklijst met
+// afgeleide readiness, KPI's, filter, focusmodus en (V2) bulkvoorbereiding
+// van fysieke brieven + gecombineerde brief-PDF.
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, Inbox, PlayCircle, Sparkles } from 'lucide-react';
+import {
+  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Sparkles, Users,
+} from 'lucide-react';
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { useAcquisitieReadiness } from '@/hooks/useAcquisitieReadiness';
+import {
+  useAcquisitieReadiness, useBrievenVoorSignalen,
+} from '@/hooks/useAcquisitieReadiness';
 import {
   OffMarketStatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
@@ -15,14 +20,18 @@ import {
 } from '@/lib/offMarket/types';
 import { cleanAdres, cleanPlaats, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import ToevoegenAanAcquisitieSelectieKnop from './ToevoegenAanAcquisitieSelectieKnop';
 import AcquisitieKpis from './AcquisitieKpis';
 import AcquisitieFilterChips from './AcquisitieFilterChips';
 import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
+import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
+import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import {
   pastInFilter, type SelectieFilter,
 } from '@/lib/offMarket/acquisitie/readiness';
+import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
@@ -53,7 +62,18 @@ export default function AcquisitieSelectieTab() {
       .filter((s): s is OffMarketSignaal => !!s);
   }, [items, signaalIndex]);
 
+  const toegevoegdOpPerSignaal = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const it of items) m.set(it.signaal_id, it.toegevoegd_op ?? null);
+    return m;
+  }, [items]);
+
   const readiness = useAcquisitieReadiness(geselecteerdeSignalen);
+
+  // Bulk-brieven query — al bulk gefetcht door readiness, maar we hebben de
+  // brieven hier nodig voor plan/dedupe en gecombineerde PDF.
+  const signaalIds = useMemo(() => geselecteerdeSignalen.map(s => s.id), [geselecteerdeSignalen]);
+  const { data: brieven = [] } = useBrievenVoorSignalen(signaalIds);
 
   const [filter, setFilterState] = useState<SelectieFilter>(() => {
     try {
@@ -83,6 +103,58 @@ export default function AcquisitieSelectieTab() {
     }
     return out;
   }, [readiness.lijst]);
+
+  // ---- Bulk-selectie per signaal ---------------------------------------
+  const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
+  const toggleBulk = (id: string) => {
+    setBulkSelectie(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const brievenPerSignaal = useMemo(() => {
+    const m = new Map<string, typeof brieven>();
+    for (const b of brieven) {
+      const arr = m.get(b.signaal_id) ?? [];
+      arr.push(b);
+      m.set(b.signaal_id, arr);
+    }
+    return m;
+  }, [brieven]);
+
+  // Tellingen voor de bulktoolbar: signalen, geadresseerden, voorgestelde brieven.
+  const bulkTotalen = useMemo(() => {
+    let geadresseerden = 0;
+    let geschikt = 0;
+    for (const id of bulkSelectie) {
+      const s = signaalIndex.get(id);
+      if (!s) continue;
+      const k = bouwKandidatenVoorSignaal(s, brievenPerSignaal.get(id) ?? []);
+      geadresseerden += k.length;
+      geschikt += k.filter(x => x.geschikt).length;
+    }
+    return {
+      signalen: bulkSelectie.size,
+      geadresseerden,
+      geschikteBrieven: geschikt,
+    };
+  }, [bulkSelectie, signaalIndex, brievenPerSignaal]);
+
+  function selecteerAlleGeschikteBulk() {
+    const next = new Set<string>();
+    for (const { signaal, readiness: r } of gefilterd) {
+      if (r.info.status === 'geblokkeerd') continue;
+      next.add(signaal.id);
+    }
+    setBulkSelectie(next);
+  }
+
+  function wisBulk() { setBulkSelectie(new Set()); }
+
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   // Focusmodus
   const [focusOpen, setFocusOpen] = useState(false);
@@ -150,6 +222,10 @@ export default function AcquisitieSelectieTab() {
     );
   }
 
+  const geselecteerdeSignalenBulk = Array.from(bulkSelectie)
+    .map(id => signaalIndex.get(id))
+    .filter((s): s is OffMarketSignaal => !!s);
+
   return (
     <section className="space-y-3" data-testid="acquisitie-selectie-tab">
       <AcquisitieKpis kpis={readiness.kpis} />
@@ -169,6 +245,52 @@ export default function AcquisitieSelectieTab() {
         </Button>
       </div>
 
+      {/* Bulktoolbar */}
+      <div
+        data-testid="acquisitie-bulk-toolbar"
+        className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+      >
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Button
+            type="button" variant="outline" size="sm"
+            onClick={selecteerAlleGeschikteBulk}
+            data-testid="acquisitie-bulk-selecteer-alle"
+          >
+            <Users className="h-3.5 w-3.5" />
+            Selecteer alle geschikte
+          </Button>
+          {bulkSelectie.size > 0 && (
+            <Button type="button" variant="ghost" size="sm" onClick={wisBulk}>
+              Wis selectie
+            </Button>
+          )}
+          <span data-testid="acquisitie-bulk-telling">
+            {bulkTotalen.signalen} signalen · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
+            {bulkTotalen.geschikteBrieven} brieven
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button" size="sm" variant="secondary"
+            onClick={() => setWizardOpen(true)}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-brieven-voorbereiden"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Brieven voorbereiden
+          </Button>
+          <Button
+            type="button" size="sm" variant="secondary"
+            onClick={() => setPdfOpen(true)}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-gecombineerde-pdf"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            Gecombineerde brief-PDF
+          </Button>
+        </div>
+      </div>
+
       {gefilterd.length === 0 ? (
         <p className="text-sm text-muted-foreground px-1 py-4">
           Geen signalen in dit filter.
@@ -181,6 +303,7 @@ export default function AcquisitieSelectieTab() {
           {gefilterd.map(({ signaal, readiness: r }) => {
             const adres = formatSignaalAdres(signaal) || cleanAdres(signaal.adres) || '—';
             const plaats = cleanPlaats(signaal.plaats) || '';
+            const bulkChecked = bulkSelectie.has(signaal.id);
             return (
               <li
                 key={signaal.id}
@@ -190,31 +313,68 @@ export default function AcquisitieSelectieTab() {
                 className="p-3 sm:p-4"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-sm font-medium text-foreground break-words">{adres}</p>
-                    {plaats && (
-                      <p className="text-xs text-muted-foreground break-words">{plaats}</p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <ReadinessBadge fase={r.fase} />
-                      <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
-                        {tekstType(signaal)}
-                      </span>
-                      <OffMarketStatusBadge status={signaal.status} />
-                      {typeof signaal.ai_score === 'number' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
-                          <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
-                        </span>
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <Checkbox
+                      checked={bulkChecked}
+                      onCheckedChange={() => toggleBulk(signaal.id)}
+                      aria-label="Selecteer signaal voor bulkacties"
+                      data-testid="acquisitie-rij-bulkcheck"
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <p className="text-sm font-medium text-foreground break-words">{adres}</p>
+                      {plaats && (
+                        <p className="text-xs text-muted-foreground break-words">{plaats}</p>
                       )}
-                      {(signaal as any).bag_status && <BagKaartBadge signaal={signaal} size="sm" />}
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                        {r.telling.totaal} geadr.
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <ReadinessBadge fase={r.fase} />
+                        <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
+                          {tekstType(signaal)}
+                        </span>
+                        <OffMarketStatusBadge status={signaal.status} />
+                        {typeof signaal.ai_score === 'number' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
+                            <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
+                          </span>
+                        )}
+                        {(signaal as any).bag_status && <BagKaartBadge signaal={signaal} size="sm" />}
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {r.telling.totaal} geadr.
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground break-words">
+                        {r.blokkadeReden ?? r.info.reden}
+                      </p>
+                      <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
+
+                      {/* Geadresseerden onder het signaal — compact, niet-genest */}
+                      {r.geadresseerden.length > 0 && (
+                        <details className="mt-1.5" data-testid="acquisitie-rij-geadresseerden">
+                          <summary className="cursor-pointer text-[11px] text-muted-foreground">
+                            {r.geadresseerden.length} geadresseerde{r.geadresseerden.length === 1 ? '' : 'n'} tonen
+                          </summary>
+                          <ul className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                            {r.geadresseerden.map(g => (
+                              <li
+                                key={g.key}
+                                data-testid="acquisitie-rij-geadresseerde"
+                                className="break-words"
+                              >
+                                <span className="text-foreground">
+                                  {g.naam ?? g.bedrijfsnaam ?? '(zonder naam)'}
+                                </span>
+                                {g.verzendadres && (
+                                  <span> · {g.verzendadres.replace(/\s+/g, ' ')}</span>
+                                )}
+                                {!g.volledigPostadres && (
+                                  <span className="text-destructive"> · adres onvolledig</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground break-words">
-                      {r.blokkadeReden ?? r.info.reden}
-                    </p>
-                    <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
                   </div>
                   <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0">
                     <Button
@@ -257,6 +417,21 @@ export default function AcquisitieSelectieTab() {
         items={readiness.lijst}
         index={focusIndex}
         onIndexChange={setFocusIndex}
+      />
+
+      <BulkBriefVoorbereidenWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        signalen={geselecteerdeSignalenBulk}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
+
+      <GecombineerdeBrievenPdfDialog
+        open={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        signalen={geselecteerdeSignalenBulk}
+        toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
       />
     </section>
   );
