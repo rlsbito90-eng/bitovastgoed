@@ -161,10 +161,16 @@ export interface GeadresseerdeReadiness {
   volledigPostadres: boolean;
   /** Meest gevorderde niet-gearchiveerde brief van deze geadresseerde. */
   laatsteBrief: OffMarketBrief | null;
+  /** Actief postconcept (status=concept, geen verstuurde postbrief). */
   heeftActiefConcept: boolean;
+  /** Postbrief met status=verstuurd. */
   heeftVerstuurd: boolean;
+  /** Postbrief met verzendstatus geprint / in_envelop. */
   heeftGeprint: boolean;
+  /** Postbrief met verzendstatus gepost / verzonden, of status=verstuurd. */
   heeftGepost: boolean;
+  /** E-mail met status=verstuurd. */
+  heeftEmailVerzonden: boolean;
   opvolgingOpen: boolean;
   responsBinnen: boolean;
   geblokkeerd: boolean;
