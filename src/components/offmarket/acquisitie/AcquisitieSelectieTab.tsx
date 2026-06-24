@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Sparkles, Users,
+  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
