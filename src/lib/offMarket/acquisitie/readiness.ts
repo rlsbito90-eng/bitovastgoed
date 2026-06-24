@@ -23,6 +23,7 @@ export type ReadinessFase =
   | 'gereed_voor_print'
   | 'geprint'
   | 'gepost'
+  | 'email_verzonden'
   | 'opvolging_open'
   | 'afgerond';
 
@@ -92,6 +93,13 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
     volgendeActie: 'Wacht op respons of opvolg',
     status: 'in_behandeling',
   },
+  email_verzonden: {
+    fase: 'email_verzonden',
+    label: 'E-mail verzonden',
+    reden: 'E-mail is verzonden; opvolging staat klaar.',
+    volgendeActie: 'Wacht op respons of opvolg',
+    status: 'in_behandeling',
+  },
   opvolging_open: {
     fase: 'opvolging_open',
     label: 'Opvolging open',
@@ -111,7 +119,7 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
 export const FASE_VOLGORDE: ReadinessFase[] = [
   'onderzoek_nodig', 'eigenaar_ontbreekt', 'adres_ontbreekt',
   'brief_voorbereiden', 'concept_gereed', 'gereed_voor_print',
-  'geprint', 'gepost', 'opvolging_open', 'afgerond',
+  'geprint', 'gepost', 'email_verzonden', 'opvolging_open', 'afgerond',
 ];
 
 export function faseInfo(fase: ReadinessFase): ReadinessFaseInfo {
@@ -153,10 +161,16 @@ export interface GeadresseerdeReadiness {
   volledigPostadres: boolean;
   /** Meest gevorderde niet-gearchiveerde brief van deze geadresseerde. */
   laatsteBrief: OffMarketBrief | null;
+  /** Actief postconcept (status=concept, geen verstuurde postbrief). */
   heeftActiefConcept: boolean;
+  /** Postbrief met status=verstuurd. */
   heeftVerstuurd: boolean;
+  /** Postbrief met verzendstatus geprint / in_envelop. */
   heeftGeprint: boolean;
+  /** Postbrief met verzendstatus gepost / verzonden, of status=verstuurd. */
   heeftGepost: boolean;
+  /** E-mail met status=verstuurd. */
+  heeftEmailVerzonden: boolean;
   opvolgingOpen: boolean;
   responsBinnen: boolean;
   geblokkeerd: boolean;
@@ -219,26 +233,42 @@ export function geadresseerdenVoorSignaal(
 
   const out: GeadresseerdeReadiness[] = [];
   for (const [key, lijst] of perKey.entries()) {
+    // Splits per kanaal — fysieke pipeline (geprint/gepost) telt enkel
+    // voor postbrieven; e-mail krijgt eigen indicator.
+    const postBrieven = lijst.filter(b => ((b.kanaal as string | null) ?? 'post') === 'post');
+    const emailBrieven = lijst.filter(b => (b.kanaal as string | null) === 'email');
+
     const refSorted = [...lijst].sort((a, b) =>
       (b.updated_at ?? b.created_at ?? '').localeCompare(
         a.updated_at ?? a.created_at ?? '',
       ));
     const ref = refSorted[0];
-    const verstuurd = lijst.filter(b => b.status === 'verstuurd');
-    const concepten = lijst.filter(b => b.status === 'concept');
-    const verstgeprint = lijst.some(b => {
+
+    const postVerstuurd = postBrieven.filter(b => b.status === 'verstuurd');
+    const postConcepten = postBrieven.filter(b => b.status === 'concept');
+    const verstgeprint = postBrieven.some(b => {
       const v = (b.verzendstatus ?? '') as string;
       return v === 'geprint' || v === 'in_envelop';
     });
-    const verstgepost = lijst.some(b => {
+    const verstgepost = postBrieven.some(b => {
       const v = (b.verzendstatus ?? '') as string;
       return v === 'gepost' || v === 'verzonden';
-    }) || verstuurd.length > 0;
+    }) || postVerstuurd.length > 0;
+    const emailVerzonden = emailBrieven.some(b =>
+      b.status === 'verstuurd' || (b.verzendstatus as string | null) === 'verzonden'
+    );
     const opvolgOpen = lijst.some(b => isOpvolgingOpen(b));
     const responsBinnen = lijst.some(b => {
       const r = (b as any).responsstatus as string | null | undefined;
       return !!r && r !== 'geen_reactie';
     });
+
+    // "Beste" postadres voor volledigheidscheck: prefereer postbrieven,
+    // val terug op meest recente brief (ref) wanneer er geen postbrief is.
+    const postRef = [...postBrieven].sort((a, b) =>
+      (b.updated_at ?? b.created_at ?? '').localeCompare(
+        a.updated_at ?? a.created_at ?? '',
+      ))[0] ?? ref;
 
     // Sterkste laatste brief = hoogste verzendstatus, tie-break op updated_at.
     const sorted = [...lijst].sort((a, b) => {
@@ -254,18 +284,20 @@ export function geadresseerdenVoorSignaal(
       key,
       naam: ref.eigenaar_naam ?? null,
       bedrijfsnaam: ref.eigenaar_bedrijfsnaam ?? null,
-      verzendadres: ref.verzendadres ?? null,
-      volledigPostadres: isVolledigPostadres(ref.verzendadres),
+      verzendadres: postRef.verzendadres ?? ref.verzendadres ?? null,
+      volledigPostadres: isVolledigPostadres(postRef.verzendadres ?? ref.verzendadres),
       laatsteBrief: sorted[0] ?? null,
-      heeftActiefConcept: concepten.length > 0 && verstuurd.length === 0,
-      heeftVerstuurd: verstuurd.length > 0,
+      heeftActiefConcept: postConcepten.length > 0 && postVerstuurd.length === 0,
+      heeftVerstuurd: postVerstuurd.length > 0,
       heeftGeprint: verstgeprint,
       heeftGepost: verstgepost,
+      heeftEmailVerzonden: emailVerzonden,
       opvolgingOpen: opvolgOpen,
       responsBinnen,
       geblokkeerd: false,
     });
   }
+
 
   if (out.length === 0) {
     const a = signaal as any;
@@ -284,6 +316,7 @@ export function geadresseerdenVoorSignaal(
         heeftVerstuurd: false,
         heeftGeprint: false,
         heeftGepost: false,
+        heeftEmailVerzonden: false,
         opvolgingOpen: false,
         responsBinnen: false,
         geblokkeerd: false,
@@ -379,10 +412,12 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
       fase = 'eigenaar_ontbreekt';
       blokkadeReden = 'Geen geadresseerde gevonden.';
     }
-  } else if (geadresseerden.every(g => !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd)) {
+  } else if (geadresseerden.every(g =>
+    !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd && !g.heeftEmailVerzonden
+  )) {
     fase = 'adres_ontbreekt';
     blokkadeReden = 'Geen geadresseerde heeft een volledig postadres.';
-  } else if (geadresseerden.every(g => g.responsBinnen && g.heeftVerstuurd)) {
+  } else if (geadresseerden.every(g => g.responsBinnen && (g.heeftVerstuurd || g.heeftEmailVerzonden))) {
     fase = 'afgerond';
   } else if (geadresseerden.some(g => g.opvolgingOpen)) {
     fase = 'opvolging_open';
@@ -394,6 +429,9 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
     fase = 'gereed_voor_print';
   } else if (geadresseerden.some(g => g.heeftActiefConcept)) {
     fase = 'concept_gereed';
+  } else if (geadresseerden.some(g => g.heeftEmailVerzonden)) {
+    // Alleen e-mail verstuurd, geen post-progressie of post-concept.
+    fase = 'email_verzonden';
   } else {
     // Eigenaar + adres aanwezig, geen concept → voorbereiden.
     const heeftWerkbare = geadresseerden.some(g =>

@@ -400,8 +400,15 @@ export default function BriefVoorbereidenDialog({
     }
     setBezig(true);
     try {
-      let id = briefId;
-      if (!id) { id = await ensureBriefOpgeslagen('concept'); if (!id) return; }
+      // Altijd huidige formstate persisteren vóór de verzendregistratie,
+      // zodat naam/bedrijf/verzendadres/objectomschrijving/aanhef/
+      // onderwerp/tekst/kanaal/campagne_stap bewaard blijven — ook bij
+      // een bestaand briefrecord. useUpsertBrief raakt status/
+      // verzendstatus/kanaal niet aan wanneer er een id is, dus een
+      // reeds verstuurd record wordt niet teruggedraaid naar concept.
+      const id = await ensureBriefOpgeslagen('concept');
+      if (!id) return;
+
 
       const vandaag = new Date().toISOString().slice(0, 10);
       const dagen = defaultFollowupDagen(kanaal);
@@ -614,7 +621,7 @@ export default function BriefVoorbereidenDialog({
               id="brief-verzend"
               value={verzendadres}
               onChange={(e) => setVerzendadres(e.target.value)}
-              placeholder={VERZENDADRES_PLACEHOLDER}
+              placeholder={kanaal === 'email' ? '' : `Bijv. ${VERZENDADRES_PLACEHOLDER}`}
               rows={3}
             />
             {kadasterRecords.length > 0 && (
