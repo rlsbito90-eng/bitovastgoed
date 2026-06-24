@@ -28,6 +28,8 @@ import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
+import AdreslabelsPdfDialog from './AdreslabelsPdfDialog';
+import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import {
   pastInFilter, type SelectieFilter,
 } from '@/lib/offMarket/acquisitie/readiness';
