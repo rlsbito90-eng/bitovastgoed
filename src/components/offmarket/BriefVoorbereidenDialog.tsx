@@ -136,10 +136,18 @@ export default function BriefVoorbereidenDialog({
     if (!open) return;
     if (initialBrief) {
       // Bestaande brief openen — gebruik die data, geen nieuw record aanmaken.
+      // Voor het verzendadres geldt een veilige prefill-fallback: alleen
+      // wanneer het opgeslagen adres leeg/placeholder is mag de
+      // betrouwbare prefill-bron als initiële waarde dienen. Een
+      // niet-lege opgeslagen waarde wordt nooit overschreven.
+      const opgeslagenAdres = (initialBrief.verzendadres ?? '').trim();
+      const adresInitial = isEchteWaarde(opgeslagenAdres)
+        ? opgeslagenAdres
+        : (prefill.verzendadres ?? '');
       setKandidaatLabel(forceKandidaatLabel ?? '');
       setEigenaarNaam(initialBrief.eigenaar_naam ?? '');
       setEigenaarBedrijfsnaam(initialBrief.eigenaar_bedrijfsnaam ?? '');
-      setVerzendadres(initialBrief.verzendadres ?? '');
+      setVerzendadres(adresInitial);
       setObjectadres(initialBrief.objectadres ?? '');
       setObjectomschrijving(initialBrief.objectomschrijving ?? '');
       setAanhef(initialBrief.aanhef ?? '');

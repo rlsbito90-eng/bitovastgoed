@@ -25,8 +25,10 @@ export const BITO_CONTACT = {
   website: 'www.bitovastgoed.nl',
 } as const;
 
-/** Zichtbare placeholdertekst voor het verzendadres-veld. */
-export const VERZENDADRES_PLACEHOLDER = 'Straat 1\n1234 AB Plaats';
+/** Zichtbare placeholder voor het verzendadres-veld. Instructietekst —
+ *  mag nooit op opgeslagen data lijken; viewmodel/preview filteren deze
+ *  waarde via `isEchteWaarde()`. */
+export const VERZENDADRES_PLACEHOLDER = 'Vul straat en huisnummer\nPostcode en plaats';
 
 export interface EigenaarKandidaat {
   /** Volledige naam zoals getoond in dropdown. */
