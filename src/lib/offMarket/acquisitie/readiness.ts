@@ -425,13 +425,13 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
     fase = 'gepost';
   } else if (geadresseerden.some(g => g.heeftGeprint)) {
     fase = 'geprint';
-  } else if (geadresseerden.some(g => g.heeftEmailVerzonden)) {
-    // Alleen e-mail verstuurd, geen post-progressie.
-    fase = 'email_verzonden';
   } else if (geadresseerden.some(g => g.heeftActiefConcept && g.volledigPostadres)) {
     fase = 'gereed_voor_print';
   } else if (geadresseerden.some(g => g.heeftActiefConcept)) {
     fase = 'concept_gereed';
+  } else if (geadresseerden.some(g => g.heeftEmailVerzonden)) {
+    // Alleen e-mail verstuurd, geen post-progressie of post-concept.
+    fase = 'email_verzonden';
   } else {
     // Eigenaar + adres aanwezig, geen concept → voorbereiden.
     const heeftWerkbare = geadresseerden.some(g =>
