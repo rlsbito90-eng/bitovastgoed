@@ -621,7 +621,7 @@ export default function BriefVoorbereidenDialog({
               id="brief-verzend"
               value={verzendadres}
               onChange={(e) => setVerzendadres(e.target.value)}
-              placeholder={VERZENDADRES_PLACEHOLDER}
+              placeholder={kanaal === 'email' ? '' : `Bijv. ${VERZENDADRES_PLACEHOLDER}`}
               rows={3}
             />
             {kadasterRecords.length > 0 && (
