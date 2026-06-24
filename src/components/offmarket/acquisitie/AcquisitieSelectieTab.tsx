@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Sparkles, Users,
+  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
@@ -28,6 +28,8 @@ import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
+import AdreslabelsPdfDialog from './AdreslabelsPdfDialog';
+import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import {
   pastInFilter, type SelectieFilter,
 } from '@/lib/offMarket/acquisitie/readiness';
@@ -155,6 +157,8 @@ export default function AcquisitieSelectieTab() {
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [markeerModus, setMarkeerModus] = useState<MarkeerModus | null>(null);
 
   // Focusmodus
   const [focusOpen, setFocusOpen] = useState(false);
@@ -286,7 +290,34 @@ export default function AcquisitieSelectieTab() {
             data-testid="acquisitie-bulk-gecombineerde-pdf"
           >
             <FileDown className="h-3.5 w-3.5" />
-            Gecombineerde brief-PDF
+            Brieven-PDF
+          </Button>
+          <Button
+            type="button" size="sm" variant="secondary"
+            onClick={() => setLabelsOpen(true)}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-adreslabels"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            Adreslabels
+          </Button>
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={() => setMarkeerModus('geprint')}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-markeer-geprint"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Markeer geprint
+          </Button>
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={() => setMarkeerModus('gepost')}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-markeer-gepost"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Markeer gepost
           </Button>
         </div>
       </div>
@@ -431,6 +462,22 @@ export default function AcquisitieSelectieTab() {
         onClose={() => setPdfOpen(false)}
         signalen={geselecteerdeSignalenBulk}
         toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
+
+      <AdreslabelsPdfDialog
+        open={labelsOpen}
+        onClose={() => setLabelsOpen(false)}
+        signalen={geselecteerdeSignalenBulk}
+        toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
+
+      <MarkeerBulkDialog
+        open={markeerModus !== null}
+        onClose={() => setMarkeerModus(null)}
+        modus={markeerModus ?? 'geprint'}
+        signalen={geselecteerdeSignalenBulk}
         brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
       />
     </section>
