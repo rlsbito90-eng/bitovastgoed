@@ -290,7 +290,34 @@ export default function AcquisitieSelectieTab() {
             data-testid="acquisitie-bulk-gecombineerde-pdf"
           >
             <FileDown className="h-3.5 w-3.5" />
-            Gecombineerde brief-PDF
+            Brieven-PDF
+          </Button>
+          <Button
+            type="button" size="sm" variant="secondary"
+            onClick={() => setLabelsOpen(true)}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-adreslabels"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            Adreslabels
+          </Button>
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={() => setMarkeerModus('geprint')}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-markeer-geprint"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Markeer geprint
+          </Button>
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={() => setMarkeerModus('gepost')}
+            disabled={bulkSelectie.size === 0}
+            data-testid="acquisitie-bulk-markeer-gepost"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Markeer gepost
           </Button>
         </div>
       </div>
