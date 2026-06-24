@@ -464,6 +464,22 @@ export default function AcquisitieSelectieTab() {
         toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
         brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
       />
+
+      <AdreslabelsPdfDialog
+        open={labelsOpen}
+        onClose={() => setLabelsOpen(false)}
+        signalen={geselecteerdeSignalenBulk}
+        toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
+
+      <MarkeerBulkDialog
+        open={markeerModus !== null}
+        onClose={() => setMarkeerModus(null)}
+        modus={markeerModus ?? 'geprint'}
+        signalen={geselecteerdeSignalenBulk}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
     </section>
   );
 }
