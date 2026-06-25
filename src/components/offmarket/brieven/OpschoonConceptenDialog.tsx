@@ -132,18 +132,20 @@ export default function OpschoonConceptenDialog({
         )}
 
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>
-            Annuleren
-          </Button>
-          <Button
-            data-testid="opschoon-uitvoeren"
-            onClick={uitvoeren}
-            disabled={aantal === 0 || !bevestigd || bezig}
-          >
-            <Trash2 className="h-4 w-4" /> Archiveer concepten
-          </Button>
-        </DialogFooter>
+        <ModalActionBar
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Annuleren"
+          primary={
+            <Button
+              variant="destructive"
+              data-testid="opschoon-uitvoeren"
+              onClick={uitvoeren}
+              disabled={aantal === 0 || !bevestigd || bezig}
+            >
+              <Trash2 className="h-4 w-4" /> Archiveer concepten
+            </Button>
+          }
+        />
       </DialogContent>
     </Dialog>
   );
