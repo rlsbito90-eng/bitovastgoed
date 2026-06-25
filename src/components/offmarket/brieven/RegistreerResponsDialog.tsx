@@ -1,8 +1,9 @@
 // Dialog: registreer een reactie van een geadresseerde op een (verstuurde) brief.
 import { useState } from 'react';
 import { toast } from 'sonner';
+import ModalActionBar from '@/components/ui/modal-action-bar';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -199,14 +200,15 @@ export default function RegistreerResponsDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>
-            Annuleren
-          </Button>
-          <Button onClick={uitvoeren} disabled={bezig || !brief} data-testid="respons-bevestigen">
-            Bevestigen
-          </Button>
-        </DialogFooter>
+        <ModalActionBar
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Annuleren"
+          primary={
+            <Button onClick={uitvoeren} disabled={bezig || !brief} data-testid="respons-bevestigen">
+              Bevestigen
+            </Button>
+          }
+        />
       </DialogContent>
     </Dialog>
   );
