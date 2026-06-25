@@ -495,8 +495,8 @@ export default function BriefVoorbereidenDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-3xl max-w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {kanaal === 'email'
               ? <Mail className="h-4 w-4" />
@@ -509,8 +509,10 @@ export default function BriefVoorbereidenDialog({
               : 'Controleer de geadresseerde, het verzendadres en de objectomschrijving. De brief wordt als concept opgeslagen en is direct te downloaden als PDF.'}
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 pb-20" data-testid="brief-voorbereiden-dialog">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-6 space-y-4"
+          data-testid="brief-voorbereiden-dialog"
+        >
           {/* V2.2 — kanaal segmented control */}
           <div
             data-testid="brief-kanaal-toggle"
@@ -755,7 +757,7 @@ export default function BriefVoorbereidenDialog({
         </div>
 
         <ModalActionBar
-          className="-mx-6 -mb-6 mt-2"
+          className="shrink-0"
           onCancel={() => onOpenChange(false)}
           cancelLabel="Sluiten"
           secondary={[
