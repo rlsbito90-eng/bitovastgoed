@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ModalActionBar } from '@/components/ui/modal-action-bar';
 import { FileDown, Loader2 } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -183,22 +184,20 @@ export default function AdreslabelsPdfDialog({
             </ul>
           </div>
 
-          <div
-            className="border-t bg-background/95 backdrop-blur px-5 py-3 flex flex-wrap items-center justify-end gap-2"
-            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
-          >
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={bezig}>
-              Sluiten
-            </Button>
-            <Button
-              type="button" size="sm" onClick={download}
-              disabled={bezig || geldig.length === 0}
-              data-testid="adreslabels-download"
-            >
-              {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Download adreslabels-PDF
-            </Button>
-          </div>
+          <ModalActionBar
+            onCancel={onClose}
+            cancelLabel="Sluiten"
+            primary={
+              <Button
+                type="button" size="sm" onClick={download}
+                disabled={bezig || geldig.length === 0}
+                data-testid="adreslabels-download"
+              >
+                {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Download adreslabels-PDF
+              </Button>
+            }
+          />
         </div>
       </DialogContent>
     </Dialog>
