@@ -14,8 +14,9 @@ import { toast } from 'sonner';
 import { pdf } from '@react-pdf/renderer';
 import { Copy, FileDown, Send, FileText, Loader2, Save, Mail, Inbox } from 'lucide-react';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { ModalActionBar } from '@/components/ui/modal-action-bar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -509,7 +510,7 @@ export default function BriefVoorbereidenDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4" data-testid="brief-voorbereiden-dialog">
+        <div className="space-y-4 pb-20" data-testid="brief-voorbereiden-dialog">
           {/* V2.2 — kanaal segmented control */}
           <div
             data-testid="brief-kanaal-toggle"
@@ -753,53 +754,51 @@ export default function BriefVoorbereidenDialog({
           </div>
         </div>
 
-        <DialogFooter
-          data-testid="brief-dialog-footer"
-          className="flex flex-wrap gap-2 items-center sm:justify-between sticky bottom-0 bg-background/95 backdrop-blur border-t pt-3 -mx-6 px-6 sm:flex-nowrap"
-        >
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="order-1">
-            Sluiten
-          </Button>
-          <div
-            data-testid="brief-dialog-footer-secundair"
-            className="order-2 flex flex-wrap gap-2 sm:flex-1 sm:justify-center"
-          >
+        <ModalActionBar
+          className="-mx-6 -mb-6 mt-2"
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Sluiten"
+          secondary={[
             <Button
+              key="concept"
               variant="outline" onClick={opslaanAlsConcept} disabled={bezig}
               data-testid="brief-opslaan-concept"
             >
               <Save className="h-4 w-4" />
               {kanaal === 'email' ? 'Opslaan als e-mailconcept' : 'Opslaan als concept'}
+            </Button>,
+            ...(kanaal === 'email'
+              ? [
+                  <Button key="kopieer-email" variant="outline" onClick={kopieerEmail} data-testid="brief-kopieer-email">
+                    <Copy className="h-4 w-4" /> Kopieer e-mailtekst
+                  </Button>,
+                ]
+              : [
+                  <Button key="kopieer" variant="outline" onClick={kopieer}>
+                    <Copy className="h-4 w-4" /> Kopieer brief
+                  </Button>,
+                  <Button
+                    key="pdf"
+                    variant="outline" onClick={downloadPdf} disabled={pdfBezig}
+                    data-testid="brief-download-pdf"
+                  >
+                    {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    Download PDF
+                  </Button>,
+                ]),
+          ]}
+          primary={
+            <Button
+              onClick={markeerVerstuurd}
+              disabled={bezig}
+              data-testid={kanaal === 'email' ? 'brief-markeer-verzonden' : 'brief-markeer-verstuurd'}
+            >
+              <Send className="h-4 w-4" />
+              {kanaal === 'email' ? 'Markeer verzonden' : 'Markeer als verstuurd'}
             </Button>
-            {kanaal === 'email' ? (
-              <Button variant="outline" onClick={kopieerEmail} data-testid="brief-kopieer-email">
-                <Copy className="h-4 w-4" /> Kopieer e-mailtekst
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={kopieer}>
-                  <Copy className="h-4 w-4" /> Kopieer brief
-                </Button>
-                <Button
-                  variant="outline" onClick={downloadPdf} disabled={pdfBezig}
-                  data-testid="brief-download-pdf"
-                >
-                  {pdfBezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                  Download PDF
-                </Button>
-              </>
-            )}
-          </div>
-          <Button
-            onClick={markeerVerstuurd}
-            disabled={bezig}
-            data-testid={kanaal === 'email' ? 'brief-markeer-verzonden' : 'brief-markeer-verstuurd'}
-            className="order-3 w-full sm:w-auto"
-          >
-            <Send className="h-4 w-4" />
-            {kanaal === 'email' ? 'Markeer verzonden' : 'Markeer als verstuurd'}
-          </Button>
-        </DialogFooter>
+          }
+        />
+
 
 
       </DialogContent>

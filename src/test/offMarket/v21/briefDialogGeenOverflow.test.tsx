@@ -34,7 +34,7 @@ const signaal: any = {
 };
 
 describe('BriefVoorbereidenDialog footer — geen horizontale scroll', () => {
-  it('footer heeft flex-wrap class en sticky bottom', () => {
+  it('actiebalk heeft flex-wrap class en sticky bottom', () => {
     render(wrap(
       <BriefVoorbereidenDialog
         open={true}
@@ -44,11 +44,12 @@ describe('BriefVoorbereidenDialog footer — geen horizontale scroll', () => {
         historischeBrieven={[]}
       />,
     ));
-    const footer = screen.getByTestId('brief-dialog-footer');
-    expect(footer.className).toMatch(/flex-wrap/);
-    expect(footer.className).toMatch(/sticky/);
-    expect(footer.className).toMatch(/bottom-0/);
-    // overflow-x niet gezet als 'auto' op de footer
-    expect(footer.className).not.toMatch(/overflow-x-auto/);
+    const footer = document.body.querySelector('[data-modal-action-bar]') as HTMLElement | null;
+    expect(footer).not.toBeNull();
+    expect(footer!.className).toMatch(/flex-wrap/);
+    expect(footer!.className).toMatch(/sticky/);
+    expect(footer!.className).toMatch(/bottom-0/);
+    expect(footer!.className).not.toMatch(/overflow-x-auto/);
   });
 });
+
