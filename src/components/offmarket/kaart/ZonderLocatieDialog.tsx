@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import { OffMarketPriorityBadge, OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Props {
   open: boolean;
