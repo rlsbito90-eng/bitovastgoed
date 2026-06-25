@@ -510,7 +510,7 @@ export default function BriefVoorbereidenDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4" data-testid="brief-voorbereiden-dialog">
+        <div className="space-y-4 pb-20" data-testid="brief-voorbereiden-dialog">
           {/* V2.2 — kanaal segmented control */}
           <div
             data-testid="brief-kanaal-toggle"
