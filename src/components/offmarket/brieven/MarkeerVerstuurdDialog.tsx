@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import ModalActionBar from '@/components/ui/modal-action-bar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -136,12 +137,15 @@ export default function MarkeerVerstuurdDialog({
             Opvolging wordt gepland op <span className="font-medium text-foreground">{fmt(followUp)}</span>.
           </p>
         </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-          <Button onClick={uitvoeren} disabled={bezig || !postdatum} data-testid="markeer-verstuurd-bevestig">
-            <Send className="h-4 w-4" /> Bevestigen
-          </Button>
-        </DialogFooter>
+        <ModalActionBar
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Annuleren"
+          primary={
+            <Button onClick={uitvoeren} disabled={bezig || !postdatum} data-testid="markeer-verstuurd-bevestig">
+              <Send className="h-4 w-4" /> Bevestigen
+            </Button>
+          }
+        />
       </DialogContent>
     </Dialog>
   );
