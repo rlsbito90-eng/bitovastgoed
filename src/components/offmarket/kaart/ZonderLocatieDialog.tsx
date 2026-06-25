@@ -56,9 +56,9 @@ export default function ZonderLocatieDialog({ open, onOpenChange, signalen, onZo
                     onClick={async () => {
                       try {
                         await onZoek(s);
-                        toast({ title: 'PDOK gezocht', description: 'Bekijk eventuele kandidaten.' });
+                        toast.success('PDOK gezocht', { description: 'Bekijk eventuele kandidaten.' });
                       } catch {
-                        toast({ title: 'Zoeken mislukt', variant: 'destructive' });
+                        toast.error('Zoeken mislukt');
                       }
                     }}
                     disabled={!s.adres && !s.postcode}
