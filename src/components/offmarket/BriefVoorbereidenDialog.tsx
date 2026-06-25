@@ -509,9 +509,10 @@ export default function BriefVoorbereidenDialog({
               : 'Controleer de geadresseerde, het verzendadres en de objectomschrijving. De brief wordt als concept opgeslagen en is direct te downloaden als PDF.'}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-4">
-
-        <div className="space-y-4 pb-20" data-testid="brief-voorbereiden-dialog">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-6 space-y-4"
+          data-testid="brief-voorbereiden-dialog"
+        >
           {/* V2.2 — kanaal segmented control */}
           <div
             data-testid="brief-kanaal-toggle"
