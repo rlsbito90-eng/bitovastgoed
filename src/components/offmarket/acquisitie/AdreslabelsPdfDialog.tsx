@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ModalActionBar } from '@/components/ui/modal-action-bar';
 import { FileDown, Loader2 } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
