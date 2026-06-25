@@ -121,9 +121,9 @@ export default function LocatieControlerenDialog({ open, onOpenChange, items, on
                           onClick={async () => {
                             try {
                               await onKies(item.signaal_id, k);
-                              toast({ title: 'Locatie opgeslagen via PDOK', description: k.weergavenaam });
+                              toast.success('Locatie opgeslagen via PDOK', { description: k.weergavenaam });
                             } catch {
-                              toast({ title: 'Opslaan mislukt', variant: 'destructive' });
+                              toast.error('Opslaan mislukt');
                             }
                           }}
                         >
