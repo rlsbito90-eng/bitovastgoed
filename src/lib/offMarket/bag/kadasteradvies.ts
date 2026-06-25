@@ -82,8 +82,18 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
     };
   }
 
-  // V2.4 — Kleinschalige BAG-adrescontext (≤2 VBO én <150 m²) beperkt het advies
-  // maximaal tot 'voorzichtig', ongeacht AI-score. Reden noemt de schaal expliciet.
+  // Strategie-sterk (splitsing/transformatie/(her)ontwikkeling) + voldoende AI-score
+  // → 'aanbevolen', ook bij beperktere pandcontext. Wordt niet door doelobject vereist.
+  if (aiScore >= 70 && strategieSterk(s)) {
+    return {
+      niveau: 'aanbevolen',
+      reden: `AI-score ${aiScore} en strategie-fit (splitsing/transformatie/ontwikkeling) — Kadasteronderzoek aanbevolen.`,
+    };
+  }
+
+  // V2.4 — Kleinschalige BAG-adrescontext (≤2 VBO én <150 m²) beperkt het advies.
+  // Met kamerverhuur-/exploitatie-strategie of een algemene strategie-fit blijft het
+  // signaal 'voorzichtig'. Zonder strategie-fit valt het terug op 'laag'.
   const kleineContext = pandVbo > 0 && pandVbo <= 2 && pandOpp > 0 && pandOpp < 150;
   if (kleineContext) {
     if (strategieKamerverhuur(s)) {
@@ -92,9 +102,15 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
         reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Door mogelijke verhuur-, kamerverhuur- of exploitatieoptimalisatie kan het signaal nog relevant zijn, maar betaald Kadasteronderzoek verdient een bewuste afweging.`,
       };
     }
+    if (strategieAlgemeen) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      };
+    }
     return {
-      niveau: 'voorzichtig',
-      reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      niveau: 'laag',
+      reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's zonder strategie-fit — betaald Kadasteronderzoek heeft lage prioriteit.`,
     };
   }
 
