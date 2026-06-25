@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import type { GeocodeOnzeker } from '@/hooks/useKaartGeocoding';
 import type { GeocodeKandidaat } from '@/lib/offMarket/kaart/geocode';
 import { parseAdres, combineerParsed } from '@/lib/offMarket/kaart/geocode';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Props {
   open: boolean;
@@ -121,9 +121,9 @@ export default function LocatieControlerenDialog({ open, onOpenChange, items, on
                           onClick={async () => {
                             try {
                               await onKies(item.signaal_id, k);
-                              toast({ title: 'Locatie opgeslagen via PDOK', description: k.weergavenaam });
+                              toast.success('Locatie opgeslagen via PDOK', { description: k.weergavenaam });
                             } catch {
-                              toast({ title: 'Opslaan mislukt', variant: 'destructive' });
+                              toast.error('Opslaan mislukt');
                             }
                           }}
                         >

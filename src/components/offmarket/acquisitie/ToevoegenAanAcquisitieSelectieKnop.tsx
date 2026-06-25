@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ListPlus, ListChecks, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   useIsInAcquisitieSelectie,
   useVoegToeAanAcquisitieSelectie,
@@ -52,16 +52,14 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
     try {
       if (inSelectie) {
         await verwijder.mutateAsync(signaalId);
-        toast({ title: 'Verwijderd uit selectie' });
+        toast.success('Verwijderd uit selectie');
       } else {
         await voegToe.mutateAsync(signaalId);
-        toast({ title: 'Toegevoegd aan selectie' });
+        toast.success('Toegevoegd aan selectie');
       }
     } catch (err) {
-      toast({
-        title: inSelectie ? 'Verwijderen mislukt' : 'Toevoegen mislukt',
+      toast.error(inSelectie ? 'Verwijderen mislukt' : 'Toevoegen mislukt', {
         description: err instanceof Error ? err.message : 'Onbekende fout',
-        variant: 'destructive',
       });
     } finally {
       setLocalPending(false);
