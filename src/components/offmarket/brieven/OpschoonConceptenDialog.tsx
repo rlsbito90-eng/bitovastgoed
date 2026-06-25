@@ -4,8 +4,9 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import ModalActionBar from '@/components/ui/modal-action-bar';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
