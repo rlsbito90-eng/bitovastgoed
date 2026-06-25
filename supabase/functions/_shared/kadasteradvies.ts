@@ -91,6 +91,13 @@ export function berekenKadasteradvies(s: SignaalKadasterInput): KadasteradviesRe
     };
   }
 
+  if (aiScore >= 70 && strategieSterk(s)) {
+    return {
+      niveau: 'aanbevolen',
+      reden: `AI-score ${aiScore} en strategie-fit (splitsing/transformatie/ontwikkeling) — Kadasteronderzoek aanbevolen.`,
+    };
+  }
+
   const kleineContext = pandVbo > 0 && pandVbo <= 2 && pandOpp > 0 && pandOpp < 150;
   if (kleineContext) {
     if (strategieKamerverhuur(s)) {
@@ -99,9 +106,15 @@ export function berekenKadasteradvies(s: SignaalKadasterInput): KadasteradviesRe
         reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Door mogelijke verhuur-, kamerverhuur- of exploitatieoptimalisatie kan het signaal nog relevant zijn, maar betaald Kadasteronderzoek verdient een bewuste afweging.`,
       };
     }
+    if (heeftDoelobject || aiScore >= 70 || strategieAlgemeen) {
+      return {
+        niveau: 'voorzichtig',
+        reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      };
+    }
     return {
-      niveau: 'voorzichtig',
-      reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
+      niveau: 'laag',
+      reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's zonder strategie-fit — betaald Kadasteronderzoek heeft lage prioriteit.`,
     };
   }
 
