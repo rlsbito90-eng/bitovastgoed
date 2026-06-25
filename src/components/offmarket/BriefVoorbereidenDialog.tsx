@@ -757,7 +757,7 @@ export default function BriefVoorbereidenDialog({
         </div>
 
         <ModalActionBar
-          className="-mx-6 -mb-6 mt-2"
+          className="shrink-0"
           onCancel={() => onOpenChange(false)}
           cancelLabel="Sluiten"
           secondary={[
