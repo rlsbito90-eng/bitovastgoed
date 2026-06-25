@@ -35,7 +35,7 @@ const signaal: any = {
 
 describe('BriefVoorbereidenDialog footer — geen horizontale scroll', () => {
   it('actiebalk heeft flex-wrap class en sticky bottom', () => {
-    const { container } = render(wrap(
+    render(wrap(
       <BriefVoorbereidenDialog
         open={true}
         onOpenChange={() => {}}
@@ -44,7 +44,7 @@ describe('BriefVoorbereidenDialog footer — geen horizontale scroll', () => {
         historischeBrieven={[]}
       />,
     ));
-    const footer = container.querySelector('[data-modal-action-bar]') as HTMLElement | null;
+    const footer = document.body.querySelector('[data-modal-action-bar]') as HTMLElement | null;
     expect(footer).not.toBeNull();
     expect(footer!.className).toMatch(/flex-wrap/);
     expect(footer!.className).toMatch(/sticky/);
