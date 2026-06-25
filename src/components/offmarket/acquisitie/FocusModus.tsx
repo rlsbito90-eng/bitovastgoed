@@ -92,21 +92,12 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange 
 
         {/* Header */}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60 bg-background/70 backdrop-blur">
-          <div className="min-w-0">
+          <div className="min-w-0 pr-8">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Focus · {veiligIndex + 1} van {items.length}
             </p>
             <h2 className="text-sm font-medium text-foreground truncate">Verwerk selectie</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground"
-            aria-label="Sluit focusmodus"
-            data-testid="focus-sluit"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         {/* Scrollbare body — voldoende bottom-padding voor sticky footer */}
