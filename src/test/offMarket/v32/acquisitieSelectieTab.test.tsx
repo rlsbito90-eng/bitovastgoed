@@ -41,6 +41,9 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
 }));
+vi.mock('@/hooks/useDataStore', () => ({
+  useDataStore: () => ({ addTaak: vi.fn(), taken: [], getRelatieById: () => null }),
+}));
 
 import AcquisitieSelectieTab from '@/components/offmarket/acquisitie/AcquisitieSelectieTab';
 
