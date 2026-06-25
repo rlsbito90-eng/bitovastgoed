@@ -223,22 +223,20 @@ export default function GecombineerdeBrievenPdfDialog({
             )}
           </div>
 
-          <div
-            className="border-t bg-background/95 backdrop-blur px-5 py-3 flex flex-wrap items-center justify-end gap-2"
-            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
-          >
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={bezig}>
-              Sluiten
-            </Button>
-            <Button
-              type="button" size="sm" onClick={download}
-              disabled={bezig || teGenereren.length === 0}
-              data-testid="combined-pdf-download"
-            >
-              {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Download gecombineerde PDF
-            </Button>
-          </div>
+          <ModalActionBar
+            onCancel={onClose}
+            cancelLabel="Sluiten"
+            primary={
+              <Button
+                type="button" size="sm" onClick={download}
+                disabled={bezig || teGenereren.length === 0}
+                data-testid="combined-pdf-download"
+              >
+                {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Download gecombineerde PDF
+              </Button>
+            }
+          />
         </div>
       </DialogContent>
     </Dialog>
