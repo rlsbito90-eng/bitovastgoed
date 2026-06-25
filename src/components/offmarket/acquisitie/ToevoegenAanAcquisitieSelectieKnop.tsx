@@ -52,16 +52,14 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
     try {
       if (inSelectie) {
         await verwijder.mutateAsync(signaalId);
-        toast({ title: 'Verwijderd uit selectie' });
+        toast.success('Verwijderd uit selectie');
       } else {
         await voegToe.mutateAsync(signaalId);
-        toast({ title: 'Toegevoegd aan selectie' });
+        toast.success('Toegevoegd aan selectie');
       }
     } catch (err) {
-      toast({
-        title: inSelectie ? 'Verwijderen mislukt' : 'Toevoegen mislukt',
+      toast.error(inSelectie ? 'Verwijderen mislukt' : 'Toevoegen mislukt', {
         description: err instanceof Error ? err.message : 'Onbekende fout',
-        variant: 'destructive',
       });
     } finally {
       setLocalPending(false);
