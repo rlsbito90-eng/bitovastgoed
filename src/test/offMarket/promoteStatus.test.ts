@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Database } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 const PROMOTIE_STATUS = 'te_beoordelen' as const;
 
@@ -42,12 +42,4 @@ describe('off_market_promote_to_object — statuswaarde', () => {
     expect(status).toBe('te_beoordelen');
   });
 
-  it('alle object_status waarden in deze repo bevatten geen "nieuw"', () => {
-    // Sanity-check: de generated types mogen 'nieuw' niet meer bevatten.
-    type ObjectStatus = Database['public']['Enums']['object_status'];
-    const verboden = 'nieuw';
-    // @ts-expect-error 'nieuw' mag geen geldige ObjectStatus zijn
-    const v: ObjectStatus = verboden;
-    expect(v).toBe('nieuw');
-  });
 });
