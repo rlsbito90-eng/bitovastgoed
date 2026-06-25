@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronRight, ExternalLink, SkipForward, X,
+  ChevronLeft, ChevronRight, ExternalLink, SkipForward,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
