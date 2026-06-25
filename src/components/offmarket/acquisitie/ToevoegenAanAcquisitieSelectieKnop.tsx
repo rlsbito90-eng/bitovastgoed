@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ListPlus, ListChecks, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   useIsInAcquisitieSelectie,
   useVoegToeAanAcquisitieSelectie,
