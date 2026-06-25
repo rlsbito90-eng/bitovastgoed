@@ -137,12 +137,15 @@ export default function MarkeerVerstuurdDialog({
             Opvolging wordt gepland op <span className="font-medium text-foreground">{fmt(followUp)}</span>.
           </p>
         </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-          <Button onClick={uitvoeren} disabled={bezig || !postdatum} data-testid="markeer-verstuurd-bevestig">
-            <Send className="h-4 w-4" /> Bevestigen
-          </Button>
-        </DialogFooter>
+        <ModalActionBar
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Annuleren"
+          primary={
+            <Button onClick={uitvoeren} disabled={bezig || !postdatum} data-testid="markeer-verstuurd-bevestig">
+              <Send className="h-4 w-4" /> Bevestigen
+            </Button>
+          }
+        />
       </DialogContent>
     </Dialog>
   );
