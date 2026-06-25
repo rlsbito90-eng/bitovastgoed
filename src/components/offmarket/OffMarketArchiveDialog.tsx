@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import ModalActionBar from '@/components/ui/modal-action-bar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -66,10 +67,13 @@ export default function OffMarketArchiveDialog({ open, onOpenChange, onConfirm }
               placeholder={isAnders ? 'Geef een korte toelichting' : 'Optionele toelichting'} />
           </div>
         </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-          <Button onClick={handle} disabled={!canConfirm || bezig}>{bezig ? 'Bezig…' : 'Archiveren'}</Button>
-        </DialogFooter>
+        <ModalActionBar
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Annuleren"
+          primary={
+            <Button onClick={handle} disabled={!canConfirm || bezig}>{bezig ? 'Bezig…' : 'Archiveren'}</Button>
+          }
+        />
       </DialogContent>
     </Dialog>
   );
