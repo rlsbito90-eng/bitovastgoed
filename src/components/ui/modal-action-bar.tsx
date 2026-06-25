@@ -37,14 +37,14 @@ export function ModalActionBar({
       data-modal-action-bar=""
       className={cn(
         "sticky bottom-0 left-0 right-0 z-10",
-        "flex flex-wrap items-center justify-between gap-2",
+        "flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between",
         "border-t border-border bg-background/95 backdrop-blur",
         "px-4 sm:px-6 py-3",
         className,
       )}
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
             {cancelLabel}
@@ -55,7 +55,11 @@ export function ModalActionBar({
             <React.Fragment key={i}>{node}</React.Fragment>
           ))}
       </div>
-      {primary && <div className="flex items-center gap-2 ml-auto">{primary}</div>}
+      {primary && (
+        <div className="flex items-center gap-2 sm:ml-auto [&>*]:w-full sm:[&>*]:w-auto">
+          {primary}
+        </div>
+      )}
     </div>
   );
 }
