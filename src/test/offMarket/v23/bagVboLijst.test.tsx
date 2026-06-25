@@ -30,9 +30,10 @@ describe('BagVboLijst', () => {
   });
 
   it('toont meerdere VBO\'s met oppervlak en gebruiksdoel', () => {
-    const { getAllByTestId, getByText } = render(<BagVboLijst vbos={vbos} />);
+    const { getAllByTestId, getAllByText } = render(<BagVboLijst vbos={vbos} />);
     expect(getAllByTestId('bag-vbo-item')).toHaveLength(2);
-    expect(getByText('52 m²')).toBeInTheDocument();
-    expect(getByText('49 m²')).toBeInTheDocument();
+    // Oppervlakte verschijnt zowel in de rechter kolom als in de detailregel — beide tellen.
+    expect(getAllByText('52 m²').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('49 m²').length).toBeGreaterThanOrEqual(1);
   });
 });
