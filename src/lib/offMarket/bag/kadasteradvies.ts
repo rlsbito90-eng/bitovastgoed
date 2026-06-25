@@ -102,7 +102,9 @@ export function berekenKadasteradvies(s: SignaalBagInput): KadasteradviesResulta
         reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Door mogelijke verhuur-, kamerverhuur- of exploitatieoptimalisatie kan het signaal nog relevant zijn, maar betaald Kadasteronderzoek verdient een bewuste afweging.`,
       };
     }
-    if (strategieAlgemeen) {
+    // Doelobject of voldoende AI-score (≥70) of algemene strategie-fit houdt het
+    // signaal minimaal op 'voorzichtig'. Anders valt het terug op 'laag'.
+    if (heeftDoelobject || aiScore >= 70 || strategieAlgemeen) {
       return {
         niveau: 'voorzichtig',
         reden: `Kleinschalige BAG-adrescontext van circa ${pandOpp} m² met ${pandVbo} VBO's. Betaald Kadasteronderzoek verdient een bewuste afweging.`,
