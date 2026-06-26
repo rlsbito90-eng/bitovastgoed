@@ -665,7 +665,9 @@ export default function BriefVoorbereidenDialog({
             </details>
             {verzendadresOntbreekt && (
               <p className="text-[11px] text-amber-600">
-                Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.
+                {geselecteerdeKandidaat?.bron === 'kadaster' && !geselecteerdeKandidaat?.verzendadres
+                  ? 'Voor deze Kadaster-geadresseerde is geen gestructureerd verzendadres beschikbaar. Vul het verzendadres handmatig in.'
+                  : 'Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.'}
               </p>
             )}
           </div>
