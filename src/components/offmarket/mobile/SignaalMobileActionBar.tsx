@@ -71,13 +71,15 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
     >
       <div className="tabs-scroll flex items-center gap-1 overflow-x-auto no-scrollbar">
         {acties.map(({ key, kort, aria, href, onClick, Icon, disabled }) => {
+          const isExternal = href && !disabled;
           const inhoud = (
             <>
               <Icon className="h-4 w-4" />
               <span className="leading-none">{kort}</span>
+              {isExternal && <ExternalLink className="h-3 w-3 opacity-50" />}
             </>
           );
-          if (href && !disabled) {
+          if (isExternal) {
             return (
               <a
                 key={key}
