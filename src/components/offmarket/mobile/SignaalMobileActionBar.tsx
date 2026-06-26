@@ -66,7 +66,8 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
   return (
     <section
       data-testid="signaal-mobile-actionbar"
-      className="glass-mobile-action px-1.5 py-1"
+      className="glass-mobile-action px-1.5 pt-1"
+      style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
     >
       <div className="tabs-scroll flex items-center gap-1 overflow-x-auto no-scrollbar">
         {acties.map(({ key, kort, aria, href, onClick, Icon, disabled }) => {
