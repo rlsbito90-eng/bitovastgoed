@@ -51,7 +51,7 @@ export default function SignaalMobileActionBar({ signaal }: Props) {
     { key: 'maps', kort: 'Maps', aria: 'Open in Google Maps', href: mapsUrl, Icon: MapPin, disabled: !mapsUrl },
     { key: 'google', kort: 'Google', aria: 'Zoek adres op Google', href: googleUrl, Icon: Search, disabled: !googleUrl },
     { key: 'bag', kort: 'BAG', aria: 'Open in BAG Viewer', href: bouwBagViewerUrl(), Icon: MapIcon },
-    { key: 'kadaster', kort: 'Kadaster', aria: 'Open in KadastraleKaart.com', href: bouwKadastraleKaartUrl(), Icon: Landmark },
+    { key: 'kadaster', kort: 'Kadastrale kaart', aria: 'Open in KadastraleKaart.com', href: bouwKadastraleKaartUrl(), Icon: Landmark },
     { key: 'bron', kort: 'Bron', aria: 'Open bekendmaking', href: signaal.bron_url || null, Icon: FileText, disabled: !signaal.bron_url },
     { key: 'copy', kort: 'Kopieer', aria: 'Kopieer adres', href: null, onClick: kopieer, Icon: Copy, disabled: !query },
   ];

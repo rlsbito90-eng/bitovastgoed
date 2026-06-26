@@ -13,6 +13,7 @@ import { MapPin, Search, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CollapsibleList } from '@/components/ui/collapsible-list';
 import {
   zoekBagAdressen, type BagAdresResultaat,
 } from '@/lib/bag/pdokLookup';
