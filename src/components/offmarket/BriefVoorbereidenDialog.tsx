@@ -218,7 +218,7 @@ export default function BriefVoorbereidenDialog({
 
   const neemVerzendadresOverUitKadaster = () => {
     if (overneemAdresOpties.length === 0) {
-      toast.error('Geen verzendadres gevonden in Kadasterbericht.');
+      toast.error('Geen gestructureerd verzendadres gevonden. Vul het verzendadres handmatig in.');
       return;
     }
     const idx = Number(kadasterAdresKey || 0);
@@ -491,6 +491,7 @@ export default function BriefVoorbereidenDialog({
 
 
   const kandidaten = prefill.kandidaten;
+  const geselecteerdeKandidaat = kandidaten.find(k => k.label === kandidaatLabel);
   const verzendadresOntbreekt = !vm.heeftVerzendadres;
 
   return (
@@ -664,7 +665,9 @@ export default function BriefVoorbereidenDialog({
             </details>
             {verzendadresOntbreekt && (
               <p className="text-[11px] text-amber-600">
-                Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.
+                {geselecteerdeKandidaat?.bron === 'kadaster' && !geselecteerdeKandidaat?.verzendadres
+                  ? 'Voor deze Kadaster-geadresseerde is geen gestructureerd verzendadres beschikbaar. Vul het verzendadres handmatig in.'
+                  : 'Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.'}
               </p>
             )}
           </div>
