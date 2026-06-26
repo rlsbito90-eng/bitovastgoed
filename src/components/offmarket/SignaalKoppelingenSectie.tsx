@@ -32,7 +32,7 @@ interface Props {
 
 export default function SignaalKoppelingenSectie({ signaal }: Props) {
   const navigate = useNavigate();
-  const { relaties, contactpersonen, getObjectById } = useDataStore();
+  const { relaties, contactpersonen, getObjectById, refresh: refreshDataStore } = useDataStore();
   const linkRelatie = useLinkRelatieToSignaal();
   const promote = usePromoteSignaalToObject();
   const [nieuwRelatieOpen, setNieuwRelatieOpen] = useState(false);
