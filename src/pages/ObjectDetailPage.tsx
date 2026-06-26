@@ -642,12 +642,11 @@ export default function ObjectDetailPage() {
 
   // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
   const visibleTabs = useMemo(() => {
-    const hasMeer = !!object && (
-      hasJuridischData(object) ||
-      hasContactenData(object) ||
-      store.getDealsByObject(object.id).length > 0 ||
-      (kadasterRecords && kadasterRecords.length > 0) ||
-      (kadasterDocs && kadasterDocs.length > 0)
+    const hasMeer = shouldShowMeerTab(
+      object,
+      store.getDealsByObject(object.id),
+      kadasterRecords,
+      kadasterDocs,
     );
     return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
   }, [object, store, kadasterRecords, kadasterDocs]);
