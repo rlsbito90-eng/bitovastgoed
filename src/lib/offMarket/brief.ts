@@ -307,6 +307,22 @@ const RECHTHEBBENDE_KEYS_BREED = [
   'rightHolders', 'personen', 'rechtspersonen', 'natuurlijkePersonen', 'nietNatuurlijkePersonen',
 ];
 
+/**
+ * Geeft de "parent"-pad-component terug. Wordt gebruikt om naam-only en
+ * adres-only sibling-knopen onder dezelfde tenaamstelling-achtige container
+ * dezelfde stabiele kandidaatId te geven.
+ *
+ * Voorbeelden:
+ *   "raw_limited.rechten[0].tenaamstellingen[1].naamNatuurlijkPersoon"
+ *     -> "raw_limited.rechten[0].tenaamstellingen[1]"
+ *   "raw_limited.rechten[0].tenaamstellingen[1].correspondentieadres"
+ *     -> "raw_limited.rechten[0].tenaamstellingen[1]"
+ */
+function ouderPad(path: string): string {
+  const m = path.match(/^(.+?)(\.[A-Za-z_$][\w$]*|\[\d+\])$/);
+  return m && m[1] ? m[1] : path;
+}
+
 function scanRechthebbendenBreed(
   node: unknown,
   record: KadasterDataRecord,
@@ -328,7 +344,11 @@ function scanRechthebbendenBreed(
     .some(k => obj[k] !== undefined);
   const adres = bouwAdresUitBlok(obj);
   if ((lijktPersoon || lijktEntiteit || adres) && (normaliseerNaamUitPersoon(obj) || normaliseerBedrijfsnaamUitEntiteit(obj) || adres)) {
+    // Sibling-knopen onder dezelfde tenaamstelling/container moeten samen
+    // gekoppeld blijven; gebruik daarom het ouderpad als kandidaatId.
+    const kandidaatId = `${record.id}#broad:${ouderPad(path)}`;
     out.push({
+      kandidaatId,
       naam: normaliseerNaamUitPersoon(obj),
       bedrijfsnaam: normaliseerBedrijfsnaamUitEntiteit(obj),
       verzendadres: adres,
@@ -348,17 +368,39 @@ function scanRechthebbendenBreed(
   return out;
 }
 
+/**
+ * Voegt een nieuwe rechthebbende-fragment samen in een map op kandidaatId.
+ * Rijkste naam wint (meer woorden), eerste niet-leeg adres wint.
+ */
+function voegRechthebbendeSamen(
+  map: Map<string, RechthebbendeUitKadaster>,
+  entry: RechthebbendeUitKadaster,
+): void {
+  const cur = map.get(entry.kandidaatId);
+  if (!cur) { map.set(entry.kandidaatId, { ...entry }); return; }
+  const woordenNieuw = (entry.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+  const woordenOud = (cur.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
+  if (!cur.naam || woordenNieuw > woordenOud) cur.naam = entry.naam ?? cur.naam;
+  if (!cur.bedrijfsnaam && entry.bedrijfsnaam) cur.bedrijfsnaam = entry.bedrijfsnaam;
+  if (!cur.verzendadres && entry.verzendadres) cur.verzendadres = entry.verzendadres;
+  if (!cur.debugBron && entry.debugBron) cur.debugBron = entry.debugBron;
+}
+
 export function extraheerRechthebbendenUitRecord(
   record: KadasterDataRecord,
 ): RechthebbendeUitKadaster[] {
   const raw = (record.raw_limited as Record<string, unknown> | null) ?? {};
-  const verzameld: RechthebbendeUitKadaster[] = [];
+  // Intra-pad: koppel fragmenten met dezelfde kandidaatId (zelfde
+  // tenaamstelling-/blok-positie). Hierdoor blijven naam-only en
+  // adres-only siblings van dezelfde rechthebbende gekoppeld.
+  const intraPad = new Map<string, RechthebbendeUitKadaster>();
 
   // 1) Primair: gedeelde Kadaster-rechtenparser. Vangt naamNatuurlijkPersoon,
   //    naamNietNatuurlijkPersoon, persons/entities, tenaamstellingen etc.
   const bronnen: unknown[] = [raw];
   const rechtenSub = asObj((raw as Record<string, unknown>).rechten);
   if (rechtenSub) bronnen.push(rechtenSub);
+  let primIdx = 0;
   for (const bron of bronnen) {
     for (const b of mapRechtenBlokken(bron)) {
       const naam = b.naam ?? null;
@@ -366,8 +408,10 @@ export function extraheerRechthebbendenUitRecord(
       const adresRegel1 = b.adresRegels[0] ?? null;
       const adresRegel2 = [b.postcode, b.plaats].filter(Boolean).join(' ').trim();
       const verzendadres = [adresRegel1, adresRegel2 || null].filter(Boolean).join('\n').trim() || null;
+      const kandidaatId = `${record.id}#primary:${primIdx++}`;
       if (!naam && !bedrijfsnaam && !verzendadres) continue;
-      verzameld.push({
+      voegRechthebbendeSamen(intraPad, {
+        kandidaatId,
         naam, bedrijfsnaam, verzendadres,
         recordId: record.id,
         fetchedAt: record.fetched_at,
@@ -381,66 +425,77 @@ export function extraheerRechthebbendenUitRecord(
   //    voorgeformatteerd string-adres aan dat de generieke parser laat liggen.
   const rechten = asObj((raw as Record<string, unknown>).rechten) ?? {};
   const legacyBlokken = Array.isArray(rechten.blokken) ? (rechten.blokken as unknown[]) : [];
-  for (const blok of legacyBlokken) {
-    const b = asObj(blok); if (!b) continue;
-    const lijsten: unknown[] = [];
+  legacyBlokken.forEach((blok, blokIdx) => {
+    const b = asObj(blok); if (!b) return;
     for (const k of ['persons', 'entities', 'rechthebbenden', 'personen']) {
       const v = (b as Record<string, unknown>)[k];
-      if (Array.isArray(v)) lijsten.push(...v);
-    }
-    for (const p of lijsten) {
-      const po = asObj(p); if (!po) continue;
-      const voornamen = asStr(po.voornamen);
-      const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
-        ?? asStr((po as Record<string, unknown>).achternaam);
-      const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
-      const volledig = asStr(po.volledigeNaam) ?? (samengesteld || null);
-      const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
-        ?? asStr((po as Record<string, unknown>).organisatieNaam)
-        ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
-      const adres = bouwAdresUitBlok(po);
-      if (!volledig && !bedrijfsnaam && !adres) continue;
-      verzameld.push({
-        naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres,
-        recordId: record.id,
-        fetchedAt: record.fetched_at,
-        debugBron: `${labelVoorRecord(record)} · raw_limited.rechten.blokken`,
+      if (!Array.isArray(v)) continue;
+      v.forEach((p, persIdx) => {
+        const po = asObj(p); if (!po) return;
+        const voornamen = asStr(po.voornamen);
+        const achternaam = asStr(po.naam) ?? asStr((po as Record<string, unknown>).geslachtsnaam)
+          ?? asStr((po as Record<string, unknown>).achternaam);
+        const samengesteld = [voornamen, achternaam].filter(Boolean).join(' ').trim();
+        const volledig = asStr(po.volledigeNaam) ?? (samengesteld || null);
+        const bedrijfsnaam = asStr(po.statutaireNaam) ?? asStr(po.handelsnaam)
+          ?? asStr((po as Record<string, unknown>).organisatieNaam)
+          ?? asStr((po as Record<string, unknown>).bedrijfsnaam);
+        const adres = bouwAdresUitBlok(po);
+        if (!volledig && !bedrijfsnaam && !adres) return;
+        voegRechthebbendeSamen(intraPad, {
+          kandidaatId: `${record.id}#legacy:${blokIdx}.${k}.${persIdx}`,
+          naam: volledig, bedrijfsnaam: bedrijfsnaam ?? null, verzendadres: adres,
+          recordId: record.id,
+          fetchedAt: record.fetched_at,
+          debugBron: `${labelVoorRecord(record)} · raw_limited.rechten.blokken`,
+        });
       });
     }
-  }
+  });
 
   // 3) Breed defensief: doorzoek opgeslagen JSON-velden zonder een vaste
   //    Kadaster-shape aan te nemen. Dit vangt o.a. geneste tenaamstellingen,
-  //    persons/entities en toekomstige whitelisted adresvelden.
+  //    persons/entities en sibling-adresknopen. KandidaatId is gebaseerd op
+  //    het ouder-pad zodat sibling-knopen (naam vs. adres) samenvallen.
   for (const [label, bron] of [
     ['raw_limited', record.raw_limited],
     ['rechten_samenvatting', record.rechten_samenvatting],
   ] as const) {
-    for (const rh of scanRechthebbendenBreed(bron, record, label)) verzameld.push(rh);
+    for (const rh of scanRechthebbendenBreed(bron, record, label)) {
+      voegRechthebbendeSamen(intraPad, rh);
+    }
   }
 
-  // Merge: dedup op (achternaam-token | bedrijfsnaam), kies rijkste naam +
-  //        bewaar elk gevonden verzendadres.
+  // Inter-pad merge: dezelfde rechthebbende kan in meerdere paden voorkomen
+  // (mapRechtenBlokken + legacy + broad). Koppel op volledige naam +
+  // bedrijfsnaam (lowercase + whitespace genormaliseerd). Bewust GEEN
+  // last-token match, anders worden personen met dezelfde achternaam
+  // ("V. Achternaam" en "W. Achternaam") onterecht samengevoegd.
+  const interKey = (e: RechthebbendeUitKadaster) => {
+    const n = (e.naam ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const b = (e.bedrijfsnaam ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return `${n}|${b}`;
+  };
   const merged = new Map<string, RechthebbendeUitKadaster>();
-  for (const rh of verzameld) {
-    const naamLast = (rh.naam ?? '').trim().split(/\s+/).pop()?.toLowerCase() ?? '';
-    const key = `${naamLast}|${(rh.bedrijfsnaam ?? '').toLowerCase()}`;
-    if (!key.replace('|', '')) continue;
-    const bestaand = merged.get(key);
-    if (!bestaand) { merged.set(key, { ...rh }); continue; }
-    // Kies rijkste naam (meer woorden) en eerste niet-lege adres.
-    const woordenNieuw = (rh.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
-    const woordenOud = (bestaand.naam ?? '').trim().split(/\s+/).filter(Boolean).length;
-    if (woordenNieuw > woordenOud) bestaand.naam = rh.naam;
-    if (!bestaand.bedrijfsnaam && rh.bedrijfsnaam) bestaand.bedrijfsnaam = rh.bedrijfsnaam;
-    if (!bestaand.verzendadres && rh.verzendadres) bestaand.verzendadres = rh.verzendadres;
-    if (!bestaand.debugBron && rh.debugBron) bestaand.debugBron = rh.debugBron;
+  for (const e of intraPad.values()) {
+    const k = interKey(e);
+    // Volledig anoniem fragment (geen naam én geen bedrijfsnaam, alleen adres
+    // dat niet aan een persoon binnen dezelfde tenaamstelling kon worden
+    // gekoppeld): niet bruikbaar als kandidaat in de dropdown — overslaan.
+    if (k === '|') continue;
+    const cur = merged.get(k);
+    if (!cur) { merged.set(k, { ...e }); continue; }
+    if (!cur.verzendadres && e.verzendadres) cur.verzendadres = e.verzendadres;
+    if (!cur.naam && e.naam) cur.naam = e.naam;
+    if (!cur.bedrijfsnaam && e.bedrijfsnaam) cur.bedrijfsnaam = e.bedrijfsnaam;
+    if (!cur.debugBron && e.debugBron) cur.debugBron = e.debugBron;
   }
   const out = Array.from(merged.values());
 
-  // 3) Allerlaatste fallback: top-level rechthebbende_naam zonder adres.
+  // Laatste fallback: top-level rechthebbende_naam zonder adres.
   if (out.length === 0 && record.rechthebbende_naam) {
     out.push({
+      kandidaatId: `${record.id}#fallback:rechthebbende_naam`,
       naam: record.rechthebbende_naam,
       bedrijfsnaam: null,
       verzendadres: null,
@@ -448,6 +503,9 @@ export function extraheerRechthebbendenUitRecord(
       fetchedAt: record.fetched_at,
       debugBron: labelVoorRecord(record),
     });
+  }
+  return out;
+}
   }
   return out;
 }
