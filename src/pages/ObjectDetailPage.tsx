@@ -238,6 +238,23 @@ function hasContactenData(o: any): boolean {
     o.contactNaam || o.contactEmail || o.contactTelefoon));
 }
 
+/** Centrale helper voor tab-zichtbaarheid — testbaar zonder React-render. */
+export function shouldShowMeerTab(
+  object: any,
+  deals: any[],
+  kadasterRecords: any[] | null | undefined,
+  kadasterDocs: any[] | null | undefined,
+): boolean {
+  if (!object) return false;
+  return (
+    hasJuridischData(object) ||
+    hasContactenData(object) ||
+    deals.length > 0 ||
+    (kadasterRecords && kadasterRecords.length > 0) ||
+    (kadasterDocs && kadasterDocs.length > 0)
+  );
+}
+
 /** Sticky section nav (cockpit subnav) — vaste basis, conditioneel uitgebreid in page */
 type SectionDef = { id: string; label: string; icon: any };
 
