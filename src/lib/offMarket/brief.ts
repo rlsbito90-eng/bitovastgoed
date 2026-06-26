@@ -506,9 +506,7 @@ export function extraheerRechthebbendenUitRecord(
   }
   return out;
 }
-  }
-  return out;
-}
+
 
 export function kadasterAdresKandidaten(records: KadasterDataRecord[] = []): RechthebbendeUitKadaster[] {
   return records
