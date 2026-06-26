@@ -80,6 +80,8 @@ import Timeline from '@/components/contactmoment/Timeline';
 import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
 import KadasterOpgeslagenKaart from '@/components/object/kadaster/KadasterOpgeslagenKaart';
 import { buildMapsUrl } from '@/lib/maps';
+import { useKadasterDataRecords } from '@/hooks/useKadasterDataRecords';
+import { useKadasterDocumentenForObject } from '@/hooks/useKadasterDocumenten';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
@@ -234,6 +236,23 @@ function hasJuridischData(o: any): boolean {
 function hasContactenData(o: any): boolean {
   return !!(o && (o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
     o.contactNaam || o.contactEmail || o.contactTelefoon));
+}
+
+/** Centrale helper voor tab-zichtbaarheid — testbaar zonder React-render. */
+export function shouldShowMeerTab(
+  object: any,
+  deals: any[],
+  kadasterRecords: any[] | null | undefined,
+  kadasterDocs: any[] | null | undefined,
+): boolean {
+  if (!object) return false;
+  return (
+    hasJuridischData(object) ||
+    hasContactenData(object) ||
+    deals.length > 0 ||
+    (kadasterRecords && kadasterRecords.length > 0) ||
+    (kadasterDocs && kadasterDocs.length > 0)
+  );
 }
 
 /** Sticky section nav (cockpit subnav) — vaste basis, conditioneel uitgebreid in page */
@@ -617,15 +636,20 @@ export default function ObjectDetailPage() {
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
 
+  // ── Read-only Kadasterdata — alleen voor tab-zichtbaarheid, geen nieuwe call ──
+  const { data: kadasterRecords } = useKadasterDataRecords(object?.id ?? null);
+  const { data: kadasterDocs } = useKadasterDocumentenForObject(object?.id ?? null);
+
   // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
   const visibleTabs = useMemo(() => {
-    const hasMeer = !!object && (
-      hasJuridischData(object) ||
-      hasContactenData(object) ||
-      store.getDealsByObject(object.id).length > 0
+    const hasMeer = shouldShowMeerTab(
+      object,
+      store.getDealsByObject(object.id),
+      kadasterRecords,
+      kadasterDocs,
     );
     return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
-  }, [object, store]);
+  }, [object, store, kadasterRecords, kadasterDocs]);
 
   // ── Tab-state: prioriteit URL (?tab=) → hash-shim → 'overzicht' ──
   // Bewust géén localStorage-fallback: bij normaal openen van een ander
