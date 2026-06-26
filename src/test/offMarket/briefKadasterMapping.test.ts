@@ -233,3 +233,27 @@ describe('extraheerEigenaarKandidaten — signaal blijft voorrang houden', () =>
     expect(kad.kandidaatId).toBeTruthy();
   });
 });
+
+describe('kadasterAdresKandidaten — filtert alleen rechthebbenden mét verzendadres', () => {
+  it('Kadaster Objectinformatie-record met alleen naamNatuurlijkPersoon en zonder adresknoop levert naam maar geen adres', () => {
+    const r = maakRecord({
+      id: 'rec-naam-zonder-adres',
+      raw_limited: {
+        rechten: [{
+          aardRecht: 'Eigendom',
+          tenaamstellingen: [{
+            naamNatuurlijkPersoon: { voornamen: 'Kadaster', geslachtsnaam: 'Kandidaat' },
+            // geen adres, woonadres, correspondentieadres, vestigingsadres
+          }],
+        }],
+      },
+    });
+    const rh = extraheerRechthebbendenUitRecord(r);
+    expect(rh.length).toBe(1);
+    expect((rh[0].naam ?? '').toLowerCase()).toContain('kandidaat');
+    expect(rh[0].verzendadres).toBeNull();
+
+    const adresKandidaten = kadasterAdresKandidaten([r]);
+    expect(adresKandidaten.length).toBe(0);
+  });
+});
