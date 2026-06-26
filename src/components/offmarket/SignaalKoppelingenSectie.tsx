@@ -83,6 +83,7 @@ export default function SignaalKoppelingenSectie({ signaal }: Props) {
       });
       setPromoteOpen(false);
       toast.success(signaal.gekoppeld_object_id ? 'Object al gekoppeld' : 'Signaal omgezet naar object');
+      await refreshDataStore();
       if (heeftKadasterRecords && migrateKadaster) {
         if (res.kadasterMigrationError) {
           toast.warning(
