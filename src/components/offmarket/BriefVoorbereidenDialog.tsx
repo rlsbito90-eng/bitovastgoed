@@ -491,6 +491,7 @@ export default function BriefVoorbereidenDialog({
 
 
   const kandidaten = prefill.kandidaten;
+  const geselecteerdeKandidaat = kandidaten.find(k => k.label === kandidaatLabel);
   const verzendadresOntbreekt = !vm.heeftVerzendadres;
 
   return (
