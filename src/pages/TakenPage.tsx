@@ -5,8 +5,9 @@ import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import {
   Search, Plus, CheckCircle2, Circle, Clock, MoreHorizontal,
-  ExternalLink, ChevronDown,
+  ExternalLink, ChevronDown, ListChecks,
 } from 'lucide-react';
+import EmptyState from '@/components/ui/empty-state';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
