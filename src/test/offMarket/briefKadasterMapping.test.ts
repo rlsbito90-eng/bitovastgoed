@@ -8,6 +8,7 @@ import {
   extraheerRechthebbendenUitRecord,
   extraheerEigenaarKandidaten,
   bouwBriefPrefill,
+  kadasterAdresKandidaten,
 } from '@/lib/offMarket/brief';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
