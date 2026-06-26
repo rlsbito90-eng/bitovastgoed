@@ -112,9 +112,20 @@ export default function RelatiesPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="section-card p-12 text-center">
-          <p className="text-sm text-muted-foreground">Geen relaties gevonden.</p>
-        </div>
+        <EmptyState
+          icon={<Users />}
+          title="Geen relaties gevonden"
+          description="Pas je filters of zoekopdracht aan, of voeg een nieuwe relatie toe."
+          action={
+            <button
+              type="button"
+              onClick={() => setFormOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> Nieuwe relatie
+            </button>
+          }
+        />
       ) : (
         <>
           {/* Mobile cards */}
