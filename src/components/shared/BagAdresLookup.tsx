@@ -13,6 +13,7 @@ import { MapPin, Search, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CollapsibleList } from '@/components/ui/collapsible-list';
 import {
   zoekBagAdressen, type BagAdresResultaat,
 } from '@/lib/bag/pdokLookup';
@@ -184,14 +185,14 @@ export default function BagAdresLookup({
             </p>
             <p className="text-[10px] text-muted-foreground">Kies het juiste officiële BAG-adres</p>
           </div>
-          <ul className="space-y-2">
-            {gesorteerd.map((r) => {
+          <CollapsibleList
+            items={gesorteerd}
+            renderItem={(r) => {
               const adresregel = `${r.straat ?? ''}${formatHuisnummerLabel(r) ? ' ' + formatHuisnummerLabel(r) : ''}`.trim();
               const subregel = [formatPostcodeWeergave(r.postcode), r.woonplaats].filter(Boolean).join(' ');
               const isGekozen = gekozen?.id === r.id;
               return (
-                <li
-                  key={r.id}
+                <div
                   className={`rounded-md border bg-card p-3 transition-colors ${
                     isGekozen ? 'border-primary ring-1 ring-primary/30' : 'border-border'
                   }`}
@@ -225,10 +226,11 @@ export default function BagAdresLookup({
                       )}
                     </Button>
                   </div>
-                </li>
+                </div>
               );
-            })}
-          </ul>
+            }}
+            listClassName="space-y-2"
+          />
         </div>
       )}
 
