@@ -80,6 +80,8 @@ import Timeline from '@/components/contactmoment/Timeline';
 import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
 import KadasterOpgeslagenKaart from '@/components/object/kadaster/KadasterOpgeslagenKaart';
 import { buildMapsUrl } from '@/lib/maps';
+import { useKadasterDataRecords } from '@/hooks/useKadasterDataRecords';
+import { useKadasterDocumentenForObject } from '@/hooks/useKadasterDocumenten';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
