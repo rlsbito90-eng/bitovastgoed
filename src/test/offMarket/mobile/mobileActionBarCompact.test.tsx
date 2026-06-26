@@ -16,7 +16,7 @@ describe('SignaalMobileActionBar — compacte variant', () => {
 
   it('toont labels volledig (geen afgekapte tekst)', () => {
     render(<SignaalMobileActionBar signaal={maakTestSignaal()} />);
-    for (const label of ['Maps', 'Google', 'BAG', 'Kadaster', 'Bron', 'Kopieer']) {
+    for (const label of ['Maps', 'Google', 'BAG', 'Kadastrale kaart', 'Bron', 'Kopieer']) {
       expect(screen.getByText(label).textContent).toBe(label);
     }
   });

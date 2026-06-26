@@ -7,7 +7,7 @@ describe('SignaalMobileActionBar', () => {
   it('rendert de zes primaire mobiele acties', () => {
     render(<SignaalMobileActionBar signaal={maakTestSignaal()} />);
     expect(screen.getByTestId('signaal-mobile-actionbar')).toBeInTheDocument();
-    for (const kort of ['Maps', 'Google', 'BAG', 'Kadaster', 'Bron', 'Kopieer']) {
+    for (const kort of ['Maps', 'Google', 'BAG', 'Kadastrale kaart', 'Bron', 'Kopieer']) {
       expect(screen.getByText(kort)).toBeInTheDocument();
     }
   });
