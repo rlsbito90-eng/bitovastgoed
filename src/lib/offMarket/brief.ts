@@ -39,6 +39,12 @@ export interface EigenaarKandidaat {
   verzendadres: string | null;
   bron: 'signaal' | 'kadaster' | 'brief';
   recordId?: string | null;
+  /**
+   * Stabiele identifier per rechthebbende-binnen-record. Wordt gebruikt om
+   * persoon en bijbehorend adres aan elkaar gekoppeld te houden wanneer ze
+   * in verschillende JSON-knopen staan.
+   */
+  kandidaatId?: string | null;
   fetchedAt?: string | null;
   debugBron?: string | null;
 }
