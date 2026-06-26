@@ -1,6 +1,6 @@
 // Compacte mobiele actiebar — horizontale pill-rij met icon + label,
 // scrollbaar indien nodig. Vervangt de eerdere 2-rij grid.
-import { Copy, Landmark, Map as MapIcon, MapPin, Search, FileText } from 'lucide-react';
+import { Copy, ExternalLink, Landmark, Map as MapIcon, MapPin, Search, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   bouwBagViewerUrl,
