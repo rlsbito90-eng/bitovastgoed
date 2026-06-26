@@ -218,7 +218,7 @@ export default function BriefVoorbereidenDialog({
 
   const neemVerzendadresOverUitKadaster = () => {
     if (overneemAdresOpties.length === 0) {
-      toast.error('Geen verzendadres gevonden in Kadasterbericht.');
+      toast.error('Geen gestructureerd verzendadres gevonden. Vul het verzendadres handmatig in.');
       return;
     }
     const idx = Number(kadasterAdresKey || 0);
