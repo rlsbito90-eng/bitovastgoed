@@ -589,6 +589,7 @@ export function extraheerEigenaarKandidaten(
         verzendadres: rh.verzendadres,
         bron: 'kadaster',
         recordId: rh.recordId,
+        kandidaatId: rh.kandidaatId,
         fetchedAt: rh.fetchedAt,
         debugBron: rh.debugBron,
       });
