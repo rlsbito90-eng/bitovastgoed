@@ -32,6 +32,10 @@ vi.mock('@/hooks/useKadasterDataRecords', () => ({
   useKadasterDataRecordsForSignaal: () => ({ data: [] }),
 }));
 
+vi.mock('@/hooks/usePropertyTaxonomie', () => ({
+  usePropertyTaxonomie: () => ({ propertyTypes: [], dealTypes: [], subtypesForTypes: () => [] }),
+}));
+
 vi.mock('@/hooks/useOffMarketLinks', () => ({
   useLinkRelatieToSignaal: () => ({ isPending: false, mutateAsync: mocks.linkMutateAsync }),
   usePromoteSignaalToObject: () => ({ isPending: false, mutateAsync: mocks.promoteMutateAsync }),
