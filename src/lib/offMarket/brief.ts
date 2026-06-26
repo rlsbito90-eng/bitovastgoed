@@ -247,6 +247,14 @@ function bouwAdresUitBlok(blok: unknown): string | null {
  * als niets bruikbaars is.
  */
 export interface RechthebbendeUitKadaster {
+  /**
+   * Stabiele identifier binnen één Kadasterrecord. Vorm:
+   *   `${record.id}#primary:<index>`     — uit mapRechtenBlokken
+   *   `${record.id}#legacy:<blok>.<key>.<idx>` — uit raw_limited.rechten.blokken[*].persons[*]
+   *   `${record.id}#broad:<parent-pad>`  — uit brede defensieve scanner
+   * Wordt gebruikt om persoon en sibling-adres aan elkaar te koppelen.
+   */
+  kandidaatId: string;
   naam: string | null;
   bedrijfsnaam: string | null;
   verzendadres: string | null;
