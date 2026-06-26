@@ -619,15 +619,21 @@ export default function ObjectDetailPage() {
   const [editTaak, setEditTaak] = useState<any>(null);
   const [dossierOpenRequest, setDossierOpenRequest] = useState<{ tab: DossierTab; token: number } | null>(null);
 
+  // ── Read-only Kadasterdata — alleen voor tab-zichtbaarheid, geen nieuwe call ──
+  const { data: kadasterRecords } = useKadasterDataRecords(object?.id ?? null);
+  const { data: kadasterDocs } = useKadasterDocumentenForObject(object?.id ?? null);
+
   // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
   const visibleTabs = useMemo(() => {
     const hasMeer = !!object && (
       hasJuridischData(object) ||
       hasContactenData(object) ||
-      store.getDealsByObject(object.id).length > 0
+      store.getDealsByObject(object.id).length > 0 ||
+      (kadasterRecords && kadasterRecords.length > 0) ||
+      (kadasterDocs && kadasterDocs.length > 0)
     );
     return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
-  }, [object, store]);
+  }, [object, store, kadasterRecords, kadasterDocs]);
 
   // ── Tab-state: prioriteit URL (?tab=) → hash-shim → 'overzicht' ──
   // Bewust géén localStorage-fallback: bij normaal openen van een ander
