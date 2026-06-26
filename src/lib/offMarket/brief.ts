@@ -490,7 +490,37 @@ export function extraheerRechthebbendenUitRecord(
     if (!cur.bedrijfsnaam && e.bedrijfsnaam) cur.bedrijfsnaam = e.bedrijfsnaam;
     if (!cur.debugBron && e.debugBron) cur.debugBron = e.debugBron;
   }
-  const out = Array.from(merged.values());
+
+  // Consolidatie: koppel paren waarvan de naam-tokens van het ene
+  // volledig in het andere voorkomen (zelfde persoon, één entry rijker:
+  // bv. "Achternaam" + "Voornaam Achternaam"). Twee personen met dezelfde
+  // achternaam maar verschillende voorletters (bv. "V. Achternaam" en
+  // "W. Achternaam") delen geen subset-relatie en blijven gescheiden.
+  const tokens = (s: string | null): string[] =>
+    (s ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+  const isSubset = (a: string[], b: string[]): boolean =>
+    a.length > 0 && a.every(t => b.includes(t));
+  const consolideren: RechthebbendeUitKadaster[] = [];
+  for (const e of merged.values()) {
+    const ta = tokens(e.naam);
+    const eb = (e.bedrijfsnaam ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const target = consolideren.find(x => {
+      const xb = (x.bedrijfsnaam ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+      // Bedrijfsnamen mogen niet conflicteren (anders verschillende entiteiten).
+      if (eb && xb && eb !== xb) return false;
+      const tb = tokens(x.naam);
+      if (ta.length && tb.length && (isSubset(ta, tb) || isSubset(tb, ta))) return true;
+      // Alleen-bedrijf entries samenvoegen op identieke bedrijfsnaam.
+      if (!ta.length && !tb.length && eb && eb === xb) return true;
+      return false;
+    });
+    if (!target) { consolideren.push({ ...e }); continue; }
+    if (tokens(e.naam).length > tokens(target.naam).length) target.naam = e.naam;
+    if (!target.bedrijfsnaam && e.bedrijfsnaam) target.bedrijfsnaam = e.bedrijfsnaam;
+    if (!target.verzendadres && e.verzendadres) target.verzendadres = e.verzendadres;
+    if (!target.debugBron && e.debugBron) target.debugBron = e.debugBron;
+  }
+  const out = consolideren;
 
   // Laatste fallback: top-level rechthebbende_naam zonder adres.
   if (out.length === 0 && record.rechthebbende_naam) {
