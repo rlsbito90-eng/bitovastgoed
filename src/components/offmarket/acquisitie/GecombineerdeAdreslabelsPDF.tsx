@@ -53,8 +53,10 @@ export default function GecombineerdeAdreslabelsPDF({
         return (
           <Page
             key={label.bron.briefId}
+            // Liggend label: 90 mm breed × 29 mm hoog. We geven de
+            // eind-dimensies door en laten `orientation` ongezet, zodat
+            // react-pdf niet automatisch breedte/hoogte omwisselt.
             size={{ width: LABEL_BREEDTE_PT, height: LABEL_HOOGTE_PT }}
-            orientation="landscape"
             style={styles.page}
           >
             <View style={styles.blok}>
