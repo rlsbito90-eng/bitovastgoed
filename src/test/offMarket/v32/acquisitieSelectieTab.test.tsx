@@ -40,6 +40,8 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
 }));
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
+  useUpdateOffMarketSignaal: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useArchiveOffMarketSignaal: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({ addTaak: vi.fn(), taken: [], getRelatieById: () => null }),
