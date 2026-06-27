@@ -562,7 +562,10 @@ export default function AcquisitieSelectieTab() {
         items={focusItems}
         index={focusIndex}
         onIndexChange={setFocusIndex}
+        focusScopeIds={verwerkScopeIds}
+        selectedIds={Array.from(bulkSelectie)}
       />
+
 
       <BulkBriefVoorbereidenWizard
         open={wizardOpen}
