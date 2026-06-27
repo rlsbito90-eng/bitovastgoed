@@ -72,6 +72,13 @@ const VELD_LABELS = ['Aandeel', 'Naam', 'Geboren', 'te', 'Adres', 'Postbus', 'Ze
 /** Labels die wel als boundary tellen maar niet uitgelezen worden. */
 const NEGEER_LABELS = new Set(['Geboren', 'Te']);
 
+/**
+ * Labels die veilig zijn voor INLINE-segmentatie. "Geboren" en "te" zijn
+ * te generiek (te = vol Nederlands woord) en mogen alleen aan begin van
+ * een regel matchen, nooit midden in een andere regel.
+ */
+const INLINE_LABELS = VELD_LABELS.filter(l => l !== 'te' && l !== 'Geboren');
+
 const POSTCODE_RE = /\b(\d{4})\s?([A-Z]{2})\b/;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
