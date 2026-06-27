@@ -740,7 +740,15 @@ export default function BriefVoorbereidenDialog({
                 setVerzendadres(adres);
                 setVerzendadresBron('pdf-voorstel');
                 setPdfVoorstelKandidaatLabel(kandidaatLabel);
-                if (naam) setEigenaarNaam(naam);
+                // Natuurlijke persoon: zet "Naam" om naar voorletters +
+                // achternaam. Rechtspersonen/bedrijven blijven als bedrijfsnaam.
+                if (naam) {
+                  if (isRechtspersoonNaam(naam)) {
+                    if (!bedrijfsnaam) setEigenaarBedrijfsnaam(naam);
+                  } else {
+                    setEigenaarNaam(naarVoorlettersAchternaam(naam));
+                  }
+                }
                 if (bedrijfsnaam) setEigenaarBedrijfsnaam(bedrijfsnaam);
                 toast.success('Adresvoorstel uit Kadasterbericht overgenomen');
               }}
