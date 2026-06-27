@@ -28,8 +28,9 @@ import {
   bouwBriefPrefill, bepaalAanhef, bepaalOnderwerp, bouwBriefTekst,
   buildBriefViewModel, briefAlsPlatteTekst,
   buildKadasterAdresDebug, kadasterAdresKandidaten,
-  VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
+  VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres, type EigenaarKandidaat,
 } from '@/lib/offMarket/brief';
+import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   useUpsertBrief, useMarkBriefVerstuurd,
