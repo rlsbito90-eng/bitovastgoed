@@ -102,22 +102,26 @@ function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten:
   return k.naam ?? '';
 }
 
-/** Splitst een kandidaat in (naam, bedrijfsnaam) voor de formuliervelden.
- *  Wanneer een Kadaster-kandidaat alleen een `naam` heeft die feitelijk
- *  een rechtspersoon is, tonen we die in het bedrijfsnaam-veld en laten
- *  het naamveld leeg. */
-function splitsKandidaatVelden(k: EigenaarKandidaat | null | undefined): {
-  naam: string;
-  bedrijfsnaam: string;
-} {
+/** Bepaalt de naam- en bedrijfsnaamvelden voor een kandidaat.
+ *  - Natuurlijke personen uit Kadaster worden afgekort als `magAfkorten`.
+ *  - Rechtspersonen die in het `naam`-veld staan, schuiven door naar
+ *    bedrijfsnaam zodat ze nooit als initialen worden weergegeven. */
+function bepaalNaamVelden(
+  k: EigenaarKandidaat | null | undefined,
+  magAfkorten: boolean,
+): { naam: string; bedrijfsnaam: string } {
   if (!k) return { naam: '', bedrijfsnaam: '' };
-  const bedrijfsnaam = k.bedrijfsnaam ?? '';
-  const naam = k.naam ?? '';
-  if (!bedrijfsnaam && naam && isRechtspersoonNaam(naam)) {
-    return { naam: '', bedrijfsnaam: naam };
+  const ruweNaam = k.naam ?? '';
+  const ruweBedrijf = k.bedrijfsnaam ?? '';
+  if (ruweNaam && !ruweBedrijf && isRechtspersoonNaam(ruweNaam)) {
+    return { naam: '', bedrijfsnaam: ruweNaam };
   }
-  return { naam, bedrijfsnaam };
+  if (magAfkorten && k.bron === 'kadaster' && !ruweBedrijf && ruweNaam) {
+    return { naam: naarVoorlettersAchternaam(ruweNaam), bedrijfsnaam: '' };
+  }
+  return { naam: ruweNaam, bedrijfsnaam: ruweBedrijf };
 }
+
 
 
 export default function BriefVoorbereidenDialog({
