@@ -175,8 +175,12 @@ export default function BriefVoorbereidenDialog({
       ? prefill.kandidaten.find(x => x.label === forceKandidaatLabel) ?? null
       : null;
     const k = forced ?? prefill.kandidaten[0] ?? null;
+    const naamBron = forced ?? prefill.kandidaten.find(x =>
+      (x.naam ?? '') === prefill.eigenaarNaam &&
+      (x.bedrijfsnaam ?? '') === prefill.eigenaarBedrijfsnaam,
+    ) ?? null;
     setKandidaatLabel(k?.label ?? '');
-    setEigenaarNaam(forced?.naam ?? prefill.eigenaarNaam);
+    setEigenaarNaam(voorstelBriefNaam(naamBron, true));
     setEigenaarBedrijfsnaam(forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
     setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
     setObjectadres(prefill.objectadres);
