@@ -11,9 +11,6 @@ import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   useAcquisitieReadiness, useBrievenVoorSignalen,
 } from '@/hooks/useAcquisitieReadiness';
-import {
-  OffMarketStatusBadge,
-} from '@/components/offmarket/OffMarketBadges';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
 import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
