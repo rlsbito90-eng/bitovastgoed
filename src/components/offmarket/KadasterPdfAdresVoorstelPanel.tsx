@@ -17,8 +17,10 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  useKadasterDocumentenForSignaal, type KadasterDocument,
+  useKadasterDocumentenForSignaal, documentenPerRecord,
+  type KadasterDocument,
 } from '@/hooks/useKadasterDocumenten';
+import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 
 interface RuwVoorstel {
   naam?: string;
