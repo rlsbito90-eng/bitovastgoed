@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 // Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
 import {
-  OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketEigenaarstatusBadge,
+  OffMarketStatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import {
