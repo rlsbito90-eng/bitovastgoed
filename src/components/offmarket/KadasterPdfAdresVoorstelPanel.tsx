@@ -72,24 +72,72 @@ function normaliseer(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Canonicaliseert een bedrijfsnaam: punten weg, rechtsvorm-tokens weg. */
+function bedrijfCanonical(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter((tok) => tok && !['bv', 'nv', 'bvba', 'vof', 'cv'].includes(tok))
+    .join(' ')
+    .trim();
+}
+
+/** Splitst persoonsnaam in voorletters + achternaam (laatste woord). */
+function initialenEnAchternaam(
+  naam: string,
+): { initialen: string; achternaam: string } | null {
+  const cleaned = naam.replace(/\./g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!cleaned) return null;
+  const parts = cleaned.split(' ').filter(Boolean);
+  if (parts.length < 2) return null;
+  const achternaam = parts[parts.length - 1];
+  const voornamen = parts.slice(0, -1);
+  const initialen = voornamen.map((v) => v.charAt(0)).join('');
+  return { initialen, achternaam };
+}
+
 function matchVoorstel(
   v: RuwVoorstel, huidigeNaam: string, huidigeBedrijfsnaam: string,
 ): boolean {
-  const cands: string[] = [];
-  if (huidigeNaam) cands.push(normaliseer(huidigeNaam));
-  if (huidigeBedrijfsnaam) cands.push(normaliseer(huidigeBedrijfsnaam));
-  if (cands.length === 0) return false;
-  const targets: string[] = [];
-  if (v.naam) targets.push(normaliseer(v.naam));
-  if (v.bedrijfsnaam) targets.push(normaliseer(v.bedrijfsnaam));
-  for (const c of cands) {
-    if (!c) continue;
-    for (const t of targets) {
-      if (!t) continue;
-      if (t === c || t.includes(c) || c.includes(t)) return true;
+  // Bedrijfsmatching: canonical (zonder rechtsvorm en punten).
+  if (huidigeBedrijfsnaam && v.bedrijfsnaam) {
+    const a = bedrijfCanonical(huidigeBedrijfsnaam);
+    const b = bedrijfCanonical(v.bedrijfsnaam);
+    if (a && b && a === b) return true;
+  }
+  // Persoonsmatching: initialen + achternaam.
+  if (huidigeNaam && v.naam) {
+    const a = initialenEnAchternaam(huidigeNaam);
+    const b = initialenEnAchternaam(v.naam);
+    if (a && b && a.achternaam === b.achternaam) {
+      if (
+        a.initialen === b.initialen
+        || a.initialen.startsWith(b.initialen)
+        || b.initialen.startsWith(a.initialen)
+      ) return true;
     }
+    // Fallback: volledige naam containment.
+    const n1 = normaliseer(huidigeNaam);
+    const n2 = normaliseer(v.naam);
+    if (n1 && n2 && (n1 === n2 || n1.includes(n2) || n2.includes(n1))) return true;
   }
   return false;
+}
+
+/** Labelweergave voor een voorstel in de dropdown — geen adres. */
+function voorstelLabel(v: BruikbaarVoorstel): string {
+  const identiteit = v.bedrijfsnaam || v.naam || 'Onbekende geadresseerde';
+  const stukjes: string[] = [
+    identiteit,
+    v.rolLabel || 'Recht onbekend',
+    v.aandeel ? `aandeel ${v.aandeel}` : '',
+    `conf: ${v.confidence}`,
+    v.matched ? 'match' : '',
+  ].filter(Boolean);
+  return stukjes.join(' · ');
 }
 
 function foutmeldingVoorStatus(status: number | undefined, fallback: string): string {
@@ -118,7 +166,7 @@ export default function KadasterPdfAdresVoorstelPanel({
     return { doc: kiesDocument(docs), fallbackGebruikt: true };
   }, [docs, records, kandidaatRecordId]);
   const [status, setStatus] = useState<Status>({ type: 'idle' });
-  const [gekozenIdx, setGekozenIdx] = useState(0);
+  const [gekozenIdx, setGekozenIdx] = useState<number | null>(null);
 
   // Zichtbaarheidsregels: alleen wanneer Kadaster-kandidaat is geselecteerd
   // en het verzendadres nog leeg is en er een opgeslagen PDF beschikbaar is.
@@ -164,9 +212,18 @@ export default function KadasterPdfAdresVoorstelPanel({
         setStatus({ type: 'leeg' });
         return;
       }
-      // Zet de voorkeursindex op een match wanneer aanwezig.
-      const matchIdx = bruikbaar.findIndex(v => v.matched);
-      setGekozenIdx(matchIdx >= 0 ? matchIdx : 0);
+      // Selectiebeleid:
+      //  - 1 voorstel → standaard geselecteerd (gebruiker moet nog klikken).
+      //  - meerdere voorstellen + precies 1 duidelijke match → die voorgeselecteerd.
+      //  - meerdere voorstellen, 0 of >1 matches → niets voorselecteren.
+      const matchIdxs = bruikbaar
+        .map((v, i) => (v.matched ? i : -1))
+        .filter((i) => i >= 0);
+      let voorkeur: number | null;
+      if (bruikbaar.length === 1) voorkeur = 0;
+      else if (matchIdxs.length === 1) voorkeur = matchIdxs[0];
+      else voorkeur = null;
+      setGekozenIdx(voorkeur);
       setStatus({ type: 'done', voorstellen: bruikbaar });
     } catch (e) {
       setStatus({
@@ -177,7 +234,8 @@ export default function KadasterPdfAdresVoorstelPanel({
   };
 
   const neemOver = (voorstellen: BruikbaarVoorstel[]) => {
-    const v = voorstellen[gekozenIdx] ?? voorstellen[0];
+    if (gekozenIdx == null) return;
+    const v = voorstellen[gekozenIdx];
     if (!v) return;
     if (bestaandVerzendadres.trim().length > 0
         && bestaandVerzendadres.trim() !== v.verzendadres) {
@@ -250,6 +308,9 @@ export default function KadasterPdfAdresVoorstelPanel({
 
   // done
   const voorstellen = status.voorstellen;
+  const aantalMatches = voorstellen.filter((v) => v.matched).length;
+  const meerdereZonderUniekeMatch =
+    voorstellen.length > 1 && aantalMatches !== 1;
   return (
     <div
       className="rounded-md border border-border bg-muted/20 p-2.5 space-y-2"
@@ -260,45 +321,36 @@ export default function KadasterPdfAdresVoorstelPanel({
       </div>
       {voorstellen.length > 1 && (
         <Select
-          value={String(gekozenIdx)}
-          onValueChange={(v) => setGekozenIdx(Number(v) || 0)}
+          value={gekozenIdx == null ? undefined : String(gekozenIdx)}
+          onValueChange={(v) => setGekozenIdx(Number(v))}
         >
           <SelectTrigger data-testid="kpv-keuze-trigger">
-            <SelectValue />
+            <SelectValue placeholder="Kies de juiste geadresseerde…" />
           </SelectTrigger>
           <SelectContent>
-            {voorstellen.map((v, i) => {
-              const stukjes = [
-                v.rolLabel || 'Recht onbekend',
-                v.aandeel ? `aandeel ${v.aandeel}` : null,
-                v.bedrijfsnaam ? 'bedrijfsnaam aanwezig' : v.naam ? 'naam aanwezig' : null,
-                v.matched ? 'mogelijke match' : null,
-                `conf: ${v.confidence}`,
-              ].filter(Boolean) as string[];
-              return (
-                <SelectItem
-                  key={i}
-                  value={String(i)}
-                  data-testid={`kpv-keuze-${i}`}
-                >
-                  {stukjes.join(' · ')}
-                </SelectItem>
-              );
-            })}
+            {voorstellen.map((v, i) => (
+              <SelectItem
+                key={i}
+                value={String(i)}
+                data-testid={`kpv-keuze-${i}`}
+              >
+                {voorstelLabel(v)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       )}
+      {meerdereZonderUniekeMatch && (
+        <p
+          className="text-[11px] text-amber-600"
+          data-testid="kpv-meerdere-melding"
+        >
+          Meerdere adresvoorstellen gevonden. Kies de juiste geadresseerde.
+        </p>
+      )}
       {voorstellen.length === 1 && (
         <div className="text-[11px] text-muted-foreground">
-          {[
-            voorstellen[0].rolLabel || 'Recht onbekend',
-            voorstellen[0].aandeel ? `aandeel ${voorstellen[0].aandeel}` : null,
-            voorstellen[0].bedrijfsnaam
-              ? 'bedrijfsnaam aanwezig'
-              : voorstellen[0].naam ? 'naam aanwezig' : null,
-            voorstellen[0].matched ? 'mogelijke match' : null,
-            `conf: ${voorstellen[0].confidence}`,
-          ].filter(Boolean).join(' · ')}
+          {voorstelLabel(voorstellen[0])}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -307,6 +359,7 @@ export default function KadasterPdfAdresVoorstelPanel({
           variant="default"
           size="sm"
           onClick={() => neemOver(voorstellen)}
+          disabled={gekozenIdx == null}
           data-testid="kpv-overnemen"
         >
           Neem adresvoorstel over
