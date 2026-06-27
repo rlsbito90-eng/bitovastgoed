@@ -8,9 +8,7 @@ import {
   ArrowUpRight, ZapIcon, Pencil, ArrowDownToLine,
 } from 'lucide-react';
 // Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
-import {
-  OffMarketStatusBadge,
-} from '@/components/offmarket/OffMarketBadges';
+// Statusbadge zit nu in StatusWijzigDropdown (compact-variant) zelf.
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import {
   bouwBagViewerUrl, bouwGoogleMapsUrl, bouwKadastraleKaartUrl,
