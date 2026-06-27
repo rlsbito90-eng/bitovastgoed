@@ -25,6 +25,7 @@ import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRe
 import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
 import AiAchterstandPanel from '@/components/admin/AiAchterstandPanel';
 import BagAchterstandPanel from '@/components/admin/BagAchterstandPanel';
+import KadasterPdfTestPanel from '@/components/admin/KadasterPdfTestPanel';
 import AdminSectionCard from '@/components/admin/AdminSectionCard';
 import AdminSectionNav from '@/components/admin/AdminSectionNav';
 import { mapDbError } from '@/lib/errors';
@@ -48,6 +49,7 @@ const VALID_HASHES = new Set([
   'jaardoelen',
   'agenda-feed',
   'gebruikersbeheer',
+  'kadaster-pdf-test',
 ]);
 
 export default function AdminPage() {
@@ -135,6 +137,17 @@ export default function AdminPage() {
       >
         <OffMarketGeskiptRecordsSectie />
       </AdminSectionCard>
+
+      <AdminSectionCard
+        id="kadaster-pdf-test"
+        title="Kadaster PDF adresvoorstel testen"
+        subtitle="Tijdelijke interne POC-test. Read-only — toont alleen tellingen en booleans, geen persoonsgegevens."
+        icon={<ShieldQuestion className="h-4 w-4" />}
+        forceOpen={openHash === 'kadaster-pdf-test'}
+      >
+        <KadasterPdfTestPanel />
+      </AdminSectionCard>
+
 
       <AdminSectionCard
         id="jaardoelen"
