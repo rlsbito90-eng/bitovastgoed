@@ -384,7 +384,42 @@ export default function AcquisitieSelectieTab() {
                         <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
                           {tekstType(signaal)}
                         </span>
-                        <OffMarketStatusBadge status={signaal.status} />
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <StatusWijzigDropdown signaal={signaal} variant="compact" />
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <EigenaarstatusWijzigDropdown
+                            signaalId={signaal.id}
+                            eigenaarstatus={((signaal as any).eigenaarstatus as OffMarketEigenaarstatus | null) ?? 'onbekend'}
+                          />
+                        </span>
+                        {(() => {
+                          const info = briefInfoPerSignaal.get(signaal.id);
+                          if (!info) return null;
+                          const toonSuffix = info.aantalGeadresseerden > 1 && info.verzonden > 0;
+                          const toonOpvolging = info.status === 'brief2_gepland';
+                          return (
+                            <span
+                              data-testid="acquisitie-rij-briefstatus"
+                              className="inline-flex items-center gap-1"
+                            >
+                              <SignaalBriefStatusBadge status={info.status} />
+                              {toonSuffix && (
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+                                  {info.verzonden}/{info.aantalGeadresseerden}
+                                </span>
+                              )}
+                              {toonOpvolging && (
+                                <span className="text-[10px] text-accent whitespace-nowrap">
+                                  Opvolging nodig
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                         {typeof signaal.ai_score === 'number' && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
                             <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
