@@ -86,6 +86,16 @@ function safeFilename(s: string): string {
     .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
 }
 
+/** Voorstel voor briefnaam: alleen Kadaster-natuurlijke personen krijgen
+ *  voorletters; bestaande brieven en bedrijven blijven ongemoeid. */
+function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten: boolean): string {
+  if (!k) return '';
+  if (magAfkorten && k.bron === 'kadaster' && !k.bedrijfsnaam && k.naam) {
+    return naarVoorlettersAchternaam(k.naam);
+  }
+  return k.naam ?? '';
+}
+
 export default function BriefVoorbereidenDialog({
   open, onOpenChange, signaal, kadasterRecords, historischeBrieven = [],
   initialBrief = null, forceKandidaatLabel = null,
