@@ -103,10 +103,20 @@ function foutmeldingVoorStatus(status: number | undefined, fallback: string): st
 
 export default function KadasterPdfAdresVoorstelPanel({
   signaalId, huidigeNaam, huidigeBedrijfsnaam,
-  verzendadresIsLeeg, bestaandVerzendadres, kandidaatBron, onPick,
+  verzendadresIsLeeg, bestaandVerzendadres, kandidaatBron,
+  kandidaatRecordId, onPick,
 }: Props) {
   const { data: docs } = useKadasterDocumentenForSignaal(signaalId);
-  const doc = useMemo(() => kiesDocument(docs), [docs]);
+  const { data: records } = useKadasterDataRecordsForSignaal(signaalId);
+  const { doc, fallbackGebruikt } = useMemo(() => {
+    if (!docs || docs.length === 0) return { doc: null as KadasterDocument | null, fallbackGebruikt: false };
+    if (kandidaatRecordId) {
+      const map = documentenPerRecord(docs, records ?? []);
+      const gevonden = map.get(kandidaatRecordId);
+      if (gevonden) return { doc: gevonden, fallbackGebruikt: false };
+    }
+    return { doc: kiesDocument(docs), fallbackGebruikt: true };
+  }, [docs, records, kandidaatRecordId]);
   const [status, setStatus] = useState<Status>({ type: 'idle' });
   const [gekozenIdx, setGekozenIdx] = useState(0);
 
