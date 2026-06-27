@@ -22,6 +22,7 @@ import {
   type KadasterAdresVoorstel,
 } from '../_shared/kadasterPdfAdresParser.ts';
 import { normaliseerKadasterPdfTekst } from '../_shared/kadasterPdfTekstNormalisatie.ts';
+import { maskeerEersteRegels, maskeerPreview } from '../_shared/kadasterPdfTekstMasker.ts';
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB harde POC-bovengrens
 
@@ -152,6 +153,8 @@ Deno.serve(async (req: Request) => {
       raw_chars: rawText.length,
       normalised_chars: normalised.length,
       voorstellen_count: voorstellen.length,
+      gemaskeerde_tekst_preview: maskeerPreview(normalised, 1500),
+      eerste_40_regels: maskeerEersteRegels(normalised, 40),
     },
   });
 });
