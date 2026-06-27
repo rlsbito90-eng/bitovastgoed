@@ -2,7 +2,7 @@
 // afgeleide readiness, KPI's, filter, focusmodus en (V2) bulkvoorbereiding
 // van fysieke brieven + gecombineerde brief-PDF.
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
