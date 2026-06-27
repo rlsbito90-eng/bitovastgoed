@@ -318,6 +318,7 @@ export default function KadasterPdfAdresVoorstelPanel({
       <p className="text-[11px] text-muted-foreground">
         Voorstel uit opgeslagen Kadaster-PDF. Controleer vóór verzending.
       </p>
+      {FallbackHint}
     </div>
   );
 }
