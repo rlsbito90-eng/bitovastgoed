@@ -134,6 +134,20 @@ export default function AcquisitieSelectieTab() {
     return m;
   }, [brieven]);
 
+  // Briefstatus + verzendtelling per signaal (read-only afgeleid).
+  const { taken } = useDataStore();
+  const briefInfoPerSignaal = useMemo(() => {
+    const m = new Map<string, { status: BriefStatus; verzonden: number; aantalGeadresseerden: number }>();
+    for (const s of geselecteerdeSignalen) {
+      const bs = brievenPerSignaal.get(s.id) ?? [];
+      const status = bepaalBriefStatus(bs, taken as any, s.id);
+      const groepen = groepeerBrievenPerGeadresseerde(bs.filter(b => !b.archived_at));
+      const verzonden = groepen.filter(g => g.brieven.some(b => b.status === 'verstuurd')).length;
+      m.set(s.id, { status, verzonden, aantalGeadresseerden: groepen.length });
+    }
+    return m;
+  }, [geselecteerdeSignalen, brievenPerSignaal, taken]);
+
   // Tellingen voor de bulktoolbar: signalen, geadresseerden, voorgestelde brieven.
   const bulkTotalen = useMemo(() => {
     let geadresseerden = 0;
