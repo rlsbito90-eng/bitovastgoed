@@ -14,7 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface RecentDoc {
   id: string;
   created_at: string;
-  product_type: string | null;
+  source: string | null;
+  product_codes: string[] | null;
 }
 
 interface VoorstelVeilig {
