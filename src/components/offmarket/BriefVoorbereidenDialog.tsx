@@ -700,7 +700,11 @@ export default function BriefVoorbereidenDialog({
             <Textarea
               id="brief-verzend"
               value={verzendadres}
-              onChange={(e) => setVerzendadres(e.target.value)}
+              onChange={(e) => {
+                setVerzendadres(e.target.value);
+                setVerzendadresBron('handmatig');
+                setPdfVoorstelKandidaatLabel(null);
+              }}
               placeholder={kanaal === 'email' ? '' : `Bijv. ${VERZENDADRES_PLACEHOLDER}`}
               rows={3}
             />
@@ -724,6 +728,7 @@ export default function BriefVoorbereidenDialog({
               </div>
             )}
             <KadasterPdfAdresVoorstelPanel
+              key={`kpv-${kandidaatLabel}`}
               signaalId={signaal.id}
               huidigeNaam={eigenaarNaam}
               huidigeBedrijfsnaam={eigenaarBedrijfsnaam}
@@ -732,6 +737,8 @@ export default function BriefVoorbereidenDialog({
               kandidaatBron={geselecteerdeKandidaat?.bron}
               onPick={(adres, naam, bedrijfsnaam) => {
                 setVerzendadres(adres);
+                setVerzendadresBron('pdf-voorstel');
+                setPdfVoorstelKandidaatLabel(kandidaatLabel);
                 if (naam) setEigenaarNaam(naam);
                 if (bedrijfsnaam) setEigenaarBedrijfsnaam(bedrijfsnaam);
                 toast.success('Adresvoorstel uit Kadasterbericht overgenomen');
