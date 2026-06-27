@@ -17,8 +17,10 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  useKadasterDocumentenForSignaal, type KadasterDocument,
+  useKadasterDocumentenForSignaal, documentenPerRecord,
+  type KadasterDocument,
 } from '@/hooks/useKadasterDocumenten';
+import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 
 interface RuwVoorstel {
   naam?: string;
@@ -48,6 +50,8 @@ interface Props {
   verzendadresIsLeeg: boolean;
   bestaandVerzendadres: string;
   kandidaatBron: string | undefined;
+  /** recordId van de geselecteerde kandidaat → koppelt aan kadaster_data_records.id. */
+  kandidaatRecordId?: string | null;
   onPick: (adres: string, naam: string | null, bedrijfsnaam: string | null) => void;
 }
 
@@ -99,10 +103,20 @@ function foutmeldingVoorStatus(status: number | undefined, fallback: string): st
 
 export default function KadasterPdfAdresVoorstelPanel({
   signaalId, huidigeNaam, huidigeBedrijfsnaam,
-  verzendadresIsLeeg, bestaandVerzendadres, kandidaatBron, onPick,
+  verzendadresIsLeeg, bestaandVerzendadres, kandidaatBron,
+  kandidaatRecordId, onPick,
 }: Props) {
   const { data: docs } = useKadasterDocumentenForSignaal(signaalId);
-  const doc = useMemo(() => kiesDocument(docs), [docs]);
+  const { data: records } = useKadasterDataRecordsForSignaal(signaalId);
+  const { doc, fallbackGebruikt } = useMemo(() => {
+    if (!docs || docs.length === 0) return { doc: null as KadasterDocument | null, fallbackGebruikt: false };
+    if (kandidaatRecordId) {
+      const map = documentenPerRecord(docs, records ?? []);
+      const gevonden = map.get(kandidaatRecordId);
+      if (gevonden) return { doc: gevonden, fallbackGebruikt: false };
+    }
+    return { doc: kiesDocument(docs), fallbackGebruikt: true };
+  }, [docs, records, kandidaatRecordId]);
   const [status, setStatus] = useState<Status>({ type: 'idle' });
   const [gekozenIdx, setGekozenIdx] = useState(0);
 
@@ -175,6 +189,12 @@ export default function KadasterPdfAdresVoorstelPanel({
     onPick(v.verzendadres, v.naam || null, v.bedrijfsnaam || null);
   };
 
+  const FallbackHint = fallbackGebruikt ? (
+    <p className="text-[11px] text-amber-600" data-testid="kpv-fallback-waarschuwing">
+      Kon dit Kadasterdocument niet zeker aan de geselecteerde geadresseerde koppelen. Controleer het voorstel extra.
+    </p>
+  ) : null;
+
   if (status.type === 'idle') {
     return (
       <div className="rounded-md border border-dashed border-border bg-muted/20 p-2.5">
@@ -191,6 +211,7 @@ export default function KadasterPdfAdresVoorstelPanel({
           Haalt een adresvoorstel uit het opgeslagen Kadasterbericht. Controleer
           het voorstel vóór verzending.
         </p>
+        {FallbackHint}
       </div>
     );
   }
@@ -297,6 +318,7 @@ export default function KadasterPdfAdresVoorstelPanel({
       <p className="text-[11px] text-muted-foreground">
         Voorstel uit opgeslagen Kadaster-PDF. Controleer vóór verzending.
       </p>
+      {FallbackHint}
     </div>
   );
 }
