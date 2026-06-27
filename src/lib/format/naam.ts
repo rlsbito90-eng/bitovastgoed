@@ -68,5 +68,9 @@ export function naarVoorlettersAchternaam(
     .map((v) => v.split('-').map((p) => p.charAt(0).toUpperCase()).join('.') + '.')
     .join('');
 
-  return `${voorletters} ${achternaamParts.join(' ')}`;
+  const achternaam = achternaamParts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+
+  return `${voorletters} ${achternaam}`;
 }
