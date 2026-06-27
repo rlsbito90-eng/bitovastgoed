@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 // Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
 import {
-  OffMarketPriorityBadge, OffMarketStatusBadge, OffMarketEigenaarstatusBadge,
+  OffMarketStatusBadge,
 } from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import {
@@ -21,8 +21,11 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
+import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
 import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
+import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import type { Taak } from '@/data/mock-data';
 
 interface Props {
@@ -51,7 +54,8 @@ export default function SignaalCockpit({
   const { getRelatieById } = useDataStore();
   const { data: brieven = [] } = useOffMarketBrievenForSignaal(signaal.id);
   // VolgendeActiesBlok vervangt de oude bepaalVolgendeActie-call.
-  const eigenaarstatus = (signaal as any).eigenaarstatus ?? 'onbekend';
+  const eigenaarstatus: OffMarketEigenaarstatus =
+    ((signaal as any).eigenaarstatus as OffMarketEigenaarstatus | null | undefined) ?? 'onbekend';
   const eigenaarNaam = (signaal as any).eigenaar_naam ?? null;
   const relatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
   const relatie = relatieId ? getRelatieById(relatieId) : null;
@@ -84,7 +88,9 @@ export default function SignaalCockpit({
             <StatusWijzigDropdown signaal={signaal} variant="compact" />
           </div>
         </Row>
-        <Row label="Prioriteit"><OffMarketPriorityBadge prioriteit={signaal.prioriteit} /></Row>
+        <Row label="Prioriteit">
+          <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
+        </Row>
         <Row label="AI-score">
           <span className="text-sm font-medium text-foreground">{typeof signaal.ai_score === 'number' ? signaal.ai_score : '—'}</span>
         </Row>
@@ -104,9 +110,9 @@ export default function SignaalCockpit({
           </span>
         </Row>
         <Row label="Eigenaar">
-          <div className="flex items-center gap-2 min-w-0">
-            <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
+          <div className="flex items-center gap-2 min-w-0 justify-end">
             {eigenaarNaam && <span className="text-xs text-muted-foreground truncate">{eigenaarNaam}</span>}
+            <EigenaarstatusWijzigDropdown signaalId={signaal.id} eigenaarstatus={eigenaarstatus} />
           </div>
         </Row>
         <Row label="CRM-relatie">
@@ -119,7 +125,21 @@ export default function SignaalCockpit({
             <span className="text-xs text-muted-foreground">Nog niet gekoppeld</span>
           )}
         </Row>
-        <Row label="Briefstatus"><SignaalBriefStatusBadge status={briefStatus} /></Row>
+        <Row label="Briefstatus">
+          <button
+            type="button"
+            data-testid="briefstatus-scroll-knop"
+            onClick={() => {
+              try {
+                document.getElementById('brieven-sectie')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } catch { /* no-op */ }
+            }}
+            className="hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+            aria-label="Naar brieven-sectie"
+          >
+            <SignaalBriefStatusBadge status={briefStatus} />
+          </button>
+        </Row>
         <Row label="Gebied">
           <span className="text-xs text-foreground truncate">{formatGebiedsindeling(signaal as any)}</span>
         </Row>
@@ -137,12 +157,28 @@ export default function SignaalCockpit({
 
 
       {/* Volgende acties — toont meerdere open opvolgingen */}
-      <VolgendeActiesBlok
-        signaalId={signaal.id}
-        taken={taken}
-        brieven={brieven}
-        onAllesBekijken={onOpenTaken}
-      />
+      <div className="space-y-1.5">
+        {onTaakAanmaken && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              data-testid="volgende-actie-taak-knop"
+              onClick={onTaakAanmaken}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border bg-card text-foreground hover:border-accent/50 hover:text-accent"
+              aria-label="Taak aanmaken voor dit signaal"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              + Taak
+            </button>
+          </div>
+        )}
+        <VolgendeActiesBlok
+          signaalId={signaal.id}
+          taken={taken}
+          brieven={brieven}
+          onAllesBekijken={onOpenTaken}
+        />
+      </div>
 
       {/* Quick actions */}
       <div className="section-card p-2 sm:p-3">
