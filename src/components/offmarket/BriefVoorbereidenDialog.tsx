@@ -32,6 +32,7 @@ import {
 } from '@/lib/offMarket/brief';
 import { naarVoorlettersAchternaam, isRechtspersoonNaam } from '@/lib/format/naam';
 import BriefPDF from '@/components/offmarket/BriefPDF';
+import KadasterPdfAdresVoorstelPanel from '@/components/offmarket/KadasterPdfAdresVoorstelPanel';
 import {
   useUpsertBrief, useMarkBriefVerstuurd,
   useOffMarketBrievenForSignaal,
