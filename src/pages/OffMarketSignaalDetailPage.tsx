@@ -74,19 +74,41 @@ const MOBILE_TABS: { value: string; label: string; Icon: any }[] = [
   { value: 'technisch', label: 'Technisch', Icon: Server },
 ];
 
+const VALID_TABS = new Set(['overzicht', 'onderzoek', 'kadaster', 'brieven', 'taken', 'technisch']);
+
 export default function OffMarketSignaalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { data: signaal, isLoading, error } = useOffMarketSignaal(id);
   const { data: alleSignalen = [] } = useOffMarketSignalen();
   const { data: brieven = [] } = useOffMarketBrievenForSignaal(id);
   const { taken } = useDataStore();
   const archive = useArchiveOffMarketSignaal();
 
+  // Initial tab uit query (?tab=brieven) — bv. vanuit Verwerk selectie /
+  // Focusmodus die direct naar Brieven & opvolging willen springen.
+  const initialTab = (() => {
+    const t = searchParams.get('tab');
+    return t && VALID_TABS.has(t) ? t : 'overzicht';
+  })();
+  const focusReturn = (location.state as { fromAcquisitieFocus?: boolean; focusIndex?: number } | null) ?? null;
+  const fromAcquisitieFocus = !!focusReturn?.fromAcquisitieFocus;
+  const focusIndex = typeof focusReturn?.focusIndex === 'number' ? focusReturn.focusIndex : null;
+
+  const handleBackToList = () => {
+    if (fromAcquisitieFocus) {
+      navigate('/off-market', { state: { resumeAcquisitieFocus: true, focusIndex } });
+    } else {
+      navigate('/off-market');
+    }
+  };
+
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const [desktopTab, setDesktopTab] = useState<string>('overzicht');
-  const [mobileTab, setMobileTab] = useState<string>('overzicht');
+  const [desktopTab, setDesktopTab] = useState<string>(initialTab);
+  const [mobileTab, setMobileTab] = useState<string>(initialTab);
   const [taakOpen, setTaakOpen] = useState(false);
 
   useEffect(() => {
