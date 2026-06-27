@@ -157,12 +157,28 @@ export default function SignaalCockpit({
 
 
       {/* Volgende acties — toont meerdere open opvolgingen */}
-      <VolgendeActiesBlok
-        signaalId={signaal.id}
-        taken={taken}
-        brieven={brieven}
-        onAllesBekijken={onOpenTaken}
-      />
+      <div className="space-y-1.5">
+        {onTaakAanmaken && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              data-testid="volgende-actie-taak-knop"
+              onClick={onTaakAanmaken}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border bg-card text-foreground hover:border-accent/50 hover:text-accent"
+              aria-label="Taak aanmaken voor dit signaal"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              + Taak
+            </button>
+          </div>
+        )}
+        <VolgendeActiesBlok
+          signaalId={signaal.id}
+          taken={taken}
+          brieven={brieven}
+          onAllesBekijken={onOpenTaken}
+        />
+      </div>
 
       {/* Quick actions */}
       <div className="section-card p-2 sm:p-3">
