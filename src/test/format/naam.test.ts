@@ -10,6 +10,18 @@ describe('naarVoorlettersAchternaam', () => {
     expect(naarVoorlettersAchternaam('Voornaam van der Achternaam')).toBe('V. van der Achternaam');
   });
 
+  it('handelt tussenvoegsel "de" correct', () => {
+    expect(naarVoorlettersAchternaam('Karel de Groot')).toBe('K. de Groot');
+  });
+
+  it('handelt tussenvoegsel "ter" correct', () => {
+    expect(naarVoorlettersAchternaam('Willem ter Berg')).toBe('W. ter Berg');
+  });
+
+  it('handelt meerdere tussenvoegsels correct', () => {
+    expect(naarVoorlettersAchternaam('Jan Pieter van den Berg')).toBe('J.P. van den Berg');
+  });
+
   it('kort koppelteken-voornaam netjes af', () => {
     expect(naarVoorlettersAchternaam('Anna-Maria de Vries')).toBe('A.M. de Vries');
   });
