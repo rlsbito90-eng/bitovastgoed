@@ -149,7 +149,8 @@ export default function OffMarketSignaalDetailPage() {
       {/* === Mobiel: sticky nav (Terug / vorige / teller / volgende) === */}
       <div className="lg:hidden -mx-4 sm:-mx-6 sticky top-0 z-30 glass-topbar border-b border-border/60">
         <div className="flex items-center gap-1 px-2 py-1">
-          <button type="button" onClick={() => navigate('/off-market')}
+          <button type="button" onClick={handleBackToList}
+            data-testid="signaal-detail-mobile-terug"
             className="inline-flex items-center gap-1 px-2 h-10 text-xs text-foreground hover:bg-muted rounded-md">
             <ArrowLeft className="h-4 w-4" /> Terug
           </button>
