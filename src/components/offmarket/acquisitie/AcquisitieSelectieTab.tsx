@@ -303,7 +303,9 @@ export default function AcquisitieSelectieTab() {
           disabled={readiness.lijst.length === 0}
         >
           <PlayCircle className="h-4 w-4" />
-          Verwerk selectie
+          {bulkSelectie.size > 0
+            ? `Verwerk geselecteerde (${bulkSelectie.size})`
+            : 'Verwerk selectie'}
         </Button>
       </div>
 
