@@ -308,6 +308,9 @@ export default function KadasterPdfAdresVoorstelPanel({
 
   // done
   const voorstellen = status.voorstellen;
+  const aantalMatches = voorstellen.filter((v) => v.matched).length;
+  const meerdereZonderUniekeMatch =
+    voorstellen.length > 1 && aantalMatches !== 1;
   return (
     <div
       className="rounded-md border border-border bg-muted/20 p-2.5 space-y-2"
@@ -318,45 +321,36 @@ export default function KadasterPdfAdresVoorstelPanel({
       </div>
       {voorstellen.length > 1 && (
         <Select
-          value={String(gekozenIdx)}
-          onValueChange={(v) => setGekozenIdx(Number(v) || 0)}
+          value={gekozenIdx == null ? undefined : String(gekozenIdx)}
+          onValueChange={(v) => setGekozenIdx(Number(v))}
         >
           <SelectTrigger data-testid="kpv-keuze-trigger">
-            <SelectValue />
+            <SelectValue placeholder="Kies de juiste geadresseerde…" />
           </SelectTrigger>
           <SelectContent>
-            {voorstellen.map((v, i) => {
-              const stukjes = [
-                v.rolLabel || 'Recht onbekend',
-                v.aandeel ? `aandeel ${v.aandeel}` : null,
-                v.bedrijfsnaam ? 'bedrijfsnaam aanwezig' : v.naam ? 'naam aanwezig' : null,
-                v.matched ? 'mogelijke match' : null,
-                `conf: ${v.confidence}`,
-              ].filter(Boolean) as string[];
-              return (
-                <SelectItem
-                  key={i}
-                  value={String(i)}
-                  data-testid={`kpv-keuze-${i}`}
-                >
-                  {stukjes.join(' · ')}
-                </SelectItem>
-              );
-            })}
+            {voorstellen.map((v, i) => (
+              <SelectItem
+                key={i}
+                value={String(i)}
+                data-testid={`kpv-keuze-${i}`}
+              >
+                {voorstelLabel(v)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       )}
+      {meerdereZonderUniekeMatch && (
+        <p
+          className="text-[11px] text-amber-600"
+          data-testid="kpv-meerdere-melding"
+        >
+          Meerdere adresvoorstellen gevonden. Kies de juiste geadresseerde.
+        </p>
+      )}
       {voorstellen.length === 1 && (
         <div className="text-[11px] text-muted-foreground">
-          {[
-            voorstellen[0].rolLabel || 'Recht onbekend',
-            voorstellen[0].aandeel ? `aandeel ${voorstellen[0].aandeel}` : null,
-            voorstellen[0].bedrijfsnaam
-              ? 'bedrijfsnaam aanwezig'
-              : voorstellen[0].naam ? 'naam aanwezig' : null,
-            voorstellen[0].matched ? 'mogelijke match' : null,
-            `conf: ${voorstellen[0].confidence}`,
-          ].filter(Boolean).join(' · ')}
+          {voorstelLabel(voorstellen[0])}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -365,6 +359,7 @@ export default function KadasterPdfAdresVoorstelPanel({
           variant="default"
           size="sm"
           onClick={() => neemOver(voorstellen)}
+          disabled={gekozenIdx == null}
           data-testid="kpv-overnemen"
         >
           Neem adresvoorstel over
