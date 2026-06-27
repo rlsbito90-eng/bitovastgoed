@@ -129,10 +129,12 @@ export default function SignaalCockpit({
                 document.getElementById('brieven-sectie')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               } catch { /* no-op */ }
             }}
-            className="hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+            className="inline-flex items-center gap-1.5 min-h-[36px] sm:min-h-[32px] px-2 py-1 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label="Naar brieven-sectie"
           >
             <SignaalBriefStatusBadge status={briefStatus} />
+            <span className="text-[11px] text-muted-foreground">Bekijk</span>
+            <ArrowDownToLine className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           </button>
         </Row>
         <Row label="Gebied">
