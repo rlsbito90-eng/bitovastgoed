@@ -234,7 +234,8 @@ export default function KadasterPdfAdresVoorstelPanel({
   };
 
   const neemOver = (voorstellen: BruikbaarVoorstel[]) => {
-    const v = voorstellen[gekozenIdx] ?? voorstellen[0];
+    if (gekozenIdx == null) return;
+    const v = voorstellen[gekozenIdx];
     if (!v) return;
     if (bestaandVerzendadres.trim().length > 0
         && bestaandVerzendadres.trim() !== v.verzendadres) {
