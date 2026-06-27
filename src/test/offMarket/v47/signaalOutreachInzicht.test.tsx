@@ -120,11 +120,11 @@ describe('SignaalOutreachInzicht', () => {
     ];
     render(wrap(<SignaalOutreachInzicht signaal={sig} />));
     expect(screen.getByTestId('outreach-telling').textContent).toMatch(/1 geadresseerden, 1 benaderd/);
-    const rij = screen.getByTestId('outreach-geadresseerde-g-1');
+    const rij = screen.getByTestId('outreach-geadresseerde-0');
     expect(within(rij).getByText(/Voorbeeld Persoon/)).toBeInTheDocument();
     expect(within(rij).getByText(/Laatst verzonden/)).toBeInTheDocument();
     expect(within(rij).getByText(/dagen geleden|dag geleden/)).toBeInTheDocument();
-    expect(screen.getByTestId('outreach-opvolging-g-1').textContent).toMatch(/Opvolgen op/);
+    expect(screen.getByTestId('outreach-opvolging-0').textContent).toMatch(/Opvolgen op/);
   });
 
   it('meerdere geadresseerden — gemengd post/e-mail; benaderd-telling correct', () => {
@@ -144,9 +144,9 @@ describe('SignaalOutreachInzicht', () => {
     render(wrap(<SignaalOutreachInzicht signaal={sig} />));
     // 3 groepen, 2 benaderd (g-1 post, g-2 e-mail)
     expect(screen.getByTestId('outreach-telling').textContent).toMatch(/3 geadresseerden, 2 benaderd/);
-    expect(screen.getByTestId('outreach-geadresseerde-g-1')).toBeInTheDocument();
-    expect(screen.getByTestId('outreach-geadresseerde-g-2')).toBeInTheDocument();
-    expect(screen.getByTestId('outreach-geadresseerde-g-3')).toBeInTheDocument();
+    expect(screen.getByTestId('outreach-geadresseerde-0')).toBeInTheDocument();
+    expect(screen.getByTestId('outreach-geadresseerde-1')).toBeInTheDocument();
+    expect(screen.getByTestId('outreach-geadresseerde-2')).toBeInTheDocument();
   });
 
   it('tijdlijn — toont alleen betrouwbare eventtypes, max 6, neutraliseert onbekende', () => {
@@ -190,7 +190,7 @@ describe('SignaalOutreachInzicht', () => {
     render(wrap(<SignaalOutreachInzicht signaal={sig} />));
     const paneel = screen.getByTestId('outreach-inzicht');
     await user.click(paneel);
-    const rij = screen.getByTestId('outreach-geadresseerde-g-1');
+    const rij = screen.getByTestId('outreach-geadresseerde-0');
     await user.click(rij);
     expect(updateMock).not.toHaveBeenCalled();
   });
