@@ -2,10 +2,11 @@
 // Toont alle statussen uit STATUS_LABEL en gebruikt de bestaande
 // `useUpdateOffMarketSignaal`-mutatie. Geen DB-wijzigingen, geen nieuwe RPC.
 import { toast } from 'sonner';
-import { Pencil } from 'lucide-react';
+import { Pencil, ChevronDown } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { OffMarketStatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { useUpdateOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import {
   STATUS_LABEL, STATUS_VOLGORDE,
@@ -16,7 +17,7 @@ interface Props {
   signaal: OffMarketSignaal;
   /**
    * 'inline'  → volledige selectknop (voor in Overzicht-actiebalk).
-   * 'compact' → klein potlood-icoon (voor in rechter cockpit naast badge).
+   * 'compact' → control-wrapper met badge + chevron (voor in rechter cockpit).
    */
   variant?: 'inline' | 'compact';
 }
@@ -40,9 +41,12 @@ export default function StatusWijzigDropdown({ signaal, variant = 'inline' }: Pr
         <SelectTrigger
           aria-label="Status wijzigen"
           data-testid="status-wijzig-compact"
-          className="h-6 w-6 p-0 border-0 bg-transparent hover:bg-muted/60 text-muted-foreground hover:text-foreground [&>svg]:hidden"
+          className="h-auto min-h-[36px] sm:min-h-[32px] w-auto gap-1.5 px-2 py-1 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:ring-1 focus:ring-ring focus:ring-offset-0 [&>svg]:hidden"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1.5">
+            <OffMarketStatusBadge status={signaal.status} />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+          </span>
         </SelectTrigger>
         <SelectContent align="end">
           {STATUS_VOLGORDE.map((s) => (
