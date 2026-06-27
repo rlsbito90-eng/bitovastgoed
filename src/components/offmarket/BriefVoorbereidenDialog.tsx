@@ -30,7 +30,7 @@ import {
   buildKadasterAdresDebug, kadasterAdresKandidaten,
   VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres, type EigenaarKandidaat,
 } from '@/lib/offMarket/brief';
-import { naarVoorlettersAchternaam } from '@/lib/format/naam';
+import { naarVoorlettersAchternaam, isRechtspersoonNaam } from '@/lib/format/naam';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   useUpsertBrief, useMarkBriefVerstuurd,
