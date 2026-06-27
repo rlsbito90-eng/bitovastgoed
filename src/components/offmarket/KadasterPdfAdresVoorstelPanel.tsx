@@ -166,7 +166,7 @@ export default function KadasterPdfAdresVoorstelPanel({
     return { doc: kiesDocument(docs), fallbackGebruikt: true };
   }, [docs, records, kandidaatRecordId]);
   const [status, setStatus] = useState<Status>({ type: 'idle' });
-  const [gekozenIdx, setGekozenIdx] = useState(0);
+  const [gekozenIdx, setGekozenIdx] = useState<number | null>(null);
 
   // Zichtbaarheidsregels: alleen wanneer Kadaster-kandidaat is geselecteerd
   // en het verzendadres nog leeg is en er een opgeslagen PDF beschikbaar is.
