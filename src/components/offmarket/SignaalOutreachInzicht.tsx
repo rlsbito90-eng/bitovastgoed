@@ -300,7 +300,7 @@ export default function SignaalOutreachInzicht({ signaal }: Props) {
                       {dgn} {dgn === 1 ? 'dag' : 'dagen'} geleden
                     </span>
                   )}
-                  <span data-testid={`outreach-opvolging-${g.key}`}>
+                  <span data-testid={`outreach-opvolging-${idx}`}>
                     {opvolgingTekst(g)}
                   </span>
                 </div>
