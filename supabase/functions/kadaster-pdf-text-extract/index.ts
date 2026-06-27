@@ -153,6 +153,8 @@ Deno.serve(async (req: Request) => {
       raw_chars: rawText.length,
       normalised_chars: normalised.length,
       voorstellen_count: voorstellen.length,
+      gemaskeerde_tekst_preview: maskeerPreview(normalised, 1500),
+      eerste_40_regels: maskeerEersteRegels(normalised, 40),
     },
   });
 });
