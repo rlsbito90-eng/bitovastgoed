@@ -22,6 +22,7 @@ import {
   type KadasterAdresVoorstel,
 } from '../_shared/kadasterPdfAdresParser.ts';
 import { normaliseerKadasterPdfTekst } from '../_shared/kadasterPdfTekstNormalisatie.ts';
+import { maskeerEersteRegels, maskeerPreview } from '../_shared/kadasterPdfTekstMasker.ts';
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB harde POC-bovengrens
 
