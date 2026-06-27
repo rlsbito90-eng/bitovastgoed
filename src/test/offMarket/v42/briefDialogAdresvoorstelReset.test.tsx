@@ -7,9 +7,20 @@
 //  - elk PDF-voorstel hoort bij één kandidaat.
 //
 // Alleen fictieve namen/adressen.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Radix Select gebruikt PointerCapture API die jsdom niet implementeert.
+beforeAll(() => {
+  if (!(HTMLElement.prototype as any).hasPointerCapture) {
+    (HTMLElement.prototype as any).hasPointerCapture = () => false;
+    (HTMLElement.prototype as any).releasePointerCapture = () => {};
+    (HTMLElement.prototype as any).setPointerCapture = () => {};
+  }
+  (HTMLElement.prototype as any).scrollIntoView = () => {};
+});
 
 const invokeMock = vi.fn();
 const fromMock = vi.fn();
