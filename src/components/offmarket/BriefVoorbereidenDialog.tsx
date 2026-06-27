@@ -90,11 +90,35 @@ function safeFilename(s: string): string {
  *  voorletters; bestaande brieven en bedrijven blijven ongemoeid. */
 function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten: boolean): string {
   if (!k) return '';
-  if (magAfkorten && k.bron === 'kadaster' && !k.bedrijfsnaam && k.naam) {
+  if (
+    magAfkorten &&
+    k.bron === 'kadaster' &&
+    !k.bedrijfsnaam &&
+    k.naam &&
+    !isRechtspersoonNaam(k.naam)
+  ) {
     return naarVoorlettersAchternaam(k.naam);
   }
   return k.naam ?? '';
 }
+
+/** Splitst een kandidaat in (naam, bedrijfsnaam) voor de formuliervelden.
+ *  Wanneer een Kadaster-kandidaat alleen een `naam` heeft die feitelijk
+ *  een rechtspersoon is, tonen we die in het bedrijfsnaam-veld en laten
+ *  het naamveld leeg. */
+function splitsKandidaatVelden(k: EigenaarKandidaat | null | undefined): {
+  naam: string;
+  bedrijfsnaam: string;
+} {
+  if (!k) return { naam: '', bedrijfsnaam: '' };
+  const bedrijfsnaam = k.bedrijfsnaam ?? '';
+  const naam = k.naam ?? '';
+  if (!bedrijfsnaam && naam && isRechtspersoonNaam(naam)) {
+    return { naam: '', bedrijfsnaam: naam };
+  }
+  return { naam, bedrijfsnaam };
+}
+
 
 export default function BriefVoorbereidenDialog({
   open, onOpenChange, signaal, kadasterRecords, historischeBrieven = [],
