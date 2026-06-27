@@ -50,6 +50,7 @@ const SCROLL_KEY = 'off-market-acq:scroll';
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: items = [], isLoading } = useAcquisitieSelectie();
   const { data: signalen = [] } = useOffMarketSignalen();
 
