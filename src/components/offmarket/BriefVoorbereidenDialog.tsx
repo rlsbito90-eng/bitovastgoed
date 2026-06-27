@@ -149,6 +149,13 @@ export default function BriefVoorbereidenDialog({
   const [pdfBezig, setPdfBezig] = useState(false);
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
   const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(!!initialBrief);
+  // Bron van het huidige verzendadres + voor welke kandidaat een
+  // PDF-adresvoorstel is overgenomen. Voorkomt dat een PDF-voorstel van
+  // kandidaat A blijft staan bij kandidaat B (zie test V42).
+  const [verzendadresBron, setVerzendadresBron] = useState<
+    'leeg' | 'handmatig' | 'kandidaat' | 'pdf-voorstel' | 'bestaand'
+  >(initialBrief ? 'bestaand' : (prefill.verzendadres ? 'kandidaat' : 'leeg'));
+  const [pdfVoorstelKandidaatLabel, setPdfVoorstelKandidaatLabel] = useState<string | null>(null);
 
   // V2.2 — kanaal & e-mailprofiel
   const initialKanaal: Kanaal = (initialBrief?.kanaal as Kanaal | undefined) ?? 'post';
