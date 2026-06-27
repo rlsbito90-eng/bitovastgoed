@@ -27,10 +27,40 @@ function isAlAfgkort(naam: string): boolean {
   return /^[A-Z]\.(?:\s?[A-Z]\.)*\s+/.test(naam);
 }
 
+// Rechtsvormen — herkend met en zonder punten, case-insensitive.
+const RECHTSVORM_PATRONEN: RegExp[] = [
+  /\bB\.?V\.?\b/i,
+  /\bN\.?V\.?\b/i,
+  /\bV\.?O\.?F\.?\b/i,
+  /\bC\.?V\.?\b/i,
+  /\bstichting\b/i,
+  /\bvereniging\b/i,
+  /\bco(?:ö|o)peratie\b/i,
+  /\bmaatschap\b/i,
+  /\bholding\b/i,
+  /\bbeheer\b/i,
+  /\bgmbh\b/i,
+  /\bltd\b/i,
+  /\bs\.?a\.?\b/i,
+];
+
+/**
+ * Herkent of een naam (zeer waarschijnlijk) een rechtspersoon/bedrijf is
+ * en dus niet door de voorletters-helper mag. Conservatief: false-negatives
+ * zijn acceptabel, false-positives op echte personen moeten zeldzaam zijn.
+ */
+export function isRechtspersoonNaam(naam: string | null | undefined): boolean {
+  if (!naam) return false;
+  const s = naam.trim();
+  if (!s) return false;
+  if (s.includes('&')) return true;
+  return RECHTSVORM_PATRONEN.some((re) => re.test(s));
+}
+
 /**
  * Zet een volledige natuurlijk-persoonsnaam om naar voorletters + achternaam.
- * Retourneert de originele string bij lege input, reeds-afgekorte namen of
- * wanneer geen achternaam kan worden bepaald.
+ * Retourneert de originele string bij lege input, reeds-afgekorte namen,
+ * rechtspersonen of wanneer geen achternaam kan worden bepaald.
  */
 export function naarVoorlettersAchternaam(
   naam: string | null | undefined,
@@ -39,6 +69,8 @@ export function naarVoorlettersAchternaam(
   const trimmed = naam.trim();
   if (!trimmed) return '';
   if (isAlAfgkort(trimmed)) return trimmed;
+  if (isRechtspersoonNaam(trimmed)) return trimmed;
+
 
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1) return trimmed;

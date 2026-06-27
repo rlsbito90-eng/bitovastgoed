@@ -30,7 +30,7 @@ import {
   buildKadasterAdresDebug, kadasterAdresKandidaten,
   VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres, type EigenaarKandidaat,
 } from '@/lib/offMarket/brief';
-import { naarVoorlettersAchternaam } from '@/lib/format/naam';
+import { naarVoorlettersAchternaam, isRechtspersoonNaam } from '@/lib/format/naam';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   useUpsertBrief, useMarkBriefVerstuurd,
@@ -86,15 +86,28 @@ function safeFilename(s: string): string {
     .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
 }
 
-/** Voorstel voor briefnaam: alleen Kadaster-natuurlijke personen krijgen
- *  voorletters; bestaande brieven en bedrijven blijven ongemoeid. */
-function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten: boolean): string {
-  if (!k) return '';
-  if (magAfkorten && k.bron === 'kadaster' && !k.bedrijfsnaam && k.naam) {
-    return naarVoorlettersAchternaam(k.naam);
+
+/** Bepaalt de naam- en bedrijfsnaamvelden voor een kandidaat.
+ *  - Natuurlijke personen uit Kadaster worden afgekort als `magAfkorten`.
+ *  - Rechtspersonen die in het `naam`-veld staan, schuiven door naar
+ *    bedrijfsnaam zodat ze nooit als initialen worden weergegeven. */
+function bepaalNaamVelden(
+  k: EigenaarKandidaat | null | undefined,
+  magAfkorten: boolean,
+): { naam: string; bedrijfsnaam: string } {
+  if (!k) return { naam: '', bedrijfsnaam: '' };
+  const ruweNaam = k.naam ?? '';
+  const ruweBedrijf = k.bedrijfsnaam ?? '';
+  if (ruweNaam && !ruweBedrijf && isRechtspersoonNaam(ruweNaam)) {
+    return { naam: '', bedrijfsnaam: ruweNaam };
   }
-  return k.naam ?? '';
+  if (magAfkorten && k.bron === 'kadaster' && !ruweBedrijf && ruweNaam) {
+    return { naam: naarVoorlettersAchternaam(ruweNaam), bedrijfsnaam: '' };
+  }
+  return { naam: ruweNaam, bedrijfsnaam: ruweBedrijf };
 }
+
+
 
 export default function BriefVoorbereidenDialog({
   open, onOpenChange, signaal, kadasterRecords, historischeBrieven = [],
@@ -180,8 +193,10 @@ export default function BriefVoorbereidenDialog({
       (x.bedrijfsnaam ?? '') === prefill.eigenaarBedrijfsnaam,
     ) ?? null;
     setKandidaatLabel(k?.label ?? '');
-    setEigenaarNaam(voorstelBriefNaam(naamBron, true));
-    setEigenaarBedrijfsnaam(forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
+    const velden = bepaalNaamVelden(naamBron, true);
+    setEigenaarNaam(velden.naam);
+    setEigenaarBedrijfsnaam(velden.bedrijfsnaam || (forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam));
+
     setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
     setObjectadres(prefill.objectadres);
     setObjectomschrijving(prefill.objectomschrijving);
@@ -217,8 +232,10 @@ export default function BriefVoorbereidenDialog({
     setKandidaatLabel(label);
     const k = prefill.kandidaten.find(x => x.label === label);
     if (k) {
-      setEigenaarNaam(voorstelBriefNaam(k, !initialBrief));
-      setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? '');
+      const velden = bepaalNaamVelden(k, !initialBrief);
+      setEigenaarNaam(velden.naam);
+      setEigenaarBedrijfsnaam(velden.bedrijfsnaam);
+
       if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
       setAanhef(nieuweAanhef);
