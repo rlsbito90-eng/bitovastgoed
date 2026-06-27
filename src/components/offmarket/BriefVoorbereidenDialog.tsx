@@ -193,8 +193,10 @@ export default function BriefVoorbereidenDialog({
       (x.bedrijfsnaam ?? '') === prefill.eigenaarBedrijfsnaam,
     ) ?? null;
     setKandidaatLabel(k?.label ?? '');
-    setEigenaarNaam(voorstelBriefNaam(naamBron, true));
-    setEigenaarBedrijfsnaam(forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
+    const velden = bepaalNaamVelden(naamBron, true);
+    setEigenaarNaam(velden.naam);
+    setEigenaarBedrijfsnaam(velden.bedrijfsnaam || (forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam));
+
     setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
     setObjectadres(prefill.objectadres);
     setObjectomschrijving(prefill.objectomschrijving);
