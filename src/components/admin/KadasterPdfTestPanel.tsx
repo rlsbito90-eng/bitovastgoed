@@ -240,6 +240,39 @@ export default function KadasterPdfTestPanel() {
               ) : (
                 <div className="text-muted-foreground">Geen voorstellen.</div>
               )}
+
+              {(respons.eerste_40_regels?.length || respons.gemaskeerde_tekst_preview) && (
+                <details className="rounded border border-border bg-background p-2">
+                  <summary className="cursor-pointer text-xs font-medium">
+                    Gemaskeerde tekststructuur
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <div className="text-[11px] text-muted-foreground">
+                      Gemaskeerd — alleen structuur, geen persoonsgegevens.
+                    </div>
+                    {respons.eerste_40_regels && respons.eerste_40_regels.length > 0 && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                          eerste_40_regels
+                        </div>
+                        <pre className="font-mono-data text-[11px] whitespace-pre-wrap break-words bg-muted/30 p-2 rounded max-h-80 overflow-auto">
+{respons.eerste_40_regels.join('\n')}
+                        </pre>
+                      </div>
+                    )}
+                    {respons.gemaskeerde_tekst_preview && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                          gemaskeerde_tekst_preview (max 1500)
+                        </div>
+                        <pre className="font-mono-data text-[11px] whitespace-pre-wrap break-words bg-muted/30 p-2 rounded max-h-80 overflow-auto">
+{respons.gemaskeerde_tekst_preview}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )}
             </>
           )}
         </div>
