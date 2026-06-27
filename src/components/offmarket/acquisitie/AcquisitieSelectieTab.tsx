@@ -539,8 +539,8 @@ export default function AcquisitieSelectieTab() {
 
       <FocusModus
         open={focusOpen}
-        onClose={() => setFocusOpen(false)}
-        items={readiness.lijst}
+        onClose={() => { setFocusOpen(false); setVerwerkScopeIds(null); }}
+        items={focusItems}
         index={focusIndex}
         onIndexChange={setFocusIndex}
       />
