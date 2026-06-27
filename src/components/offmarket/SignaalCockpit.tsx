@@ -5,7 +5,7 @@
 import { Link } from 'react-router-dom';
 import {
   Sparkles, MapPin, MapIcon, Landmark, Mail, ListPlus, FileSearch,
-  ArrowUpRight, ZapIcon, Pencil,
+  ArrowUpRight, ZapIcon, Pencil, ArrowDownToLine,
 } from 'lucide-react';
 // Button is niet meer nodig — VolgendeActiesBlok rendert eigen knoppen.
 import {
