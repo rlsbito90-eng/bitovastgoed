@@ -160,7 +160,7 @@ describe('V46 AcquisitieSelectieTab — rij-controls', () => {
     const trigger = await screen.findByTestId('status-wijzig-compact');
     await user.click(trigger);
     // Kies een willekeurige niet-huidige optie
-    const opt = await screen.findByTestId('status-optie-actief_in_onderzoek');
+    const opt = await screen.findByTestId('status-optie-te_onderzoeken');
     await user.click(opt);
     await waitFor(() => {
       expect(updateMock.mock.calls.some((c) => typeof c[0]?.patch?.status === 'string')).toBe(true);
