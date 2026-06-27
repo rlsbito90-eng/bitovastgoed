@@ -146,7 +146,7 @@ describe('KadasterPdfAdresVoorstelPanel · labels en matching', () => {
     );
     fireEvent.click(await screen.findByTestId('kpv-start-knop'));
     await waitFor(() => expect(screen.getByTestId('kpv-keuze-trigger')).toBeInTheDocument());
-    expect(screen.getByTestId('kpv-keuze-1').textContent).toMatch(/match/);
+    expect(screen.getByTestId('kpv-keuze-trigger').textContent).toMatch(/Voorbeeld B\.V\..*match/);
     fireEvent.click(screen.getByTestId('kpv-overnemen'));
     expect(onPick).toHaveBeenCalledWith('Y 1', null, 'Voorbeeld B.V.');
   });
