@@ -100,7 +100,7 @@ describe('KadasterPdfAdresVoorstelPanel · labels en matching', () => {
     render(<KadasterPdfAdresVoorstelPanel {...basis} huidigeNaam="A.C.C. Achternaam" onPick={onPick} />, { wrapper: wrap() });
     fireEvent.click(await screen.findByTestId('kpv-start-knop'));
     await waitFor(() => expect(screen.getByTestId('kpv-keuze-trigger')).toBeInTheDocument());
-    expect(screen.getByTestId('kpv-keuze-1').textContent).toMatch(/match/);
+    expect(screen.getByTestId('kpv-keuze-trigger').textContent).toMatch(/Alexandra Catharina Celine Achternaam.*match/);
     expect(screen.queryByTestId('kpv-meerdere-melding')).toBeNull();
     // Overnemen: nog steeds expliciete klik vereist.
     expect(onPick).not.toHaveBeenCalled();
