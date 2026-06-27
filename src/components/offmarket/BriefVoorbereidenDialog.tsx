@@ -728,13 +728,14 @@ export default function BriefVoorbereidenDialog({
               </div>
             )}
             <KadasterPdfAdresVoorstelPanel
-              key={`kpv-${kandidaatLabel}`}
+              key={`kpv-${kandidaatLabel}-${geselecteerdeKandidaat?.recordId ?? 'geen'}`}
               signaalId={signaal.id}
               huidigeNaam={eigenaarNaam}
               huidigeBedrijfsnaam={eigenaarBedrijfsnaam}
               verzendadresIsLeeg={!isEchteWaarde(verzendadres)}
               bestaandVerzendadres={verzendadres}
               kandidaatBron={geselecteerdeKandidaat?.bron}
+              kandidaatRecordId={geselecteerdeKandidaat?.recordId ?? null}
               onPick={(adres, naam, bedrijfsnaam) => {
                 setVerzendadres(adres);
                 setVerzendadresBron('pdf-voorstel');
