@@ -20,12 +20,44 @@ describe('naarVoorlettersAchternaam', () => {
     expect(naarVoorlettersAchternaam('P. J. Achternaam')).toBe('P. J. Achternaam');
   });
 
-  it('retourneert bedrijfsnaam ongewijzigd (callers moeten die nooit doorgeven)', () => {
-    // De helper zelf maakt geen onderscheid, maar het contract is:
-    // alleen natuurlijke personen doorgeven. Test toont dat het
-    // technisch gezien ook voor langere bedrijfsnamen werkt.
-    expect(naarVoorlettersAchternaam('Bito Vastgoed BV')).toBe('B.V. BV');
+  it('laat rechtspersoon ongemoeid (BV met punten)', () => {
+    expect(naarVoorlettersAchternaam('Voorbeeld Vastgoed B.V.')).toBe('Voorbeeld Vastgoed B.V.');
   });
+
+  it('laat rechtspersoon ongemoeid (BV zonder punten)', () => {
+    expect(naarVoorlettersAchternaam('Voorbeeld Holding BV')).toBe('Voorbeeld Holding BV');
+  });
+
+  it('laat stichting ongemoeid', () => {
+    expect(naarVoorlettersAchternaam('Stichting Voorbeeld')).toBe('Stichting Voorbeeld');
+  });
+
+  it('laat naam met & ongemoeid', () => {
+    expect(naarVoorlettersAchternaam('Voorbeeld & Partner B.V.')).toBe('Voorbeeld & Partner B.V.');
+    expect(naarVoorlettersAchternaam('Jansen & Co')).toBe('Jansen & Co');
+  });
+
+  it('isRechtspersoonNaam herkent gangbare rechtsvormen', () => {
+    expect(isRechtspersoonNaam('Voorbeeld B.V.')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld BV')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld N.V.')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld NV')).toBe(true);
+    expect(isRechtspersoonNaam('Stichting Voorbeeld')).toBe(true);
+    expect(isRechtspersoonNaam('Vereniging Voorbeeld')).toBe(true);
+    expect(isRechtspersoonNaam('Coöperatie Voorbeeld')).toBe(true);
+    expect(isRechtspersoonNaam('Cooperatie Voorbeeld')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld V.O.F.')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld VOF')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld C.V.')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld CV')).toBe(true);
+    expect(isRechtspersoonNaam('Maatschap Voorbeeld')).toBe(true);
+    expect(isRechtspersoonNaam('Voorbeeld & Partner')).toBe(true);
+    expect(isRechtspersoonNaam('voorbeeld holding bv')).toBe(true);
+    expect(isRechtspersoonNaam('Jan de Vries')).toBe(false);
+    expect(isRechtspersoonNaam('')).toBe(false);
+    expect(isRechtspersoonNaam(null)).toBe(false);
+  });
+
 
   it('handelt lege input gracieus af', () => {
     expect(naarVoorlettersAchternaam('')).toBe('');
