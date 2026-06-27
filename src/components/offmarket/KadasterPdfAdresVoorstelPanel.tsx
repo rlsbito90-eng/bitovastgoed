@@ -212,9 +212,18 @@ export default function KadasterPdfAdresVoorstelPanel({
         setStatus({ type: 'leeg' });
         return;
       }
-      // Zet de voorkeursindex op een match wanneer aanwezig.
-      const matchIdx = bruikbaar.findIndex(v => v.matched);
-      setGekozenIdx(matchIdx >= 0 ? matchIdx : 0);
+      // Selectiebeleid:
+      //  - 1 voorstel → standaard geselecteerd (gebruiker moet nog klikken).
+      //  - meerdere voorstellen + precies 1 duidelijke match → die voorgeselecteerd.
+      //  - meerdere voorstellen, 0 of >1 matches → niets voorselecteren.
+      const matchIdxs = bruikbaar
+        .map((v, i) => (v.matched ? i : -1))
+        .filter((i) => i >= 0);
+      let voorkeur: number | null;
+      if (bruikbaar.length === 1) voorkeur = 0;
+      else if (matchIdxs.length === 1) voorkeur = matchIdxs[0];
+      else voorkeur = null;
+      setGekozenIdx(voorkeur);
       setStatus({ type: 'done', voorstellen: bruikbaar });
     } catch (e) {
       setStatus({
