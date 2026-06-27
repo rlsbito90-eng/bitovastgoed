@@ -137,9 +137,10 @@ function getKandidaatSelect() {
 }
 
 async function kiesKandidaat(label: string) {
-  fireEvent.click(getKandidaatSelect());
-  const opt = await screen.findByText(label);
-  fireEvent.click(opt);
+  const user = userEvent.setup();
+  await user.click(getKandidaatSelect());
+  const opt = await screen.findByRole('option', { name: new RegExp(label, 'i') });
+  await user.click(opt);
 }
 
 describe('BriefVoorbereidenDialog — V42 PDF-adresvoorstel per kandidaat', () => {
