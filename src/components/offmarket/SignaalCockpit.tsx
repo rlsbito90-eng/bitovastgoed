@@ -88,7 +88,9 @@ export default function SignaalCockpit({
             <StatusWijzigDropdown signaal={signaal} variant="compact" />
           </div>
         </Row>
-        <Row label="Prioriteit"><OffMarketPriorityBadge prioriteit={signaal.prioriteit} /></Row>
+        <Row label="Prioriteit">
+          <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
+        </Row>
         <Row label="AI-score">
           <span className="text-sm font-medium text-foreground">{typeof signaal.ai_score === 'number' ? signaal.ai_score : '—'}</span>
         </Row>
