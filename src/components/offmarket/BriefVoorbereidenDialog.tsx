@@ -688,6 +688,20 @@ export default function BriefVoorbereidenDialog({
                 </Button>
               </div>
             )}
+            <KadasterPdfAdresVoorstelPanel
+              signaalId={signaal.id}
+              huidigeNaam={eigenaarNaam}
+              huidigeBedrijfsnaam={eigenaarBedrijfsnaam}
+              verzendadresIsLeeg={!isEchteWaarde(verzendadres)}
+              bestaandVerzendadres={verzendadres}
+              kandidaatBron={geselecteerdeKandidaat?.bron}
+              onPick={(adres, naam, bedrijfsnaam) => {
+                setVerzendadres(adres);
+                if (naam) setEigenaarNaam(naam);
+                if (bedrijfsnaam) setEigenaarBedrijfsnaam(bedrijfsnaam);
+                toast.success('Adresvoorstel uit Kadasterbericht overgenomen');
+              }}
+            />
             <details className="text-[11px] text-muted-foreground">
               <summary className="cursor-pointer select-none">Details Kadasteradres</summary>
               <div className="pt-1">
