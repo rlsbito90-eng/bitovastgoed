@@ -6,11 +6,10 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { ArrowUpRight, ListPlus, ListChecks } from 'lucide-react';
-import {
-  OffMarketEigenaarstatusBadge,
-} from '@/components/offmarket/OffMarketBadges';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
+import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
 import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
 import KadasteradviesBadge from '@/components/offmarket/bag/KadasteradviesBadge';
