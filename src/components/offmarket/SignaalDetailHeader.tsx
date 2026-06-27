@@ -12,9 +12,11 @@ interface Props {
   signaal: OffMarketSignaal;
   onEdit: () => void;
   onArchive: () => void;
+  /** Override voor "Terug naar signalen" — bv. om naar verwerk-context te keren. */
+  onTerugNaarLijst?: () => void;
 }
 
-export default function SignaalDetailHeader({ signaal, onEdit, onArchive }: Props) {
+export default function SignaalDetailHeader({ signaal, onEdit, onArchive, onTerugNaarLijst }: Props) {
   const sub = [
     ASSETTYPE_LABEL[signaal.assettype],
     SIGNAALTYPE_LABEL[signaal.type_signaal],
@@ -23,11 +25,24 @@ export default function SignaalDetailHeader({ signaal, onEdit, onArchive }: Prop
 
   const isArchief = !!signaal.gearchiveerd_op;
 
+  const TerugTrigger = onTerugNaarLijst ? (
+    <button
+      type="button"
+      onClick={onTerugNaarLijst}
+      data-testid="signaal-detail-terug"
+      className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft className="h-4 w-4" /> Terug naar signalen
+    </button>
+  ) : (
+    <Link to="/off-market" className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <ArrowLeft className="h-4 w-4" /> Terug naar signalen
+    </Link>
+  );
+
   return (
     <div className="space-y-3">
-      <Link to="/off-market" className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Terug naar signalen
-      </Link>
+      {TerugTrigger}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">
