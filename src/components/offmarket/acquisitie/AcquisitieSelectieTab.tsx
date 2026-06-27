@@ -507,7 +507,7 @@ export default function AcquisitieSelectieTab() {
                       type="button"
                       size="sm"
                       variant="secondary"
-                      onClick={() => navigate(`/off-market/${signaal.id}`)}
+                      onClick={() => openSignaalMetContext(signaal.id)}
                       data-testid="acquisitie-selectie-open"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
