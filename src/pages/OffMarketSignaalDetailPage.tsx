@@ -183,6 +183,7 @@ export default function OffMarketSignaalDetailPage() {
           signaal={signaal}
           onEdit={() => setEditOpen(true)}
           onArchive={() => setArchiveOpen(true)}
+          onTerugNaarLijst={handleBackToList}
         />
 
         <SignaalKpiBar signaal={signaal} taken={taken} briefStatus={briefStatus} />
