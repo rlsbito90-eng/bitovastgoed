@@ -28,8 +28,9 @@ import {
   bouwBriefPrefill, bepaalAanhef, bepaalOnderwerp, bouwBriefTekst,
   buildBriefViewModel, briefAlsPlatteTekst,
   buildKadasterAdresDebug, kadasterAdresKandidaten,
-  VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres,
+  VERZENDADRES_PLACEHOLDER, type HistorischBriefAdres, type EigenaarKandidaat,
 } from '@/lib/offMarket/brief';
+import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   useUpsertBrief, useMarkBriefVerstuurd,
@@ -83,6 +84,16 @@ function safeFilename(s: string): string {
   return (s || 'brief')
     .replace(/[^a-zA-Z0-9 \-_]/g, '')
     .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
+}
+
+/** Voorstel voor briefnaam: alleen Kadaster-natuurlijke personen krijgen
+ *  voorletters; bestaande brieven en bedrijven blijven ongemoeid. */
+function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten: boolean): string {
+  if (!k) return '';
+  if (magAfkorten && k.bron === 'kadaster' && !k.bedrijfsnaam && k.naam) {
+    return naarVoorlettersAchternaam(k.naam);
+  }
+  return k.naam ?? '';
 }
 
 export default function BriefVoorbereidenDialog({
@@ -164,8 +175,12 @@ export default function BriefVoorbereidenDialog({
       ? prefill.kandidaten.find(x => x.label === forceKandidaatLabel) ?? null
       : null;
     const k = forced ?? prefill.kandidaten[0] ?? null;
+    const naamBron = forced ?? prefill.kandidaten.find(x =>
+      (x.naam ?? '') === prefill.eigenaarNaam &&
+      (x.bedrijfsnaam ?? '') === prefill.eigenaarBedrijfsnaam,
+    ) ?? null;
     setKandidaatLabel(k?.label ?? '');
-    setEigenaarNaam(forced?.naam ?? prefill.eigenaarNaam);
+    setEigenaarNaam(voorstelBriefNaam(naamBron, true));
     setEigenaarBedrijfsnaam(forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam);
     setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
     setObjectadres(prefill.objectadres);
@@ -202,7 +217,7 @@ export default function BriefVoorbereidenDialog({
     setKandidaatLabel(label);
     const k = prefill.kandidaten.find(x => x.label === label);
     if (k) {
-      setEigenaarNaam(k.naam ?? '');
+      setEigenaarNaam(voorstelBriefNaam(k, !initialBrief));
       setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? '');
       if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
