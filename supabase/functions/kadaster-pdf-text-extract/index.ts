@@ -145,6 +145,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // 7) Return — alleen voorstellen + tellingen, geen ruwe tekst.
+  const regels = normalised.split('\n');
   return jsonResp({
     document_id,
     voorstellen,
@@ -152,9 +153,19 @@ Deno.serve(async (req: Request) => {
       pages: pageCount,
       raw_chars: rawText.length,
       normalised_chars: normalised.length,
+      normalised_lines: regels.length,
+      normalisatie_versie: 'presplit-v1',
       voorstellen_count: voorstellen.length,
+      contains_presplit_anchors: {
+        heeft_rechten_regel: regels.some((r) => r === 'Rechten'),
+        heeft_eigendom_regel: regels.some((r) => r.startsWith('Eigendom (recht van)')),
+        heeft_aandeel_regel: regels.some((r) => r.startsWith('Aandeel')),
+        heeft_naam_regel: regels.some((r) => r.startsWith('Naam')),
+        heeft_adres_regel: regels.some((r) => r.startsWith('Adres')),
+      },
       gemaskeerde_tekst_preview: maskeerPreview(normalised, 1500),
       eerste_40_regels: maskeerEersteRegels(normalised, 40),
     },
   });
 });
+
