@@ -86,21 +86,6 @@ function safeFilename(s: string): string {
     .trim().replace(/\s+/g, '-').slice(0, 60) || 'brief';
 }
 
-/** Voorstel voor briefnaam: alleen Kadaster-natuurlijke personen krijgen
- *  voorletters; bestaande brieven en bedrijven blijven ongemoeid. */
-function voorstelBriefNaam(k: EigenaarKandidaat | null | undefined, magAfkorten: boolean): string {
-  if (!k) return '';
-  if (
-    magAfkorten &&
-    k.bron === 'kadaster' &&
-    !k.bedrijfsnaam &&
-    k.naam &&
-    !isRechtspersoonNaam(k.naam)
-  ) {
-    return naarVoorlettersAchternaam(k.naam);
-  }
-  return k.naam ?? '';
-}
 
 /** Bepaalt de naam- en bedrijfsnaamvelden voor een kandidaat.
  *  - Natuurlijke personen uit Kadaster worden afgekort als `magAfkorten`.
