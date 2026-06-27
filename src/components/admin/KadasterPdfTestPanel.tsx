@@ -125,6 +125,12 @@ export default function KadasterPdfTestPanel() {
             ? debug.voorstellen_count
             : voorstellenArr.length,
           voorstellen: voorstellenArr.map(mapVoorstel),
+          gemaskeerde_tekst_preview: typeof debug.gemaskeerde_tekst_preview === 'string'
+            ? debug.gemaskeerde_tekst_preview
+            : undefined,
+          eerste_40_regels: Array.isArray(debug.eerste_40_regels)
+            ? debug.eerste_40_regels.filter((r: unknown): r is string => typeof r === 'string')
+            : undefined,
         });
       }
     } catch (e: any) {
