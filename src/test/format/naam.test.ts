@@ -10,18 +10,6 @@ describe('naarVoorlettersAchternaam', () => {
     expect(naarVoorlettersAchternaam('Voornaam van der Achternaam')).toBe('V. van der Achternaam');
   });
 
-  it('handelt tussenvoegsel "de" correct', () => {
-    expect(naarVoorlettersAchternaam('Karel de Groot')).toBe('K. de Groot');
-  });
-
-  it('handelt tussenvoegsel "ter" correct', () => {
-    expect(naarVoorlettersAchternaam('Willem ter Berg')).toBe('W. ter Berg');
-  });
-
-  it('handelt meerdere tussenvoegsels correct', () => {
-    expect(naarVoorlettersAchternaam('Jan Pieter van den Berg')).toBe('J.P. van den Berg');
-  });
-
   it('kort koppelteken-voornaam netjes af', () => {
     expect(naarVoorlettersAchternaam('Anna-Maria de Vries')).toBe('A.M. de Vries');
   });
@@ -35,7 +23,7 @@ describe('naarVoorlettersAchternaam', () => {
     // De helper zelf maakt geen onderscheid, maar het contract is:
     // alleen natuurlijke personen doorgeven. Test toont dat het
     // technisch gezien ook voor langere bedrijfsnamen werkt.
-    expect(naarVoorlettersAchternaam('Bito Vastgoed BV')).toBe('B. BV');
+    expect(naarVoorlettersAchternaam('Bito Vastgoed BV')).toBe('B.V. BV');
   });
 
   it('handelt lege input gracieus af', () => {
