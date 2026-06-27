@@ -47,7 +47,7 @@ interface Props {
   huidigeBedrijfsnaam: string;
   verzendadresIsLeeg: boolean;
   bestaandVerzendadres: string;
-  kandidaatBron: 'kadaster' | 'signaal' | undefined;
+  kandidaatBron: string | undefined;
   onPick: (adres: string, naam: string | null, bedrijfsnaam: string | null) => void;
 }
 
