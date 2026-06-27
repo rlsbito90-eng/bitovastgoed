@@ -232,8 +232,10 @@ export default function BriefVoorbereidenDialog({
     setKandidaatLabel(label);
     const k = prefill.kandidaten.find(x => x.label === label);
     if (k) {
-      setEigenaarNaam(voorstelBriefNaam(k, !initialBrief));
-      setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? '');
+      const velden = bepaalNaamVelden(k, !initialBrief);
+      setEigenaarNaam(velden.naam);
+      setEigenaarBedrijfsnaam(velden.bedrijfsnaam);
+
       if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
       setAanhef(nieuweAanhef);
