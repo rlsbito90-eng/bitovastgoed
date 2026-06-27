@@ -242,18 +242,39 @@ export default function BriefVoorbereidenDialog({
   );
 
   const handleKandidaatWissel = (label: string) => {
-    setKandidaatLabel(label);
+    if (label === kandidaatLabel) return;
     const k = prefill.kandidaten.find(x => x.label === label);
+    // Beslis wat er met het verzendadres moet gebeuren:
+    //  - Een eerder PDF-adresvoorstel hoort bij één specifieke kandidaat
+    //    en mag NIET blijven staan bij een andere kandidaat.
+    //  - Een handmatig ingevuld adres mag niet stilzwijgend worden gewist
+    //    — vraag bevestiging.
+    //  - Anders: vul het structured adres van de nieuwe kandidaat in,
+    //    of laat het veld leeg.
+    const nieuwAdres = k?.verzendadres ?? '';
+    const huidigHandmatig = verzendadresBron === 'handmatig' && isEchteWaarde(verzendadres);
+    const pdfVoorVorigeKandidaat = verzendadresBron === 'pdf-voorstel'
+      && pdfVoorstelKandidaatLabel !== label;
+    if (huidigHandmatig && !pdfVoorVorigeKandidaat) {
+      const ok = typeof window !== 'undefined'
+        ? window.confirm('Er staat een handmatig ingevuld verzendadres. Wilt u dit vervangen door het adres van de nieuwe geadresseerde?')
+        : true;
+      if (!ok) return;
+    }
+    setKandidaatLabel(label);
     if (k) {
       const velden = bepaalNaamVelden(k, !initialBrief);
       setEigenaarNaam(velden.naam);
       setEigenaarBedrijfsnaam(velden.bedrijfsnaam);
-
-      if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
       setAanhef(nieuweAanhef);
       setBrieftekst(bouwBriefTekst({ aanhef: nieuweAanhef, objectadres: objectomschrijving }));
     }
+    setVerzendadres(nieuwAdres);
+    setVerzendadresBron(isEchteWaarde(nieuwAdres) ? 'kandidaat' : 'leeg');
+    // Reset PDF-voorstel-koppeling — een nieuw voorstel hoort bij de
+    // nieuwe kandidaat.
+    setPdfVoorstelKandidaatLabel(null);
   };
 
   const herstelStandaard = () => {
@@ -278,6 +299,8 @@ export default function BriefVoorbereidenDialog({
     setEigenaarNaam(k.naam ?? eigenaarNaam);
     setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? eigenaarBedrijfsnaam);
     setVerzendadres(k.verzendadres);
+    setVerzendadresBron('kandidaat');
+    setPdfVoorstelKandidaatLabel(null);
     toast.success('Verzendadres overgenomen uit Kadasterbericht');
   };
 
