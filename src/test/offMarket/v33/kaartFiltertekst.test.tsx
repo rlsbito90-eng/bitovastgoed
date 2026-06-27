@@ -24,6 +24,10 @@ vi.mock('@/components/offmarket/OffMarketKpi', () => ({
   default: () => <div />,
 }));
 
+vi.mock('@/hooks/useDataStore', () => ({
+  useDataStore: () => ({ taken: [] }),
+}));
+
 import OffMarketPage from '@/pages/OffMarketPage';
 
 function renderPage() {
