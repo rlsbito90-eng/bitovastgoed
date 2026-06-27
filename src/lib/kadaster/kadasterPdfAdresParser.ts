@@ -125,7 +125,7 @@ function normaliseerLabel(lbl: string): string {
  */
 function splitInlineLabels(regel: string): string[] {
   const pattern = new RegExp(
-    `\\s+(${VELD_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b\\s*:?\\s*`,
+    `\\s+(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b\\s*:?\\s*`,
     'g',
   );
   // Vervang elk label door een newline + label.
