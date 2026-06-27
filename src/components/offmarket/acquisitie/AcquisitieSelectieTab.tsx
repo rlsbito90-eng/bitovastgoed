@@ -218,8 +218,21 @@ export default function AcquisitieSelectieTab() {
 
   // Hervat Verwerk selectie wanneer we terugkeren vanuit signaaldetail.
   useEffect(() => {
-    const state = location.state as { resumeAcquisitieFocus?: boolean; focusIndex?: number } | null;
+    const state = location.state as {
+      resumeAcquisitieFocus?: boolean;
+      focusIndex?: number;
+      focusScopeIds?: string[] | null;
+      selectedIds?: string[] | null;
+    } | null;
     if (state?.resumeAcquisitieFocus) {
+      if (Array.isArray(state.focusScopeIds) && state.focusScopeIds.length > 0) {
+        setVerwerkScopeIds(state.focusScopeIds);
+      } else {
+        setVerwerkScopeIds(null);
+      }
+      if (Array.isArray(state.selectedIds)) {
+        setBulkSelectie(new Set(state.selectedIds));
+      }
       if (typeof state.focusIndex === 'number') setFocusIndex(state.focusIndex);
       setFocusOpen(true);
       // Wis state zodat refresh niet opnieuw opent.
@@ -258,9 +271,15 @@ export default function AcquisitieSelectieTab() {
   const openSignaalMetContext = (signaalId: string) => {
     const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
     navigate(`/off-market/${signaalId}?tab=brieven`, {
-      state: { fromAcquisitieFocus: true, focusIndex: idx >= 0 ? idx : 0 },
+      state: {
+        fromAcquisitieFocus: true,
+        focusIndex: idx >= 0 ? idx : 0,
+        focusScopeIds: null,
+        selectedIds: Array.from(bulkSelectie),
+      },
     });
   };
+
 
   if (isLoading) {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Selectie laden…</p>;
@@ -543,7 +562,10 @@ export default function AcquisitieSelectieTab() {
         items={focusItems}
         index={focusIndex}
         onIndexChange={setFocusIndex}
+        focusScopeIds={verwerkScopeIds}
+        selectedIds={Array.from(bulkSelectie)}
       />
+
 
       <BulkBriefVoorbereidenWizard
         open={wizardOpen}

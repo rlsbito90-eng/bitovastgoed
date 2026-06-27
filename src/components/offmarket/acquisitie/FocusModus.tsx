@@ -35,13 +35,18 @@ interface Props {
   items: FocusItem[];
   index: number;
   onIndexChange: (i: number) => void;
+  /** Scope-IDs van de actieve verwerk-sessie. `null` = volledige lijst. */
+  focusScopeIds?: string[] | null;
+  /** IDs die in Acquisitieselectie aangevinkt zijn. */
+  selectedIds?: string[];
 }
+
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
-export default function FocusModus({ open, onClose, items, index, onIndexChange }: Props) {
+export default function FocusModus({ open, onClose, items, index, onIndexChange, focusScopeIds, selectedIds }: Props) {
   const navigate = useNavigate();
   const veiligIndex = useMemo(() => {
     if (items.length === 0) return 0;
@@ -179,7 +184,14 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange 
               size="sm"
               onClick={() => navigate(
                 `/off-market/${signaal.id}?tab=brieven`,
-                { state: { fromAcquisitieFocus: true, focusIndex: veiligIndex } },
+                {
+                  state: {
+                    fromAcquisitieFocus: true,
+                    focusIndex: veiligIndex,
+                    focusScopeIds: focusScopeIds ?? null,
+                    selectedIds: selectedIds ?? [],
+                  },
+                },
               )}
               data-testid="focus-open-signaal"
             >
@@ -219,12 +231,22 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange 
               Volgende
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              data-testid="focus-sluiten"
+            >
+              Sluiten
+            </Button>
             <ToevoegenAanAcquisitieSelectieKnop
               signaalId={signaal.id}
               variant="compact"
               labelMode="remove"
               isInSelectie
             />
+
           </div>
         </div>
       </DialogContent>
