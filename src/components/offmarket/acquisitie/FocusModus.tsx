@@ -184,7 +184,14 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange,
               size="sm"
               onClick={() => navigate(
                 `/off-market/${signaal.id}?tab=brieven`,
-                { state: { fromAcquisitieFocus: true, focusIndex: veiligIndex } },
+                {
+                  state: {
+                    fromAcquisitieFocus: true,
+                    focusIndex: veiligIndex,
+                    focusScopeIds: focusScopeIds ?? null,
+                    selectedIds: selectedIds ?? [],
+                  },
+                },
               )}
               data-testid="focus-open-signaal"
             >
@@ -224,12 +231,22 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange,
               Volgende
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              data-testid="focus-sluiten"
+            >
+              Sluiten
+            </Button>
             <ToevoegenAanAcquisitieSelectieKnop
               signaalId={signaal.id}
               variant="compact"
               labelMode="remove"
               isInSelectie
             />
+
           </div>
         </div>
       </DialogContent>
