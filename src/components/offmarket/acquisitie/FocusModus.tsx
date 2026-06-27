@@ -35,7 +35,12 @@ interface Props {
   items: FocusItem[];
   index: number;
   onIndexChange: (i: number) => void;
+  /** Scope-IDs van de actieve verwerk-sessie. `null` = volledige lijst. */
+  focusScopeIds?: string[] | null;
+  /** IDs die in Acquisitieselectie aangevinkt zijn. */
+  selectedIds?: string[];
 }
+
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
