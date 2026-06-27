@@ -50,6 +50,8 @@ interface Props {
   verzendadresIsLeeg: boolean;
   bestaandVerzendadres: string;
   kandidaatBron: string | undefined;
+  /** recordId van de geselecteerde kandidaat → koppelt aan kadaster_data_records.id. */
+  kandidaatRecordId?: string | null;
   onPick: (adres: string, naam: string | null, bedrijfsnaam: string | null) => void;
 }
 
