@@ -49,6 +49,7 @@ const VALID_HASHES = new Set([
   'jaardoelen',
   'agenda-feed',
   'gebruikersbeheer',
+  'kadaster-pdf-test',
 ]);
 
 export default function AdminPage() {
