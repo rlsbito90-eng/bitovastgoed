@@ -139,6 +139,17 @@ export default function AdminPage() {
       </AdminSectionCard>
 
       <AdminSectionCard
+        id="kadaster-pdf-test"
+        title="Kadaster PDF adresvoorstel testen"
+        subtitle="Tijdelijke interne POC-test. Read-only — toont alleen tellingen en booleans, geen persoonsgegevens."
+        icon={<ShieldQuestion className="h-4 w-4" />}
+        forceOpen={openHash === 'kadaster-pdf-test'}
+      >
+        <KadasterPdfTestPanel />
+      </AdminSectionCard>
+
+
+      <AdminSectionCard
         id="jaardoelen"
         title="Jaardoelen"
         subtitle="Commissie- en dealwaarde-doel per jaar. Zichtbaar als voortgangsbalk op het dashboard."
