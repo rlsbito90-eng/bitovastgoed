@@ -1,6 +1,6 @@
 // Inline eigenaarstatus-dropdown voor Signaal-Cockpit.
-// Trigger = OffMarketEigenaarstatusBadge (pill). Gebruikt bestaande
-// useUpdateOffMarketSignaal — geen nieuwe API, geen schemawijziging.
+// Trigger = control-wrapper rond badge + chevron, duidelijk klikbaar.
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
@@ -35,9 +35,12 @@ export default function EigenaarstatusWijzigDropdown({ signaalId, eigenaarstatus
       <SelectTrigger
         aria-label="Eigenaarstatus wijzigen"
         data-testid="eigenaarstatus-wijzig-dropdown"
-        className="h-auto w-auto p-0 border-0 bg-transparent hover:opacity-80 focus:ring-0 focus:ring-offset-0 [&>svg]:hidden"
+        className="h-auto min-h-[36px] sm:min-h-[32px] w-auto gap-1.5 px-2 py-1 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:ring-1 focus:ring-ring focus:ring-offset-0 [&>svg]:hidden"
       >
-        <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
+        <span className="inline-flex items-center gap-1.5">
+          <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        </span>
       </SelectTrigger>
       <SelectContent align="end">
         {EIGENAARSTATUS_VOLGORDE.map((s) => (
