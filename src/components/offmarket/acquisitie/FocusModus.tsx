@@ -177,7 +177,10 @@ export default function FocusModus({ open, onClose, items, index, onIndexChange 
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => navigate(`/off-market/${signaal.id}`)}
+              onClick={() => navigate(
+                `/off-market/${signaal.id}?tab=brieven`,
+                { state: { fromAcquisitieFocus: true, focusIndex: veiligIndex } },
+              )}
               data-testid="focus-open-signaal"
             >
               <ExternalLink className="h-4 w-4" />

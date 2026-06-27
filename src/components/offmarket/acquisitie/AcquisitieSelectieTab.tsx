@@ -2,7 +2,7 @@
 // afgeleide readiness, KPI's, filter, focusmodus en (V2) bulkvoorbereiding
 // van fysieke brieven + gecombineerde brief-PDF.
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
@@ -50,6 +50,7 @@ const SCROLL_KEY = 'off-market-acq:scroll';
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: items = [], isLoading } = useAcquisitieSelectie();
   const { data: signalen = [] } = useOffMarketSignalen();
 
@@ -191,6 +192,14 @@ export default function AcquisitieSelectieTab() {
     setFocusIndexState(i);
     try { sessionStorage.setItem(FOCUS_INDEX_KEY, String(i)); } catch {}
   };
+  // Scope-IDs voor de huidige Verwerk-sessie. `null` = volledige lijst.
+  const [verwerkScopeIds, setVerwerkScopeIds] = useState<string[] | null>(null);
+
+  const focusItems = useMemo(() => {
+    if (!verwerkScopeIds || verwerkScopeIds.length === 0) return readiness.lijst;
+    const set = new Set(verwerkScopeIds);
+    return readiness.lijst.filter((x) => set.has(x.signaal.id));
+  }, [readiness.lijst, verwerkScopeIds]);
 
   // Restore scrollpositie bij terugkeer
   useEffect(() => {
@@ -207,20 +216,50 @@ export default function AcquisitieSelectieTab() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Hervat Verwerk selectie wanneer we terugkeren vanuit signaaldetail.
+  useEffect(() => {
+    const state = location.state as { resumeAcquisitieFocus?: boolean; focusIndex?: number } | null;
+    if (state?.resumeAcquisitieFocus) {
+      if (typeof state.focusIndex === 'number') setFocusIndex(state.focusIndex);
+      setFocusOpen(true);
+      // Wis state zodat refresh niet opnieuw opent.
+      window.history.replaceState({}, '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openVerwerk = () => {
+    // Als rijen zijn geselecteerd: alleen die subset verwerken.
+    if (bulkSelectie.size > 0) {
+      const ids = Array.from(bulkSelectie);
+      setVerwerkScopeIds(ids);
+      const lijst = readiness.lijst.filter((x) => bulkSelectie.has(x.signaal.id));
+      const startIdx = lijst.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
+      setFocusIndex(startIdx >= 0 ? startIdx : 0);
+      setFocusOpen(true);
+      return;
+    }
+    setVerwerkScopeIds(null);
     const startIdx = readiness.lijst.findIndex(({ readiness: r }) =>
       r.info.status !== 'afgehandeld');
-    const idx = startIdx >= 0 ? startIdx : 0;
-    setFocusIndex(idx);
+    setFocusIndex(startIdx >= 0 ? startIdx : 0);
     setFocusOpen(true);
   };
 
   const openVerwerkVanSignaal = (signaalId: string) => {
+    setVerwerkScopeIds(null);
     const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
     if (idx >= 0) {
       setFocusIndex(idx);
       setFocusOpen(true);
     }
+  };
+
+  const openSignaalMetContext = (signaalId: string) => {
+    const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
+    navigate(`/off-market/${signaalId}?tab=brieven`, {
+      state: { fromAcquisitieFocus: true, focusIndex: idx >= 0 ? idx : 0 },
+    });
   };
 
   if (isLoading) {
@@ -264,7 +303,9 @@ export default function AcquisitieSelectieTab() {
           disabled={readiness.lijst.length === 0}
         >
           <PlayCircle className="h-4 w-4" />
-          Verwerk selectie
+          {bulkSelectie.size > 0
+            ? `Verwerk geselecteerde (${bulkSelectie.size})`
+            : 'Verwerk selectie'}
         </Button>
       </div>
 
@@ -466,7 +507,7 @@ export default function AcquisitieSelectieTab() {
                       type="button"
                       size="sm"
                       variant="secondary"
-                      onClick={() => navigate(`/off-market/${signaal.id}`)}
+                      onClick={() => openSignaalMetContext(signaal.id)}
                       data-testid="acquisitie-selectie-open"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -498,8 +539,8 @@ export default function AcquisitieSelectieTab() {
 
       <FocusModus
         open={focusOpen}
-        onClose={() => setFocusOpen(false)}
-        items={readiness.lijst}
+        onClose={() => { setFocusOpen(false); setVerwerkScopeIds(null); }}
+        items={focusItems}
         index={focusIndex}
         onIndexChange={setFocusIndex}
       />
