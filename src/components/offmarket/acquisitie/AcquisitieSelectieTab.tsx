@@ -11,9 +11,14 @@ import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   useAcquisitieReadiness, useBrievenVoorSignalen,
 } from '@/hooks/useAcquisitieReadiness';
-import {
-  OffMarketStatusBadge,
-} from '@/components/offmarket/OffMarketBadges';
+import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
+import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
+import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
+import { bepaalBriefStatus, type BriefStatus } from '@/lib/offMarket/briefStatus';
+import { groepeerBrievenPerGeadresseerde } from '@/lib/offMarket/brieven/groepering';
+import { useDataStore } from '@/hooks/useDataStore';
+import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
 import {
   SIGNAALTYPE_LABEL, type OffMarketSignaal,
@@ -125,6 +130,20 @@ export default function AcquisitieSelectieTab() {
     }
     return m;
   }, [brieven]);
+
+  // Briefstatus + verzendtelling per signaal (read-only afgeleid).
+  const { taken } = useDataStore();
+  const briefInfoPerSignaal = useMemo(() => {
+    const m = new Map<string, { status: BriefStatus; verzonden: number; aantalGeadresseerden: number }>();
+    for (const s of geselecteerdeSignalen) {
+      const bs = brievenPerSignaal.get(s.id) ?? [];
+      const status = bepaalBriefStatus(bs, taken as any, s.id);
+      const groepen = groepeerBrievenPerGeadresseerde(bs.filter(b => !b.archived_at));
+      const verzonden = groepen.filter(g => g.brieven.some(b => b.status === 'verstuurd')).length;
+      m.set(s.id, { status, verzonden, aantalGeadresseerden: groepen.length });
+    }
+    return m;
+  }, [geselecteerdeSignalen, brievenPerSignaal, taken]);
 
   // Tellingen voor de bulktoolbar: signalen, geadresseerden, voorgestelde brieven.
   const bulkTotalen = useMemo(() => {
@@ -362,7 +381,42 @@ export default function AcquisitieSelectieTab() {
                         <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
                           {tekstType(signaal)}
                         </span>
-                        <OffMarketStatusBadge status={signaal.status} />
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <StatusWijzigDropdown signaal={signaal} variant="compact" />
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                          <EigenaarstatusWijzigDropdown
+                            signaalId={signaal.id}
+                            eigenaarstatus={((signaal as any).eigenaarstatus as OffMarketEigenaarstatus | null) ?? 'onbekend'}
+                          />
+                        </span>
+                        {(() => {
+                          const info = briefInfoPerSignaal.get(signaal.id);
+                          if (!info) return null;
+                          const toonSuffix = info.aantalGeadresseerden > 1 && info.verzonden > 0;
+                          const toonOpvolging = info.status === 'brief2_gepland';
+                          return (
+                            <span
+                              data-testid="acquisitie-rij-briefstatus"
+                              className="inline-flex items-center gap-1"
+                            >
+                              <SignaalBriefStatusBadge status={info.status} />
+                              {toonSuffix && (
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+                                  {info.verzonden}/{info.aantalGeadresseerden}
+                                </span>
+                              )}
+                              {toonOpvolging && (
+                                <span className="text-[10px] text-accent whitespace-nowrap">
+                                  Opvolging nodig
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                         {typeof signaal.ai_score === 'number' && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
                             <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
