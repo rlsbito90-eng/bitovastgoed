@@ -37,13 +37,22 @@ function wrap() {
   );
 }
 
-function mockDocs(docs: any[]) {
+function mockDocs(docs: any[], records: any[] = []) {
   fromMock.mockImplementation((t: string) => {
     if (t === 'kadaster_documenten') {
       return {
         select: () => ({
           eq: () => ({
             order: () => Promise.resolve({ data: docs, error: null }),
+          }),
+        }),
+      };
+    }
+    if (t === 'kadaster_data_records') {
+      return {
+        select: () => ({
+          eq: () => ({
+            order: () => Promise.resolve({ data: records, error: null }),
           }),
         }),
       };
