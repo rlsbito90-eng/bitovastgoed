@@ -143,8 +143,8 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
   for (const raw of blokRegels) {
     // Detecteer of de regel meerdere labels bevat (minstens twee labelhits).
     const labelHits = (raw.match(new RegExp(
-      `\\b(${VELD_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`,
-      'gi',
+      `\\b(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`,
+      'g',
     )) || []).length;
     if (labelHits >= 2) {
       flat.push(...splitInlineLabels(raw));
@@ -154,11 +154,17 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
   }
 
   // Tweede pass: vouw vervolglijnen onder het laatst geziene label.
+  // Labels uit `NEGEER_LABELS` tellen als boundary (sluiten de vorige
+  // veldwaarde af) maar worden niet in de output opgenomen.
   const velden: Record<string, string[]> = {};
   let huidigLabel: string | null = null;
   for (const regel of flat) {
     const herk = herkenLabel(regel);
     if (herk) {
+      if (NEGEER_LABELS.has(herk.label)) {
+        huidigLabel = null;
+        continue;
+      }
       huidigLabel = herk.label;
       if (!velden[huidigLabel]) velden[huidigLabel] = [];
       if (herk.rest.trim()) velden[huidigLabel].push(herk.rest.trim());
