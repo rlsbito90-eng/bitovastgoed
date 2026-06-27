@@ -75,7 +75,7 @@ export default function KadasterPdfTestPanel() {
     (async () => {
       const { data, error } = await supabase
         .from('kadaster_documenten')
-        .select('id, created_at, product_type')
+        .select('id, created_at, source, product_codes')
         .order('created_at', { ascending: false })
         .limit(5);
       if (!actief) return;
@@ -86,7 +86,8 @@ export default function KadasterPdfTestPanel() {
           (data ?? []).map((d: any) => ({
             id: d.id,
             created_at: d.created_at,
-            product_type: d.product_type ?? null,
+            source: d.source ?? null,
+            product_codes: Array.isArray(d.product_codes) ? d.product_codes : null,
           })),
         );
       }
