@@ -125,7 +125,21 @@ export default function SignaalCockpit({
             <span className="text-xs text-muted-foreground">Nog niet gekoppeld</span>
           )}
         </Row>
-        <Row label="Briefstatus"><SignaalBriefStatusBadge status={briefStatus} /></Row>
+        <Row label="Briefstatus">
+          <button
+            type="button"
+            data-testid="briefstatus-scroll-knop"
+            onClick={() => {
+              try {
+                document.getElementById('brieven-sectie')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } catch { /* no-op */ }
+            }}
+            className="hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+            aria-label="Naar brieven-sectie"
+          >
+            <SignaalBriefStatusBadge status={briefStatus} />
+          </button>
+        </Row>
         <Row label="Gebied">
           <span className="text-xs text-foreground truncate">{formatGebiedsindeling(signaal as any)}</span>
         </Row>
