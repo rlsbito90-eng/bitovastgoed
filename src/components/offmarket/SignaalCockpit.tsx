@@ -81,10 +81,7 @@ export default function SignaalCockpit({
           )}
         </div>
         <Row label="Status">
-          <div className="flex items-center gap-1.5">
-            <OffMarketStatusBadge status={signaal.status} />
-            <StatusWijzigDropdown signaal={signaal} variant="compact" />
-          </div>
+          <StatusWijzigDropdown signaal={signaal} variant="compact" />
         </Row>
         <Row label="Prioriteit">
           <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
