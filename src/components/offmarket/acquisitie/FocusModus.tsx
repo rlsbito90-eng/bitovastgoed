@@ -46,7 +46,7 @@ function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
-export default function FocusModus({ open, onClose, items, index, onIndexChange }: Props) {
+export default function FocusModus({ open, onClose, items, index, onIndexChange, focusScopeIds, selectedIds }: Props) {
   const navigate = useNavigate();
   const veiligIndex = useMemo(() => {
     if (items.length === 0) return 0;
