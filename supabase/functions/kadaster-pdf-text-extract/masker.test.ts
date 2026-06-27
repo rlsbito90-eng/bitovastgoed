@@ -15,7 +15,7 @@ Deno.test('maskeer: persoonsnaam wordt onleesbaar, label blijft', () => {
 });
 
 Deno.test('maskeer: adres en postcode worden onleesbaar', () => {
-  assertEquals(maskeerPdfDebugTekst('Adres Voorbeeldstraat 12'), 'Adres xxxxxxxxxxxxxxxx 99');
+  assertEquals(maskeerPdfDebugTekst('Adres Voorbeeldstraat 12'), 'Adres xxxxxxxxxxxxxxx 99');
   assertEquals(maskeerPdfDebugTekst('1017 AB AMSTERDAM'), '9999 xx xxxxxxxxx');
 });
 
