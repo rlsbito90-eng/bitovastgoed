@@ -190,6 +190,8 @@ export default function BriefVoorbereidenDialog({
       setOnderwerpHandmatig(true);
       setKanaal((initialBrief.kanaal as Kanaal | undefined) ?? 'post');
       setEmailTekstHandmatig(true);
+      setVerzendadresBron('bestaand');
+      setPdfVoorstelKandidaatLabel(null);
       return;
     }
     const forced = forceKandidaatLabel
@@ -205,7 +207,10 @@ export default function BriefVoorbereidenDialog({
     setEigenaarNaam(velden.naam);
     setEigenaarBedrijfsnaam(velden.bedrijfsnaam || (forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam));
 
-    setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
+    const initAdres = forced?.verzendadres ?? prefill.verzendadres;
+    setVerzendadres(initAdres);
+    setVerzendadresBron(isEchteWaarde(initAdres) ? 'kandidaat' : 'leeg');
+    setPdfVoorstelKandidaatLabel(null);
     setObjectadres(prefill.objectadres);
     setObjectomschrijving(prefill.objectomschrijving);
     setAanhef(forced ? bepaalAanhef(forced.naam) : prefill.aanhef);
