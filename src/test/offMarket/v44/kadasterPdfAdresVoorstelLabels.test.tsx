@@ -66,27 +66,26 @@ beforeEach(() => {
 });
 
 describe('KadasterPdfAdresVoorstelPanel · labels en matching', () => {
-  it('toont vier volledige namen in labels zonder adres', async () => {
+  it('toont volledige naam in het labelmaar geen adres (trigger reflecteert match)', async () => {
     invokeMock.mockResolvedValue({
       data: { voorstellen: [
-        { naam: 'Alexandra Catharina Celine Achternaam', verzendadres: 'A 1', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
-        { naam: 'Berend Daniel Achternaam', verzendadres: 'B 2', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
-        { naam: 'Cornelis Edward Achternaam', verzendadres: 'C 3', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
-        { naam: 'Diana Femke Achternaam', verzendadres: 'D 4', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
+        { naam: 'Alexandra Catharina Celine Achternaam', verzendadres: 'Eerste 1', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
+        { naam: 'Berend Daniel Achternaam', verzendadres: 'Tweede 2', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
+        { naam: 'Cornelis Edward Achternaam', verzendadres: 'Derde 3', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
+        { naam: 'Diana Femke Achternaam', verzendadres: 'Vierde 4', confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/4' },
       ] },
       error: null,
     });
-    render(<KadasterPdfAdresVoorstelPanel {...basis} huidigeNaam="Zoekt Iemand Anders" onPick={vi.fn()} />, { wrapper: wrap() });
+    render(<KadasterPdfAdresVoorstelPanel {...basis} huidigeNaam="Berend Daniel Achternaam" onPick={vi.fn()} />, { wrapper: wrap() });
     fireEvent.click(await screen.findByTestId('kpv-start-knop'));
-    await waitFor(() => expect(screen.getByTestId('kpv-keuze-trigger')).toBeInTheDocument());
-    const items = [0, 1, 2, 3].map((i) => screen.getByTestId(`kpv-keuze-${i}`));
-    expect(items[0].textContent).toContain('Alexandra Catharina Celine Achternaam');
-    expect(items[1].textContent).toContain('Berend Daniel Achternaam');
-    expect(items[2].textContent).toContain('Cornelis Edward Achternaam');
-    expect(items[3].textContent).toContain('Diana Femke Achternaam');
-    for (const it of items) {
-      expect(it.textContent ?? '').not.toMatch(/\bA 1\b|\bB 2\b|\bC 3\b|\bD 4\b/);
-    }
+    const trigger = await screen.findByTestId('kpv-keuze-trigger');
+    // Preselect = Berend (enige match) → labeltekst bevat volledige naam + match.
+    expect(trigger.textContent).toContain('Berend Daniel Achternaam');
+    expect(trigger.textContent).toMatch(/match/);
+    expect(trigger.textContent).toContain('aandeel 1/4');
+    // Geen adres in label.
+    expect(trigger.textContent ?? '').not.toContain('Tweede 2');
+    expect(trigger.textContent ?? '').not.toContain('Eerste 1');
   });
 
   it('voegt "match" toe in label en preselecteert bij persoonsmatch via voorletters', async () => {
