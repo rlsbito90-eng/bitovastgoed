@@ -149,6 +149,13 @@ export default function BriefVoorbereidenDialog({
   const [pdfBezig, setPdfBezig] = useState(false);
   const [kadasterAdresKey, setKadasterAdresKey] = useState('0');
   const [onderwerpHandmatig, setOnderwerpHandmatig] = useState(!!initialBrief);
+  // Bron van het huidige verzendadres + voor welke kandidaat een
+  // PDF-adresvoorstel is overgenomen. Voorkomt dat een PDF-voorstel van
+  // kandidaat A blijft staan bij kandidaat B (zie test V42).
+  const [verzendadresBron, setVerzendadresBron] = useState<
+    'leeg' | 'handmatig' | 'kandidaat' | 'pdf-voorstel' | 'bestaand'
+  >(initialBrief ? 'bestaand' : (prefill.verzendadres ? 'kandidaat' : 'leeg'));
+  const [pdfVoorstelKandidaatLabel, setPdfVoorstelKandidaatLabel] = useState<string | null>(null);
 
   // V2.2 — kanaal & e-mailprofiel
   const initialKanaal: Kanaal = (initialBrief?.kanaal as Kanaal | undefined) ?? 'post';
@@ -183,6 +190,8 @@ export default function BriefVoorbereidenDialog({
       setOnderwerpHandmatig(true);
       setKanaal((initialBrief.kanaal as Kanaal | undefined) ?? 'post');
       setEmailTekstHandmatig(true);
+      setVerzendadresBron('bestaand');
+      setPdfVoorstelKandidaatLabel(null);
       return;
     }
     const forced = forceKandidaatLabel
@@ -198,7 +207,10 @@ export default function BriefVoorbereidenDialog({
     setEigenaarNaam(velden.naam);
     setEigenaarBedrijfsnaam(velden.bedrijfsnaam || (forced?.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam));
 
-    setVerzendadres(forced?.verzendadres ?? prefill.verzendadres);
+    const initAdres = forced?.verzendadres ?? prefill.verzendadres;
+    setVerzendadres(initAdres);
+    setVerzendadresBron(isEchteWaarde(initAdres) ? 'kandidaat' : 'leeg');
+    setPdfVoorstelKandidaatLabel(null);
     setObjectadres(prefill.objectadres);
     setObjectomschrijving(prefill.objectomschrijving);
     setAanhef(forced ? bepaalAanhef(forced.naam) : prefill.aanhef);
@@ -230,18 +242,39 @@ export default function BriefVoorbereidenDialog({
   );
 
   const handleKandidaatWissel = (label: string) => {
-    setKandidaatLabel(label);
+    if (label === kandidaatLabel) return;
     const k = prefill.kandidaten.find(x => x.label === label);
+    // Beslis wat er met het verzendadres moet gebeuren:
+    //  - Een eerder PDF-adresvoorstel hoort bij één specifieke kandidaat
+    //    en mag NIET blijven staan bij een andere kandidaat.
+    //  - Een handmatig ingevuld adres mag niet stilzwijgend worden gewist
+    //    — vraag bevestiging.
+    //  - Anders: vul het structured adres van de nieuwe kandidaat in,
+    //    of laat het veld leeg.
+    const nieuwAdres = k?.verzendadres ?? '';
+    const huidigHandmatig = verzendadresBron === 'handmatig' && isEchteWaarde(verzendadres);
+    const pdfVoorVorigeKandidaat = verzendadresBron === 'pdf-voorstel'
+      && pdfVoorstelKandidaatLabel !== label;
+    if (huidigHandmatig && !pdfVoorVorigeKandidaat) {
+      const ok = typeof window !== 'undefined'
+        ? window.confirm('Er staat een handmatig ingevuld verzendadres. Wilt u dit vervangen door het adres van de nieuwe geadresseerde?')
+        : true;
+      if (!ok) return;
+    }
+    setKandidaatLabel(label);
     if (k) {
       const velden = bepaalNaamVelden(k, !initialBrief);
       setEigenaarNaam(velden.naam);
       setEigenaarBedrijfsnaam(velden.bedrijfsnaam);
-
-      if (k.verzendadres) setVerzendadres(k.verzendadres);
       const nieuweAanhef = bepaalAanhef(k.naam);
       setAanhef(nieuweAanhef);
       setBrieftekst(bouwBriefTekst({ aanhef: nieuweAanhef, objectadres: objectomschrijving }));
     }
+    setVerzendadres(nieuwAdres);
+    setVerzendadresBron(isEchteWaarde(nieuwAdres) ? 'kandidaat' : 'leeg');
+    // Reset PDF-voorstel-koppeling — een nieuw voorstel hoort bij de
+    // nieuwe kandidaat.
+    setPdfVoorstelKandidaatLabel(null);
   };
 
   const herstelStandaard = () => {
@@ -266,6 +299,8 @@ export default function BriefVoorbereidenDialog({
     setEigenaarNaam(k.naam ?? eigenaarNaam);
     setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? eigenaarBedrijfsnaam);
     setVerzendadres(k.verzendadres);
+    setVerzendadresBron('kandidaat');
+    setPdfVoorstelKandidaatLabel(null);
     toast.success('Verzendadres overgenomen uit Kadasterbericht');
   };
 
@@ -665,7 +700,11 @@ export default function BriefVoorbereidenDialog({
             <Textarea
               id="brief-verzend"
               value={verzendadres}
-              onChange={(e) => setVerzendadres(e.target.value)}
+              onChange={(e) => {
+                setVerzendadres(e.target.value);
+                setVerzendadresBron('handmatig');
+                setPdfVoorstelKandidaatLabel(null);
+              }}
               placeholder={kanaal === 'email' ? '' : `Bijv. ${VERZENDADRES_PLACEHOLDER}`}
               rows={3}
             />
@@ -689,6 +728,7 @@ export default function BriefVoorbereidenDialog({
               </div>
             )}
             <KadasterPdfAdresVoorstelPanel
+              key={`kpv-${kandidaatLabel}`}
               signaalId={signaal.id}
               huidigeNaam={eigenaarNaam}
               huidigeBedrijfsnaam={eigenaarBedrijfsnaam}
@@ -697,6 +737,8 @@ export default function BriefVoorbereidenDialog({
               kandidaatBron={geselecteerdeKandidaat?.bron}
               onPick={(adres, naam, bedrijfsnaam) => {
                 setVerzendadres(adres);
+                setVerzendadresBron('pdf-voorstel');
+                setPdfVoorstelKandidaatLabel(kandidaatLabel);
                 if (naam) setEigenaarNaam(naam);
                 if (bedrijfsnaam) setEigenaarBedrijfsnaam(bedrijfsnaam);
                 toast.success('Adresvoorstel uit Kadasterbericht overgenomen');
