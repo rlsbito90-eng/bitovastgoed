@@ -21,8 +21,11 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import VolgendeActiesBlok from '@/components/offmarket/cockpit/VolgendeActiesBlok';
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
+import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
+import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
 import ToevoegenAanAcquisitieSelectieKnop from '@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop';
 import type { BriefStatus } from '@/lib/offMarket/briefStatus';
+import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import type { Taak } from '@/data/mock-data';
 
 interface Props {
