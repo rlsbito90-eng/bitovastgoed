@@ -110,9 +110,9 @@ export default function SignaalCockpit({
           </span>
         </Row>
         <Row label="Eigenaar">
-          <div className="flex items-center gap-2 min-w-0">
-            <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
+          <div className="flex items-center gap-2 min-w-0 justify-end">
             {eigenaarNaam && <span className="text-xs text-muted-foreground truncate">{eigenaarNaam}</span>}
+            <EigenaarstatusWijzigDropdown signaalId={signaal.id} eigenaarstatus={eigenaarstatus} />
           </div>
         </Row>
         <Row label="CRM-relatie">
