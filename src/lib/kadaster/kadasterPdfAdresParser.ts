@@ -67,7 +67,10 @@ const OVERIGE_RECHTEN_RE      = /^overige rechten\s*$/i;
  * "te" worden NIET in inline-segmentatie meegenomen (geen waarde nodig
  * en "te" is een te generiek woord).
  */
-const VELD_LABELS = ['Aandeel', 'Naam', 'Adres', 'Postbus', 'Zetel', 'KvK-nummer', 'KvK nummer', 'Gebaseerd op'];
+const VELD_LABELS = ['Aandeel', 'Naam', 'Geboren', 'te', 'Adres', 'Postbus', 'Zetel', 'KvK-nummer', 'KvK nummer', 'Gebaseerd op'];
+
+/** Labels die wel als boundary tellen maar niet uitgelezen worden. */
+const NEGEER_LABELS = new Set(['Geboren', 'Te']);
 
 const POSTCODE_RE = /\b(\d{4})\s?([A-Z]{2})\b/;
 
