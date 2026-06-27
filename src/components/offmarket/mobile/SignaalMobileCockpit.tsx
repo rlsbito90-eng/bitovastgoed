@@ -121,9 +121,14 @@ export default function SignaalMobileCockpit({
           <StatusWijzigDropdown signaal={signaal} variant="compact" />
         </div>
       </Rij>
+      <Rij label="Prioriteit">
+        <div className="flex items-center gap-1.5 min-w-0 justify-end">
+          <PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} />
+        </div>
+      </Rij>
       <Rij label="Eigenaar">
         <div className="flex items-center gap-1.5 min-w-0 justify-end flex-wrap">
-          <OffMarketEigenaarstatusBadge status={eigenaarstatus} />
+          <EigenaarstatusWijzigDropdown signaalId={signaal.id} eigenaarstatus={eigenaarstatus} />
           {eigenaarNaam && (
             <span className="text-[11px] text-muted-foreground break-words max-w-[150px] text-right">
               {eigenaarNaam}
