@@ -189,6 +189,12 @@ export default function KadasterPdfAdresVoorstelPanel({
     onPick(v.verzendadres, v.naam || null, v.bedrijfsnaam || null);
   };
 
+  const FallbackHint = fallbackGebruikt ? (
+    <p className="text-[11px] text-amber-600" data-testid="kpv-fallback-waarschuwing">
+      Kon dit Kadasterdocument niet zeker aan de geselecteerde geadresseerde koppelen. Controleer het voorstel extra.
+    </p>
+  ) : null;
+
   if (status.type === 'idle') {
     return (
       <div className="rounded-md border border-dashed border-border bg-muted/20 p-2.5">
@@ -205,6 +211,7 @@ export default function KadasterPdfAdresVoorstelPanel({
           Haalt een adresvoorstel uit het opgeslagen Kadasterbericht. Controleer
           het voorstel vóór verzending.
         </p>
+        {FallbackHint}
       </div>
     );
   }
