@@ -38,6 +38,8 @@ interface VeiligeRespons {
   normalised_chars?: number;
   voorstellen_count?: number;
   voorstellen?: VoorstelVeilig[];
+  gemaskeerde_tekst_preview?: string;
+  eerste_40_regels?: string[];
 }
 
 // Strip alles wat op een echt adres of postcode lijkt uit de "reden"-tekst,
