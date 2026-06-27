@@ -294,7 +294,11 @@ export function extractKadasterAdresVoorstellenUitTekst(
     // Conservatief: zonder bruikbaar adres geen voorstel.
     if (!verzendadres) continue;
 
-    const isBedrijf = isRechtspersoonNaam(naamRaw);
+    // Rechtspersoon-detectie: naam-patroon (B.V., Stichting, ...) OF
+    // aanwezigheid van KvK-nummer/Zetel — dat sluit natuurlijk persoon uit
+    // en dekt o.a. "Gemeente X" / waterschappen / overheidsorganen.
+    const heeftEntiteitVelden = !!(velden['KvK-nummer']?.length || velden['Zetel']?.length);
+    const isBedrijf = isRechtspersoonNaam(naamRaw) || heeftEntiteitVelden;
     const voorstel: KadasterAdresVoorstel = {
       confidence: 'hoog',
       bron: 'pdf_text',
