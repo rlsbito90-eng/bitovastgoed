@@ -180,7 +180,8 @@ export default function KadasterPdfTestPanel() {
                   <div className="font-mono-data text-xs truncate">{d.id}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {new Date(d.created_at).toLocaleString('nl-NL')}
-                    {d.product_type ? ` · ${d.product_type}` : ''}
+                    {d.source ? ` · ${d.source}` : ''}
+                    {d.product_codes && d.product_codes.length > 0 ? ` · ${d.product_codes.join(', ')}` : ''}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px]">selecteer</Badge>
