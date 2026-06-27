@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { naarVoorlettersAchternaam } from '@/lib/format/naam';
+import { naarVoorlettersAchternaam, isRechtspersoonNaam } from '@/lib/format/naam';
+
 
 describe('naarVoorlettersAchternaam', () => {
   it('kort meerdere voornamen af tot voorletters', () => {
