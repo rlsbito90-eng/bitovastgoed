@@ -72,24 +72,72 @@ function normaliseer(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** Canonicaliseert een bedrijfsnaam: punten weg, rechtsvorm-tokens weg. */
+function bedrijfCanonical(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter((tok) => tok && !['bv', 'nv', 'bvba', 'vof', 'cv'].includes(tok))
+    .join(' ')
+    .trim();
+}
+
+/** Splitst persoonsnaam in voorletters + achternaam (laatste woord). */
+function initialenEnAchternaam(
+  naam: string,
+): { initialen: string; achternaam: string } | null {
+  const cleaned = naam.replace(/\./g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!cleaned) return null;
+  const parts = cleaned.split(' ').filter(Boolean);
+  if (parts.length < 2) return null;
+  const achternaam = parts[parts.length - 1];
+  const voornamen = parts.slice(0, -1);
+  const initialen = voornamen.map((v) => v.charAt(0)).join('');
+  return { initialen, achternaam };
+}
+
 function matchVoorstel(
   v: RuwVoorstel, huidigeNaam: string, huidigeBedrijfsnaam: string,
 ): boolean {
-  const cands: string[] = [];
-  if (huidigeNaam) cands.push(normaliseer(huidigeNaam));
-  if (huidigeBedrijfsnaam) cands.push(normaliseer(huidigeBedrijfsnaam));
-  if (cands.length === 0) return false;
-  const targets: string[] = [];
-  if (v.naam) targets.push(normaliseer(v.naam));
-  if (v.bedrijfsnaam) targets.push(normaliseer(v.bedrijfsnaam));
-  for (const c of cands) {
-    if (!c) continue;
-    for (const t of targets) {
-      if (!t) continue;
-      if (t === c || t.includes(c) || c.includes(t)) return true;
+  // Bedrijfsmatching: canonical (zonder rechtsvorm en punten).
+  if (huidigeBedrijfsnaam && v.bedrijfsnaam) {
+    const a = bedrijfCanonical(huidigeBedrijfsnaam);
+    const b = bedrijfCanonical(v.bedrijfsnaam);
+    if (a && b && a === b) return true;
+  }
+  // Persoonsmatching: initialen + achternaam.
+  if (huidigeNaam && v.naam) {
+    const a = initialenEnAchternaam(huidigeNaam);
+    const b = initialenEnAchternaam(v.naam);
+    if (a && b && a.achternaam === b.achternaam) {
+      if (
+        a.initialen === b.initialen
+        || a.initialen.startsWith(b.initialen)
+        || b.initialen.startsWith(a.initialen)
+      ) return true;
     }
+    // Fallback: volledige naam containment.
+    const n1 = normaliseer(huidigeNaam);
+    const n2 = normaliseer(v.naam);
+    if (n1 && n2 && (n1 === n2 || n1.includes(n2) || n2.includes(n1))) return true;
   }
   return false;
+}
+
+/** Labelweergave voor een voorstel in de dropdown — geen adres. */
+function voorstelLabel(v: BruikbaarVoorstel): string {
+  const identiteit = v.bedrijfsnaam || v.naam || 'Onbekende geadresseerde';
+  const stukjes: string[] = [
+    identiteit,
+    v.rolLabel || 'Recht onbekend',
+    v.aandeel ? `aandeel ${v.aandeel}` : '',
+    `conf: ${v.confidence}`,
+    v.matched ? 'match' : '',
+  ].filter(Boolean);
+  return stukjes.join(' · ');
 }
 
 function foutmeldingVoorStatus(status: number | undefined, fallback: string): string {
