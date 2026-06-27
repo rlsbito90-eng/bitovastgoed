@@ -93,17 +93,32 @@ export default function OffMarketSignaalDetailPage() {
     const t = searchParams.get('tab');
     return t && VALID_TABS.has(t) ? t : 'overzicht';
   })();
-  const focusReturn = (location.state as { fromAcquisitieFocus?: boolean; focusIndex?: number } | null) ?? null;
+  const focusReturn = (location.state as {
+    fromAcquisitieFocus?: boolean;
+    focusIndex?: number;
+    focusScopeIds?: string[] | null;
+    selectedIds?: string[] | null;
+  } | null) ?? null;
   const fromAcquisitieFocus = !!focusReturn?.fromAcquisitieFocus;
   const focusIndex = typeof focusReturn?.focusIndex === 'number' ? focusReturn.focusIndex : null;
+  const focusScopeIds = Array.isArray(focusReturn?.focusScopeIds) ? focusReturn!.focusScopeIds : null;
+  const selectedIds = Array.isArray(focusReturn?.selectedIds) ? focusReturn!.selectedIds : null;
 
   const handleBackToList = () => {
     if (fromAcquisitieFocus) {
-      navigate('/off-market', { state: { resumeAcquisitieFocus: true, focusIndex } });
+      navigate('/off-market', {
+        state: {
+          resumeAcquisitieFocus: true,
+          focusIndex,
+          focusScopeIds,
+          selectedIds,
+        },
+      });
     } else {
       navigate('/off-market');
     }
   };
+
 
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
