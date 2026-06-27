@@ -25,6 +25,7 @@ import OffMarketGeskiptRecordsSectie from '@/components/admin/OffMarketGeskiptRe
 import OffMarketGeoBackfillPanel from '@/components/admin/OffMarketGeoBackfillPanel';
 import AiAchterstandPanel from '@/components/admin/AiAchterstandPanel';
 import BagAchterstandPanel from '@/components/admin/BagAchterstandPanel';
+import KadasterPdfTestPanel from '@/components/admin/KadasterPdfTestPanel';
 import AdminSectionCard from '@/components/admin/AdminSectionCard';
 import AdminSectionNav from '@/components/admin/AdminSectionNav';
 import { mapDbError } from '@/lib/errors';
