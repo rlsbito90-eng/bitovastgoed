@@ -244,13 +244,13 @@ export default function SignaalOutreachInzicht({ signaal }: Props) {
         </p>
       ) : (
         <ul className="space-y-2" data-testid="outreach-geadresseerden">
-          {groepen.map((g) => {
+          {groepen.map((g, idx) => {
             const laatst = laatsteVerzondenVoor(g);
             const dgn = dagenSinds(laatst?.verzonden_op ?? null);
             return (
               <li
                 key={g.key}
-                data-testid={`outreach-geadresseerde-${g.key}`}
+                data-testid={`outreach-geadresseerde-${idx}`}
                 className="rounded-md border border-border/60 bg-card/50 p-2.5 space-y-1.5"
               >
                 <div className="flex flex-wrap items-center gap-2">
