@@ -286,16 +286,29 @@ export default function AcquisitieSelectieTab() {
   };
 
   const openSignaalMetContext = (signaalId: string) => {
-    const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
+    // Bepaal scope conform openVerwerk: bulkselectie > actieve filter > volledige lijst.
+    let scopeIds: string[] | null = null;
+    if (bulkSelectie.size > 0) {
+      scopeIds = readiness.lijst
+        .filter((x) => bulkSelectie.has(x.signaal.id))
+        .map((x) => x.signaal.id);
+    } else if (filter !== 'alles') {
+      scopeIds = gefilterd.map((x) => x.signaal.id);
+    }
+    const scopeList = scopeIds
+      ? readiness.lijst.filter((x) => scopeIds!.includes(x.signaal.id))
+      : readiness.lijst;
+    const idx = scopeList.findIndex((x) => x.signaal.id === signaalId);
     navigate(`/off-market/${signaalId}?tab=brieven`, {
       state: {
         fromAcquisitieFocus: true,
         focusIndex: idx >= 0 ? idx : 0,
-        focusScopeIds: null,
+        focusScopeIds: scopeIds,
         selectedIds: Array.from(bulkSelectie),
       },
     });
   };
+
 
 
   if (isLoading) {
