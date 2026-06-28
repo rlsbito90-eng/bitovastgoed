@@ -173,7 +173,13 @@ export default function AcquisitieSelectieTab() {
     setBulkSelectie(next);
   }
 
+  /** Selecteer alle zichtbare/gefilterde rijen — exact zoals "Verwerk filter" gebruikt. */
+  function selecteerZichtbareBulk() {
+    setBulkSelectie(new Set(gefilterd.map((x) => x.signaal.id)));
+  }
+
   function wisBulk() { setBulkSelectie(new Set()); }
+
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -280,16 +286,29 @@ export default function AcquisitieSelectieTab() {
   };
 
   const openSignaalMetContext = (signaalId: string) => {
-    const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
+    // Bepaal scope conform openVerwerk: bulkselectie > actieve filter > volledige lijst.
+    let scopeIds: string[] | null = null;
+    if (bulkSelectie.size > 0) {
+      scopeIds = readiness.lijst
+        .filter((x) => bulkSelectie.has(x.signaal.id))
+        .map((x) => x.signaal.id);
+    } else if (filter !== 'alles') {
+      scopeIds = gefilterd.map((x) => x.signaal.id);
+    }
+    const scopeList = scopeIds
+      ? readiness.lijst.filter((x) => scopeIds!.includes(x.signaal.id))
+      : readiness.lijst;
+    const idx = scopeList.findIndex((x) => x.signaal.id === signaalId);
     navigate(`/off-market/${signaalId}?tab=brieven`, {
       state: {
         fromAcquisitieFocus: true,
         focusIndex: idx >= 0 ? idx : 0,
-        focusScopeIds: null,
+        focusScopeIds: scopeIds,
         selectedIds: Array.from(bulkSelectie),
       },
     });
   };
+
 
 
   if (isLoading) {
@@ -349,6 +368,17 @@ export default function AcquisitieSelectieTab() {
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Button
             type="button" variant="outline" size="sm"
+            onClick={selecteerZichtbareBulk}
+            disabled={gefilterd.length === 0}
+            data-testid="acquisitie-bulk-selecteer-zichtbare"
+          >
+            <Users className="h-3.5 w-3.5" />
+            {filter === 'alles'
+              ? `Selecteer zichtbare (${gefilterd.length})`
+              : `Selecteer zichtbare (${gefilterd.length})`}
+          </Button>
+          <Button
+            type="button" variant="outline" size="sm"
             onClick={selecteerAlleGeschikteBulk}
             data-testid="acquisitie-bulk-selecteer-alle"
           >
@@ -364,6 +394,7 @@ export default function AcquisitieSelectieTab() {
             {bulkTotalen.signalen} signalen · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
             {bulkTotalen.geschikteBrieven} brieven
           </span>
+
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

@@ -157,7 +157,39 @@ export default function OffMarketSignaalDetailPage() {
     }
   };
 
-  const navInfo = getListNavigation('off-market-signalen', signaal.id, alleSignalen.map((s) => s.id));
+  // Bepaal navigatie-context: binnen focusScopeIds bij Verwerk selectie/filter,
+  // anders globale signalenlijst.
+  const navInfo = useMemo(() => {
+    if (fromAcquisitieFocus && focusScopeIds && focusScopeIds.length > 0) {
+      const ids = focusScopeIds;
+      const idx = ids.indexOf(signaal.id);
+      return {
+        prevId: idx > 0 ? ids[idx - 1] : null,
+        nextId: idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null,
+        index: idx,
+        total: ids.length,
+      };
+    }
+    return getListNavigation('off-market-signalen', signaal.id, alleSignalen.map((s) => s.id));
+  }, [fromAcquisitieFocus, focusScopeIds, signaal.id, alleSignalen]);
+
+  const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
+
+  const navigateInContext = (targetId: string) => {
+    if (inFocusContext) {
+      const nextIdx = focusScopeIds!.indexOf(targetId);
+      navigate(`/off-market/${targetId}?tab=brieven`, {
+        state: {
+          fromAcquisitieFocus: true,
+          focusScopeIds,
+          selectedIds,
+          focusIndex: nextIdx >= 0 ? nextIdx : 0,
+        },
+      });
+    } else {
+      navigate(`/off-market/${targetId}`);
+    }
+  };
 
   return (
     <div className="space-y-4 lg:space-y-5 px-4 sm:px-6 pb-4 sm:pb-6 pt-0 md:pt-6 max-w-7xl">
@@ -169,7 +201,7 @@ export default function OffMarketSignaalDetailPage() {
             className="inline-flex items-center gap-1 px-2 h-10 text-xs text-foreground hover:bg-muted rounded-md">
             <ArrowLeft className="h-4 w-4" /> Terug
           </button>
-          <button type="button" onClick={() => navInfo.prevId && navigate(`/off-market/${navInfo.prevId}`)}
+          <button type="button" onClick={() => navInfo.prevId && navigateInContext(navInfo.prevId)}
             disabled={!navInfo.prevId}
             className="inline-flex items-center justify-center w-10 h-10 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
             aria-label="Vorige signaal">
@@ -178,7 +210,7 @@ export default function OffMarketSignaalDetailPage() {
           <span className="flex-1 text-center text-xs text-muted-foreground tabular-nums">
             {navInfo.index >= 0 ? `${navInfo.index + 1} / ${navInfo.total}` : `— / ${navInfo.total}`}
           </span>
-          <button type="button" onClick={() => navInfo.nextId && navigate(`/off-market/${navInfo.nextId}`)}
+          <button type="button" onClick={() => navInfo.nextId && navigateInContext(navInfo.nextId)}
             disabled={!navInfo.nextId}
             className="inline-flex items-center justify-center w-10 h-10 rounded-md text-foreground hover:bg-muted disabled:opacity-40"
             aria-label="Volgende signaal">
@@ -189,8 +221,35 @@ export default function OffMarketSignaalDetailPage() {
 
       {/* === Desktop nav === */}
       <div className="hidden lg:flex items-center justify-end">
-        <ListNavigator info={navInfo} buildHref={(nid) => `/off-market/${nid}`} itemLabel="signaal" />
+        {inFocusContext ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!navInfo.prevId}
+              onClick={() => navInfo.prevId && navigateInContext(navInfo.prevId)}
+              data-testid="signaal-detail-focus-vorige"
+            >
+              <ChevronLeft className="h-4 w-4" /> Vorige
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums px-1">
+              Signaal {navInfo.index + 1} van {navInfo.total}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!navInfo.nextId}
+              onClick={() => navInfo.nextId && navigateInContext(navInfo.nextId)}
+              data-testid="signaal-detail-focus-volgende"
+            >
+              Volgende <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <ListNavigator info={navInfo} buildHref={(nid) => `/off-market/${nid}`} itemLabel="signaal" />
+        )}
       </div>
+
 
       {/* === Desktop: ongewijzigd === */}
       <div className="hidden lg:block space-y-5">
