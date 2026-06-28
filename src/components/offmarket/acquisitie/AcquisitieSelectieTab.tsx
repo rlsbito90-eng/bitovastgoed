@@ -335,7 +335,9 @@ export default function AcquisitieSelectieTab() {
           <PlayCircle className="h-4 w-4" />
           {bulkSelectie.size > 0
             ? `Verwerk geselecteerde (${bulkSelectie.size})`
-            : 'Verwerk selectie'}
+            : filter !== 'alles'
+              ? `Verwerk filter (${gefilterd.length})`
+              : 'Verwerk selectie'}
         </Button>
       </div>
 
