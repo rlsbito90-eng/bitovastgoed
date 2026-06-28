@@ -173,7 +173,13 @@ export default function AcquisitieSelectieTab() {
     setBulkSelectie(next);
   }
 
+  /** Selecteer alle zichtbare/gefilterde rijen — exact zoals "Verwerk filter" gebruikt. */
+  function selecteerZichtbareBulk() {
+    setBulkSelectie(new Set(gefilterd.map((x) => x.signaal.id)));
+  }
+
   function wisBulk() { setBulkSelectie(new Set()); }
+
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
