@@ -234,7 +234,7 @@ export default function OffMarketSignaalDetailPage() {
               <ChevronLeft className="h-4 w-4" /> Vorige
             </Button>
             <span className="text-xs text-muted-foreground tabular-nums px-1">
-              Signaal {navInfo.index + 1} van {navInfo.total}
+              Signaal {navInfo.index >= 0 ? navInfo.index + 1 : '—'} van {navInfo.total}
             </span>
             <Button
               variant="outline"
