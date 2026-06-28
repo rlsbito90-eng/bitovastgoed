@@ -135,6 +135,24 @@ export default function OffMarketSignaalDetailPage() {
     [brieven, taken, signaal],
   );
 
+  const currentId = signaal?.id ?? '';
+
+  const navInfo = useMemo(() => {
+    if (fromAcquisitieFocus && focusScopeIds && focusScopeIds.length > 0) {
+      const ids = focusScopeIds;
+      const idx = ids.indexOf(currentId);
+      return {
+        prevId: idx > 0 ? ids[idx - 1] : null,
+        nextId: idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null,
+        index: idx,
+        total: ids.length,
+      };
+    }
+    return getListNavigation('off-market-signalen', currentId, alleSignalen.map((s) => s.id));
+  }, [fromAcquisitieFocus, focusScopeIds, currentId, alleSignalen]);
+
+  const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
+
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6"><p className="text-sm text-muted-foreground">Signaal laden…</p></div>;
   }
