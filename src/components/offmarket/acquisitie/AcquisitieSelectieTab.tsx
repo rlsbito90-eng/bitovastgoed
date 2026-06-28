@@ -368,6 +368,17 @@ export default function AcquisitieSelectieTab() {
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Button
             type="button" variant="outline" size="sm"
+            onClick={selecteerZichtbareBulk}
+            disabled={gefilterd.length === 0}
+            data-testid="acquisitie-bulk-selecteer-zichtbare"
+          >
+            <Users className="h-3.5 w-3.5" />
+            {filter === 'alles'
+              ? `Selecteer zichtbare (${gefilterd.length})`
+              : `Selecteer zichtbare (${gefilterd.length})`}
+          </Button>
+          <Button
+            type="button" variant="outline" size="sm"
             onClick={selecteerAlleGeschikteBulk}
             data-testid="acquisitie-bulk-selecteer-alle"
           >
@@ -383,6 +394,7 @@ export default function AcquisitieSelectieTab() {
             {bulkTotalen.signalen} signalen · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
             {bulkTotalen.geschikteBrieven} brieven
           </span>
+
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
