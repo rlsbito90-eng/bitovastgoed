@@ -15,7 +15,7 @@ import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksact
 import SignaalClassificatieBlok from '@/components/offmarket/SignaalClassificatieBlok';
 import SignaalDossierNotities from '@/components/offmarket/SignaalDossierNotities';
 import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
-import SignaalOutreachInzicht from '@/components/offmarket/SignaalOutreachInzicht';
+
 import SignaalTechnischeDetails from '@/components/offmarket/SignaalTechnischeDetails';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import OffMarketArchiveDialog from '@/components/offmarket/OffMarketArchiveDialog';
