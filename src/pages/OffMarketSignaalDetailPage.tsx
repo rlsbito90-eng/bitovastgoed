@@ -135,6 +135,24 @@ export default function OffMarketSignaalDetailPage() {
     [brieven, taken, signaal],
   );
 
+  const currentId = signaal?.id ?? '';
+
+  const navInfo = useMemo(() => {
+    if (fromAcquisitieFocus && focusScopeIds && focusScopeIds.length > 0) {
+      const ids = focusScopeIds;
+      const idx = ids.indexOf(currentId);
+      return {
+        prevId: idx > 0 ? ids[idx - 1] : null,
+        nextId: idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null,
+        index: idx,
+        total: ids.length,
+      };
+    }
+    return getListNavigation('off-market-signalen', currentId, alleSignalen.map((s) => s.id));
+  }, [fromAcquisitieFocus, focusScopeIds, currentId, alleSignalen]);
+
+  const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
+
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6"><p className="text-sm text-muted-foreground">Signaal laden…</p></div>;
   }
@@ -157,23 +175,6 @@ export default function OffMarketSignaalDetailPage() {
     }
   };
 
-  // Bepaal navigatie-context: binnen focusScopeIds bij Verwerk selectie/filter,
-  // anders globale signalenlijst.
-  const navInfo = useMemo(() => {
-    if (fromAcquisitieFocus && focusScopeIds && focusScopeIds.length > 0) {
-      const ids = focusScopeIds;
-      const idx = ids.indexOf(signaal.id);
-      return {
-        prevId: idx > 0 ? ids[idx - 1] : null,
-        nextId: idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null,
-        index: idx,
-        total: ids.length,
-      };
-    }
-    return getListNavigation('off-market-signalen', signaal.id, alleSignalen.map((s) => s.id));
-  }, [fromAcquisitieFocus, focusScopeIds, signaal.id, alleSignalen]);
-
-  const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
 
   const navigateInContext = (targetId: string) => {
     if (inFocusContext) {
@@ -233,7 +234,7 @@ export default function OffMarketSignaalDetailPage() {
               <ChevronLeft className="h-4 w-4" /> Vorige
             </Button>
             <span className="text-xs text-muted-foreground tabular-nums px-1">
-              Signaal {navInfo.index + 1} van {navInfo.total}
+              Signaal {navInfo.index >= 0 ? navInfo.index + 1 : '—'} van {navInfo.total}
             </span>
             <Button
               variant="outline"
