@@ -157,23 +157,6 @@ export default function OffMarketSignaalDetailPage() {
     }
   };
 
-  // Bepaal navigatie-context: binnen focusScopeIds bij Verwerk selectie/filter,
-  // anders globale signalenlijst.
-  const navInfo = useMemo(() => {
-    if (fromAcquisitieFocus && focusScopeIds && focusScopeIds.length > 0) {
-      const ids = focusScopeIds;
-      const idx = ids.indexOf(signaal.id);
-      return {
-        prevId: idx > 0 ? ids[idx - 1] : null,
-        nextId: idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null,
-        index: idx,
-        total: ids.length,
-      };
-    }
-    return getListNavigation('off-market-signalen', signaal.id, alleSignalen.map((s) => s.id));
-  }, [fromAcquisitieFocus, focusScopeIds, signaal.id, alleSignalen]);
-
-  const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
 
   const navigateInContext = (targetId: string) => {
     if (inFocusContext) {
