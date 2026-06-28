@@ -353,7 +353,6 @@ export default function OffMarketSignaalDetailPage() {
           </TabsContent>
 
           <TabsContent value="brieven" className="space-y-3 mt-3">
-            <SignaalOutreachInzicht signaal={signaal} />
             <SignaalBrievenSectie signaal={signaal} />
           </TabsContent>
 
