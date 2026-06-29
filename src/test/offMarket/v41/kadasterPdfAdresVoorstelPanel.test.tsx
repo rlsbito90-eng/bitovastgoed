@@ -251,7 +251,7 @@ describe('KadasterPdfAdresVoorstelPanel', () => {
     await waitFor(() => expect(screen.getByTestId('kpv-keuze-trigger')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('kpv-overnemen'));
     expect(onPick).toHaveBeenCalledWith(
-      'Pontsteiger 103\n1014 ZP AMSTERDAM', '', 'MargaHoldingB.V.',
+      'Pontsteiger 103\n1014 ZP AMSTERDAM', null, 'MargaHoldingB.V.',
     );
   });
 });
