@@ -110,6 +110,12 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
   }
   return velden;
 }
+function normaliseerStraatHuisnr(s: string): string {
+  return s
+    .replace(/([A-Za-zÀ-ÿ.])(\d)/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function formatteerAdres(values: string[] | undefined): string | null {
   if (!values || values.length === 0) return null;
   const samen = values.join(' ').replace(/\s+/g, ' ').trim();
@@ -118,11 +124,26 @@ function formatteerAdres(values: string[] | undefined): string | null {
   if (!m) return null;
   const postcode = `${m[1]} ${m[2].toUpperCase()}`;
   const idx = samen.search(POSTCODE_RE);
-  const straatDeel = samen.slice(0, idx).trim().replace(/[,\s]+$/, '');
+  const straatDeel = normaliseerStraatHuisnr(
+    samen.slice(0, idx).trim().replace(/[,\s]+$/, ''),
+  );
   const naPostcode = samen.slice(idx + m[0].length).trim().replace(/^[,\s]+/, '');
   const plaats = naPostcode.split(/\s+/)[0]?.toUpperCase() || '';
   if (!straatDeel) return null;
   return `${straatDeel}\n${plaats ? `${postcode} ${plaats}` : postcode}`;
+}
+function formatteerPostbusAdres(values: string[] | undefined): string | null {
+  if (!values || values.length === 0) return null;
+  const samen = values.join(' ').replace(/\s+/g, ' ').trim();
+  if (!samen || samen === '-') return null;
+  const nrMatch = samen.match(/(\d+)/);
+  if (!nrMatch) return null;
+  const m = samen.match(POSTCODE_RE);
+  if (!m) return null;
+  const postcode = `${m[1]} ${m[2].toUpperCase()}`;
+  const naPostcode = samen.slice(samen.search(POSTCODE_RE) + m[0].length).trim().replace(/^[,\s]+/, '');
+  const plaats = naPostcode.split(/\s+/)[0]?.toUpperCase() || '';
+  return `Postbus ${nrMatch[1]}\n${plaats ? `${postcode} ${plaats}` : postcode}`;
 }
 function adresKey(s: string | null | undefined): string {
   return (s ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
