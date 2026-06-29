@@ -74,15 +74,18 @@ function normaliseer(s: string): string {
 
 /** Canonicaliseert een bedrijfsnaam: punten weg, rechtsvorm-tokens weg. */
 function bedrijfCanonical(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\./g, '')
-    .replace(/[^a-z0-9 ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .split(' ')
-    .filter((tok) => tok && !['bv', 'nv', 'bvba', 'vof', 'cv'].includes(tok))
-    .join(' ')
-    .trim();
+  // Normaliseert bedrijfsnamen tot een spatie- en rechtsvorm-loze sleutel,
+  // zodat "Marga Holding B.V." en de PDF-extractie "MargaHoldingB.V." gelijk
+  // worden. Punten en niet-alfanumerieke tekens vervallen; trailing
+  // rechtsvorm-tokens (bv, nv, bvba, vof, cv) worden afgekapt — ook wanneer
+  // ze direct aan de naam vast zitten zoals "holdingbv".
+  let c = s.toLowerCase().replace(/\./g, '').replace(/[^a-z0-9]+/g, '');
+  for (let i = 0; i < 2; i++) {
+    const next = c.replace(/(bv|nv|bvba|vof|cv)$/, '');
+    if (next === c) break;
+    c = next;
+  }
+  return c;
 }
 
 /** Splitst persoonsnaam in voorletters + achternaam (laatste woord). */
