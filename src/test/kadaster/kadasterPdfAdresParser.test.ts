@@ -362,4 +362,72 @@ describe('extractKadasterAdresVoorstellenUitTekst', () => {
     ].join('\n');
     expect(extractKadasterAdresVoorstellenUitTekst(tekst)).toEqual([]);
   });
+
+  it('compact: rechtspersoon met aaneengeplakt straat+huisnr en postcode', () => {
+    const tekst = [
+      'Rechten',
+      'Eigendom (recht van)',
+      'Aandeel 1/1',
+      'Naam MargaHoldingB.V.',
+      'Adres Pontsteiger103',
+      '1014ZP',
+      'AMSTERDAM',
+      'Postbus -',
+      'Zetel ZANDVOORT',
+      'KvK-nummer 34096119',
+      'Bijzonderheden',
+    ].join('\n');
+    const r = extractKadasterAdresVoorstellenUitTekst(tekst);
+    expect(r).toHaveLength(1);
+    expect(r[0].bedrijfsnaam).toBe('MargaHoldingB.V.');
+    expect(r[0].verzendadres).toBe('Pontsteiger 103\n1014 ZP AMSTERDAM');
+  });
+
+  it('compact: huisnummer met toevoeging (Lindengracht227-1)', () => {
+    const tekst = [
+      'Rechten',
+      'Eigendom (recht van)',
+      'Aandeel 1/1',
+      'Naam Voorbeeld B.V.',
+      'Adres Lindengracht227-1',
+      '1015KE AMSTERDAM',
+      'KvK-nummer 99999999',
+      'Bijzonderheden',
+    ].join('\n');
+    const r = extractKadasterAdresVoorstellenUitTekst(tekst);
+    expect(r).toHaveLength(1);
+    expect(r[0].verzendadres).toBe('Lindengracht 227-1\n1015 KE AMSTERDAM');
+  });
+
+  it('Postbus-fallback wanneer geen Adres-blok, maar wel Postbus + postcode', () => {
+    const tekst = [
+      'Rechten',
+      'Eigendom (recht van)',
+      'Aandeel 1/1',
+      'Naam Voorbeeld Stichting',
+      'Postbus 1234',
+      '5678AB ANDERSTAD',
+      'Zetel ANDERSTAD',
+      'KvK-nummer 11112222',
+      'Bijzonderheden',
+    ].join('\n');
+    const r = extractKadasterAdresVoorstellenUitTekst(tekst);
+    expect(r).toHaveLength(1);
+    expect(r[0].bedrijfsnaam).toBe('Voorbeeld Stichting');
+    expect(r[0].verzendadres).toBe('Postbus 1234\n5678 AB ANDERSTAD');
+  });
+
+  it('alleen Zetel + KvK, geen Adres of Postbus → geen voorstel (Zetel nooit als adres)', () => {
+    const tekst = [
+      'Rechten',
+      'Eigendom (recht van)',
+      'Aandeel 1/1',
+      'Naam Geen Adres B.V.',
+      'Postbus -',
+      'Zetel AMSTERDAM',
+      'KvK-nummer 12345678',
+      'Bijzonderheden',
+    ].join('\n');
+    expect(extractKadasterAdresVoorstellenUitTekst(tekst)).toEqual([]);
+  });
 });
