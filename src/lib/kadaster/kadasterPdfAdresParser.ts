@@ -318,7 +318,8 @@ export function extractKadasterAdresVoorstellenUitTekst(
     if (!naamRaw) continue;
 
     const adresWaarden = velden['Adres'];
-    const verzendadres = formatteerAdres(adresWaarden);
+    const verzendadres = formatteerAdres(adresWaarden)
+      ?? formatteerPostbusAdres(velden['Postbus']);
 
     // Conservatief: zonder bruikbaar adres geen voorstel.
     if (!verzendadres) continue;
