@@ -173,7 +173,10 @@ export default function KadasterPdfAdresVoorstelPanel({
 
   // Zichtbaarheidsregels: alleen wanneer Kadaster-kandidaat is geselecteerd
   // en het verzendadres nog leeg is en er een opgeslagen PDF beschikbaar is.
-  if (kandidaatBron !== 'kadaster') return null;
+  // Zichtbaar wanneer (a) de kandidaat uit Kadaster komt, of (b) er een
+  // bedrijfsnaam ingevuld is (rechtspersoon). Zo blijft het PDF-voorstel ook
+  // beschikbaar als de structured Kadaster-route geen verzendadres oplevert.
+  if (kandidaatBron !== 'kadaster' && huidigeBedrijfsnaam.trim().length === 0) return null;
   if (!verzendadresIsLeeg) return null;
   if (!doc) return null;
 
