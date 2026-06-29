@@ -203,4 +203,55 @@ describe('KadasterPdfAdresVoorstelPanel', () => {
     expect(onPick).not.toHaveBeenCalled();
     confirmSpy.mockRestore();
   });
+
+  it('toont panel voor rechtspersoon met bedrijfsnaam ook zonder Kadaster-kandidaat', async () => {
+    mockDocs([DOC]);
+    render(
+      <KadasterPdfAdresVoorstelPanel
+        {...defaultProps}
+        huidigeNaam=""
+        huidigeBedrijfsnaam="Marga Holding B.V."
+        kandidaatBron="signaal"
+      />,
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(screen.getByTestId('kpv-start-knop')).toBeInTheDocument());
+  });
+
+  it('matcht compacte BV-naam uit PDF op bestaande bedrijfsnaam', async () => {
+    mockDocs([DOC]);
+    invokeMock.mockResolvedValue({
+      data: {
+        voorstellen: [
+          {
+            naam: '', bedrijfsnaam: 'Andere Holding B.V.',
+            verzendadres: 'Anderstraat 5\n1000 AA AMSTERDAM',
+            confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/2',
+          },
+          {
+            naam: '', bedrijfsnaam: 'MargaHoldingB.V.',
+            verzendadres: 'Pontsteiger 103\n1014 ZP AMSTERDAM',
+            confidence: 'hoog', rolLabel: 'Eigendom (recht van)', aandeel: '1/2',
+          },
+        ],
+      },
+      error: null,
+    });
+    const onPick = vi.fn();
+    render(
+      <KadasterPdfAdresVoorstelPanel
+        {...defaultProps}
+        huidigeNaam=""
+        huidigeBedrijfsnaam="Marga Holding B.V."
+        onPick={onPick}
+      />,
+      { wrapper: wrap() },
+    );
+    fireEvent.click(await screen.findByTestId('kpv-start-knop'));
+    await waitFor(() => expect(screen.getByTestId('kpv-keuze-trigger')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('kpv-overnemen'));
+    expect(onPick).toHaveBeenCalledWith(
+      'Pontsteiger 103\n1014 ZP AMSTERDAM', null, 'MargaHoldingB.V.',
+    );
+  });
 });

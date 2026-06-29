@@ -74,15 +74,18 @@ function normaliseer(s: string): string {
 
 /** Canonicaliseert een bedrijfsnaam: punten weg, rechtsvorm-tokens weg. */
 function bedrijfCanonical(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\./g, '')
-    .replace(/[^a-z0-9 ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .split(' ')
-    .filter((tok) => tok && !['bv', 'nv', 'bvba', 'vof', 'cv'].includes(tok))
-    .join(' ')
-    .trim();
+  // Normaliseert bedrijfsnamen tot een spatie- en rechtsvorm-loze sleutel,
+  // zodat "Marga Holding B.V." en de PDF-extractie "MargaHoldingB.V." gelijk
+  // worden. Punten en niet-alfanumerieke tekens vervallen; trailing
+  // rechtsvorm-tokens (bv, nv, bvba, vof, cv) worden afgekapt — ook wanneer
+  // ze direct aan de naam vast zitten zoals "holdingbv".
+  let c = s.toLowerCase().replace(/\./g, '').replace(/[^a-z0-9]+/g, '');
+  for (let i = 0; i < 2; i++) {
+    const next = c.replace(/(bv|nv|bvba|vof|cv)$/, '');
+    if (next === c) break;
+    c = next;
+  }
+  return c;
 }
 
 /** Splitst persoonsnaam in voorletters + achternaam (laatste woord). */
@@ -170,7 +173,10 @@ export default function KadasterPdfAdresVoorstelPanel({
 
   // Zichtbaarheidsregels: alleen wanneer Kadaster-kandidaat is geselecteerd
   // en het verzendadres nog leeg is en er een opgeslagen PDF beschikbaar is.
-  if (kandidaatBron !== 'kadaster') return null;
+  // Zichtbaar wanneer (a) de kandidaat uit Kadaster komt, of (b) er een
+  // bedrijfsnaam ingevuld is (rechtspersoon). Zo blijft het PDF-voorstel ook
+  // beschikbaar als de structured Kadaster-route geen verzendadres oplevert.
+  if (kandidaatBron !== 'kadaster' && huidigeBedrijfsnaam.trim().length === 0) return null;
   if (!verzendadresIsLeeg) return null;
   if (!doc) return null;
 
