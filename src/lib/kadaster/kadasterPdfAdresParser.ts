@@ -180,6 +180,14 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
  * zowel meerregelige als single-line waarden. Geeft `null` als geen geldig
  * adres kan worden opgebouwd (geen postcode of "-").
  */
+function normaliseerStraatHuisnr(s: string): string {
+  // "Pontsteiger103" → "Pontsteiger 103"; "Lindengracht227-1" → "Lindengracht 227-1".
+  return s
+    .replace(/([A-Za-zÀ-ÿ.])(\d)/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function formatteerAdres(values: string[] | undefined): string | null {
   if (!values || values.length === 0) return null;
   const samen = values.join(' ').replace(/\s+/g, ' ').trim();
@@ -189,7 +197,9 @@ function formatteerAdres(values: string[] | undefined): string | null {
   if (!m) return null;
   const postcode = `${m[1]} ${m[2].toUpperCase()}`;
   const idx = samen.search(POSTCODE_RE);
-  const straatDeel = samen.slice(0, idx).trim().replace(/[,\s]+$/, '');
+  const straatDeel = normaliseerStraatHuisnr(
+    samen.slice(0, idx).trim().replace(/[,\s]+$/, ''),
+  );
   const naPostcode = samen.slice(idx + m[0].length).trim().replace(/^[,\s]+/, '');
   const plaats = naPostcode.split(/\s+/)[0]?.toUpperCase() || '';
 
@@ -197,6 +207,25 @@ function formatteerAdres(values: string[] | undefined): string | null {
   const regel1 = straatDeel;
   const regel2 = plaats ? `${postcode} ${plaats}` : postcode;
   return `${regel1}\n${regel2}`;
+}
+
+/**
+ * Postbus-fallback. Bouwt "Postbus <num>\n<postcode> PLAATS" uit een
+ * `Postbus`-veldwaarde wanneer een echt straatadres ontbreekt. Een lege
+ * waarde of "-" levert `null` op. Zetel wordt nooit als bron gebruikt.
+ */
+function formatteerPostbusAdres(values: string[] | undefined): string | null {
+  if (!values || values.length === 0) return null;
+  const samen = values.join(' ').replace(/\s+/g, ' ').trim();
+  if (!samen || samen === '-') return null;
+  const nrMatch = samen.match(/(\d+)/);
+  if (!nrMatch) return null;
+  const m = samen.match(POSTCODE_RE);
+  if (!m) return null;
+  const postcode = `${m[1]} ${m[2].toUpperCase()}`;
+  const naPostcode = samen.slice(samen.search(POSTCODE_RE) + m[0].length).trim().replace(/^[,\s]+/, '');
+  const plaats = naPostcode.split(/\s+/)[0]?.toUpperCase() || '';
+  return `Postbus ${nrMatch[1]}\n${plaats ? `${postcode} ${plaats}` : postcode}`;
 }
 
 /** Normaliseer een adres voor vergelijking (whitespace, hoofdletters). */
@@ -289,7 +318,8 @@ export function extractKadasterAdresVoorstellenUitTekst(
     if (!naamRaw) continue;
 
     const adresWaarden = velden['Adres'];
-    const verzendadres = formatteerAdres(adresWaarden);
+    const verzendadres = formatteerAdres(adresWaarden)
+      ?? formatteerPostbusAdres(velden['Postbus']);
 
     // Conservatief: zonder bruikbaar adres geen voorstel.
     if (!verzendadres) continue;
