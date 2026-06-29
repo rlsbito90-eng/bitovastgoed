@@ -207,7 +207,8 @@ export function extractKadasterAdresVoorstellenUitTekst(
     const aandeel = velden['Aandeel']?.[0] ?? undefined;
     const naamRaw = velden['Naam']?.join(' ').replace(/\s+/g, ' ').trim() ?? '';
     if (!naamRaw) continue;
-    const verzendadres = formatteerAdres(velden['Adres']);
+    const verzendadres = formatteerAdres(velden['Adres'])
+      ?? formatteerPostbusAdres(velden['Postbus']);
     if (!verzendadres) continue;
     const heeftEntiteitVelden = !!(velden['KvK-nummer']?.length || velden['Zetel']?.length);
     const isBedrijf = isRechtspersoonNaam(naamRaw) || heeftEntiteitVelden;
