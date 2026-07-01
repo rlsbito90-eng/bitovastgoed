@@ -662,6 +662,26 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           </div>
         </Tabs>
       </DialogContent>
+
+      <AlertDialog open={naamloosConfirmOpen} onOpenChange={setNaamloosConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Opslaan zonder naam?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deze relatie heeft geen bedrijfsnaam en geen contactpersoon ingevuld.
+              Hij wordt opgeslagen als "(naamloze relatie)".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setNaamloosConfirmOpen(false); void performSave(); }}
+            >
+              Opslaan zonder naam
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
