@@ -335,7 +335,7 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
                 onChange={e => setTekst(e.target.value)}
                 rows={10}
                 className="font-mono text-xs"
-                placeholder={'Bedrijfsnaam,Contactpersoon,Type relatie,Type koper,E-mail,Telefoon,Regio,Assetclasses,Budget Min,Budget Max,Status\nAcme BV,Léon van den Heuvel,Koper,Belegger,leon@acme.nl,0612345678,Randstad,"wonen,logistiek",1000000,5000000,Warm'}
+                placeholder={'Bedrijfsnaam,Contactpersoon,Type relatie,Type koper,E-mail,Telefoon,Regio,Assetclasses,Budget Min,Budget Max,Status\nVoorbeeld B.V.,Test Persoon,Koper,Belegger,naam@voorbeeld.nl,06 0000 0000,Randstad,"wonen,logistiek",1000000,5000000,Warm'}
               />
             </div>
 

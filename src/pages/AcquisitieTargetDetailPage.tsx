@@ -139,7 +139,7 @@ export default function AcquisitieTargetDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction onClick={verwijder}>Verwijderen</AlertDialogAction>
+            <AlertDialogAction onClick={verwijder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
