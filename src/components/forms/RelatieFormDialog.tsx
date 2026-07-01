@@ -19,6 +19,10 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
@@ -134,6 +138,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const [primaireContactpersoonId, setPrimaireContactpersoonId] = useState<string | undefined>();
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
+  const [naamloosConfirmOpen, setNaamloosConfirmOpen] = useState(false);
 
   // Hydreer form bij open. Pre-fill ook de primaire contactpersoon-input
   // vanuit relatie_contactpersonen (waar is_primair = true).
@@ -196,15 +201,18 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
       ? store.contactpersonen?.some(c => c.relatieId === relatieId && c.id !== primaireContactpersoonId)
       : false;
 
-    // Waarschuwing als helemaal niets is ingevuld
+    // Waarschuwing als helemaal niets is ingevuld → open bevestig-dialog en stop.
     if (!heeftBedrijfsnaam && !heeftCpInForm && !heeftAndereContactpersonen) {
-      const bevestig = window.confirm(
-        'Deze relatie heeft geen bedrijfsnaam en geen contactpersoon ingevuld. ' +
-        'Hij wordt opgeslagen als "(naamloze relatie)". Toch opslaan?'
-      );
-      if (!bevestig) return;
+      setNaamloosConfirmOpen(true);
+      return;
     }
 
+    await performSave();
+  };
+
+  const performSave = async () => {
+    if (bezig) return;
+    const cpNaam = contactpersoonInput.naam?.trim();
     setBezig(true);
 
     const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
