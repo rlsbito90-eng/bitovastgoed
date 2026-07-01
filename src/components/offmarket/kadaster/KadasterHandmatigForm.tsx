@@ -75,7 +75,7 @@ export default function KadasterHandmatigForm({ signaalId, onDone }: Props) {
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Kadastrale aanduiding *</Label>
-          <Input value={kadastrale} onChange={e => setKadastrale(e.target.value)} placeholder="bv. AMSTERDAM A 1234 A1" />
+          <Input value={kadastrale} onChange={e => setKadastrale(e.target.value)} placeholder="bv. GEMEENTE A 0001 A1" />
         </div>
       </div>
       <div className="flex justify-end gap-2">

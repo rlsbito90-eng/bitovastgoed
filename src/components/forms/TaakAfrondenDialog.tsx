@@ -142,7 +142,7 @@ export default function TaakAfrondenDialog({ open, onOpenChange, taak }: Props) 
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { reset(); onOpenChange(false); }} disabled={bezig}>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }} disabled={bezig}>
             Annuleren
           </Button>
           <Button onClick={submit} disabled={bezig}>

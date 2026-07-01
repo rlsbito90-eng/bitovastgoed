@@ -362,7 +362,7 @@ function RowActions({ b, onEdit, onCounter, onAccept, onReject, onDelete }: {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuleren</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete}>Verwijderen</AlertDialogAction>
+              <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
