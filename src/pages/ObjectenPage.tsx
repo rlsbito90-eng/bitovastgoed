@@ -303,7 +303,7 @@ export default function ObjectenPage() {
         </>
       )}
 
-      <ObjectFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <ObjectQuickCreateDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
   );
 }
