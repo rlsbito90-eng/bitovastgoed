@@ -155,7 +155,49 @@ describe('ObjectQuickCreateDialog', () => {
     // E-mail mag NIET zichtbaar zijn
     expect(utils.queryByText(/jan@geheim\.nl/i)).not.toBeInTheDocument();
   });
+
+  it('quick-create met gekoppelde relatie stuurt eigenaarRelatieId als FK en géén verkoperNaam', async () => {
+    relatiesMock = [
+      {
+        id: 'r-1',
+        bedrijfsnaam: 'Voorbeeld BV',
+        contactpersoon: 'Jan de Vries',
+        type: 'eigenaar',
+        telefoon: '',
+        email: 'jan@geheim.nl',
+        regio: [],
+        assetClasses: [],
+        ndaGetekend: false,
+        leadStatus: 'lauw',
+        laatsteContact: '',
+      } as Relatie,
+    ];
+    const user = userEvent.setup();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Titel \/ objectnaam/i), 'Met relatie');
+    // Kies relatie via picker
+    await user.click(screen.getByRole('button', { name: /Kiezen/i }));
+    const picker = await screen.findByRole('dialog', { name: /Kies verkoper of eigenaar/i });
+    await user.click(within(picker).getByText('Jan de Vries'));
+    await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
+    await waitFor(() => expect(addObjectMock).toHaveBeenCalled());
+    const payload = addObjectMock.mock.calls[0][0];
+    expect(payload.eigenaarRelatieId).toBe('r-1');
+    expect(payload.verkoperNaam).toBeUndefined();
+  });
+
+  it('quick-create zonder relatie stuurt geen eigenaarRelatieId en geen verkoperNaam', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Titel \/ objectnaam/i), 'Zonder relatie');
+    await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
+    await waitFor(() => expect(addObjectMock).toHaveBeenCalled());
+    const payload = addObjectMock.mock.calls[0][0];
+    expect(payload.eigenaarRelatieId).toBeUndefined();
+    expect(payload.verkoperNaam).toBeUndefined();
+  });
 });
+
 
 // ---------------------------------------------------------------------
 // Regressie: ObjectFormDialog edit-mode toont nog steeds tabs voor bestaande objecten.
