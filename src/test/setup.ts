@@ -13,3 +13,20 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+if (typeof (globalThis as any).ResizeObserver === "undefined") {
+  (globalThis as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+if (typeof Element !== "undefined" && !(Element.prototype as any).scrollIntoView) {
+  (Element.prototype as any).scrollIntoView = function () {};
+}
+if (typeof Element !== "undefined" && !(Element.prototype as any).hasPointerCapture) {
+  (Element.prototype as any).hasPointerCapture = function () { return false; };
+  (Element.prototype as any).releasePointerCapture = function () {};
+  (Element.prototype as any).setPointerCapture = function () {};
+}
