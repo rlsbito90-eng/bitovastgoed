@@ -286,7 +286,9 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   verkoperVia: o.verkoper_via ?? 'onbekend',
   verkoperTelefoon: o.verkoper_telefoon ?? undefined,
   verkoperEmail: o.verkoper_email ?? undefined,
+  eigenaarRelatieId: (o as any).eigenaar_relatie_id ?? undefined,
   verkoopmotivatie: o.verkoopmotivatie ?? undefined,
+
   isPortefeuille: !!o.is_portefeuille,
   parentObjectId: o.parent_object_id ?? undefined,
   documentenBeschikbaar: !!o.documentatie_beschikbaar,
@@ -400,7 +402,9 @@ export const objectToDb = (o: Partial<ObjectVastgoed>) => cleanPayload({
   verkoper_via: o.verkoperVia,
   verkoper_telefoon: o.verkoperTelefoon !== undefined ? (o.verkoperTelefoon || null) : undefined,
   verkoper_email: o.verkoperEmail !== undefined ? (o.verkoperEmail || null) : undefined,
+  eigenaar_relatie_id: o.eigenaarRelatieId !== undefined ? (o.eigenaarRelatieId || null) : undefined,
   verkoopmotivatie: o.verkoopmotivatie !== undefined ? (o.verkoopmotivatie || null) : undefined,
+
   is_portefeuille: o.isPortefeuille,
   parent_object_id: o.parentObjectId !== undefined ? (o.parentObjectId || null) : undefined,
   documentatie_beschikbaar: o.documentenBeschikbaar,

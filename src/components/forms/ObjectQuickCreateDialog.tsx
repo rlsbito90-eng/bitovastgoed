@@ -134,18 +134,8 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
 
     // Bouw payload met alleen ingevulde velden. Overige DB-kolommen blijven
     // NULL of behouden hun server-default (zie useDataStore.addObject).
-    const selectedRelatie = relatieId
-      ? relaties.find((r) => r.id === relatieId)
-      : null;
-    // Voor de gekoppelde verkoper vullen we het bestaande vrije-tekst
-    // verkoperNaam-veld met "naam – bedrijf" (geen e-mail). De echte FK-koppeling
-    // via eigenaar_relatie_id volgt in Fase 3.
-    let verkoperNaam: string | undefined;
-    if (selectedRelatie) {
-      const { primair, secundair } = getRelatieNamen(selectedRelatie, contactpersonen);
-      verkoperNaam = secundair ? `${primair} – ${secundair}` : primair;
-    }
-
+    // Gekoppelde relatie wordt als FK opgeslagen in eigenaar_relatie_id.
+    // Het vrije-tekstveld verkoperNaam wordt niet meer synthetisch gevuld.
     const payload: Record<string, unknown> = {
       titel: titelClean,
       anoniem,
@@ -157,8 +147,9 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
       vraagprijs: typeof vraagprijs === 'number' && Number.isFinite(vraagprijs) ? vraagprijs : undefined,
       prijsindicatie: prijsindicatie.trim() || undefined,
       interneOpmerkingen: notitie.trim() || undefined,
-      verkoperNaam,
+      eigenaarRelatieId: relatieId || undefined,
       verkoperVia: 'onbekend',
+
       // Locatie afhankelijk van anonimiteit:
       publiekeRegio: anoniem ? (publiekeRegio.trim() || undefined) : undefined,
       adres: !anoniem ? (adres.trim() || undefined) : undefined,

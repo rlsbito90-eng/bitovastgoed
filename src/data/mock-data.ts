@@ -368,6 +368,9 @@ export interface ObjectVastgoed {
   verkoperTelefoon?: string;
   verkoperEmail?: string;
   verkoopmotivatie?: string;
+  /** FK naar relaties.id — canonical gekoppelde eigenaar/verkoper. */
+  eigenaarRelatieId?: string | null;
+
 
   // Portefeuille
   isPortefeuille: boolean;
