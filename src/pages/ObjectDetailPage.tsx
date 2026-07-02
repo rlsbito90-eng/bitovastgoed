@@ -1225,6 +1225,17 @@ export default function ObjectDetailPage() {
       })()}
 
       {/* =================================================
+          DOSSIER PROGRESS — begeleidt gebruiker naar tabs
+          ================================================= */}
+      <DossierProgress
+        object={object as unknown as Record<string, any>}
+        fotosCount={fotos.length}
+        documentenCount={documenten.length}
+        huurdersCount={huurders.length}
+        onGoto={(anchor: DossierAnchor) => goToAnchor(anchor)}
+      />
+
+      {/* =================================================
           STICKY SECTION NAV
           ================================================= */}
       <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
