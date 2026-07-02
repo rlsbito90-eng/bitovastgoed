@@ -13,3 +13,11 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+if (typeof (globalThis as any).ResizeObserver === "undefined") {
+  (globalThis as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
