@@ -9,7 +9,7 @@ import { Search, Plus, ChevronRight, Archive, RotateCcw, Building2 } from 'lucid
 import EmptyState from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import type { ObjectStatus, ObjectVastgoed } from '@/data/mock-data';
-import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
+import ObjectQuickCreateDialog from '@/components/forms/ObjectQuickCreateDialog';
 import PageHeader from '@/components/PageHeader';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { PropertyTypeBadge, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
