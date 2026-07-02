@@ -76,6 +76,7 @@ import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
 const VastgoedrekenenTab = lazy(() => import('@/components/vastgoedrekenen/VastgoedrekenenTab'));
 import ObjectDossierCard, { type DossierTab } from '@/components/object/dossier/ObjectDossierCard';
+import DossierProgress, { type DossierAnchor } from '@/components/object/DossierProgress';
 import Timeline from '@/components/contactmoment/Timeline';
 import KadasterGebiedsdataKaart from '@/components/object/kadaster/KadasterGebiedsdataKaart';
 import KadasterOpgeslagenKaart from '@/components/object/kadaster/KadasterOpgeslagenKaart';
@@ -1222,6 +1223,17 @@ export default function ObjectDetailPage() {
         const cols = tiles.length === 1 ? 'grid-cols-1' : tiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
         return <div className={`grid ${cols} gap-2 sm:gap-2.5`}>{tiles}</div>;
       })()}
+
+      {/* =================================================
+          DOSSIER PROGRESS — begeleidt gebruiker naar tabs
+          ================================================= */}
+      <DossierProgress
+        object={object as unknown as Record<string, any>}
+        fotosCount={fotos.length}
+        documentenCount={documenten.length}
+        huurdersCount={huurders.length}
+        onGoto={(anchor: DossierAnchor) => goToAnchor(anchor)}
+      />
 
       {/* =================================================
           STICKY SECTION NAV
