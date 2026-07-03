@@ -1763,10 +1763,44 @@ export default function ObjectDetailPage() {
           {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (
             <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
 
+              {/* Gekoppelde (primaire) relatie via eigenaar_relatie_id — privacy-safe label */}
+              {(() => {
+                const gekoppeldeRelatie = object.eigenaarRelatieId
+                  ? store.getRelatieById(object.eigenaarRelatieId)
+                  : null;
+                return (
+                  <div className="section-card p-5 space-y-3 mb-4" data-testid="object-gekoppelde-relatie">
+                    <h3 className="section-title">Gekoppelde relatie</h3>
+                    {gekoppeldeRelatie ? (
+                      <Link
+                        to={`/relaties/${gekoppeldeRelatie.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
+                        <RelatieNaamDisplay
+                          relatie={gekoppeldeRelatie}
+                          variant="default"
+                        />
+                      </Link>
+                    ) : object.eigenaarRelatieId ? (
+                      <p className="text-sm text-muted-foreground italic">
+                        Gekoppelde relatie niet gevonden.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        Geen gekoppelde relatie vastgelegd.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="grid sm:grid-cols-2 gap-4">
-                {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon) && (
+                {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon || object.verkoopmotivatie) && (
                   <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Verkoper / eigenaar / aanbieder</h3>
+                    <h3 className="section-title">Aanvullend contact (vrije tekst) — verkoper</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Vrije tekst / fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
+                    </p>
                     <div className="space-y-3">
                       {object.verkoperNaam && (
                         <Field label="Naam">
@@ -1795,7 +1829,10 @@ export default function ObjectDetailPage() {
                 )}
                 {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
                   <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Objectcontact / makelaar / tussenpersoon</h3>
+                    <h3 className="section-title">Aanvullend contact (vrije tekst) — objectcontact / makelaar</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Vrije tekst / fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
+                    </p>
                     <div className="space-y-3">
                       {object.contactNaam && (
                         <Field label="Naam">
