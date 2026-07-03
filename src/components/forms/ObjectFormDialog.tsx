@@ -1049,6 +1049,9 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
             {/* TAB 6: VERKOPER */}
             <TabsContent value="contacten" className="space-y-5 mt-0">
+              <div className="rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Deze velden zijn bedoeld als vrije tekst/fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
+              </div>
               <Sectie titel="Verkoper / eigenaar / aanbieder">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Naam">
