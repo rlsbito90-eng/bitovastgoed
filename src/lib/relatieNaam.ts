@@ -44,6 +44,12 @@ export interface RelatieNamen {
 /**
  * Bepaalt hoe een relatie-naam getoond moet worden.
  *
+ * Privacy-safe by design (Fase 1C-1): de retourwaarden `primair` en
+ * `secundair` bevatten UITSLUITEND naam en/of bedrijfsnaam. Er wordt
+ * NOOIT teruggevallen op e-mail of telefoon — ook niet als naam en
+ * bedrijfsnaam ontbreken. In dat geval wordt "<Type> zonder naam"
+ * of "Relatie zonder naam" geretourneerd.
+ *
  * Volgorde:
  * 1. Primaire contactpersoon (uit relatie_contactpersonen waar is_primair=true)
  *    -> contactpersoon = primair, bedrijfsnaam = secundair
@@ -52,7 +58,7 @@ export interface RelatieNamen {
  * 3. Alleen bedrijfsnaam aanwezig
  *    -> bedrijfsnaam = primair, geen secundair
  * 4. Niets ingevuld
- *    -> primair = "(naamloze relatie)", isLeeg = true
+ *    -> primair = "<Type> zonder naam" of "Relatie zonder naam", isLeeg = true
  */
 export function getRelatieNamen(
   relatie: Relatie | null | undefined,
