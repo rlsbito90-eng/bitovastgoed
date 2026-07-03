@@ -7,6 +7,17 @@
 //   Wijzigen / Wissen acties, of Kiezen wanneer leeg.
 //
 // Items kunnen "recent" en "relevant" eerst tonen voor snellere selectie.
+//
+// -------------------------------------------------------------------------
+// PII-policy (Fase 1C-1) — verplicht voor ALLE callers:
+//   - `primair` en `secundair` tonen UITSLUITEND naam en/of bedrijfsnaam.
+//   - E-mail, telefoon en adres mogen NOOIT in `primair`/`secundair` staan.
+//   - E-mail/telefoon/adres mogen wel in `searchHaystack` staan als dat
+//     functioneel nodig is voor zoeken (bijv. snel vinden op e-mailadres);
+//     `searchHaystack` wordt nooit gerenderd.
+//   - Voor relatie-items: bouw labels via `getRelatieNamen()` uit
+//     `@/lib/relatieNaam`. Die helper is privacy-safe by design.
+// -------------------------------------------------------------------------
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -19,9 +30,14 @@ import { cn } from '@/lib/utils';
 
 export interface EntityPickerItem {
   id: string;
+  /** Zichtbaar hoofdlabel. Mag GEEN e-mail, telefoon of adres bevatten. */
   primair: string;
+  /** Zichtbaar sublabel. Mag GEEN e-mail, telefoon of adres bevatten. */
   secundair?: string | null;
-  /** Lowercase string waarin gezocht wordt (alles dat matchbaar moet zijn) */
+  /**
+   * Lowercase string waarin gezocht wordt. Wordt nooit gerenderd; mag
+   * e-mail/telefoon/adres bevatten voor functioneel zoeken.
+   */
   searchHaystack: string;
 }
 
