@@ -235,7 +235,7 @@ function hasJuridischData(o: any): boolean {
     o.kadastraalNummer || o.kadastraleGemeente || o.kadastraleSectie));
 }
 function hasContactenData(o: any): boolean {
-  return !!(o && (o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
+  return !!(o && (o.eigenaarRelatieId || o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
     o.contactNaam || o.contactEmail || o.contactTelefoon));
 }
 
