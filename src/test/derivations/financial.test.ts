@@ -12,6 +12,10 @@ import {
   resolveDerived,
   resolveBAR,
   resolveNOI,
+  resolveManual,
+  resolveMaandhuur,
+  resolvePricePerM2,
+  getBerekenM2,
 } from '@/lib/derivations/financial';
 
 describe('financial — safeNumber / safeDivide', () => {
