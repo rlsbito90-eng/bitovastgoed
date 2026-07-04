@@ -1350,50 +1350,49 @@ export default function ObjectDetailPage() {
                 />
                 <MetricTile
                   label="BAR"
-                  value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
-                  badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
+                  value={bar.value != null ? formatPercent(bar.value, 2) : 'onvoldoende gegevens'}
+                  badge={bar.value != null ? (bar.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
                 />
-                {narEffect != null && (
-                  <MetricTile
-                    label="NAR"
-                    value={formatPercent(narEffect, 2)}
-                    badge={narIsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="NAR"
+                  value={nar.value != null ? formatPercent(nar.value, 2) : 'onvoldoende gegevens'}
+                  badge={nar.value != null ? 'handmatig' : 'onvoldoende'}
+                />
                 <MetricTile
                   label="Factor"
-                  value={factor != null ? `${factor.toFixed(1)}×` : '—'}
-                  badge={factor != null ? 'auto' : undefined}
+                  value={factor.value != null ? `${factor.value.toFixed(1)}×` : 'onvoldoende gegevens'}
+                  badge={factor.value != null ? 'auto' : 'onvoldoende'}
                 />
-                {object.huurinkomsten != null && (
-                  <MetricTile label="Huur / jr" value={formatCurrency(object.huurinkomsten)} />
-                )}
-                {maandhuur != null && (
-                  <MetricTile
-                    label="Huur / mnd"
-                    value={formatCurrency(Math.round(maandhuur))}
-                    badge="auto"
-                  />
-                )}
-                {noiEffect != null && (
-                  <MetricTile
-                    label="NOI"
-                    value={formatCurrency(noiEffect)}
-                    tone="positive"
-                    badge={noiIsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="Huur / jr"
+                  value={object.huurinkomsten != null ? formatCurrency(object.huurinkomsten) : 'onvoldoende gegevens'}
+                  badge={object.huurinkomsten != null ? undefined : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="Huur / mnd"
+                  value={maandhuur.value != null ? formatCurrency(Math.round(maandhuur.value)) : 'onvoldoende gegevens'}
+                  badge={maandhuur.value != null ? 'auto' : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="NOI"
+                  value={noi.value != null ? formatCurrency(noi.value) : 'onvoldoende gegevens'}
+                  tone={noi.value != null ? 'positive' : 'default'}
+                  badge={noi.value != null ? 'handmatig' : 'onvoldoende'}
+                  hint={noi.value == null ? 'exploitatiekosten ontbreken' : undefined}
+                />
                 {object.servicekostenJaar != null && (
                   <MetricTile label="Servicekosten" value={formatCurrency(object.servicekostenJaar)} />
                 )}
-                <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
-                {huurPerM2Berekend != null && (
-                  <MetricTile
-                    label="Huur / m²"
-                    value={huurPerM2Str}
-                    badge={huurPerM2IsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="€ / m²"
+                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens'}
+                  badge={prijsPerM2.value != null ? 'auto' : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="Huur / m²"
+                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
+                  badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                />
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"
