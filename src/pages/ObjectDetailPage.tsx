@@ -25,11 +25,12 @@ import {
 } from '@/data/mock-data';
 import {
   resolveBAR,
-  resolveNAR,
-  resolveNOI,
   resolveDerived,
+  resolveManual,
+  resolveMaandhuur,
+  resolvePricePerM2,
+  getBerekenM2,
   calculateFactor,
-  calculateMonthlyRent,
   calculateRentPerM2,
   deriveVerhuurMetrics,
   isStrongMatch,
