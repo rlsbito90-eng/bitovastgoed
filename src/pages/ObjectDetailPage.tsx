@@ -1196,8 +1196,8 @@ export default function ObjectDetailPage() {
             />,
           );
         }
-        if (factor != null) {
-          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.toFixed(1)}×`} badge="auto" />);
+        if (factor.value != null) {
+          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.value.toFixed(1)}×`} badge="auto" />);
         }
         if (object.huurinkomsten) {
           tiles.push(
@@ -1205,7 +1205,7 @@ export default function ObjectDetailPage() {
               key="huur"
               label="Huur / jr"
               value={formatCurrencyCompact(object.huurinkomsten)}
-              hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
+              hint={maandhuur.value != null ? `${formatCurrencyCompact(maandhuur.value)} / mnd` : undefined}
             />,
           );
         }
