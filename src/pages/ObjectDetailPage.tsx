@@ -852,34 +852,35 @@ export default function ObjectDetailPage() {
     return open[0] ?? null;
   })();
 
-  // ── Financiële KPI's via centrale derivation helpers (Prompt 3.2) ──
+  // ── Financiële KPI's via centrale derivation helpers (Fase 2A) ──
   // Bron van waarheid: src/lib/derivations/financial.ts
-  // Override-model per veld: opgeslagen BAR/NAR/NOI/huurPerM2 wordt als
-  // handmatige snapshot beschouwd; anders wordt auto-derived gebruikt.
-  // Prijsindicatie wordt NOOIT gebruikt voor rendement/factor/€-m²-berekening.
+  //
+  // Definitiecorrectie Fase 2A:
+  //   - NOI wordt NIET automatisch afgeleid uit `servicekostenJaar`
+  //     (servicekosten ≠ exploitatiekosten). NOI toont alleen de
+  //     opgeslagen handmatige waarde of "onvoldoende gegevens".
+  //   - NAR wordt NIET automatisch berekend op basis van vraagprijs;
+  //     alleen opgeslagen handmatige waarde of "onvoldoende gegevens".
+  //   - `prijsindicatie` wordt NOOIT gebruikt voor BAR/NAR/factor/€-m².
+  //   - Bestaande handmatige waarden (BAR, huur/m²) worden nooit
+  //     overschreven — resolvers combineren auto + override read-only.
+  const m2VoorBerekening = getBerekenM2(object);
+
   const bar = resolveBAR(object.huurinkomsten, object.vraagprijs, object.brutoAanvangsrendement);
+  const noi = resolveManual(object.noi);
+  const nar = resolveManual(object.nettoAanvangsrendement);
+  const maandhuur = resolveMaandhuur(object.huurinkomsten);
+  const prijsPerM2 = resolvePricePerM2(object.vraagprijs, m2VoorBerekening);
+  const factor = resolveDerived(calculateFactor(object.vraagprijs, object.huurinkomsten), undefined);
+  const huurPerM2 = resolveDerived(
+    calculateRentPerM2(object.huurinkomsten, m2VoorBerekening),
+    object.huurPerM2,
+  );
+
+  // Backwards-compatible aliassen voor de HERO KPI-strip (niet aangepast in Fase 2A).
   const barEffect = bar.value;
   const barIsHandmatig = bar.source === 'override';
-
-  // NAR: NOI = override-waarde indien aanwezig, anders jaarhuur − servicekostenJaar
-  const noi = resolveNOI(object.huurinkomsten, object.servicekostenJaar, object.noi);
-  const noiEffect = noi.value;
-  const noiIsHandmatig = noi.source === 'override';
-
-  const nar = resolveNAR(noiEffect, object.vraagprijs, object.nettoAanvangsrendement);
-  const narEffect = nar.value;
-  const narIsHandmatig = nar.source === 'override';
-
-  const factor = calculateFactor(object.vraagprijs, object.huurinkomsten);
-  const maandhuur = calculateMonthlyRent(object.huurinkomsten);
-
-  const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
-  const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
-  const huurPerM2Auto = calculateRentPerM2(object.huurinkomsten, m2VoorBerekening);
-  const huurPerM2Resolved = resolveDerived(huurPerM2Auto, object.huurPerM2);
-  const huurPerM2Berekend = huurPerM2Resolved.value;
-  const huurPerM2IsHandmatig = huurPerM2Resolved.source === 'override';
-  const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
+  const prijsPerM2Str = prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : '—';
 
   // Lead deal voor cockpit — centrale selector (Prompt 3.6)
   const leadDeal = selectLeadDeal(deals, object.id);
