@@ -112,8 +112,8 @@ function MetricTile({
   hint?: string;
   accent?: boolean;
   tone?: 'default' | 'positive' | 'warning';
-  /** Subtiele bron-indicatie: AUTO (afgeleid) of HANDMATIG (override). */
-  badge?: 'auto' | 'handmatig';
+  /** Subtiele bron-indicatie: AUTO (afgeleid), HANDMATIG (override) of ONVOLDOENDE (geen data). */
+  badge?: 'auto' | 'handmatig' | 'onvoldoende';
 }) {
   const toneCls =
     tone === 'positive'
@@ -121,6 +121,20 @@ function MetricTile({
       : tone === 'warning'
       ? 'text-amber-600 dark:text-amber-400'
       : 'text-foreground';
+  const badgeCls =
+    badge === 'auto'
+      ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
+      : badge === 'handmatig'
+      ? 'border-accent/40 text-accent bg-accent/5'
+      : 'border-border/60 text-muted-foreground/70 bg-muted/30 italic';
+  const badgeLabel =
+    badge === 'auto' ? 'auto' : badge === 'handmatig' ? 'handm.' : 'geen data';
+  const badgeTitle =
+    badge === 'auto'
+      ? 'Automatisch afgeleid'
+      : badge === 'handmatig'
+      ? 'Handmatig ingevoerd / override'
+      : 'Onvoldoende gegevens voor berekening';
   return (
     <div
       className={`relative rounded-lg border border-border/60 bg-card/60 px-3.5 py-3 min-w-0 overflow-hidden ${
@@ -133,14 +147,10 @@ function MetricTile({
         </p>
         {badge && (
           <span
-            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${
-              badge === 'auto'
-                ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
-                : 'border-accent/40 text-accent bg-accent/5'
-            }`}
-            title={badge === 'auto' ? 'Automatisch afgeleid' : 'Handmatig ingevoerd / override'}
+            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${badgeCls}`}
+            title={badgeTitle}
           >
-            {badge === 'auto' ? 'auto' : 'handm.'}
+            {badgeLabel}
           </span>
         )}
       </div>
