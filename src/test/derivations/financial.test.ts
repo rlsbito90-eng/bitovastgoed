@@ -12,6 +12,10 @@ import {
   resolveDerived,
   resolveBAR,
   resolveNOI,
+  resolveManual,
+  resolveMaandhuur,
+  resolvePricePerM2,
+  getBerekenM2,
 } from '@/lib/derivations/financial';
 
 describe('financial — safeNumber / safeDivide', () => {
@@ -108,5 +112,100 @@ describe('financial — resolveDerived (override-model)', () => {
     expect(o.source).toBe('override');
     expect(o.value).toBe(75000);
     expect(o.delta).toBe(-5000);
+  });
+});
+
+describe('financial — getBerekenM2 (Fase 2A)', () => {
+  it('kiest VVO als eerste prioriteit', () => {
+    expect(getBerekenM2({ oppervlakteVvo: 500, oppervlakteGbo: 400, oppervlakte: 300 })).toBe(500);
+  });
+  it('valt terug op GBO als VVO ontbreekt', () => {
+    expect(getBerekenM2({ oppervlakteVvo: null, oppervlakteGbo: 400, oppervlakte: 300 })).toBe(400);
+  });
+  it('valt terug op oppervlakte als VVO en GBO ontbreken', () => {
+    expect(getBerekenM2({ oppervlakte: 300 })).toBe(300);
+  });
+  it('retourneert null bij lege of ongeldige waarden — geen NaN', () => {
+    expect(getBerekenM2({})).toBeNull();
+    expect(getBerekenM2(null)).toBeNull();
+    expect(getBerekenM2({ oppervlakteVvo: 0, oppervlakteGbo: -1, oppervlakte: null })).toBeNull();
+  });
+});
+
+describe('financial — resolvePricePerM2 / resolveMaandhuur (Fase 2A)', () => {
+  it('resolvePricePerM2: auto bij geldige input', () => {
+    const r = resolvePricePerM2(1_000_000, 500);
+    expect(r.value).toBe(2000);
+    expect(r.source).toBe('auto');
+  });
+  it('resolvePricePerM2: none bij ontbrekende m²', () => {
+    const r = resolvePricePerM2(1_000_000, null);
+    expect(r.value).toBeNull();
+    expect(r.source).toBe('none');
+  });
+  it('resolvePricePerM2: geen NaN bij 0/undefined', () => {
+    expect(resolvePricePerM2(0, 0).value).toBeNull();
+    expect(resolvePricePerM2(undefined, undefined).value).toBeNull();
+  });
+  it('resolveMaandhuur: auto bij geldige jaarhuur', () => {
+    const r = resolveMaandhuur(72000);
+    expect(r.value).toBe(6000);
+    expect(r.source).toBe('auto');
+  });
+  it('resolveMaandhuur: none zonder jaarhuur', () => {
+    expect(resolveMaandhuur(null).source).toBe('none');
+    expect(resolveMaandhuur(0).source).toBe('none');
+  });
+});
+
+describe('financial — resolveManual voor NOI/NAR (Fase 2A definitiecorrectie)', () => {
+  it('NOI: aanwezig object.noi → source=override (handmatig)', () => {
+    const r = resolveManual(80000);
+    expect(r.value).toBe(80000);
+    expect(r.source).toBe('override');
+  });
+  it('NOI: ontbrekend → source=none (onvoldoende gegevens)', () => {
+    expect(resolveManual(null).source).toBe('none');
+    expect(resolveManual(undefined).source).toBe('none');
+    expect(resolveManual('').source).toBe('none');
+  });
+  it('NAR: aanwezig nettoAanvangsrendement → source=override', () => {
+    expect(resolveManual(4.8).source).toBe('override');
+  });
+  it('NAR: ontbrekend → source=none, waarde null, geen automatische afleiding op vraagprijs', () => {
+    const r = resolveManual(undefined);
+    expect(r.value).toBeNull();
+    expect(r.source).toBe('none');
+    expect(r.auto).toBeNull();
+  });
+  it('servicekostenJaar wordt NIET als exploitatiekosten gebruikt in resolveManual (NOI)', () => {
+    // resolveManual krijgt alleen object.noi mee; servicekosten spelen geen rol.
+    const r = resolveManual(undefined);
+    expect(r.value).toBeNull();
+  });
+});
+
+describe('financial — BAR/huurPerM2 met handmatige override behouden waarde', () => {
+  it('BAR: opgeslagen override wint over auto', () => {
+    const r = resolveBAR(60000, 1_000_000, 5.5);
+    expect(r.value).toBe(5.5);
+    expect(r.source).toBe('override');
+    expect(r.auto).toBe(6);
+  });
+  it('huur/m² met override via resolveDerived', () => {
+    const auto = calculateRentPerM2(60000, 500); // 120
+    const r = resolveDerived(auto, 135);
+    expect(r.value).toBe(135);
+    expect(r.source).toBe('override');
+  });
+});
+
+describe('financial — prijsindicatie mag nooit input zijn voor rendementen', () => {
+  it('BAR met prijsindicatie-string als "vraagprijs" → null', () => {
+    // Een tekstuele prijsindicatie ("vanaf 1,2 mln") mag niet als getal
+    // worden geïnterpreteerd voor rendementsberekening.
+    expect(calculateBAR(60000, 'vanaf 1,2 mln')).toBeNull();
+    expect(calculateFactor('op aanvraag', 60000)).toBeNull();
+    expect(calculateNAR(50000, 'nader te bepalen')).toBeNull();
   });
 });

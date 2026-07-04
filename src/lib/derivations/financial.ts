@@ -168,9 +168,14 @@ export function resolveNAR(
 }
 
 /**
- * NOI-benadering op objectniveau: jaarhuur − servicekostenJaar.
- * Dit is een ruwe indicatie; Vastgoedrekenen blijft leidend voor scenario-NOI.
- * Een opgegeven `override` wint altijd.
+ * Legacy NOI-resolver.
+ *
+ * ⚠️ Deze helper behandelt `serviceCostsAnnual` als exploitatiekosten en
+ * berekent auto = jaarhuur − servicekostenJaar. Dat is inhoudelijk
+ * onjuist: servicekosten ≠ exploitatiekosten. Vanaf Fase 2A wordt op
+ * ObjectDetailPage geen automatische NOI meer afgeleid. Gebruik daar
+ * `resolveManual(object.noi)`; deze functie blijft bestaan voor
+ * backwards-compatibility van bestaande callers/tests.
  */
 export function resolveNOI(
   annualRent: unknown,
@@ -182,4 +187,65 @@ export function resolveNOI(
   const s = safeNumber(serviceCostsAnnual) ?? 0;
   const auto = a !== null && a > 0 ? a - s : null;
   return resolveDerived(auto, override, options);
+}
+
+// ── Fase 2A: nieuwe pure helpers voor read-only computed financials ─────────
+
+/**
+ * Kies canoniek m² voor financiële berekeningen op objectniveau.
+ *
+ * Prioriteit:
+ *   1. `oppervlakteVvo` — praktische standaard voor commerciële/beleggings-
+ *      objecten; VVO is doorgaans wat verhuurd/verkocht wordt.
+ *   2. `oppervlakteGbo` — fallback (voor woningen kan GBO inhoudelijk
+ *      leidend zijn; Fase 2A houdt één eenvoudige canonieke volgorde aan
+ *      en bepaalt geen asset-class-afhankelijke keuze).
+ *   3. `oppervlakte` — laatste fallback (generieke oppervlakte).
+ *
+ * Retourneert `null` bij ontbrekende, niet-numerieke of niet-positieve
+ * waarden — nooit `NaN` of `Infinity`.
+ */
+export function getBerekenM2(object: {
+  oppervlakteVvo?: number | null;
+  oppervlakteGbo?: number | null;
+  oppervlakte?: number | null;
+} | null | undefined): number | null {
+  if (!object) return null;
+  const candidates = [object.oppervlakteVvo, object.oppervlakteGbo, object.oppervlakte];
+  for (const c of candidates) {
+    const n = safeNumber(c);
+    if (n !== null && n > 0) return n;
+  }
+  return null;
+}
+
+/**
+ * €/m² als `DerivedValue`. `source='auto'` als vraagprijs en m² geldig
+ * zijn, anders `source='none'`. Geen override; consumers die een
+ * handmatige €/m² willen tonen kunnen `resolveDerived` gebruiken.
+ */
+export function resolvePricePerM2(price: unknown, m2: unknown): DerivedValue {
+  return resolveDerived(calculatePricePerM2(price, m2), undefined);
+}
+
+/**
+ * Maandhuur als `DerivedValue` uit jaarhuur/huurinkomsten. `source='auto'`
+ * als jaarhuur > 0, anders `source='none'`.
+ */
+export function resolveMaandhuur(annualRent: unknown): DerivedValue {
+  return resolveDerived(calculateMonthlyRent(annualRent), undefined);
+}
+
+/**
+ * Handmatig-only resolver: gebruikt uitsluitend de opgegeven opgeslagen
+ * waarde, doet géén automatische afleiding. `source='override'` als de
+ * waarde aanwezig en geldig is, anders `source='none'`.
+ *
+ * Gebruikt voor velden waar auto-berekening op objectniveau niet
+ * verantwoord is (bijv. NOI zonder exploitatiekosten, of NAR zonder
+ * echte NOI). De UI kan hierop een `handmatig` / `onvoldoende gegevens`
+ * badge tonen.
+ */
+export function resolveManual(override: unknown): DerivedValue {
+  return resolveDerived(null, override);
 }

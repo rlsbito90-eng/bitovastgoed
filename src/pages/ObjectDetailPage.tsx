@@ -25,11 +25,12 @@ import {
 } from '@/data/mock-data';
 import {
   resolveBAR,
-  resolveNAR,
-  resolveNOI,
   resolveDerived,
+  resolveManual,
+  resolveMaandhuur,
+  resolvePricePerM2,
+  getBerekenM2,
   calculateFactor,
-  calculateMonthlyRent,
   calculateRentPerM2,
   deriveVerhuurMetrics,
   isStrongMatch,
@@ -112,8 +113,8 @@ function MetricTile({
   hint?: string;
   accent?: boolean;
   tone?: 'default' | 'positive' | 'warning';
-  /** Subtiele bron-indicatie: AUTO (afgeleid) of HANDMATIG (override). */
-  badge?: 'auto' | 'handmatig';
+  /** Subtiele bron-indicatie: AUTO (afgeleid), HANDMATIG (override) of ONVOLDOENDE (geen data). */
+  badge?: 'auto' | 'handmatig' | 'onvoldoende';
 }) {
   const toneCls =
     tone === 'positive'
@@ -121,6 +122,20 @@ function MetricTile({
       : tone === 'warning'
       ? 'text-amber-600 dark:text-amber-400'
       : 'text-foreground';
+  const badgeCls =
+    badge === 'auto'
+      ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
+      : badge === 'handmatig'
+      ? 'border-accent/40 text-accent bg-accent/5'
+      : 'border-border/60 text-muted-foreground/70 bg-muted/30 italic';
+  const badgeLabel =
+    badge === 'auto' ? 'auto' : badge === 'handmatig' ? 'handm.' : 'geen data';
+  const badgeTitle =
+    badge === 'auto'
+      ? 'Automatisch afgeleid'
+      : badge === 'handmatig'
+      ? 'Handmatig ingevoerd / override'
+      : 'Onvoldoende gegevens voor berekening';
   return (
     <div
       className={`relative rounded-lg border border-border/60 bg-card/60 px-3.5 py-3 min-w-0 overflow-hidden ${
@@ -133,14 +148,10 @@ function MetricTile({
         </p>
         {badge && (
           <span
-            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${
-              badge === 'auto'
-                ? 'border-border/60 text-muted-foreground/80 bg-muted/40'
-                : 'border-accent/40 text-accent bg-accent/5'
-            }`}
-            title={badge === 'auto' ? 'Automatisch afgeleid' : 'Handmatig ingevoerd / override'}
+            className={`shrink-0 inline-flex items-center rounded-sm px-1 py-px text-[8.5px] font-semibold uppercase tracking-[0.08em] border ${badgeCls}`}
+            title={badgeTitle}
           >
-            {badge === 'auto' ? 'auto' : 'handm.'}
+            {badgeLabel}
           </span>
         )}
       </div>
@@ -841,34 +852,35 @@ export default function ObjectDetailPage() {
     return open[0] ?? null;
   })();
 
-  // ── Financiële KPI's via centrale derivation helpers (Prompt 3.2) ──
+  // ── Financiële KPI's via centrale derivation helpers (Fase 2A) ──
   // Bron van waarheid: src/lib/derivations/financial.ts
-  // Override-model per veld: opgeslagen BAR/NAR/NOI/huurPerM2 wordt als
-  // handmatige snapshot beschouwd; anders wordt auto-derived gebruikt.
-  // Prijsindicatie wordt NOOIT gebruikt voor rendement/factor/€-m²-berekening.
+  //
+  // Definitiecorrectie Fase 2A:
+  //   - NOI wordt NIET automatisch afgeleid uit `servicekostenJaar`
+  //     (servicekosten ≠ exploitatiekosten). NOI toont alleen de
+  //     opgeslagen handmatige waarde of "onvoldoende gegevens".
+  //   - NAR wordt NIET automatisch berekend op basis van vraagprijs;
+  //     alleen opgeslagen handmatige waarde of "onvoldoende gegevens".
+  //   - `prijsindicatie` wordt NOOIT gebruikt voor BAR/NAR/factor/€-m².
+  //   - Bestaande handmatige waarden (BAR, huur/m²) worden nooit
+  //     overschreven — resolvers combineren auto + override read-only.
+  const m2VoorBerekening = getBerekenM2(object);
+
   const bar = resolveBAR(object.huurinkomsten, object.vraagprijs, object.brutoAanvangsrendement);
+  const noi = resolveManual(object.noi);
+  const nar = resolveManual(object.nettoAanvangsrendement);
+  const maandhuur = resolveMaandhuur(object.huurinkomsten);
+  const prijsPerM2 = resolvePricePerM2(object.vraagprijs, m2VoorBerekening);
+  const factor = resolveDerived(calculateFactor(object.vraagprijs, object.huurinkomsten), undefined);
+  const huurPerM2 = resolveDerived(
+    calculateRentPerM2(object.huurinkomsten, m2VoorBerekening),
+    object.huurPerM2,
+  );
+
+  // Backwards-compatible aliassen voor de HERO KPI-strip (niet aangepast in Fase 2A).
   const barEffect = bar.value;
   const barIsHandmatig = bar.source === 'override';
-
-  // NAR: NOI = override-waarde indien aanwezig, anders jaarhuur − servicekostenJaar
-  const noi = resolveNOI(object.huurinkomsten, object.servicekostenJaar, object.noi);
-  const noiEffect = noi.value;
-  const noiIsHandmatig = noi.source === 'override';
-
-  const nar = resolveNAR(noiEffect, object.vraagprijs, object.nettoAanvangsrendement);
-  const narEffect = nar.value;
-  const narIsHandmatig = nar.source === 'override';
-
-  const factor = calculateFactor(object.vraagprijs, object.huurinkomsten);
-  const maandhuur = calculateMonthlyRent(object.huurinkomsten);
-
-  const m2VoorBerekening = object.oppervlakteVvo ?? object.oppervlakte;
-  const prijsPerM2Str = formatEurPerM2(object.vraagprijs, m2VoorBerekening);
-  const huurPerM2Auto = calculateRentPerM2(object.huurinkomsten, m2VoorBerekening);
-  const huurPerM2Resolved = resolveDerived(huurPerM2Auto, object.huurPerM2);
-  const huurPerM2Berekend = huurPerM2Resolved.value;
-  const huurPerM2IsHandmatig = huurPerM2Resolved.source === 'override';
-  const huurPerM2Str = formatHuurPerM2PerJaar(huurPerM2Berekend);
+  const prijsPerM2Str = prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : '—';
 
   // Lead deal voor cockpit — centrale selector (Prompt 3.6)
   const leadDeal = selectLeadDeal(deals, object.id);
@@ -1184,8 +1196,8 @@ export default function ObjectDetailPage() {
             />,
           );
         }
-        if (factor != null) {
-          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.toFixed(1)}×`} badge="auto" />);
+        if (factor.value != null) {
+          tiles.push(<MetricTile key="factor" label="Factor" value={`${factor.value.toFixed(1)}×`} badge="auto" />);
         }
         if (object.huurinkomsten) {
           tiles.push(
@@ -1193,7 +1205,7 @@ export default function ObjectDetailPage() {
               key="huur"
               label="Huur / jr"
               value={formatCurrencyCompact(object.huurinkomsten)}
-              hint={maandhuur != null ? `${formatCurrencyCompact(maandhuur)} / mnd` : undefined}
+              hint={maandhuur.value != null ? `${formatCurrencyCompact(maandhuur.value)} / mnd` : undefined}
             />,
           );
         }
@@ -1338,50 +1350,49 @@ export default function ObjectDetailPage() {
                 />
                 <MetricTile
                   label="BAR"
-                  value={barEffect != null ? formatPercent(barEffect, 2) : '—'}
-                  badge={barEffect != null ? (barIsHandmatig ? 'handmatig' : 'auto') : undefined}
+                  value={bar.value != null ? formatPercent(bar.value, 2) : 'onvoldoende gegevens'}
+                  badge={bar.value != null ? (bar.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
                 />
-                {narEffect != null && (
-                  <MetricTile
-                    label="NAR"
-                    value={formatPercent(narEffect, 2)}
-                    badge={narIsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="NAR"
+                  value={nar.value != null ? formatPercent(nar.value, 2) : 'onvoldoende gegevens'}
+                  badge={nar.value != null ? 'handmatig' : 'onvoldoende'}
+                />
                 <MetricTile
                   label="Factor"
-                  value={factor != null ? `${factor.toFixed(1)}×` : '—'}
-                  badge={factor != null ? 'auto' : undefined}
+                  value={factor.value != null ? `${factor.value.toFixed(1)}×` : 'onvoldoende gegevens'}
+                  badge={factor.value != null ? 'auto' : 'onvoldoende'}
                 />
-                {object.huurinkomsten != null && (
-                  <MetricTile label="Huur / jr" value={formatCurrency(object.huurinkomsten)} />
-                )}
-                {maandhuur != null && (
-                  <MetricTile
-                    label="Huur / mnd"
-                    value={formatCurrency(Math.round(maandhuur))}
-                    badge="auto"
-                  />
-                )}
-                {noiEffect != null && (
-                  <MetricTile
-                    label="NOI"
-                    value={formatCurrency(noiEffect)}
-                    tone="positive"
-                    badge={noiIsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="Huur / jr"
+                  value={object.huurinkomsten != null ? formatCurrency(object.huurinkomsten) : 'onvoldoende gegevens'}
+                  badge={object.huurinkomsten != null ? undefined : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="Huur / mnd"
+                  value={maandhuur.value != null ? formatCurrency(Math.round(maandhuur.value)) : 'onvoldoende gegevens'}
+                  badge={maandhuur.value != null ? 'auto' : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="NOI"
+                  value={noi.value != null ? formatCurrency(noi.value) : 'onvoldoende gegevens'}
+                  tone={noi.value != null ? 'positive' : 'default'}
+                  badge={noi.value != null ? 'handmatig' : 'onvoldoende'}
+                  hint={noi.value == null ? 'exploitatiekosten ontbreken' : undefined}
+                />
                 {object.servicekostenJaar != null && (
                   <MetricTile label="Servicekosten" value={formatCurrency(object.servicekostenJaar)} />
                 )}
-                <MetricTile label="€ / m²" value={prijsPerM2Str} badge="auto" />
-                {huurPerM2Berekend != null && (
-                  <MetricTile
-                    label="Huur / m²"
-                    value={huurPerM2Str}
-                    badge={huurPerM2IsHandmatig ? 'handmatig' : 'auto'}
-                  />
-                )}
+                <MetricTile
+                  label="€ / m²"
+                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens'}
+                  badge={prijsPerM2.value != null ? 'auto' : 'onvoldoende'}
+                />
+                <MetricTile
+                  label="Huur / m²"
+                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
+                  badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                />
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"
