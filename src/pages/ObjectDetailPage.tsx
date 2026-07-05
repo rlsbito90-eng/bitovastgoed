@@ -1404,6 +1404,7 @@ export default function ObjectDetailPage() {
                   label="BAR"
                   value={bar.value != null ? formatPercent(bar.value, 2) : 'onvoldoende gegevens'}
                   badge={bar.value != null ? (bar.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                  overrideInfo={barOverrideInfo}
                 />
                 <MetricTile
                   label="NAR"
