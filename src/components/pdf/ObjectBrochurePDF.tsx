@@ -21,6 +21,7 @@ import type { ObjectVastgoed, ObjectHuurder } from '@/data/mock-data';
 import {
   ASSET_CLASS_LABELS, ONDERHOUDSSTAAT_LABELS, DOCUMENT_TYPE_LABELS,
 } from '@/data/mock-data';
+import { getBerekenM2Bron } from '@/lib/derivations/financial';
 
 interface FotoRef { url: string; bijschrift?: string }
 
