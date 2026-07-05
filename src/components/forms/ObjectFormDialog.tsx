@@ -49,7 +49,7 @@ import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
-import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, AlertTriangle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
 import type { DocumentType } from '@/data/mock-data';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
