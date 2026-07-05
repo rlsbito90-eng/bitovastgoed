@@ -10,6 +10,7 @@
 //     plattegronden krijgen eigen sectie groot weergegeven.
 //   - Document past zich aan aan wat ingevuld is. Crasht nooit op ontbrekende foto's.
 
+import type { ReactNode } from 'react';
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import {
   colors, spacing, typography, pageStyles,
