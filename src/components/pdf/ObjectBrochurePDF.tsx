@@ -226,9 +226,36 @@ function show(toggles: Record<string, boolean> | undefined, key: string, hasCont
   return true;
 }
 
+// ── PDF-A: Rendementstegel ──────────────────────────────────────────
+function RendementTile({
+  label, value, caption,
+}: { label: string; value: string; caption?: string | null }) {
+  return (
+    <View style={styles.rendementTile}>
+      <Text style={styles.rendementTileLabel}>{label}</Text>
+      <Text style={styles.rendementTileValue}>{value}</Text>
+      {caption ? <Text style={styles.rendementTileCaption}>{caption}</Text> : null}
+    </View>
+  );
+}
+
+/** Rijen van maximaal 3 tegels, met lege placeholders zodat de grid uitgelijnd blijft. */
+function RendementRij({ children }: { children: React.ReactNode[] }) {
+  const gevuld = children.filter(Boolean);
+  if (gevuld.length === 0) return null;
+  // Vul aan tot 3 zodat flex-verdeling niet springt.
+  const items = [...gevuld];
+  while (items.length < 3) {
+    items.push(<View key={`spacer-${items.length}`} style={{ flex: 1 }} />);
+  }
+  return <View style={styles.rendementGrid}>{items}</View>;
+}
+
 // ---------------------------------------------------------------------
 // IM-component
 // ---------------------------------------------------------------------
+
+
 
 export default function ObjectBrochurePDF({
   object, hoofdfotoUrl, fotoUrls = [], plattegrondUrls = [], huurders = [],
