@@ -30,7 +30,6 @@ import {
   resolveMaandhuur,
   resolvePricePerM2,
   getBerekenM2Bron,
-  type BerekenM2Resultaat,
   calculateFactor,
   calculateRentPerM2,
   deriveVerhuurMetrics,
