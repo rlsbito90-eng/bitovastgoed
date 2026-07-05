@@ -718,7 +718,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                   const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
                   const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
                   // Fase 2C-1: geen automatische NAR-afleiding meer op form; NAR blijft handmatig.
-                  void calcNar;
                   const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
                   // Wanneer gebruiker niet handmatig invulde: toon afgeleide waarde live in het veld.
                   const huurPerM2Display = huurPerM2Manual
