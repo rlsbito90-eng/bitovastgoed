@@ -108,6 +108,7 @@ function MetricTile({
   accent,
   tone = 'default',
   badge,
+  overrideInfo,
 }: {
   label: string;
   value: ReactNode;
@@ -116,6 +117,12 @@ function MetricTile({
   tone?: 'default' | 'positive' | 'warning';
   /** Subtiele bron-indicatie: AUTO (afgeleid), HANDMATIG (override) of ONVOLDOENDE (geen data). */
   badge?: 'auto' | 'handmatig' | 'onvoldoende';
+  /**
+   * Alleen tonen wanneer `DerivedValue.source === 'override'` én zowel
+   * `auto` als `override` bekend zijn. Toont read-only auto-referentie en
+   * delta; bij `mismatch` een subtiel waarschuwingsicoon met tooltip.
+   */
+  overrideInfo?: { autoText: string; deltaText: string; mismatch?: boolean };
 }) {
   const toneCls =
     tone === 'positive'
@@ -159,9 +166,37 @@ function MetricTile({
       <p className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-none break-words ${toneCls}`}>
         {value}
       </p>
+      {overrideInfo && (
+        <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground leading-tight break-words">
+          <span className="truncate">
+            auto: {overrideInfo.autoText} · Δ {overrideInfo.deltaText}
+          </span>
+          {overrideInfo.mismatch && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="shrink-0 inline-flex text-amber-600 dark:text-amber-400" aria-label="Handmatige waarde wijkt af van berekening">
+                    <AlertTriangle className="h-3 w-3" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[220px] text-xs">
+                  Handmatige waarde wijkt af van berekening
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </p>
+      )}
       {hint && <p className="mt-1 text-[10px] text-muted-foreground truncate">{hint}</p>}
     </div>
   );
+}
+
+/** Formatteert delta met expliciet teken. Retourneert `null` bij niet-geldige delta. */
+function formatSignedDelta(delta: number | null | undefined, formatter: (n: number) => string): string | null {
+  if (delta == null || !Number.isFinite(delta)) return null;
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '±';
+  return `${sign}${formatter(Math.abs(delta))}`;
 }
 
 /** Header chip for hero metadata strip */
