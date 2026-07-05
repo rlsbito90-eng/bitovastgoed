@@ -913,6 +913,22 @@ export default function ObjectDetailPage() {
     object.huurPerM2,
   );
 
+  // Fase 2B: bouw override/delta-info alleen wanneer bewust handmatige waarde
+  // afwijkt van betrouwbare automatische afleiding. NOI/NAR blijven bewust
+  // buiten scope (geen betrouwbare auto-basis in Fase 2A definitie).
+  function buildOverrideInfo(
+    dv: { source: string; auto: number | null; override: number | null; delta: number | null; mismatch: boolean },
+    formatter: (n: number) => string,
+  ): { autoText: string; deltaText: string; mismatch: boolean } | undefined {
+    if (dv.source !== 'override') return undefined;
+    if (dv.auto == null || dv.override == null) return undefined;
+    const deltaText = formatSignedDelta(dv.delta, formatter);
+    if (deltaText == null) return undefined;
+    return { autoText: formatter(dv.auto), deltaText, mismatch: dv.mismatch };
+  }
+  const barOverrideInfo = buildOverrideInfo(bar, (n) => formatPercent(n, 2));
+  const huurPerM2OverrideInfo = buildOverrideInfo(huurPerM2, (n) => formatHuurPerM2PerJaar(n));
+
   // Backwards-compatible aliassen voor de HERO KPI-strip (niet aangepast in Fase 2A).
   const barEffect = bar.value;
   const barIsHandmatig = bar.source === 'override';
