@@ -251,6 +251,50 @@ export default function ObjectBrochurePDF({
     ? object.vraagprijs / object.huurinkomsten
     : null;
 
+  // ── PDF-A: Rendementsblok ────────────────────────────────────────────
+  // Gebruikt assetclass-afhankelijke m²-bron (Fase 2C-2b). BVO nooit.
+  // Overige PDF-secties blijven de bestaande lokale m²-logica gebruiken;
+  // brede refactor volgt in PDF-C.
+  const m2Res = getBerekenM2Bron(object, object.type);
+  const m2Rend = m2Res.m2;
+  const isOntwikkellocatie = object.type === 'ontwikkellocatie';
+
+  const rendVraagprijs = object.vraagprijs != null && object.vraagprijs > 0 ? object.vraagprijs : null;
+  const rendJaarhuur = object.huurinkomsten != null && object.huurinkomsten > 0 ? object.huurinkomsten : null;
+  const rendBar = object.brutoAanvangsrendement ?? (
+    rendJaarhuur && rendVraagprijs ? (rendJaarhuur / rendVraagprijs) * 100 : null
+  );
+  const rendFactor = (rendJaarhuur && rendVraagprijs) ? rendVraagprijs / rendJaarhuur : null;
+  const rendHuurPerM2 = !isOntwikkellocatie
+    ? (object.huurPerM2 ?? (rendJaarhuur && m2Rend ? Math.round(rendJaarhuur / m2Rend) : null))
+    : null;
+  const rendPrijsPerM2 = !isOntwikkellocatie && rendVraagprijs && m2Rend
+    ? Math.round(rendVraagprijs / m2Rend)
+    : null;
+
+  const rendNoi = object.noi != null ? object.noi : null;
+  const rendNar = object.nettoAanvangsrendement != null ? object.nettoAanvangsrendement : null;
+
+  // Context "o.b.v. huidige huur" bij (gedeeltelijke) verhuur waar
+  // huurinkomsten actuele huur representeert.
+  const huurContext = rendJaarhuur != null
+    && (object.verhuurStatus === 'gedeeltelijk' || object.verhuurStatus === 'verhuurd')
+    ? 'o.b.v. huidige huur'
+    : null;
+
+  // Bron-kanttekening voor mixed_use / zorgvastgoed.
+  const m2Kanttekening =
+    object.type === 'mixed_use' ? 'componentsplitsing volgt' :
+    object.type === 'zorgvastgoed' ? 'marktstandaard varieert' :
+    null;
+
+  // Tegels zichtbaar?
+  const rendementTegels = [
+    rendVraagprijs, rendJaarhuur, rendBar, rendFactor, rendHuurPerM2, rendPrijsPerM2,
+  ].filter(v => v != null);
+  const heeftRendementsblok = rendementTegels.length > 0 || rendNoi != null || rendNar != null;
+
+
   const datum = formatDate(new Date().toISOString());
   const fullAssetLabel = subcategorieLabel
     ? `${ASSET_CLASS_LABELS[object.type]} · ${subcategorieLabel}`
