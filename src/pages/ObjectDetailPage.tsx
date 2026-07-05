@@ -46,8 +46,9 @@ import {
   FileText, Download, Building2, Phone, Mail,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
-  Info, Calendar, Target, AlertCircle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
+  Info, Calendar, Target, AlertCircle, AlertTriangle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -107,6 +108,7 @@ function MetricTile({
   accent,
   tone = 'default',
   badge,
+  overrideInfo,
 }: {
   label: string;
   value: ReactNode;
@@ -115,6 +117,12 @@ function MetricTile({
   tone?: 'default' | 'positive' | 'warning';
   /** Subtiele bron-indicatie: AUTO (afgeleid), HANDMATIG (override) of ONVOLDOENDE (geen data). */
   badge?: 'auto' | 'handmatig' | 'onvoldoende';
+  /**
+   * Alleen tonen wanneer `DerivedValue.source === 'override'` én zowel
+   * `auto` als `override` bekend zijn. Toont read-only auto-referentie en
+   * delta; bij `mismatch` een subtiel waarschuwingsicoon met tooltip.
+   */
+  overrideInfo?: { autoText: string; deltaText: string; mismatch?: boolean };
 }) {
   const toneCls =
     tone === 'positive'
@@ -158,9 +166,37 @@ function MetricTile({
       <p className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-none break-words ${toneCls}`}>
         {value}
       </p>
+      {overrideInfo && (
+        <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground leading-tight break-words">
+          <span className="truncate">
+            auto: {overrideInfo.autoText} · Δ {overrideInfo.deltaText}
+          </span>
+          {overrideInfo.mismatch && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="shrink-0 inline-flex text-amber-600 dark:text-amber-400" aria-label="Handmatige waarde wijkt af van berekening">
+                    <AlertTriangle className="h-3 w-3" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[220px] text-xs">
+                  Handmatige waarde wijkt af van berekening
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </p>
+      )}
       {hint && <p className="mt-1 text-[10px] text-muted-foreground truncate">{hint}</p>}
     </div>
   );
+}
+
+/** Formatteert delta met expliciet teken. Retourneert `null` bij niet-geldige delta. */
+function formatSignedDelta(delta: number | null | undefined, formatter: (n: number) => string): string | null {
+  if (delta == null || !Number.isFinite(delta)) return null;
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '±';
+  return `${sign}${formatter(Math.abs(delta))}`;
 }
 
 /** Header chip for hero metadata strip */
@@ -877,6 +913,22 @@ export default function ObjectDetailPage() {
     object.huurPerM2,
   );
 
+  // Fase 2B: bouw override/delta-info alleen wanneer bewust handmatige waarde
+  // afwijkt van betrouwbare automatische afleiding. NOI/NAR blijven bewust
+  // buiten scope (geen betrouwbare auto-basis in Fase 2A definitie).
+  function buildOverrideInfo(
+    dv: { source: string; auto: number | null; override: number | null; delta: number | null; mismatch: boolean },
+    formatter: (n: number) => string,
+  ): { autoText: string; deltaText: string; mismatch: boolean } | undefined {
+    if (dv.source !== 'override') return undefined;
+    if (dv.auto == null || dv.override == null) return undefined;
+    const deltaText = formatSignedDelta(dv.delta, formatter);
+    if (deltaText == null) return undefined;
+    return { autoText: formatter(dv.auto), deltaText, mismatch: dv.mismatch };
+  }
+  const barOverrideInfo = buildOverrideInfo(bar, (n) => formatPercent(n, 2));
+  const huurPerM2OverrideInfo = buildOverrideInfo(huurPerM2, (n) => formatHuurPerM2PerJaar(n));
+
   // Backwards-compatible aliassen voor de HERO KPI-strip (niet aangepast in Fase 2A).
   const barEffect = bar.value;
   const barIsHandmatig = bar.source === 'override';
@@ -1352,6 +1404,7 @@ export default function ObjectDetailPage() {
                   label="BAR"
                   value={bar.value != null ? formatPercent(bar.value, 2) : 'onvoldoende gegevens'}
                   badge={bar.value != null ? (bar.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                  overrideInfo={barOverrideInfo}
                 />
                 <MetricTile
                   label="NAR"
@@ -1392,6 +1445,7 @@ export default function ObjectDetailPage() {
                   label="Huur / m²"
                   value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
                   badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                  overrideInfo={huurPerM2OverrideInfo}
                 />
                 {object.wozWaarde != null && (
                   <MetricTile
