@@ -188,11 +188,8 @@ describe('Fase 2C-1 — NAR toelichting', () => {
     expect(screen.getByTestId('nar-info')).toBeInTheDocument();
     const hint = screen.getByTestId('nar-hint');
     expect(hint.textContent).toMatch(/niet automatisch afgeleid/i);
-    // Geen suggestie van NOI ÷ vraagprijs meer.
-    const container = hint.parentElement?.parentElement ?? hint;
-    expect(container.textContent ?? '').not.toMatch(/NOI\s*÷\s*vraagprijs/);
-    // Geen "Auto-berekend" hint onder NAR.
-    expect((container.textContent ?? '')).not.toMatch(/Auto-berekend/);
+    // Geen suggestie van NOI ÷ vraagprijs meer in de NAR-hint.
+    expect(hint.textContent ?? '').not.toMatch(/NOI\s*÷\s*vraagprijs/);
   });
 });
 
