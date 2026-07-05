@@ -773,13 +773,14 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                               <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="huurperm2-delta">
                                 <span>auto: {fmtEuroNL(autoHuurPerM2, { decimals: 2, suffix: '/m²' })} · Δ {deltaStr}</span>
                                 {mismatch && (
-                                  <AlertTriangle
-                                    className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400"
+                                  <span
+                                    title="Handmatige waarde wijkt af van berekening"
                                     aria-label="Handmatige waarde wijkt af van berekening"
                                     data-testid="huurperm2-mismatch"
+                                    className="inline-flex text-amber-600 dark:text-amber-400"
                                   >
-                                    <title>Handmatige waarde wijkt af van berekening</title>
-                                  </AlertTriangle>
+                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  </span>
                                 )}
                               </p>
                             );
