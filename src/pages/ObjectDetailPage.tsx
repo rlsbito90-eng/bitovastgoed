@@ -29,7 +29,7 @@ import {
   resolveManual,
   resolveMaandhuur,
   resolvePricePerM2,
-  getBerekenM2,
+  getBerekenM2Bron,
   calculateFactor,
   calculateRentPerM2,
   deriveVerhuurMetrics,
@@ -900,7 +900,23 @@ export default function ObjectDetailPage() {
   //   - `prijsindicatie` wordt NOOIT gebruikt voor BAR/NAR/factor/€-m².
   //   - Bestaande handmatige waarden (BAR, huur/m²) worden nooit
   //     overschreven — resolvers combineren auto + override read-only.
-  const m2VoorBerekening = getBerekenM2(object);
+  // Fase 2C-2b (Slice B1): assetclass-afhankelijke m²-bron.
+  // ObjectVastgoed.type bevat de AssetClass (wonen/kantoren/...). Dit veld is
+  // op bestaande objecten doorgaans gevuld (verplicht bij aanmaken via
+  // formulier); mocht het toch ontbreken dan valt getBerekenM2Bron terug op
+  // de Fase 2A-default volgorde (VVO → GBO → oppervlakte), waardoor gedrag
+  // backwards-compatible blijft.
+  const m2Bron = getBerekenM2Bron(object, (object as { type?: string | null }).type ?? null);
+  const m2VoorBerekening = m2Bron.m2;
+  const m2BronHint = ((): string | undefined => {
+    if (m2Bron.bron === 'none') return undefined;
+    const parts: string[] = [m2Bron.label];
+    if (m2Bron.fallback) parts.push('primaire bron ontbreekt, fallback gebruikt');
+    const ac = (object as { type?: string | null }).type;
+    if (ac === 'zorgvastgoed') parts.push('marktstandaard varieert');
+    else if (ac === 'mixed_use') parts.push('mixed-use, componentsplitsing volgt');
+    return parts.join(' · ');
+  })();
 
   const bar = resolveBAR(object.huurinkomsten, object.vraagprijs, object.brutoAanvangsrendement);
   const noi = resolveManual(object.noi);
@@ -1235,7 +1251,7 @@ export default function ObjectDetailPage() {
           );
         }
         if (object.vraagprijs != null && m2VoorBerekening) {
-          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" />);
+          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" hint={m2BronHint} />);
         }
         if (barEffect != null) {
           tiles.push(
@@ -1438,15 +1454,18 @@ export default function ObjectDetailPage() {
                 )}
                 <MetricTile
                   label="€ / m²"
-                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens'}
+                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens voor m²-berekening'}
                   badge={prijsPerM2.value != null ? 'auto' : 'onvoldoende'}
+                  hint={prijsPerM2.value != null ? m2BronHint : undefined}
                 />
                 <MetricTile
                   label="Huur / m²"
-                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
+                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens voor m²-berekening'}
                   badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
                   overrideInfo={huurPerM2OverrideInfo}
+                  hint={huurPerM2.value != null ? m2BronHint : undefined}
                 />
+
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"
