@@ -10,6 +10,7 @@
 //     plattegronden krijgen eigen sectie groot weergegeven.
 //   - Document past zich aan aan wat ingevuld is. Crasht nooit op ontbrekende foto's.
 
+import type { ReactNode } from 'react';
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import {
   colors, spacing, typography, pageStyles,
@@ -21,6 +22,7 @@ import type { ObjectVastgoed, ObjectHuurder } from '@/data/mock-data';
 import {
   ASSET_CLASS_LABELS, ONDERHOUDSSTAAT_LABELS, DOCUMENT_TYPE_LABELS,
 } from '@/data/mock-data';
+import { getBerekenM2Bron } from '@/lib/derivations/financial';
 
 interface FotoRef { url: string; bijschrift?: string }
 
@@ -155,6 +157,53 @@ const styles = StyleSheet.create({
   },
   contactNaam: { fontFamily: 'Inter', fontSize: 12, fontWeight: 600, color: colors.white },
   contactRegel: { fontFamily: 'Inter', fontSize: 9.5, color: colors.accentLight, marginTop: 3 },
+
+  // === RENDEMENT-BLOK (PDF-A) — compacte metric-tegels ===
+  rendementGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  rendementTile: {
+    flex: 1,
+    paddingHorizontal: spacing.md + 2,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.dragerSubtle,
+    borderTopWidth: 1.25,
+    borderTopColor: colors.accent,
+    minHeight: 58,
+  },
+  rendementTileLabel: {
+    fontFamily: 'Inter',
+    fontSize: 7,
+    fontWeight: 600,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  rendementTileValue: {
+    fontFamily: 'IBM Plex Mono',
+    fontSize: 13,
+    fontWeight: 600,
+    color: colors.primary,
+    letterSpacing: -0.2,
+    marginTop: 3,
+  },
+  rendementTileCaption: {
+    fontFamily: 'Inter',
+    fontSize: 6.5,
+    color: colors.textLight,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  rendementBronRegel: {
+    fontFamily: 'Inter',
+    fontSize: 7,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+  },
 });
 
 // ---------------------------------------------------------------------
@@ -178,9 +227,36 @@ function show(toggles: Record<string, boolean> | undefined, key: string, hasCont
   return true;
 }
 
+// ── PDF-A: Rendementstegel ──────────────────────────────────────────
+function RendementTile({
+  label, value, caption,
+}: { label: string; value: string; caption?: string | null }) {
+  return (
+    <View style={styles.rendementTile}>
+      <Text style={styles.rendementTileLabel}>{label}</Text>
+      <Text style={styles.rendementTileValue}>{value}</Text>
+      {caption ? <Text style={styles.rendementTileCaption}>{caption}</Text> : null}
+    </View>
+  );
+}
+
+/** Rijen van maximaal 3 tegels, met lege placeholders zodat de grid uitgelijnd blijft. */
+function RendementRij({ children }: { children: ReactNode[] }) {
+  const gevuld = children.filter(Boolean);
+  if (gevuld.length === 0) return null;
+  // Vul aan tot 3 zodat flex-verdeling niet springt.
+  const items = [...gevuld];
+  while (items.length < 3) {
+    items.push(<View key={`spacer-${items.length}`} style={{ flex: 1 }} />);
+  }
+  return <View style={styles.rendementGrid}>{items}</View>;
+}
+
 // ---------------------------------------------------------------------
 // IM-component
 // ---------------------------------------------------------------------
+
+
 
 export default function ObjectBrochurePDF({
   object, hoofdfotoUrl, fotoUrls = [], plattegrondUrls = [], huurders = [],
@@ -202,6 +278,50 @@ export default function ObjectBrochurePDF({
   const factor = (object.huurinkomsten && object.vraagprijs)
     ? object.vraagprijs / object.huurinkomsten
     : null;
+
+  // ── PDF-A: Rendementsblok ────────────────────────────────────────────
+  // Gebruikt assetclass-afhankelijke m²-bron (Fase 2C-2b). BVO nooit.
+  // Overige PDF-secties blijven de bestaande lokale m²-logica gebruiken;
+  // brede refactor volgt in PDF-C.
+  const m2Res = getBerekenM2Bron(object, object.type);
+  const m2Rend = m2Res.m2;
+  const isOntwikkellocatie = object.type === 'ontwikkellocatie';
+
+  const rendVraagprijs = object.vraagprijs != null && object.vraagprijs > 0 ? object.vraagprijs : null;
+  const rendJaarhuur = object.huurinkomsten != null && object.huurinkomsten > 0 ? object.huurinkomsten : null;
+  const rendBar = object.brutoAanvangsrendement ?? (
+    rendJaarhuur && rendVraagprijs ? (rendJaarhuur / rendVraagprijs) * 100 : null
+  );
+  const rendFactor = (rendJaarhuur && rendVraagprijs) ? rendVraagprijs / rendJaarhuur : null;
+  const rendHuurPerM2 = !isOntwikkellocatie
+    ? (object.huurPerM2 ?? (rendJaarhuur && m2Rend ? Math.round(rendJaarhuur / m2Rend) : null))
+    : null;
+  const rendPrijsPerM2 = !isOntwikkellocatie && rendVraagprijs && m2Rend
+    ? Math.round(rendVraagprijs / m2Rend)
+    : null;
+
+  const rendNoi = object.noi != null ? object.noi : null;
+  const rendNar = object.nettoAanvangsrendement != null ? object.nettoAanvangsrendement : null;
+
+  // Context "o.b.v. huidige huur" bij (gedeeltelijke) verhuur waar
+  // huurinkomsten actuele huur representeert.
+  const huurContext = rendJaarhuur != null
+    && (object.verhuurStatus === 'gedeeltelijk' || object.verhuurStatus === 'verhuurd')
+    ? 'o.b.v. huidige huur'
+    : null;
+
+  // Bron-kanttekening voor mixed_use / zorgvastgoed.
+  const m2Kanttekening =
+    object.type === 'mixed_use' ? 'componentsplitsing volgt' :
+    object.type === 'zorgvastgoed' ? 'marktstandaard varieert' :
+    null;
+
+  // Tegels zichtbaar?
+  const rendementTegels = [
+    rendVraagprijs, rendJaarhuur, rendBar, rendFactor, rendHuurPerM2, rendPrijsPerM2,
+  ].filter(v => v != null);
+  const heeftRendementsblok = rendementTegels.length > 0 || rendNoi != null || rendNar != null;
+
 
   const datum = formatDate(new Date().toISOString());
   const fullAssetLabel = subcategorieLabel
@@ -493,12 +613,86 @@ export default function ObjectBrochurePDF({
       {/* ============================== */}
       {/* PAGINA — Oppervlakten + Huur + Financieel */}
       {/* ============================== */}
-      {(show(t, 'oppervlakten', oppRijen.length > 0)
+      {(heeftRendementsblok
+        || show(t, 'oppervlakten', oppRijen.length > 0)
         || show(t, 'huur', heeftHuurInfo)
         || show(t, 'financieel', finRows.length > 0 || marktwaarde != null || heeftScenarios)) && (
         <Page size="A4" style={pageStyles.page}>
           <PageHeader refNummer={object.internReferentienummer} datum={datum} logoUri={BITO_LOGO_URL} />
           <View style={styles.body}>
+
+            {/* PDF-A. RENDEMENTSBLOK — compact overzicht kerncijfers */}
+            {heeftRendementsblok && (
+              <View style={{ marginBottom: spacing.lg }} wrap={false}>
+                <SectionTitle>Rendement en kerncijfers</SectionTitle>
+
+                <RendementRij>
+                  {[
+                    rendVraagprijs != null ? (
+                      <RendementTile key="vp" label="Vraagprijs" value={formatEuro(rendVraagprijs)} />
+                    ) : null,
+                    rendJaarhuur != null ? (
+                      <RendementTile key="jh" label="Jaarhuur" value={formatEuro(rendJaarhuur)} caption={huurContext} />
+                    ) : null,
+                    rendBar != null ? (
+                      <RendementTile key="bar" label="BAR" value={formatPercent(rendBar)} caption={huurContext} />
+                    ) : null,
+                  ]}
+                </RendementRij>
+
+                <RendementRij>
+                  {[
+                    rendFactor != null ? (
+                      <RendementTile
+                        key="factor"
+                        label="Factor"
+                        value={`${rendFactor.toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`}
+                        caption={huurContext}
+                      />
+                    ) : null,
+                    rendHuurPerM2 != null ? (
+                      <RendementTile
+                        key="hpm"
+                        label="Huur / m²"
+                        value={`€ ${rendHuurPerM2.toLocaleString('nl-NL')}`}
+                        caption={[m2Res.label, m2Kanttekening, huurContext].filter(Boolean).join(' · ')}
+                      />
+                    ) : null,
+                    rendPrijsPerM2 != null ? (
+                      <RendementTile
+                        key="ppm"
+                        label="€ / m² koopprijs"
+                        value={`€ ${rendPrijsPerM2.toLocaleString('nl-NL')}`}
+                        caption={[m2Res.label, m2Kanttekening].filter(Boolean).join(' · ')}
+                      />
+                    ) : null,
+                  ]}
+                </RendementRij>
+
+                {(rendNoi != null || rendNar != null) && (
+                  <RendementRij>
+                    {[
+                      rendNoi != null ? (
+                        <RendementTile key="noi" label="NOI (handmatig)" value={formatEuro(rendNoi)} />
+                      ) : null,
+                      rendNar != null ? (
+                        <RendementTile key="nar" label="NAR (handmatig)" value={formatPercent(rendNar)} />
+                      ) : null,
+                    ]}
+                  </RendementRij>
+                )}
+
+                {m2Res.bron === 'none' && (rendVraagprijs != null || rendJaarhuur != null) && (
+                  <Text style={styles.rendementBronRegel}>
+                    {isOntwikkellocatie
+                      ? 'Ontwikkellocatie — geen automatische m²-berekening'
+                      : 'Onvoldoende gegevens voor m²-berekening (BVO telt niet als rekenbron)'}
+                  </Text>
+                )}
+              </View>
+            )}
+
+
 
             {/* 9. OPPERVLAKTEN */}
             {show(t, 'oppervlakten', oppRijen.length > 0) && (
