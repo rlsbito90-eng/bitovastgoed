@@ -241,7 +241,7 @@ function RendementTile({
 }
 
 /** Rijen van maximaal 3 tegels, met lege placeholders zodat de grid uitgelijnd blijft. */
-function RendementRij({ children }: { children: React.ReactNode[] }) {
+function RendementRij({ children }: { children: ReactNode[] }) {
   const gevuld = children.filter(Boolean);
   if (gevuld.length === 0) return null;
   // Vul aan tot 3 zodat flex-verdeling niet springt.
