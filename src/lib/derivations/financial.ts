@@ -205,18 +205,119 @@ export function resolveNOI(
  * Retourneert `null` bij ontbrekende, niet-numerieke of niet-positieve
  * waarden — nooit `NaN` of `Infinity`.
  */
-export function getBerekenM2(object: {
+export interface M2Object {
   oppervlakteVvo?: number | null;
   oppervlakteGbo?: number | null;
   oppervlakte?: number | null;
-} | null | undefined): number | null {
-  if (!object) return null;
-  const candidates = [object.oppervlakteVvo, object.oppervlakteGbo, object.oppervlakte];
-  for (const c of candidates) {
-    const n = safeNumber(c);
-    if (n !== null && n > 0) return n;
+  /**
+   * ⚠️ `oppervlakteBvo` is bewust NIET opgenomen. BVO is informatief
+   * en mag nooit automatisch als rekenbron dienen voor €/m², huur/m²
+   * of rendement. Toevoegen aan deze interface zou de verkeerde
+   * suggestie wekken dat het meegenomen wordt in de keten.
+   */
+}
+
+export type M2Bron = 'gbo' | 'vvo' | 'oppervlakte' | 'none';
+
+export interface BerekenM2Resultaat {
+  m2: number | null;
+  bron: M2Bron;
+  /** true als de primaire bron voor de asset-class ontbrak en er is teruggevallen. */
+  fallback: boolean;
+  /** UI-label, bijv. "GBO gebruikt" of "Onvoldoende gegevens voor m²-berekening". */
+  label: string;
+}
+
+/**
+ * Volgorde-tabel per asset-class. `null` = geen automatische m²-bron
+ * (bijv. `ontwikkellocatie`). Onbekende asset-classes vallen terug op
+ * `DEFAULT_VOLGORDE` (huidig Fase 2A-gedrag: VVO → GBO → oppervlakte).
+ *
+ * BVO staat bewust in geen enkele volgorde — zie interface-comment.
+ */
+const DEFAULT_VOLGORDE: readonly Exclude<M2Bron, 'none'>[] = ['vvo', 'gbo', 'oppervlakte'];
+
+const M2_VOLGORDE_PER_ASSETCLASS: Record<string, readonly Exclude<M2Bron, 'none'>[] | null> = {
+  wonen: ['gbo', 'vvo', 'oppervlakte'],
+  kantoren: ['vvo', 'gbo', 'oppervlakte'],
+  winkels: ['vvo', 'gbo', 'oppervlakte'],
+  bedrijfshallen: ['vvo', 'gbo', 'oppervlakte'],
+  logistiek: ['vvo', 'gbo', 'oppervlakte'],
+  industrieel: ['vvo', 'gbo', 'oppervlakte'],
+  hotels: ['vvo', 'oppervlakte'],
+  zorgvastgoed: ['vvo', 'gbo', 'oppervlakte'],
+  mixed_use: ['vvo', 'gbo', 'oppervlakte'],
+  ontwikkellocatie: null,
+};
+
+const BRON_LABEL: Record<Exclude<M2Bron, 'none'>, string> = {
+  gbo: 'GBO gebruikt',
+  vvo: 'VVO gebruikt',
+  oppervlakte: 'Oppervlakte gebruikt',
+};
+
+const LABEL_ONVOLDOENDE = 'Onvoldoende gegevens voor m²-berekening';
+
+function readBron(object: M2Object, bron: Exclude<M2Bron, 'none'>): number | null {
+  const raw =
+    bron === 'gbo' ? object.oppervlakteGbo
+    : bron === 'vvo' ? object.oppervlakteVvo
+    : object.oppervlakte;
+  const n = safeNumber(raw);
+  return n !== null && n > 0 ? n : null;
+}
+
+/**
+ * Backwards-compatible m²-keuze.
+ *
+ * - `getBerekenM2(object)` zonder `assetClass` behoudt Fase 2A-gedrag:
+ *   VVO → GBO → oppervlakte. Bestaande consumers wijzigen niet.
+ * - `getBerekenM2(object, assetClass)` gebruikt de asset-class-tabel
+ *   (zie `M2_VOLGORDE_PER_ASSETCLASS`). Voor `ontwikkellocatie`
+ *   retourneert deze `null` (geen automatische rekenbron).
+ * - `oppervlakteBvo` wordt NOOIT meegenomen — ook niet als laatste
+ *   fallback. Als enkel BVO bekend is → `null`.
+ */
+export function getBerekenM2(
+  object: M2Object | null | undefined,
+  assetClass?: string | null,
+): number | null {
+  return getBerekenM2Bron(object, assetClass).m2;
+}
+
+/**
+ * Rijke variant die naast `m2` ook de gekozen bron, fallback-vlag en
+ * een UI-label retourneert. UI-consumers gebruiken deze voor bronbadges.
+ *
+ * BVO-regel (hard): `oppervlakteBvo` komt in geen enkele fallback-keten
+ * voor. Als alleen BVO bekend is → `bron: 'none'`,
+ * `label: 'Onvoldoende gegevens voor m²-berekening'`.
+ */
+export function getBerekenM2Bron(
+  object: M2Object | null | undefined,
+  assetClass?: string | null,
+): BerekenM2Resultaat {
+  if (!object) {
+    return { m2: null, bron: 'none', fallback: false, label: LABEL_ONVOLDOENDE };
   }
-  return null;
+
+  // Expliciete "geen rekenbron" case (bijv. ontwikkellocatie).
+  if (assetClass && M2_VOLGORDE_PER_ASSETCLASS[assetClass] === null) {
+    return { m2: null, bron: 'none', fallback: false, label: LABEL_ONVOLDOENDE };
+  }
+
+  const volgorde =
+    (assetClass && M2_VOLGORDE_PER_ASSETCLASS[assetClass]) || DEFAULT_VOLGORDE;
+
+  for (let i = 0; i < volgorde.length; i++) {
+    const bron = volgorde[i];
+    const m2 = readBron(object, bron);
+    if (m2 !== null) {
+      return { m2, bron, fallback: i > 0, label: BRON_LABEL[bron] };
+    }
+  }
+
+  return { m2: null, bron: 'none', fallback: false, label: LABEL_ONVOLDOENDE };
 }
 
 /**
