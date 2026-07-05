@@ -156,6 +156,53 @@ const styles = StyleSheet.create({
   },
   contactNaam: { fontFamily: 'Inter', fontSize: 12, fontWeight: 600, color: colors.white },
   contactRegel: { fontFamily: 'Inter', fontSize: 9.5, color: colors.accentLight, marginTop: 3 },
+
+  // === RENDEMENT-BLOK (PDF-A) — compacte metric-tegels ===
+  rendementGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  rendementTile: {
+    flex: 1,
+    paddingHorizontal: spacing.md + 2,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.dragerSubtle,
+    borderTopWidth: 1.25,
+    borderTopColor: colors.accent,
+    minHeight: 58,
+  },
+  rendementTileLabel: {
+    fontFamily: 'Inter',
+    fontSize: 7,
+    fontWeight: 600,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  rendementTileValue: {
+    fontFamily: 'IBM Plex Mono',
+    fontSize: 13,
+    fontWeight: 600,
+    color: colors.primary,
+    letterSpacing: -0.2,
+    marginTop: 3,
+  },
+  rendementTileCaption: {
+    fontFamily: 'Inter',
+    fontSize: 6.5,
+    color: colors.textLight,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  rendementBronRegel: {
+    fontFamily: 'Inter',
+    fontSize: 7,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+  },
 });
 
 // ---------------------------------------------------------------------
