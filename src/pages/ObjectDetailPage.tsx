@@ -1445,6 +1445,7 @@ export default function ObjectDetailPage() {
                   label="Huur / m²"
                   value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
                   badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
+                  overrideInfo={huurPerM2OverrideInfo}
                 />
                 {object.wozWaarde != null && (
                   <MetricTile
