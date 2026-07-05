@@ -1251,7 +1251,7 @@ export default function ObjectDetailPage() {
           );
         }
         if (object.vraagprijs != null && m2VoorBerekening) {
-          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" />);
+          tiles.push(<MetricTile key="m2" label="€ / m²" value={prijsPerM2Str} badge="auto" hint={m2BronHint} />);
         }
         if (barEffect != null) {
           tiles.push(
