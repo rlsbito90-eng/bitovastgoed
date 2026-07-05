@@ -57,7 +57,7 @@ describe('ObjectDetailPage — assetclass-afhankelijke m²-bron', () => {
   it('alleen BVO → geen berekende m² en geen hint (BVO is uitgesloten)', () => {
     const obj = { type: 'kantoren', oppervlakteBvo: 800 };
     // BVO staat bewust NIET in M2Object en telt in geen enkele fallback.
-    expect(getBerekenM2Bron({ type: obj.type }, obj.type).m2).toBeNull();
+    expect(getBerekenM2Bron({}, obj.type).m2).toBeNull();
     expect(buildM2BronHint(obj)).toBeUndefined();
   });
 
