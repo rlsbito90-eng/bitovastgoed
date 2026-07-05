@@ -17,7 +17,30 @@
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
-import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
+import { round2, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
+import {
+  calculateRentPerM2,
+  calculateBAR,
+  calculateFactor as calculateFactorDerived,
+  calculateMonthlyRent,
+  calculateAnnualFromMonthly,
+} from '@/lib/derivations/financial';
+
+// Fase 2C-2a: consolideer calc-helpers naar derivations/financial.ts, maar
+// behoud de 2-decimalen-afronding uit de oude financialCalc-helpers zodat
+// zichtbare form-output en input-echo (o.a. maandhuur) niet wijzigen.
+const r2 = (n: number | null | undefined): number | undefined =>
+  n == null || !Number.isFinite(n) ? undefined : round2(n);
+const calcHuurPerM2 = (jaar?: number, m2?: number): number | undefined =>
+  r2(calculateRentPerM2(jaar, m2));
+const calcBar = (jaar?: number, vraagprijs?: number): number | undefined =>
+  r2(calculateBAR(jaar, vraagprijs));
+const calcFactor = (vraagprijs?: number, jaar?: number): number | undefined =>
+  r2(calculateFactorDerived(vraagprijs, jaar));
+const maandhuurFromJaar = (jaar?: number): number | undefined =>
+  r2(calculateMonthlyRent(jaar));
+const jaarFromMaandhuur = (maand?: number): number | undefined =>
+  r2(calculateAnnualFromMonthly(maand));
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
