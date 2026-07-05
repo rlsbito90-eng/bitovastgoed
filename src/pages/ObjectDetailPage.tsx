@@ -918,8 +918,6 @@ export default function ObjectDetailPage() {
     else if (ac === 'mixed_use') parts.push('mixed-use, componentsplitsing volgt');
     return parts.join(' · ');
   })();
-  // Ongebruikt referentiehulpje om Slice B1 expliciet te markeren (voor tests).
-  void (m2Bron satisfies BerekenM2Resultaat);
 
   const bar = resolveBAR(object.huurinkomsten, object.vraagprijs, object.brutoAanvangsrendement);
   const noi = resolveManual(object.noi);
