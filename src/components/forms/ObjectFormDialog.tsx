@@ -717,7 +717,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                   // Huur/m² per jaar = jaarhuur / m². ALTIJD afgeleid van jaarhuur, nooit van maandhuur.
                   const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
                   const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
-                  const autoNar = calcNar(form.noi, form.vraagprijs);
+                  // Fase 2C-1: geen automatische NAR-afleiding meer op form; NAR blijft handmatig.
+                  void calcNar;
                   const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
                   // Wanneer gebruiker niet handmatig invulde: toon afgeleide waarde live in het veld.
                   const huurPerM2Display = huurPerM2Manual
