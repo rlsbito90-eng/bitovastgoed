@@ -613,12 +613,86 @@ export default function ObjectBrochurePDF({
       {/* ============================== */}
       {/* PAGINA — Oppervlakten + Huur + Financieel */}
       {/* ============================== */}
-      {(show(t, 'oppervlakten', oppRijen.length > 0)
+      {(heeftRendementsblok
+        || show(t, 'oppervlakten', oppRijen.length > 0)
         || show(t, 'huur', heeftHuurInfo)
         || show(t, 'financieel', finRows.length > 0 || marktwaarde != null || heeftScenarios)) && (
         <Page size="A4" style={pageStyles.page}>
           <PageHeader refNummer={object.internReferentienummer} datum={datum} logoUri={BITO_LOGO_URL} />
           <View style={styles.body}>
+
+            {/* PDF-A. RENDEMENTSBLOK — compact overzicht kerncijfers */}
+            {heeftRendementsblok && (
+              <View style={{ marginBottom: spacing.lg }} wrap={false}>
+                <SectionTitle>Rendement en kerncijfers</SectionTitle>
+
+                <RendementRij>
+                  {[
+                    rendVraagprijs != null ? (
+                      <RendementTile key="vp" label="Vraagprijs" value={formatEuro(rendVraagprijs)} />
+                    ) : null,
+                    rendJaarhuur != null ? (
+                      <RendementTile key="jh" label="Jaarhuur" value={formatEuro(rendJaarhuur)} caption={huurContext} />
+                    ) : null,
+                    rendBar != null ? (
+                      <RendementTile key="bar" label="BAR" value={formatPercent(rendBar)} caption={huurContext} />
+                    ) : null,
+                  ]}
+                </RendementRij>
+
+                <RendementRij>
+                  {[
+                    rendFactor != null ? (
+                      <RendementTile
+                        key="factor"
+                        label="Factor"
+                        value={`${rendFactor.toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`}
+                        caption={huurContext}
+                      />
+                    ) : null,
+                    rendHuurPerM2 != null ? (
+                      <RendementTile
+                        key="hpm"
+                        label="Huur / m²"
+                        value={`€ ${rendHuurPerM2.toLocaleString('nl-NL')}`}
+                        caption={[m2Res.label, m2Kanttekening, huurContext].filter(Boolean).join(' · ')}
+                      />
+                    ) : null,
+                    rendPrijsPerM2 != null ? (
+                      <RendementTile
+                        key="ppm"
+                        label="€ / m² koopprijs"
+                        value={`€ ${rendPrijsPerM2.toLocaleString('nl-NL')}`}
+                        caption={[m2Res.label, m2Kanttekening].filter(Boolean).join(' · ')}
+                      />
+                    ) : null,
+                  ]}
+                </RendementRij>
+
+                {(rendNoi != null || rendNar != null) && (
+                  <RendementRij>
+                    {[
+                      rendNoi != null ? (
+                        <RendementTile key="noi" label="NOI (handmatig)" value={formatEuro(rendNoi)} />
+                      ) : null,
+                      rendNar != null ? (
+                        <RendementTile key="nar" label="NAR (handmatig)" value={formatPercent(rendNar)} />
+                      ) : null,
+                    ]}
+                  </RendementRij>
+                )}
+
+                {m2Res.bron === 'none' && (rendVraagprijs != null || rendJaarhuur != null) && (
+                  <Text style={styles.rendementBronRegel}>
+                    {isOntwikkellocatie
+                      ? 'Ontwikkellocatie — geen automatische m²-berekening'
+                      : 'Onvoldoende gegevens voor m²-berekening (BVO telt niet als rekenbron)'}
+                  </Text>
+                )}
+              </View>
+            )}
+
+
 
             {/* 9. OPPERVLAKTEN */}
             {show(t, 'oppervlakten', oppRijen.length > 0) && (
