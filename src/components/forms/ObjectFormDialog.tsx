@@ -17,7 +17,7 @@
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
-import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
+import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
@@ -49,7 +49,7 @@ import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
-import { Info, Image, FileText, Users, AlertCircle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
+import { Info, Image, FileText, Users, AlertCircle, AlertTriangle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
 import type { DocumentType } from '@/data/mock-data';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
@@ -717,7 +717,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                   // Huur/m² per jaar = jaarhuur / m². ALTIJD afgeleid van jaarhuur, nooit van maandhuur.
                   const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
                   const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
-                  const autoNar = calcNar(form.noi, form.vraagprijs);
+                  // Fase 2C-1: geen automatische NAR-afleiding meer op form; NAR blijft handmatig.
                   const autoFactor = calcFactor(form.vraagprijs, form.huurinkomsten);
                   // Wanneer gebruiker niet handmatig invulde: toon afgeleide waarde live in het veld.
                   const huurPerM2Display = huurPerM2Manual
@@ -762,20 +762,58 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                               set('huurPerM2', v);
                             }}
                             placeholder={autoHuurPerM2 != null ? fmtEuroNL(autoHuurPerM2, { decimals: 2 }) : 'onvoldoende gegevens'} />
-                          {huurPerM2Manual && autoHuurPerM2 != null && (
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                              Auto-berekend: {fmtEuroNL(autoHuurPerM2, { decimals: 2, suffix: '/m²/jr' })}
-                            </p>
-                          )}
+                          {/* Fase 2C-1: auto/delta-preview alleen bij handmatige override + geldige auto. */}
+                          {huurPerM2Manual && form.huurPerM2 != null && autoHuurPerM2 != null && (() => {
+                            const delta = form.huurPerM2! - autoHuurPerM2;
+                            const tol = Math.max(Math.abs(autoHuurPerM2) * 0.01, 2);
+                            const mismatch = Math.abs(delta) > tol;
+                            const sign = delta > 0 ? '+' : delta < 0 ? '−' : '±';
+                            const deltaStr = `${sign}€ ${Math.abs(delta).toLocaleString('nl-NL', { maximumFractionDigits: 2 })}/m²`;
+                            return (
+                              <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="huurperm2-delta">
+                                <span>auto: {fmtEuroNL(autoHuurPerM2, { decimals: 2, suffix: '/m²' })} · Δ {deltaStr}</span>
+                                {mismatch && (
+                                  <span
+                                    title="Handmatige waarde wijkt af van berekening"
+                                    aria-label="Handmatige waarde wijkt af van berekening"
+                                    data-testid="huurperm2-mismatch"
+                                    className="inline-flex text-amber-600 dark:text-amber-400"
+                                  >
+                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  </span>
+                                )}
+                              </p>
+                            );
+                          })()}
                         </Veld>
                         <Veld label="Servicekosten (€/jr)">
                           <NumberField className="min-w-0" value={form.servicekostenJaar}
                             onChange={v => set('servicekostenJaar', v)} />
+                          <p className="mt-1 text-[11px] text-muted-foreground" data-testid="servicekosten-hint">
+                            Servicekosten worden doorgaans doorbelast en tellen niet automatisch mee in NOI/NAR.
+                          </p>
                         </Veld>
-                        <Veld label="NOI — netto operationeel inkomen (€/jr)">
+                        <Veld
+                          label={
+                            <>
+                              NOI — netto operationeel inkomen (€/jr)
+                              <span
+                                className="ml-1 inline-flex align-middle text-muted-foreground"
+                                title="NOI wordt bewust niet automatisch berekend — servicekosten worden doorgaans doorbelast en zijn geen betrouwbare exploitatiekosten. Vul handmatig in."
+                                aria-label="Uitleg NOI"
+                                data-testid="noi-info"
+                              >
+                                <Info className="h-3.5 w-3.5" />
+                              </span>
+                            </>
+                          }
+                        >
                           <NumberField className="min-w-0" value={form.noi}
                             onChange={v => set('noi', v)}
-                            placeholder="handmatig — overschrijft niets" />
+                            placeholder="bv. 82.000" />
+                          <p className="mt-1 text-[11px] text-muted-foreground" data-testid="noi-hint">
+                            NOI wordt bewust niet automatisch berekend — servicekosten worden doorgaans doorbelast en zijn geen betrouwbare exploitatiekosten. Vul handmatig in.
+                          </p>
                         </Veld>
                         <Veld label={<>BAR — bruto aanvangsrendement (%) <AutoBadge show={form.brutoAanvangsrendement == null && autoBar != null} /></>}>
                           <NumberField className="min-w-0"
@@ -786,16 +824,52 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                           {form.brutoAanvangsrendement == null && autoBar != null && (
                             <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoBar)}</p>
                           )}
+                          {/* Fase 2C-1: auto/delta-preview bij handmatige override op BAR. */}
+                          {form.brutoAanvangsrendement != null && autoBar != null && (() => {
+                            const delta = form.brutoAanvangsrendement! - autoBar;
+                            const mismatch = Math.abs(delta) > 0.2;
+                            const sign = delta > 0 ? '+' : delta < 0 ? '−' : '±';
+                            const deltaStr = `${sign}${Math.abs(delta).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+                            return (
+                              <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="bar-delta">
+                                <span>auto: {fmtPctNL(autoBar)} · Δ {deltaStr}</span>
+                                {mismatch && (
+                                  <span
+                                    title="Handmatige waarde wijkt af van berekening"
+                                    aria-label="Handmatige waarde wijkt af van berekening"
+                                    data-testid="bar-mismatch"
+                                    className="inline-flex text-amber-600 dark:text-amber-400"
+                                  >
+                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  </span>
+                                )}
+                              </p>
+                            );
+                          })()}
                         </Veld>
-                        <Veld label={<>NAR — netto aanvangsrendement (%) <AutoBadge show={form.nettoAanvangsrendement == null && autoNar != null} /></>}>
+                        <Veld
+                          label={
+                            <>
+                              NAR — netto aanvangsrendement (%)
+                              <span
+                                className="ml-1 inline-flex align-middle text-muted-foreground"
+                                title="NAR wordt niet automatisch afgeleid — vereist echte verwervings- en exploitatiekosten. Vul handmatig in."
+                                aria-label="Uitleg NAR"
+                                data-testid="nar-info"
+                              >
+                                <Info className="h-3.5 w-3.5" />
+                              </span>
+                            </>
+                          }
+                        >
                           <NumberField className="min-w-0"
                             decimals={2}
                             value={form.nettoAanvangsrendement}
                             onChange={v => set('nettoAanvangsrendement', v)}
-                            placeholder={autoNar != null ? fmtPctNL(autoNar) : 'NOI ÷ vraagprijs'} />
-                          {form.nettoAanvangsrendement == null && autoNar != null && (
-                            <p className="text-[11px] text-muted-foreground mt-1">Auto-berekend: {fmtPctNL(autoNar)}</p>
-                          )}
+                            placeholder="bv. 5,20" />
+                          <p className="mt-1 text-[11px] text-muted-foreground" data-testid="nar-hint">
+                            NAR wordt niet automatisch afgeleid — vereist echte verwervings- en exploitatiekosten. Vul handmatig in.
+                          </p>
                         </Veld>
                         <Veld label={<>Kapitalisatiefactor <AutoBadge show={autoFactor != null} /></>}>
                           <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-mono-data text-foreground">
