@@ -17,7 +17,7 @@
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
-import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, nar as calcNar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
+import { maandhuurFromJaar, jaarFromMaandhuur, huurPerM2 as calcHuurPerM2, bar as calcBar, kapitalisatiefactor as calcFactor, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
