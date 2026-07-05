@@ -1454,15 +1454,18 @@ export default function ObjectDetailPage() {
                 )}
                 <MetricTile
                   label="€ / m²"
-                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens'}
+                  value={prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : 'onvoldoende gegevens voor m²-berekening'}
                   badge={prijsPerM2.value != null ? 'auto' : 'onvoldoende'}
+                  hint={prijsPerM2.value != null ? m2BronHint : undefined}
                 />
                 <MetricTile
                   label="Huur / m²"
-                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens'}
+                  value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens voor m²-berekening'}
                   badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
                   overrideInfo={huurPerM2OverrideInfo}
+                  hint={huurPerM2.value != null ? m2BronHint : undefined}
                 />
+
                 {object.wozWaarde != null && (
                   <MetricTile
                     label="WOZ"
