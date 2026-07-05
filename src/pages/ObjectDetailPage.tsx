@@ -901,7 +901,25 @@ export default function ObjectDetailPage() {
   //   - `prijsindicatie` wordt NOOIT gebruikt voor BAR/NAR/factor/€-m².
   //   - Bestaande handmatige waarden (BAR, huur/m²) worden nooit
   //     overschreven — resolvers combineren auto + override read-only.
-  const m2VoorBerekening = getBerekenM2(object);
+  // Fase 2C-2b (Slice B1): assetclass-afhankelijke m²-bron.
+  // ObjectVastgoed.type bevat de AssetClass (wonen/kantoren/...). Dit veld is
+  // op bestaande objecten doorgaans gevuld (verplicht bij aanmaken via
+  // formulier); mocht het toch ontbreken dan valt getBerekenM2Bron terug op
+  // de Fase 2A-default volgorde (VVO → GBO → oppervlakte), waardoor gedrag
+  // backwards-compatible blijft.
+  const m2Bron = getBerekenM2Bron(object, (object as { type?: string | null }).type ?? null);
+  const m2VoorBerekening = m2Bron.m2;
+  const m2BronHint = ((): string | undefined => {
+    if (m2Bron.bron === 'none') return undefined;
+    const parts: string[] = [m2Bron.label];
+    if (m2Bron.fallback) parts.push('primaire bron ontbreekt, fallback gebruikt');
+    const ac = (object as { type?: string | null }).type;
+    if (ac === 'zorgvastgoed') parts.push('marktstandaard varieert');
+    else if (ac === 'mixed_use') parts.push('mixed-use, componentsplitsing volgt');
+    return parts.join(' · ');
+  })();
+  // Ongebruikt referentiehulpje om Slice B1 expliciet te markeren (voor tests).
+  void (m2Bron satisfies BerekenM2Resultaat);
 
   const bar = resolveBAR(object.huurinkomsten, object.vraagprijs, object.brutoAanvangsrendement);
   const noi = resolveManual(object.noi);
