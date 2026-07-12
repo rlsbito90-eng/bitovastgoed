@@ -1,8 +1,8 @@
-# BUILD-3 — Definitieve migratiespecificatie (niet uitgevoerd, v3)
+# BUILD-3 — Definitieve migratiespecificatie (niet uitgevoerd, v4)
 
 Doel: één atomair migratiebestand voor productieproject `ljudxyrqoifhfikueric` dat een geïsoleerd read-only functieoppervlak toevoegt voor de Bito CRM AI Gateway. Geen wijziging aan bestaande CRM-tabellen, -triggers, -policies of -functies. Deze specificatie wordt **niet** uitgevoerd; uitvoering vereist afzonderlijke goedkeuring.
 
-Wijzigingen t.o.v. v2 zijn samengevat in §9.
+Wijzigingen t.o.v. v3 zijn samengevat in §9.
 
 ---
 
@@ -400,12 +400,15 @@ RETURNS TABLE (
   laatste_verzenddatum         date,
   aantal_brieven               int,   -- populatie brieven (open+gesloten) in venster
   aantal_status_verstuurd      int,   -- b.status = 'verstuurd'
-  aantal_harde_verzending      int,   -- verzendstatus IN ('gepost','verzonden')
+  aantal_harde_verzending      int,   -- postdatum IS NOT NULL OR verzonden_op IS NOT NULL
   aantal_zonder_verzendbewijs  int,   -- status='verstuurd' zonder postdatum/verzonden_op
   aantal_met_actieve_taak      int,
   aantal_met_opvolgdatum       int,
   aantal_met_respons           int,
   aantal_positieve_respons     int,
+  batch_coverage_pct           numeric, -- campagne_stap IS NOT NULL / totaal
+  channel_coverage_pct         numeric, -- kanaal IS NOT NULL / totaal
+  date_coverage_pct            numeric, -- postdatum of verzonden_op aanwezig / totaal
   response_coverage_pct        numeric,
   follow_up_coverage_pct       numeric,
   open_signalen                int,   -- unieke signalen in open populatie
@@ -428,20 +431,28 @@ AS $fn$
   brieven AS (
     SELECT
       COALESCE(b.campagne_stap, '<zonder_batch>')                      AS campagne_stap,
+      b.campagne_stap                                                  AS campagne_stap_raw,
       b.kanaal,
+      -- Effectieve verzenddatum = uitsluitend hard bewijs (postdatum/verzonden_op).
+      -- printdatum telt NIET als verzendbewijs; wordt alleen gebruikt om brieven
+      -- zonder verzendbewijs binnen het tijdvenster mee te nemen in de populatie.
       COALESCE(b.postdatum, b.verzonden_op::date)                      AS verzenddatum,
       b.id,
       b.signaal_id,
       b.status                                                         AS brief_status,
       b.verzendstatus,
       b.postdatum,
+      b.printdatum,
       b.verzonden_op,
       b.opvolgdatum,
       b.gekoppelde_taak_id,
       b.responsstatus
     FROM public.off_market_brieven b, bounded
-    WHERE COALESCE(b.postdatum, b.verzonden_op::date)
-          >= CURRENT_DATE - (bounded.wk * 7)
+    WHERE COALESCE(
+            b.postdatum,
+            b.verzonden_op::date,
+            b.printdatum
+          ) >= CURRENT_DATE - (bounded.wk * 7)
   ),
   taken_actief AS (
     SELECT t.id
@@ -479,8 +490,10 @@ AS $fn$
       MAX(p.verzenddatum)                                              AS laatste_verzenddatum,
       COUNT(*)::int                                                    AS aantal_brieven,
       COUNT(*) FILTER (WHERE p.brief_status = 'verstuurd')::int        AS aantal_status_verstuurd,
-      COUNT(*) FILTER (WHERE p.verzendstatus IN ('gepost','verzonden'))::int
-                                                                       AS aantal_harde_verzending,
+      -- Hard verzendbewijs = uitsluitend postdatum of verzonden_op; verzendstatus telt niet.
+      COUNT(*) FILTER (
+        WHERE p.postdatum IS NOT NULL OR p.verzonden_op IS NOT NULL
+      )::int                                                           AS aantal_harde_verzending,
       COUNT(*) FILTER (
         WHERE p.brief_status = 'verstuurd'
           AND p.postdatum IS NULL AND p.verzonden_op IS NULL
@@ -491,6 +504,11 @@ AS $fn$
       COUNT(*) FILTER (
         WHERE p.responsstatus IN ('interesse','wil_meer_informatie','gesprek_gepland')
       )::int                                                           AS aantal_positieve_respons,
+      COUNT(*) FILTER (WHERE p.campagne_stap_raw IS NOT NULL)::int     AS aantal_met_batch,
+      COUNT(*) FILTER (WHERE p.kanaal IS NOT NULL)::int                AS aantal_met_kanaal,
+      COUNT(*) FILTER (
+        WHERE p.postdatum IS NOT NULL OR p.verzonden_op IS NOT NULL
+      )::int                                                           AS aantal_met_datum,
       COUNT(DISTINCT p.signaal_id) FILTER (WHERE p.is_open)::int       AS open_signalen,
       COUNT(DISTINCT p.signaal_id) FILTER (WHERE NOT p.is_open)::int   AS closed_signalen,
       COUNT(DISTINCT p.signaal_id) FILTER (
@@ -521,7 +539,10 @@ AS $fn$
     a.aantal_met_opvolgdatum,
     a.aantal_met_respons,
     a.aantal_positieve_respons,
-    ROUND(100.0 * a.aantal_met_respons::numeric  / NULLIF(a.aantal_brieven, 0), 2) AS response_coverage_pct,
+    ROUND(100.0 * a.aantal_met_batch::numeric   / NULLIF(a.aantal_brieven, 0), 2) AS batch_coverage_pct,
+    ROUND(100.0 * a.aantal_met_kanaal::numeric  / NULLIF(a.aantal_brieven, 0), 2) AS channel_coverage_pct,
+    ROUND(100.0 * a.aantal_met_datum::numeric   / NULLIF(a.aantal_brieven, 0), 2) AS date_coverage_pct,
+    ROUND(100.0 * a.aantal_met_respons::numeric / NULLIF(a.aantal_brieven, 0), 2) AS response_coverage_pct,
     ROUND(100.0 * a.aantal_met_opvolgdatum::numeric / NULLIF(a.aantal_brieven, 0), 2) AS follow_up_coverage_pct,
     a.open_signalen,
     a.closed_signalen,
@@ -533,7 +554,10 @@ AS $fn$
     false                                                              AS conversion_date_available,
     ARRAY_REMOVE(ARRAY[
       CASE WHEN a.aantal_zonder_verzendbewijs > 0                                   THEN 'ontbrekend_verzendbewijs'    END,
-      CASE WHEN a.aantal_met_respons < a.aantal_brieven                             THEN 'respons_dekking_onvolledig' END,
+      CASE WHEN a.aantal_met_batch    < a.aantal_brieven                            THEN 'batch_dekking_onvolledig'   END,
+      CASE WHEN a.aantal_met_kanaal   < a.aantal_brieven                            THEN 'kanaal_dekking_onvolledig'  END,
+      CASE WHEN a.aantal_met_datum    < a.aantal_brieven                            THEN 'datum_dekking_onvolledig'   END,
+      CASE WHEN a.aantal_met_respons  < a.aantal_brieven                            THEN 'respons_dekking_onvolledig' END,
       CASE WHEN a.aantal_met_opvolgdatum < a.aantal_brieven                         THEN 'opvolging_dekking_onvolledig' END,
       CASE WHEN a.aantal_status_verstuurd <> a.aantal_harde_verzending              THEN 'status_verzendstatus_afwijking' END,
       'geen_statushistorie',
@@ -769,29 +793,32 @@ BEGIN
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_batch_performance(1);
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
 
-  -- (i) Smoke als reader (tijdelijke role-switch, geen LOGIN nodig)
-  SET LOCAL ROLE ai_gateway_reader;
-
-  SELECT COUNT(*) INTO n_rows
-  FROM ai_gateway_readonly.search_off_market_signals(NULL,NULL,NULL,NULL,NULL,NULL,true,5,0);
-  IF n_rows IS NULL THEN
-    RAISE EXCEPTION 'BUILD-3 test: reader kan search-functie niet aanroepen';
-  END IF;
-
-  SELECT COUNT(*) INTO n_rows
-  FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
-  IF n_rows IS NULL OR n_rows = 0 THEN
-    RAISE EXCEPTION 'BUILD-3 test: reader krijgt geen resultaat uit conversie-analyse';
-  END IF;
-
-  RESET ROLE;
 END
 $tests$;
+
+-- ---------------------------------------------------------------------------
+-- 2.9  Reader-smoke test: role-switch buiten het PL/pgSQL DO-block, binnen
+-- dezelfde outer transactie. Iedere fout hier (permission, SQL, kolommen)
+-- laat de outer BEGIN/COMMIT falen en rolt de volledige migratie terug.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE ai_gateway_reader;
+
+-- Minimaal één lijstfunctie
+SELECT COUNT(*) AS reader_search_rows
+FROM ai_gateway_readonly.search_off_market_signals(
+  NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 0
+);
+
+-- Minimaal één aggregatiefunctie
+SELECT COUNT(*) AS reader_conversion_rows
+FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
+
+RESET ROLE;
 
 COMMIT;
 ```
 
-`SET LOCAL ROLE` beperkt de role-switch tot deze transactie; `RESET ROLE` herstelt `postgres`. Geen credential of LOGIN-attribuut wordt aangemaakt.
+`SET LOCAL ROLE` beperkt de role-switch tot deze transactie; `RESET ROLE` herstelt `postgres` vóór `COMMIT`. Er wordt geen `LOGIN`-attribuut, wachtwoord of ander credential aangemaakt. Iedere fout in de reader-smoke test (`permission denied`, ontbrekende kolommen, SQL-fout) breekt de outer transactie en zorgt voor automatische rollback van de volledige migratie.
 
 ---
 
@@ -956,16 +983,24 @@ Uitvoering is toegestaan zodra alle onderstaande voorwaarden **allemaal** waar z
 
 ---
 
-## 9. Wijzigingen t.o.v. v2
+## 9. Wijzigingen t.o.v. v3
+
+- **Functie 4 populatiefilter**: tijdvenster gebruikt `COALESCE(b.postdatum, b.verzonden_op::date, b.printdatum) >= CURRENT_DATE - (bounded.wk * 7)`. Brieven zonder hard verzendbewijs maar met `printdatum` binnen het venster horen zo bij de populatie. Effectieve verzenddatum blijft `COALESCE(b.postdatum, b.verzonden_op::date)`; `printdatum` telt niet als verzendbewijs.
+- **Functie 4 `aantal_harde_verzending`**: uitsluitend `postdatum IS NOT NULL OR verzonden_op IS NOT NULL`. `verzendstatus` wordt niet meer als hard bewijs gebruikt. Afwijking t.o.v. `aantal_status_verstuurd` blijft in `warning_codes` als `status_verzendstatus_afwijking`. `aantal_zonder_verzendbewijs` blijft afzonderlijk.
+- **Functie 4 dekkingsvelden toegevoegd**: `batch_coverage_pct` (campagne_stap IS NOT NULL / totaal), `channel_coverage_pct` (kanaal IS NOT NULL / totaal), `date_coverage_pct` (postdatum of verzonden_op / totaal). Bijhorende waarschuwingscodes `batch_dekking_onvolledig`, `kanaal_dekking_onvolledig`, `datum_dekking_onvolledig`.
+- **Reader-smoke test verplaatst uit het PL/pgSQL DO-block**: eerst draait `DO $tests$` met alle catalog- en privilege-assertions; daarna volgt binnen dezelfde outer `BEGIN/COMMIT`-transactie `SET LOCAL ROLE ai_gateway_reader`, één lijstfunctie-SELECT, één aggregatiefunctie-SELECT, en `RESET ROLE`. Iedere fout laat de outer transactie falen en rolt de volledige migratie terug.
+- Alle overige v3-contracten (owner-/rechtenmodel, follow-upqueue met vijf redencodes, `SET search_path = pg_catalog`, geen `ALTER DEFAULT PRIVILEGES`, geen `GRANT ... TO PUBLIC`, rollback zoals §6, parameterloze functie 5, uitgesloten velden) blijven exact ongewijzigd.
+
+## 10. Wijzigingen t.o.v. v2 (historisch)
 
 - `pg_catalog.current_date` → `CURRENT_DATE` overal; weekvenster in functie 4 gebruikt `CURRENT_DATE - (bounded.wk * 7)`.
-- Follow-upfunctie: `SELECT s.*` verwijderd; expliciete kolommen; vijf redencodes hersteld (`brief_opvolgdatum_verstreken`, `brief_zonder_opvolging`, `actie_datum_verstreken`, `geen_actieve_taak`, `zonder_actie_datum`); `heeft_actieve_taak`, `aantal_actieve_taken` uniform benoemd; `brief_zonder_opvolging` vereist ontbreken van actieve gekoppelde taak; `brief_opvolgdatum_verstreken` toegevoegd.
+- Follow-upfunctie: `SELECT s.*` verwijderd; expliciete kolommen; vijf redencodes hersteld; `heeft_actieve_taak`, `aantal_actieve_taken` uniform benoemd; `brief_zonder_opvolging` vereist ontbreken van actieve gekoppelde taak; `brief_opvolgdatum_verstreken` toegevoegd.
 - Detailfunctie hernoemd `heeft_open_taak` → `heeft_actieve_taak` en `aantal_actieve_taken` toegevoegd.
 - Alle `p_limit`-parameters geclampt op 1–100.
-- Batchfunctie hersteld naar BUILD-2B-v2-contract incl. onderscheid harde verzending vs. `status='verstuurd'`, `aantal_zonder_verzendbewijs`, open/gesloten populatie, `aantal_in_gesprek_nu`, `aantal_gespreksfase_bereikt`, `bereikte_gespreksfase_pct`, `status_history_available=false`, `conversion_date_available=false`, `warning_codes` incl. expliciete waarschuwing dat responsafwezigheid geen bewijs van geen interesse is.
-- Conversiefunctie hersteld naar BUILD-2B-v2-contract: parameterloos, `gespreksfase_bereikt`, `score_coverage_pct`, `open_population_pct`, `closed_population_pct`, `response_coverage_pct`, `follow_up_coverage_pct`, meta-vlaggen `status_history_available=false` en `conversion_date_available=false`, `warning_codes`, buckets `onbekend` en `ongeldige_score`.
-- Tests: assertion "reader mag geen USAGE op public" verwijderd. Nieuwe assertions: `SECURITY DEFINER`, owner `postgres`, `proconfig = ['search_path=pg_catalog']`. Reader-smoke test met `SET LOCAL ROLE` + `RESET ROLE` binnen de transactie.
+- Batchfunctie hersteld naar BUILD-2B-v2-contract met open/gesloten populatie, `aantal_in_gesprek_nu`, `aantal_gespreksfase_bereikt`, `bereikte_gespreksfase_pct`, `status_history_available=false`, `conversion_date_available=false`, `warning_codes` incl. `respons_afwezigheid_geen_bewijs_van_geen_interesse`.
+- Conversiefunctie: parameterloos, meta-vlaggen `status_history_available=false` en `conversion_date_available=false`, buckets `onbekend` en `ongeldige_score`, coverage-percentages.
+- Tests: assertion "reader mag geen USAGE op public" verwijderd; toegevoegd: `SECURITY DEFINER`, owner `postgres`, `proconfig = ['search_path=pg_catalog']`.
 
 ---
 
-*Einde BUILD-3-specificatie v3. Geen SQL uitgevoerd. Geen role, schema, functie, policy, grant, credential of gatewayverbinding aangemaakt.*
+*Einde BUILD-3-specificatie v4. Geen SQL uitgevoerd. Geen role, schema, functie, policy, grant, credential of gatewayverbinding aangemaakt.*
