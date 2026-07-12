@@ -793,29 +793,32 @@ BEGIN
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_batch_performance(1);
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
 
-  -- (i) Smoke als reader (tijdelijke role-switch, geen LOGIN nodig)
-  SET LOCAL ROLE ai_gateway_reader;
-
-  SELECT COUNT(*) INTO n_rows
-  FROM ai_gateway_readonly.search_off_market_signals(NULL,NULL,NULL,NULL,NULL,NULL,true,5,0);
-  IF n_rows IS NULL THEN
-    RAISE EXCEPTION 'BUILD-3 test: reader kan search-functie niet aanroepen';
-  END IF;
-
-  SELECT COUNT(*) INTO n_rows
-  FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
-  IF n_rows IS NULL OR n_rows = 0 THEN
-    RAISE EXCEPTION 'BUILD-3 test: reader krijgt geen resultaat uit conversie-analyse';
-  END IF;
-
-  RESET ROLE;
 END
 $tests$;
+
+-- ---------------------------------------------------------------------------
+-- 2.9  Reader-smoke test: role-switch buiten het PL/pgSQL DO-block, binnen
+-- dezelfde outer transactie. Iedere fout hier (permission, SQL, kolommen)
+-- laat de outer BEGIN/COMMIT falen en rolt de volledige migratie terug.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE ai_gateway_reader;
+
+-- Minimaal één lijstfunctie
+SELECT COUNT(*) AS reader_search_rows
+FROM ai_gateway_readonly.search_off_market_signals(
+  NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 0
+);
+
+-- Minimaal één aggregatiefunctie
+SELECT COUNT(*) AS reader_conversion_rows
+FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
+
+RESET ROLE;
 
 COMMIT;
 ```
 
-`SET LOCAL ROLE` beperkt de role-switch tot deze transactie; `RESET ROLE` herstelt `postgres`. Geen credential of LOGIN-attribuut wordt aangemaakt.
+`SET LOCAL ROLE` beperkt de role-switch tot deze transactie; `RESET ROLE` herstelt `postgres` vóór `COMMIT`. Er wordt geen `LOGIN`-attribuut, wachtwoord of ander credential aangemaakt. Iedere fout in de reader-smoke test (`permission denied`, ontbrekende kolommen, SQL-fout) breekt de outer transactie en zorgt voor automatische rollback van de volledige migratie.
 
 ---
 
