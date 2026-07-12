@@ -983,16 +983,24 @@ Uitvoering is toegestaan zodra alle onderstaande voorwaarden **allemaal** waar z
 
 ---
 
-## 9. Wijzigingen t.o.v. v2
+## 9. Wijzigingen t.o.v. v3
+
+- **Functie 4 populatiefilter**: tijdvenster gebruikt `COALESCE(b.postdatum, b.verzonden_op::date, b.printdatum) >= CURRENT_DATE - (bounded.wk * 7)`. Brieven zonder hard verzendbewijs maar met `printdatum` binnen het venster horen zo bij de populatie. Effectieve verzenddatum blijft `COALESCE(b.postdatum, b.verzonden_op::date)`; `printdatum` telt niet als verzendbewijs.
+- **Functie 4 `aantal_harde_verzending`**: uitsluitend `postdatum IS NOT NULL OR verzonden_op IS NOT NULL`. `verzendstatus` wordt niet meer als hard bewijs gebruikt. Afwijking t.o.v. `aantal_status_verstuurd` blijft in `warning_codes` als `status_verzendstatus_afwijking`. `aantal_zonder_verzendbewijs` blijft afzonderlijk.
+- **Functie 4 dekkingsvelden toegevoegd**: `batch_coverage_pct` (campagne_stap IS NOT NULL / totaal), `channel_coverage_pct` (kanaal IS NOT NULL / totaal), `date_coverage_pct` (postdatum of verzonden_op / totaal). Bijhorende waarschuwingscodes `batch_dekking_onvolledig`, `kanaal_dekking_onvolledig`, `datum_dekking_onvolledig`.
+- **Reader-smoke test verplaatst uit het PL/pgSQL DO-block**: eerst draait `DO $tests$` met alle catalog- en privilege-assertions; daarna volgt binnen dezelfde outer `BEGIN/COMMIT`-transactie `SET LOCAL ROLE ai_gateway_reader`, één lijstfunctie-SELECT, één aggregatiefunctie-SELECT, en `RESET ROLE`. Iedere fout laat de outer transactie falen en rolt de volledige migratie terug.
+- Alle overige v3-contracten (owner-/rechtenmodel, follow-upqueue met vijf redencodes, `SET search_path = pg_catalog`, geen `ALTER DEFAULT PRIVILEGES`, geen `GRANT ... TO PUBLIC`, rollback zoals §6, parameterloze functie 5, uitgesloten velden) blijven exact ongewijzigd.
+
+## 10. Wijzigingen t.o.v. v2 (historisch)
 
 - `pg_catalog.current_date` → `CURRENT_DATE` overal; weekvenster in functie 4 gebruikt `CURRENT_DATE - (bounded.wk * 7)`.
-- Follow-upfunctie: `SELECT s.*` verwijderd; expliciete kolommen; vijf redencodes hersteld (`brief_opvolgdatum_verstreken`, `brief_zonder_opvolging`, `actie_datum_verstreken`, `geen_actieve_taak`, `zonder_actie_datum`); `heeft_actieve_taak`, `aantal_actieve_taken` uniform benoemd; `brief_zonder_opvolging` vereist ontbreken van actieve gekoppelde taak; `brief_opvolgdatum_verstreken` toegevoegd.
+- Follow-upfunctie: `SELECT s.*` verwijderd; expliciete kolommen; vijf redencodes hersteld; `heeft_actieve_taak`, `aantal_actieve_taken` uniform benoemd; `brief_zonder_opvolging` vereist ontbreken van actieve gekoppelde taak; `brief_opvolgdatum_verstreken` toegevoegd.
 - Detailfunctie hernoemd `heeft_open_taak` → `heeft_actieve_taak` en `aantal_actieve_taken` toegevoegd.
 - Alle `p_limit`-parameters geclampt op 1–100.
-- Batchfunctie hersteld naar BUILD-2B-v2-contract incl. onderscheid harde verzending vs. `status='verstuurd'`, `aantal_zonder_verzendbewijs`, open/gesloten populatie, `aantal_in_gesprek_nu`, `aantal_gespreksfase_bereikt`, `bereikte_gespreksfase_pct`, `status_history_available=false`, `conversion_date_available=false`, `warning_codes` incl. expliciete waarschuwing dat responsafwezigheid geen bewijs van geen interesse is.
-- Conversiefunctie hersteld naar BUILD-2B-v2-contract: parameterloos, `gespreksfase_bereikt`, `score_coverage_pct`, `open_population_pct`, `closed_population_pct`, `response_coverage_pct`, `follow_up_coverage_pct`, meta-vlaggen `status_history_available=false` en `conversion_date_available=false`, `warning_codes`, buckets `onbekend` en `ongeldige_score`.
-- Tests: assertion "reader mag geen USAGE op public" verwijderd. Nieuwe assertions: `SECURITY DEFINER`, owner `postgres`, `proconfig = ['search_path=pg_catalog']`. Reader-smoke test met `SET LOCAL ROLE` + `RESET ROLE` binnen de transactie.
+- Batchfunctie hersteld naar BUILD-2B-v2-contract met open/gesloten populatie, `aantal_in_gesprek_nu`, `aantal_gespreksfase_bereikt`, `bereikte_gespreksfase_pct`, `status_history_available=false`, `conversion_date_available=false`, `warning_codes` incl. `respons_afwezigheid_geen_bewijs_van_geen_interesse`.
+- Conversiefunctie: parameterloos, meta-vlaggen `status_history_available=false` en `conversion_date_available=false`, buckets `onbekend` en `ongeldige_score`, coverage-percentages.
+- Tests: assertion "reader mag geen USAGE op public" verwijderd; toegevoegd: `SECURITY DEFINER`, owner `postgres`, `proconfig = ['search_path=pg_catalog']`.
 
 ---
 
-*Einde BUILD-3-specificatie v3. Geen SQL uitgevoerd. Geen role, schema, functie, policy, grant, credential of gatewayverbinding aangemaakt.*
+*Einde BUILD-3-specificatie v4. Geen SQL uitgevoerd. Geen role, schema, functie, policy, grant, credential of gatewayverbinding aangemaakt.*
