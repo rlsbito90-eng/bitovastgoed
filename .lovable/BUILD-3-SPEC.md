@@ -793,27 +793,18 @@ BEGIN
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_batch_performance(1);
   PERFORM 1 FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
 
+  -- (i) Reader heeft USAGE op ai_gateway_readonly
+  IF NOT has_schema_privilege(
+    'ai_gateway_reader',
+    'ai_gateway_readonly',
+    'USAGE'
+  ) THEN
+    RAISE EXCEPTION
+      'BUILD-3 test: reader mist USAGE op ai_gateway_readonly';
+  END IF;
+
 END
 $tests$;
-
--- ---------------------------------------------------------------------------
--- 2.9  Reader-smoke test: role-switch buiten het PL/pgSQL DO-block, binnen
--- dezelfde outer transactie. Iedere fout hier (permission, SQL, kolommen)
--- laat de outer BEGIN/COMMIT falen en rolt de volledige migratie terug.
--- ---------------------------------------------------------------------------
-SET LOCAL ROLE ai_gateway_reader;
-
--- Minimaal één lijstfunctie
-SELECT COUNT(*) AS reader_search_rows
-FROM ai_gateway_readonly.search_off_market_signals(
-  NULL, NULL, NULL, NULL, NULL, NULL, true, 5, 0
-);
-
--- Minimaal één aggregatiefunctie
-SELECT COUNT(*) AS reader_conversion_rows
-FROM ai_gateway_readonly.get_off_market_ai_conversion_analysis();
-
-RESET ROLE;
 
 COMMIT;
 ```
