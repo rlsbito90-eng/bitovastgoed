@@ -1,8 +1,8 @@
-# BUILD-3 — Definitieve migratiespecificatie (niet uitgevoerd, v3)
+# BUILD-3 — Definitieve migratiespecificatie (niet uitgevoerd, v4)
 
 Doel: één atomair migratiebestand voor productieproject `ljudxyrqoifhfikueric` dat een geïsoleerd read-only functieoppervlak toevoegt voor de Bito CRM AI Gateway. Geen wijziging aan bestaande CRM-tabellen, -triggers, -policies of -functies. Deze specificatie wordt **niet** uitgevoerd; uitvoering vereist afzonderlijke goedkeuring.
 
-Wijzigingen t.o.v. v2 zijn samengevat in §9.
+Wijzigingen t.o.v. v3 zijn samengevat in §9.
 
 ---
 
