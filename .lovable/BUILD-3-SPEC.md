@@ -490,8 +490,10 @@ AS $fn$
       MAX(p.verzenddatum)                                              AS laatste_verzenddatum,
       COUNT(*)::int                                                    AS aantal_brieven,
       COUNT(*) FILTER (WHERE p.brief_status = 'verstuurd')::int        AS aantal_status_verstuurd,
-      COUNT(*) FILTER (WHERE p.verzendstatus IN ('gepost','verzonden'))::int
-                                                                       AS aantal_harde_verzending,
+      -- Hard verzendbewijs = uitsluitend postdatum of verzonden_op; verzendstatus telt niet.
+      COUNT(*) FILTER (
+        WHERE p.postdatum IS NOT NULL OR p.verzonden_op IS NOT NULL
+      )::int                                                           AS aantal_harde_verzending,
       COUNT(*) FILTER (
         WHERE p.brief_status = 'verstuurd'
           AND p.postdatum IS NULL AND p.verzonden_op IS NULL
@@ -502,6 +504,11 @@ AS $fn$
       COUNT(*) FILTER (
         WHERE p.responsstatus IN ('interesse','wil_meer_informatie','gesprek_gepland')
       )::int                                                           AS aantal_positieve_respons,
+      COUNT(*) FILTER (WHERE p.campagne_stap_raw IS NOT NULL)::int     AS aantal_met_batch,
+      COUNT(*) FILTER (WHERE p.kanaal IS NOT NULL)::int                AS aantal_met_kanaal,
+      COUNT(*) FILTER (
+        WHERE p.postdatum IS NOT NULL OR p.verzonden_op IS NOT NULL
+      )::int                                                           AS aantal_met_datum,
       COUNT(DISTINCT p.signaal_id) FILTER (WHERE p.is_open)::int       AS open_signalen,
       COUNT(DISTINCT p.signaal_id) FILTER (WHERE NOT p.is_open)::int   AS closed_signalen,
       COUNT(DISTINCT p.signaal_id) FILTER (
