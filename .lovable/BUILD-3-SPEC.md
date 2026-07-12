@@ -431,20 +431,28 @@ AS $fn$
   brieven AS (
     SELECT
       COALESCE(b.campagne_stap, '<zonder_batch>')                      AS campagne_stap,
+      b.campagne_stap                                                  AS campagne_stap_raw,
       b.kanaal,
+      -- Effectieve verzenddatum = uitsluitend hard bewijs (postdatum/verzonden_op).
+      -- printdatum telt NIET als verzendbewijs; wordt alleen gebruikt om brieven
+      -- zonder verzendbewijs binnen het tijdvenster mee te nemen in de populatie.
       COALESCE(b.postdatum, b.verzonden_op::date)                      AS verzenddatum,
       b.id,
       b.signaal_id,
       b.status                                                         AS brief_status,
       b.verzendstatus,
       b.postdatum,
+      b.printdatum,
       b.verzonden_op,
       b.opvolgdatum,
       b.gekoppelde_taak_id,
       b.responsstatus
     FROM public.off_market_brieven b, bounded
-    WHERE COALESCE(b.postdatum, b.verzonden_op::date)
-          >= CURRENT_DATE - (bounded.wk * 7)
+    WHERE COALESCE(
+            b.postdatum,
+            b.verzonden_op::date,
+            b.printdatum
+          ) >= CURRENT_DATE - (bounded.wk * 7)
   ),
   taken_actief AS (
     SELECT t.id
