@@ -400,12 +400,15 @@ RETURNS TABLE (
   laatste_verzenddatum         date,
   aantal_brieven               int,   -- populatie brieven (open+gesloten) in venster
   aantal_status_verstuurd      int,   -- b.status = 'verstuurd'
-  aantal_harde_verzending      int,   -- verzendstatus IN ('gepost','verzonden')
+  aantal_harde_verzending      int,   -- postdatum IS NOT NULL OR verzonden_op IS NOT NULL
   aantal_zonder_verzendbewijs  int,   -- status='verstuurd' zonder postdatum/verzonden_op
   aantal_met_actieve_taak      int,
   aantal_met_opvolgdatum       int,
   aantal_met_respons           int,
   aantal_positieve_respons     int,
+  batch_coverage_pct           numeric, -- campagne_stap IS NOT NULL / totaal
+  channel_coverage_pct         numeric, -- kanaal IS NOT NULL / totaal
+  date_coverage_pct            numeric, -- postdatum of verzonden_op aanwezig / totaal
   response_coverage_pct        numeric,
   follow_up_coverage_pct       numeric,
   open_signalen                int,   -- unieke signalen in open populatie
