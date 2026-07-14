@@ -680,6 +680,7 @@ export default function ObjectDetailPage() {
   };
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [focusPointOpen, setFocusPointOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
