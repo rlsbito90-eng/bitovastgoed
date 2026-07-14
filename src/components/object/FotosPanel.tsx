@@ -8,8 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   uploadBestand, buildFotoPath, getSignedUrls, isFotoFile, MAX_FILE_SIZE_MB,
 } from '@/lib/storage';
-import { Upload, Star, Trash2, Loader2 } from 'lucide-react';
+import { Upload, Star, Trash2, Loader2, Crosshair } from 'lucide-react';
 import { toast } from 'sonner';
+import FocusPointDialog from './FocusPointDialog';
 
 interface Props {
   objectId: string;
@@ -21,6 +22,7 @@ export default function FotosPanel({ objectId }: Props) {
   const fotos = store.getFotosVoorObject(objectId);
   const [bezig, setBezig] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [focusFotoId, setFocusFotoId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Signed URLs ophalen zodra set foto's verandert
@@ -137,6 +139,7 @@ export default function FotosPanel({ objectId }: Props) {
                   src={urls[foto.storagePath]}
                   alt={foto.bijschrift ?? ''}
                   className="w-full h-full object-cover"
+                  style={{ objectPosition: `${foto.focusX ?? 50}% ${foto.focusY ?? 50}%` }}
                   loading="lazy"
                 />
               ) : (
@@ -163,6 +166,15 @@ export default function FotosPanel({ objectId }: Props) {
                 )}
                 <button
                   type="button"
+                  onClick={() => setFocusFotoId(foto.id)}
+                  className="p-2 bg-card rounded-full shadow hover:bg-accent hover:text-accent-foreground transition-colors"
+                  aria-label="Kijkpunt instellen"
+                  title="Kijkpunt instellen"
+                >
+                  <Crosshair className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleDelete(foto.id)}
                   className="p-2 bg-card rounded-full shadow hover:bg-destructive hover:text-destructive-foreground transition-colors"
                   aria-label="Verwijderen"
@@ -174,6 +186,26 @@ export default function FotosPanel({ objectId }: Props) {
           ))}
         </div>
       )}
+
+      {(() => {
+        const foto = focusFotoId ? fotos.find(f => f.id === focusFotoId) : null;
+        if (!foto) return null;
+        const url = urls[foto.storagePath];
+        if (!url) return null;
+        return (
+          <FocusPointDialog
+            open={!!focusFotoId}
+            onOpenChange={(o) => { if (!o) setFocusFotoId(null); }}
+            imageUrl={url}
+            initialFocusX={foto.focusX ?? 50}
+            initialFocusY={foto.focusY ?? 50}
+            onSave={async (fx, fy) => {
+              await store.updateFoto(foto.id, { focusX: fx, focusY: fy });
+              toast.success('Kijkpunt opgeslagen');
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

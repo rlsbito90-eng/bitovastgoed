@@ -47,6 +47,7 @@ import {
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
   Info, Calendar, Target, AlertCircle, AlertTriangle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
+  Crosshair,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -61,6 +62,7 @@ import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenA
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
+import FocusPointDialog from '@/components/object/FocusPointDialog';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
@@ -678,6 +680,7 @@ export default function ObjectDetailPage() {
   };
   const [archiefOpen, setArchiefOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [focusPointOpen, setFocusPointOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
@@ -1129,7 +1132,15 @@ export default function ObjectDetailPage() {
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
+                {hoofdfoto && heroUrl && (
+                  <>
+                    <DropdownMenuItem onClick={() => setFocusPointOpen(true)}>
+                      <Crosshair className="h-4 w-4 mr-2" /> Kijkpunt instellen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {object.isArchived ? (
                   <DropdownMenuItem onClick={unarchiveObject}>
                     <ArchiveRestore className="h-4 w-4 mr-2" /> Activeren
@@ -1179,7 +1190,15 @@ export default function ObjectDetailPage() {
             {/* Banner */}
             <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
               {heroUrl ? (
-                <img src={heroUrl} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={heroUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  style={{
+                    objectPosition: `${hoofdfoto?.focusX ?? 50}% ${hoofdfoto?.focusY ?? 50}%`,
+                  }}
+                  data-testid="object-hero-image"
+                />
               ) : (
                 <div
                   className="w-full h-full relative flex items-center justify-center"
@@ -2391,6 +2410,20 @@ export default function ObjectDetailPage() {
       </div>
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} initialTab={editInitialTab} />
+
+      {hoofdfoto && heroUrl && (
+        <FocusPointDialog
+          open={focusPointOpen}
+          onOpenChange={setFocusPointOpen}
+          imageUrl={heroUrl}
+          initialFocusX={hoofdfoto.focusX ?? 50}
+          initialFocusY={hoofdfoto.focusY ?? 50}
+          onSave={async (fx, fy) => {
+            await store.updateFoto(hoofdfoto.id, { focusX: fx, focusY: fy });
+            toast.success('Kijkpunt opgeslagen');
+          }}
+        />
+      )}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

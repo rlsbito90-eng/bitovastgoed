@@ -489,6 +489,12 @@ const documentFromDb = (d: any): ObjectDocument => ({
   createdAt: d.created_at ?? '',
 });
 
+const clampFocus = (v: any): number => {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
 const fotoFromDb = (f: any): ObjectFoto => ({
   id: f.id,
   objectId: f.object_id,
@@ -498,6 +504,8 @@ const fotoFromDb = (f: any): ObjectFoto => ({
   isPlattegrond: !!f.is_plattegrond,
   volgorde: f.volgorde ?? 0,
   bestandsgrootteBytes: f.bestandsgrootte_bytes ?? undefined,
+  focusX: f.focus_x != null ? clampFocus(f.focus_x) : 50,
+  focusY: f.focus_y != null ? clampFocus(f.focus_y) : 50,
 });
 
 const huurMetricsFromDb = (m: any): ObjectHuurMetrics => ({
@@ -1286,6 +1294,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       bijschrift: f.bijschrift !== undefined ? (f.bijschrift || null) : undefined,
       is_hoofdfoto: f.isHoofdfoto,
       volgorde: f.volgorde,
+      focus_x: f.focusX !== undefined ? clampFocus(f.focusX) : undefined,
+      focus_y: f.focusY !== undefined ? clampFocus(f.focusY) : undefined,
     });
     const { data, error } = await supabase.from('object_fotos' as any).update(payload as any).eq('id', id).select().single();
     throwIfError(error);
