@@ -1294,6 +1294,8 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       bijschrift: f.bijschrift !== undefined ? (f.bijschrift || null) : undefined,
       is_hoofdfoto: f.isHoofdfoto,
       volgorde: f.volgorde,
+      focus_x: f.focusX !== undefined ? clampFocus(f.focusX) : undefined,
+      focus_y: f.focusY !== undefined ? clampFocus(f.focusY) : undefined,
     });
     const { data, error } = await supabase.from('object_fotos' as any).update(payload as any).eq('id', id).select().single();
     throwIfError(error);
