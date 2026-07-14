@@ -2411,6 +2411,20 @@ export default function ObjectDetailPage() {
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} initialTab={editInitialTab} />
 
+      {hoofdfoto && heroUrl && (
+        <FocusPointDialog
+          open={focusPointOpen}
+          onOpenChange={setFocusPointOpen}
+          imageUrl={heroUrl}
+          initialFocusX={hoofdfoto.focusX ?? 50}
+          initialFocusY={hoofdfoto.focusY ?? 50}
+          onSave={async (fx, fy) => {
+            await store.updateFoto(hoofdfoto.id, { focusX: fx, focusY: fy });
+            toast.success('Kijkpunt opgeslagen');
+          }}
+        />
+      )}
+
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
