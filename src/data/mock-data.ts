@@ -524,6 +524,10 @@ export interface ObjectFoto {
   isPlattegrond?: boolean;
   volgorde: number;
   bestandsgrootteBytes?: number;
+  /** Horizontaal kijkpunt (0-100%). Default 50. */
+  focusX?: number;
+  /** Verticaal kijkpunt (0-100%). Default 50. */
+  focusY?: number;
 }
 
 export interface ObjectHuurMetrics {
