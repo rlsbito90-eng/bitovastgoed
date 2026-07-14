@@ -22,6 +22,7 @@ export default function FotosPanel({ objectId }: Props) {
   const fotos = store.getFotosVoorObject(objectId);
   const [bezig, setBezig] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [focusFotoId, setFocusFotoId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Signed URLs ophalen zodra set foto's verandert
