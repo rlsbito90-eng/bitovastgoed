@@ -1792,6 +1792,8 @@ export type Database = {
           bestandsgrootte_bytes: number | null
           bijschrift: string | null
           created_at: string
+          focus_x: number
+          focus_y: number
           id: string
           is_hoofdfoto: boolean
           is_plattegrond: boolean
@@ -1804,6 +1806,8 @@ export type Database = {
           bestandsgrootte_bytes?: number | null
           bijschrift?: string | null
           created_at?: string
+          focus_x?: number
+          focus_y?: number
           id?: string
           is_hoofdfoto?: boolean
           is_plattegrond?: boolean
@@ -1816,6 +1820,8 @@ export type Database = {
           bestandsgrootte_bytes?: number | null
           bijschrift?: string | null
           created_at?: string
+          focus_x?: number
+          focus_y?: number
           id?: string
           is_hoofdfoto?: boolean
           is_plattegrond?: boolean
