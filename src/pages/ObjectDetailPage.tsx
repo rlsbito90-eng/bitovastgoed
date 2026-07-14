@@ -1132,7 +1132,15 @@ export default function ObjectDetailPage() {
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
+                {hoofdfoto && heroUrl && (
+                  <>
+                    <DropdownMenuItem onClick={() => setFocusPointOpen(true)}>
+                      <Crosshair className="h-4 w-4 mr-2" /> Kijkpunt instellen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {object.isArchived ? (
                   <DropdownMenuItem onClick={unarchiveObject}>
                     <ArchiveRestore className="h-4 w-4 mr-2" /> Activeren
