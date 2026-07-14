@@ -47,6 +47,7 @@ import {
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
   Info, Calendar, Target, AlertCircle, AlertTriangle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
+  Crosshair,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import {
