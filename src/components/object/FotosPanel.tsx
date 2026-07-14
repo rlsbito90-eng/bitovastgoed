@@ -8,8 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   uploadBestand, buildFotoPath, getSignedUrls, isFotoFile, MAX_FILE_SIZE_MB,
 } from '@/lib/storage';
-import { Upload, Star, Trash2, Loader2 } from 'lucide-react';
+import { Upload, Star, Trash2, Loader2, Crosshair } from 'lucide-react';
 import { toast } from 'sonner';
+import FocusPointDialog from './FocusPointDialog';
 
 interface Props {
   objectId: string;
