@@ -489,6 +489,12 @@ const documentFromDb = (d: any): ObjectDocument => ({
   createdAt: d.created_at ?? '',
 });
 
+const clampFocus = (v: any): number => {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
 const fotoFromDb = (f: any): ObjectFoto => ({
   id: f.id,
   objectId: f.object_id,
@@ -498,6 +504,8 @@ const fotoFromDb = (f: any): ObjectFoto => ({
   isPlattegrond: !!f.is_plattegrond,
   volgorde: f.volgorde ?? 0,
   bestandsgrootteBytes: f.bestandsgrootte_bytes ?? undefined,
+  focusX: f.focus_x != null ? clampFocus(f.focus_x) : 50,
+  focusY: f.focus_y != null ? clampFocus(f.focus_y) : 50,
 });
 
 const huurMetricsFromDb = (m: any): ObjectHuurMetrics => ({
