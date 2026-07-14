@@ -1190,7 +1190,15 @@ export default function ObjectDetailPage() {
             {/* Banner */}
             <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
               {heroUrl ? (
-                <img src={heroUrl} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={heroUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  style={{
+                    objectPosition: `${hoofdfoto?.focusX ?? 50}% ${hoofdfoto?.focusY ?? 50}%`,
+                  }}
+                  data-testid="object-hero-image"
+                />
               ) : (
                 <div
                   className="w-full h-full relative flex items-center justify-center"
