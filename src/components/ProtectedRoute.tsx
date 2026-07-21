@@ -28,7 +28,9 @@ export default function ProtectedRoute({
   }
 
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    const nextPath = location.pathname + location.search;
+    const q = nextPath && nextPath !== "/" ? `?next=${encodeURIComponent(nextPath)}` : "";
+    return <Navigate to={`/auth${q}`} state={{ from: location }} replace />;
   }
 
   if (!heeftToegang) {

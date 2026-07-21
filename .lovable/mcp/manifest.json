@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ljudxyrqoifhfikueric.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "bito-vastgoed-mcp",
+      "version": "0.1.0",
+      "title": "Bito Vastgoed CRM"
+    },
+    "tools": [
+      {
+        "name": "list_relaties",
+        "title": "Lijst relaties",
+        "description": "Lijst met CRM-relaties (kopers, verkopers, huurders, contacten) van de ingelogde gebruiker. Ondersteunt zoeken op naam/plaats en filtert soft-deleted records uit.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "zoekterm": {
+              "description": "Zoekterm op bedrijfsnaam, contactnaam of plaats.",
+              "type": "string",
+              "maxLength": 120
+            },
+            "limit": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_objecten",
+        "title": "Lijst objecten",
+        "description": "Lijst met vastgoedobjecten (aanbod) van de ingelogde gebruiker. Geeft kernvelden voor overzicht en beslissing: locatie, type, vraagprijs, huur, oppervlakte, status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "zoekterm": {
+              "description": "Zoekterm op naam, adres of plaats.",
+              "type": "string",
+              "maxLength": 120
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "te_beoordelen",
+                "actief",
+                "onder_bod",
+                "verkocht",
+                "verhuurd",
+                "ingetrokken"
+              ]
+            },
+            "plaats": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "limit": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_deals",
+        "title": "Lijst deals",
+        "description": "Lijst met deals (pipeline) voor de ingelogde gebruiker met fase, interessegraad, indicatief bod, en gekoppelde relatie/object. Sluit gearchiveerde deals standaard uit.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "fase": {
+              "description": "Filter op deal-fase.",
+              "type": "string",
+              "maxLength": 40
+            },
+            "inclusief_archief": {
+              "default": false,
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_taken",
+        "title": "Lijst taken",
+        "description": "Lijst met openstaande taken van de ingelogde gebruiker met titel, deadline, prioriteit en status. Sluit standaard afgeronde en geannuleerde taken uit.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "inclusief_afgerond": {
+              "default": false,
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

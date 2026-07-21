@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,17 +9,28 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { lovable } from '@/integrations/lovable';
 
-async function handleGoogleSignIn() {
+function sanitizeNext(raw: string | null): string {
+  if (!raw) return '/';
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
+  return raw;
+}
+
+function useNextPath() {
+  const [params] = useSearchParams();
+  return useMemo(() => sanitizeNext(params.get('next')), [params]);
+}
+
+async function handleGoogleSignIn(next: string) {
   const result = await lovable.auth.signInWithOAuth('google', {
-    redirect_uri: window.location.origin,
+    redirect_uri: `${window.location.origin}${next}`,
   });
   if (result.error) {
     toast.error('Inloggen met Google mislukt');
   }
 }
 
-const GoogleButton = () => (
-  <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+const GoogleButton = ({ next }: { next: string }) => (
+  <Button type="button" variant="outline" className="w-full" onClick={() => handleGoogleSignIn(next)}>
     <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09z"/>
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
@@ -30,17 +41,17 @@ const GoogleButton = () => (
   </Button>
 );
 
-async function handleAppleSignIn() {
+async function handleAppleSignIn(next: string) {
   const result = await lovable.auth.signInWithOAuth('apple', {
-    redirect_uri: window.location.origin,
+    redirect_uri: `${window.location.origin}${next}`,
   });
   if (result.error) {
     toast.error('Inloggen met Apple mislukt');
   }
 }
 
-const AppleButton = () => (
-  <Button type="button" variant="outline" className="w-full" onClick={handleAppleSignIn}>
+const AppleButton = ({ next }: { next: string }) => (
+  <Button type="button" variant="outline" className="w-full" onClick={() => handleAppleSignIn(next)}>
     <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
       <path d="M16.365 1.43c0 1.14-.46 2.23-1.2 3.02-.8.86-2.1 1.52-3.18 1.43-.14-1.1.43-2.24 1.15-3.02.8-.87 2.18-1.52 3.23-1.43zM20.5 17.27c-.55 1.27-.82 1.84-1.53 2.97-1 1.57-2.4 3.53-4.14 3.55-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.74-.02-3.07-1.79-4.07-3.36-2.8-4.4-3.1-9.56-1.37-12.3 1.23-1.96 3.17-3.1 5-3.1 1.86 0 3.03 1.02 4.56 1.02 1.49 0 2.4-1.02 4.55-1.02 1.62 0 3.34.88 4.56 2.4-4.01 2.2-3.36 7.93.58 9.84z"/>
     </svg>
@@ -51,6 +62,7 @@ const AppleButton = () => (
 export default function AuthPage() {
   const { user, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const next = useNextPath();
   const [bezig, setBezig] = useState(false);
 
   // Login state
@@ -64,9 +76,9 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/', { replace: true });
+      navigate(next, { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, next]);
 
   const onLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +89,7 @@ export default function AuthPage() {
       toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : 'Inloggen mislukt. Controleer je gegevens.');
     } else {
       toast.success('Welkom terug');
-      navigate('/', { replace: true });
+      navigate(next, { replace: true });
     }
   };
 
@@ -130,8 +142,8 @@ export default function AuthPage() {
 
         <div className="glass-card p-6 sm:p-7 space-y-4 rounded-2xl">
           <div className="grid grid-cols-1 gap-2.5">
-            <GoogleButton />
-            <AppleButton />
+            <GoogleButton next={next} />
+            <AppleButton next={next} />
           </div>
           <div className="relative py-1">
             <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
