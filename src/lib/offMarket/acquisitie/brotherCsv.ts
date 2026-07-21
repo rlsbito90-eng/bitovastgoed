@@ -94,9 +94,10 @@ export function bouwBrotherLabelRij(
   let r4 = '';
 
   if (persoon) {
-    const specifiek = isSpecifiekeAanhef(brief.aanhef);
-    const aanhef = specifiek ? brief.aanhef!.trim() : 'De heer/mevrouw';
-    r1 = `${aanhef} ${naam}`.replace(/\s+/g, ' ').trim();
+    // Regel1 = uitsluitend de definitieve geadresseerdennaam. Nooit een
+    // briefaanhef (opgeslagen `aanhef` of generieke "De heer/mevrouw")
+    // meenemen — een adreslabel is geen brief.
+    r1 = naam;
     r2 = adres.straat;
     r3 = adres.postcodePlaats;
     r4 = adres.land ?? '';
