@@ -127,6 +127,7 @@ function maakBrief(over?: Partial<OffMarketBrief>): OffMarketBrief {
     updated_at: '2026-07-01T00:00:00Z',
     created_at: '2026-07-01T00:00:00Z',
     archived_at: null,
+    ...(over as object),
   } as unknown as OffMarketBrief;
 }
 
