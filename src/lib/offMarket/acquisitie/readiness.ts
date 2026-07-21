@@ -10,6 +10,7 @@
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
+import { isVolledigPostadres as isVolledigPostadresCentraal } from '@/lib/offMarket/acquisitie/postadres';
 
 // ---------------------------------------------------------------------
 // Fases
