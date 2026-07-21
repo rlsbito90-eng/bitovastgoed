@@ -179,15 +179,12 @@ export interface GeadresseerdeReadiness {
 
 /**
  * Valideer of een verzendadres bruikbaar is voor fysieke post.
- * Eis: minimaal een NL-postcode en een plaatsnaam zichtbaar in de tekst.
+ * Delegeert aan de centrale parser in `postadres.ts` — accepteert zowel
+ * NL-adressen (met NL-postcode) als volledige buitenlandse adressen
+ * (drie niet-lege regels met afsluitende landregel).
  */
 export function isVolledigPostadres(adres: string | null | undefined): boolean {
-  if (!adres) return false;
-  const norm = adres.replace(/\s+/g, ' ').trim();
-  if (norm.length < 8) return false;
-  const heeftPostcode = /\b\d{4}\s?[A-Za-z]{2}\b/.test(norm);
-  const heeftStraatNummer = /[A-Za-zÀ-ÿ.]\s*\d+/.test(norm);
-  return heeftPostcode && heeftStraatNummer;
+  return isVolledigPostadresCentraal(adres);
 }
 
 function nuISO(): string {
