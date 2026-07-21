@@ -5,10 +5,7 @@
 // verzendlogica; geen nieuwe interpretatie of deduplicatie.
 
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
-import {
-  isSpecifiekeAanhef,
-  plaatsBovenkast,
-} from '@/lib/offMarket/acquisitie/adreslabel';
+import { plaatsBovenkast } from '@/lib/offMarket/acquisitie/adreslabel';
 import { parsePostadres } from '@/lib/offMarket/acquisitie/postadres';
 
 // ---------------------------------------------------------------------
