@@ -9,6 +9,7 @@ import {
   isSpecifiekeAanhef,
   plaatsBovenkast,
 } from '@/lib/offMarket/acquisitie/adreslabel';
+import { parsePostadres } from '@/lib/offMarket/acquisitie/postadres';
 
 // ---------------------------------------------------------------------
 // Types
@@ -37,63 +38,30 @@ export interface BrotherBrief {
 }
 
 // ---------------------------------------------------------------------
-// Adresparser — herkent zowel NL- als buitenlandse adressen.
+// Adres-adapter — labelweergave voor Brother P-touch.
+// De inhoudelijke parsing (NL vs buitenland, volledigheid) gebeurt in de
+// gedeelde module `postadres.ts`. Deze adapter zet het resultaat om naar
+// de shape die de bestaande Brother-tests en label-opbouw verwachten.
 // ---------------------------------------------------------------------
-const NL_POSTCODE_RE = /\b(\d{4})\s*([A-Za-z]{2})\b/;
-
 export interface BrotherAdres {
   straat: string;
   postcodePlaats: string; // "1015 NC AMSTERDAM" of "8800-357 TAVIRA"
   land: string | null;    // null bij NL
 }
 
-/** Splits een verzendadres in nette regels (trim, collapse witruimte). */
-function splitsRegels(adres: string): string[] {
-  return adres
-    .replace(/\r/g, '')
-    .split('\n')
-    .map(r => r.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-}
-
 export function parseVerzendadresBrother(
   adres: string | null | undefined,
 ): BrotherAdres | null {
-  if (!adres) return null;
-  const regels = splitsRegels(adres.toString());
-  if (regels.length < 2) return null;
-
-  // NL: laatste regel bevat NL-postcode.
-  const laatste = regels[regels.length - 1];
-  if (NL_POSTCODE_RE.test(laatste)) {
-    const m = laatste.match(NL_POSTCODE_RE)!;
-    const postcode = `${m[1]} ${m[2].toUpperCase()}`;
-    const plaats = plaatsBovenkast(laatste.replace(NL_POSTCODE_RE, '').trim());
-    if (!plaats) return null;
-    const straatRegels = regels.slice(0, -1);
-    const straat = straatRegels.join(' ').trim();
-    if (!straat) return null;
-    return { straat, postcodePlaats: `${postcode} ${plaats}`, land: null };
-  }
-
-  // Buitenland: laatste regel = land, één regel eerder = postcode+plaats.
-  if (regels.length < 3) return null;
-  const land = regels[regels.length - 1];
-  const pcPlaatsRuw = regels[regels.length - 2];
-  // Splitsen tussen postcode(-blok) en plaats. Buitenlandse postcodes
-  // bevatten cijfers en soms letters/streepjes → nemen we ruw over.
-  const buitenPcMatch = pcPlaatsRuw.match(/^(\S+(?:\s\S+)?)\s+(.+)$/);
-  let postcodePlaats: string;
-  if (buitenPcMatch) {
-    const postcode = buitenPcMatch[1];
-    const plaats = plaatsBovenkast(buitenPcMatch[2]);
-    postcodePlaats = `${postcode} ${plaats}`.trim();
-  } else {
-    postcodePlaats = plaatsBovenkast(pcPlaatsRuw);
-  }
-  const straat = regels.slice(0, -2).join(' ').trim();
-  if (!straat || !postcodePlaats || !land) return null;
-  return { straat, postcodePlaats, land };
+  const p = parsePostadres(adres);
+  if (!p) return null;
+  if (!p.straat || !p.postcodePlaats) return null;
+  // Voor labelweergave forceren we de plaats in bovenkast (idempotent op
+  // reeds bovenkast-strings).
+  return {
+    straat: p.straat,
+    postcodePlaats: plaatsBovenkast(p.postcodePlaats),
+    land: p.land,
+  };
 }
 
 // ---------------------------------------------------------------------
