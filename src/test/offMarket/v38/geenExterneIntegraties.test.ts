@@ -5,8 +5,8 @@ import { resolve } from 'node:path';
 
 const BESTANDEN = [
   'src/lib/offMarket/acquisitie/adreslabel.ts',
-  'src/components/offmarket/acquisitie/GecombineerdeAdreslabelsPDF.tsx',
-  'src/components/offmarket/acquisitie/AdreslabelsPdfDialog.tsx',
+  'src/lib/offMarket/acquisitie/brotherCsv.ts',
+  'src/components/offmarket/acquisitie/BrotherAdreslabelsCsvDialog.tsx',
   'src/components/offmarket/acquisitie/MarkeerBulkDialog.tsx',
 ];
 
