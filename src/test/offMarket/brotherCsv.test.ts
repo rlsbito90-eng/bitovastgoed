@@ -30,20 +30,20 @@ function brief(p: Partial<BrotherBrief> & { id: string }): BrotherBrief {
 }
 
 describe('brotherCsv — rij-opbouw', () => {
-  it('NL particulier: Regel1 met De heer/mevrouw, Regel4 leeg', () => {
+  it('NL particulier: Regel1 = uitsluitend eigenaar_naam (geen briefaanhef)', () => {
     const r = bouwBrotherLabelRij(brief({
       id: 'b1',
       eigenaar_naam: 'O. Lixenberg',
       verzendadres: 'Eerste Boomdwarsstraat 10-1\n1015 NC Amsterdam',
     }), 1);
     expect(r.geldig).toBe(true);
-    expect(r.regel1).toBe('De heer/mevrouw O. Lixenberg');
+    expect(r.regel1).toBe('O. Lixenberg');
     expect(r.regel2).toBe('Eerste Boomdwarsstraat 10-1');
     expect(r.regel3).toBe('1015 NC AMSTERDAM');
     expect(r.regel4).toBe('');
   });
 
-  it('NL rechtspersoon: Regel2 = "T.a.v. de directie"', () => {
+  it('NL rechtspersoon: Regel1 = bedrijfsnaam, Regel2 = "T.a.v. de directie"', () => {
     const r = bouwBrotherLabelRij(brief({
       id: 'b2',
       eigenaar_bedrijfsnaam: 'PRE Nederland B.V.',
@@ -56,27 +56,38 @@ describe('brotherCsv — rij-opbouw', () => {
     expect(r.regel4).toBe('1016 VJ AMSTERDAM');
   });
 
-  it('Buitenlands adres: land in Regel4', () => {
+  it('Buitenlands adres: Regel1 = eigenaar_naam, land in Regel4', () => {
     const r = bouwBrotherLabelRij(brief({
       id: 'b3',
       eigenaar_naam: 'M. Paare',
       verzendadres: 'Ru Poeta Emiliano da Costa n. 82 RC\n8800-357 Tavira\nPortugal',
     }), 1);
     expect(r.geldig).toBe(true);
-    expect(r.regel1).toBe('De heer/mevrouw M. Paare');
+    expect(r.regel1).toBe('M. Paare');
     expect(r.regel2).toBe('Ru Poeta Emiliano da Costa n. 82 RC');
     expect(r.regel3).toBe('8800-357 TAVIRA');
     expect(r.regel4).toBe('Portugal');
   });
 
-  it('Gezamenlijke eigenaren: één record met samengestelde naam', () => {
+  it('Buitenlandse particulier met opgeslagen briefaanhef: aanhef niet in Regel1', () => {
+    const r = bouwBrotherLabelRij(brief({
+      id: 'b3b',
+      eigenaar_naam: 'J.B. Labeij',
+      verzendadres: 'Strada Favona IV 1\n72012 Carovigno\nItalië',
+      aanhef: 'Dear Sir/Madam,',
+    }), 1);
+    expect(r.regel1).toBe('J.B. Labeij');
+    expect(r.regel4).toBe('Italië');
+  });
+
+  it('Gezamenlijke eigenaren: één record met gezamenlijke naamregel, geen aanhef', () => {
     const r = bouwBrotherLabelRij(brief({
       id: 'b4',
       eigenaar_naam: 'S.R. Wijnbergen en E.C. Wijnbergen',
       verzendadres: 'Hoogte Kadijk 36\n1018 BM Amsterdam',
     }), 1);
     expect(r.geldig).toBe(true);
-    expect(r.regel1).toBe('De heer/mevrouw S.R. Wijnbergen en E.C. Wijnbergen');
+    expect(r.regel1).toBe('S.R. Wijnbergen en E.C. Wijnbergen');
     expect(r.regel4).toBe('');
   });
 
@@ -86,7 +97,7 @@ describe('brotherCsv — rij-opbouw', () => {
       eigenaar_naam: 'T. Süss',
       verzendadres: "O'Reilly-straat 3 & 4\n1000 AA Amsterdam",
     }), 1);
-    expect(r.regel1).toContain('Süss');
+    expect(r.regel1).toBe('T. Süss');
     expect(r.regel2).toBe("O'Reilly-straat 3 & 4");
   });
 
@@ -102,13 +113,13 @@ describe('brotherCsv — rij-opbouw', () => {
     expect(onvolledig.blokkadeReden).toMatch(/postadres/i);
   });
 
-  it('Specifieke aanhef overschrijft generieke aanhef', () => {
+  it('Opgeslagen specifieke aanhef komt NIET op Regel1', () => {
     const r = bouwBrotherLabelRij(brief({
       id: 'b6', eigenaar_naam: 'A. Test',
       verzendadres: 'Straat 1\n1000 AA Plaats',
       aanhef: 'Geachte heer',
     }), 1);
-    expect(r.regel1).toBe('Geachte heer A. Test');
+    expect(r.regel1).toBe('A. Test');
   });
 });
 
@@ -204,9 +215,16 @@ describe('brotherCsv — CSV-serialisatie', () => {
     }
   });
 
-  it('Bestandsnaam volgt bito-vastgoed-adreslabels-YYYY-MM-DD.csv', () => {
+  it('Bestandsnaam volgt bito-vastgoed-adreslabels-YYYY-MM-DD.csv (Europe/Amsterdam)', () => {
+    // 10:00 UTC = 12:00 lokaal → zelfde kalenderdatum.
     const naam = brotherCsvBestandsnaam(new Date('2026-07-21T10:00:00Z'));
     expect(naam).toBe('bito-vastgoed-adreslabels-2026-07-21.csv');
+  });
+
+  it('Bestandsnaam gebruikt lokale NL-datum rond middernacht (zomertijd)', () => {
+    // 21 juli 2026 23:30 UTC = 22 juli 01:30 Europe/Amsterdam (CEST).
+    const naam = brotherCsvBestandsnaam(new Date('2026-07-21T23:30:00Z'));
+    expect(naam).toBe('bito-vastgoed-adreslabels-2026-07-22.csv');
   });
 
   it('UTF-8 BOM constant is U+FEFF', () => {

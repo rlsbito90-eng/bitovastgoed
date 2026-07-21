@@ -5,10 +5,7 @@
 // verzendlogica; geen nieuwe interpretatie of deduplicatie.
 
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
-import {
-  isSpecifiekeAanhef,
-  plaatsBovenkast,
-} from '@/lib/offMarket/acquisitie/adreslabel';
+import { plaatsBovenkast } from '@/lib/offMarket/acquisitie/adreslabel';
 import { parsePostadres } from '@/lib/offMarket/acquisitie/postadres';
 
 // ---------------------------------------------------------------------
@@ -97,9 +94,10 @@ export function bouwBrotherLabelRij(
   let r4 = '';
 
   if (persoon) {
-    const specifiek = isSpecifiekeAanhef(brief.aanhef);
-    const aanhef = specifiek ? brief.aanhef!.trim() : 'De heer/mevrouw';
-    r1 = `${aanhef} ${naam}`.replace(/\s+/g, ' ').trim();
+    // Regel1 = uitsluitend de definitieve geadresseerdennaam. Nooit een
+    // briefaanhef (opgeslagen `aanhef` of generieke "De heer/mevrouw")
+    // meenemen — een adreslabel is geen brief.
+    r1 = naam;
     r2 = adres.straat;
     r3 = adres.postcodePlaats;
     r4 = adres.land ?? '';
@@ -173,8 +171,16 @@ export function bouwBrotherCsv(rijen: BrotherLabelRij[]): string {
 export const UTF8_BOM = '\uFEFF';
 
 /** Bestandsnaam volgens BUILD-spec. */
+/** Bestandsnaam volgens BUILD-spec — datum in Europe/Amsterdam (CRM-zone). */
 export function brotherCsvBestandsnaam(datum: Date = new Date()): string {
-  const iso = datum.toISOString().slice(0, 10);
+  // Intl geeft in de sv-SE-locale het formaat YYYY-MM-DD; combineert met de
+  // Amsterdam-tijdzone zodat een export rond 00.00–01.59 lokale zomertijd
+  // de Nederlandse kalenderdatum toont in plaats van de UTC-datum van
+  // `toISOString()`.
+  const iso = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Amsterdam',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(datum);
   return `bito-vastgoed-adreslabels-${iso}.csv`;
 }
 
