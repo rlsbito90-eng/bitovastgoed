@@ -9,6 +9,7 @@ import {
   isSpecifiekeAanhef,
   plaatsBovenkast,
 } from '@/lib/offMarket/acquisitie/adreslabel';
+import { parsePostadres } from '@/lib/offMarket/acquisitie/postadres';
 
 // ---------------------------------------------------------------------
 // Types
