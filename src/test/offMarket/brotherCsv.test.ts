@@ -215,9 +215,16 @@ describe('brotherCsv — CSV-serialisatie', () => {
     }
   });
 
-  it('Bestandsnaam volgt bito-vastgoed-adreslabels-YYYY-MM-DD.csv', () => {
+  it('Bestandsnaam volgt bito-vastgoed-adreslabels-YYYY-MM-DD.csv (Europe/Amsterdam)', () => {
+    // 10:00 UTC = 12:00 lokaal → zelfde kalenderdatum.
     const naam = brotherCsvBestandsnaam(new Date('2026-07-21T10:00:00Z'));
     expect(naam).toBe('bito-vastgoed-adreslabels-2026-07-21.csv');
+  });
+
+  it('Bestandsnaam gebruikt lokale NL-datum rond middernacht (zomertijd)', () => {
+    // 21 juli 2026 23:30 UTC = 22 juli 01:30 Europe/Amsterdam (CEST).
+    const naam = brotherCsvBestandsnaam(new Date('2026-07-21T23:30:00Z'));
+    expect(naam).toBe('bito-vastgoed-adreslabels-2026-07-22.csv');
   });
 
   it('UTF-8 BOM constant is U+FEFF', () => {
