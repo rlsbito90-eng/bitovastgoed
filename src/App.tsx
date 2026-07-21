@@ -32,6 +32,7 @@ import AdminPage from "@/pages/AdminPage";
 import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import OffMarketPage from "@/pages/OffMarketPage";
 import OffMarketSignaalDetailPage from "@/pages/OffMarketSignaalDetailPage";
+import OAuthConsentPage from "@/pages/OAuthConsentPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
               <AcquisitieProvider>
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
                 <Route
                   path="*"
                   element={
