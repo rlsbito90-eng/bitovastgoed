@@ -171,8 +171,16 @@ export function bouwBrotherCsv(rijen: BrotherLabelRij[]): string {
 export const UTF8_BOM = '\uFEFF';
 
 /** Bestandsnaam volgens BUILD-spec. */
+/** Bestandsnaam volgens BUILD-spec — datum in Europe/Amsterdam (CRM-zone). */
 export function brotherCsvBestandsnaam(datum: Date = new Date()): string {
-  const iso = datum.toISOString().slice(0, 10);
+  // Intl geeft in de sv-SE-locale het formaat YYYY-MM-DD; combineert met de
+  // Amsterdam-tijdzone zodat een export rond 00.00–01.59 lokale zomertijd
+  // de Nederlandse kalenderdatum toont in plaats van de UTC-datum van
+  // `toISOString()`.
+  const iso = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Amsterdam',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(datum);
   return `bito-vastgoed-adreslabels-${iso}.csv`;
 }
 
