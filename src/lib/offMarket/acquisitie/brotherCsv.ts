@@ -1,7 +1,7 @@
 // Brother P-touch adreslabels — CSV-export builder.
 // Puur en deterministisch: bouwt uit reeds definitief vastgelegde
 // geadresseerde-/adresvelden van een off-market brief exact vier
-// labelregels + een oplopend volgnummer. Geen Kadaster-, brief- of
+// labelregels + een oplopend volgnummer. Geen kadasterlogica, geen
 // verzendlogica; geen nieuwe interpretatie of deduplicatie.
 
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
