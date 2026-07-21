@@ -33,7 +33,7 @@ import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
-import AdreslabelsPdfDialog from './AdreslabelsPdfDialog';
+import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import {
   pastInFilter, type SelectieFilter,
@@ -420,9 +420,10 @@ export default function AcquisitieSelectieTab() {
             onClick={() => setLabelsOpen(true)}
             disabled={bulkSelectie.size === 0}
             data-testid="acquisitie-bulk-adreslabels"
+            title="Download een CSV-database voor Brother P-touch Editor."
           >
             <Tag className="h-3.5 w-3.5" />
-            Adreslabels
+            Brother-adreslabels exporteren
           </Button>
           <Button
             type="button" size="sm" variant="outline"
@@ -626,7 +627,7 @@ export default function AcquisitieSelectieTab() {
         brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
       />
 
-      <AdreslabelsPdfDialog
+      <BrotherAdreslabelsCsvDialog
         open={labelsOpen}
         onClose={() => setLabelsOpen(false)}
         signalen={geselecteerdeSignalenBulk}
