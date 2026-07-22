@@ -106,6 +106,124 @@ describe('bepaalWerkbakContext', () => {
   });
 });
 
+describe('Fase 1.1 — tabelgedreven dekking readiness-fases', () => {
+  // Elke bekende readiness-fase mapt naar exact één (werkbak, subfilter) categorie.
+  // Dit voorkomt dat toekomstige fases per ongeluk in twee bakken vallen.
+  const casus: Array<{ fase: ReadinessFase; werkbak: 'actie' | 'wachten' | 'afgehandeld'; brieven?: OffMarketBrief[] }> = [
+    { fase: 'onderzoek_nodig', werkbak: 'actie' },
+    { fase: 'eigenaar_ontbreekt', werkbak: 'actie' },
+    { fase: 'adres_ontbreekt', werkbak: 'actie' },
+    { fase: 'brief_voorbereiden', werkbak: 'actie' },
+    { fase: 'concept_gereed', werkbak: 'actie' },
+    { fase: 'gereed_voor_print', werkbak: 'actie' },
+    { fase: 'geprint', werkbak: 'actie' },
+    { fase: 'opvolging_open', werkbak: 'actie', brieven: [mkBrief({ opvolgdatum: '2026-07-10' })] },
+    { fase: 'gepost', werkbak: 'wachten', brieven: [mkBrief({ opvolgdatum: '2026-08-05' })] },
+    { fase: 'email_verzonden', werkbak: 'wachten', brieven: [mkBrief({ kanaal: 'email' as any, opvolgdatum: '2026-08-05' })] },
+    { fase: 'afgerond', werkbak: 'afgehandeld', brieven: [mkBrief({ responsdatum: '2026-07-10' })] },
+  ];
+  it.each(casus)('fase $fase → werkbak $werkbak', ({ fase, werkbak, brieven }) => {
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness(fase),
+      brieven: brieven ?? [],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.werkbak).toBe(werkbak);
+  });
+
+  it('sum-invariant: actie + wachten + afgehandeld = totaal', () => {
+    const totaal = casus.length;
+    const a = casus.filter(c => c.werkbak === 'actie').length;
+    const w = casus.filter(c => c.werkbak === 'wachten').length;
+    const f = casus.filter(c => c.werkbak === 'afgehandeld').length;
+    expect(a + w + f).toBe(totaal);
+  });
+});
+
+describe('Fase 1.1 — semantische labels afgehandeld', () => {
+  it('respons: label "Reactie op ..."', () => {
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness('afgerond'),
+      brieven: [mkBrief({ responsdatum: '2026-07-10' })],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.procesDatum?.label).toMatch(/^Reactie op /);
+    expect(ctx.procesDatum?.iso).toBe('2026-07-10');
+  });
+
+  it('gearchiveerd zonder respons: label "Gearchiveerd op ..."', () => {
+    const s = { id: 's1', gearchiveerd_op: '2026-06-15T09:00:00Z' } as unknown as OffMarketSignaal;
+    const ctx = bepaalWerkbakContext({
+      signaal: s,
+      readiness: mkReadiness('afgerond'),
+      brieven: [], // geen actieve brieven, dus geen responsdatum
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.procesDatum?.label).toMatch(/^Gearchiveerd op /);
+    expect(ctx.procesDatum?.iso).toBe('2026-06-15');
+  });
+
+  it('geen betrouwbare datum: alleen "Afgehandeld"', () => {
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness('afgerond'),
+      brieven: [],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.procesDatum?.iso).toBeNull();
+    expect(ctx.procesDatum?.label).toBe('Afgehandeld');
+  });
+});
+
+describe('Fase 1.1 — defensieve Wachten-controle', () => {
+  it('actief concept blokkeert Wachten (fase blijft "gepost", maar één brief is concept)', () => {
+    // gepost-fase betekent minimaal één verstuurde brief; een tweede
+    // ontvanger met een concept moet Wachten voorkomen.
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness('gepost'),
+      brieven: [
+        mkBrief({ id: 'b1', opvolgdatum: '2026-08-05' }),
+        mkBrief({ id: 'b2', status: 'concept' as any, verzendstatus: null as any, opvolgdatum: null }),
+      ],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.werkbak).toBe('actie');
+  });
+
+  it('vandaag als opvolgdatum → geen Wachten', () => {
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness('gepost'),
+      brieven: [mkBrief({ opvolgdatum: VANDAAG })],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.werkbak).toBe('actie');
+  });
+
+  it('alle actieve brieven verzonden met toekomstige opvolging → Wachten', () => {
+    const ctx = bepaalWerkbakContext({
+      signaal: mkSignaal(),
+      readiness: mkReadiness('gepost'),
+      brieven: [
+        mkBrief({ id: 'b1', opvolgdatum: '2026-08-05' }),
+        mkBrief({ id: 'b2', opvolgdatum: '2026-08-10' }),
+      ],
+      toegevoegdOp: null,
+      vandaag: VANDAAG,
+    });
+    expect(ctx.werkbak).toBe('wachten');
+  });
+});
+
 describe('sorteerWerkvolgorde', () => {
   function rij(id: string, ctx: SorteerRij['ctx'], toegevoegdOp: string | null = null): SorteerRij {
     return {

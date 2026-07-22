@@ -21,6 +21,7 @@ import type {
   ReadinessFase,
   SignaalReadiness,
 } from '@/lib/offMarket/acquisitie/readiness';
+import { vandaagNl, isDatumInToekomstNl } from '@/lib/datum/nlDatum';
 
 // ---------------------------------------------------------------------
 // Types
@@ -90,11 +91,12 @@ export const FASE_WERKBAK: Record<ReadinessFase, Werkbak> = {
 // ---------------------------------------------------------------------
 
 function vandaagISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Nederlandse werkdag (Europe/Amsterdam), correct rond middernacht.
+  return vandaagNl();
 }
 
 function isDatumInToekomst(iso: string, vandaag = vandaagISO()): boolean {
-  return iso > vandaag;
+  return isDatumInToekomstNl(iso, vandaag);
 }
 
 function actieveBrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
@@ -103,25 +105,33 @@ function actieveBrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
 
 /**
  * Bepaal of een signaal met fase 'gepost' of 'email_verzonden' feitelijk
- * in de Wachten-werkbak thuishoort: geen open opvolging, en er is minstens
- * één actieve brief met een toekomstige opvolgdatum en geen inhoudelijke
- * respons.
+ * in de Wachten-werkbak thuishoort. Defensief: elke actuele brief moet
+ * inhoudelijk beantwoord zijn óf zich in een echte wachttoestand
+ * bevinden (verstuurd/gepost met toekomstige opvolgdatum). Een actief
+ * concept, printactie, postactie of ontbrekende opvolgdatum bij een
+ * andere geadresseerde blokkeert Wachten — het signaal hoort dan in Actie.
  */
 function heeftUitsluitendToekomstigeOpvolging(
   brieven: OffMarketBrief[],
   vandaag = vandaagISO(),
 ): boolean {
-  const actief = actieveBrieven(brieven).filter(
-    b => b.status === 'verstuurd' || b.verzendstatus === 'gepost' || b.verzendstatus === 'verzonden',
-  );
+  const actief = actieveBrieven(brieven);
   if (actief.length === 0) return false;
   let heeftToekomstig = false;
   for (const b of actief) {
-    const opv = b.opvolgdatum ?? null;
     const respons = b.responsstatus ?? null;
-    if (respons && respons !== 'geen_reactie') continue; // beantwoord telt niet mee
-    if (!opv) return false; // "plannen"-signaal: hoort in Actie, niet in Wachten
-    if (!isDatumInToekomst(opv, vandaag)) return false; // vandaag of verlopen: hoort in Actie/Opvolgen
+    // Inhoudelijk beantwoord: brief is klaar, telt niet mee voor Wachten.
+    if (respons && respons !== 'geen_reactie') continue;
+
+    // Alleen daadwerkelijk verzonden/geposte brieven kunnen "wachten".
+    const status = b.status ?? null;
+    const vs = (b.verzendstatus ?? '') as string;
+    const isVerzonden = status === 'verstuurd' || vs === 'gepost' || vs === 'verzonden';
+    if (!isVerzonden) return false; // concept, printactie of postactie nodig
+
+    const opv = b.opvolgdatum ?? null;
+    if (!opv) return false; // opvolgdatum ontbreekt → plannen, geen Wachten
+    if (!isDatumInToekomst(opv, vandaag)) return false; // vandaag/verlopen → Actie
     heeftToekomstig = true;
   }
   return heeftToekomstig;
@@ -199,17 +209,34 @@ function conceptdatum(brieven: OffMarketBrief[]): string | null {
   return c ? c.slice(0, 10) : null;
 }
 
-/** Meest recente responsdatum, fallback: max verzonden_op/postdatum. */
-function afrondingsdatum(brieven: OffMarketBrief[], signaal: OffMarketSignaal): string | null {
+/**
+ * Bron van de afrondingsdatum voor semantische labeling.
+ *  - `respons`: laatste inhoudelijke responsdatum van een actieve brief.
+ *  - `gearchiveerd`: fallback op `signaal.gearchiveerd_op` als er geen
+ *    responsdatum bekend is.
+ */
+type AfrondingsBron = 'respons' | 'gearchiveerd';
+
+interface Afronding {
+  iso: string;
+  bron: AfrondingsBron;
+}
+
+/**
+ * Meest recente afrondingsdatum met expliciete bron. Retourneert `null`
+ * wanneer er geen betrouwbare datum is; gebruik dan alleen de tekst
+ * "Afgehandeld" in de UI (geen technische fallback op `created_at`).
+ */
+function afrondingsdatum(brieven: OffMarketBrief[], signaal: OffMarketSignaal): Afronding | null {
   const actief = actieveBrieven(brieven);
   let laatste: string | null = null;
   for (const b of actief) {
     const r = b.responsdatum ?? null;
     if (r && (!laatste || r > laatste)) laatste = r.slice(0, 10);
   }
-  if (laatste) return laatste;
+  if (laatste) return { iso: laatste, bron: 'respons' };
   const gearchiveerd = (signaal as { gearchiveerd_op?: string | null }).gearchiveerd_op ?? null;
-  if (gearchiveerd) return gearchiveerd.slice(0, 10);
+  if (gearchiveerd) return { iso: gearchiveerd.slice(0, 10), bron: 'gearchiveerd' };
   return null;
 }
 
@@ -261,24 +288,27 @@ export function bepaalWerkbakContext(input: BepaalWerkbakInput): WerkbakContext 
   const fase = readiness.fase;
   const baseWerkbak = FASE_WERKBAK[fase];
 
-  // 1) Afgehandeld
+  // 1) Afgehandeld — semantisch label per bron.
   if (baseWerkbak === 'afgehandeld') {
-    const iso = afrondingsdatum(brieven, signaal);
+    const afr = afrondingsdatum(brieven, signaal);
+    if (!afr) {
+      return {
+        werkbak: 'afgehandeld',
+        actieCategorie: null,
+        actieSubfilter: null,
+        procesDatum: { iso: null, label: 'Afgehandeld', a11yLabel: 'Afgehandeld' },
+      };
+    }
+    const prefix = afr.bron === 'respons' ? 'Reactie op' : 'Gearchiveerd op';
     return {
       werkbak: 'afgehandeld',
       actieCategorie: null,
       actieSubfilter: null,
-      procesDatum: iso
-        ? {
-            iso,
-            label: `Reactie op ${korteDatum(iso)}`,
-            a11yLabel: `Reactie op ${volledigeDatum(iso)}`,
-          }
-        : {
-            iso: null,
-            label: 'Afgehandeld',
-            a11yLabel: 'Afgehandeld',
-          },
+      procesDatum: {
+        iso: afr.iso,
+        label: `${prefix} ${korteDatum(afr.iso)}`,
+        a11yLabel: `${prefix} ${volledigeDatum(afr.iso)}`,
+      },
     };
   }
 

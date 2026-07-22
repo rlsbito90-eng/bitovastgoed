@@ -50,48 +50,20 @@ import {
   type WerkbakContext,
   type WerkbakView,
 } from '@/lib/offMarket/acquisitie/werkbak';
+import {
+  bepaalVerplaatsToasts,
+  extraheerSignaalIds,
+  leesInitieleView,
+  WERKBAK_KEY,
+  SUBFILTER_KEY,
+} from '@/lib/offMarket/acquisitie/selectieViewState';
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
-// Nieuwe sessionStorage-keys voor Fase 1.
-const WERKBAK_KEY = 'off-market-acq:werkbak';
-const SUBFILTER_KEY = 'off-market-acq:subfilter';
-// Legacy key uit V1B; wordt defensief gemigreerd en daarna niet meer geschreven.
-const LEGACY_FILTER_KEY = 'off-market-acq:filter';
 const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
-
-/** Migratie van legacy filterwaarde naar (werkbak, subfilter). */
-function migreerLegacyFilter(v: string | null): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
-  switch (v) {
-    case 'alles': return { werkbak: 'alles', subfilter: 'alle' };
-    case 'geblokkeerd': return { werkbak: 'actie', subfilter: 'onderzoeken' };
-    case 'brief_voorbereiden': return { werkbak: 'actie', subfilter: 'brief_voorbereiden' };
-    case 'printklaar': return { werkbak: 'actie', subfilter: 'printen_posten' };
-    case 'opvolging': return { werkbak: 'actie', subfilter: 'opvolgen' };
-    default: return { werkbak: 'actie', subfilter: 'alle' };
-  }
-}
-
-function leesInitieleView(): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
-  try {
-    const wb = sessionStorage.getItem(WERKBAK_KEY);
-    const sf = sessionStorage.getItem(SUBFILTER_KEY);
-    const geldigeWb: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
-    const geldigeSf: ActieSubfilter[] = ['alle', 'onderzoeken', 'brief_voorbereiden', 'printen_posten', 'opvolgen'];
-    if (wb && geldigeWb.includes(wb as WerkbakView)) {
-      return {
-        werkbak: wb as WerkbakView,
-        subfilter: sf && geldigeSf.includes(sf as ActieSubfilter) ? sf as ActieSubfilter : 'alle',
-      };
-    }
-    const legacy = sessionStorage.getItem(LEGACY_FILTER_KEY);
-    if (legacy) return migreerLegacyFilter(legacy);
-  } catch { /* ignore */ }
-  return { werkbak: 'actie', subfilter: 'alle' };
-}
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
@@ -179,26 +151,54 @@ export default function AcquisitieSelectieTab() {
     return { werkbak: wb, subfilter: sf };
   }, [werkbakPerSignaal]);
 
-  // Verplaatsfeedback: toast wanneer een signaal na een actie in een andere
-  // werkbak terechtkomt dan waar de gebruiker nu naar kijkt.
-  const vorigeWerkbakRef = useRef<Map<string, Werkbak> | null>(null);
+  // ---- Verplaatsfeedback ------------------------------------------------
+  // Toont uitsluitend een toast wanneer een signaal door een expliciete
+  // gebruikersmutatie in deze sessie in een andere werkbak of Actie-subfilter
+  // terechtkomt. Initiële laadactie, achtergrondrefresh en wijzigingen door
+  // een andere gebruiker triggeren geen melding.
+  const queryClient = useQueryClient();
+  const recenteMutatiesRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
-    const huidig = new Map<string, Werkbak>();
-    for (const [id, ctx] of werkbakPerSignaal.entries()) huidig.set(id, ctx.werkbak);
-    const vorig = vorigeWerkbakRef.current;
-    if (vorig && werkbak !== 'alles') {
-      for (const [id, oud] of vorig.entries()) {
-        const nieuw = huidig.get(id);
-        if (!nieuw || nieuw === oud) continue;
-        if (oud === werkbak && nieuw !== werkbak) {
-          toast.success(`Verplaatst naar ${WERKBAK_LABEL[nieuw]}`, {
-            description: 'Signaal is uit de huidige werkbak verplaatst.',
-          });
-        }
-      }
+    const cache = queryClient.getMutationCache();
+    const unsubscribe = cache.subscribe((event) => {
+      const mutation = event?.mutation;
+      if (!mutation || mutation.state.status !== 'success') return;
+      const vars = mutation.state.variables as unknown;
+      const ids = extraheerSignaalIds(vars);
+      if (ids.length === 0) return;
+      const nu = Date.now();
+      for (const id of ids) recenteMutatiesRef.current.set(id, nu);
+    });
+    return () => { unsubscribe(); };
+  }, [queryClient]);
+
+  type VorigeCtx = { werkbak: Werkbak; subfilter: ActieSubfilter | null };
+  const vorigeCtxRef = useRef<Map<string, VorigeCtx> | null>(null);
+  useEffect(() => {
+    const huidig = new Map<string, VorigeCtx>();
+    for (const [id, ctx] of werkbakPerSignaal.entries()) {
+      huidig.set(id, { werkbak: ctx.werkbak, subfilter: ctx.actieSubfilter });
     }
-    vorigeWerkbakRef.current = huidig;
-  }, [werkbakPerSignaal, werkbak]);
+    const toasts = bepaalVerplaatsToasts({
+      vorig: vorigeCtxRef.current,
+      huidig,
+      recenteMutaties: recenteMutatiesRef.current,
+      nu: Date.now(),
+    });
+    for (const t of toasts) {
+      toast.success(`Verplaatst naar ${t.doelLabel}`, {
+        description: t.soort === 'werkbak'
+          ? 'Signaal is naar een andere werkbak verplaatst.'
+          : 'Signaal is naar een andere actiegroep verplaatst.',
+        action: {
+          label: 'Bekijken',
+          onClick: () => navigate(`/off-market/${t.id}`),
+        },
+      });
+      recenteMutatiesRef.current.delete(t.id);
+    }
+    vorigeCtxRef.current = huidig;
+  }, [werkbakPerSignaal, navigate]);
 
   // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
