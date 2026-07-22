@@ -438,7 +438,13 @@ export default function AcquisitieSelectieTab() {
       <AcquisitieKpis kpis={readiness.kpis} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <AcquisitieFilterChips value={filter} onChange={setFilter} counts={filterCounts} />
+        <AcquisitieWerkbakChips
+          werkbak={werkbak}
+          subfilter={subfilter}
+          onWerkbakChange={setWerkbak}
+          onSubfilterChange={setSubfilter}
+          counts={tellingen}
+        />
         <Button
           type="button"
           size="sm"
@@ -450,8 +456,8 @@ export default function AcquisitieSelectieTab() {
           <PlayCircle className="h-4 w-4" />
           {bulkSelectie.size > 0
             ? `Verwerk geselecteerde (${bulkSelectie.size})`
-            : filter !== 'alles'
-              ? `Verwerk filter (${gefilterd.length})`
+            : werkbak !== 'alles'
+              ? `Verwerk ${WERKBAK_LABEL[werkbak]} (${gefilterd.length})`
               : 'Verwerk selectie'}
         </Button>
       </div>
