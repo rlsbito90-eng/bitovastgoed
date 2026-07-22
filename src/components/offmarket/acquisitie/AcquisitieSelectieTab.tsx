@@ -475,9 +475,7 @@ export default function AcquisitieSelectieTab() {
             data-testid="acquisitie-bulk-selecteer-zichtbare"
           >
             <Users className="h-3.5 w-3.5" />
-            {filter === 'alles'
-              ? `Selecteer zichtbare (${gefilterd.length})`
-              : `Selecteer zichtbare (${gefilterd.length})`}
+            Selecteer zichtbare ({gefilterd.length})
           </Button>
           <Button
             type="button" variant="outline" size="sm"
