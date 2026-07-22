@@ -50,11 +50,6 @@ import {
   type WerkbakContext,
   type WerkbakView,
 } from '@/lib/offMarket/acquisitie/werkbak';
-  type ActieSubfilter,
-  type SorteerRij,
-  type WerkbakContext,
-  type WerkbakView,
-} from '@/lib/offMarket/acquisitie/werkbak';
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
