@@ -645,8 +645,8 @@ export default function AcquisitieSelectieTab() {
                           </span>
                         )}
                         {toegevoegd && (
-                          <span data-testid="acquisitie-rij-toegevoegd">
-                            Toegevoegd: {toegevoegd}
+                          <span data-testid="acquisitie-rij-toegevoegd" title={toegevoegd.volledig}>
+                            Toegevoegd {toegevoegd.relatief}
                           </span>
                         )}
                       </div>
