@@ -127,34 +127,86 @@ export default function AcquisitieSelectieTab() {
   const signaalIds = useMemo(() => geselecteerdeSignalen.map(s => s.id), [geselecteerdeSignalen]);
   const { data: brieven = [] } = useBrievenVoorSignalen(signaalIds);
 
-  const [filter, setFilterState] = useState<SelectieFilter>(() => {
-    try {
-      const v = sessionStorage.getItem(FILTER_KEY) as SelectieFilter | null;
-      return v ?? 'alles';
-    } catch { return 'alles'; }
-  });
-  const setFilter = (f: SelectieFilter) => {
-    setFilterState(f);
-    try { sessionStorage.setItem(FILTER_KEY, f); } catch {}
+  // ---- Fase 1: view (werkbak + subfilter) --------------------------------
+  const initieel = useMemo(leesInitieleView, []);
+  const [werkbak, setWerkbakState] = useState<WerkbakView>(initieel.werkbak);
+  const [subfilter, setSubfilterState] = useState<ActieSubfilter>(initieel.subfilter);
+  const setWerkbak = (v: WerkbakView) => {
+    setWerkbakState(v);
+    try { sessionStorage.setItem(WERKBAK_KEY, v); } catch { /* ignore */ }
+  };
+  const setSubfilter = (v: ActieSubfilter) => {
+    setSubfilterState(v);
+    try { sessionStorage.setItem(SUBFILTER_KEY, v); } catch { /* ignore */ }
   };
 
-  const gefilterd = useMemo(() => {
-    return readiness.lijst.filter(({ readiness: r }) => pastInFilter(r, filter));
-  }, [readiness.lijst, filter]);
-
-  const filterCounts = useMemo(() => {
-    const out: Record<SelectieFilter, number> = {
-      alles: readiness.lijst.length,
-      geblokkeerd: 0, brief_voorbereiden: 0, printklaar: 0, opvolging: 0,
-    };
-    for (const { readiness: r } of readiness.lijst) {
-      if (r.info.status === 'geblokkeerd') out.geblokkeerd += 1;
-      if (r.fase === 'brief_voorbereiden' || r.fase === 'concept_gereed') out.brief_voorbereiden += 1;
-      if (r.fase === 'gereed_voor_print') out.printklaar += 1;
-      if (r.fase === 'opvolging_open') out.opvolging += 1;
+  // Werkbak-context per signaal (fase → werkbak/actieCategorie/subfilter/procesdatum).
+  const werkbakPerSignaal = useMemo(() => {
+    const m = new Map<string, WerkbakContext>();
+    const brievenPer = new Map<string, typeof brieven>();
+    for (const b of brieven) {
+      const arr = brievenPer.get(b.signaal_id) ?? [];
+      arr.push(b);
+      brievenPer.set(b.signaal_id, arr);
     }
-    return out;
-  }, [readiness.lijst]);
+    for (const { signaal, readiness: r } of readiness.lijst) {
+      const ctx = bepaalWerkbakContext({
+        signaal,
+        readiness: r,
+        brieven: brievenPer.get(signaal.id) ?? [],
+        toegevoegdOp: toegevoegdOpPerSignaal.get(signaal.id) ?? null,
+      });
+      m.set(signaal.id, ctx);
+    }
+    return m;
+  }, [readiness.lijst, brieven, toegevoegdOpPerSignaal]);
+
+  // Tellingen per werkbak + per subfilter (dynamisch).
+  const tellingen = useMemo(() => {
+    const wb: Record<WerkbakView, number> = { actie: 0, wachten: 0, afgehandeld: 0, alles: 0 };
+    const sf: Record<ActieSubfilter, number> = {
+      alle: 0, onderzoeken: 0, brief_voorbereiden: 0, printen_posten: 0, opvolgen: 0,
+    };
+    for (const ctx of werkbakPerSignaal.values()) {
+      wb.alles += 1;
+      wb[ctx.werkbak] += 1;
+      if (ctx.werkbak === 'actie' && ctx.actieSubfilter) {
+        sf.alle += 1;
+        sf[ctx.actieSubfilter] += 1;
+      }
+    }
+    return { werkbak: wb, subfilter: sf };
+  }, [werkbakPerSignaal]);
+
+  // Gefilterde + gesorteerde lijst voor de huidige view.
+  const gefilterd = useMemo(() => {
+    // Verzamel rijen die in de huidige werkbak passen.
+    const rijen: SorteerRij[] = [];
+    for (const { signaal } of readiness.lijst) {
+      const ctx = werkbakPerSignaal.get(signaal.id);
+      if (!ctx) continue;
+      const inWerkbak =
+        werkbak === 'alles' ? true : ctx.werkbak === werkbak;
+      if (!inWerkbak) continue;
+      if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
+      rijen.push({
+        signaalId: signaal.id,
+        toegevoegdOp: toegevoegdOpPerSignaal.get(signaal.id) ?? null,
+        ctx,
+        procesDatumIsoWachten: ctx.werkbak === 'wachten' ? (ctx.procesDatum?.iso ?? null) : null,
+      });
+    }
+    const gesorteerd = sorteerWerkvolgorde(werkbak, rijen);
+    // Terug-map naar { signaal, readiness, ctx }.
+    const byId = new Map(readiness.lijst.map(x => [x.signaal.id, x]));
+    return gesorteerd
+      .map(r => {
+        const item = byId.get(r.signaalId);
+        if (!item) return null;
+        return { ...item, ctx: r.ctx };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [readiness.lijst, werkbakPerSignaal, werkbak, subfilter, toegevoegdOpPerSignaal]);
 
   // ---- Bulk-selectie per signaal ---------------------------------------
   const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
