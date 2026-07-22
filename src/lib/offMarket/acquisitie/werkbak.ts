@@ -105,25 +105,33 @@ function actieveBrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
 
 /**
  * Bepaal of een signaal met fase 'gepost' of 'email_verzonden' feitelijk
- * in de Wachten-werkbak thuishoort: geen open opvolging, en er is minstens
- * één actieve brief met een toekomstige opvolgdatum en geen inhoudelijke
- * respons.
+ * in de Wachten-werkbak thuishoort. Defensief: elke actuele brief moet
+ * inhoudelijk beantwoord zijn óf zich in een echte wachttoestand
+ * bevinden (verstuurd/gepost met toekomstige opvolgdatum). Een actief
+ * concept, printactie, postactie of ontbrekende opvolgdatum bij een
+ * andere geadresseerde blokkeert Wachten — het signaal hoort dan in Actie.
  */
 function heeftUitsluitendToekomstigeOpvolging(
   brieven: OffMarketBrief[],
   vandaag = vandaagISO(),
 ): boolean {
-  const actief = actieveBrieven(brieven).filter(
-    b => b.status === 'verstuurd' || b.verzendstatus === 'gepost' || b.verzendstatus === 'verzonden',
-  );
+  const actief = actieveBrieven(brieven);
   if (actief.length === 0) return false;
   let heeftToekomstig = false;
   for (const b of actief) {
-    const opv = b.opvolgdatum ?? null;
     const respons = b.responsstatus ?? null;
-    if (respons && respons !== 'geen_reactie') continue; // beantwoord telt niet mee
-    if (!opv) return false; // "plannen"-signaal: hoort in Actie, niet in Wachten
-    if (!isDatumInToekomst(opv, vandaag)) return false; // vandaag of verlopen: hoort in Actie/Opvolgen
+    // Inhoudelijk beantwoord: brief is klaar, telt niet mee voor Wachten.
+    if (respons && respons !== 'geen_reactie') continue;
+
+    // Alleen daadwerkelijk verzonden/geposte brieven kunnen "wachten".
+    const status = b.status ?? null;
+    const vs = (b.verzendstatus ?? '') as string;
+    const isVerzonden = status === 'verstuurd' || vs === 'gepost' || vs === 'verzonden';
+    if (!isVerzonden) return false; // concept, printactie of postactie nodig
+
+    const opv = b.opvolgdatum ?? null;
+    if (!opv) return false; // opvolgdatum ontbreekt → plannen, geen Wachten
+    if (!isDatumInToekomst(opv, vandaag)) return false; // vandaag/verlopen → Actie
     heeftToekomstig = true;
   }
   return heeftToekomstig;
