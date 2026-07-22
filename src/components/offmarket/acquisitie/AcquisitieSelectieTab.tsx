@@ -635,6 +635,19 @@ export default function AcquisitieSelectieTab() {
                           {r.telling.totaal} geadr.
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                        {ctx.procesDatum && (
+                          <span data-testid="acquisitie-rij-procesdatum">
+                            <span className="font-medium text-foreground/70">{ctx.procesDatum.label}:</span>{' '}
+                            {ctx.procesDatum.relatief}
+                          </span>
+                        )}
+                        {toegevoegd && (
+                          <span data-testid="acquisitie-rij-toegevoegd">
+                            Toegevoegd: {toegevoegd}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground break-words">
                         {r.blokkadeReden ?? r.info.reden}
                       </p>
