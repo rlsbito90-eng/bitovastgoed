@@ -288,24 +288,27 @@ export function bepaalWerkbakContext(input: BepaalWerkbakInput): WerkbakContext 
   const fase = readiness.fase;
   const baseWerkbak = FASE_WERKBAK[fase];
 
-  // 1) Afgehandeld
+  // 1) Afgehandeld — semantisch label per bron.
   if (baseWerkbak === 'afgehandeld') {
-    const iso = afrondingsdatum(brieven, signaal);
+    const afr = afrondingsdatum(brieven, signaal);
+    if (!afr) {
+      return {
+        werkbak: 'afgehandeld',
+        actieCategorie: null,
+        actieSubfilter: null,
+        procesDatum: { iso: null, label: 'Afgehandeld', a11yLabel: 'Afgehandeld' },
+      };
+    }
+    const prefix = afr.bron === 'respons' ? 'Reactie op' : 'Gearchiveerd op';
     return {
       werkbak: 'afgehandeld',
       actieCategorie: null,
       actieSubfilter: null,
-      procesDatum: iso
-        ? {
-            iso,
-            label: `Reactie op ${korteDatum(iso)}`,
-            a11yLabel: `Reactie op ${volledigeDatum(iso)}`,
-          }
-        : {
-            iso: null,
-            label: 'Afgehandeld',
-            a11yLabel: 'Afgehandeld',
-          },
+      procesDatum: {
+        iso: afr.iso,
+        label: `${prefix} ${korteDatum(afr.iso)}`,
+        a11yLabel: `${prefix} ${volledigeDatum(afr.iso)}`,
+      },
     };
   }
 
