@@ -637,9 +637,11 @@ export default function AcquisitieSelectieTab() {
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                         {ctx.procesDatum && (
-                          <span data-testid="acquisitie-rij-procesdatum">
-                            <span className="font-medium text-foreground/70">{ctx.procesDatum.label}:</span>{' '}
-                            {ctx.procesDatum.relatief}
+                          <span
+                            data-testid="acquisitie-rij-procesdatum"
+                            title={ctx.procesDatum.a11yLabel}
+                          >
+                            {ctx.procesDatum.label}
                           </span>
                         )}
                         {toegevoegd && (
