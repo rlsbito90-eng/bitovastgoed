@@ -178,6 +178,27 @@ export default function AcquisitieSelectieTab() {
     return { werkbak: wb, subfilter: sf };
   }, [werkbakPerSignaal]);
 
+  // Verplaatsfeedback: toast wanneer een signaal na een actie in een andere
+  // werkbak terechtkomt dan waar de gebruiker nu naar kijkt.
+  const vorigeWerkbakRef = useRef<Map<string, Werkbak> | null>(null);
+  useEffect(() => {
+    const huidig = new Map<string, Werkbak>();
+    for (const [id, ctx] of werkbakPerSignaal.entries()) huidig.set(id, ctx.werkbak);
+    const vorig = vorigeWerkbakRef.current;
+    if (vorig && werkbak !== 'alles') {
+      for (const [id, oud] of vorig.entries()) {
+        const nieuw = huidig.get(id);
+        if (!nieuw || nieuw === oud) continue;
+        if (oud === werkbak && nieuw !== werkbak) {
+          toast.success(`Verplaatst naar ${WERKBAK_LABEL[nieuw]}`, {
+            description: 'Signaal is uit de huidige werkbak verplaatst.',
+          });
+        }
+      }
+    }
+    vorigeWerkbakRef.current = huidig;
+  }, [werkbakPerSignaal, werkbak]);
+
   // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
     // Verzamel rijen die in de huidige werkbak passen.
