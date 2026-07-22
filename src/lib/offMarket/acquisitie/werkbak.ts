@@ -209,17 +209,34 @@ function conceptdatum(brieven: OffMarketBrief[]): string | null {
   return c ? c.slice(0, 10) : null;
 }
 
-/** Meest recente responsdatum, fallback: max verzonden_op/postdatum. */
-function afrondingsdatum(brieven: OffMarketBrief[], signaal: OffMarketSignaal): string | null {
+/**
+ * Bron van de afrondingsdatum voor semantische labeling.
+ *  - `respons`: laatste inhoudelijke responsdatum van een actieve brief.
+ *  - `gearchiveerd`: fallback op `signaal.gearchiveerd_op` als er geen
+ *    responsdatum bekend is.
+ */
+type AfrondingsBron = 'respons' | 'gearchiveerd';
+
+interface Afronding {
+  iso: string;
+  bron: AfrondingsBron;
+}
+
+/**
+ * Meest recente afrondingsdatum met expliciete bron. Retourneert `null`
+ * wanneer er geen betrouwbare datum is; gebruik dan alleen de tekst
+ * "Afgehandeld" in de UI (geen technische fallback op `created_at`).
+ */
+function afrondingsdatum(brieven: OffMarketBrief[], signaal: OffMarketSignaal): Afronding | null {
   const actief = actieveBrieven(brieven);
   let laatste: string | null = null;
   for (const b of actief) {
     const r = b.responsdatum ?? null;
     if (r && (!laatste || r > laatste)) laatste = r.slice(0, 10);
   }
-  if (laatste) return laatste;
+  if (laatste) return { iso: laatste, bron: 'respons' };
   const gearchiveerd = (signaal as { gearchiveerd_op?: string | null }).gearchiveerd_op ?? null;
-  if (gearchiveerd) return gearchiveerd.slice(0, 10);
+  if (gearchiveerd) return { iso: gearchiveerd.slice(0, 10), bron: 'gearchiveerd' };
   return null;
 }
 
