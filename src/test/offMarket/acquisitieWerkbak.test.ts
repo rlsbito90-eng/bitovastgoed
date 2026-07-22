@@ -111,10 +111,12 @@ describe('Fase 1.1 — tabelgedreven dekking readiness-fases', () => {
   // Dit voorkomt dat toekomstige fases per ongeluk in twee bakken vallen.
   const casus: Array<{ fase: ReadinessFase; werkbak: 'actie' | 'wachten' | 'afgehandeld'; brieven?: OffMarketBrief[] }> = [
     { fase: 'onderzoek_nodig', werkbak: 'actie' },
-    { fase: 'blokkade', werkbak: 'actie' },
-    { fase: 'concept_open', werkbak: 'actie' },
-    { fase: 'printklaar', werkbak: 'actie' },
-    { fase: 'postklaar', werkbak: 'actie' },
+    { fase: 'eigenaar_ontbreekt', werkbak: 'actie' },
+    { fase: 'adres_ontbreekt', werkbak: 'actie' },
+    { fase: 'brief_voorbereiden', werkbak: 'actie' },
+    { fase: 'concept_gereed', werkbak: 'actie' },
+    { fase: 'gereed_voor_print', werkbak: 'actie' },
+    { fase: 'geprint', werkbak: 'actie' },
     { fase: 'opvolging_open', werkbak: 'actie', brieven: [mkBrief({ opvolgdatum: '2026-07-10' })] },
     { fase: 'gepost', werkbak: 'wachten', brieven: [mkBrief({ opvolgdatum: '2026-08-05' })] },
     { fase: 'email_verzonden', werkbak: 'wachten', brieven: [mkBrief({ kanaal: 'email' as any, opvolgdatum: '2026-08-05' })] },
