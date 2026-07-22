@@ -354,9 +354,9 @@ export default function AcquisitieSelectieTab() {
       setFocusOpen(true);
       return;
     }
-    // 2) Geen bulkselectie + actieve filterchip (anders dan "alles"):
-    //    verwerk uitsluitend de zichtbare/gefilterde rijen.
-    if (filter !== 'alles') {
+    // 2) Geen bulkselectie + view is niet "alles": verwerk uitsluitend de
+    //    zichtbare/gefilterde rijen.
+    if (werkbak !== 'alles') {
       const ids = gefilterd.map((x) => x.signaal.id);
       setVerwerkScopeIds(ids);
       const startIdx = gefilterd.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
@@ -364,7 +364,7 @@ export default function AcquisitieSelectieTab() {
       setFocusOpen(true);
       return;
     }
-    // 3) Filter "alles" + geen bulkselectie: volledige acquisitieselectie.
+    // 3) View "alles" + geen bulkselectie: volledige acquisitieselectie.
     setVerwerkScopeIds(null);
     const startIdx = readiness.lijst.findIndex(({ readiness: r }) =>
       r.info.status !== 'afgehandeld');
