@@ -388,7 +388,7 @@ export default function AcquisitieSelectieTab() {
       scopeIds = readiness.lijst
         .filter((x) => bulkSelectie.has(x.signaal.id))
         .map((x) => x.signaal.id);
-    } else if (filter !== 'alles') {
+    } else if (werkbak !== 'alles') {
       scopeIds = gefilterd.map((x) => x.signaal.id);
     }
     const scopeList = scopeIds
