@@ -91,11 +91,12 @@ export const FASE_WERKBAK: Record<ReadinessFase, Werkbak> = {
 // ---------------------------------------------------------------------
 
 function vandaagISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Nederlandse werkdag (Europe/Amsterdam), correct rond middernacht.
+  return vandaagNl();
 }
 
 function isDatumInToekomst(iso: string, vandaag = vandaagISO()): boolean {
-  return iso > vandaag;
+  return isDatumInToekomstNl(iso, vandaag);
 }
 
 function actieveBrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
