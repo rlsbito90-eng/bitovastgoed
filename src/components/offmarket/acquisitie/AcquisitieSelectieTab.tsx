@@ -555,16 +555,19 @@ export default function AcquisitieSelectieTab() {
           className="section-card divide-y divide-border/70"
           data-testid="acquisitie-selectie-lijst"
         >
-          {gefilterd.map(({ signaal, readiness: r }) => {
+          {gefilterd.map(({ signaal, readiness: r, ctx }) => {
             const adres = formatSignaalAdres(signaal) || cleanAdres(signaal.adres) || '—';
             const plaats = cleanPlaats(signaal.plaats) || '';
             const bulkChecked = bulkSelectie.has(signaal.id);
+            const toegevoegd = toegevoegdOpLabel(toegevoegdOpPerSignaal.get(signaal.id) ?? null);
             return (
               <li
                 key={signaal.id}
                 data-testid="acquisitie-selectie-rij"
                 data-signaal-id={signaal.id}
                 data-fase={r.fase}
+                data-werkbak={ctx.werkbak}
+                data-actie-categorie={ctx.actieCategorie ?? ''}
                 className="p-3 sm:p-4"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
