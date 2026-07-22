@@ -92,7 +92,8 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
   it('zonder selectie toont knop "Verwerk selectie"', async () => {
     render(wrap(<AcquisitieSelectieTab />));
     const knop = await screen.findByTestId('acquisitie-verwerk-selectie');
-    expect(knop).toHaveTextContent('Verwerk selectie');
+    // Fase 1: default werkbak is "Actie"; knop toont "Verwerk Actie (n)".
+    expect(knop.textContent).toMatch(/^Verwerk (Actie|selectie)/);
     expect(knop).not.toHaveTextContent(/geselecteerde/i);
   });
 
