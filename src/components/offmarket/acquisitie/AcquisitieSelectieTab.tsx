@@ -44,12 +44,32 @@ import {
   sorteerWerkvolgorde,
   toegevoegdOpLabel,
   WERKBAK_LABEL,
+  ACTIE_SUBFILTER_LABEL,
   type ActieSubfilter,
   type SorteerRij,
   type Werkbak,
   type WerkbakContext,
   type WerkbakView,
 } from '@/lib/offMarket/acquisitie/werkbak';
+
+/**
+ * Zoek in de variables van een mutatie naar signaal-id's zodat we een
+ * expliciete gebruikersactie kunnen koppelen aan een specifiek signaal.
+ * We accepteren gangbare vormen: `{ id }` (signaal-update), `{ signaal_id }`,
+ * `{ signaalId }`, of arrays van bovenstaande.
+ */
+function extraheerSignaalIds(vars: unknown): string[] {
+  if (vars == null) return [];
+  if (Array.isArray(vars)) return vars.flatMap(extraheerSignaalIds);
+  if (typeof vars !== 'object') return [];
+  const out: string[] = [];
+  const rec = vars as Record<string, unknown>;
+  for (const key of ['signaal_id', 'signaalId', 'id']) {
+    const v = rec[key];
+    if (typeof v === 'string' && v.length > 0) out.push(v);
+  }
+  return out;
+}
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
