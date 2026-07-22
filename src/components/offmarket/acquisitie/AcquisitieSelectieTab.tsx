@@ -179,38 +179,23 @@ export default function AcquisitieSelectieTab() {
     for (const [id, ctx] of werkbakPerSignaal.entries()) {
       huidig.set(id, { werkbak: ctx.werkbak, subfilter: ctx.actieSubfilter });
     }
-    const vorig = vorigeCtxRef.current;
-    // Skip initiële laadactie: geen vorige snapshot.
-    if (vorig) {
-      const nu = Date.now();
-      const MUT_TTL_MS = 7000;
-      for (const [id, oud] of vorig.entries()) {
-        const nieuw = huidig.get(id);
-        if (!nieuw) continue;
-        const werkbakChanged = nieuw.werkbak !== oud.werkbak;
-        const subfilterChanged =
-          nieuw.werkbak === 'actie' && oud.werkbak === 'actie'
-          && nieuw.subfilter !== oud.subfilter;
-        if (!werkbakChanged && !subfilterChanged) continue;
-        // Alleen na expliciete gebruikersmutatie in deze sessie tonen.
-        const mutAt = recenteMutatiesRef.current.get(id);
-        if (!mutAt || nu - mutAt > MUT_TTL_MS) continue;
-
-        const doelLabel = werkbakChanged
-          ? WERKBAK_LABEL[nieuw.werkbak]
-          : (nieuw.subfilter ? ACTIE_SUBFILTER_LABEL[nieuw.subfilter] : WERKBAK_LABEL.actie);
-
-        toast.success(`Verplaatst naar ${doelLabel}`, {
-          description: werkbakChanged
-            ? 'Signaal is naar een andere werkbak verplaatst.'
-            : 'Signaal is naar een andere actiegroep verplaatst.',
-          action: {
-            label: 'Bekijken',
-            onClick: () => navigate(`/off-market/${id}`),
-          },
-        });
-        recenteMutatiesRef.current.delete(id);
-      }
+    const toasts = bepaalVerplaatsToasts({
+      vorig: vorigeCtxRef.current,
+      huidig,
+      recenteMutaties: recenteMutatiesRef.current,
+      nu: Date.now(),
+    });
+    for (const t of toasts) {
+      toast.success(`Verplaatst naar ${t.doelLabel}`, {
+        description: t.soort === 'werkbak'
+          ? 'Signaal is naar een andere werkbak verplaatst.'
+          : 'Signaal is naar een andere actiegroep verplaatst.',
+        action: {
+          label: 'Bekijken',
+          onClick: () => navigate(`/off-market/${t.id}`),
+        },
+      });
+      recenteMutatiesRef.current.delete(t.id);
     }
     vorigeCtxRef.current = huidig;
   }, [werkbakPerSignaal, navigate]);
