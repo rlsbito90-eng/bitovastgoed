@@ -1,8 +1,11 @@
-// V1B+V2 — Tab-inhoud "Acquisitieselectie": persistente werklijst met
-// afgeleide readiness, KPI's, filter, focusmodus en (V2) bulkvoorbereiding
-// van fysieke brieven + gecombineerde brief-PDF.
-import { useEffect, useMemo, useState } from 'react';
+// V1B+V2+Fase1 — Tab-inhoud "Acquisitieselectie".
+// Fase 1 voegt hoofdwerkbakken (Actie/Wachten/Afgehandeld/Alles),
+// subfilters onder Actie, contextuele procesdatums, Werkvolgorde-sortering
+// en verplaatsfeedback toe. Readiness/fase blijft ongewijzigd.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
@@ -28,25 +31,66 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import ToevoegenAanAcquisitieSelectieKnop from './ToevoegenAanAcquisitieSelectieKnop';
 import AcquisitieKpis from './AcquisitieKpis';
-import AcquisitieFilterChips from './AcquisitieFilterChips';
+import AcquisitieWerkbakChips from './AcquisitieWerkbakChips';
 import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
-import {
-  pastInFilter, type SelectieFilter,
-} from '@/lib/offMarket/acquisitie/readiness';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
+import {
+  bepaalWerkbakContext,
+  sorteerWerkvolgorde,
+  toegevoegdOpLabel,
+  WERKBAK_LABEL,
+  type ActieSubfilter,
+  type SorteerRij,
+  type WerkbakContext,
+  type WerkbakView,
+} from '@/lib/offMarket/acquisitie/werkbak';
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
-const FILTER_KEY = 'off-market-acq:filter';
+// Nieuwe sessionStorage-keys voor Fase 1.
+const WERKBAK_KEY = 'off-market-acq:werkbak';
+const SUBFILTER_KEY = 'off-market-acq:subfilter';
+// Legacy key uit V1B; wordt defensief gemigreerd en daarna niet meer geschreven.
+const LEGACY_FILTER_KEY = 'off-market-acq:filter';
 const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
+
+/** Migratie van legacy filterwaarde naar (werkbak, subfilter). */
+function migreerLegacyFilter(v: string | null): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
+  switch (v) {
+    case 'alles': return { werkbak: 'alles', subfilter: 'alle' };
+    case 'geblokkeerd': return { werkbak: 'actie', subfilter: 'onderzoeken' };
+    case 'brief_voorbereiden': return { werkbak: 'actie', subfilter: 'brief_voorbereiden' };
+    case 'printklaar': return { werkbak: 'actie', subfilter: 'printen_posten' };
+    case 'opvolging': return { werkbak: 'actie', subfilter: 'opvolgen' };
+    default: return { werkbak: 'actie', subfilter: 'alle' };
+  }
+}
+
+function leesInitieleView(): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
+  try {
+    const wb = sessionStorage.getItem(WERKBAK_KEY);
+    const sf = sessionStorage.getItem(SUBFILTER_KEY);
+    const geldigeWb: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
+    const geldigeSf: ActieSubfilter[] = ['alle', 'onderzoeken', 'brief_voorbereiden', 'printen_posten', 'opvolgen'];
+    if (wb && geldigeWb.includes(wb as WerkbakView)) {
+      return {
+        werkbak: wb as WerkbakView,
+        subfilter: sf && geldigeSf.includes(sf as ActieSubfilter) ? sf as ActieSubfilter : 'alle',
+      };
+    }
+    const legacy = sessionStorage.getItem(LEGACY_FILTER_KEY);
+    if (legacy) return migreerLegacyFilter(legacy);
+  } catch { /* ignore */ }
+  return { werkbak: 'actie', subfilter: 'alle' };
+}
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
