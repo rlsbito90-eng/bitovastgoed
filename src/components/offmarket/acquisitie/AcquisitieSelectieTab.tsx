@@ -179,26 +179,69 @@ export default function AcquisitieSelectieTab() {
     return { werkbak: wb, subfilter: sf };
   }, [werkbakPerSignaal]);
 
-  // Verplaatsfeedback: toast wanneer een signaal na een actie in een andere
-  // werkbak terechtkomt dan waar de gebruiker nu naar kijkt.
-  const vorigeWerkbakRef = useRef<Map<string, Werkbak> | null>(null);
+  // ---- Verplaatsfeedback ------------------------------------------------
+  // Toont uitsluitend een toast wanneer een signaal door een expliciete
+  // gebruikersmutatie in deze sessie in een andere werkbak of Actie-subfilter
+  // terechtkomt. Initiële laadactie, achtergrondrefresh en wijzigingen door
+  // een andere gebruiker triggeren geen melding.
+  const queryClient = useQueryClient();
+  const recenteMutatiesRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
-    const huidig = new Map<string, Werkbak>();
-    for (const [id, ctx] of werkbakPerSignaal.entries()) huidig.set(id, ctx.werkbak);
-    const vorig = vorigeWerkbakRef.current;
-    if (vorig && werkbak !== 'alles') {
+    const cache = queryClient.getMutationCache();
+    const unsubscribe = cache.subscribe((event) => {
+      const mutation = event?.mutation;
+      if (!mutation || mutation.state.status !== 'success') return;
+      const vars = mutation.state.variables as unknown;
+      const ids = extraheerSignaalIds(vars);
+      if (ids.length === 0) return;
+      const nu = Date.now();
+      for (const id of ids) recenteMutatiesRef.current.set(id, nu);
+    });
+    return () => { unsubscribe(); };
+  }, [queryClient]);
+
+  type VorigeCtx = { werkbak: Werkbak; subfilter: ActieSubfilter | null };
+  const vorigeCtxRef = useRef<Map<string, VorigeCtx> | null>(null);
+  useEffect(() => {
+    const huidig = new Map<string, VorigeCtx>();
+    for (const [id, ctx] of werkbakPerSignaal.entries()) {
+      huidig.set(id, { werkbak: ctx.werkbak, subfilter: ctx.actieSubfilter });
+    }
+    const vorig = vorigeCtxRef.current;
+    // Skip initiële laadactie: geen vorige snapshot.
+    if (vorig) {
+      const nu = Date.now();
+      const MUT_TTL_MS = 7000;
       for (const [id, oud] of vorig.entries()) {
         const nieuw = huidig.get(id);
-        if (!nieuw || nieuw === oud) continue;
-        if (oud === werkbak && nieuw !== werkbak) {
-          toast.success(`Verplaatst naar ${WERKBAK_LABEL[nieuw]}`, {
-            description: 'Signaal is uit de huidige werkbak verplaatst.',
-          });
-        }
+        if (!nieuw) continue;
+        const werkbakChanged = nieuw.werkbak !== oud.werkbak;
+        const subfilterChanged =
+          nieuw.werkbak === 'actie' && oud.werkbak === 'actie'
+          && nieuw.subfilter !== oud.subfilter;
+        if (!werkbakChanged && !subfilterChanged) continue;
+        // Alleen na expliciete gebruikersmutatie in deze sessie tonen.
+        const mutAt = recenteMutatiesRef.current.get(id);
+        if (!mutAt || nu - mutAt > MUT_TTL_MS) continue;
+
+        const doelLabel = werkbakChanged
+          ? WERKBAK_LABEL[nieuw.werkbak]
+          : (nieuw.subfilter ? ACTIE_SUBFILTER_LABEL[nieuw.subfilter] : WERKBAK_LABEL.actie);
+
+        toast.success(`Verplaatst naar ${doelLabel}`, {
+          description: werkbakChanged
+            ? 'Signaal is naar een andere werkbak verplaatst.'
+            : 'Signaal is naar een andere actiegroep verplaatst.',
+          action: {
+            label: 'Bekijken',
+            onClick: () => navigate(`/off-market/${id}`),
+          },
+        });
+        recenteMutatiesRef.current.delete(id);
       }
     }
-    vorigeWerkbakRef.current = huidig;
-  }, [werkbakPerSignaal, werkbak]);
+    vorigeCtxRef.current = huidig;
+  }, [werkbakPerSignaal, navigate]);
 
   // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
