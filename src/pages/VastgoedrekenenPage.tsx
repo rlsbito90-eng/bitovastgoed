@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import PageHeader from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
+import KengetallenRegisterPanel from '@/components/vastgoedrekenen/KengetallenRegisterPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { Calculation } from '@/lib/vastgoedrekenen/types';
@@ -33,8 +34,9 @@ export default function VastgoedrekenenPage() {
     <div className="page-container space-y-6">
       <PageHeader
         title="Vastgoedrekenen"
-        subtitle="Alle quickscans en scenarioanalyses per object."
+        subtitle="Alle quickscans, scenarioanalyses en centraal beheer van traceerbare kengetallen."
       />
+      <KengetallenRegisterPanel />
       {loading ? (
         <p className="text-sm text-muted-foreground">Laden…</p>
       ) : items.length === 0 ? (

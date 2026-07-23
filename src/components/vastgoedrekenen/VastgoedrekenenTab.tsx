@@ -9,7 +9,6 @@ import { cloneScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
 import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
-import KengetallenRegisterPanel from './KengetallenRegisterPanel';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
@@ -131,8 +130,6 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
           </div>
         </CardHeader>
       </Card>
-
-      <KengetallenRegisterPanel />
 
       <ScenarioVergelijking
         scenarios={scenarios}

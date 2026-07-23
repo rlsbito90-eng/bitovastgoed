@@ -1343,7 +1343,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
           ================================================= */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start">
+      <div className={`grid ${activeTab === 'vastgoedrekenen' ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]'} gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start`}>
         {/* LEFT — content */}
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
@@ -2235,7 +2235,7 @@ export default function ObjectDetailPage() {
         </div>
 
         {/* RIGHT — sticky deal cockpit */}
-        <aside className={`${activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
+        <aside className={`${activeTab === 'vastgoedrekenen' ? 'hidden' : activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
           {/* Deal status cockpit */}
           <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
