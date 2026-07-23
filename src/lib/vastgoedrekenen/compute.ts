@@ -6,13 +6,25 @@ import { computeScenarioOvb } from './ovb';
 import {
   annualFromMonthly, getWwsCorrectedAnnualRent, pickCorrectedAnnualRent, bar as fnBar, factor as fnFactor,
 } from './huur';
-import { computeAcquisitionCosts, computeTotalCosts, computeTotalInvestment, pricePerM2 } from './investering';
+import {
+  computeAcquisitionCosts,
+  computeTotalCosts,
+  computeTotalInvestment,
+  effectiveCostAmount,
+  pricePerM2,
+} from './investering';
 import { computeBidAdvice } from './bieding';
 import { computeInputReliability, computeRiskScore, computeComplexity, computeDealScore, computeSaleScenarioScore, determineAssessmentType } from './scores';
 import { buildConclusion, buildNextStep } from './conclusie';
 import { getAssumptionSet, type PropertyAssumptionType } from './profiles';
 import { computeSale } from './verkoop';
-import { aggregateStrategy } from './componentStrategy';
+import {
+  aggregateStrategy,
+  HOLD_STRATEGIES,
+  SALE_STRATEGIES,
+  type ComponentStrategyKey,
+} from './componentStrategy';
+import { computeResidualBid } from './residueel';
 
 export type ComputeContext = {
   scenario: Scenario;
@@ -62,8 +74,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     if (!compId) continue;
     const res = strategy.perUnit.find((p) => p.unitId === u.id);
     if (!res) continue;
-    // Grondslag = bijdrage uit strategie (netto verkoop of holdwaarde).
-    const v = Math.max(0, Math.round(res.contribution));
+    // Alleen als verdeelsleutel voor OVB: bruto terminale waarde, niet als fiscale grondslag.
+    const isSale = res.strategy != null && SALE_STRATEGIES.includes(res.strategy);
+    const v = Math.max(0, Math.round(
+      isSale ? res.breakdown.grossSaleValue : (res.breakdown.holdValue || res.contribution),
+    ));
     strategyValueByComponentId.set(compId, (strategyValueByComponentId.get(compId) ?? 0) + v);
   }
 
@@ -119,6 +134,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     totalCosts: totals.total,
     financingCosts: financing,
   });
+  // Holdcomponenten dragen hun renovatie-/transformatiekosten niet in de
+  // terminale waarde; die horen daarom eenmaal bij de investering.
+  const totalInvestmentWithStrategy = strategy.enabled
+    ? totalInvestment + strategy.extraInvestmentCosts
+    : totalInvestment;
 
   const barPurchase = fnBar(correctedAnnual, purchase);
   const barTotal = fnBar(correctedAnnual, totalInvestment);
@@ -138,7 +158,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   });
 
   // --- Verkoop / exit ---
-  const sale = computeSale(scenario, totalInvestment, purchase);
+  const sale = computeSale(scenario, totalInvestmentWithStrategy, purchase);
 
   // Exit-gebaseerde max bieding: trek overhead af van de max toegestane totale investering.
   // Symmetrisch met huur-tak: OVB + aankoopkosten (incl. safety_margin) + kosten + financiering.
@@ -229,41 +249,122 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? safeDiv(sale.netMargin, sellableM2)
     : null;
 
-  // --- Componentstrategie totals (strategy is hierboven al berekend t.b.v. OVB-grondslag) ---
-  // Bij actieve strategie: investering inclusief extra reno/transformatiekosten van hold-componenten.
-  const totalInvestmentWithStrategy = strategy.enabled
-    ? totalInvestment + strategy.extraInvestmentCosts
-    : totalInvestment;
+  // --- Componentstrategie en residuele maximale koopsom ---
   const scenarioResultAtAsking = strategy.enabled && asking > 0
     ? strategy.scenarioValue - (asking + ovb.totalOvb + acq.totalAcquisitionCosts + totals.total + financing + strategy.extraInvestmentCosts)
     : null;
   const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && totalInvestmentWithStrategy > 0
     ? Number(((scenarioResultAtAsking / totalInvestmentWithStrategy) * 100).toFixed(2))
     : null;
-  // Indicatieve max aankoopprijs: scenariowaarde minus alle niet-aankoopprijs gerelateerde
-  // kosten en gewenste marge (target_margin in € op total investment). OVB wordt iteratief
-  // bepaald via huidige OVB-helper: pass 1 met huidige OVB-tarief, pass 2 met aangepaste prijs.
-  function ovbPctEstimate(): number {
-    if (totalInvestment <= 0 || ovb.totalOvb === 0) {
-      // fallback: gebruik bestaand tarief uit scenario of OVB-default
-      return Number(scenario.transfer_tax_percentage ?? 10.4);
-    }
-    return purchase > 0 ? (ovb.totalOvb / purchase) * 100 : 10.4;
-  }
-  const targetMarginEur = Number(scenario.target_margin ?? 0);
-  let maxPurchasePrice: number | null = null;
+
+  const residualCriticalIssues: string[] = [];
+  const residualWarnings: string[] = [];
   if (strategy.enabled) {
-    const overheadExclOvb = acq.totalAcquisitionCosts + totals.total + financing + Number(scenario.safety_margin ?? 0) + strategy.extraInvestmentCosts + targetMarginEur;
-    const ovbPct = ovbPctEstimate();
-    // scenarioValue = price * (1 + ovbPct/100) + overheadExclOvb  →  price = (scenarioValue - overheadExclOvb) / (1 + ovbPct/100)
-    const denom = 1 + ovbPct / 100;
-    if (denom > 0) {
-      maxPurchasePrice = Math.max(0, Math.round((strategy.scenarioValue - overheadExclOvb) / denom));
+    for (const result of strategy.perUnit) {
+      const strategyKey = result.strategy as ComponentStrategyKey | null;
+      if (!strategyKey || strategyKey === 'later_beslissen') {
+        residualCriticalIssues.push(`${result.label}: kies een definitieve componentstrategie.`);
+        continue;
+      }
+      if (SALE_STRATEGIES.includes(strategyKey)) {
+        if (result.breakdown.grossSaleValue <= 0) residualCriticalIssues.push(`${result.label}: verkoopwaarde ontbreekt.`);
+        if (result.breakdown.saleCosts <= 0) residualCriticalIssues.push(`${result.label}: verkoopkosten ontbreken.`);
+      }
+      if (HOLD_STRATEGIES.includes(strategyKey) && result.breakdown.holdValue <= 0) {
+        residualCriticalIssues.push(`${result.label}: terminale aanhoudwaarde ontbreekt.`);
+      }
+      if (
+        (strategyKey === 'renoveren_verkopen' || strategyKey === 'renoveren_aanhouden')
+        && result.breakdown.renovationCosts <= 0
+      ) {
+        residualCriticalIssues.push(`${result.label}: renovatiekosten ontbreken.`);
+      }
+      if (
+        (
+          strategyKey === 'transformeren_verkopen'
+          || strategyKey === 'transformeren_aanhouden'
+          || strategyKey === 'sloop_nieuwbouw_verkopen'
+          || strategyKey === 'sloop_nieuwbouw_aanhouden'
+        )
+        && result.breakdown.transformationCosts <= 0
+      ) {
+        residualCriticalIssues.push(
+          `${result.label}: ${
+            strategyKey.startsWith('sloop_') ? 'sloop- en nieuwbouwkosten' : 'transformatiekosten'
+          } ontbreken.`,
+        );
+      }
+    }
+    if (sale.hasAnySaleInput) {
+      residualCriticalIssues.push('Scenario-exit en componentstrategie zijn beide actief; componentstrategie is residueel leidend.');
     }
   }
-  const roundsAtAsking = strategy.enabled && asking > 0 && maxPurchasePrice != null
+
+  if (costs.some((cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog')) {
+    residualCriticalIssues.push('Niet alle algemene projectkosten hebben betrouwbaarheid hoog.');
+  }
+
+  if (scenario.ovb_mode === 'per_component') {
+    if (components.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar componenten ontbreken.');
+    for (const component of components) {
+      if (!component.transfer_tax_classification) {
+        residualCriticalIssues.push(`${component.component_name ?? 'Component'}: expliciete OVB-classificatie bij verkrijging ontbreekt.`);
+      }
+    }
+  } else if (scenario.ovb_mode === 'manual') {
+    if (scenario.transfer_tax_amount == null) residualCriticalIssues.push('Handmatig OVB-bedrag ontbreekt.');
+  } else if (!scenario.ovb_classification && scenario.transfer_tax_percentage == null) {
+    residualCriticalIssues.push('Expliciete OVB-classificatie of een onderbouwd OVB-percentage ontbreekt.');
+  }
+
+  const residualSource = strategy.enabled
+    ? 'componentstrategie' as const
+    : (sale.grossSaleProceeds != null || sale.exitValue != null ? 'scenario_exit' as const : null);
+  if (residualSource === 'scenario_exit') {
+    if (sale.grossSaleProceeds != null && (sale.saleCostsTotal ?? 0) <= 0) {
+      residualCriticalIssues.push('Verkoopkosten ontbreken bij de scenario-exit.');
+    }
+    if (sale.grossSaleProceeds == null && sale.exitValue != null) {
+      residualWarnings.push('De residuele opbrengstwaarde komt uit een handmatige exitwaarde; controleer of deze bruto of netto is ingevoerd.');
+    }
+  }
+  const residual = residualSource
+    ? computeResidualBid({
+      scenario,
+      components,
+      taxSettings,
+      objectType: ovbObjectType,
+      source: residualSource,
+      grossDevelopmentValue: strategy.enabled
+        ? strategy.grossDevelopmentValue
+        : (sale.grossSaleProceeds ?? sale.exitValue ?? 0),
+      componentDispositionCosts: strategy.enabled
+        ? strategy.componentDispositionCosts
+        : (sale.saleCostsTotal ?? 0),
+      componentDevelopmentCosts: strategy.enabled ? strategy.componentDevelopmentCosts : 0,
+      sharedScenarioCosts: totals.total,
+      financingCosts: financing,
+      strategyValueByComponentId: strategy.enabled ? strategyValueByComponentId : undefined,
+      criticalIssues: residualCriticalIssues,
+      warnings: [
+        ...residualWarnings,
+        ...(strategy.enabled ? strategy.warnings : []),
+      ],
+    })
+    : null;
+
+  const maxPurchasePrice = residual?.maxPurchasePrice ?? null;
+  const roundsAtAsking = asking > 0 && maxPurchasePrice != null
     ? maxPurchasePrice >= asking
     : null;
+
+  if (
+    strategy.enabled
+    && strategy.componentDevelopmentCosts > 0
+    && totals.total > 0
+  ) {
+    residual?.warnings.push('Componentkosten en algemene scenario-kosten tellen beide mee; controleer handmatig of geen invoer overlapt.');
+  }
 
   // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
   // via scenario.leading_valuation_track. Per spoor kiezen we de juiste onderliggende
@@ -272,7 +373,9 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const trackChoice = ((scenario as unknown as Record<string, unknown>).leading_valuation_track as
     | 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie' | null | undefined) ?? 'auto';
   const huurMaxBid = bid.maxBid;
-  const verkoopMaxBid = exitBasedMaxBidNet != null ? exitBasedMaxBidNet : effectiveMaxBid;
+  const verkoopMaxBid = residual?.source === 'scenario_exit'
+    ? residual.maxPurchasePrice
+    : (exitBasedMaxBidNet != null ? exitBasedMaxBidNet : effectiveMaxBid);
   let leadingMaxBasis: 'strategie' | 'huur' | 'verkoop';
   let leadingMaxBasisOverridden = false;
   if (trackChoice === 'componentstrategie' && strategy.enabled && maxPurchasePrice != null) {
@@ -319,10 +422,21 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       scoreReason = `Het leidende spoor (${leadingMaxBasisLabel}) rekent niet rond op de vraagprijs. Alternatieve sporen kunnen positief zijn, maar bepalen niet de uitkomst.`;
       scoreAttentionPoints = [scoreReason, ...scoreAttentionPoints];
     }
+  } else if (residual) {
+    // Zonder referentieprijs is er geen "goedkoop/duur"-signaal. De residuele
+    // maximumprijs is informatief of biedingsklaar op basis van invoercompleetheid.
+    dealScore = 'C';
+    scoreLabel = 'Residueel bepaald';
+    scoreReason = 'Geen vraagprijs — maximale koopsom residueel bepaald.';
+    scoreAttentionPoints = [
+      ...residual.criticalIssues,
+      ...residual.warnings,
+      ...scoreAttentionPoints,
+    ];
   }
 
   // --- Conclusie + next step (op basis van de uiteindelijke leading-aware score) ---
-  const conclusion = buildConclusion({
+  let conclusion = buildConclusion({
     dealScore,
     barTotalInvestment: barTotal,
     maximumBid: leadingMaxValue,
@@ -339,7 +453,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     roi: sale.roi,
     exitValue: sale.exitValue,
   });
-  const nextStep = assessmentType === 'verkoop'
+  let nextStep = assessmentType === 'verkoop'
     ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
     : buildNextStep({
       inputReliability,
@@ -350,8 +464,16 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       isMixedUseWithoutAlloc: objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component',
       dealScore,
     });
+  if (asking <= 0 && residual) {
+    conclusion = 'Geen vraagprijs — maximale koopsom residueel bepaald op basis van opbrengstwaarde, kosten en doelwinst.';
+    nextStep = residual.status === 'voor_bieding'
+      ? 'Controleer de onderbouwing en gebruik de residuele maximale koopsom als biedingsgrens.'
+      : 'Vul de ontbrekende kerngegevens aan voordat de uitkomst als biedingsgrens wordt gebruikt.';
+  }
 
-  const combinedWarnings = strategy.enabled ? [...risk.flags, ...strategy.warnings] : risk.flags;
+  const combinedWarnings = strategy.enabled
+    ? [...risk.flags, ...strategy.warnings, ...(residual?.warnings ?? [])]
+    : [...risk.flags, ...(residual?.warnings ?? [])];
 
 
   return {
@@ -428,6 +550,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     scenarioResultAtAsking,
     scenarioMarginPct,
     maxPurchasePrice,
+    residual,
     roundsAtAsking,
     leadingMaxBasis,
     leadingMaxBasisLabel,
@@ -444,4 +567,3 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     })),
   };
 }
-

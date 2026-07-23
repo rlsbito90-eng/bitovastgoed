@@ -452,6 +452,9 @@ function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOf
           {strategy === 'transformeren_verkopen' && (
             <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>
           )}
+          {strategy === 'sloop_nieuwbouw_verkopen' && (
+            <Field label="Sloop- en nieuwbouwkosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>
+          )}
         </div>
       )}
 
@@ -479,6 +482,7 @@ function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOf
           {valMethod === 'handmatige_waarde' && <Field label="Handmatige waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.hold_value_manual))} onCommit={(raw) => onUpdate(unit.id, { hold_value_manual: parseRawNumber(raw) })} /></Field>}
           {(strategy === 'renoveren_aanhouden') && <Field label="Renovatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.renovation_costs))} onCommit={(raw) => onUpdate(unit.id, { renovation_costs: parseRawNumber(raw) })} /></Field>}
           {(strategy === 'transformeren_aanhouden') && <Field label="Transformatiekosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>}
+          {(strategy === 'sloop_nieuwbouw_aanhouden') && <Field label="Sloop- en nieuwbouwkosten (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(num(r.transformation_costs))} onCommit={(raw) => onUpdate(unit.id, { transformation_costs: parseRawNumber(raw) })} /></Field>}
         </div>
       )}
 
