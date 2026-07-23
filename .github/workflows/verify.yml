@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -58,3 +61,17 @@ jobs:
       - name: Production build
         if: always()
         run: npm run build
+
+      - name: Export Fase 1.1 patch
+        if: success()
+        run: |
+          git fetch origin main --depth=1
+          git diff --binary origin/main...HEAD > Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+
+      - name: Upload Fase 1.1 patch
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vastgoedrekenen-fase-1-1-patch
+          path: Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+          retention-days: 7
