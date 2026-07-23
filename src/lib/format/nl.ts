@@ -55,9 +55,10 @@ export function formatCurrency(n: number | null | undefined, decimals = 0): stri
   return `€ ${nl(decimals).format(Number(n))}`;
 }
 
+/** Metrages: maximaal het gekozen aantal decimalen, zonder kunstmatige nullen. */
 export function formatArea(n: number | null | undefined, decimals = 2): string {
   if (n == null || !Number.isFinite(Number(n))) return '';
-  return `${nl(decimals).format(Number(n))} m²`;
+  return `${nl(decimals, 0).format(Number(n))} m²`;
 }
 
 export function formatPercentage(n: number | null | undefined, decimals = 1): string {
@@ -85,7 +86,7 @@ export function formatNumberForKind(n: number | null | undefined, kind: FormatKi
     case 'integer':
       return nl(decimals ?? 0).format(Number(n));
     case 'area':
-      return nl(decimals ?? 2).format(Number(n));
+      return nl(decimals ?? 2, 0).format(Number(n));
     case 'percent':
       return nl(decimals ?? 1, decimals ?? 1).format(Number(n));
     case 'factor':

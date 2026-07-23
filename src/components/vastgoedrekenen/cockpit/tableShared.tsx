@@ -2,10 +2,11 @@
 import type { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 
-export type ChipTone = 'positive' | 'warning' | 'muted';
+export type ChipTone = 'positive' | 'warning' | 'danger' | 'muted';
 
 export const chipCls = (tone?: ChipTone) =>
-  tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
+  tone === 'danger' ? 'border-destructive/40 text-destructive bg-destructive/5'
+  : tone === 'warning' ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/5'
   : tone === 'positive' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/5'
   : 'border-border text-muted-foreground bg-muted/30';
 

@@ -60,8 +60,7 @@ export type ComponentResult = {
   type: string | null;
   strategy: ComponentStrategyKey | null;
   contribution: number;
-  /** Kosten die niet al in netto verkoopopbrengst zijn verwerkt
-   *  en dus op scenarioniveau bij de investering moeten worden opgeteld. */
+  /** Ontwikkelkosten die bij de investering horen en niet in de opbrengst worden gesaldeerd. */
   extraInvestmentCosts: number;
   breakdown: ComponentBreakdown;
   warnings: string[];
@@ -166,9 +165,11 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
     case 'splitsen_verkopen':
     case 'transformeren_verkopen':
     case 'sloop_nieuwbouw_verkopen': {
-      breakdown.netSaleProceeds = Math.max(0,
-        grossSale - saleCosts - legalCosts - renovationCosts - splittingCosts - transformationCosts);
+      // Netto verkoopopbrengst = opbrengst na verkoop-/juridische kosten.
+      // Ontwikkelkosten blijven zichtbaar aan de investeringszijde.
+      breakdown.netSaleProceeds = Math.max(0, grossSale - saleCosts - legalCosts);
       contribution = breakdown.netSaleProceeds;
+      extraInvestmentCosts = renovationCosts + splittingCosts + transformationCosts;
       if (grossSale <= 0) warnings.push(`${label}: verkoopwaarde ontbreekt.`);
       if (saleCosts <= 0 && grossSale > 0) warnings.push(`${label}: verkoopkosten ontbreken.`);
       if (strategy === 'splitsen_verkopen' && splittingCosts <= 0) warnings.push(`${label}: splitsingskosten ontbreken.`);

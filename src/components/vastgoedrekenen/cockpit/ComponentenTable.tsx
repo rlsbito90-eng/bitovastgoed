@@ -40,6 +40,17 @@ function componentValueFor(c: Component, diag: ComputedOutputs['ovbPerComponent'
   return 0;
 }
 
+function areaSummary(c: Pick<Component, 'surface_gbo' | 'surface_vvo' | 'surface_bvo'>): string[] {
+  const values: string[] = [];
+  const gbo = Number(c.surface_gbo ?? 0);
+  const vvo = Number(c.surface_vvo ?? 0);
+  const bvo = Number(c.surface_bvo ?? 0);
+  if (gbo > 0) values.push(`GBO ${fmtM2(gbo)}`);
+  if (vvo > 0) values.push(`VVO ${fmtM2(vvo)}`);
+  if (bvo > 0) values.push(`BVO ${fmtM2(bvo)}`);
+  return values;
+}
+
 function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCount, updateComponent, deleteComponent, bulkDeleteComponents }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const isTouch = useIsTouch();
@@ -49,9 +60,9 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
   const perComp = ovbMode === 'per_component';
   const openComp = openId ? components.find((c) => c.id === openId) ?? null : null;
 
-  const openRow = (id: string) => { setOpenId(id); setEditMode(!isTouch); };
-
-  const totalM2 = components.reduce((s, c) => s + Number(c.surface_gbo ?? 0), 0);
+  const totalGbo = components.reduce((sum, component) => sum + Number(component.surface_gbo ?? 0), 0);
+  const totalVvo = components.reduce((sum, component) => sum + Number(component.surface_vvo ?? 0), 0);
+  const totalBvo = components.reduce((sum, component) => sum + Number(component.surface_bvo ?? 0), 0);
   const totalRent = components.reduce((s, c) => s + Number(c.current_monthly_rent ?? 0), 0);
   const totalOvb = perComp ? ovbPerComponent.reduce((s, d) => s + Number(d.amount ?? 0), 0) : 0;
   const woon = components.filter((c) => isWoonComponentType(c.component_type)).length;
@@ -92,11 +103,13 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
 
   return (
     <>
-      {(totalValue > 0 || avgEurPerM2 > 0) && (
-        <div className="grid grid-cols-3 gap-2 mb-2">
+      {(totalValue > 0 || totalGbo > 0 || totalVvo > 0 || totalBvo > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mb-2">
           <Tile label="Totale componentwaarde" value={fmtEur(totalValue)} />
-          <Tile label="Totaal GBO" value={fmtM2(totalM2, 0)} />
-          <Tile label="Gem. prijs/m²" value={avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'} accent />
+          <Tile label="Totaal GBO" value={totalGbo > 0 ? fmtM2(totalGbo) : '—'} />
+          <Tile label="Totaal VVO" value={totalVvo > 0 ? fmtM2(totalVvo) : '—'} />
+          <Tile label="Totaal BVO" value={totalBvo > 0 ? fmtM2(totalBvo) : '—'} />
+          <Tile label="Gem. €/m² GBO" value={avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'} accent />
         </div>
       )}
 
@@ -113,7 +126,7 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
       )}
 
       <div className="rounded-md border overflow-x-auto">
-        <Table className="text-xs w-full min-w-[560px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
+        <Table className="text-xs w-full min-w-[700px] xl:min-w-0 [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">
@@ -126,10 +139,10 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
               <TableHead className="w-8">#</TableHead>
               <TableHead className="min-w-[88px] sm:min-w-[120px]">Unit</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">m²</TableHead>
+              <TableHead className="text-right min-w-[145px]">Oppervlakte</TableHead>
               <TableHead className="text-right">Maandhuur</TableHead>
               <TableHead className="text-right hidden md:table-cell">Markthuur</TableHead>
-              <TableHead className="text-right hidden lg:table-cell">€/m²</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">€/m² GBO</TableHead>
               {perComp && <TableHead className="text-right hidden lg:table-cell">OVB-%</TableHead>}
               {perComp && <TableHead className="text-right">OVB</TableHead>}
               <TableHead>Status</TableHead>
@@ -154,9 +167,14 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
               <TableCell />
               <TableCell />
               <TableCell colSpan={2} className="break-words whitespace-normal">
-                Totaal {components.length} units · {woon} woon · {comm} commercieel{warnings > 0 ? ` · ${warnings} aandacht` : ''}
+                Totaal {components.length} units · {woon} woon · {comm} commercieel{warnings > 0 ? ` · ${warnings} incompleet` : ''}
               </TableCell>
-              <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
+              <TableCell className="text-right font-mono-data tabular-nums whitespace-normal leading-snug">
+                {totalGbo > 0 && <div>GBO {fmtM2(totalGbo)}</div>}
+                {totalVvo > 0 && <div>VVO {fmtM2(totalVvo)}</div>}
+                {totalBvo > 0 && <div>BVO {fmtM2(totalBvo)}</div>}
+                {totalGbo <= 0 && totalVvo <= 0 && totalBvo <= 0 && '—'}
+              </TableCell>
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
               <TableCell className="hidden md:table-cell" />
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</TableCell>
@@ -190,13 +208,15 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
           {openComp && (() => {
             const c = openComp;
             const idx = components.findIndex((x) => x.id === c.id);
-            const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
+            const identitySurface = Number(c.surface_gbo ?? 0) || Number(c.surface_vvo ?? 0) || Number(c.surface_bvo ?? 0) || null;
+            const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: identitySurface }, idx);
             const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) : null;
             const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
             const readOnly = !editMode;
             const v = componentValueFor(c, diag ?? null);
-            const m2 = Number(c.surface_gbo ?? 0);
-            const epm2 = v > 0 && m2 > 0 ? Math.round(v / m2) : 0;
+            const gbo = Number(c.surface_gbo ?? 0);
+            const epm2 = v > 0 && gbo > 0 ? Math.round(v / gbo) : 0;
+            const areas = areaSummary(c);
             return (
               <>
                 <SheetHeader>
@@ -217,32 +237,36 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <DrawerField label="Naam"><RawTextInput className="h-9" initialValue={c.component_name} onCommit={(raw) => updateComponent(c.id, { component_name: raw.trim() || 'Component' })} /></DrawerField>
                     <DrawerField label="Type">
-                      <Select value={c.component_type} onValueChange={(v) => updateComponent(c.id, { component_type: v as Component['component_type'] })} disabled={readOnly}>
+                      <Select value={c.component_type} onValueChange={(value) => updateComponent(c.id, { component_type: value as Component['component_type'] })} disabled={readOnly}>
                         <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                        <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
                       </Select>
                     </DrawerField>
-                    <DrawerField label="GBO (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></DrawerField>
+                    <DrawerField label="GBO — gebruiksoppervlakte (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_gbo)} onCommit={(raw) => updateComponent(c.id, { surface_gbo: parseRawNumber(raw) })} /></DrawerField>
+                    <DrawerField label="VVO — verhuurbare vloeroppervlakte (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_vvo)} onCommit={(raw) => updateComponent(c.id, { surface_vvo: parseRawNumber(raw) })} /></DrawerField>
+                    <DrawerField label="BVO — bruto vloeroppervlakte (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(c.surface_bvo)} onCommit={(raw) => updateComponent(c.id, { surface_bvo: parseRawNumber(raw) })} /></DrawerField>
                     <DrawerField label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.current_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { current_monthly_rent: parseRawNumber(raw) })} /></DrawerField>
                     <DrawerField label="Markthuur / maand (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.market_monthly_rent)} onCommit={(raw) => updateComponent(c.id, { market_monthly_rent: parseRawNumber(raw) })} /></DrawerField>
                   </div>
-                  {(v > 0 || m2 > 0) && (
+                  {(v > 0 || areas.length > 0) && (
                     <div className="text-[11px] rounded-md border border-dashed bg-muted/30 px-2 py-1.5 text-muted-foreground">
-                      Componentwaarde: <span className="font-mono-data">{v > 0 ? fmtEur(v) : '—'}</span> · GBO: <span className="font-mono-data">{m2 > 0 ? fmtM2(m2, 0) : '—'}</span> · €/m²: <span className="font-mono-data">{epm2 > 0 ? fmtEurPerM2(epm2) : '—'}</span>
-                      {v > 0 && m2 <= 0 && <span className="ml-2 text-amber-700 dark:text-amber-300">⚠ GBO ontbreekt — €/m² niet berekenbaar.</span>}
+                      Componentwaarde: <span className="font-mono-data">{v > 0 ? fmtEur(v) : '—'}</span>
+                      {areas.length > 0 && <> · <span className="font-mono-data">{areas.join(' · ')}</span></>}
+                      {' · '}€/m² GBO: <span className="font-mono-data">{epm2 > 0 ? fmtEurPerM2(epm2) : '—'}</span>
+                      {v > 0 && gbo <= 0 && <span className="ml-2 text-amber-700 dark:text-amber-300">⚠ GBO ontbreekt — €/m² GBO niet berekenbaar.</span>}
                     </div>
                   )}
                   {perComp && (
                     <div className="border-t pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <DrawerField label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></DrawerField>
                       <DrawerField label="OVB-classificatie">
-                        <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_classification: v as Component['transfer_tax_classification'] })} disabled={readOnly}>
+                        <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(value) => updateComponent(c.id, { transfer_tax_classification: value as Component['transfer_tax_classification'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                          <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                          <SelectContent>{Object.entries(VR_OVB_CLASSIFICATION_LABELS).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
                         </Select>
                       </DrawerField>
                       <DrawerField label="Toerekeningsmethode">
-                        <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(v) => updateComponent(c.id, { transfer_tax_allocation_method: v as Component['transfer_tax_allocation_method'] })} disabled={readOnly}>
+                        <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(value) => updateComponent(c.id, { transfer_tax_allocation_method: value as Component['transfer_tax_allocation_method'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
@@ -289,6 +313,11 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
       </Sheet>
     </>
   );
+
+  function openRow(id: string) {
+    setOpenId(id);
+    setEditMode(!isTouch);
+  }
 }
 
 function Tile({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
@@ -311,13 +340,15 @@ function ComponentRow({ c, idx, perComp, diag, selected, onToggleSelect, onOpen,
   onOpen: () => void;
   onDelete: () => void;
 }) {
-  const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: c.surface_gbo as number | null }, idx);
+  const identitySurface = Number(c.surface_gbo ?? 0) || Number(c.surface_vvo ?? 0) || Number(c.surface_bvo ?? 0) || null;
+  const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: identitySurface }, idx);
   const missing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
   const monthly = Number(c.current_monthly_rent ?? 0);
   const markt = Number(c.market_monthly_rent ?? 0);
-  const m2 = Number(c.surface_gbo ?? 0);
+  const gbo = Number(c.surface_gbo ?? 0);
   const value = componentValueFor(c, diag);
-  const epm2 = value > 0 && m2 > 0 ? Math.round(value / m2) : 0;
+  const epm2 = value > 0 && gbo > 0 ? Math.round(value / gbo) : 0;
+  const areas = areaSummary(c);
   const tap = useTapVsScroll(() => onOpen());
   return (
     <TableRow
@@ -334,14 +365,16 @@ function ComponentRow({ c, idx, perComp, diag, selected, onToggleSelect, onOpen,
       <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
       <TableCell className="font-medium break-words min-w-[88px] sm:min-w-[120px]">{ident.primary}</TableCell>
       <TableCell className="break-words">{VR_COMPONENT_LABELS[c.component_type] ?? c.component_type}</TableCell>
-      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-normal leading-snug">
+        {areas.length > 0 ? areas.map((area) => <div key={area}>{area}</div>) : '—'}
+      </TableCell>
       <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
       <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{markt > 0 ? fmtEur(markt) : '—'}</TableCell>
-      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{epm2 > 0 ? fmtEurPerM2(epm2) : (value > 0 ? <span className="text-amber-700 dark:text-amber-300" title="GBO ontbreekt">m² ?</span> : '—')}</TableCell>
+      <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{epm2 > 0 ? fmtEurPerM2(epm2) : (value > 0 ? <span className="text-amber-700 dark:text-amber-300" title="GBO ontbreekt">GBO ?</span> : '—')}</TableCell>
       {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden lg:table-cell">{diag ? `${diag.pct.toFixed(diag.pct % 1 === 0 ? 0 : 1)}%` : '—'}</TableCell>}
       {perComp && <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{diag ? fmtEur(diag.amount) : '—'}</TableCell>}
       <TableCell>
-        {missing ? <Chip label="Niet compleet" tone="warning" /> : <Chip label="OK" tone="positive" />}
+        {missing ? <Chip label="Incompleet" tone="danger" /> : <Chip label="Volledig" tone="positive" />}
       </TableCell>
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <Button size="sm" variant="ghost" onClick={onDelete} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" aria-label="Component verwijderen">

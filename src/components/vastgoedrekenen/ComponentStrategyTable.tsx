@@ -54,17 +54,30 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
   const openUnit = openId ? units.find((u) => u.id === openId) ?? null : null;
   const openIdx = openUnit ? units.findIndex((u) => u.id === openUnit.id) : -1;
 
-  const totalM2 = units.reduce((s, u) => {
-    const r = u as unknown as Record<string, unknown>;
-    return s + (num(r.surface_gbo) ?? num(r.surface_vvo) ?? 0);
-  }, 0);
+  const surfaceTotals = units.reduce(
+    (acc, u) => {
+      const r = u as unknown as Record<string, unknown>;
+      acc.gbo += num(r.surface_gbo) ?? 0;
+      acc.vvo += num(r.surface_vvo) ?? 0;
+      acc.bvo += num(r.surface_bvo) ?? 0;
+      return acc;
+    },
+    { gbo: 0, vvo: 0, bvo: 0 },
+  );
   const stratCounts = units.reduce<Record<string, number>>((acc, u) => {
     const k = ((u as unknown as Record<string, unknown>).strategy as string | null) ?? 'later_beslissen';
     acc[k] = (acc[k] ?? 0) + 1;
     return acc;
   }, {});
   const warningsCount = units.filter((u) => computeComponentStrategy(u).warnings.length > 0).length;
-  const avgEurPerM2 = totals.scenarioValue > 0 && totalM2 > 0 ? Math.round(totals.scenarioValue / totalM2) : 0;
+  const pricingSurface = surfaceTotals.gbo > 0
+    ? { label: 'GBO', value: surfaceTotals.gbo }
+    : surfaceTotals.vvo > 0
+      ? { label: 'VVO', value: surfaceTotals.vvo }
+      : null;
+  const avgEurPerM2 = totals.scenarioValue > 0 && pricingSurface
+    ? Math.round(totals.scenarioValue / pricingSurface.value)
+    : 0;
 
   const allSelected = units.length > 0 && selected.size === units.length;
   const someSelected = selected.size > 0 && !allSelected;
@@ -135,7 +148,7 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
         </div>
       )}
       {hasUnits && totals.mix && (
-        <p className="text-xs text-muted-foreground break-words">Mix: {totals.mix} · Gem. prijs/m²: <span className="font-mono-data">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</span></p>
+        <p className="text-xs text-muted-foreground break-words">Mix: {totals.mix} · Gem. prijs/m²{pricingSurface ? ` ${pricingSurface.label}` : ''}: <span className="font-mono-data">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</span></p>
       )}
 
       {!hasUnits && (
@@ -169,7 +182,7 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
                 <TableHead className="w-8">#</TableHead>
                 <TableHead className="min-w-[140px]">Unit</TableHead>
                 <TableHead className="hidden md:table-cell">Type</TableHead>
-                <TableHead className="text-right">m²</TableHead>
+                <TableHead className="text-right">Oppervlaktes</TableHead>
                 <TableHead>Strategie</TableHead>
                 <TableHead className="text-right">Bijdrage</TableHead>
                 <TableHead className="text-right hidden md:table-cell">€/m²</TableHead>
@@ -185,16 +198,19 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
                   label: r.unit_label as string | null,
                   name: (u as unknown as { unit_name?: string }).unit_name,
                   type: r.unit_type as string | null,
-                  surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+                  surface: num(r.surface_gbo) ?? num(r.surface_vvo) ?? num(r.surface_bvo),
                 }, idx);
                 const strategy = (r.strategy as ComponentStrategyKey | null) ?? 'later_beslissen';
                 const calc = computeComponentStrategy(u);
-                const m2 = num(r.surface_gbo) ?? num(r.surface_vvo) ?? 0;
+                const gbo = num(r.surface_gbo) ?? 0;
+                const vvo = num(r.surface_vvo) ?? 0;
+                const bvo = num(r.surface_bvo) ?? 0;
+                const pricingM2 = gbo > 0 ? gbo : vvo;
                 const isSale = SALE_STRATEGIES.includes(strategy);
                 const isHold = HOLD_STRATEGIES.includes(strategy);
                 const contribution = isSale ? calc.breakdown.netSaleProceeds : isHold ? calc.breakdown.holdValue : (num(r.hold_value_manual) ?? 0);
                 const hasWarning = calc.warnings.length > 0 || !r.strategy || strategy === 'later_beslissen';
-                const epm2 = contribution > 0 && m2 > 0 ? Math.round(contribution / m2) : 0;
+                const epm2 = contribution > 0 && pricingM2 > 0 ? Math.round(contribution / pricingM2) : 0;
                 const isSel = selected.has(u.id);
                 return (
                   <TableRow
@@ -209,7 +225,7 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
                     <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
                     <TableCell className="font-medium break-words min-w-[140px]">{ident.primary}</TableCell>
                     <TableCell className="break-words hidden md:table-cell">{(r.unit_type as string | null) ?? '—'}</TableCell>
-                    <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
+                    <TableCell className="text-right font-mono-data tabular-nums"><SurfaceCell gbo={gbo} vvo={vvo} bvo={bvo} /></TableCell>
                     <TableCell className="break-words">{STRATEGY_LABELS[strategy] ?? '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{contribution > 0 ? fmtEur(contribution) : '—'}</TableCell>
                     <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{epm2 > 0 ? fmtEurPerM2(epm2) : (contribution > 0 ? <span className="text-amber-700 dark:text-amber-300" title="m² ontbreekt">m² ?</span> : '—')}</TableCell>
@@ -234,7 +250,7 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
                   Totaal {units.length} units{warningsCount > 0 ? ` · ${warningsCount} aandacht` : ''}
                 </TableCell>
                 <TableCell className="hidden md:table-cell" />
-                <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
+                <TableCell className="text-right font-mono-data tabular-nums"><SurfaceCell gbo={surfaceTotals.gbo} vvo={surfaceTotals.vvo} bvo={surfaceTotals.bvo} /></TableCell>
                 <TableCell />
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totals.scenarioValue)}</TableCell>
                 <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{avgEurPerM2 > 0 ? fmtEurPerM2(avgEurPerM2) : '—'}</TableCell>
@@ -250,14 +266,14 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
       )}
 
       <Sheet open={openId !== null} onOpenChange={(o) => !o && setOpenId(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
           {openUnit && (() => {
             const r = openUnit as unknown as Record<string, unknown>;
             const ident = formatUnitIdentity({
               label: r.unit_label as string | null,
               name: (openUnit as unknown as { unit_name?: string }).unit_name,
               type: r.unit_type as string | null,
-              surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+              surface: num(r.surface_gbo) ?? num(r.surface_vvo) ?? num(r.surface_bvo),
             }, openIdx);
             return (
               <>
@@ -341,6 +357,24 @@ function Tile({ label, value, accent, tone }: { label: string; value: string; ac
   );
 }
 
+function SurfaceCell({ gbo, vvo, bvo }: { gbo: number; vvo: number; bvo: number }) {
+  const rows = [
+    { label: 'GBO', value: gbo },
+    { label: 'VVO', value: vvo },
+    { label: 'BVO', value: bvo },
+  ].filter((row) => row.value > 0);
+
+  if (rows.length === 0) return <span>—</span>;
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 whitespace-nowrap leading-tight">
+      {rows.map((row) => (
+        <span key={row.label}><span className="text-muted-foreground">{row.label}</span> {fmtM2(row.value)}</span>
+      ))}
+    </div>
+  );
+}
+
 function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOffUnit; index: number; onUpdate: Props['onUpdate']; onDelete: Props['onDelete']; hideHeader?: boolean }) {
   const r = f(unit);
   const strategy = (r.strategy as ComponentStrategyKey | null) ?? 'later_beslissen';
@@ -353,7 +387,7 @@ function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOf
     label: r.unit_label as string | null,
     name: (unit as unknown as { unit_name?: string }).unit_name,
     type: r.unit_type as string | null,
-    surface: num(r.surface_gbo) ?? num(r.surface_vvo),
+    surface: num(r.surface_gbo) ?? num(r.surface_vvo) ?? num(r.surface_bvo),
   }, index);
   const calc = computeComponentStrategy(unit);
 
@@ -404,24 +438,34 @@ function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOf
       )}
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-        <Field label="Label" className="lg:col-span-2">
-          <RawTextInput className="h-9" initialValue={(r.unit_label as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_label: raw.trim() || 'Unit' })} />
-        </Field>
-        <Field label="Type">
-          <RawTextInput className="h-9" initialValue={(r.unit_type as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_type: raw.trim() || null })} />
-        </Field>
-        <Field label="m² (GBO/VVO)">
-          <RawNumberInput className="h-9" format="area" initialValue={numberToRaw((r.surface_gbo as number | null) ?? (r.surface_vvo as number | null))} onCommit={(raw) => onUpdate(unit.id, { surface_gbo: parseRawNumber(raw) })} />
-        </Field>
-        <Field label="Strategie" className="lg:col-span-2">
-          <Select value={strategy} onValueChange={(v) => onUpdate(unit.id, { strategy: v })}>
-            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </Field>
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+          <Field label="Label">
+            <RawTextInput className="h-9" initialValue={(r.unit_label as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_label: raw.trim() || 'Unit' })} />
+          </Field>
+          <Field label="Type">
+            <RawTextInput className="h-9" initialValue={(r.unit_type as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_type: raw.trim() || null })} />
+          </Field>
+          <Field label="Strategie">
+            <Select value={strategy} onValueChange={(v) => onUpdate(unit.id, { strategy: v })}>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="GBO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_gbo))} onCommit={(raw) => onUpdate(unit.id, { surface_gbo: parseRawNumber(raw) })} />
+          </Field>
+          <Field label="VVO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_vvo))} onCommit={(raw) => onUpdate(unit.id, { surface_vvo: parseRawNumber(raw) })} />
+          </Field>
+          <Field label="BVO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_bvo))} onCommit={(raw) => onUpdate(unit.id, { surface_bvo: parseRawNumber(raw) })} />
+          </Field>
+        </div>
       </div>
 
       {isSale && (

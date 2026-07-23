@@ -1,0 +1,78 @@
+name: Verify
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        # Het bestaande package-lock.json loopt achter op package.json.
+        # Installeer daarom de actuele package.json zonder het lockbestand in CI te wijzigen.
+        run: npm install --no-package-lock
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: |
+          set +e
+          npm test > test-output.log 2>&1
+          test_status=$?
+          set -e
+          if [ "$test_status" -ne 0 ]; then
+            echo "Tests mislukt — laatste relevante regels:"
+            tail -n 220 test-output.log
+            exit "$test_status"
+          fi
+          tail -n 40 test-output.log
+
+      - name: Upload failing test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failing-test-log
+          path: test-output.log
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Production build
+        if: always()
+        run: npm run build
+
+      - name: Export Fase 1.1 patch
+        if: success()
+        run: |
+          git fetch origin main --depth=1
+          git diff --binary origin/main...HEAD > Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+
+      - name: Upload Fase 1.1 patch
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vastgoedrekenen-fase-1-1-patch
+          path: Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+          retention-days: 7

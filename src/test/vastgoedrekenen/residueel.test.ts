@@ -183,7 +183,7 @@ describe('residuele maximale koopsom', () => {
 });
 
 describe('componentstrategie voor transformatie en sloop-nieuwbouw', () => {
-  it('neemt sloop/nieuwbouw als verkoopstrategie op en telt kosten één keer', () => {
+  it('neemt sloop/nieuwbouw als verkoopstrategie op en toont ontwikkelkosten bij investering', () => {
     const totals = aggregateStrategy([
       unit({
         strategy: 'sloop_nieuwbouw_verkopen',
@@ -196,7 +196,9 @@ describe('componentstrategie voor transformatie en sloop-nieuwbouw', () => {
     expect(totals.grossDevelopmentValue).toBe(1_000_000);
     expect(totals.componentDispositionCosts).toBe(30_000);
     expect(totals.componentDevelopmentCosts).toBe(300_000);
-    expect(totals.netSaleProceeds).toBe(670_000);
+    expect(totals.netSaleProceeds).toBe(970_000);
+    expect(totals.extraInvestmentCosts).toBe(300_000);
+    expect(totals.scenarioValue).toBe(970_000);
   });
 
   it('neemt sloop/nieuwbouw als aanhoudstrategie op', () => {
@@ -306,6 +308,34 @@ describe('computeScenario residuele integratie', () => {
     expect(outputs.scoreLabel).toBe('Residueel bepaald');
     expect(outputs.conclusion).toContain('Geen vraagprijs');
     expect(outputs.residual?.status).toBe('voor_bieding');
+  });
+
+  it('verwerkt componentopbrengsten en ontwikkelkosten in de algemene verkoop-KPI’s', () => {
+    const outputs = computeScenario(combinedContext({
+      purchase_price: 1_000_000,
+      ovb_mode: 'manual',
+      transfer_tax_amount: 0,
+    }));
+
+    expect(outputs.grossSaleProceeds).toBe(2_000_000);
+    expect(outputs.saleCostsTotal).toBe(40_000);
+    expect(outputs.netSaleProceeds).toBe(1_960_000);
+    expect(outputs.totalInvestment).toBe(1_700_000);
+    expect(outputs.netMargin).toBe(260_000);
+    expect(outputs.roi).toBe(15.29);
+    expect(outputs.saleHasInput).toBe(true);
+  });
+
+  it('toont zonder ingevoerde koopsom wel opbrengst en kosten, maar geen misleidende ROI', () => {
+    const outputs = computeScenario(combinedContext({
+      ovb_mode: 'manual',
+      transfer_tax_amount: 0,
+    }));
+
+    expect(outputs.netSaleProceeds).toBe(1_960_000);
+    expect(outputs.totalInvestment).toBe(700_000);
+    expect(outputs.netMargin).toBeNull();
+    expect(outputs.roi).toBeNull();
   });
 
   it('laat ontbrekende sloop-/nieuwbouwkosten de status Indicatief maken', () => {

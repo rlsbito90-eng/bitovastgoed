@@ -120,10 +120,17 @@ export const WWS_SCHEME_LABEL: Record<WwsScheme, string> = {
   onbekend: 'Stelsel niet gekozen',
 };
 
+/** Korte status voor tabellen en chips; dezelfde termen als in detailweergave. */
+export const WWS_RELIABILITY_SHORT_LABEL: Record<WwsReliability, string> = {
+  volledig: 'Volledig',
+  indicatief: 'Indicatief',
+  ontbrekend: 'Incompleet',
+};
+
 export const WWS_RELIABILITY_LABEL: Record<WwsReliability, string> = {
-  volledig: 'Volledig (alle ondersteunende velden ingevuld)',
-  indicatief: 'Indicatief — niet alle velden compleet',
-  ontbrekend: 'Geen waarde — vul punten of voer WWS-check uit',
+  volledig: 'Volledig — alle ondersteunende velden ingevuld',
+  indicatief: 'Indicatief — punten aanwezig, maar onderbouwing niet compleet',
+  ontbrekend: 'Incompleet — WWS-punten ontbreken',
 };
 
 export const WWS_MISSING_LABEL: Record<WwsMissingField, string> = {
