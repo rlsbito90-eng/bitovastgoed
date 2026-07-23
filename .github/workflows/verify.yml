@@ -27,13 +27,28 @@ jobs:
         id: acceptance
         run: |
           if [ -f scripts/apply_fase_1_1_acceptance_fixes.py ]; then
-            python3 scripts/apply_fase_1_1_acceptance_fixes.py
+            set +e
+            python3 scripts/apply_fase_1_1_acceptance_fixes.py > acceptance-output.log 2>&1
+            status=$?
+            set -e
+            cat acceptance-output.log
+            if [ "$status" -ne 0 ]; then
+              exit "$status"
+            fi
             rm -f scripts/apply_fase_1_1_acceptance_fixes.py
             rm -f .github/workflows/apply-fase-1-1-acceptance-fixes.yml
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Upload acceptance diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-correction-log
+          path: acceptance-output.log
+          retention-days: 3
 
       - name: Commit acceptance corrections to featurebranch
         if: steps.acceptance.outputs.applied == 'true'
@@ -78,6 +93,7 @@ jobs:
           name: failing-test-log
           path: test-output.log
           retention-days: 3
+          if-no-files-found: ignore
 
       - name: Production build
         if: always()
