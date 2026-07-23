@@ -34,9 +34,10 @@ describe('Decimal-proof metrages (Hinthamerstraat)', () => {
     expect(wonen + overige).toBeCloseTo(559.0, 5);
   });
 
-  it('formatteert in NL met komma en m² suffix', () => {
-    expect(formatArea(85.4, 2)).toBe('85,40 m²');
-    expect(formatArea(470, 2)).toBe('470,00 m²');
+  it('formatteert metrages in NL zonder kunstmatige eindnullen', () => {
+    expect(formatArea(85.4, 2)).toBe('85,4 m²');
+    expect(formatArea(470, 2)).toBe('470 m²');
+    expect(formatArea(111.81, 2)).toBe('111,81 m²');
     expect(formatNumberNL(111.81, 2)).toBe('111,81');
   });
 
