@@ -27,10 +27,38 @@ export type ScenarioScoreLabel =
   | 'ROI onvoldoende'
   | 'Marge onvoldoende'
   | 'Exitdoel niet gehaald'
+  | 'Residueel bepaald'
   | 'Onvoldoende data'
   | 'Niet haalbaar';
 
 export type LeadingValuationTrackChoice = 'auto' | 'huur_bar' | 'scenario_exit' | 'componentstrategie';
+
+export type ResidualBindingTarget = 'winst_op_kosten' | 'winst_op_gdv' | 'vaste_winst' | null;
+export type ResidualStatus = 'indicatief' | 'voor_bieding';
+
+export type ResidualComputation = {
+  source: 'componentstrategie' | 'scenario_exit';
+  grossDevelopmentValue: number;
+  componentDispositionCosts: number;
+  componentDevelopmentCosts: number;
+  sharedScenarioCosts: number;
+  financingCosts: number;
+  targetProfitAmount: number;
+  bindingTarget: ResidualBindingTarget;
+  allowedTotalInvestment: number;
+  maxPurchasePrice: number;
+  transferTaxAtMaxPurchase: number;
+  acquisitionCostsAtMaxPurchase: number;
+  totalInvestmentAtMaxPurchase: number;
+  profitAtMaxPurchase: number;
+  profitOnCostPct: number | null;
+  profitOnGdvPct: number | null;
+  status: ResidualStatus;
+  criticalIssues: string[];
+  warnings: string[];
+  iterations: number;
+  converged: boolean;
+};
 
 export type OvbPerComponentDiag = {
   id: string;
@@ -142,6 +170,8 @@ export type ComputedOutputs = {
   scenarioMarginPct: number | null;
   /** Indicatieve maximale aankoopprijs op basis van componentstrategie. */
   maxPurchasePrice: number | null;
+  /** Controleerbare residuele uitkomst, dynamisch berekend en niet opgeslagen. */
+  residual: ResidualComputation | null;
   /** Of het scenario rond te rekenen is bij de vraagprijs. */
   roundsAtAsking: boolean | null;
   // --- Leidende maximale prijs (voor UI/audit, scheidt strategie vs BAR/exit) ---
@@ -173,5 +203,3 @@ export type ComputedOutputs = {
     warnings: string[];
   }>;
 };
-
-

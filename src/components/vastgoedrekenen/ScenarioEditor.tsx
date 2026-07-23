@@ -1319,7 +1319,7 @@ export default function ScenarioEditor(props: Props) {
                 <Section id="sec-verkoop" title="Verkoop / exit" status={verkoopStatus} {...sectionProps('sec-verkoop')} source="Scenario-level verkoop" relevance={verkoopRelevance}>
                   <div className="pt-3 space-y-4">
                     <p className="text-xs text-muted-foreground">
-                      Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op gewenste marge of ROI in plaats van BAR.
+                      Vul hier verkoopopbrengst en exit-aannames in. Bij verkoopgerichte strategieën kan "Maximale bieding" worden gebaseerd op doelwinst op GDV of op kosten in plaats van BAR.
                     </p>
 
                     {/* Leidend waarderingsspoor — compact op mobiel (toelichting achter "Meer info") */}
@@ -1444,13 +1444,13 @@ export default function ScenarioEditor(props: Props) {
                     <div className="border-t pt-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Doelstelling voor maximale bieding</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
-                        <MobileFieldGroup label="Gewenste winst / marge (€)">
+                        <MobileFieldGroup label="Vaste doelwinst (€)" helper="Een absoluut minimaal winstbedrag. Bij meerdere doelen is het strengste doel bindend.">
                           <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_margin_amount as number | null} onChange={(v) => setSale('sale_target_margin_amount', v)} suffix="€" />
                         </MobileFieldGroup>
-                        <MobileFieldGroup label="Gewenste marge (%)">
+                        <MobileFieldGroup label="Doelwinst op GDV (%)" helper="Projectwinst als percentage van de bruto opbrengstwaarde/GDV.">
                           <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_margin_percentage as number | null} onChange={(v) => setSale('sale_target_margin_percentage', v)} suffix="%" />
                         </MobileFieldGroup>
-                        <MobileFieldGroup label="Gewenste ROI (%)">
+                        <MobileFieldGroup label="Doelwinst op kosten (%)" helper="Projectwinst gedeeld door de totale investering.">
                           <NumInput onRawChange={markDirtyFromRaw} value={sr.sale_target_roi_percentage as number | null} onChange={(v) => setSale('sale_target_roi_percentage', v)} suffix="%" />
                         </MobileFieldGroup>
                         <MobileFieldGroup label="Target exitwaarde (€)">
@@ -1507,11 +1507,11 @@ export default function ScenarioEditor(props: Props) {
                       <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs">
                         <p className="font-semibold text-sm">Maximale bieding op basis van exit: {fmtEur(outputs.exitBasedMaxBid)}</p>
                         <p className="text-muted-foreground mt-1">
-                          Berekend als: netto verkoopopbrengst − gewenste marge/ROI − aankoopkosten − OVB − bouw-/renovatiekosten − financiering − veiligheidsmarge.
+                          Berekend als: verkoopopbrengst − doelwinst op GDV/kosten − aankoopkosten − OVB − bouw-/renovatiekosten − financiering − veiligheidsmarge.
                           Bindende doelstelling: <span className="font-medium">{
                             outputs.exitBidBindingTarget === 'marge_euro' ? 'gewenste winst (€)' :
-                            outputs.exitBidBindingTarget === 'marge_pct' ? 'gewenste marge (%)' :
-                            outputs.exitBidBindingTarget === 'roi' ? 'gewenste ROI (%)' :
+                            outputs.exitBidBindingTarget === 'marge_pct' ? 'doelwinst op GDV (%)' :
+                            outputs.exitBidBindingTarget === 'roi' ? 'doelwinst op kosten (%)' :
                             outputs.exitBidBindingTarget === 'target_exit' ? 'target exitwaarde' : '—'
                           }</span>.
                         </p>

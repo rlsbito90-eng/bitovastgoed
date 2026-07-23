@@ -148,8 +148,13 @@ export function computeSale(s: Scenario, totalInvestment: number, purchasePrice:
       candidates.push({ key: 'marge_euro', maxTotalInvestment: marginBasis - targetMarginEur });
     }
     if (targetMarginPct > 0) {
-      // marge% van netto opbrengst
-      candidates.push({ key: 'marge_pct', maxTotalInvestment: marginBasis * (1 - targetMarginPct / 100) });
+      // Winst op GDV: doelwinst is een percentage van de bruto opbrengstwaarde.
+      // Verkoopkosten zijn al uit marginBasis gehaald en blijven zo exact eenmaal kosten.
+      const gdvBasis = gross ?? marginBasis;
+      candidates.push({
+        key: 'marge_pct',
+        maxTotalInvestment: marginBasis - (gdvBasis * targetMarginPct) / 100,
+      });
     }
     if (targetRoiPct > 0) {
       // ROI = marge / TI → TI = net / (1 + ROI%)

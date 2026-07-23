@@ -14,6 +14,8 @@ export type ComponentStrategyKey =
   | 'splitsen_verkopen'
   | 'transformeren_verkopen'
   | 'transformeren_aanhouden'
+  | 'sloop_nieuwbouw_verkopen'
+  | 'sloop_nieuwbouw_aanhouden'
   | 'handmatige_waarde'
   | 'later_beslissen';
 
@@ -26,15 +28,18 @@ export const STRATEGY_LABELS: Record<ComponentStrategyKey, string> = {
   splitsen_verkopen: 'Splitsen en verkopen',
   transformeren_verkopen: 'Transformeren en verkopen',
   transformeren_aanhouden: 'Transformeren en aanhouden',
+  sloop_nieuwbouw_verkopen: 'Slopen, nieuwbouwen en verkopen',
+  sloop_nieuwbouw_aanhouden: 'Slopen, nieuwbouwen en aanhouden',
   handmatige_waarde: 'Handmatige waarde',
   later_beslissen: 'Later beslissen',
 };
 
 export const SALE_STRATEGIES: ComponentStrategyKey[] = [
-  'verkopen_leeg', 'verkopen_verhuurd', 'renoveren_verkopen', 'splitsen_verkopen', 'transformeren_verkopen',
+  'verkopen_leeg', 'verkopen_verhuurd', 'renoveren_verkopen', 'splitsen_verkopen',
+  'transformeren_verkopen', 'sloop_nieuwbouw_verkopen',
 ];
 export const HOLD_STRATEGIES: ComponentStrategyKey[] = [
-  'aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden',
+  'aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden', 'sloop_nieuwbouw_aanhouden',
 ];
 
 export type ComponentBreakdown = {
@@ -67,6 +72,12 @@ export type StrategyTotals = {
   holdValue: number;
   netSaleProceeds: number;
   scenarioValue: number;
+  /** Bruto eindwaarde voor residueel rekenen: bruto verkoop + terminale holdwaarde. */
+  grossDevelopmentValue: number;
+  /** Verkoop- en juridische kosten van verkoopcomponenten. */
+  componentDispositionCosts: number;
+  /** Renovatie-, splitsings-, transformatie- en sloop/nieuwbouwkosten. */
+  componentDevelopmentCosts: number;
   extraInvestmentCosts: number;
   mix: string;
   warnings: string[];
@@ -153,7 +164,8 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
     case 'verkopen_verhuurd':
     case 'renoveren_verkopen':
     case 'splitsen_verkopen':
-    case 'transformeren_verkopen': {
+    case 'transformeren_verkopen':
+    case 'sloop_nieuwbouw_verkopen': {
       breakdown.netSaleProceeds = Math.max(0,
         grossSale - saleCosts - legalCosts - renovationCosts - splittingCosts - transformationCosts);
       contribution = breakdown.netSaleProceeds;
@@ -161,11 +173,13 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
       if (saleCosts <= 0 && grossSale > 0) warnings.push(`${label}: verkoopkosten ontbreken.`);
       if (strategy === 'splitsen_verkopen' && splittingCosts <= 0) warnings.push(`${label}: splitsingskosten ontbreken.`);
       if (strategy === 'transformeren_verkopen' && transformationCosts <= 0) warnings.push(`${label}: transformatiekosten ontbreken.`);
+      if (strategy === 'sloop_nieuwbouw_verkopen' && transformationCosts <= 0) warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
       break;
     }
     case 'aanhouden':
     case 'renoveren_aanhouden':
-    case 'transformeren_aanhouden': {
+    case 'transformeren_aanhouden':
+    case 'sloop_nieuwbouw_aanhouden': {
       contribution = holdValueCalc;
       // Kosten voor renoveren/transformeren tellen bovenop de investering
       // (hold-waarde is exclusief deze kosten).
@@ -176,6 +190,7 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
       if (valMethod === 'factor' && holdFactor <= 0) warnings.push(`${label}: factor ontbreekt.`);
       if (strategy === 'renoveren_aanhouden' && renovationCosts <= 0) warnings.push(`${label}: renovatiekosten ontbreken.`);
       if (strategy === 'transformeren_aanhouden' && transformationCosts <= 0) warnings.push(`${label}: transformatiekosten ontbreken.`);
+      if (strategy === 'sloop_nieuwbouw_aanhouden' && transformationCosts <= 0) warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
       break;
     }
     case 'handmatige_waarde': {
@@ -200,17 +215,44 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
 
 export function aggregateStrategy(units: SellOffUnit[]): StrategyTotals {
   if (!units || units.length === 0) {
-    return { enabled: false, holdValue: 0, netSaleProceeds: 0, scenarioValue: 0, extraInvestmentCosts: 0, mix: '', warnings: [], perUnit: [] };
+    return {
+      enabled: false,
+      holdValue: 0,
+      netSaleProceeds: 0,
+      scenarioValue: 0,
+      grossDevelopmentValue: 0,
+      componentDispositionCosts: 0,
+      componentDevelopmentCosts: 0,
+      extraInvestmentCosts: 0,
+      mix: '',
+      warnings: [],
+      perUnit: [],
+    };
   }
   const perUnit = units.map(computeComponentStrategy);
   let holdValue = 0;
   let netSaleProceeds = 0;
+  let grossDevelopmentValue = 0;
+  let componentDispositionCosts = 0;
+  let componentDevelopmentCosts = 0;
   let extraInvestmentCosts = 0;
   const warnings: string[] = [];
   const mixCount: Record<string, number> = {};
   for (const r of perUnit) {
-    if (r.strategy && SALE_STRATEGIES.includes(r.strategy)) netSaleProceeds += r.contribution;
-    else if (r.strategy && (HOLD_STRATEGIES.includes(r.strategy) || r.strategy === 'handmatige_waarde')) holdValue += r.contribution;
+    if (r.strategy && SALE_STRATEGIES.includes(r.strategy)) {
+      netSaleProceeds += r.contribution;
+      grossDevelopmentValue += r.breakdown.grossSaleValue;
+      componentDispositionCosts += r.breakdown.saleCosts + r.breakdown.legalCosts;
+      componentDevelopmentCosts += r.breakdown.renovationCosts
+        + r.breakdown.splittingCosts
+        + r.breakdown.transformationCosts;
+    } else if (r.strategy && (HOLD_STRATEGIES.includes(r.strategy) || r.strategy === 'handmatige_waarde')) {
+      holdValue += r.contribution;
+      grossDevelopmentValue += r.breakdown.holdValue;
+      if (HOLD_STRATEGIES.includes(r.strategy)) {
+        componentDevelopmentCosts += r.breakdown.renovationCosts + r.breakdown.transformationCosts;
+      }
+    }
     extraInvestmentCosts += r.extraInvestmentCosts;
     warnings.push(...r.warnings);
     const key = r.strategy ?? 'onbekend';
@@ -224,6 +266,9 @@ export function aggregateStrategy(units: SellOffUnit[]): StrategyTotals {
     holdValue,
     netSaleProceeds,
     scenarioValue: holdValue + netSaleProceeds,
+    grossDevelopmentValue,
+    componentDispositionCosts,
+    componentDevelopmentCosts,
     extraInvestmentCosts,
     mix,
     warnings,

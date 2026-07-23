@@ -103,6 +103,10 @@ export function computeScenarioOvb(
 
   if (scenario.ovb_mode === 'per_component' && components.length > 0) {
     const totalArea = components.reduce((s, c) => s + (c.surface_gbo ?? 0), 0);
+    const totalStrategyValue = components.reduce(
+      (sum, component) => sum + Math.max(0, strategyValueByComponentId?.get(component.id) ?? 0),
+      0,
+    );
     const perComponent: OvbPerComponent[] = components.map((c) => {
       const allocMethod = (c.transfer_tax_allocation_method ?? 'value') as OvbPerComponent['basisMethod'];
 
@@ -126,11 +130,17 @@ export function computeScenarioOvb(
       let missingValueBasis = false;
       let missingStrategyBasis = false;
       if (allocMethod === 'm2') {
-        basis = totalArea > 0 ? (purchase * (c.surface_gbo ?? 0)) / totalArea : 0;
+        if (totalArea > 0 && Number(c.surface_gbo ?? 0) > 0) {
+          basis = (purchase * (c.surface_gbo ?? 0)) / totalArea;
+        } else {
+          missingValueBasis = true;
+        }
       } else if (allocMethod === 'strategy') {
         const v = strategyValueByComponentId?.get(c.id);
-        if (v != null && v > 0) {
-          basis = v;
+        if (v != null && v > 0 && totalStrategyValue > 0) {
+          // Strategiewaarde is uitsluitend de verdeelsleutel. De fiscale grondslag
+          // blijft de kandidaat-koopsom en moet over alle componenten optellen tot purchase.
+          basis = (purchase * v) / totalStrategyValue;
         } else {
           missingStrategyBasis = true;
         }

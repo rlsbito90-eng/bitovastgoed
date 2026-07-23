@@ -96,8 +96,8 @@ export function buildMaxBidExplain(scenario: Scenario, outputs: ComputedOutputs)
     label: 'Sale_target inputs',
     value: [
       `marge € ${Number(rec.sale_target_margin_amount ?? 0)}`,
-      `marge % ${Number(rec.sale_target_margin_percentage ?? 0)}`,
-      `ROI ${Number(rec.sale_target_roi_percentage ?? 0)}%`,
+      `winst op GDV ${Number(rec.sale_target_margin_percentage ?? 0)}%`,
+      `winst op kosten ${Number(rec.sale_target_roi_percentage ?? 0)}%`,
       `exit € ${Number(rec.sale_target_exit_value ?? 0)}`,
     ].join(' · '),
   });
