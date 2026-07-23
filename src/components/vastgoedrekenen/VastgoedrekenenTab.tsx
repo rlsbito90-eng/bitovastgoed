@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { useObjectCalculations, useQuickscanDetail, useTaxSettings } from '@/hooks/useVastgoedrekenen';
+import { cloneScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
 import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
@@ -81,7 +82,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     setDuplicatingId(id);
     try {
       const duplicate = await duplicateScenario(id);
-      if (duplicate) openAndScrollTo(duplicate.id);
+      if (!duplicate) return;
+      const snapshotsCopied = await cloneScenarioKengetalSnapshots(id, duplicate.id);
+      if (snapshotsCopied) openAndScrollTo(duplicate.id);
     } finally {
       setDuplicatingId(null);
     }
@@ -169,7 +172,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                   className="h-auto rounded-none border-l px-3"
                   disabled={duplicating}
                   onClick={() => duplicateAndOpen(s.id)}
-                  title="Kopieer het laatst opgeslagen scenario inclusief onderliggende invoer"
+                  title="Kopieer het laatst opgeslagen scenario inclusief onderliggende invoer en kengetal-snapshots"
                 >
                   <Copy className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">{duplicating ? 'Kopiëren…' : 'Dupliceren'}</span>
