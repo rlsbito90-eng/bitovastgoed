@@ -8,6 +8,8 @@ import { useObjectCalculations, useQuickscanDetail, useTaxSettings } from '@/hoo
 import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
+import KengetallenRegisterPanel from './KengetallenRegisterPanel';
+import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
 
@@ -127,6 +129,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         </CardHeader>
       </Card>
 
+      <KengetallenRegisterPanel />
+
       <ScenarioVergelijking
         scenarios={scenarios}
         taxSettings={taxSettings}
@@ -173,6 +177,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               </div>
               {open && (
                 <div className="p-4">
+                  <ScenarioKengetallenPanel scenario={s} onUpdateScenario={updateScenario} />
                   <ScenarioEditor
                     scenario={s}
                     taxSettings={taxSettings}
