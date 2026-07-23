@@ -266,7 +266,7 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
       )}
 
       <Sheet open={openId !== null} onOpenChange={(o) => !o && setOpenId(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
           {openUnit && (() => {
             const r = openUnit as unknown as Record<string, unknown>;
             const ident = formatUnitIdentity({
@@ -438,30 +438,34 @@ function UnitRow({ unit, index, onUpdate, onDelete, hideHeader }: { unit: SellOf
       )}
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-3">
-        <Field label="Label" className="lg:col-span-2">
-          <RawTextInput className="h-9" initialValue={(r.unit_label as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_label: raw.trim() || 'Unit' })} />
-        </Field>
-        <Field label="Type">
-          <RawTextInput className="h-9" initialValue={(r.unit_type as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_type: raw.trim() || null })} />
-        </Field>
-        <Field label="GBO — gebruiksoppervlakte (m²)">
-          <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_gbo))} onCommit={(raw) => onUpdate(unit.id, { surface_gbo: parseRawNumber(raw) })} />
-        </Field>
-        <Field label="VVO — verhuurbare vloeroppervlakte (m²)">
-          <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_vvo))} onCommit={(raw) => onUpdate(unit.id, { surface_vvo: parseRawNumber(raw) })} />
-        </Field>
-        <Field label="BVO — bruto vloeroppervlakte (m²)">
-          <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_bvo))} onCommit={(raw) => onUpdate(unit.id, { surface_bvo: parseRawNumber(raw) })} />
-        </Field>
-        <Field label="Strategie" className="lg:col-span-2">
-          <Select value={strategy} onValueChange={(v) => onUpdate(unit.id, { strategy: v })}>
-            <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </Field>
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-3">
+          <Field label="Label">
+            <RawTextInput className="h-9" initialValue={(r.unit_label as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_label: raw.trim() || 'Unit' })} />
+          </Field>
+          <Field label="Type">
+            <RawTextInput className="h-9" initialValue={(r.unit_type as string | null) ?? ''} onCommit={(raw) => onUpdate(unit.id, { unit_type: raw.trim() || null })} />
+          </Field>
+          <Field label="Strategie">
+            <Select value={strategy} onValueChange={(v) => onUpdate(unit.id, { strategy: v })}>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="GBO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_gbo))} onCommit={(raw) => onUpdate(unit.id, { surface_gbo: parseRawNumber(raw) })} />
+          </Field>
+          <Field label="VVO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_vvo))} onCommit={(raw) => onUpdate(unit.id, { surface_vvo: parseRawNumber(raw) })} />
+          </Field>
+          <Field label="BVO (m²)">
+            <RawNumberInput className="h-9" format="area" initialValue={numberToRaw(num(r.surface_bvo))} onCommit={(raw) => onUpdate(unit.id, { surface_bvo: parseRawNumber(raw) })} />
+          </Field>
+        </div>
       </div>
 
       {isSale && (
