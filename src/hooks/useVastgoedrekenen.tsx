@@ -10,6 +10,11 @@ import type {
   SellOffUnit, RiskItem, CalcOutput, TaxSettings,
 } from '@/lib/vastgoedrekenen/types';
 import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import {
+  buildScenarioChildClone,
+  nextScenarioCopyName,
+  stripCloneIdentity,
+} from '@/lib/vastgoedrekenen/duplicateScenario';
 import { toast } from 'sonner';
 
 export function useTaxSettings() {
@@ -173,7 +178,154 @@ export function useQuickscanDetail(calculationId: string | undefined) {
     else { toast.success('Scenario verwijderd'); await fetchAll(); }
   }, [fetchAll]);
 
-  return { calculation, scenarios, loading, refetch: fetchAll, updateCalculation, createScenario, updateScenario, deleteScenario };
+  const duplicateScenario = useCallback(async (id: string) => {
+    if (!calculation) return null;
+    const source = scenarios.find((scenario) => scenario.id === id);
+    if (!source) {
+      toast.error('Scenario dupliceren mislukt: bron niet gevonden.');
+      return null;
+    }
+
+    const [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes] = await Promise.all([
+      supabase.from('calculation_components').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('scenario_costs').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('residential_wws_units').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('sell_off_units').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('risk_analysis').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('exit_assumptions').select('*').eq('scenario_id', id).order('created_at'),
+    ]);
+
+    const loadError = [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes]
+      .map((result) => result.error)
+      .find(Boolean);
+    if (loadError) {
+      toast.error(mapDbError(loadError, 'Scenario dupliceren mislukt: onderliggende invoer kon niet worden geladen'));
+      return null;
+    }
+
+    const duplicateName = nextScenarioCopyName(
+      source.scenario_name,
+      scenarios.map((scenario) => scenario.scenario_name),
+    );
+    const scenarioPayload = {
+      ...stripCloneIdentity(source as unknown as Record<string, unknown>),
+      calculation_id: calculation.id,
+      object_id: calculation.object_id,
+      scenario_name: duplicateName,
+      status: 'concept',
+    };
+
+    const { data: duplicateData, error: duplicateError } = await supabase
+      .from('calculation_scenarios')
+      .insert(scenarioPayload as never)
+      .select('*')
+      .single();
+    if (duplicateError || !duplicateData) {
+      toast.error(mapDbError(duplicateError, 'Scenario dupliceren mislukt'));
+      return null;
+    }
+
+    const duplicate = duplicateData as Scenario;
+    const componentIdMap = new Map<string, string>();
+
+    const rollback = async (cause: unknown) => {
+      const { error: rollbackError } = await supabase
+        .from('calculation_scenarios')
+        .delete()
+        .eq('id', duplicate.id);
+      const detail = cause instanceof Error ? cause.message : 'Onbekende fout';
+      if (rollbackError) {
+        toast.error(`Scenario is onvolledig gekopieerd en kon niet automatisch worden verwijderd. Controleer “${duplicateName}”.`);
+      } else {
+        toast.error(`Scenario dupliceren afgebroken: ${detail}`);
+      }
+    };
+
+    try {
+      for (const component of componentsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          component as unknown as Record<string, unknown>,
+          duplicate.id,
+        );
+        const { data, error } = await supabase
+          .from('calculation_components')
+          .insert(payload as never)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Component kopiëren mislukt');
+        componentIdMap.set(component.id, data.id);
+      }
+
+      for (const scenarioCost of costsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          scenarioCost as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('scenario_costs').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const wwsUnit of wwsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          wwsUnit as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('residential_wws_units').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const sellOffUnit of sellOffRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          sellOffUnit as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('sell_off_units').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const risk of risksRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          risk as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('risk_analysis').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const exitAssumption of exitRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          exitAssumption as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('exit_assumptions').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+    } catch (error) {
+      await rollback(error);
+      return null;
+    }
+
+    toast.success(`Scenario gedupliceerd als “${duplicateName}”. Uitkomsten worden opnieuw berekend.`);
+    await fetchAll();
+    return duplicate;
+  }, [calculation, scenarios, fetchAll]);
+
+  return {
+    calculation,
+    scenarios,
+    loading,
+    refetch: fetchAll,
+    updateCalculation,
+    createScenario,
+    updateScenario,
+    deleteScenario,
+    duplicateScenario,
+  };
 }
 
 export function useScenarioChildren(scenarioId: string | undefined) {
@@ -332,7 +484,6 @@ export function useScenarioChildren(scenarioId: string | undefined) {
     if (warnings.length > 0) toast.warning(`Aanvullen aanbevolen:\n• ${warnings.slice(0, 5).join('\n• ')}${warnings.length > 5 ? `\n…en ${warnings.length - 5} meer` : ''}`);
     await fetchAll();
   }, [scenarioId, components, sellOffUnits, fetchAll]);
-
 
   return {
     components, costs, wwsUnits, sellOffUnits, risks, output, loading,
