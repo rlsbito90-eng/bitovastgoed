@@ -15,6 +15,7 @@ import {
   WWS_SOURCE_LABEL,
   WWS_SCHEME_LABEL,
   WWS_RELIABILITY_LABEL,
+  WWS_RELIABILITY_SHORT_LABEL,
   WWS_MISSING_LABEL,
 } from '@/lib/vastgoedrekenen/wws/source';
 import {
@@ -24,7 +25,7 @@ import {
   type WwsMode,
 } from '@/lib/vastgoedrekenen/wws/mode';
 import type { Component, Scenario, SellOffUnit, WwsUnit } from '@/lib/vastgoedrekenen/types';
-import { Chip, DrawerField } from './tableShared';
+import { Chip, DrawerField, type ChipTone } from './tableShared';
 
 type Props = {
   scenario: Scenario;
@@ -79,8 +80,12 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
               const m2 = Number(u.living_area_m2 ?? 0);
               const woz = Number(u.woz_value ?? 0);
               const monthly = Number(u.current_monthly_rent ?? 0);
-              const reliabilityTone: 'positive' | 'warning' =
-                status.reliability === 'volledig' ? 'positive' : 'warning';
+              const reliabilityTone: ChipTone =
+                status.reliability === 'volledig'
+                  ? 'positive'
+                  : status.reliability === 'indicatief'
+                    ? 'warning'
+                    : 'danger';
               return (
                 <TableRow
                   key={u.id}
@@ -93,21 +98,14 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
                   </TableCell>
                   <TableCell className="font-mono-data text-muted-foreground tabular-nums">{ident.indexStr}</TableCell>
                   <TableCell className="font-medium break-words min-w-[140px] sticky left-0 bg-card">{ident.primary}</TableCell>
-                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2, 0) : '—'}</TableCell>
+                  <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{m2 > 0 ? fmtM2(m2) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap hidden md:table-cell">{woz > 0 ? fmtEur(woz) : '—'}</TableCell>
                   <TableCell className="font-mono-data hidden lg:table-cell">{u.energy_label ?? '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{monthly > 0 ? fmtEur(monthly) : '—'}</TableCell>
                   <TableCell className="text-right font-mono-data tabular-nums">{u.wws_points ?? '—'}</TableCell>
                   <TableCell className="break-words hidden md:table-cell">{u.rent_segment ?? '—'}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={
-                        status.reliability === 'volledig' ? 'OK'
-                        : status.reliability === 'indicatief' ? 'LET OP'
-                        : 'INCOMPLEET'
-                      }
-                      tone={reliabilityTone}
-                    />
+                    <Chip label={WWS_RELIABILITY_SHORT_LABEL[status.reliability]} tone={reliabilityTone} />
                   </TableCell>
 
                   <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -125,9 +123,9 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
               <TableCell />
               <TableCell />
               <TableCell className="break-words whitespace-normal sticky left-0 bg-muted/60">
-                Totaal {wwsUnits.length} woonunits{warnings > 0 ? ` · ${warnings} aandacht` : ''}
+                Totaal {wwsUnits.length} woonunits{warnings > 0 ? ` · ${warnings} indicatief/incompleet` : ''}
               </TableCell>
-              <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2, 0)}</TableCell>
+              <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtM2(totalM2)}</TableCell>
               <TableCell className="hidden md:table-cell" />
               <TableCell className="hidden lg:table-cell" />
               <TableCell className="text-right font-mono-data tabular-nums whitespace-nowrap">{fmtEur(totalRent)}</TableCell>
@@ -136,8 +134,6 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
               <TableCell />
               <TableCell />
             </TableRow>
-
-
           </TableBody>
         </Table>
       </div>
@@ -165,7 +161,7 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
                 <div className="mt-4 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <DrawerField label="Naam"><RawTextInput className="h-9" initialValue={u.unit_name} onCommit={(raw) => updateWwsUnit(u.id, { unit_name: raw.trim() || 'Woonunit' })} /></DrawerField>
-                    <DrawerField label="Woon m²"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></DrawerField>
+                    <DrawerField label="Woonoppervlakte (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(u.living_area_m2)} onCommit={(raw) => updateWwsUnit(u.id, { living_area_m2: parseRawNumber(raw) })} /></DrawerField>
                     <DrawerField label="WOZ (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.woz_value)} onCommit={(raw) => updateWwsUnit(u.id, { woz_value: parseRawNumber(raw) })} /></DrawerField>
                     <DrawerField label="Energielabel"><RawTextInput className="h-9" initialValue={u.energy_label ?? ''} onCommit={(raw) => updateWwsUnit(u.id, { energy_label: raw.trim() || null })} /></DrawerField>
                     <DrawerField label="Maandhuur (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(u.current_monthly_rent)} onCommit={(raw) => updateWwsUnit(u.id, { current_monthly_rent: parseRawNumber(raw) })} /></DrawerField>
@@ -198,10 +194,10 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1">
                       <span><span className="font-medium text-foreground">Beleidsversie:</span> {status.policyVersion}</span>
-                      <span className={reliabilityColor}><span className="font-medium">Betrouwbaarheid:</span> {WWS_RELIABILITY_LABEL[status.reliability]}</span>
+                      <span className={reliabilityColor}><span className="font-medium">Status:</span> {WWS_RELIABILITY_LABEL[status.reliability]}</span>
                     </div>
                     {status.missing.length > 0 && (
-                      <div className="text-amber-700 dark:text-amber-300">
+                      <div className={status.reliability === 'ontbrekend' ? 'text-destructive' : 'text-amber-700 dark:text-amber-300'}>
                         <span className="font-medium">Ontbrekend:</span> {status.missing.map((m) => WWS_MISSING_LABEL[m]).join(', ')}
                         {status.source === 'ontbreekt' && ' — vul WWS-punten in of voer een volledige Huurcommissie-check uit.'}
                       </div>
@@ -215,8 +211,7 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
                         <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestWwsMode(modeCtx).mode]}</SelectItem>
-                          <SelectItem value="niet_nodig">{WWS_MODE_LABEL.niet_nodig}</SelectItem>
-                          <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
+                          <SelectItem value="indicatief_toegestaan">{WWS_MODE_LABEL.indicatief_toegestaan}</SelectItem>
                           <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
                         </SelectContent>
                       </Select>
@@ -242,6 +237,5 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
     </>
   );
 }
-
 
 export default memo(WwsUnitsTable);
