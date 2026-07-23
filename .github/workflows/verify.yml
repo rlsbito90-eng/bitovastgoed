@@ -35,7 +35,18 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Tests
-        run: npm test
+        run: |
+          set +e
+          npm test > test-output.log 2>&1
+          test_status=$?
+          set -e
+          if [ "$test_status" -ne 0 ]; then
+            echo "Tests mislukt — laatste relevante regels:"
+            tail -n 220 test-output.log
+            exit "$test_status"
+          fi
+          tail -n 40 test-output.log
 
       - name: Production build
+        if: always()
         run: npm run build
