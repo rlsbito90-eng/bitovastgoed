@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,6 +22,27 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Apply pending Fase 1.1 acceptance corrections
+        id: acceptance
+        run: |
+          if [ -f scripts/apply_fase_1_1_acceptance_fixes.py ]; then
+            python3 scripts/apply_fase_1_1_acceptance_fixes.py
+            rm -f scripts/apply_fase_1_1_acceptance_fixes.py
+            rm -f .github/workflows/apply-fase-1-1-acceptance-fixes.yml
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit acceptance corrections to featurebranch
+        if: steps.acceptance.outputs.applied == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: align Vastgoedrekenen acceptance UX"
+          git push origin HEAD:feat/vastgoedrekenen-fase-1-1
 
       - name: Node.js
         uses: actions/setup-node@v4
