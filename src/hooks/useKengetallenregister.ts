@@ -52,6 +52,49 @@ function normalizeSnapshot(row: unknown): ScenarioKengetalSnapshot {
   };
 }
 
+/**
+ * Kopieert de vaste bronmomentopnamen mee naar een gedupliceerd scenario.
+ * Bij een fout wordt het nieuwe scenario verwijderd; alle al gekopieerde children
+ * verdwijnen dan via de bestaande cascade, zodat geen halve kopie achterblijft.
+ */
+export async function cloneScenarioKengetalSnapshots(sourceScenarioId: string, targetScenarioId: string): Promise<boolean> {
+  const { data, error } = await snapshotTable()
+    .select('*')
+    .eq('scenario_id', sourceScenarioId);
+  if (error) {
+    await supabase.from('calculation_scenarios').delete().eq('id', targetScenarioId);
+    toast.error(mapDbError(error, 'Scenario dupliceren afgebroken: kengetal-snapshots konden niet worden geladen.'));
+    return false;
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return true;
+
+  const now = new Date().toISOString();
+  const payloads = rows.map((row) => {
+    const record = row as unknown as Record<string, unknown>;
+    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...snapshot } = record;
+    return {
+      ...snapshot,
+      scenario_id: targetScenarioId,
+      created_at: now,
+      updated_at: now,
+    };
+  });
+
+  const { error: insertError } = await snapshotTable().insert(payloads as never);
+  if (insertError) {
+    const { error: rollbackError } = await supabase.from('calculation_scenarios').delete().eq('id', targetScenarioId);
+    if (rollbackError) {
+      toast.error('Scenario is onvolledig gedupliceerd en kon niet automatisch worden teruggedraaid. Controleer de nieuwe kopie.');
+    } else {
+      toast.error(mapDbError(insertError, 'Scenario dupliceren afgebroken: kengetal-snapshots konden niet worden gekopieerd.'));
+    }
+    return false;
+  }
+  return true;
+}
+
 export function useKengetallenregister() {
   const [entries, setEntries] = useState<VastgoedrekenenKengetal[]>([]);
   const [loading, setLoading] = useState(true);
