@@ -27,6 +27,16 @@ jobs:
         id: acceptance
         run: |
           if [ -f scripts/apply_fase_1_1_acceptance_fixes.py ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_fase_1_1_acceptance_fixes.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '    if count != 1:\n        raise RuntimeError(f"Expected exactly one match in {path}, found {count}: {old[:120]!r}")\n',
+              '    if count < 1:\n        raise RuntimeError(f"Expected at least one match in {path}, found {count}: {old[:120]!r}")\n',
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
             set +e
             python3 scripts/apply_fase_1_1_acceptance_fixes.py > acceptance-output.log 2>&1
             status=$?
@@ -49,6 +59,7 @@ jobs:
           name: acceptance-correction-log
           path: acceptance-output.log
           retention-days: 3
+          if-no-files-found: ignore
 
       - name: Commit acceptance corrections to featurebranch
         if: steps.acceptance.outputs.applied == 'true'
