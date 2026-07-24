@@ -18,7 +18,16 @@ describe('actiegerichte validatie-UX', () => {
     const list = source('src/components/vastgoedrekenen/NogTeControleren.tsx');
     const editor = source('src/components/vastgoedrekenen/ScenarioEditor.tsx');
     expect(list).toContain('onAction?.(action)');
+    expect(list).toContain('action.openTarget');
     expect(editor).toContain('navigateToValidationAction');
     expect(editor).toContain('id={`cost-${c.id}`}');
+  });
+
+  it('groepeert herstelacties naar actuele werkstroom', () => {
+    const list = source('src/components/vastgoedrekenen/NogTeControleren.tsx');
+    expect(list).toContain('Nu nodig');
+    expect(list).toContain('Later controleren');
+    expect(list).toContain('Niet relevant voor dit scenario');
+    expect(list).toContain('Geen directe herstelactie voor de huidige strategie en invoer');
   });
 });
