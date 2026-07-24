@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,37 +22,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Fix preliminary comparison quote
-        id: quote_fix
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('src/components/vastgoedrekenen/ScenarioVergelijking.tsx')
-          source = path.read_text()
-          old = "? 'Alle vergeleken scenario's zijn volgens de huidige invoer biedingsgereed.'"
-          new = '? "Alle vergeleken scenario\'s zijn volgens de huidige invoer biedingsgereed."'
-          if old in source:
-              path.write_text(source.replace(old, new, 1))
-              Path('quote-fix-applied.txt').write_text('yes')
-          PY
-          if [ -f quote-fix-applied.txt ]; then
-            rm quote-fix-applied.txt
-            echo "applied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "applied=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit quote fix
-        if: steps.quote_fix.outputs.applied == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: quote preliminary comparison message"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
