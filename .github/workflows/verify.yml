@@ -28,6 +28,20 @@ jobs:
         shell: bash
         run: |
           if [ -f scripts/apply_preliminary_comparison.py ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_preliminary_comparison.py')
+          source = path.read_text()
+          source = source.replace(
+              'r"import \\{ getDevelopmentComparisonMetrics \\} from \'@/components/vastgoedrekenen/ScenarioVergelijking\';",',
+              'r"import \\{ getDevelopmentComparisonMetrics, getTargetProfitLabel \\} from \'@/components/vastgoedrekenen/ScenarioVergelijking\';",',
+          )
+          source = source.replace(
+              '"import { getComparisonSummary, getDevelopmentComparisonMetrics } from \'@/components/vastgoedrekenen/ScenarioVergelijking\';",',
+              '"import { getComparisonSummary, getDevelopmentComparisonMetrics, getTargetProfitLabel } from \'@/components/vastgoedrekenen/ScenarioVergelijking\';",',
+          )
+          path.write_text(source)
+          PY
             set +e
             python3 scripts/apply_preliminary_comparison.py > preliminary-patch.log 2>&1
             patch_status=$?
