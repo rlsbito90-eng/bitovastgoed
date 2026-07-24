@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,28 +22,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Apply quickscan selection synchronization fix
-        id: quickscan_selection_sync
-        shell: bash
-        run: |
-          if [ -f scripts/apply_quickscan_selection_sync_fix.py ]; then
-            python3 scripts/apply_quickscan_selection_sync_fix.py
-            rm -f scripts/apply_quickscan_selection_sync_fix.py
-            echo "applied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "applied=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit applied quickscan fix
-        if: steps.quickscan_selection_sync.outputs.applied == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: keep selected quickscan and detail content synchronized"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
