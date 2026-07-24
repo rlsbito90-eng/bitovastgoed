@@ -31,6 +31,14 @@ Draft-PR: #2
 - Handmatige afwijking vereist een vastgelegde reden.
 - Interne Den Haag-werkhypothese toegevoegd: 15% GDV basis en 20% GDV voorzichtig, expliciet laag betrouwbaar en niet als marktkengetal/RICS-taxatie gepresenteerd.
 
+## UX-consolidatie in uitvoering
+
+- Validatie wordt strategie- en rekenspoorafhankelijk, niet uitsluitend residueel.
+- Herstelacties worden verdeeld in `Nu nodig`, `Later controleren` en `Niet relevant`.
+- Een bewuste WWS-keuze `Niet nodig` mag geen foutmelding of waarschuwingsstatus blijven veroorzaken.
+- OVB- en andere herstelmeldingen moeten rechtstreeks naar de betreffende sectie of component navigeren.
+- Rekenkern en bestaande bedragen blijven in deze UX-stap onaangeraakt.
+
 ## Verificatie
 
 - Gerichte regressietests voor reken-KPI's, validatie, duplicatie, decimale metrages en kengetal-snapshots.
