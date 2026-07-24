@@ -3,7 +3,7 @@ import { mapDbError, showAppErrorToast, describeDbError } from '@/lib/errors';
 // Beheert CRUD voor calculations, scenarios, components, costs, wws units, sell-off units,
 // risk items en outputs voor een specifiek object.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   Calculation, Scenario, Component, ScenarioCost, WwsUnit,
@@ -112,21 +112,38 @@ export function useQuickscanDetail(calculationId: string | undefined) {
   const [calculation, setCalculation] = useState<Calculation | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
   const fetchAll = useCallback(async () => {
-    if (!calculationId) return;
+    const requestId = ++requestIdRef.current;
+    if (!calculationId) {
+      if (requestId !== requestIdRef.current) return;
+      setCalculation(null);
+      setScenarios([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const [cRes, sRes] = await Promise.all([
       supabase.from('real_estate_calculations').select('*').eq('id', calculationId).maybeSingle(),
       supabase.from('calculation_scenarios').select('*').eq('calculation_id', calculationId).order('created_at', { ascending: true }),
     ]);
+    if (requestId !== requestIdRef.current) return;
     if (cRes.error) toast.error('Kon quickscan niet laden');
     setCalculation((cRes.data as Calculation) ?? null);
     setScenarios((sRes.data ?? []) as Scenario[]);
     setLoading(false);
   }, [calculationId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    setCalculation(null);
+    setScenarios([]);
+    setLoading(true);
+    fetchAll();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [fetchAll]);
 
   const updateCalculation = useCallback(async (patch: Partial<Calculation>) => {
     if (!calculationId) return;

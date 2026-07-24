@@ -276,6 +276,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
 
       {active ? (
         <QuickscanDetail
+          key={active}
           calculationId={active}
           taxSettings={taxSettings}
           objectArea={objectArea}
