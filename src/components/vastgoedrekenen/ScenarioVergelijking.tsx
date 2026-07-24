@@ -402,7 +402,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
               </p>
               <span className="text-[10px] text-muted-foreground">
                 {comparison.definitive
-                  ? 'Alle vergeleken scenario's zijn volgens de huidige invoer biedingsgereed.'
+                  ? "Alle vergeleken scenario's zijn volgens de huidige invoer biedingsgereed."
                   : 'Indicatieve uitkomsten: gebruik dit als richting en nog niet als definitief biedingsadvies.'}
                 {comparison.excludedCount > 0 ? ` ${comparison.excludedCount} scenario met een andere grondslag is uitgesloten.` : ''}
               </span>
