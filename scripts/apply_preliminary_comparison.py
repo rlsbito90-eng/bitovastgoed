@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 scenario_path = Path('src/components/vastgoedrekenen/ScenarioVergelijking.tsx')
-test_path = Path('src/test/scenariovergelijking.test.ts')
+test_path = Path('src/test/vastgoedrekenen/scenarioVergelijkingMetrics.test.ts')
 
 source = scenario_path.read_text()
 
