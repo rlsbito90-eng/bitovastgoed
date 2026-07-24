@@ -9,9 +9,9 @@ function source(path: string): string {
 describe('Vastgoedrekenen Fase 1.1 acceptatie-UX', () => {
   it('registreert GBO, VVO en BVO afzonderlijk in de componentstrategie', () => {
     const code = source('src/components/vastgoedrekenen/ComponentStrategyTable.tsx');
-    expect(code).toContain('GBO — gebruiksoppervlakte (m²)');
-    expect(code).toContain('VVO — verhuurbare vloeroppervlakte (m²)');
-    expect(code).toContain('BVO — bruto vloeroppervlakte (m²)');
+    expect(code).toContain('GBO (m²)');
+    expect(code).toContain('VVO (m²)');
+    expect(code).toContain('BVO (m²)');
     expect(code).toContain('SurfaceCell gbo={gbo} vvo={vvo} bvo={bvo}');
     expect(code).not.toContain('fmtM2(m2, 0)');
   });
