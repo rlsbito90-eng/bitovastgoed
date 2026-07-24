@@ -1,51 +1,13 @@
 from pathlib import Path
+import re
 
 scenario_path = Path('src/components/vastgoedrekenen/ScenarioVergelijking.tsx')
 test_path = Path('src/test/scenariovergelijking.test.ts')
 
 source = scenario_path.read_text()
 
-old_logic = '''function comparableRows(rows: RowData[]) {
-  return rows
-    .map((row) => ({ ...row, metrics: getDevelopmentComparisonMetrics(row.outputs) }))
-    .filter((row) => row.metrics.complete && row.outputs.dealScore !== 'reject');
-}
-
-function pickBest(rows: RowData[]) {
-  const pool = comparableRows(rows);
-  const grouped = new Map<string, typeof pool>();
-  for (const row of pool) {
-    const group = grouped.get(row.metrics.bindingKey) ?? [];
-    group.push(row);
-    grouped.set(row.metrics.bindingKey, group);
-  }
-  const candidates = [...grouped.entries()]
-    .filter(([, group]) => group.length >= 2)
-    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'nl-NL'));
-  if (candidates.length === 0) return null;
-  if (candidates.length > 1 && candidates[0][1].length === candidates[1][1].length) return null;
-
-  const [, comparablePool] = candidates[0];
-  const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
-  const byBid = [...comparablePool].sort((a, b) => (b.metrics.maxPurchasePrice ?? -Infinity) - (a.metrics.maxPurchasePrice ?? -Infinity))[0];
-  const byProfit = [...comparablePool].sort((a, b) => (b.metrics.profit ?? -Infinity) - (a.metrics.profit ?? -Infinity))[0];
-  const byProfitOnCost = [...comparablePool].sort((a, b) => (b.metrics.profitOnCostPct ?? -Infinity) - (a.metrics.profitOnCostPct ?? -Infinity))[0];
-  const byRisk = [...comparablePool].sort((a, b) => (riskRank[a.outputs.riskScore] ?? 99) - (riskRank[b.outputs.riskScore] ?? 99))[0];
-  return {
-    byBid,
-    byProfit,
-    byProfitOnCost,
-    byRisk,
-    count: comparablePool.length,
-    basisLabel: comparablePool[0].metrics.bindingLabel,
-    excludedCount: Math.max(0, pool.length - comparablePool.length),
-  };
-}
-'''
-
 new_logic = '''type ComparisonRow = RowData & {
   metrics: DevelopmentComparisonMetrics;
-  readiness: ReturnType<typeof buildScenarioReadiness>;
 };
 
 function rankableRows(rows: RowData[]): ComparisonRow[] {
@@ -53,7 +15,6 @@ function rankableRows(rows: RowData[]): ComparisonRow[] {
     .map((row) => ({
       ...row,
       metrics: getDevelopmentComparisonMetrics(row.outputs),
-      readiness: buildScenarioReadiness(row.outputs),
     }))
     .filter((row) => (
       row.metrics.isDevelopment
@@ -86,7 +47,9 @@ export function getComparisonSummary(rows: RowData[]) {
   const lowestBid = [...comparablePool].sort((a, b) => (a.metrics.maxPurchasePrice ?? Infinity) - (b.metrics.maxPurchasePrice ?? Infinity))[0];
   const byProfit = [...comparablePool].sort((a, b) => (b.metrics.profit ?? -Infinity) - (a.metrics.profit ?? -Infinity))[0];
   const byRisk = [...comparablePool].sort((a, b) => (riskRank[a.outputs.riskScore] ?? 99) - (riskRank[b.outputs.riskScore] ?? 99))[0];
-  const definitive = comparablePool.every((row) => row.readiness.status === 'voor_bieding');
+  const definitive = comparablePool.every((row) => (
+    row.metrics.complete && row.outputs.residual?.status === 'voor_bieding'
+  ));
 
   return {
     byBid,
@@ -102,50 +65,22 @@ export function getComparisonSummary(rows: RowData[]) {
 }
 '''
 
-if old_logic not in source:
-    raise SystemExit('comparison logic block not found')
-source = source.replace(old_logic, new_logic, 1)
-
-source = source.replace(
-    '  const best = useMemo(() => pickBest(rows), [rows]);',
-    '  const comparison = useMemo(() => getComparisonSummary(rows), [rows]);',
-    1,
+logic_pattern = re.compile(
+    r"function comparableRows\(rows: RowData\[\]\) \{.*?\n\}\n\nfunction DiffBlock",
+    re.S,
 )
+source, count = logic_pattern.subn(new_logic + '\nfunction DiffBlock', source, count=1)
+if count != 1:
+    raise SystemExit(f'comparison logic replacement count: {count}')
 
-old_block = '''      {best && best.count >= 2 && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Trophy className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Vergelijkbare scenario's — {best.basisLabel}</p>
-              <span className="text-[10px] text-muted-foreground">Onvolledige scenario's en andere doelwinstgrondslagen worden niet als winnaar gerangschikt{best.excludedCount > 0 ? ` (${best.excludedCount} uitgesloten)` : ''}.</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Target className="h-3 w-3" /> Hoogste maximale aankoopprijs</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byBid.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{eur(best.byBid.metrics.maxPurchasePrice)}</p>
-              </div>
-              <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> Hoogste ontwikkelaarswinst</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byProfit.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{eur(best.byProfit.metrics.profit)}</p>
-              </div>
-              <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Hoogste winst op kosten</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byProfitOnCost.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{pct(best.byProfitOnCost.metrics.profitOnCostPct)}</p>
-              </div>
-              <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Laagste risicoscore</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byRisk.scenario.scenario_name}</p>
-                <p className="text-xs text-muted-foreground capitalize">Risico: {best.byRisk.outputs.riskScore}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-'''
+source, count = re.subn(
+    r"  const best = useMemo\(\(\) => pickBest\(rows\), \[rows\]\);",
+    "  const comparison = useMemo(() => getComparisonSummary(rows), [rows]);",
+    source,
+    count=1,
+)
+if count != 1:
+    raise SystemExit(f'comparison memo replacement count: {count}')
 
 new_block = '''      {comparison && comparison.count >= 2 && (
         <Card className={comparison.definitive ? 'border-primary/40 bg-primary/5' : 'border-amber-500/40 bg-amber-500/5'}>
@@ -189,23 +124,31 @@ new_block = '''      {comparison && comparison.count >= 2 && (
             </p>
           </CardContent>
         </Card>
-      )}
-'''
+      )}'''
 
-if old_block not in source:
-    raise SystemExit('comparison card block not found')
-source = source.replace(old_block, new_block, 1)
+block_pattern = re.compile(
+    r"      \{best && best\.count >= 2 && \(.*?      \)\}\n\n      \{rows\.length === 0",
+    re.S,
+)
+source, count = block_pattern.subn(new_block + '\n\n      {rows.length === 0', source, count=1)
+if count != 1:
+    raise SystemExit(f'comparison card replacement count: {count}')
+
 scenario_path.write_text(source)
 
 # Add a focused regression test for equal-basis preliminary comparison.
 test_source = test_path.read_text()
-test_source = test_source.replace(
-    "import { getDevelopmentComparisonMetrics } from '@/components/vastgoedrekenen/ScenarioVergelijking';",
+test_source, count = re.subn(
+    r"import \{ getDevelopmentComparisonMetrics \} from '@/components/vastgoedrekenen/ScenarioVergelijking';",
     "import { getComparisonSummary, getDevelopmentComparisonMetrics } from '@/components/vastgoedrekenen/ScenarioVergelijking';",
-    1,
+    test_source,
+    count=1,
 )
+if count != 1:
+    raise SystemExit(f'test import replacement count: {count}')
 
-addition = '''\n  it('maakt een voorlopige samenvatting voor twee GDV-scenario\'s en sluit winst op kosten uit', () => {
+addition = '''
+  it('maakt een voorlopige samenvatting voor twee GDV-scenario\'s en sluit winst op kosten uit', () => {
     const base = outputWithResidual();
     const cautious = outputWithResidual();
     cautious.residual = {
@@ -237,14 +180,14 @@ addition = '''\n  it('maakt een voorlopige samenvatting voor twee GDV-scenario\'
     expect(summary?.basisLabel).toBe('Winst op GDV');
     expect(summary?.count).toBe(2);
     expect(summary?.excludedCount).toBe(1);
+    expect(summary?.definitive).toBe(false);
     expect(summary?.byBid.scenario.scenario_name).toBe('Basis 15%');
     expect(summary?.byProfit.scenario.scenario_name).toBe('Voorzichtig 20%');
     expect(summary?.bidSpread).toBe(182_124);
   });
 '''
 
-marker = "\n});\n"
-pos = test_source.rfind(marker)
+pos = test_source.rfind('\n});\n')
 if pos == -1:
     raise SystemExit('test suite closing marker not found')
 test_source = test_source[:pos] + addition + test_source[pos:]
