@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ComputedOutputs } from '@/lib/vastgoedrekenen/types';
-import { getDevelopmentComparisonMetrics } from '@/components/vastgoedrekenen/ScenarioVergelijking';
+import type { ComputedOutputs, Scenario } from '@/lib/vastgoedrekenen/types';
+import { getDevelopmentComparisonMetrics, getTargetProfitLabel } from '@/components/vastgoedrekenen/ScenarioVergelijking';
 
 function outputWithResidual(): ComputedOutputs {
   return {
@@ -55,6 +55,7 @@ describe('scenariovergelijking ontwikkel-KPI’s', () => {
     expect(metrics.profit).toBe(600_000);
     expect(metrics.profitOnGdvPct).toBe(15);
     expect(metrics.profitOnCostPct).toBe(17.65);
+    expect(metrics.bindingKey).toBe('winst_op_gdv');
   });
 
   it('presenteert een nulkoopsom niet als een echte waarde', () => {
@@ -64,4 +65,20 @@ describe('scenariovergelijking ontwikkel-KPI’s', () => {
     expect(metrics.complete).toBe(false);
     expect(metrics.maxPurchasePrice).toBeNull();
   });
+
+  it('maakt de leidende doelwinstgrondslag expliciet zichtbaar', () => {
+    const outputs = outputWithResidual();
+    const scenario = { sale_target_margin_percentage: 15 } as unknown as Scenario;
+    expect(getTargetProfitLabel(scenario, outputs)).toBe('15% van GDV');
+
+    outputs.residual = {
+      ...outputs.residual!,
+      bindingTarget: 'winst_op_kosten',
+      profitOnCostPct: 10,
+      targetProfitAmount: 340_000,
+    };
+    const costScenario = { sale_target_roi_percentage: 10 } as unknown as Scenario;
+    expect(getTargetProfitLabel(costScenario, outputs)).toBe('10% op kosten');
+  });
+
 });
