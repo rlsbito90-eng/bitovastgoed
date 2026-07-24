@@ -23,26 +23,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Apply cost readiness UX patch
-        id: cost_readiness_patch
+      - name: Apply compact readiness card fix
+        id: compact_readiness_fix
         shell: bash
         run: |
-          if [ -f scripts/apply_cost_readiness_ux.py ]; then
-            python3 scripts/apply_cost_readiness_ux.py
-            rm -f scripts/apply_cost_readiness_ux.py
+          if [ -f scripts/fix_scenario_card_readiness.py ]; then
+            python3 scripts/fix_scenario_card_readiness.py
+            rm -f scripts/fix_scenario_card_readiness.py
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit applied patch
-        if: steps.cost_readiness_patch.outputs.applied == 'true'
+      - name: Commit applied fix
+        if: steps.compact_readiness_fix.outputs.applied == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: clarify cost readiness and comparison direction"
+          git commit -m "fix: separate compact readiness actions"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
