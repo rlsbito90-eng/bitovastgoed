@@ -25,6 +25,7 @@ import {
   type ComponentStrategyKey,
 } from './componentStrategy';
 import { computeResidualBid } from './residueel';
+import { findDuplicateDevelopmentCostKinds } from './validation';
 
 export type ComputeContext = {
   scenario: Scenario;
@@ -357,8 +358,26 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     }
   }
 
-  if (costs.some((cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog')) {
-    residualCriticalIssues.push('Niet alle algemene projectkosten hebben betrouwbaarheid hoog.');
+  const insufficientlySupportedCosts = costs.filter(
+    (cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog',
+  );
+  if (insufficientlySupportedCosts.length > 0) {
+    const visibleNames = insufficientlySupportedCosts.slice(0, 3).map((cost) => {
+      const description = String(cost.description ?? '').trim();
+      const category = String(cost.cost_category ?? '').trim();
+      return description || category || 'Naamloze kostenpost';
+    });
+    const remaining = insufficientlySupportedCosts.length - visibleNames.length;
+    residualCriticalIssues.push(
+      `Algemene projectkosten nog niet hoog onderbouwd: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag, scope en bron; zet betrouwbaarheid pas daarna op Hoog.`,
+    );
+  }
+
+  const duplicateDevelopmentCostKinds = findDuplicateDevelopmentCostKinds(costs, ctx.strategyUnits ?? []);
+  if (duplicateDevelopmentCostKinds.length > 0) {
+    residualWarnings.push(
+      `Mogelijke dubbele kosteninvoer: ${duplicateDevelopmentCostKinds.join(', ')} staat zowel bij algemene kosten als bij componenten. Verwijder één invoerbron of leg vast waarom beide bedragen verschillend zijn.`,
+    );
   }
 
   if (scenario.ovb_mode === 'per_component') {
@@ -414,14 +433,6 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const roundsAtAsking = asking > 0 && maxPurchasePrice != null
     ? maxPurchasePrice >= asking
     : null;
-
-  if (
-    strategy.enabled
-    && strategy.componentDevelopmentCosts > 0
-    && totals.total > 0
-  ) {
-    residual?.warnings.push('Componentkosten en algemene scenario-kosten tellen beide mee; controleer handmatig of geen invoer overlapt.');
-  }
 
   // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
   // via scenario.leading_valuation_track. Per spoor kiezen we de juiste onderliggende

@@ -419,9 +419,15 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                 <p className="text-xs font-mono-data text-muted-foreground">{eur(comparison.byProfit.metrics.profit)}</p>
               </div>
               <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Verschil in aankoopruimte</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{eur(comparison.bidSpread)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{comparison.byBid.scenario.scenario_name} versus {comparison.lowestBid.scenario.scenario_name}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Meer aankoopruimte</p>
+                <p className="text-sm font-semibold mt-1 leading-snug">{comparison.byBid.scenario.scenario_name}</p>
+                <p className="text-xs font-mono-data text-emerald-700 dark:text-emerald-300">
+                  {eur(comparison.byBid.metrics.maxPurchasePrice)} <span className="font-sans text-[10px]">· hoogste</span>
+                </p>
+                <div className="mt-2 border-t pt-2 text-[10px] text-muted-foreground space-y-0.5">
+                  <p>{comparison.lowestBid.scenario.scenario_name}: <span className="font-mono-data">{eur(comparison.lowestBid.metrics.maxPurchasePrice)}</span> · laagste</p>
+                  <p className="font-medium text-foreground">Verschil: <span className="font-mono-data">{eur(comparison.bidSpread)}</span></p>
+                </div>
               </div>
               <div className="rounded-md border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Laagste risicoscore</p>

@@ -19,7 +19,7 @@ describe('buildScenarioReadiness', () => {
       inputReliability: 'laag',
       scoreAttentionPoints: [
         'Verkoopscenario zonder verkoopopbrengst. Vul verkoopprijs in.',
-        'Niet alle algemene projectkosten hebben betrouwbaarheid hoog.',
+        'Algemene projectkosten nog niet hoog onderbouwd: Architectkosten. Controleer bedrag, scope en bron; zet betrouwbaarheid pas daarna op Hoog.',
         'Biedingsrisico: mixed-use object zonder OVB-toerekening per component.',
       ],
     }));

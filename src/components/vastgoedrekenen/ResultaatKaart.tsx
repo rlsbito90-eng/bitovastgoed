@@ -277,14 +277,19 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
             <p className="font-medium">{readiness.title}</p>
             <p className="mt-1 text-muted-foreground leading-snug">{readiness.summary}</p>
             {readiness.items.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {readiness.items.map((item) => (
-                  <li key={`${item.category}-${item.message}`} className="flex gap-2 leading-snug">
-                    <span className="shrink-0 font-medium">{item.label}:</span>
-                    <span>{item.message}</span>
+              <ol className="mt-3 space-y-2">
+                {readiness.items.map((item, index) => (
+                  <li key={`${item.category}-${item.message}`} className="flex gap-2 rounded-md border bg-background/60 p-2.5 leading-snug">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-semibold" aria-label={`Aandachtspunt ${index + 1}`}>
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-medium text-foreground">{item.label}</span>
+                      <span className="block mt-0.5 text-muted-foreground">{item.message}</span>
+                    </span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
           </div>
         )}

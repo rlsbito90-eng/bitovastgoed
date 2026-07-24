@@ -93,7 +93,7 @@ function costAmount(cost: ScenarioCost): number {
   return amount > 0 ? amount : Math.max(0, perM2 * basis);
 }
 
-function findDuplicateDevelopmentCostKinds(
+export function findDuplicateDevelopmentCostKinds(
   costs: ScenarioCost[],
   units: SellOffUnit[],
 ): Array<'renovatie' | 'splitsing' | 'transformatie'> {
