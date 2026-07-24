@@ -7,6 +7,7 @@ import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defa
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
 import { mapToAssumptionType } from '@/lib/vastgoedrekenen/profiles';
+import { buildScenarioReadiness } from '@/lib/vastgoedrekenen/readiness';
 import { Trophy, TrendingUp, ShieldCheck, Target, Coins, ChevronDown, ChevronRight } from 'lucide-react';
 
 type SharedProps = {
@@ -174,6 +175,7 @@ function DiffBlock({ maximum, asking }: { maximum: number | null; asking: number
 function ScenarioCard({ row, onSelect }: { row: RowData; onSelect?: (id: string) => void }) {
   const { scenario, outputs } = row;
   const metrics = getDevelopmentComparisonMetrics(outputs);
+  const readiness = buildScenarioReadiness(outputs);
   const asking = Number(scenario.asking_price ?? 0);
   const position = bidVsAsking(metrics.maxPurchasePrice, asking);
   const deal = DEAL_BADGE[outputs.dealScore];
@@ -200,7 +202,7 @@ function ScenarioCard({ row, onSelect }: { row: RowData; onSelect?: (id: string)
             <p className="font-semibold leading-snug break-words">{scenario.scenario_name}</p>
             <p className="text-xs text-muted-foreground">{VR_STRATEGY_LABELS[scenario.strategy_type] ?? scenario.strategy_type}</p>
           </div>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{metrics.statusLabel}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${deal.cls}`}>{readiness.shortLabel}</span>
         </div>
 
         <div className={`rounded-md border p-3 ${tone}`}>
@@ -233,9 +235,18 @@ function ScenarioCard({ row, onSelect }: { row: RowData; onSelect?: (id: string)
           </div>
         )}
 
-        {outputs.scoreAttentionPoints.length > 0 && (
-          <p className="text-[11px] text-muted-foreground leading-snug">⚠ {outputs.scoreAttentionPoints[0]}</p>
-        )}
+        <div className={`rounded-md border p-2 text-[11px] ${
+          readiness.status === 'voor_bieding'
+            ? 'border-emerald-500/30 bg-emerald-500/5'
+            : 'border-amber-500/30 bg-amber-500/5'
+        }`}>
+          <p className="font-medium">{readiness.title}</p>
+          {readiness.items.slice(0, 2).map((item) => (
+            <p key={`${item.category}-${item.message}`} className="mt-1 leading-snug text-muted-foreground">
+              {item.label}: {item.message}
+            </p>
+          ))}
+        </div>
         <p className="text-[11px] text-muted-foreground">Quickscanstatus: {VR_STATUS_LABELS[scenario.status]} · betrouwbaarheid {outputs.inputReliability}</p>
       </CardContent>
     </Card>
@@ -374,6 +385,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                 {rows.map((row) => {
                   const { scenario, outputs } = row;
                   const metrics = getDevelopmentComparisonMetrics(outputs);
+                  const readiness = buildScenarioReadiness(outputs);
                   const asking = Number(scenario.asking_price ?? 0);
                   const development = metrics.isDevelopment;
                   const clickable = Boolean(onSelectScenario);
@@ -385,7 +397,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                     >
                       <td className="px-3 py-2 sticky left-0 bg-card font-medium border-b">{scenario.scenario_name}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground border-b">{VR_STRATEGY_LABELS[scenario.strategy_type] ?? scenario.strategy_type}</td>
-                      <td className="px-3 py-2 text-xs border-b">{metrics.statusLabel}</td>
+                      <td className="px-3 py-2 text-xs border-b">{readiness.shortLabel}</td>
                       <td className="px-3 py-2 font-mono-data text-right font-semibold bg-primary/5 border-b">{eur(metrics.maxPurchasePrice)}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">{development ? eur(metrics.grossDevelopmentValue) : eur(positiveOrNull(outputs.exitValue ?? outputs.maximumAllInValue))}</td>
                       <td className="px-3 py-2 font-mono-data text-right border-b">{development ? eur(metrics.netDevelopmentProceeds) : '—'}</td>
@@ -400,7 +412,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
                           <td className="px-3 py-2 text-xs border-b">{metrics.bindingLabel}</td>
                           <td className="px-3 py-2 text-xs border-b capitalize">{outputs.riskScore}</td>
                           <td className="px-3 py-2 text-xs border-b capitalize">{outputs.inputReliability}</td>
-                          <td className="px-3 py-2 text-xs border-b max-w-[280px]">{outputs.scoreAttentionPoints[0] ?? outputs.residual?.criticalIssues[0] ?? '—'}</td>
+                          <td className="px-3 py-2 text-xs border-b max-w-[280px]">{readiness.items[0]?.message ?? '—'}</td>
                         </>
                       )}
                     </tr>

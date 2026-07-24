@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Scenario, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
 import { evaluateFeasibility, feasibilityLabel, type FeasibilityResult } from '@/lib/vastgoedrekenen/feasibility';
+import { buildScenarioReadiness } from '@/lib/vastgoedrekenen/readiness';
 
 /**
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
@@ -16,6 +17,10 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
   const strategyLeading = o.leadingMaxBasis === 'strategie';
   const verkoopLeading = o.leadingMaxBasis === 'verkoop';
   const residual = o.residual;
+  const readiness = buildScenarioReadiness(o);
+  const remainingAttentionPoints = o.scoreAttentionPoints.filter(
+    (point) => !readiness.items.some((item) => item.message === point),
+  );
   const residualBindingLabel = residual?.bindingTarget === 'winst_op_kosten'
     ? 'Winst op kosten'
     : residual?.bindingTarget === 'winst_op_gdv'
@@ -257,17 +262,30 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
                 ))}
               </div>
             </details>
-            {residual.criticalIssues.length > 0 && (
-              <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
-                <p className="font-medium">Nog nodig voor “Voor bieding”</p>
-                <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                  {residual.criticalIssues.map((issue) => <li key={issue}>{issue}</li>)}
-                </ul>
-              </div>
-            )}
             <p className="text-[10px] text-muted-foreground">
               “Voor bieding” betekent dat de berekening compleet is op basis van de ingevoerde uitgangspunten; het is geen taxatie of juridische/fiscale goedkeuring.
             </p>
+          </div>
+        )}
+
+        {!compact && (residual || readiness.items.length > 0) && (
+          <div className={`rounded-md border p-3 text-xs ${
+            readiness.status === 'voor_bieding'
+              ? 'border-emerald-500/40 bg-emerald-500/5'
+              : 'border-amber-500/40 bg-amber-500/5'
+          }`}>
+            <p className="font-medium">{readiness.title}</p>
+            <p className="mt-1 text-muted-foreground leading-snug">{readiness.summary}</p>
+            {readiness.items.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {readiness.items.map((item) => (
+                  <li key={`${item.category}-${item.message}`} className="flex gap-2 leading-snug">
+                    <span className="shrink-0 font-medium">{item.label}:</span>
+                    <span>{item.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -327,11 +345,11 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
           </p>
         </div>
 
-        {o.scoreAttentionPoints.length > 0 && (
+        {remainingAttentionPoints.length > 0 && (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
             <p className="font-medium text-amber-900 dark:text-amber-200 mb-1">Belangrijkste aandachtspunten</p>
             <ul className="space-y-1 text-amber-900/90 dark:text-amber-200/90">
-              {o.scoreAttentionPoints.slice(0, 4).map((p, i) => (
+              {remainingAttentionPoints.slice(0, 4).map((p, i) => (
                 <li key={i}>• {p}</li>
               ))}
             </ul>
