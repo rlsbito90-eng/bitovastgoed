@@ -25,7 +25,7 @@ import {
   type ComponentStrategyKey,
 } from './componentStrategy';
 import { computeResidualBid } from './residueel';
-import { findDuplicateDevelopmentCostKinds } from './validation';
+import { findDuplicateDevelopmentCostDetails } from './validation';
 
 export type ComputeContext = {
   scenario: Scenario;
@@ -358,9 +358,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     }
   }
 
-  const insufficientlySupportedCosts = costs.filter(
-    (cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog',
-  );
+  const insufficientlySupportedCosts = costs.filter((cost) => {
+    if (effectiveCostAmount(cost) <= 0) return false;
+    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
+    return cost.reliability_status !== 'hoog' || !notes;
+  });
   if (insufficientlySupportedCosts.length > 0) {
     const visibleNames = insufficientlySupportedCosts.slice(0, 3).map((cost) => {
       const description = String(cost.description ?? '').trim();
@@ -369,14 +371,14 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     });
     const remaining = insufficientlySupportedCosts.length - visibleNames.length;
     residualCriticalIssues.push(
-      `Algemene projectkosten nog niet hoog onderbouwd: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag, scope en bron; zet betrouwbaarheid pas daarna op Hoog.`,
+      `Algemene projectkosten nog niet volledig onderbouwd: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag en scope, leg bron met datum vast en kies daarna de passende betrouwbaarheid.`,
     );
   }
 
-  const duplicateDevelopmentCostKinds = findDuplicateDevelopmentCostKinds(costs, ctx.strategyUnits ?? []);
-  if (duplicateDevelopmentCostKinds.length > 0) {
+  const duplicateDevelopmentCostDetails = findDuplicateDevelopmentCostDetails(costs, ctx.strategyUnits ?? []);
+  for (const detail of duplicateDevelopmentCostDetails) {
     residualWarnings.push(
-      `Mogelijke dubbele kosteninvoer: ${duplicateDevelopmentCostKinds.join(', ')} staat zowel bij algemene kosten als bij componenten. Verwijder één invoerbron of leg vast waarom beide bedragen verschillend zijn.`,
+      `Mogelijke dubbele ${detail.kind}kosten: algemene kostenpost “${detail.centralLabels.join(', ')}” (${eur(detail.centralAmount)}) en ${detail.componentUnitIds.length} component(en) (${eur(detail.componentAmount)}). Onvoorzien (%) telt niet als dubbele kostenpost.`,
     );
   }
 

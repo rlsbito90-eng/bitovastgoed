@@ -5,9 +5,17 @@ import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './
 import type { PropertyAssumptionType } from './profiles';
 import { isWoonComponentType } from './defaults';
 
+export type ValidationAction = {
+  label: string;
+  sectionId: string;
+  targetId?: string;
+};
+
 export type ValidationItem = {
   level: 'warning' | 'info' | 'blocker';
+  title?: string;
   message: string;
+  actions?: ValidationAction[];
 };
 
 export type ValidationContext = {
@@ -69,16 +77,17 @@ function hasComponentTerminalValue(units: SellOffUnit[]): boolean {
   });
 }
 
-function componentDevelopmentKinds(units: SellOffUnit[]): Set<'renovatie' | 'splitsing' | 'transformatie'> {
-  const kinds = new Set<'renovatie' | 'splitsing' | 'transformatie'>();
-  for (const unit of units) {
-    const record = unitRecord(unit);
-    if (positive(record.renovation_costs)) kinds.add('renovatie');
-    if (positive(record.splitting_costs)) kinds.add('splitsing');
-    if (positive(record.transformation_costs)) kinds.add('transformatie');
-  }
-  return kinds;
-}
+export type DevelopmentCostKind = 'renovatie' | 'splitsing' | 'transformatie';
+
+export type DuplicateDevelopmentCostDetail = {
+  kind: DevelopmentCostKind;
+  centralCostIds: string[];
+  centralLabels: string[];
+  centralAmount: number;
+  componentUnitIds: string[];
+  componentLabels: string[];
+  componentAmount: number;
+};
 
 function centralCostText(cost: ScenarioCost): string {
   const record = cost as unknown as Record<string, unknown>;
@@ -93,31 +102,65 @@ function costAmount(cost: ScenarioCost): number {
   return amount > 0 ? amount : Math.max(0, perM2 * basis);
 }
 
+function costLabel(cost: ScenarioCost): string {
+  return String(cost.description ?? '').trim()
+    || String(cost.cost_category ?? '').trim()
+    || 'Naamloze kostenpost';
+}
+
+function unitLabel(unit: SellOffUnit): string {
+  const record = unitRecord(unit);
+  return String(record.unit_label ?? record.unit_name ?? '').trim() || 'Naamloze component';
+}
+
+function isContingencyCost(cost: ScenarioCost): boolean {
+  return /onvoorzien|contingenc|risicoreserver/.test(centralCostText(cost));
+}
+
+const KIND_CONFIG: Record<DevelopmentCostKind, {
+  field: 'renovation_costs' | 'splitting_costs' | 'transformation_costs';
+  centralPattern: RegExp;
+}> = {
+  renovatie: { field: 'renovation_costs', centralPattern: /renovat|verbouw/ },
+  splitsing: { field: 'splitting_costs', centralPattern: /splits/ },
+  transformatie: { field: 'transformation_costs', centralPattern: /transformat|sloop|nieuwbouw|bouwkosten/ },
+};
+
+export function findDuplicateDevelopmentCostDetails(
+  costs: ScenarioCost[],
+  units: SellOffUnit[],
+): DuplicateDevelopmentCostDetail[] {
+  const details: DuplicateDevelopmentCostDetail[] = [];
+
+  for (const kind of Object.keys(KIND_CONFIG) as DevelopmentCostKind[]) {
+    const cfg = KIND_CONFIG[kind];
+    const centralMatches = costs.filter((cost) => (
+      costAmount(cost) > 0
+      && !isContingencyCost(cost)
+      && cfg.centralPattern.test(centralCostText(cost))
+    ));
+    const componentMatches = units.filter((unit) => positive(unitRecord(unit)[cfg.field]));
+    if (centralMatches.length === 0 || componentMatches.length === 0) continue;
+
+    details.push({
+      kind,
+      centralCostIds: centralMatches.map((cost) => cost.id),
+      centralLabels: centralMatches.map(costLabel),
+      centralAmount: centralMatches.reduce((sum, cost) => sum + costAmount(cost), 0),
+      componentUnitIds: componentMatches.map((unit) => unit.id),
+      componentLabels: componentMatches.map(unitLabel),
+      componentAmount: componentMatches.reduce((sum, unit) => sum + Number(unitRecord(unit)[cfg.field] ?? 0), 0),
+    });
+  }
+
+  return details;
+}
+
 export function findDuplicateDevelopmentCostKinds(
   costs: ScenarioCost[],
   units: SellOffUnit[],
-): Array<'renovatie' | 'splitsing' | 'transformatie'> {
-  const componentKinds = componentDevelopmentKinds(units);
-  if (componentKinds.size === 0) return [];
-
-  const centralTexts = costs
-    .filter((cost) => costAmount(cost) > 0)
-    .map(centralCostText);
-
-  const overlaps: Array<'renovatie' | 'splitsing' | 'transformatie'> = [];
-  if (
-    componentKinds.has('renovatie')
-    && centralTexts.some((text) => /renovat|verbouw/.test(text))
-  ) overlaps.push('renovatie');
-  if (
-    componentKinds.has('splitsing')
-    && centralTexts.some((text) => /splits/.test(text))
-  ) overlaps.push('splitsing');
-  if (
-    componentKinds.has('transformatie')
-    && centralTexts.some((text) => /transformat|sloop|nieuwbouw|bouwkosten/.test(text))
-  ) overlaps.push('transformatie');
-  return overlaps;
+): DevelopmentCostKind[] {
+  return findDuplicateDevelopmentCostDetails(costs, units).map((detail) => detail.kind);
 }
 
 function activeVatTreatments(costs: ScenarioCost[]): Set<string> {
@@ -197,11 +240,56 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     if (manualValues > 0) out.push({ level: 'info', message: `${manualValues} componentwaarde(n) zijn handmatige waarderingsaannames en geen verkooptransacties. Leg bron, peildatum en onderbouwing vast.` });
   }
 
-  const duplicateKinds = findDuplicateDevelopmentCostKinds(c.costs, sellOffUnits);
-  if (duplicateKinds.length > 0) {
+  const formatEur = (value: number) => new Intl.NumberFormat('nl-NL', {
+    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+  }).format(value);
+
+  const costsNeedingSupport = c.costs.filter((cost) => {
+    if (costAmount(cost) <= 0) return false;
+    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
+    return cost.reliability_status !== 'hoog' || !notes;
+  });
+  for (const cost of costsNeedingSupport) {
+    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
+    const status = cost.reliability_status == null
+      ? 'niet beoordeeld'
+      : cost.reliability_status;
     out.push({
       level: 'warning',
-      message: `Mogelijke dubbele kosteninvoer: ${duplicateKinds.join(', ')} staat zowel bij algemene kosten als bij componenten. Verwijder één invoerbron of leg vast waarom beide bedragen verschillend zijn.`,
+      title: notes || cost.reliability_status !== 'hoog'
+        ? 'Kostenpost onderbouwen'
+        : 'Bron van kostenpost invullen',
+      message: cost.reliability_status === 'hoog' && !notes
+        ? `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op Hoog, maar Bron / onderbouwing is leeg. Vul bijvoorbeeld de begroting, offerte of referentie met datum in.`
+        : `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op ${status}. Controleer bedrag en scope, vul Bron / onderbouwing in en kies daarna de passende betrouwbaarheid.`,
+      actions: [{
+        label: 'Ga naar deze kostenpost',
+        sectionId: 'sec-kosten',
+        targetId: `cost-${cost.id}`,
+      }],
+    });
+  }
+
+  const duplicateDetails = findDuplicateDevelopmentCostDetails(c.costs, sellOffUnits);
+  for (const detail of duplicateDetails) {
+    const centralNames = detail.centralLabels.join(', ');
+    const componentDescription = `${detail.componentUnitIds.length} component(en)`;
+    out.push({
+      level: 'warning',
+      title: `Controleer mogelijke dubbele ${detail.kind}kosten`,
+      message: `Algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien (%) wordt hierbij niet als dubbele kostenpost behandeld.`,
+      actions: [
+        {
+          label: 'Naar algemene kostenpost',
+          sectionId: 'sec-kosten',
+          targetId: `cost-${detail.centralCostIds[0]}`,
+        },
+        {
+          label: 'Naar componentkosten',
+          sectionId: 'sec-strategie',
+          targetId: `strategy-unit-${detail.componentUnitIds[0]}`,
+        },
+      ],
     });
   }
 

@@ -18,7 +18,7 @@ import {
   mapToAssumptionType, defaultProfileFor, getAssumptionSet,
   type AssumptionProfileKey, type PropertyAssumptionType,
 } from '@/lib/vastgoedrekenen/profiles';
-import { buildNogTeControleren, buildAannameWaarschuwingen } from '@/lib/vastgoedrekenen/validation';
+import { buildNogTeControleren, buildAannameWaarschuwingen, type ValidationAction } from '@/lib/vastgoedrekenen/validation';
 import HelpTooltip from './HelpTooltip';
 import BerekeningUitleg from './BerekeningUitleg';
 import RekenbasisBar from './RekenbasisBar';
@@ -269,6 +269,24 @@ export default function ScenarioEditor(props: Props) {
   // wijziging door patch() en wordt dirty opnieuw correct berekend.
   const markDirtyFromRaw = () => {
     setDirty((prev) => (prev ? prev : true));
+  };
+
+  const navigateToValidationAction = (action: ValidationAction) => {
+    const sectionKey = action.sectionId as SubSectionKey;
+    if (ALL_SUB_SECTION_KEYS.includes(sectionKey)) {
+      setOpenSections((prev) => ({ ...prev, [sectionKey]: true }));
+    }
+    window.setTimeout(() => {
+      const target = document.getElementById(action.targetId ?? action.sectionId);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'ring-offset-background');
+      const focusable = target.querySelector<HTMLElement>('input, [role=combobox], textarea, button');
+      window.setTimeout(() => focusable?.focus({ preventScroll: true }), 250);
+      window.setTimeout(() => {
+        target.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'ring-offset-background');
+      }, 2200);
+    }, 120);
   };
 
   // Lijst met velden die door de gebruiker bewust op € 0 zijn gezet.
@@ -750,6 +768,14 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Rekenbasis */}
       <RekenbasisBar scenario={s} outputs={outputs} />
+
+      {nogTeControleren.length > 0 && (
+        <NogTeControleren
+          items={nogTeControleren}
+          title="Acties om dit scenario te verbeteren"
+          onAction={navigateToValidationAction}
+        />
+      )}
 
       {/* Strategie-specifieke banner */}
       {(s.strategy_type === 'transformeren' || s.strategy_type === 'buy_transform_hold' || s.strategy_type === 'buy_transform_sell') && (
@@ -1551,7 +1577,7 @@ export default function ScenarioEditor(props: Props) {
                   const unforeseenPct = Number(s.unforeseen_percentage ?? 0);
                   const bd = computeCostBreakdown(c, unforeseenPct);
                   return (
-                  <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+                  <div key={c.id} id={`cost-${c.id}`} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden scroll-mt-32 transition-shadow">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
                       <Button size="sm" variant="ghost" onClick={() => deleteCost(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
@@ -1636,6 +1662,41 @@ export default function ScenarioEditor(props: Props) {
                           </MobileFieldGroup>
                         </>
                       )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0 border-t pt-3">
+                      <MobileFieldGroup
+                        label="Betrouwbaarheid kostenpost"
+                        helper="Hoog = projectspecifieke begroting, offerte of contract gecontroleerd. Leg de bron en datum in het veld hiernaast vast."
+                      >
+                        <Select
+                          value={c.reliability_status ?? '__niet_beoordeeld__'}
+                          onValueChange={(v) => updateCost(c.id, {
+                            reliability_status: v === '__niet_beoordeeld__' ? null : v,
+                          } as Partial<ScenarioCost>, true)}
+                        >
+                          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__niet_beoordeeld__">Niet beoordeeld</SelectItem>
+                            <SelectItem value="laag">Laag — globale werkhypothese</SelectItem>
+                            <SelectItem value="middel">Middel — onderbouwde referentie</SelectItem>
+                            <SelectItem value="hoog">Hoog — projectspecifiek gecontroleerd</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </MobileFieldGroup>
+                      <MobileFieldGroup
+                        label="Bron / onderbouwing"
+                        helper="Bijvoorbeeld: aannemersbegroting d.d. 15-07-2026, offerte X of eigen raming met uitgangspunten."
+                        className="md:col-span-2"
+                      >
+                        <RawTextInput
+                          className="h-9"
+                          initialValue={c.notes ?? ''}
+                          placeholder="Bron, datum en korte scope van deze kostenpost"
+                          onRawChange={(raw) => updateCost(c.id, { notes: raw.trim() || null }, true)}
+                          onCommit={(raw) => updateCost(c.id, { notes: raw.trim() || null })}
+                        />
+                      </MobileFieldGroup>
                     </div>
 
                     {/* Btw-opbouw per kostenpost — altijd zichtbaar */}
@@ -1857,7 +1918,7 @@ export default function ScenarioEditor(props: Props) {
             />
             <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} {...sectionProps('sec-onderbouwing')} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
-                {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
+                <p className="text-xs text-muted-foreground">De concrete herstelacties staan bovenaan het scenario. Gebruik daar “Ga naar…” om direct naar de juiste invoer te springen.</p>
                 {manualZeroSet.size > 0 && (
                   <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{manualZeroSet.size}</span> veld(en) bewust op € 0 gezet: <span className="font-mono">{Array.from(manualZeroSet).join(', ')}</span>
