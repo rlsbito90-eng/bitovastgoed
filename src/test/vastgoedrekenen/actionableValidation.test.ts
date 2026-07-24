@@ -64,6 +64,7 @@ describe('actiegerichte validatie Vastgoedrekenen', () => {
 
     const item = result.find((entry) => entry.title === 'Kostenpost onderbouwen');
     expect(item?.message).toContain('Architect en constructeur');
+    expect(item?.category).toBe('now');
     expect(item?.actions?.[0]).toEqual({
       label: 'Ga naar deze kostenpost',
       sectionId: 'sec-kosten',
@@ -93,6 +94,51 @@ describe('actiegerichte validatie Vastgoedrekenen', () => {
     expect(item?.message).toContain('Centrale transformatieraming');
     expect(item?.message).toContain('1 component(en)');
     expect(item?.actions).toHaveLength(2);
-    expect(item?.actions?.[1].targetId).toBe('strategy-unit-unit-2');
+    expect(item?.actions?.[1]).toMatchObject({
+      targetId: 'strategy-unit-unit-2',
+      openTarget: true,
+    });
+  });
+
+  it('respecteert de handmatige keuze WWS niet nodig', () => {
+    const scenario = context().scenario as ValidationContext['scenario'] & { wws_mode_default?: string | null };
+    scenario.wws_mode_default = 'niet_nodig';
+    const result = buildNogTeControleren(context({ scenario }));
+
+    expect(result.some((entry) => entry.message.includes('nog geen WWS-units'))).toBe(false);
+    const notRelevant = result.find((entry) => entry.title === 'WWS niet relevant');
+    expect(notRelevant?.category).toBe('not_relevant');
+    expect(notRelevant?.actions?.[0]?.sectionId).toBe('sec-wws');
+  });
+
+  it('maakt de mixed-use OVB-waarschuwing direct navigeerbaar', () => {
+    const scenario = context().scenario;
+    scenario.ovb_mode = 'auto';
+    const result = buildNogTeControleren(context({ scenario, objectType: 'mixed_use' }));
+
+    const item = result.find((entry) => entry.title === 'OVB-verdeling kiezen');
+    expect(item?.category).toBe('now');
+    expect(item?.actions?.map((action) => action.sectionId)).toEqual(['sec-aankoop', 'sec-componenten']);
+  });
+
+  it('opent bij onvolledige OVB het eerste betreffende component', () => {
+    const scenario = context().scenario;
+    scenario.ovb_mode = 'per_component';
+    const result = buildNogTeControleren(context({
+      scenario,
+      objectType: 'mixed_use',
+      components: [comp({
+        id: 'component-ovb',
+        component_type: 'appartement',
+        allocated_component_value: null,
+        surface_gbo: null,
+      })],
+    }));
+
+    const item = result.find((entry) => entry.title === 'OVB per component aanvullen');
+    expect(item?.actions?.[0]).toMatchObject({
+      targetId: 'componenten-unit-component-ovb',
+      openTarget: true,
+    });
   });
 });
