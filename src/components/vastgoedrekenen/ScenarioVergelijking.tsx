@@ -180,20 +180,35 @@ function bidVsAsking(maxPurchasePrice: number | null, asking: number): { label: 
   return { label: 'Alleen interessant bij lagere aankoopprijs', tone: 'negative' };
 }
 
-function comparableRows(rows: RowData[]) {
+type ComparisonRow = RowData & {
+  metrics: DevelopmentComparisonMetrics;
+};
+
+function rankableRows(rows: RowData[]): ComparisonRow[] {
   return rows
-    .map((row) => ({ ...row, metrics: getDevelopmentComparisonMetrics(row.outputs) }))
-    .filter((row) => row.metrics.complete && row.outputs.dealScore !== 'reject');
+    .map((row) => ({
+      ...row,
+      metrics: getDevelopmentComparisonMetrics(row.outputs),
+    }))
+    .filter((row) => (
+      row.metrics.isDevelopment
+      && row.metrics.bindingKey !== 'geen_doelwinst'
+      && row.metrics.maxPurchasePrice != null
+      && row.metrics.grossDevelopmentValue != null
+      && row.metrics.profit != null
+      && row.outputs.dealScore !== 'reject'
+    ));
 }
 
-function pickBest(rows: RowData[]) {
-  const pool = comparableRows(rows);
-  const grouped = new Map<string, typeof pool>();
+export function getComparisonSummary(rows: RowData[]) {
+  const pool = rankableRows(rows);
+  const grouped = new Map<string, ComparisonRow[]>();
   for (const row of pool) {
     const group = grouped.get(row.metrics.bindingKey) ?? [];
     group.push(row);
     grouped.set(row.metrics.bindingKey, group);
   }
+
   const candidates = [...grouped.entries()]
     .filter(([, group]) => group.length >= 2)
     .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'nl-NL'));
@@ -203,17 +218,23 @@ function pickBest(rows: RowData[]) {
   const [, comparablePool] = candidates[0];
   const riskRank: Record<string, number> = { laag: 0, middel: 1, hoog: 2 };
   const byBid = [...comparablePool].sort((a, b) => (b.metrics.maxPurchasePrice ?? -Infinity) - (a.metrics.maxPurchasePrice ?? -Infinity))[0];
+  const lowestBid = [...comparablePool].sort((a, b) => (a.metrics.maxPurchasePrice ?? Infinity) - (b.metrics.maxPurchasePrice ?? Infinity))[0];
   const byProfit = [...comparablePool].sort((a, b) => (b.metrics.profit ?? -Infinity) - (a.metrics.profit ?? -Infinity))[0];
-  const byProfitOnCost = [...comparablePool].sort((a, b) => (b.metrics.profitOnCostPct ?? -Infinity) - (a.metrics.profitOnCostPct ?? -Infinity))[0];
   const byRisk = [...comparablePool].sort((a, b) => (riskRank[a.outputs.riskScore] ?? 99) - (riskRank[b.outputs.riskScore] ?? 99))[0];
+  const definitive = comparablePool.every((row) => (
+    row.metrics.complete && row.outputs.residual?.status === 'voor_bieding'
+  ));
+
   return {
     byBid,
+    lowestBid,
     byProfit,
-    byProfitOnCost,
     byRisk,
     count: comparablePool.length,
     basisLabel: comparablePool[0].metrics.bindingLabel,
     excludedCount: Math.max(0, pool.length - comparablePool.length),
+    definitive,
+    bidSpread: Math.max(0, (byBid.metrics.maxPurchasePrice ?? 0) - (lowestBid.metrics.maxPurchasePrice ?? 0)),
   };
 }
 
@@ -348,7 +369,7 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
     () => scenarios.map((scenario) => map[scenario.id]).filter(Boolean) as RowData[],
     [map, scenarios],
   );
-  const best = useMemo(() => pickBest(rows), [rows]);
+  const comparison = useMemo(() => getComparisonSummary(rows), [rows]);
   const basisGroups = useMemo(() => comparisonBasisGroups(rows), [rows]);
 
   if (scenarios.length === 0) return null;
@@ -371,36 +392,46 @@ export default function ScenarioVergelijking({ scenarios, onSelectScenario, ...s
         </Card>
       )}
 
-      {best && best.count >= 2 && (
-        <Card className="border-primary/40 bg-primary/5">
+      {comparison && comparison.count >= 2 && (
+        <Card className={comparison.definitive ? 'border-primary/40 bg-primary/5' : 'border-amber-500/40 bg-amber-500/5'}>
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Trophy className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Vergelijkbare scenario's — {best.basisLabel}</p>
-              <span className="text-[10px] text-muted-foreground">Onvolledige scenario's en andere doelwinstgrondslagen worden niet als winnaar gerangschikt{best.excludedCount > 0 ? ` (${best.excludedCount} uitgesloten)` : ''}.</span>
+              <Trophy className={comparison.definitive ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-amber-600'} />
+              <p className="text-sm font-semibold">
+                {comparison.definitive ? 'Definitieve vergelijking' : 'Voorlopige vergelijking'} — {comparison.basisLabel}
+              </p>
+              <span className="text-[10px] text-muted-foreground">
+                {comparison.definitive
+                  ? 'Alle vergeleken scenario's zijn volgens de huidige invoer biedingsgereed.'
+                  : 'Indicatieve uitkomsten: gebruik dit als richting en nog niet als definitief biedingsadvies.'}
+                {comparison.excludedCount > 0 ? ` ${comparison.excludedCount} scenario met een andere grondslag is uitgesloten.` : ''}
+              </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <div className="rounded-md border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Target className="h-3 w-3" /> Hoogste maximale aankoopprijs</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byBid.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{eur(best.byBid.metrics.maxPurchasePrice)}</p>
+                <p className="text-sm font-semibold mt-1 leading-snug">{comparison.byBid.scenario.scenario_name}</p>
+                <p className="text-xs font-mono-data text-muted-foreground">{eur(comparison.byBid.metrics.maxPurchasePrice)}</p>
               </div>
               <div className="rounded-md border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> Hoogste ontwikkelaarswinst</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byProfit.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{eur(best.byProfit.metrics.profit)}</p>
+                <p className="text-sm font-semibold mt-1 leading-snug">{comparison.byProfit.scenario.scenario_name}</p>
+                <p className="text-xs font-mono-data text-muted-foreground">{eur(comparison.byProfit.metrics.profit)}</p>
               </div>
               <div className="rounded-md border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Hoogste winst op kosten</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byProfitOnCost.scenario.scenario_name}</p>
-                <p className="text-xs font-mono-data text-muted-foreground">{pct(best.byProfitOnCost.metrics.profitOnCostPct)}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Verschil in aankoopruimte</p>
+                <p className="text-sm font-semibold mt-1 leading-snug">{eur(comparison.bidSpread)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{comparison.byBid.scenario.scenario_name} versus {comparison.lowestBid.scenario.scenario_name}</p>
               </div>
               <div className="rounded-md border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Laagste risicoscore</p>
-                <p className="text-sm font-semibold mt-1 leading-snug">{best.byRisk.scenario.scenario_name}</p>
-                <p className="text-xs text-muted-foreground capitalize">Risico: {best.byRisk.outputs.riskScore}</p>
+                <p className="text-sm font-semibold mt-1 leading-snug">{comparison.byRisk.scenario.scenario_name}</p>
+                <p className="text-xs text-muted-foreground capitalize">Risico: {comparison.byRisk.outputs.riskScore}</p>
               </div>
             </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {comparison.byBid.scenario.scenario_name} laat {eur(comparison.bidSpread)} meer maximale aankoopruimte zien dan {comparison.lowestBid.scenario.scenario_name}. {comparison.byProfit.scenario.scenario_name} reserveert binnen deze vergelijking de hoogste ontwikkelaarswinst.
+            </p>
           </CardContent>
         </Card>
       )}
