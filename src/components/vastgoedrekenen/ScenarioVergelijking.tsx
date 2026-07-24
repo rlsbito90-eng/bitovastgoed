@@ -322,11 +322,21 @@ function ScenarioCard({ row, onSelect }: { row: RowData; onSelect?: (id: string)
             : 'border-amber-500/30 bg-amber-500/5'
         }`}>
           <p className="font-medium">{readiness.title}</p>
-          {readiness.items.slice(0, 2).map((item) => (
-            <p key={`${item.category}-${item.message}`} className="mt-1 leading-snug text-muted-foreground">
-              {item.label}: {item.message}
-            </p>
-          ))}
+          {readiness.items.length > 0 && (
+            <ol className="mt-2 space-y-2">
+              {readiness.items.slice(0, 2).map((item, index) => (
+                <li key={`${item.category}-${item.message}`} className="flex gap-2 rounded border bg-background/60 p-2 leading-snug">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-semibold" aria-label={`Aandachtspunt ${index + 1}`}>
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">{item.label}</span>
+                    <span className="block mt-0.5 text-muted-foreground">{item.message}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
         <p className="text-[11px] text-muted-foreground">Quickscanstatus: {VR_STATUS_LABELS[scenario.status]} · betrouwbaarheid {outputs.inputReliability}</p>
       </CardContent>

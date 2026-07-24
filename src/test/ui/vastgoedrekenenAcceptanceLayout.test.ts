@@ -37,8 +37,8 @@ describe('Vastgoedrekenen Fase 1.1 acceptatie-UX', () => {
     expect(comparison).toContain('· hoogste');
     expect(comparison).toContain('· laagste');
     expect(comparison).toContain('Verschil:');
-    expect(comparison).toContain('Aandachtspunt ${index + 1}');
-    expect(result).toContain('Aandachtspunt ${index + 1}');
+    expect(comparison).toContain('aria-label={`Aandachtspunt');
+    expect(result).toContain('aria-label={`Aandachtspunt');
   });
 
 });
