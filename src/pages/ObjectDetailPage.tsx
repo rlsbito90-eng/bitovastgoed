@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
@@ -668,6 +668,7 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
 export default function ObjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useDataStore();
   const { labelFor } = useSubcategorieen();
   const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
@@ -719,15 +720,23 @@ export default function ObjectDetailPage() {
   };
 
   const [activeTab, setActiveTabState] = useState<WorkspaceTabId>(readInitialTab);
+  const requestedCalculationId = useMemo(
+    () => new URLSearchParams(location.search).get('calculation'),
+    [location.search],
+  );
 
   const setActiveTab = (id: WorkspaceTabId) => {
     setActiveTabState(id);
     try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, id); } catch { /* ignore */ }
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', id);
-      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    } catch { /* ignore */ }
+    const params = new URLSearchParams(location.search);
+    params.set('tab', id);
+    if (id !== 'vastgoedrekenen') params.delete('calculation');
+    const search = params.toString();
+    navigate({
+      pathname: location.pathname,
+      search: search ? `?${search}` : '',
+      hash: '',
+    }, { replace: true });
   };
 
   // Zorg dat actieve tab geldig blijft als visibleTabs verandert (bv. 'meer' verdwijnt)
@@ -736,6 +745,18 @@ export default function ObjectDetailPage() {
       setActiveTabState('overzicht');
     }
   }, [visibleTabs, activeTab]);
+
+  // Browser back/forward en externe deep-links blijven in sync met de zichtbare tab.
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(location.search).get('tab');
+    const fromHash = ANCHOR_TO_TAB[location.hash.replace(/^#/, '')];
+    const requested = (fromQuery && WORKSPACE_TABS.some((tab) => tab.id === fromQuery)
+      ? fromQuery
+      : fromHash) as WorkspaceTabId | undefined;
+    if (requested && requested !== activeTab && visibleTabs.some((tab) => tab.id === requested)) {
+      setActiveTabState(requested);
+    }
+  }, [activeTab, location.hash, location.search, visibleTabs]);
 
   // Nummering alleen op hoofdworkspace-niveau: één NN per tab op de primaire sectie.
   // Sub-secties binnen dezelfde tab tonen alleen de suffix-label (geen herhaald nummer).
@@ -792,22 +813,25 @@ export default function ObjectDetailPage() {
   const goToAnchor = (anchorId: string) => {
     const tab = ANCHOR_TO_TAB[anchorId];
     if (tab && tab !== activeTab) {
-      setActiveTab(tab);
-      // Wacht tot tab-content gemount is, dan scrollen
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => performScroll(anchorId));
-        setTimeout(() => performScroll(anchorId), 180);
-      });
-    } else {
+      setActiveTabState(tab);
+      try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, tab); } catch { /* ignore */ }
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (tab) params.set('tab', tab);
+    if (tab !== 'vastgoedrekenen') params.delete('calculation');
+    const search = params.toString();
+    navigate({
+      pathname: location.pathname,
+      search: search ? `?${search}` : '',
+      hash: `#${anchorId}`,
+    }, { replace: true });
+
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => performScroll(anchorId));
-    }
-    if (history.replaceState) {
-      try {
-        const url = new URL(window.location.href);
-        url.hash = anchorId;
-        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-      } catch { /* ignore */ }
-    }
+      setTimeout(() => performScroll(anchorId), 180);
+      setTimeout(() => performScroll(anchorId), 420);
+    });
   };
 
   const openDossierTab = (tab: DossierTab) => {
@@ -821,7 +845,7 @@ export default function ObjectDetailPage() {
       const hash = window.location.hash.replace(/^#/, '');
       if (hash && ANCHOR_TO_TAB[hash]) {
         const tab = ANCHOR_TO_TAB[hash];
-        if (tab !== activeTab) setActiveTab(tab);
+        if (tab !== activeTab) setActiveTabState(tab);
         requestAnimationFrame(() => performScroll(hash));
       }
     };
@@ -830,14 +854,18 @@ export default function ObjectDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Bij eerste mount: als URL al een hash heeft, scroll ernaartoe na render
+  // Deep-links scrollen pas nadat de juiste tabinhoud daadwerkelijk is gemount.
   useEffect(() => {
-    const hash = window.location.hash.replace(/^#/, '');
-    if (hash && ANCHOR_TO_TAB[hash]) {
-      setTimeout(() => performScroll(hash), 120);
-    }
+    const hash = location.hash.replace(/^#/, '');
+    if (!hash || !ANCHOR_TO_TAB[hash]) return;
+    const first = window.setTimeout(() => performScroll(hash), 140);
+    const retry = window.setTimeout(() => performScroll(hash), 420);
+    return () => {
+      window.clearTimeout(first);
+      window.clearTimeout(retry);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab, location.hash]);
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -2200,6 +2228,7 @@ export default function ObjectDetailPage() {
 
               <Suspense fallback={<p className="text-sm text-muted-foreground py-4">Vastgoedrekenen laden…</p>}>
                 <VastgoedrekenenTab
+                  initialCalculationId={requestedCalculationId}
                   objectId={object.id}
                   objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
                   objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}

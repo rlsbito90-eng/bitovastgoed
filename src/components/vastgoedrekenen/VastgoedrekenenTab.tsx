@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -21,6 +22,7 @@ type Props = {
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
   objectVraagprijs?: number | null;
+  initialCalculationId?: string | null;
 };
 
 function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
@@ -205,13 +207,39 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs }: Props) {
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs, initialCalculationId }: Props) {
   const { calculations, create } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeId, setActiveId] = useState<string | null>(initialCalculationId ?? null);
+
+  useEffect(() => {
+    if (initialCalculationId && calculations.some((calculation) => calculation.id === initialCalculationId)) {
+      setActiveId(initialCalculationId);
+      return;
+    }
+    setActiveId((current) => (
+      current && calculations.some((calculation) => calculation.id === current)
+        ? current
+        : calculations[0]?.id ?? null
+    ));
+  }, [calculations, initialCalculationId]);
 
   const active = activeId ?? calculations[0]?.id ?? null;
+
+  function selectQuickscan(id: string) {
+    setActiveId(id);
+    const params = new URLSearchParams(location.search);
+    params.set('tab', 'vastgoedrekenen');
+    params.set('calculation', id);
+    navigate({
+      pathname: location.pathname,
+      search: `?${params.toString()}`,
+      hash: '#vastgoedrekenen',
+    }, { replace: true });
+  }
 
   return (
     <div className="space-y-4">
@@ -228,7 +256,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
                   <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) setActiveId(c.id); }}>
+              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) selectQuickscan(c.id); }}>
                 <Plus className="h-4 w-4 mr-1" /> Nieuwe quickscan
               </Button>
             </div>
@@ -238,7 +266,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
         {calculations.length > 0 && (
           <CardContent className="pt-0 flex flex-wrap gap-2">
             {calculations.map((c) => (
-              <button key={c.id} onClick={() => setActiveId(c.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active === c.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/70 text-foreground'}`}>
+              <button key={c.id} onClick={() => selectQuickscan(c.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active === c.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/70 text-foreground'}`}>
                 {c.calculation_name} <span className="opacity-60">· {VR_STATUS_LABELS[c.status]}</span>
               </button>
             ))}
