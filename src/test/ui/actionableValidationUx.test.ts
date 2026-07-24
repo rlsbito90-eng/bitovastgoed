@@ -11,7 +11,7 @@ describe('actiegerichte validatie-UX', () => {
     const editor = source('src/components/vastgoedrekenen/ScenarioEditor.tsx');
     expect(editor).toContain('Betrouwbaarheid kostenpost');
     expect(editor).toContain('Bron / onderbouwing');
-    expect(editor).toContain('Projectspecifiek gecontroleerd');
+    expect(editor.toLowerCase()).toContain('projectspecifiek gecontroleerd');
   });
 
   it('biedt klikbare herstelacties en exacte navigatiedoelen', () => {

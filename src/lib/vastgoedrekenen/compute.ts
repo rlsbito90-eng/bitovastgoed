@@ -358,11 +358,9 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     }
   }
 
-  const insufficientlySupportedCosts = costs.filter((cost) => {
-    if (effectiveCostAmount(cost) <= 0) return false;
-    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
-    return cost.reliability_status !== 'hoog' || !notes;
-  });
+  const insufficientlySupportedCosts = costs.filter(
+    (cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog',
+  );
   if (insufficientlySupportedCosts.length > 0) {
     const visibleNames = insufficientlySupportedCosts.slice(0, 3).map((cost) => {
       const description = String(cost.description ?? '').trim();
@@ -371,7 +369,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     });
     const remaining = insufficientlySupportedCosts.length - visibleNames.length;
     residualCriticalIssues.push(
-      `Algemene projectkosten nog niet volledig onderbouwd: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag en scope, leg bron met datum vast en kies daarna de passende betrouwbaarheid.`,
+      `Algemene projectkosten hebben nog geen betrouwbaarheid Hoog: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag en scope, leg bron met datum vast en kies daarna de passende betrouwbaarheid.`,
     );
   }
 

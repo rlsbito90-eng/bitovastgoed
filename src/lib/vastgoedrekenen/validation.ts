@@ -244,24 +244,17 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
   }).format(value);
 
-  const costsNeedingSupport = c.costs.filter((cost) => {
-    if (costAmount(cost) <= 0) return false;
-    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
-    return cost.reliability_status !== 'hoog' || !notes;
-  });
+  const costsNeedingSupport = c.costs.filter(
+    (cost) => costAmount(cost) > 0 && cost.reliability_status !== 'hoog',
+  );
   for (const cost of costsNeedingSupport) {
-    const notes = String((cost as unknown as Record<string, unknown>).notes ?? '').trim();
     const status = cost.reliability_status == null
       ? 'niet beoordeeld'
       : cost.reliability_status;
     out.push({
       level: 'warning',
-      title: notes || cost.reliability_status !== 'hoog'
-        ? 'Kostenpost onderbouwen'
-        : 'Bron van kostenpost invullen',
-      message: cost.reliability_status === 'hoog' && !notes
-        ? `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op Hoog, maar Bron / onderbouwing is leeg. Vul bijvoorbeeld de begroting, offerte of referentie met datum in.`
-        : `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op ${status}. Controleer bedrag en scope, vul Bron / onderbouwing in en kies daarna de passende betrouwbaarheid.`,
+      title: 'Kostenpost onderbouwen',
+      message: `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op ${status}. Controleer bedrag en scope, vul Bron / onderbouwing in en kies daarna de passende betrouwbaarheid.`,
       actions: [{
         label: 'Ga naar deze kostenpost',
         sectionId: 'sec-kosten',
@@ -277,7 +270,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     out.push({
       level: 'warning',
       title: `Controleer mogelijke dubbele ${detail.kind}kosten`,
-      message: `Algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien (%) wordt hierbij niet als dubbele kostenpost behandeld.`,
+      message: `Mogelijke dubbele kosteninvoer: algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien (%) wordt hierbij niet als dubbele kostenpost behandeld.`,
       actions: [
         {
           label: 'Naar algemene kostenpost',
