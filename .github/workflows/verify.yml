@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -23,28 +23,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Apply actionable validation scope fixes
-        id: actionable_validation_scope
-        shell: bash
-        run: |
-          if [ -f scripts/fix_actionable_validation_scope.py ]; then
-            python3 scripts/fix_actionable_validation_scope.py
-            rm -f scripts/fix_actionable_validation_scope.py
-            echo "applied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "applied=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit applied fixes
-        if: steps.actionable_validation_scope.outputs.applied == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: keep cost source advisory while preserving readiness semantics"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
       - name: Node.js
         uses: actions/setup-node@v4
         with:
@@ -52,6 +30,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        # Het bestaande package-lock.json loopt achter op package.json.
+        # Installeer daarom de actuele package.json zonder het lockbestand in CI te wijzigen.
         run: npm install --no-package-lock
 
       - name: Typecheck
