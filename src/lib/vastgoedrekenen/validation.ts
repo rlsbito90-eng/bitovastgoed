@@ -1,18 +1,23 @@
 // Validatie en waarschuwingen voor Vastgoedrekenen V1.
-// Levert "Nog te controleren" lijst + aanname-waarschuwingen.
+// Levert een strategie-afhankelijke actielijst en aanname-waarschuwingen.
 
 import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './types';
 import type { PropertyAssumptionType } from './profiles';
 import { isWoonComponentType } from './defaults';
+import { getEffectiveWwsMode } from './wws/mode';
 
 export type ValidationAction = {
   label: string;
   sectionId: string;
   targetId?: string;
+  /** Open het aangewezen tabelitem of de drawer na navigatie. */
+  openTarget?: boolean;
 };
 
 export type ValidationItem = {
   level: 'warning' | 'info' | 'blocker';
+  /** Nu oplossen, later dossiermatig controleren, of bewust niet relevant. */
+  category?: 'now' | 'later' | 'not_relevant';
   title?: string;
   message: string;
   actions?: ValidationAction[];
@@ -163,6 +168,17 @@ export function findDuplicateDevelopmentCostKinds(
   return findDuplicateDevelopmentCostDetails(costs, units).map((detail) => detail.kind);
 }
 
+function componentDevelopmentKinds(units: SellOffUnit[]): Set<DevelopmentCostKind> {
+  const kinds = new Set<DevelopmentCostKind>();
+  for (const unit of units) {
+    const record = unitRecord(unit);
+    if (positive(record.renovation_costs)) kinds.add('renovatie');
+    if (positive(record.splitting_costs)) kinds.add('splitsing');
+    if (positive(record.transformation_costs)) kinds.add('transformatie');
+  }
+  return kinds;
+}
+
 function activeVatTreatments(costs: ScenarioCost[]): Set<string> {
   const treatments = new Set<string>();
   for (const cost of costs) {
@@ -174,34 +190,83 @@ function activeVatTreatments(costs: ScenarioCost[]): Set<string> {
   return treatments;
 }
 
+function wwsAction(targetId?: string): ValidationAction {
+  return {
+    label: targetId ? 'Open eerste WWS-unit' : 'Open WWS-keuze',
+    sectionId: 'sec-wws',
+    targetId,
+    openTarget: !!targetId,
+  };
+}
+
 /** Lijst met dingen die de gebruiker nog moet controleren / aanvullen. */
 export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   const out: ValidationItem[] = [];
   const { scenario, components, wwsUnits, sellOffUnits = [], objectType } = c;
 
-  // --- Niet-opgeslagen wijzigingen ---
   if (c.dirty) {
-    out.push({ level: 'warning', message: 'Er zijn niet-opgeslagen wijzigingen. Berekeningen en scenariovergelijking kunnen verouderd zijn tot je opslaat.' });
+    out.push({
+      level: 'warning',
+      category: 'now',
+      title: 'Wijzigingen opslaan',
+      message: 'Er zijn niet-opgeslagen wijzigingen. Berekeningen en scenariovergelijking kunnen verouderd zijn tot je opslaat.',
+    });
   }
 
   const wooncomponenten = components.filter((x) => isWoonComponentType(x.component_type));
-  if (wooncomponenten.length > 0 && wwsUnits.length === 0) {
-    out.push({ level: 'warning', message: `Er zijn ${wooncomponenten.length} wooncomponent(en) maar nog geen WWS-units. Klik "Maak WWS-units uit wooncomponenten" of markeer WWS als niet relevant.` });
+  const effectiveWwsMode = getEffectiveWwsMode(null, {
+    scenario,
+    components,
+    strategyUnits: sellOffUnits,
+    wwsUnits,
+  });
+  const wwsRelevant = effectiveWwsMode.mode !== 'niet_nodig';
+
+  if (wooncomponenten.length > 0 && wwsUnits.length === 0 && wwsRelevant) {
+    out.push({
+      level: 'warning',
+      category: 'now',
+      title: 'WWS-keuze afronden',
+      message: `Er zijn ${wooncomponenten.length} wooncomponent(en), maar nog geen WWS-units. Maak WWS-units aan wanneer WWS relevant is, of kies bewust “Niet nodig” voor dit scenario.`,
+      actions: [wwsAction()],
+    });
+  } else if (wooncomponenten.length > 0 && !wwsRelevant) {
+    out.push({
+      level: 'info',
+      category: 'not_relevant',
+      title: 'WWS niet relevant',
+      message: `WWS is voor dit scenario op “Niet nodig” gezet. De ${wooncomponenten.length} wooncomponent(en) hoeven daarom geen WWS-units te krijgen zolang de gekozen strategie en huurbron niet veranderen.`,
+      actions: [wwsAction()],
+    });
   }
 
-  // --- WWS-units: ontbrekende kerngegevens ---
-  if (wwsUnits.length > 0) {
-    const zonderOppervlakte = wwsUnits.filter((u) => !Number(u.living_area_m2 ?? 0)).length;
-    const zonderHuur = wwsUnits.filter((u) => !Number(u.current_monthly_rent ?? 0)).length;
-    const zonderWoz = wwsUnits.filter((u) => !Number(u.woz_value ?? 0)).length;
-    const zonderLabel = wwsUnits.filter((u) => !u.energy_label).length;
-    if (zonderOppervlakte > 0) out.push({ level: 'warning', message: `${zonderOppervlakte} WWS-unit(s) zonder woonoppervlakte. WWS-punten en huursegment kunnen niet betrouwbaar worden bepaald.` });
-    if (zonderHuur > 0) out.push({ level: 'warning', message: `${zonderHuur} WWS-unit(s) zonder huidige maandhuur. Vul huur aan of zet huurbron op "WWS-gecorrigeerd".` });
-    if (zonderWoz > 0) out.push({ level: 'info', message: `${zonderWoz} WWS-unit(s) zonder WOZ-waarde. WOZ telt mee in WWS-punten.` });
-    if (zonderLabel > 0) out.push({ level: 'info', message: `${zonderLabel} WWS-unit(s) zonder energielabel. Label beïnvloedt WWS-punten.` });
+  if (wwsRelevant && wwsUnits.length > 0) {
+    const zonderOppervlakte = wwsUnits.filter((u) => !Number(u.living_area_m2 ?? 0));
+    const zonderHuur = wwsUnits.filter((u) => !Number(u.current_monthly_rent ?? 0));
+    const zonderWoz = wwsUnits.filter((u) => !Number(u.woz_value ?? 0));
+    const zonderLabel = wwsUnits.filter((u) => !u.energy_label);
+    if (zonderOppervlakte.length > 0) out.push({
+      level: 'warning', category: 'now', title: 'WWS-woonoppervlakte aanvullen',
+      message: `${zonderOppervlakte.length} WWS-unit(s) hebben geen woonoppervlakte. WWS-punten en huursegment kunnen daardoor niet betrouwbaar worden bepaald.`,
+      actions: [wwsAction(`wws-unit-${zonderOppervlakte[0].id}`)],
+    });
+    if (zonderHuur.length > 0) out.push({
+      level: 'warning', category: 'now', title: 'WWS-huurbron aanvullen',
+      message: `${zonderHuur.length} WWS-unit(s) hebben geen huidige maandhuur. Vul de huur aan of controleer of een WWS-gecorrigeerde huurbron wordt gebruikt.`,
+      actions: [wwsAction(`wws-unit-${zonderHuur[0].id}`)],
+    });
+    if (zonderWoz.length > 0) out.push({
+      level: 'info', category: 'later', title: 'WOZ voor WWS aanvullen',
+      message: `${zonderWoz.length} WWS-unit(s) hebben geen WOZ-waarde. WOZ telt mee in de WWS-punten.`,
+      actions: [wwsAction(`wws-unit-${zonderWoz[0].id}`)],
+    });
+    if (zonderLabel.length > 0) out.push({
+      level: 'info', category: 'later', title: 'Energielabel voor WWS aanvullen',
+      message: `${zonderLabel.length} WWS-unit(s) hebben geen energielabel. Het label beïnvloedt de WWS-punten.`,
+      actions: [wwsAction(`wws-unit-${zonderLabel[0].id}`)],
+    });
   }
 
-  // --- Componentstrategie ---
   const componentHasTerminalValue = hasComponentTerminalValue(sellOffUnits);
   const componentHasSale = sellOffUnits.some((unit) => {
     const strategy = (unitRecord(unit).strategy as string | null) ?? '';
@@ -218,7 +283,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       const perM2 = Number(r.sale_price_per_m2 ?? 0);
       const surface = Number(r.surface_gbo ?? 0) || Number(r.surface_vvo ?? 0) || Number(r.surface_bvo ?? 0);
       return src === 'per_m2' ? perM2 <= 0 || surface <= 0 : total <= 0;
-    }).length;
+    });
     const holdMissingRent = sellOffUnits.filter((u) => {
       const r = unitRecord(u);
       const strat = (r.strategy as string | null) ?? '';
@@ -226,18 +291,34 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       const method = (r.hold_valuation_method as string | null) ?? 'BAR';
       if (method === 'handmatige_waarde') return Number(r.hold_value_manual ?? 0) <= 0;
       return Number(r.hold_annual_rent ?? 0) <= 0 && Number(r.hold_monthly_rent ?? 0) <= 0;
-    }).length;
-    const laterBeslissen = sellOffUnits.filter((u) => (unitRecord(u).strategy as string | null) === 'later_beslissen').length;
+    });
+    const laterBeslissen = sellOffUnits.filter((u) => (unitRecord(u).strategy as string | null) === 'later_beslissen');
     const manualValues = sellOffUnits.filter((u) => {
       const r = unitRecord(u);
       return (r.strategy as string | null) === 'handmatige_waarde'
         || (HOLD_STRATS.has((r.strategy as string | null) ?? '')
           && (r.hold_valuation_method as string | null) === 'handmatige_waarde');
-    }).length;
-    if (sellMissingValue > 0) out.push({ level: 'warning', message: `${sellMissingValue} verkoopcomponent(en) zonder verkoopwaarde. Vul verkoopprijs (totaal of per m²) én het bijbehorende metrage in.` });
-    if (holdMissingRent > 0) out.push({ level: 'warning', message: `${holdMissingRent} aanhoudcomponent(en) zonder huur of waarderingsbron. Vul huur of handmatige waarde in.` });
-    if (laterBeslissen > 0) out.push({ level: 'info', message: `${laterBeslissen} component(en) op "Later beslissen". Deze tellen niet mee in de scenariowaarde.` });
-    if (manualValues > 0) out.push({ level: 'info', message: `${manualValues} componentwaarde(n) zijn handmatige waarderingsaannames en geen verkooptransacties. Leg bron, peildatum en onderbouwing vast.` });
+    });
+    if (sellMissingValue.length > 0) out.push({
+      level: 'warning', category: 'now', title: 'Verkoopwaarde per component aanvullen',
+      message: `${sellMissingValue.length} verkoopcomponent(en) hebben geen complete verkoopwaarde. Vul totaalprijs of prijs per m² met het bijbehorende metrage in.`,
+      actions: [{ label: 'Open eerste componentstrategie', sectionId: 'sec-strategie', targetId: `strategy-unit-${sellMissingValue[0].id}`, openTarget: true }],
+    });
+    if (holdMissingRent.length > 0) out.push({
+      level: 'warning', category: 'now', title: 'Huur of waarde per component aanvullen',
+      message: `${holdMissingRent.length} aanhoudcomponent(en) hebben geen huur of waarderingsbron.`,
+      actions: [{ label: 'Open eerste componentstrategie', sectionId: 'sec-strategie', targetId: `strategy-unit-${holdMissingRent[0].id}`, openTarget: true }],
+    });
+    if (laterBeslissen.length > 0) out.push({
+      level: 'info', category: 'later', title: 'Componentstrategie later beslissen',
+      message: `${laterBeslissen.length} component(en) staan op “Later beslissen” en tellen niet mee in de scenariowaarde.`,
+      actions: [{ label: 'Open componentstrategie', sectionId: 'sec-strategie' }],
+    });
+    if (manualValues.length > 0) out.push({
+      level: 'info', category: 'later', title: 'Handmatige componentwaarde onderbouwen',
+      message: `${manualValues.length} componentwaarde(n) zijn waarderingsaannames en geen verkooptransacties. Leg bron, peildatum en onderbouwing vast.`,
+      actions: [{ label: 'Open eerste componentstrategie', sectionId: 'sec-strategie', targetId: `strategy-unit-${manualValues[0].id}`, openTarget: true }],
+    });
   }
 
   const formatEur = (value: number) => new Intl.NumberFormat('nl-NL', {
@@ -248,18 +329,13 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     (cost) => costAmount(cost) > 0 && cost.reliability_status !== 'hoog',
   );
   for (const cost of costsNeedingSupport) {
-    const status = cost.reliability_status == null
-      ? 'niet beoordeeld'
-      : cost.reliability_status;
+    const status = cost.reliability_status == null ? 'niet beoordeeld' : cost.reliability_status;
     out.push({
       level: 'warning',
+      category: 'now',
       title: 'Kostenpost onderbouwen',
       message: `“${costLabel(cost)}” (${formatEur(costAmount(cost))}) staat op ${status}. Controleer bedrag en scope, vul Bron / onderbouwing in en kies daarna de passende betrouwbaarheid.`,
-      actions: [{
-        label: 'Ga naar deze kostenpost',
-        sectionId: 'sec-kosten',
-        targetId: `cost-${cost.id}`,
-      }],
+      actions: [{ label: 'Ga naar deze kostenpost', sectionId: 'sec-kosten', targetId: `cost-${cost.id}` }],
     });
   }
 
@@ -269,45 +345,69 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     const componentDescription = `${detail.componentUnitIds.length} component(en)`;
     out.push({
       level: 'warning',
+      category: 'now',
       title: `Controleer mogelijke dubbele ${detail.kind}kosten`,
-      message: `Mogelijke dubbele kosteninvoer: algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien (%) wordt hierbij niet als dubbele kostenpost behandeld.`,
+      message: `Algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien en risicoreserveringen worden hierbij niet als dubbele ontwikkelkosten behandeld.`,
       actions: [
-        {
-          label: 'Naar algemene kostenpost',
-          sectionId: 'sec-kosten',
-          targetId: `cost-${detail.centralCostIds[0]}`,
-        },
-        {
-          label: 'Naar componentkosten',
-          sectionId: 'sec-strategie',
-          targetId: `strategy-unit-${detail.componentUnitIds[0]}`,
-        },
+        { label: 'Naar algemene kostenpost', sectionId: 'sec-kosten', targetId: `cost-${detail.centralCostIds[0]}` },
+        { label: 'Naar componentkosten', sectionId: 'sec-strategie', targetId: `strategy-unit-${detail.componentUnitIds[0]}`, openTarget: true },
       ],
     });
   }
 
-  // --- Huurbron-conflicten ---
   const rentSource = (scenario.rent_source as string | null) ?? 'handmatig';
   const hasComponentRent = components.some((x) => Number(x.current_annual_rent ?? 0) > 0 || Number(x.current_monthly_rent ?? 0) > 0);
   const hasScenarioRent = Number(scenario.current_monthly_rent ?? 0) > 0 || Number(scenario.market_monthly_rent ?? 0) > 0;
   if (hasComponentRent && rentSource === 'handmatig' && hasScenarioRent) {
-    out.push({ level: 'warning', message: 'Componenten bevatten huur, maar huurbron staat op "Handmatig in huuranalyse". Kies welke bron leidend is om dubbele telling te voorkomen.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Leidende huurbron kiezen',
+      message: 'Componenten bevatten huur terwijl de huuranalyse ook handmatige scenariohuur gebruikt. Kies één leidende bron om dubbele telling te voorkomen.',
+      actions: [{ label: 'Open huuranalyse', sectionId: 'sec-huur' }, { label: 'Bekijk componenten', sectionId: 'sec-componenten' }],
+    });
   }
   if (rentSource === 'componenten' && !hasComponentRent) {
-    out.push({ level: 'warning', message: 'Huurbron staat op "Som van componenten" maar geen enkel component heeft huurgegevens.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Componenthuur ontbreekt',
+      message: 'De huurbron staat op “Som van componenten”, maar geen component heeft huurgegevens.',
+      actions: [{ label: 'Bekijk componenten', sectionId: 'sec-componenten' }, { label: 'Wijzig huurbron', sectionId: 'sec-huur' }],
+    });
   }
   if ((rentSource === 'wws' || rentSource === 'wws_gecorrigeerd') && wwsUnits.length === 0) {
-    out.push({ level: 'warning', message: 'Huurbron staat op "WWS-gecorrigeerd" maar er zijn geen WWS-units aangemaakt.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'WWS-huurbron zonder WWS-units',
+      message: 'De huurbron gebruikt WWS, maar er zijn geen WWS-units aangemaakt.',
+      actions: [wwsAction()],
+    });
   }
 
   if (objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component') {
-    out.push({ level: 'warning', message: 'Biedingsrisico: mixed-use object zonder OVB-toerekening per component. Verschillende tarieven kunnen de maximale koopsom materieel beïnvloeden.' });
+    out.push({
+      level: 'warning',
+      category: 'now',
+      title: 'OVB-verdeling kiezen',
+      message: 'Dit mixed-use object gebruikt nog geen OVB-toerekening per component. Woningen en niet-woningen kunnen verschillend worden behandeld, waardoor de investering en maximale aankoopprijs materieel kunnen veranderen.',
+      actions: [
+        { label: 'Kies OVB-modus', sectionId: 'sec-aankoop' },
+        { label: 'Bekijk componenten', sectionId: 'sec-componenten' },
+      ],
+    });
   }
 
   if (scenario.ovb_mode === 'per_component') {
     const zonderWaarde = components.filter((x) => !x.allocated_component_value && !x.surface_gbo);
     if (zonderWaarde.length > 0) {
-      out.push({ level: 'blocker', message: `${zonderWaarde.length} component(en) zonder componentwaarde of m². OVB per component kan niet correct worden berekend.` });
+      out.push({
+        level: 'blocker',
+        category: 'now',
+        title: 'OVB per component aanvullen',
+        message: `${zonderWaarde.length} component(en) hebben geen toegerekende waarde of bruikbare m²-grondslag. Open het eerste component en kies daar de OVB-classificatie en toerekeningsmethode.`,
+        actions: [{
+          label: 'Open eerste onvolledige component',
+          sectionId: 'sec-componenten',
+          targetId: `componenten-unit-${zonderWaarde[0].id}`,
+          openTarget: true,
+        }],
+      });
     }
   }
 
@@ -315,34 +415,45 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   if (vatTreatments.size > 1) {
     out.push({
       level: 'warning',
-      message: 'Biedingsrisico: meerdere btw-behandelingen zijn actief binnen hetzelfde scenario. Controleer verrekenbaarheid, vrijgestelde prestaties en of alle bedragen inclusief of exclusief btw zijn ingevoerd.',
+      category: 'now',
+      title: 'Btw-behandeling controleren',
+      message: 'Meerdere btw-behandelingen zijn actief binnen hetzelfde scenario. Controleer verrekenbaarheid, vrijgestelde prestaties en of bedragen inclusief of exclusief btw zijn ingevoerd.',
+      actions: [{ label: 'Open kosten en btw', sectionId: 'sec-kosten' }],
     });
   }
 
   if (!components.some((x) => x.has_contract) && (scenario.current_monthly_rent ?? 0) > 0) {
-    out.push({ level: 'info', message: 'Huurcontracten zijn niet bevestigd. Controleer ingangsdatum, looptijd en indexatie.' });
+    out.push({ level: 'info', category: 'later', title: 'Huurcontracten controleren', message: 'Huurcontracten zijn niet bevestigd. Controleer ingangsdatum, looptijd en indexatie.' });
   }
-  if (!c.hasEnergyLabel) out.push({ level: 'info', message: 'Energielabel ontbreekt — controleer label-C-compliance bij kantoor.' });
-  if (!c.hasWoz) out.push({ level: 'info', message: 'WOZ-waarde ontbreekt — relevant voor OVB-grondslag en WWS-berekening.' });
-  if (!c.hasBouwjaar) out.push({ level: 'info', message: 'Bouwjaar ontbreekt — relevant voor bouwkundige risico-inschatting.' });
+  if (!c.hasEnergyLabel) out.push({ level: 'info', category: 'later', title: 'Energielabel aanvullen', message: 'Energielabel ontbreekt. Dit kan relevant zijn voor WWS, exploitatie, verduurzaming en label-C-compliance bij kantoor.' });
+  if (!c.hasWoz) out.push({ level: 'info', category: 'later', title: 'WOZ-waarde aanvullen', message: 'WOZ-waarde ontbreekt. Dit kan relevant zijn voor OVB-grondslag en WWS.' });
+  if (!c.hasBouwjaar) out.push({ level: 'info', category: 'later', title: 'Bouwjaar aanvullen', message: 'Bouwjaar ontbreekt en is relevant voor de bouwkundige risico-inschatting.' });
 
   if (!scenario.cost_structure || scenario.cost_structure === 'onbekend') {
-    out.push({ level: 'info', message: 'Kostenstructuur/servicekosten onbekend. Controleer wie welke kosten draagt voor leegstandsrisico en NOI.' });
+    out.push({ level: 'info', category: 'later', title: 'Kostenstructuur controleren', message: 'Kostenstructuur en servicekosten zijn onbekend. Controleer wie welke kosten draagt voor leegstandsrisico en NOI.', actions: [{ label: 'Open onderbouwing', sectionId: 'sec-onderbouwing' }] });
   }
-  if (!scenario.contract_checked) out.push({ level: 'info', message: 'Contractduur niet gecontroleerd.' });
-  if (!scenario.service_costs_checked) out.push({ level: 'info', message: 'Servicekosten niet gecontroleerd.' });
+  if (!scenario.contract_checked) out.push({ level: 'info', category: 'later', title: 'Contractduur controleren', message: 'Contractduur is nog niet gecontroleerd.', actions: [{ label: 'Open onderbouwing', sectionId: 'sec-onderbouwing' }] });
+  if (!scenario.service_costs_checked) out.push({ level: 'info', category: 'later', title: 'Servicekosten controleren', message: 'Servicekosten zijn nog niet gecontroleerd.', actions: [{ label: 'Open onderbouwing', sectionId: 'sec-onderbouwing' }] });
   if (scenario.mjop_present === 'onbekend' || !scenario.mjop_present) {
-    out.push({ level: 'info', message: 'MJOP-status onbekend. Bij ontbreken: gebruik minimaal conservatief profiel.' });
+    out.push({ level: 'info', category: 'later', title: 'MJOP-status controleren', message: 'MJOP-status is onbekend. Gebruik bij ontbreken minimaal een conservatief profiel.', actions: [{ label: 'Open onderbouwing', sectionId: 'sec-onderbouwing' }] });
   }
   if (scenario.assumptions_manual && !scenario.assumptions_source) {
-    out.push({ level: 'warning', message: 'Aannames zijn handmatig aangepast zonder onderbouwing. Leg de bron vast.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Bron van handmatige aannames vastleggen',
+      message: 'Aannames zijn handmatig aangepast zonder onderbouwing. Leg vast waar de aangepaste percentages of bedragen vandaan komen.',
+      actions: [{ label: 'Open onderbouwing', sectionId: 'sec-onderbouwing' }],
+    });
   }
 
-  if (scenario.strategy_type === 'transformeren' && c.costs.length === 0 && componentDevelopmentKinds(sellOffUnits).size === 0) {
-    out.push({ level: 'warning', message: 'Transformatiescenario zonder transformatiekosten. Voeg bouwkosten, vergunningskosten en fasering toe.' });
+  const transformationScenario = ['transformeren', 'buy_transform_hold', 'buy_transform_sell'].includes(String(scenario.strategy_type));
+  if (transformationScenario && c.costs.length === 0 && componentDevelopmentKinds(sellOffUnits).size === 0) {
+    out.push({
+      level: 'warning', category: 'now', title: 'Transformatiekosten toevoegen',
+      message: 'Dit transformatiescenario bevat nog geen transformatie- of ontwikkelkosten.',
+      actions: [{ label: 'Open bouwkosten', sectionId: 'sec-kosten' }, { label: 'Open componentstrategie', sectionId: 'sec-strategie' }],
+    });
   }
 
-  // --- Verkoop / exit waarschuwingen ---
   const rec = scenario as Record<string, unknown>;
   const saleStrategy = (rec.sale_strategy as string | null) ?? null;
   const scenarioSaleStrategyActive = saleStrategy != null && saleStrategy !== 'geen_verkoop' && saleStrategy !== '';
@@ -354,30 +465,40 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     || (Number(rec.sale_price_per_unit ?? 0) > 0 && Number(rec.sale_units_count ?? 0) > 0);
 
   if (isSaleFocusedStrategy && !hasGrossSale && !componentHasTerminalValue) {
-    out.push({ level: 'warning', message: 'Verkoopscenario zonder verkoopopbrengst. Vul verkoopprijs (totaal, per m² of per unit) in, of gebruik een complete componentstrategie.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Verkoopopbrengst toevoegen',
+      message: 'Dit verkoopgerichte scenario heeft geen complete verkoopopbrengst. Vul een centrale verkoopprijs in of gebruik een complete componentstrategie.',
+      actions: [{ label: 'Open verkoop en exit', sectionId: 'sec-verkoop' }, { label: 'Open componentstrategie', sectionId: 'sec-strategie' }],
+    });
   }
   if (hasGrossSale && Number(rec.sale_costs_percentage ?? 0) === 0 && Number(rec.sale_other_costs ?? 0) === 0) {
-    out.push({ level: 'info', message: 'Verkoopkosten ontbreken bij de centrale scenario-exit — voeg makelaars-/verkoopkosten % en/of overige verkoopkosten toe.' });
+    out.push({ level: 'info', category: 'later', title: 'Verkoopkosten controleren', message: 'Bij de centrale scenario-exit zijn geen makelaars- of overige verkoopkosten ingevuld.', actions: [{ label: 'Open verkoop en exit', sectionId: 'sec-verkoop' }] });
   }
   if (Number(rec.sale_exit_value_manual ?? 0) > 0) {
-    out.push({ level: 'info', message: 'Handmatige exitwaarde is een waarderingsaanname en geen verkooptransactie. Onderbouw met bron, peildatum, broker opinion of vergelijkbare transacties.' });
+    out.push({ level: 'info', category: 'later', title: 'Handmatige exitwaarde onderbouwen', message: 'De handmatige exitwaarde is een waarderingsaanname en geen verkooptransactie. Onderbouw met bron, peildatum, broker opinion of vergelijkbare transacties.', actions: [{ label: 'Open verkoop en exit', sectionId: 'sec-verkoop' }] });
   }
   if (rec.bid_basis === 'verkoop'
     && Number(rec.sale_target_margin_amount ?? 0) === 0
     && Number(rec.sale_target_margin_percentage ?? 0) === 0
     && Number(rec.sale_target_roi_percentage ?? 0) === 0
     && Number(rec.sale_target_exit_value ?? 0) === 0) {
-    out.push({ level: 'warning', message: 'Maximale bieding op basis van verkoop, maar geen doelwinst op GDV, winst op kosten of vaste doelwinst ingevuld.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Doelwinst voor maximale bieding kiezen',
+      message: 'De maximale bieding gebruikt verkoop als basis, maar er is geen doelwinst op GDV, winst op kosten, vaste doelwinst of target exitwaarde ingevuld.',
+      actions: [{ label: 'Open doelstelling', sectionId: 'sec-verkoop' }],
+    });
   }
 
-  // --- Dubbele exit-bron ---
   if (hasGrossSale && componentHasSale) {
-    out.push({ level: 'warning', message: 'Zowel centrale scenario-verkoopwaarde als componentstrategie met verkoopcomponenten zijn ingevuld. Kies één opbrengstbron om dubbele invoer te voorkomen.' });
+    out.push({
+      level: 'warning', category: 'now', title: 'Eén verkoopopbrengstbron kiezen',
+      message: 'Zowel centrale scenario-verkoopwaarde als verkoopcomponenten zijn ingevuld. Kies één leidende opbrengstbron om dubbele invoer te voorkomen.',
+      actions: [{ label: 'Open verkoop en exit', sectionId: 'sec-verkoop' }, { label: 'Open componentstrategie', sectionId: 'sec-strategie' }],
+    });
   }
 
   return out;
 }
-
 
 /** Aanname-waarschuwingen volgens §15. */
 export function buildAannameWaarschuwingen(c: ValidationContext, totalCorrectionPct: number): ValidationItem[] {
