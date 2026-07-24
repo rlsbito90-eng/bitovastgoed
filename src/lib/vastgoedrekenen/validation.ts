@@ -316,7 +316,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     });
     if (manualValues.length > 0) out.push({
       level: 'info', category: 'later', title: 'Handmatige componentwaarde onderbouwen',
-      message: `${manualValues.length} componentwaarde(n) zijn waarderingsaannames en geen verkooptransacties. Leg bron, peildatum en onderbouwing vast.`,
+      message: `${manualValues.length} componentwaarde(n) zijn handmatige waarderingsaannames en geen verkooptransacties. Leg bron, peildatum en onderbouwing vast.`,
       actions: [{ label: 'Open eerste componentstrategie', sectionId: 'sec-strategie', targetId: `strategy-unit-${manualValues[0].id}`, openTarget: true }],
     });
   }
@@ -347,7 +347,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       level: 'warning',
       category: 'now',
       title: `Controleer mogelijke dubbele ${detail.kind}kosten`,
-      message: `Algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien en risicoreserveringen worden hierbij niet als dubbele ontwikkelkosten behandeld.`,
+      message: `Mogelijke dubbele kosteninvoer: algemene kostenpost “${centralNames}” (${formatEur(detail.centralAmount)}) lijkt dezelfde kostensoort te bevatten als ${componentDescription} in de componentstrategie (${formatEur(detail.componentAmount)}). Onvoorzien en risicoreserveringen worden hierbij niet als dubbele ontwikkelkosten behandeld.`,
       actions: [
         { label: 'Naar algemene kostenpost', sectionId: 'sec-kosten', targetId: `cost-${detail.centralCostIds[0]}` },
         { label: 'Naar componentkosten', sectionId: 'sec-strategie', targetId: `strategy-unit-${detail.componentUnitIds[0]}`, openTarget: true },
@@ -385,7 +385,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       level: 'warning',
       category: 'now',
       title: 'OVB-verdeling kiezen',
-      message: 'Dit mixed-use object gebruikt nog geen OVB-toerekening per component. Woningen en niet-woningen kunnen verschillend worden behandeld, waardoor de investering en maximale aankoopprijs materieel kunnen veranderen.',
+      message: 'Biedingsrisico: mixed-use object zonder OVB-toerekening per component. Woningen en niet-woningen kunnen verschillend worden behandeld, waardoor de investering en maximale aankoopprijs materieel kunnen veranderen.',
       actions: [
         { label: 'Kies OVB-modus', sectionId: 'sec-aankoop' },
         { label: 'Bekijk componenten', sectionId: 'sec-componenten' },
@@ -417,7 +417,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       level: 'warning',
       category: 'now',
       title: 'Btw-behandeling controleren',
-      message: 'Meerdere btw-behandelingen zijn actief binnen hetzelfde scenario. Controleer verrekenbaarheid, vrijgestelde prestaties en of bedragen inclusief of exclusief btw zijn ingevoerd.',
+      message: 'Biedingsrisico: meerdere btw-behandelingen zijn actief binnen hetzelfde scenario. Controleer verrekenbaarheid, vrijgestelde prestaties en of bedragen inclusief of exclusief btw zijn ingevoerd.',
       actions: [{ label: 'Open kosten en btw', sectionId: 'sec-kosten' }],
     });
   }
