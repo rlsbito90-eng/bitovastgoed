@@ -81,7 +81,7 @@ describe('scenariovergelijking ontwikkel-KPI’s', () => {
     expect(getTargetProfitLabel(costScenario, outputs)).toBe('10% op kosten');
   });
 
-  it('maakt een voorlopige samenvatting voor twee GDV-scenario's en sluit winst op kosten uit', () => {
+  it("maakt een voorlopige samenvatting voor twee GDV-scenario's en sluit winst op kosten uit", () => {
     const base = outputWithResidual();
     const cautious = outputWithResidual();
     cautious.residual = {
