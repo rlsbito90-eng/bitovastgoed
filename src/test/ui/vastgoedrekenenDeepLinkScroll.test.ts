@@ -8,5 +8,8 @@ describe('Vastgoedrekenen deep-linkscroll', () => {
     expect(code).toContain("performScroll(hash, 'auto')");
     expect(code).toContain('attempts < 18 || stablePasses < 5');
     expect(code).toContain('[activeTab, location.hash, requestedCalculationId]');
+    expect(code).toContain('const getScrollContext = (target: HTMLElement)');
+    expect(code).toContain('container.scrollTo({ top: Math.max(0, top), behavior })');
+    expect(code).toContain('target.getBoundingClientRect().top - desiredViewportTop');
   });
 });
