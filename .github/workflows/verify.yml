@@ -28,12 +28,28 @@ jobs:
         shell: bash
         run: |
           if [ -f scripts/apply_preliminary_comparison.py ]; then
-            python3 scripts/apply_preliminary_comparison.py
-            rm -f scripts/apply_preliminary_comparison.py
+            set +e
+            python3 scripts/apply_preliminary_comparison.py > preliminary-patch.log 2>&1
+            patch_status=$?
+            set -e
+            cat preliminary-patch.log
+            if [ "$patch_status" -ne 0 ]; then
+              exit "$patch_status"
+            fi
+            rm -f scripts/apply_preliminary_comparison.py preliminary-patch.log
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Upload preliminary patch log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preliminary-patch-log
+          path: preliminary-patch.log
+          retention-days: 3
+          if-no-files-found: ignore
 
       - name: Commit applied comparison patch
         if: steps.comparison_patch.outputs.applied == 'true'
