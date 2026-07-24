@@ -23,26 +23,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Apply actionable validation UX patch
-        id: actionable_validation
+      - name: Apply actionable validation scope fixes
+        id: actionable_validation_scope
         shell: bash
         run: |
-          if [ -f scripts/apply_actionable_validation.py ]; then
-            python3 scripts/apply_actionable_validation.py
-            rm -f scripts/apply_actionable_validation.py
+          if [ -f scripts/fix_actionable_validation_scope.py ]; then
+            python3 scripts/fix_actionable_validation_scope.py
+            rm -f scripts/fix_actionable_validation_scope.py
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit applied patch
-        if: steps.actionable_validation.outputs.applied == 'true'
+      - name: Commit applied fixes
+        if: steps.actionable_validation_scope.outputs.applied == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: make validation actions explicit and navigable"
+          git commit -m "fix: keep cost source advisory while preserving readiness semantics"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
