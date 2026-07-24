@@ -785,7 +785,7 @@ export default function ObjectDetailPage() {
   };
 
   // Scroll naar een element binnen huidige tab (gebruikt door deep-links en quick actions)
-  const performScroll = (id: string) => {
+  const performScroll = (id: string, behavior: ScrollBehavior = 'smooth') => {
     const target = document.getElementById(id);
     if (!target) return false;
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
@@ -802,7 +802,7 @@ export default function ObjectDetailPage() {
       ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
       : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
     const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    window.scrollTo({ top: Math.max(0, top), behavior });
     return true;
   };
 
@@ -854,18 +854,65 @@ export default function ObjectDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Deep-links scrollen pas nadat de juiste tabinhoud daadwerkelijk is gemount.
+  // Deep-links worden pas definitief uitgelijnd nadat hero, navigatie en lazy tabinhoud
+  // hun uiteindelijke hoogte hebben. Korte hercontroles voorkomen dat een laat geladen
+  // objectfoto de gekozen quickscan opnieuw onder de viewport duwt.
   useEffect(() => {
     const hash = location.hash.replace(/^#/, '');
-    if (!hash || !ANCHOR_TO_TAB[hash]) return;
-    const first = window.setTimeout(() => performScroll(hash), 140);
-    const retry = window.setTimeout(() => performScroll(hash), 420);
+    const targetTab = hash ? ANCHOR_TO_TAB[hash] : undefined;
+    if (!hash || !targetTab || activeTab !== targetTab) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+    let attempts = 0;
+    let stablePasses = 0;
+
+    const alignWhenStable = () => {
+      if (cancelled) return;
+      const target = document.getElementById(hash);
+      attempts += 1;
+
+      if (!target) {
+        if (attempts < 40) timer = window.setTimeout(alignWhenStable, 75);
+        return;
+      }
+
+      const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
+      const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
+      const rootStyles = getComputedStyle(document.documentElement);
+      const parsePx = (value: string, fallback: number) => {
+        const parsed = parseFloat(value);
+        if (!parsed) return fallback;
+        return value.trim().endsWith('rem') ? parsed * 16 : parsed;
+      };
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      const topbar = isDesktop
+        ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
+        : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
+      const desiredTop = topbar + sectionNavHeight + 12;
+      const delta = target.getBoundingClientRect().top - desiredTop;
+
+      if (Math.abs(delta) > 3) {
+        performScroll(hash, 'auto');
+        stablePasses = 0;
+      } else {
+        stablePasses += 1;
+      }
+
+      // Minimaal circa 1,8 seconde blijven controleren voor laat geladen hero-media.
+      if (attempts < 40 && (attempts < 18 || stablePasses < 5)) {
+        timer = window.setTimeout(alignWhenStable, 100);
+      }
+    };
+
+    const frame = window.requestAnimationFrame(alignWhenStable);
     return () => {
-      window.clearTimeout(first);
-      window.clearTimeout(retry);
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      if (timer != null) window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, location.hash]);
+  }, [activeTab, location.hash, requestedCalculationId]);
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
