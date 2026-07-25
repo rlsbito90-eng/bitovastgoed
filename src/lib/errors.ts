@@ -40,6 +40,7 @@ const CODE_BASE: Record<string, string> = {
   '22P02': 'Ongeldig invoerformaat',
   '42501': 'Je hebt geen rechten om deze wijziging op te slaan',
   '42P01': 'Onderdeel niet beschikbaar',
+  'PGRST205': 'Databaseonderdeel ontbreekt of staat nog niet in de schema-cache',
   'PGRST301': 'Je hebt geen rechten om deze wijziging op te slaan',
 };
 
@@ -107,6 +108,7 @@ function inferFromMessage(error: AnyErr): string | undefined {
   if (msg.includes('foreign key')) return CODE_BASE['23503'];
   if (msg.includes('check constraint')) return CODE_BASE['23514'];
   if (msg.includes('invalid input')) return CODE_BASE['22P02'];
+  if (msg.includes('could not find the table') || msg.includes('schema cache') || msg.includes('does not exist')) return CODE_BASE['42P01'];
   return undefined;
 }
 

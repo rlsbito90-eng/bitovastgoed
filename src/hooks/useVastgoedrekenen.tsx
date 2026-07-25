@@ -9,7 +9,13 @@ import type {
   Calculation, Scenario, Component, ScenarioCost, WwsUnit,
   SellOffUnit, RiskItem, CalcOutput, TaxSettings,
 } from '@/lib/vastgoedrekenen/types';
-import type { AcquisitionComponent, AcquisitionUnitLink } from '@/lib/vastgoedrekenen/acquisition';
+import {
+  acquisitionStructureStatusMessage,
+  isAcquisitionStructureMigrationMissing,
+  type AcquisitionComponent,
+  type AcquisitionStructureStatus,
+  type AcquisitionUnitLink,
+} from '@/lib/vastgoedrekenen/acquisition';
 import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
 import {
   buildScenarioChildClone,
@@ -393,6 +399,8 @@ export function useScenarioChildren(scenarioId: string | undefined) {
   const [components, setComponents] = useState<Component[]>([]);
   const [acquisitionComponents, setAcquisitionComponents] = useState<AcquisitionComponent[]>([]);
   const [acquisitionUnitLinks, setAcquisitionUnitLinks] = useState<AcquisitionUnitLink[]>([]);
+  const [acquisitionStructureStatus, setAcquisitionStructureStatus] = useState<AcquisitionStructureStatus>('available');
+  const [acquisitionStructureError, setAcquisitionStructureError] = useState<string | null>(null);
   const [costs, setCosts] = useState<ScenarioCost[]>([]);
   const [wwsUnits, setWwsUnits] = useState<WwsUnit[]>([]);
   const [sellOffUnits, setSellOffUnits] = useState<SellOffUnit[]>([]);
@@ -415,9 +423,27 @@ export function useScenarioChildren(scenarioId: string | undefined) {
       supabase.from('calculation_outputs').select('*').eq('scenario_id', scenarioId).maybeSingle(),
     ]);
     setComponents((c.data ?? []) as Component[]);
-    // 42P01 = migratie nog niet toegepast. In dat geval blijft het legacy OVB-pad actief.
-    setAcquisitionComponents(acq.error ? [] : (acq.data ?? []) as AcquisitionComponent[]);
-    setAcquisitionUnitLinks(acqLinks.error ? [] : (acqLinks.data ?? []) as AcquisitionUnitLink[]);
+    const acquisitionError = acq.error ?? acqLinks.error;
+    if (!acquisitionError) {
+      setAcquisitionComponents((acq.data ?? []) as AcquisitionComponent[]);
+      setAcquisitionUnitLinks((acqLinks.data ?? []) as AcquisitionUnitLink[]);
+      setAcquisitionStructureStatus('available');
+      setAcquisitionStructureError(null);
+    } else {
+      setAcquisitionComponents([]);
+      setAcquisitionUnitLinks([]);
+      if (isAcquisitionStructureMigrationMissing(acquisitionError)) {
+        setAcquisitionStructureStatus('migration_required');
+        setAcquisitionStructureError(null);
+      } else {
+        setAcquisitionStructureStatus('error');
+        setAcquisitionStructureError(describeDbError(acquisitionError, {
+          module: 'Vastgoedrekenen',
+          section: 'Verkrijgingsstructuur',
+          fallback: 'Verkrijgingsstructuur laden mislukt',
+        }));
+      }
+    }
     setCosts((k.data ?? []) as ScenarioCost[]);
     setWwsUnits((w.data ?? []) as WwsUnit[]);
     setSellOffUnits((so.data ?? []) as SellOffUnit[]);
@@ -438,8 +464,28 @@ export function useScenarioChildren(scenarioId: string | undefined) {
   }, [scenarioId]);
 
   // --- Verkrijgingsstructuur (feitelijke situatie bij aankoop) ---
+  const recordAcquisitionError = useCallback((error: unknown, fallback: string): string => {
+    if (isAcquisitionStructureMigrationMissing(error as { code?: string; message?: string; details?: string; hint?: string })) {
+      setAcquisitionStructureStatus('migration_required');
+      setAcquisitionStructureError(null);
+      return acquisitionStructureStatusMessage('migration_required') as string;
+    }
+    const message = describeDbError(error as { code?: string; message?: string; details?: string; hint?: string }, {
+      module: 'Vastgoedrekenen',
+      section: 'Verkrijgingsstructuur',
+      fallback,
+    });
+    setAcquisitionStructureStatus('error');
+    setAcquisitionStructureError(message);
+    return message;
+  }, []);
+
   const createAcquisitionComponent = useCallback(async (patch: Partial<AcquisitionComponent> = {}) => {
     if (!scenarioId) return null;
+    if (acquisitionStructureStatus !== 'available') {
+      toast.error(acquisitionStructureStatusMessage(acquisitionStructureStatus, acquisitionStructureError) as string);
+      return null;
+    }
     const untyped = supabase as unknown as { from: (table: string) => any };
     const payload = {
       scenario_id: scenarioId,
@@ -452,28 +498,26 @@ export function useScenarioChildren(scenarioId: string | undefined) {
     };
     const { data, error } = await untyped.from('calculation_acquisition_components').insert(payload).select('*').single();
     if (error) {
-      toast.error(error.code === '42P01'
-        ? 'Verkrijgingsstructuur is nog niet beschikbaar. Pas eerst de nieuwe Supabase-migratie toe.'
-        : mapDbError(error, 'Verkrijgingscomponent aanmaken mislukt'));
+      toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent aanmaken mislukt'));
       return null;
     }
     await fetchAll();
     return data as AcquisitionComponent;
-  }, [scenarioId, acquisitionComponents.length, fetchAll]);
+  }, [scenarioId, acquisitionComponents.length, acquisitionStructureStatus, acquisitionStructureError, fetchAll, recordAcquisitionError]);
 
   const updateAcquisitionComponent = useCallback(async (id: string, patch: Partial<AcquisitionComponent>) => {
     const untyped = supabase as unknown as { from: (table: string) => any };
     const { error } = await untyped.from('calculation_acquisition_components').update(stripUndefinedEntries(patch)).eq('id', id);
-    if (error) toast.error(mapDbError(error, 'Verkrijgingscomponent wijzigen mislukt'));
+    if (error) toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent wijzigen mislukt'));
     else await fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, recordAcquisitionError]);
 
   const deleteAcquisitionComponent = useCallback(async (id: string) => {
     const untyped = supabase as unknown as { from: (table: string) => any };
     const { error } = await untyped.from('calculation_acquisition_components').delete().eq('id', id);
-    if (error) toast.error(mapDbError(error, 'Verkrijgingscomponent verwijderen mislukt'));
+    if (error) toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent verwijderen mislukt'));
     else await fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, recordAcquisitionError]);
 
   const setAcquisitionComponentLinks = useCallback(async (acquisitionComponentId: string, sellOffUnitIds: string[]) => {
     if (!scenarioId) return;
@@ -483,7 +527,7 @@ export function useScenarioChildren(scenarioId: string | undefined) {
       .delete()
       .eq('acquisition_component_id', acquisitionComponentId);
     if (deleteError) {
-      toast.error(mapDbError(deleteError, 'Koppelingen wijzigen mislukt'));
+      toast.error(recordAcquisitionError(deleteError, 'Koppelingen wijzigen mislukt'));
       return;
     }
     if (sellOffUnitIds.length > 0) {
@@ -494,13 +538,13 @@ export function useScenarioChildren(scenarioId: string | undefined) {
       }));
       const { error: insertError } = await untyped.from('calculation_acquisition_unit_links').insert(rows);
       if (insertError) {
-        toast.error(mapDbError(insertError, 'Koppelingen opslaan mislukt'));
+        toast.error(recordAcquisitionError(insertError, 'Koppelingen opslaan mislukt'));
         await fetchAll();
         return;
       }
     }
     await fetchAll();
-  }, [scenarioId, fetchAll]);
+  }, [scenarioId, fetchAll, recordAcquisitionError]);
 
   // --- Componentstrategie (sell_off_units) ---
   const createStrategyUnit = useCallback(async (patch: Record<string, unknown> = {}) => {
@@ -620,7 +664,9 @@ export function useScenarioChildren(scenarioId: string | undefined) {
   }, [scenarioId, components, sellOffUnits, fetchAll]);
 
   return {
-    components, acquisitionComponents, acquisitionUnitLinks, costs, wwsUnits, sellOffUnits, risks, output, loading,
+    components, acquisitionComponents, acquisitionUnitLinks, acquisitionStructureStatus,
+    acquisitionStructureMessage: acquisitionStructureStatusMessage(acquisitionStructureStatus, acquisitionStructureError),
+    costs, wwsUnits, sellOffUnits, risks, output, loading,
     refetch: fetchAll, upsertOutput,
     createAcquisitionComponent, updateAcquisitionComponent, deleteAcquisitionComponent, setAcquisitionComponentLinks,
     createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,

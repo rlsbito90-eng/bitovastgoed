@@ -1,5 +1,44 @@
 import type { Component, SellOffUnit } from './types';
 
+export const ACQUISITION_STRUCTURE_MIGRATION = '20260725153000_vastgoedrekenen_verkrijgingsstructuur.sql';
+
+export type AcquisitionStructureStatus = 'available' | 'migration_required' | 'error';
+
+type DbLikeError = {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+} | null | undefined;
+
+export function isAcquisitionStructureMigrationMissing(error: DbLikeError): boolean {
+  const code = String(error?.code ?? '');
+  if (code === '42P01' || code === 'PGRST205') return true;
+  const raw = [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const namesAcquisitionTable = raw.includes('calculation_acquisition_components')
+    || raw.includes('calculation_acquisition_unit_links');
+  const missingRelation = raw.includes('could not find the table')
+    || raw.includes('schema cache')
+    || raw.includes('does not exist')
+    || raw.includes('undefined table');
+  return namesAcquisitionTable && missingRelation;
+}
+
+export function acquisitionStructureStatusMessage(
+  status: AcquisitionStructureStatus,
+  errorMessage?: string | null,
+): string | null {
+  if (status === 'available') return null;
+  if (status === 'migration_required') {
+    return `De interface is bijgewerkt, maar de benodigde databasetabellen ontbreken. Voer Supabase-migratie ${ACQUISITION_STRUCTURE_MIGRATION} uit en ververs daarna deze pagina.`;
+  }
+  return errorMessage
+    || 'De verkrijgingsstructuur kon niet uit de database worden geladen. Controleer de databaseverbinding en probeer het opnieuw.';
+}
+
 /**
  * Feitelijk/juridisch onderdeel bij verkrijging. Dit model is uitsluitend
  * bedoeld voor aankoopprijsverdeling en OVB; toekomstige opbrengsten en

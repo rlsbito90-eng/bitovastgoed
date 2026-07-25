@@ -10,7 +10,7 @@ import { RawNumberInput, RawTextInput, RawTextarea, numberToRaw, parseRawNumber 
 import { fmtEur, fmtM2 } from '../format';
 import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import type { ComputedOutputs, SellOffUnit } from '@/lib/vastgoedrekenen/types';
-import type { AcquisitionComponent, AcquisitionUnitLink } from '@/lib/vastgoedrekenen/acquisition';
+import type { AcquisitionComponent, AcquisitionStructureStatus, AcquisitionUnitLink } from '@/lib/vastgoedrekenen/acquisition';
 
 const ALLOCATION_LABELS: Record<AcquisitionComponent['transfer_tax_allocation_method'], string> = {
   value: 'Huidige waarden bij verkrijging',
@@ -25,6 +25,8 @@ type Props = {
   strategyUnits: SellOffUnit[];
   ovbPerComponent: ComputedOutputs['ovbPerComponent'];
   purchasePrice: number;
+  availability: AcquisitionStructureStatus;
+  unavailableMessage: string | null;
   onCreate: (patch?: Partial<AcquisitionComponent>) => Promise<AcquisitionComponent | null>;
   onUpdate: (id: string, patch: Partial<AcquisitionComponent>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -50,6 +52,8 @@ export default function AcquisitionComponentsTable({
   strategyUnits,
   ovbPerComponent,
   purchasePrice,
+  availability,
+  unavailableMessage,
   onCreate,
   onUpdate,
   onDelete,
@@ -71,6 +75,7 @@ export default function AcquisitionComponentsTable({
   }, [links]);
 
   const createComponent = async () => {
+    if (availability !== 'available') return;
     const created = await onCreate({
       component_name: 'Nieuw verkrijgingscomponent',
       component_type: 'overig',
@@ -92,12 +97,36 @@ export default function AcquisitionComponentsTable({
             Leg hier uitsluitend vast wat juridisch en feitelijk wordt verkregen. Eén huidig verkrijgingsdeel kan aan meerdere toekomstige strategie-units worden gekoppeld. OVB wordt niet meer afgeleid uit de toekomstige verkoopstructuur zodra deze tabel is ingevuld.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => void createComponent()} className="shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void createComponent()}
+          className="shrink-0"
+          disabled={availability !== 'available'}
+          title={availability !== 'available' ? unavailableMessage ?? 'Verkrijgingsstructuur niet beschikbaar' : undefined}
+        >
           <Plus className="mr-1 h-3.5 w-3.5" /> Verkrijgingscomponent
         </Button>
       </div>
 
-      {components.length === 0 ? (
+      {availability !== 'available' && (
+        <div className={`flex gap-2 rounded-md border px-3 py-3 text-xs ${
+          availability === 'migration_required'
+            ? 'border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100'
+            : 'border-destructive/40 bg-destructive/5 text-destructive'
+        }`}>
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold">
+              {availability === 'migration_required' ? 'Database-migratie vereist' : 'Verkrijgingsstructuur niet beschikbaar'}
+            </p>
+            <p className="leading-relaxed">{unavailableMessage}</p>
+            <p className="text-[11px] opacity-80">De bestaande projectcomponenten blijven tijdelijk het OVB-terugvalpad; er wordt niets automatisch gewijzigd.</p>
+          </div>
+        </div>
+      )}
+
+      {availability !== 'available' ? null : components.length === 0 ? (
         <div className="rounded-md border border-dashed bg-background/70 px-3 py-4 text-xs text-muted-foreground">
           Nog geen aparte verkrijgingsstructuur. Totdat je hier een component toevoegt, blijft OVB terugvallen op de bestaande projectcomponenten. Voeg bijvoorbeeld één huidig ontwikkeldeel toe en koppel daar de toekomstige nieuwbouwappartementen aan.
         </div>

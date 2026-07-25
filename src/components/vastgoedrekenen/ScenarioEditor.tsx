@@ -207,7 +207,8 @@ export default function ScenarioEditor(props: Props) {
   }, [scenario]);
 
   const {
-    components, acquisitionComponents, acquisitionUnitLinks, costs, wwsUnits, sellOffUnits,
+    components, acquisitionComponents, acquisitionUnitLinks, acquisitionStructureStatus, acquisitionStructureMessage,
+    costs, wwsUnits, sellOffUnits,
     loading: childrenLoading, refetch, upsertOutput,
     createAcquisitionComponent, updateAcquisitionComponent, deleteAcquisitionComponent, setAcquisitionComponentLinks,
     createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,
@@ -1826,6 +1827,8 @@ export default function ScenarioEditor(props: Props) {
                      strategyUnits={sellOffUnits}
                      ovbPerComponent={outputs.ovbPerComponent}
                      purchasePrice={Number(s.purchase_price ?? 0)}
+                     availability={acquisitionStructureStatus}
+                     unavailableMessage={acquisitionStructureMessage}
                      onCreate={createAcquisitionComponent}
                      onUpdate={updateAcquisitionComponent}
                      onDelete={deleteAcquisitionComponent}
