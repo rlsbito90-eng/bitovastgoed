@@ -729,6 +729,11 @@ export default function ScenarioEditor(props: Props) {
   const ovbMode = s.ovb_mode;
   const rentSource = (s.rent_source ?? 'handmatig') as keyof typeof RENT_SOURCE_LABELS;
   const rentFromComponents = rentSource === 'componenten';
+  const residualMaxPurchasePrice = Math.max(0, Number(outputs.residual?.maxPurchasePrice ?? 0));
+  const currentPurchasePrice = Math.max(0, Number(s.purchase_price ?? 0));
+  const purchaseDeltaToResidual = residualMaxPurchasePrice > 0 && currentPurchasePrice > 0
+    ? residualMaxPurchasePrice - currentPurchasePrice
+    : null;
 
   return (
     <div className="space-y-4">
@@ -1084,7 +1089,36 @@ export default function ScenarioEditor(props: Props) {
                   <NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" />
                 </MobileFieldGroup>
 
-                <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup
+                  label="Beoogde aankoopprijs (€)"
+                  helper={residualMaxPurchasePrice > 0 ? (
+                    <div className="space-y-1 text-[10px]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-muted-foreground">
+                          {outputs.residual?.status === 'voor_bieding' ? 'Residuele maximale aankoopprijs' : 'Indicatieve residuele maximale aankoopprijs'}: <span className="font-medium font-mono-data text-foreground">{fmtEur(residualMaxPurchasePrice)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => patch({ purchase_price: residualMaxPurchasePrice })}
+                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
+                          Neem residuele waarde over
+                        </button>
+                      </div>
+                      {purchaseDeltaToResidual != null && (
+                        <p className={purchaseDeltaToResidual < 0 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}>
+                          {purchaseDeltaToResidual > 0
+                            ? `${fmtEur(purchaseDeltaToResidual)} onder de residuele bovengrens`
+                            : purchaseDeltaToResidual < 0
+                              ? `${fmtEur(Math.abs(purchaseDeltaToResidual))} boven de residuele bovengrens`
+                              : 'Gelijk aan de residuele bovengrens'}
+                        </p>
+                      )}
+                    </div>
+                  ) : undefined}
+                >
+                  <NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" />
+                </MobileFieldGroup>
                 <MobileFieldGroup label="Veiligheidsmarge (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" zeroActive={isZero('safety_margin')} onZeroToggle={toggleZero('safety_margin')} /></MobileFieldGroup>
 
                 <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
