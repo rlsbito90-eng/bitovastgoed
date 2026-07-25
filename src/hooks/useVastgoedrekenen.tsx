@@ -204,8 +204,11 @@ export function useQuickscanDetail(calculationId: string | undefined) {
       return null;
     }
 
-    const [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes] = await Promise.all([
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const [componentsRes, acquisitionRes, acquisitionLinksRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes] = await Promise.all([
       supabase.from('calculation_components').select('*').eq('scenario_id', id).order('created_at'),
+      untyped.from('calculation_acquisition_components').select('*').eq('scenario_id', id).order('sort_order').order('created_at'),
+      untyped.from('calculation_acquisition_unit_links').select('*').eq('scenario_id', id).order('created_at'),
       supabase.from('scenario_costs').select('*').eq('scenario_id', id).order('created_at'),
       supabase.from('residential_wws_units').select('*').eq('scenario_id', id).order('created_at'),
       supabase.from('sell_off_units').select('*').eq('scenario_id', id).order('created_at'),
@@ -213,9 +216,12 @@ export function useQuickscanDetail(calculationId: string | undefined) {
       supabase.from('exit_assumptions').select('*').eq('scenario_id', id).order('created_at'),
     ]);
 
-    const loadError = [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes]
+    const requiredLoadError = [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes]
       .map((result) => result.error)
       .find(Boolean);
+    const optionalAcquisitionError = [acquisitionRes.error, acquisitionLinksRes.error]
+      .find((error) => error && error.code !== '42P01');
+    const loadError = requiredLoadError ?? optionalAcquisitionError;
     if (loadError) {
       toast.error(mapDbError(loadError, 'Scenario dupliceren mislukt: onderliggende invoer kon niet worden geladen'));
       return null;
@@ -245,6 +251,8 @@ export function useQuickscanDetail(calculationId: string | undefined) {
 
     const duplicate = duplicateData as Scenario;
     const componentIdMap = new Map<string, string>();
+    const acquisitionComponentIdMap = new Map<string, string>();
+    const sellOffUnitIdMap = new Map<string, string>();
 
     const rollback = async (cause: unknown) => {
       const { error: rollbackError } = await supabase
@@ -274,6 +282,20 @@ export function useQuickscanDetail(calculationId: string | undefined) {
         componentIdMap.set(component.id, data.id);
       }
 
+      for (const acquisitionComponent of acquisitionRes.error ? [] : acquisitionRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          acquisitionComponent as unknown as Record<string, unknown>,
+          duplicate.id,
+        );
+        const { data, error } = await untyped
+          .from('calculation_acquisition_components')
+          .insert(payload)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Verkrijgingscomponent kopiëren mislukt');
+        acquisitionComponentIdMap.set(acquisitionComponent.id, data.id);
+      }
+
       for (const scenarioCost of costsRes.data ?? []) {
         const payload = buildScenarioChildClone(
           scenarioCost as unknown as Record<string, unknown>,
@@ -300,7 +322,28 @@ export function useQuickscanDetail(calculationId: string | undefined) {
           duplicate.id,
           componentIdMap,
         );
-        const { error } = await supabase.from('sell_off_units').insert(payload as never);
+        const { data, error } = await supabase
+          .from('sell_off_units')
+          .insert(payload as never)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Strategie-unit kopiëren mislukt');
+        sellOffUnitIdMap.set(sellOffUnit.id, data.id);
+      }
+
+      for (const acquisitionLink of acquisitionLinksRes.error ? [] : acquisitionLinksRes.data ?? []) {
+        const newAcquisitionId = acquisitionComponentIdMap.get(acquisitionLink.acquisition_component_id);
+        const newSellOffUnitId = sellOffUnitIdMap.get(acquisitionLink.sell_off_unit_id);
+        if (!newAcquisitionId || !newSellOffUnitId) {
+          throw new Error('Verkrijgingskoppeling kon niet veilig naar de gekopieerde records worden vertaald');
+        }
+        const payload = {
+          ...stripCloneIdentity(acquisitionLink as unknown as Record<string, unknown>),
+          scenario_id: duplicate.id,
+          acquisition_component_id: newAcquisitionId,
+          sell_off_unit_id: newSellOffUnitId,
+        };
+        const { error } = await untyped.from('calculation_acquisition_unit_links').insert(payload);
         if (error) throw new Error(error.message);
       }
 
