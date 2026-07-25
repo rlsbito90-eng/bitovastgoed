@@ -2,6 +2,7 @@
 // Levert een strategie-afhankelijke actielijst en aanname-waarschuwingen.
 
 import type { Component, Scenario, ScenarioCost, SellOffUnit, WwsUnit } from './types';
+import type { AcquisitionComponent } from './acquisition';
 import type { PropertyAssumptionType } from './profiles';
 import { isWoonComponentType } from './defaults';
 import { getEffectiveWwsMode } from './wws/mode';
@@ -34,6 +35,7 @@ export type ValidationItem = {
 export type ValidationContext = {
   scenario: Scenario;
   components: Component[];
+  acquisitionComponents?: AcquisitionComponent[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
   sellOffUnits?: SellOffUnit[];
@@ -268,7 +270,9 @@ function wwsAction(targetId?: string): ValidationAction {
 /** Lijst met dingen die de gebruiker nog moet controleren / aanvullen. */
 export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   const out: ValidationItem[] = [];
-  const { scenario, components, wwsUnits, sellOffUnits = [], objectType } = c;
+  const { scenario, components, acquisitionComponents = [], wwsUnits, sellOffUnits = [], objectType } = c;
+  const ovbComponents = acquisitionComponents.length > 0 ? acquisitionComponents : components;
+  const hasSeparateAcquisitionStructure = acquisitionComponents.length > 0;
 
   if (c.dirty) {
     out.push({
@@ -491,7 +495,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
 
   if (scenario.ovb_mode === 'per_component') {
     const allocationMethods = new Set(
-      components
+      ovbComponents
         .map((component) => String(component.transfer_tax_allocation_method ?? 'value'))
         .filter((method) => method !== 'manual'),
     );
@@ -505,7 +509,9 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       });
     }
 
-    const strategyAllocated = components.filter((component) => component.transfer_tax_allocation_method === 'strategy');
+    const strategyAllocated = hasSeparateAcquisitionStructure
+      ? []
+      : components.filter((component) => component.transfer_tax_allocation_method === 'strategy');
     if (strategyAllocated.length > 0) {
       out.push({
         level: 'warning',
@@ -536,7 +542,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   }
 
   if (scenario.ovb_mode === 'per_component') {
-    const zonderWaarde = components.filter((x) => !x.allocated_component_value && !x.surface_gbo);
+    const zonderWaarde = ovbComponents.filter((x) => !x.allocated_component_value && !x.surface_gbo && x.transfer_tax_allocation_method !== 'manual');
     if (zonderWaarde.length > 0) {
       out.push({
         level: 'blocker',
@@ -546,7 +552,30 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
         actions: [{
           label: 'Open eerste onvolledige component',
           sectionId: 'sec-componenten',
-          targetId: `componenten-unit-${zonderWaarde[0].id}`,
+          targetId: hasSeparateAcquisitionStructure
+            ? `acquisition-component-${zonderWaarde[0].id}`
+            : `componenten-unit-${zonderWaarde[0].id}`,
+          openTarget: true,
+        }],
+      });
+    }
+  }
+
+  if (hasSeparateAcquisitionStructure) {
+    const unsupportedExemptions = acquisitionComponents.filter((component) => (
+      component.transfer_tax_classification === 'vrijgesteld'
+      && !String(component.source_note ?? component.notes ?? '').trim()
+    ));
+    if (unsupportedExemptions.length > 0) {
+      out.push({
+        level: 'warning',
+        category: 'now',
+        title: 'OVB-vrijstelling onderbouwen',
+        message: `${unsupportedExemptions.length} verkrijgingscomponent(en) staan op “Vrijgesteld / n.v.t.” zonder bron of toelichting. Leg vast waarom op het huidige verkrijgingsdeel geen OVB wordt gerekend.`,
+        actions: [{
+          label: 'Open eerste vrijgestelde verkrijgingscomponent',
+          sectionId: 'sec-componenten',
+          targetId: `acquisition-component-${unsupportedExemptions[0].id}`,
           openTarget: true,
         }],
       });

@@ -1,7 +1,8 @@
 // OVB-berekeningen: classificatie → percentage → bedrag.
 // Ondersteunt enkelvoudig én mixed-use (toerekening per component).
 
-import type { Component, Scenario, TaxSettings } from './types';
+import type { Scenario, TaxSettings } from './types';
+import type { TransferTaxComponent } from './acquisition';
 import { VR_DEFAULTS } from './defaults';
 
 /** Jaar waarvoor de meegeleverde standaard-OVB-tarieven gelden. */
@@ -86,7 +87,7 @@ export type OvbPerComponent = {
 
 export function computeScenarioOvb(
   scenario: Pick<Scenario, 'purchase_price' | 'ovb_mode' | 'ovb_classification' | 'transfer_tax_percentage' | 'transfer_tax_amount'>,
-  components: Component[],
+  components: TransferTaxComponent[],
   settings: TaxSettings | null,
   objectType?: 'residentieel' | 'commercieel' | 'mixed_use' | null,
   /** Map componentId → afgeleide waarde uit componentstrategie (voor allocation_method='strategy'). */
@@ -122,7 +123,7 @@ export function computeScenarioOvb(
       (sum, component) => sum + Math.max(0, strategyValueByComponentId?.get(component.id) ?? 0),
       0,
     );
-    const perComponent: OvbPerComponent[] = components.map((c) => {
+    let perComponent: OvbPerComponent[] = components.map((c) => {
       const allocMethod = (c.transfer_tax_allocation_method ?? 'value') as OvbPerComponent['basisMethod'];
 
       // Handmatig bedrag: percentage is informatief.
@@ -197,6 +198,24 @@ export function computeScenarioOvb(
         mixedAllocationMethods,
       };
     });
+    // Rond componentgrondslagen af zonder dat de som € 1 afwijkt van de aankoopprijs.
+    // Alleen veilig bij volledig automatische, bruikbare grondslagen.
+    const canReconcileBasis = purchase > 0
+      && components.every((component) => component.transfer_tax_allocation_method !== 'manual')
+      && perComponent.every((row) => !row.missingValueBasis && !row.missingStrategyBasis && !row.missingPurchaseBasis && !row.mixedAllocationMethods);
+    if (canReconcileBasis && perComponent.length > 0) {
+      const roundedTotal = perComponent.reduce((sum, row) => sum + row.basisValue, 0);
+      const difference = Math.round(purchase) - roundedTotal;
+      if (difference !== 0) {
+        const lastIndex = perComponent.length - 1;
+        const last = perComponent[lastIndex];
+        const adjustedBasis = Math.max(0, last.basisValue + difference);
+        perComponent = perComponent.map((row, index) => index === lastIndex
+          ? { ...row, basisValue: adjustedBasis, amount: Math.round((adjustedBasis * row.pct) / 100) }
+          : row);
+      }
+    }
+
     const missingBasisCount = perComponent.filter((p) => (
       p.missingValueBasis
       || p.missingStrategyBasis

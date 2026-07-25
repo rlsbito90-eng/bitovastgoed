@@ -2,6 +2,7 @@
 // voor één scenario. Pure function — geen DB-calls.
 
 import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs, SellOffUnit } from './types';
+import type { AcquisitionComponent, TransferTaxComponent } from './acquisition';
 import { computeScenarioOvb } from './ovb';
 import {
   annualFromMonthly, getWwsCorrectedAnnualRent, pickCorrectedAnnualRent, bar as fnBar, factor as fnFactor,
@@ -30,6 +31,8 @@ import { findDuplicateDevelopmentCostDetails } from './validation';
 export type ComputeContext = {
   scenario: Scenario;
   components: Component[];
+  /** Optionele feitelijke verkrijgingsstructuur. Zodra gevuld leidend voor OVB. */
+  acquisitionComponents?: AcquisitionComponent[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
   /** Optionele componentstrategie-units (uit sell_off_units). */
@@ -84,9 +87,21 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   }
 
   // --- OVB ---
+  // Een aparte verkrijgingsstructuur is leidend. Zonder nieuwe invoer blijft het
+  // bestaande componentmodel als backwards-compatible fallback functioneren.
+  const ovbComponents: TransferTaxComponent[] = (ctx.acquisitionComponents?.length ?? 0) > 0
+    ? (ctx.acquisitionComponents as TransferTaxComponent[])
+    : (components as TransferTaxComponent[]);
+  const hasSeparateAcquisitionStructure = (ctx.acquisitionComponents?.length ?? 0) > 0;
   const ovbObjectType: 'residentieel' | 'commercieel' | 'mixed_use' =
     propertyType === 'residentieel' ? 'residentieel' : propertyType === 'mixed_use' ? 'mixed_use' : 'commercieel';
-  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType, strategyValueByComponentId);
+  const ovb = computeScenarioOvb(
+    scenario,
+    ovbComponents,
+    taxSettings,
+    ovbObjectType,
+    hasSeparateAcquisitionStructure ? undefined : strategyValueByComponentId,
+  );
 
   // --- Aankoopkosten ---
   const acq = computeAcquisitionCosts(scenario);
@@ -385,8 +400,8 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   }
 
   if (scenario.ovb_mode === 'per_component') {
-    if (components.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar componenten ontbreken.');
-    for (const component of components) {
+    if (ovbComponents.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar verkrijgingscomponenten ontbreken.');
+    for (const component of ovbComponents) {
       if (!component.transfer_tax_classification) {
         residualCriticalIssues.push(`${component.component_name ?? 'Component'}: expliciete OVB-classificatie bij verkrijging ontbreekt.`);
       }
@@ -411,7 +426,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const residual = residualSource
     ? computeResidualBid({
       scenario,
-      components,
+      components: ovbComponents,
       taxSettings,
       objectType: ovbObjectType,
       source: residualSource,
@@ -424,7 +439,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       componentDevelopmentCosts: strategy.enabled ? strategy.componentDevelopmentCosts : 0,
       sharedScenarioCosts: totals.total,
       financingCosts: financing,
-      strategyValueByComponentId: strategy.enabled ? strategyValueByComponentId : undefined,
+      strategyValueByComponentId: strategy.enabled && !hasSeparateAcquisitionStructure ? strategyValueByComponentId : undefined,
       criticalIssues: residualCriticalIssues,
       warnings: [
         ...residualWarnings,

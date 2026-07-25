@@ -1,10 +1,10 @@
 import type {
-  Component,
   ResidualBindingTarget,
   ResidualComputation,
   Scenario,
   TaxSettings,
 } from './types';
+import type { TransferTaxComponent } from './acquisition';
 import { computeAcquisitionCosts } from './investering';
 import { computeScenarioOvb } from './ovb';
 
@@ -12,7 +12,7 @@ type ResidualSource = 'componentstrategie' | 'scenario_exit';
 
 export type ComputeResidualInput = {
   scenario: Scenario;
-  components: Component[];
+  components: TransferTaxComponent[];
   taxSettings: TaxSettings | null;
   objectType: 'residentieel' | 'commercieel' | 'mixed_use';
   source: ResidualSource;

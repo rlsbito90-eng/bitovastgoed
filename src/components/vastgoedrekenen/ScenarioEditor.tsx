@@ -30,6 +30,7 @@ import CockpitHeader from './cockpit/CockpitHeader';
 import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRail';
 import ComponentStrategyTable from './ComponentStrategyTable';
 import ComponentenTable from './cockpit/ComponentenTable';
+import AcquisitionComponentsTable from './cockpit/AcquisitionComponentsTable';
 import WwsUnitsTable from './cockpit/WwsUnitsTable';
 import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
 import AuditSidePanel from './cockpit/AuditSidePanel';
@@ -205,7 +206,13 @@ export default function ScenarioEditor(props: Props) {
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
+  const {
+    components, acquisitionComponents, acquisitionUnitLinks, costs, wwsUnits, sellOffUnits,
+    loading: childrenLoading, refetch, upsertOutput,
+    createAcquisitionComponent, updateAcquisitionComponent, deleteAcquisitionComponent, setAcquisitionComponentLinks,
+    createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,
+  } = useScenarioChildren(s.id);
+  const hasSeparateAcquisitionStructure = acquisitionComponents.length > 0;
 
   // Selectie + bulk-fill state voor WWS-units (UX-helpers, geen rekenlogica).
   const [selectedWwsIds, setSelectedWwsIds] = useState<Set<string>>(new Set());
@@ -232,7 +239,7 @@ export default function ScenarioEditor(props: Props) {
 
   const outputs = useMemo(() => computeScenario({
     scenario: s,
-    components, costs: draftCosts, wwsUnits,
+    components, acquisitionComponents, costs: draftCosts, wwsUnits,
     strategyUnits: sellOffUnits,
     taxSettings,
     objectType,
@@ -241,13 +248,13 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  }), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
-    scenario: s, components, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
+    scenario: s, components, acquisitionComponents, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel, dirty,
-  }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
+  }), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
 
   const reliabilityAssessment = useMemo(() => assessInputReliability({
     scenario: s,
@@ -1138,7 +1145,7 @@ export default function ScenarioEditor(props: Props) {
                   </Select>
                 </MobileFieldGroup>
                 <div className="rounded-md border bg-muted/30 p-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Berekende OVB</p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Totale berekende OVB</p>
                   <p className="text-sm font-semibold font-mono-data">{fmtEur(outputs.totalTransferTax)}</p>
                 </div>
 
@@ -1151,7 +1158,9 @@ export default function ScenarioEditor(props: Props) {
                 )}
                 {ovbMode === 'per_component' && (
                   <div className="col-span-full rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
-                    OVB wordt over de actuele aankoopprijs bij verkrijging berekend. Verdeel die aankoopprijs in Componenten/units op basis van de huidige staat. Toekomstige strategiewaarden zijn alleen een expliciete, indicatieve verdeelsleutel.
+                    OVB wordt over de actuele aankoopprijs bij verkrijging berekend. {hasSeparateAcquisitionStructure
+                      ? `De aparte verkrijgingsstructuur met ${acquisitionComponents.length} huidig(e) deel/delen is leidend; toekomstige strategie-units bepalen de OVB niet.`
+                      : 'Er is nog geen aparte verkrijgingsstructuur. OVB valt daarom tijdelijk terug op de bestaande projectcomponenten.'}
                   </div>
                 )}
 
@@ -1810,17 +1819,30 @@ export default function ScenarioEditor(props: Props) {
             <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} {...sectionProps('sec-componenten')} source="Componenten" relevance={compRelevance}>
 
               <div className="pt-3 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <p className="text-xs text-muted-foreground max-w-xl">
-                    Gebruik componenten wanneer een object uit meerdere delen bestaat. Componenten werken door in huur, WWS, OVB per component, uitpondanalyse en prijs per m².
-                  </p>
-                  <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
-                </div>
+                 {ovbMode === 'per_component' && (
+                   <AcquisitionComponentsTable
+                     components={acquisitionComponents}
+                     links={acquisitionUnitLinks}
+                     strategyUnits={sellOffUnits}
+                     ovbPerComponent={outputs.ovbPerComponent}
+                     purchasePrice={Number(s.purchase_price ?? 0)}
+                     onCreate={createAcquisitionComponent}
+                     onUpdate={updateAcquisitionComponent}
+                     onDelete={deleteAcquisitionComponent}
+                     onSetLinks={setAcquisitionComponentLinks}
+                   />
+                 )}
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t pt-3">
+                   <p className="text-xs text-muted-foreground max-w-xl">
+                     Projectcomponenten/rekenunits werken door in huur, WWS, toekomstige strategie, ontwikkelkosten en prijs per m². Zodra een aparte verkrijgingsstructuur bestaat, worden deze units niet meer voor OVB gebruikt.
+                   </p>
+                   <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Projectcomponent</Button>
+                 </div>
                 {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
                 <ComponentenTable
                   components={components}
-                  ovbPerComponent={outputs.ovbPerComponent}
-                  ovbMode={ovbMode}
+                   ovbPerComponent={hasSeparateAcquisitionStructure ? [] : outputs.ovbPerComponent}
+                   ovbMode={hasSeparateAcquisitionStructure ? 'auto' : ovbMode}
                   sellOffUnitsCount={sellOffUnits.length}
                   updateComponent={updateComponent}
                   deleteComponent={deleteComponent}
@@ -1836,8 +1858,7 @@ export default function ScenarioEditor(props: Props) {
               <ComponentStrategyTable
                 units={sellOffUnits}
                 components={components}
-                asking={s.asking_price}
-                onCreate={createStrategyUnit}
+                 onCreate={createStrategyUnit}
                 onUpdate={updateStrategyUnit}
                 onDelete={deleteStrategyUnit}
                 onImport={importStrategyFromComponents}

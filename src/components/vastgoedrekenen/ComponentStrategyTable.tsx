@@ -27,7 +27,6 @@ import { Chip } from './cockpit/tableShared';
 type Props = {
   units: SellOffUnit[];
   components: Component[];
-  asking: number | null | undefined;
   onCreate: (patch?: Record<string, unknown>) => Promise<unknown>;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -43,10 +42,11 @@ function num(v: unknown): number | null | undefined {
   return Number.isFinite(n) ? n : null;
 }
 
-function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate, onDelete, onImport }: Props) {
+function ComponentStrategyTable({ units, components, onCreate, onUpdate, onDelete, onImport }: Props) {
   const totals = useMemo(() => aggregateStrategy(units), [units]);
   const hasUnits = units.length > 0;
-  const askingPrice = Number(asking ?? 0);
+  const hasSale = totals.grossDevelopmentValue > totals.holdValue;
+  const hasHold = totals.holdValue > 0;
   const [bulkOpen, setBulkOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -137,14 +137,11 @@ function ComponentStrategyTable({ units, components, asking, onCreate, onUpdate,
 
       {hasUnits && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Tile label="Behoudwaarde" value={fmtEur(totals.holdValue)} />
-          <Tile label="Netto verkoopopbrengst" value={fmtEur(totals.netSaleProceeds)} />
+          {hasSale && <Tile label="Bruto verkoopwaarde" value={fmtEur(totals.grossDevelopmentValue - totals.holdValue)} />}
+          {hasSale && <Tile label="Verkoop- en juridische kosten" value={fmtEur(totals.componentDispositionCosts)} />}
+          {hasSale && <Tile label="Netto verkoopopbrengst" value={fmtEur(totals.netSaleProceeds)} />}
+          {hasHold && <Tile label="Behoudwaarde" value={fmtEur(totals.holdValue)} />}
           <Tile label="Totale scenariowaarde" value={fmtEur(totals.scenarioValue)} accent />
-          <Tile
-            label="Verschil met vraagprijs"
-            value={askingPrice > 0 ? `${totals.scenarioValue >= askingPrice ? '+' : '−'} ${fmtEur(Math.abs(totals.scenarioValue - askingPrice))}` : '—'}
-            tone={askingPrice > 0 ? (totals.scenarioValue >= askingPrice ? 'positive' : 'negative') : undefined}
-          />
         </div>
       )}
       {hasUnits && totals.mix && (
