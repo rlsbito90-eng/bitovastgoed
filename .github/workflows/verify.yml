@@ -23,45 +23,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Apply acquisition structure integration
-        id: acquisition_patch
+      - name: Apply acquisition duplication support
+        id: duplication_patch
         shell: bash
         run: |
-          if [ -f scripts/apply_acquisition_structure.py ]; then
-            if [ -f scripts/fix_acquisition_patch_whitespace.py ]; then
-              python3 scripts/fix_acquisition_patch_whitespace.py
-            fi
-            set +e
-            python3 scripts/apply_acquisition_structure.py > acquisition-patch.log 2>&1
-            patch_status=$?
-            set -e
-            cat acquisition-patch.log
-            if [ "$patch_status" -ne 0 ]; then
-              exit "$patch_status"
-            fi
-            rm -f scripts/apply_acquisition_structure.py scripts/fix_acquisition_patch_whitespace.py acquisition-patch.log
+          if [ -f scripts/apply_acquisition_duplication.py ]; then
+            python3 scripts/apply_acquisition_duplication.py
+            rm -f scripts/apply_acquisition_duplication.py
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload acquisition patch log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: acquisition-patch-log
-          path: acquisition-patch.log
-          retention-days: 3
-          if-no-files-found: ignore
-
-      - name: Commit acquisition structure integration
-        if: steps.acquisition_patch.outputs.applied == 'true'
+      - name: Commit acquisition duplication support
+        if: steps.duplication_patch.outputs.applied == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: separate acquisition structure from future units"
+          git commit -m "fix: preserve acquisition structure when duplicating scenarios"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
