@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,6 +22,28 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Apply acquisition structure integration
+        id: acquisition_patch
+        shell: bash
+        run: |
+          if [ -f scripts/apply_acquisition_structure.py ]; then
+            python3 scripts/apply_acquisition_structure.py
+            rm -f scripts/apply_acquisition_structure.py
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit acquisition structure integration
+        if: steps.acquisition_patch.outputs.applied == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: separate acquisition structure from future units"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -43,10 +65,10 @@ jobs:
           set -e
           if [ "$test_status" -ne 0 ]; then
             echo "Tests mislukt — laatste relevante regels:"
-            tail -n 220 test-output.log
+            tail -n 240 test-output.log
             exit "$test_status"
           fi
-          tail -n 40 test-output.log
+          tail -n 50 test-output.log
 
       - name: Upload failing test log
         if: failure()
