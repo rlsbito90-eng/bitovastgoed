@@ -23,26 +23,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Apply visible OVB workflow patch
-        id: c4_patch
+      - name: Apply adaptive desktop layout patch
+        id: c5_patch
         shell: bash
         run: |
-          if [ -f scripts/apply_c4_ovb_workflow.py ]; then
-            python3 scripts/apply_c4_ovb_workflow.py
-            rm -f scripts/apply_c4_ovb_workflow.py
+          if [ -f scripts/apply_c5_layout.py ]; then
+            python3 scripts/apply_c5_layout.py
+            rm -f scripts/apply_c5_layout.py
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit OVB workflow patch
-        if: steps.c4_patch.outputs.applied == 'true'
+      - name: Commit adaptive desktop layout
+        if: steps.c5_patch.outputs.applied == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: make OVB per component a visible workflow"
+          git commit -m "feat: give scenario inputs more desktop space"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
