@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,52 +22,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Apply workflow and acquisition OVB correction
-        id: workflow_ovb_patch
-        shell: bash
-        run: |
-          if [ -f scripts/apply_workflow_ovb_acquisition_fix.py ]; then
-            python3 - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/apply_workflow_ovb_acquisition_fix.py')
-          source = path.read_text()
-          source = source.replace('\n""\n)\n\nui_test_path', '\n"""\n)\n\nui_test_path', 1)
-          source = source.replace("\n\"\"\n)\n", "\n\"\"\"\n)\n", 1)
-          path.write_text(source)
-          PY
-            set +e
-            python3 scripts/apply_workflow_ovb_acquisition_fix.py > workflow-ovb-patch.log 2>&1
-            patch_status=$?
-            set -e
-            cat workflow-ovb-patch.log
-            if [ "$patch_status" -ne 0 ]; then
-              exit "$patch_status"
-            fi
-            rm -f scripts/apply_workflow_ovb_acquisition_fix.py workflow-ovb-patch.log
-            echo "applied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "applied=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload workflow OVB patch log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: workflow-ovb-patch-log
-          path: workflow-ovb-patch.log
-          retention-days: 3
-          if-no-files-found: ignore
-
-      - name: Commit workflow and OVB correction
-        if: steps.workflow_ovb_patch.outputs.applied == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: align workflow status and OVB with acquisition state"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
