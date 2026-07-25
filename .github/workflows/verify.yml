@@ -28,6 +28,14 @@ jobs:
         shell: bash
         run: |
           if [ -f scripts/apply_workflow_ovb_acquisition_fix.py ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_workflow_ovb_acquisition_fix.py')
+          source = path.read_text()
+          source = source.replace('\n""\n)\n\nui_test_path', '\n"""\n)\n\nui_test_path', 1)
+          source = source.replace("\n\"\"\n)\n", "\n\"\"\"\n)\n", 1)
+          path.write_text(source)
+          PY
             set +e
             python3 scripts/apply_workflow_ovb_acquisition_fix.py > workflow-ovb-patch.log 2>&1
             patch_status=$?
