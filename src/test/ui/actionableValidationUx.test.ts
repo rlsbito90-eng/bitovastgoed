@@ -19,6 +19,8 @@ describe('actiegerichte validatie-UX', () => {
     const editor = source('src/components/vastgoedrekenen/ScenarioEditor.tsx');
     expect(list).toContain('onAction?.(action)');
     expect(list).toContain('action.openTarget');
+    expect(list).toContain('item.details && item.details.length > 0');
+    expect(list).toContain('Waarom gemeld');
     expect(editor).toContain('navigateToValidationAction');
     expect(editor).toContain('id={`cost-${c.id}`}');
   });

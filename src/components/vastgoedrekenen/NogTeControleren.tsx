@@ -42,6 +42,25 @@ function ItemList({
                 <span className="block mt-0.5 leading-relaxed">{item.message}</span>
               </span>
             </div>
+            {item.details && item.details.length > 0 && (
+              <dl className="mt-2 ml-7 sm:ml-12 overflow-hidden rounded-md border bg-muted/15 divide-y divide-border/60">
+                {item.details.map((detail, detailIndex) => (
+                  <div key={`${detail.label}-${detailIndex}`} className="grid grid-cols-1 gap-0.5 px-2.5 py-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-3">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{detail.label}</dt>
+                    <dd className={`min-w-0 text-[11px] leading-snug ${
+                      detail.tone === 'warning'
+                        ? 'text-amber-900 dark:text-amber-200'
+                        : detail.tone === 'info'
+                          ? 'text-primary'
+                          : 'text-foreground'
+                    }`}>
+                      <span className="block break-words">{detail.value}</span>
+                      {detail.note && <span className="mt-0.5 block break-words text-[10px] text-muted-foreground">{detail.note}</span>}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
             {item.actions && item.actions.length > 0 && (
               <div className="mt-2 ml-12 flex flex-wrap gap-2">
                 {item.actions.map((action) => (

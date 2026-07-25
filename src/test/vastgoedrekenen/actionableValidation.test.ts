@@ -91,13 +91,37 @@ describe('actiegerichte validatie Vastgoedrekenen', () => {
     }));
 
     const item = result.find((entry) => entry.title?.includes('dubbele transformatiekosten'));
-    expect(item?.message).toContain('Centrale transformatieraming');
-    expect(item?.message).toContain('1 component(en)');
+    expect(item?.message).toContain('automatische tekstmatch');
+    expect(item?.message).toContain('geen bevestigde dubbeling');
+    expect(item?.details?.find((detail) => detail.label === 'Algemene kostenpost')?.value).toContain('Centrale transformatieraming');
+    expect(item?.details?.find((detail) => detail.label === 'Componentkosten')?.value).toContain('Piet Heinstraat 89');
+    expect(item?.details?.find((detail) => detail.label === 'Waarom gemeld')?.value).toContain('€ 300.000');
     expect(item?.actions).toHaveLength(2);
     expect(item?.actions?.[1]).toMatchObject({
       targetId: 'strategy-unit-unit-2',
       openTarget: true,
     });
+  });
+
+
+  it('legt per regel vast welk woord de overlapmelding activeerde', () => {
+    const details = findDuplicateDevelopmentCostDetails([
+      cost({
+        id: 'cost-bouw',
+        cost_category: 'Algemene bouwkosten',
+        description: 'Nieuwbouw casco',
+        amount: 250_000,
+        reliability_status: 'hoog',
+      }),
+    ], [
+      unit({ id: 'unit-bouw', unit_label: 'Nieuwbouwdeel', transformation_costs: 400_000 }),
+    ]);
+
+    expect(details).toHaveLength(1);
+    expect(details[0].matchedTerms).toEqual(expect.arrayContaining(['nieuwbouw', 'bouwkosten']));
+    expect(details[0].centralItems[0]).toMatchObject({ id: 'cost-bouw', amount: 250_000 });
+    expect(details[0].componentItems[0]).toMatchObject({ id: 'unit-bouw', amount: 400_000 });
+    expect(details[0].reviewState).toBe('onbeoordeeld');
   });
 
   it('respecteert de handmatige keuze WWS niet nodig', () => {
