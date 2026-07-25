@@ -2,7 +2,15 @@
 // Toont alleen relevante werkstappen prominent; niet-relevante onderdelen staan apart.
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, AlertTriangle, AlertOctagon, CheckCircle2, MinusCircle } from 'lucide-react';
+import {
+  ChevronDown,
+  AlertTriangle,
+  AlertOctagon,
+  CheckCircle2,
+  MinusCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 
 export type RailStatus = 'ok' | 'aandacht' | 'blocker' | 'niet_relevant';
 
@@ -83,6 +91,7 @@ function splitRail(items: RailItem[]) {
 export function SectionRail({ items }: { items: RailItem[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showNotRelevant, setShowNotRelevant] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const { relevant, notRelevant } = useMemo(() => splitRail(items), [items]);
   const relevantSubs = relevant.filter((item) => item.level === 'sub');
   const notRelevantSubs = notRelevant.filter((item) => item.level === 'sub');
@@ -129,59 +138,111 @@ export function SectionRail({ items }: { items: RailItem[] }) {
         )}
       </div>
 
-      {/* Desktop: sticky linker rail */}
-      <aside className="hidden lg:block self-start sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto pr-1">
+      {/* Desktop: sticky en inklapbare linker rail */}
+      <aside className={`hidden lg:block self-start sticky top-[88px] max-h-[calc(100vh-104px)] overflow-y-auto transition-[width] duration-200 ${desktopCollapsed ? 'w-12' : 'w-[220px] xl:w-[240px]'}`}>
         <div className="rounded-xl border border-border/70 bg-card/95 overflow-hidden shadow-[0_1px_2px_0_hsl(var(--shadow-color)/0.04)]">
-          <div className="px-3.5 py-3 border-b border-border/60 bg-gradient-to-b from-muted/40 to-muted/10">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-primary/70 font-semibold">Werkstroom</p>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-[15px] font-semibold font-mono-data tabular-nums text-foreground">{okCount}</span>
-              <span className="text-[11px] text-muted-foreground">/ {relevantSubs.length} compleet</span>
-            </div>
-            <div className="mt-2 h-1 rounded-full bg-muted/70 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-accent/80 to-accent transition-all duration-500"
-                style={{ width: `${pct}%` }}
-                aria-label={`${pct}% compleet`}
-              />
-            </div>
-            {(blockerCount > 0 || warnCount > 0) && (
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                {blockerCount > 0 && <span className="text-destructive font-medium">{blockerCount} blocker{blockerCount === 1 ? '' : 's'}</span>}
-                {blockerCount > 0 && warnCount > 0 && ' · '}
-                {warnCount > 0 && <span className="text-amber-700 dark:text-amber-300 font-medium">{warnCount} aandacht</span>}
-              </p>
-            )}
-          </div>
-
-          <ol className="py-1.5">
-            {relevant.map((item) => (
-              <li key={`relevant-${item.level}-${item.id}-${item.number}`}>
-                <RailButton item={item} />
-              </li>
-            ))}
-          </ol>
-
-          {notRelevantSubs.length > 0 && (
-            <div className="border-t border-border/60">
+          {desktopCollapsed ? (
+            <div className="flex flex-col items-center py-2">
               <button
                 type="button"
-                onClick={() => setShowNotRelevant((value) => !value)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] text-muted-foreground hover:bg-muted/30"
+                onClick={() => setDesktopCollapsed(false)}
+                className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Werkstroom uitklappen"
+                aria-label="Werkstroom uitklappen"
               >
-                <span>Niet relevant ({notRelevantSubs.length})</span>
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showNotRelevant ? 'rotate-180' : ''}`} />
+                <PanelLeftOpen className="h-4 w-4" />
               </button>
-              {showNotRelevant && (
-                <ol className="border-t border-border/50 py-1.5 bg-muted/10">
-                  {notRelevantSubs.map((item) => (
-                    <li key={`not-relevant-${item.id}`}>
-                      <RailButton item={item} />
+              <div className="mb-2 text-center">
+                <div className="text-xs font-semibold font-mono-data">{okCount}/{relevantSubs.length}</div>
+                <div className="text-[9px] text-muted-foreground">gereed</div>
+              </div>
+              <ol className="w-full border-t py-1">
+                {relevantSubs.map((item) => {
+                  const cfg = STATUS_CFG[item.status];
+                  const Icon = cfg.icon;
+                  return (
+                    <li key={`collapsed-${item.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => scrollToId(item.id)}
+                        className="mx-auto flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"
+                        title={`${item.number} ${item.title}${item.hint ? ` — ${item.hint}` : ''}`}
+                        aria-label={`${item.number} ${item.title}`}
+                      >
+                        <Icon className={`h-4 w-4 ${item.status === 'blocker' ? 'text-destructive' : item.status === 'aandacht' ? 'text-amber-600' : 'text-emerald-600'}`} />
+                      </button>
                     </li>
-                  ))}
-                </ol>
-              )}
+                  );
+                })}
+              </ol>
             </div>
+          ) : (
+            <>
+              <div className="px-3.5 py-3 border-b border-border/60 bg-gradient-to-b from-muted/40 to-muted/10">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-primary/70 font-semibold">Werkstroom</p>
+                    <div className="mt-1 flex items-baseline gap-1.5">
+                      <span className="text-[15px] font-semibold font-mono-data tabular-nums text-foreground">{okCount}</span>
+                      <span className="text-[11px] text-muted-foreground">/ {relevantSubs.length} compleet</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDesktopCollapsed(true)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="Werkstroom inklappen"
+                    aria-label="Werkstroom inklappen"
+                  >
+                    <PanelLeftClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="mt-2 h-1 rounded-full bg-muted/70 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-accent/80 to-accent transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                    aria-label={`${pct}% compleet`}
+                  />
+                </div>
+                {(blockerCount > 0 || warnCount > 0) && (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {blockerCount > 0 && <span className="text-destructive font-medium">{blockerCount} blocker{blockerCount === 1 ? '' : 's'}</span>}
+                    {blockerCount > 0 && warnCount > 0 && ' · '}
+                    {warnCount > 0 && <span className="text-amber-700 dark:text-amber-300 font-medium">{warnCount} aandacht</span>}
+                  </p>
+                )}
+              </div>
+
+              <ol className="py-1.5">
+                {relevant.map((item) => (
+                  <li key={`relevant-${item.level}-${item.id}-${item.number}`}>
+                    <RailButton item={item} />
+                  </li>
+                ))}
+              </ol>
+
+              {notRelevantSubs.length > 0 && (
+                <div className="border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setShowNotRelevant((value) => !value)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] text-muted-foreground hover:bg-muted/30"
+                  >
+                    <span>Niet relevant ({notRelevantSubs.length})</span>
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showNotRelevant ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showNotRelevant && (
+                    <ol className="border-t border-border/50 py-1.5 bg-muted/10">
+                      {notRelevantSubs.map((item) => (
+                        <li key={`not-relevant-${item.id}`}>
+                          <RailButton item={item} />
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </aside>
@@ -203,9 +264,7 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
         <span className={`h-2 w-2 rounded-full shrink-0 ${cfg.dot}`} aria-hidden />
         <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground shrink-0">{item.number}</span>
         <span className="text-[11px] font-medium truncate">{item.title}</span>
-        {item.count != null && item.count > 0 && (
-          <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">{item.count}</span>
-        )}
+        {item.count != null && item.count > 0 && <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">{item.count}</span>}
       </button>
     );
   }
@@ -236,9 +295,7 @@ function RailButton({ item, compact }: { item: RailItem; compact?: boolean }) {
         <span className="block text-[12px] font-medium text-foreground/85 truncate group-hover:text-foreground">{item.title}</span>
         {item.hint && <span className="block text-[10px] text-muted-foreground/80 truncate">{item.hint}</span>}
       </span>
-      {item.count != null && item.count > 0 && (
-        <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0">{item.count}</span>
-      )}
+      {item.count != null && item.count > 0 && <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0">{item.count}</span>}
       <span
         className={`inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wide ${cfg.chip}`}
         aria-label={cfg.label}
