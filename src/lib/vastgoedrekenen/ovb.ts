@@ -203,7 +203,6 @@ export function computeScenarioOvb(
       || p.missingManualAmount
       || p.missingPurchaseBasis
       || p.mixedAllocationMethods
-      || p.usesFutureStrategyAllocation
     )).length;
     return {
       totalOvb: perComponent.reduce((s, x) => s + x.amount, 0),
