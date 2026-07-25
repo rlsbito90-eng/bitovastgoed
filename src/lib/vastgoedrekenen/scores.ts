@@ -1,14 +1,19 @@
 // Scores: inputbetrouwbaarheid, risico, complexiteit, deal score.
 
-import type { Component, Scenario, ScenarioAssessmentType, ScenarioCost, ScenarioScoreLabel, WwsUnit } from './types';
+import type { Component, Scenario, ScenarioAssessmentType, ScenarioCost, ScenarioScoreLabel, SellOffUnit, WwsUnit } from './types';
 import { VR_DEFAULTS } from './defaults';
 import { SALE_FOCUSED_SALE_STRATEGIES, SALE_FOCUSED_STRATEGIES } from './verkoop';
+import { assessInputReliability } from './reliabilityAssessment';
 
 export type ScoreInput = {
   scenario: Scenario;
   components: Component[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
+  strategyUnits?: SellOffUnit[];
+  correctedAnnualRent?: number;
+  saleHasInput?: boolean;
+  ovbMissingBasisCount?: number;
   objectType: 'enkelvoudig' | 'mixed_use';
   barTotalInvestment: number | null;
   hasObjectArea: boolean;
@@ -19,18 +24,17 @@ export type ScoreInput = {
 };
 
 export function computeInputReliability(i: ScoreInput): 'laag' | 'middel' | 'hoog' {
-  let score = 0;
-  if (i.scenario.purchase_price) score++;
-  if (i.hasObjectArea) score++;
-  if ((i.scenario.current_monthly_rent ?? 0) > 0 || (i.scenario.market_monthly_rent ?? 0) > 0) score++;
-  if (i.hasWoz) score++;
-  if (i.hasEnergyLabel) score++;
-  if (i.hasBouwjaar) score++;
-  if (i.costs.length > 0) score++;
-  if (i.objectType === 'enkelvoudig' || i.components.length > 0) score++;
-  if (score >= 7) return 'hoog';
-  if (score >= 4) return 'middel';
-  return 'laag';
+  return assessInputReliability({
+    scenario: i.scenario,
+    components: i.components,
+    costs: i.costs,
+    wwsUnits: i.wwsUnits,
+    strategyUnits: i.strategyUnits ?? [],
+    objectType: i.objectType,
+    correctedAnnualRent: Number(i.correctedAnnualRent ?? 0),
+    saleHasInput: Boolean(i.saleHasInput),
+    ovbMissingBasisCount: Number(i.ovbMissingBasisCount ?? 0),
+  }).level;
 }
 
 export function computeRiskScore(i: ScoreInput): { level: 'laag' | 'middel' | 'hoog'; flags: string[] } {

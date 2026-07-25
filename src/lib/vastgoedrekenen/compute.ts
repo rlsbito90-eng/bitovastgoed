@@ -228,6 +228,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   // --- Scores ---
   const scoreInput = {
     scenario, components, costs, wwsUnits, objectType,
+    strategyUnits: ctx.strategyUnits ?? [],
+    correctedAnnualRent: correctedAnnual,
+    saleHasInput: reportedSaleHasInput,
+    ovbMissingBasisCount: ovb.missingBasisCount,
     barTotalInvestment: barTotal,
     hasObjectArea: !!objectArea && objectArea > 0,
     hasWoz: !!ctx.objectWoz,

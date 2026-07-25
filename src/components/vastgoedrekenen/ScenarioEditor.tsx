@@ -19,6 +19,7 @@ import {
   type AssumptionProfileKey, type PropertyAssumptionType,
 } from '@/lib/vastgoedrekenen/profiles';
 import { buildNogTeControleren, buildAannameWaarschuwingen, type ValidationAction } from '@/lib/vastgoedrekenen/validation';
+import { assessInputReliability } from '@/lib/vastgoedrekenen/reliabilityAssessment';
 import HelpTooltip from './HelpTooltip';
 import BerekeningUitleg from './BerekeningUitleg';
 import RekenbasisBar from './RekenbasisBar';
@@ -32,6 +33,7 @@ import ComponentenTable from './cockpit/ComponentenTable';
 import WwsUnitsTable from './cockpit/WwsUnitsTable';
 import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
 import AuditSidePanel from './cockpit/AuditSidePanel';
+import BetrouwbaarheidsOpbouw from './BetrouwbaarheidsOpbouw';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { computeCostBreakdown, VAT_TREATMENT_LABELS, type VatTreatment } from '@/lib/vastgoedrekenen/investering';
@@ -246,6 +248,18 @@ export default function ScenarioEditor(props: Props) {
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel, dirty,
   }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
+
+  const reliabilityAssessment = useMemo(() => assessInputReliability({
+    scenario: s,
+    components,
+    costs: draftCosts,
+    wwsUnits,
+    strategyUnits: sellOffUnits,
+    objectType,
+    correctedAnnualRent: outputs.correctedAnnualRent,
+    saleHasInput: outputs.saleHasInput,
+    ovbMissingBasisCount: outputs.ovbMissingBasisCount,
+  }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, outputs.correctedAnnualRent, outputs.saleHasInput, outputs.ovbMissingBasisCount]);
 
   const aannameWaarschuwingen = useMemo(() => buildAannameWaarschuwingen({
     scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
@@ -1918,6 +1932,7 @@ export default function ScenarioEditor(props: Props) {
             />
             <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} {...sectionProps('sec-onderbouwing')} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
+                <BetrouwbaarheidsOpbouw assessment={reliabilityAssessment} onAction={navigateToValidationAction} />
                 <p className="text-xs text-muted-foreground">De concrete herstelacties staan bovenaan het scenario. Gebruik daar “Ga naar…” om direct naar de juiste invoer te springen.</p>
                 {manualZeroSet.size > 0 && (
                   <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
