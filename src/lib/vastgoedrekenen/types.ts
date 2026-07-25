@@ -75,6 +75,8 @@ export type OvbPerComponentDiag = {
   usesFutureStrategyAllocation: boolean;
   /** Meerdere automatische verdeelmethoden door elkaar maken de componenttoerekening onbetrouwbaar. */
   mixedAllocationMethods: boolean;
+  /** Mixed-use is geen eindtarief: maak afzonderlijke fiscale verkrijgingsregels. */
+  requiresSplit: boolean;
 };
 
 export type ComputedOutputs = {
@@ -187,7 +189,7 @@ export type ComputedOutputs = {
   leadingMaxBasisLabel: string;
   /** Leidende maximale aankoopprijs (strategie als actief, anders maximumBid). */
   leadingMaxValue: number;
-  /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraag). */
+  /** Verschil leidende waarde − vraagprijs (positief = ruimte boven vraagprijs). */
   leadingDifferenceWithAskingPrice: number;
   /** Rond te rekenen op vraagprijs volgens het LEIDENDE spoor (asking==0 → null). */
   leadingRoundsAtAsking: boolean | null;
