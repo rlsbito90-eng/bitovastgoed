@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,6 +22,28 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Apply acquisition mixed-use types
+        id: acquisition_type_patch
+        shell: bash
+        run: |
+          if [ -f scripts/apply_acquisition_mixed_use_types.py ]; then
+            python3 scripts/apply_acquisition_mixed_use_types.py
+            rm -f scripts/apply_acquisition_mixed_use_types.py
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit acquisition mixed-use types
+        if: steps.acquisition_type_patch.outputs.applied == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add mixed-use acquisition property types"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
