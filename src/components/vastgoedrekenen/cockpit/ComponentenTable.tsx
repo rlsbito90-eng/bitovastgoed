@@ -67,7 +67,14 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
   const totalOvb = perComp ? ovbPerComponent.reduce((s, d) => s + Number(d.amount ?? 0), 0) : 0;
   const woon = components.filter((c) => isWoonComponentType(c.component_type)).length;
   const comm = components.length - woon;
-  const incompleteOvb = perComp ? ovbPerComponent.filter((d) => d.missingValueBasis || d.missingStrategyBasis || d.missingManualAmount) : [];
+  const incompleteOvb = perComp ? ovbPerComponent.filter((d) => (
+    d.missingValueBasis
+    || d.missingStrategyBasis
+    || d.missingManualAmount
+    || d.missingPurchaseBasis
+    || d.mixedAllocationMethods
+    || d.usesFutureStrategyAllocation
+  )) : [];
   const warnings = incompleteOvb.length;
 
   const { totalValue, avgEurPerM2 } = useMemo(() => {
@@ -123,7 +130,7 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                 <h4 className="text-sm font-semibold">OVB per component</h4>
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Controleer per component de waardegrondslag, classificatie en toerekeningsmethode. Klik een component om de OVB-invoer direct te openen.
+                De OVB wordt berekend over de actuele aankoopprijs bij verkrijging. Componentwaarden zijn alleen verdeelsleutels voor die aankoopprijs; toekomstige eindwaarden zijn geen fiscale grondslag.
               </p>
             </div>
             <div className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-medium ${warnings > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'}`}>
@@ -132,22 +139,35 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 text-[11px]">
-            <WorkflowStep number="1" label="Waardegrondslag" text="Toegerekende waarde, m²-verdeling, componentstrategie of handmatig bedrag." />
-            <WorkflowStep number="2" label="Classificatie" text="Woning, hoofdverblijf of niet-woning per component." />
-            <WorkflowStep number="3" label="Tarief" text="Automatisch tarief of alleen bij uitzondering een onderbouwde override." />
-            <WorkflowStep number="4" label="Controle" text="Grondslag × tarief moet aansluiten op het berekende OVB-bedrag." />
+            <WorkflowStep number="1" label="Aankoopbasis" text="Vul eerst vraagprijs of beoogde aankoopprijs in; zonder aankoopbasis blijft OVB € 0." />
+            <WorkflowStep number="2" label="Verdeling huidige staat" text="Gebruik huidige componentwaarden bij verkrijging, een externe verdeling of indicatief m²." />
+            <WorkflowStep number="3" label="Classificatie en tarief" text="Woning of niet-woning per component; override alleen onderbouwd." />
+            <WorkflowStep number="4" label="Controle" text="De verdeelde grondslagen moeten samen aansluiten op de actuele aankoopprijs." />
           </div>
 
           <div className="rounded-md border bg-background/80 divide-y divide-border/60">
             {components.map((component, index) => {
               const diag = ovbPerComponent.find((item) => item.id === component.id) ?? null;
-              const missing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+              const missing = !!diag && (
+                diag.missingValueBasis
+                || diag.missingStrategyBasis
+                || diag.missingManualAmount
+                || diag.missingPurchaseBasis
+                || diag.mixedAllocationMethods
+                || diag.usesFutureStrategyAllocation
+              );
               const identitySurface = Number(component.surface_gbo ?? 0) || Number(component.surface_vvo ?? 0) || Number(component.surface_bvo ?? 0) || null;
               const identity = formatUnitIdentity({ label: component.component_name, type: component.component_type, surface: identitySurface }, index);
               const reason = !diag
                 ? 'Nog geen OVB-berekening beschikbaar.'
-                : diag.missingValueBasis
-                  ? 'Waardegrondslag ontbreekt.'
+                : diag.missingPurchaseBasis
+                  ? 'Actuele aankoopprijs ontbreekt; OVB kan nog niet worden berekend.'
+                  : diag.mixedAllocationMethods
+                    ? 'Meerdere verdeelmethoden door elkaar; kies één consistente methode.'
+                    : diag.usesFutureStrategyAllocation
+                      ? 'Toekomstige strategiewaarde wordt indicatief als verdeelsleutel gebruikt.'
+                      : diag.missingValueBasis
+                  ? 'Huidige waarde bij verkrijging ontbreekt.'
                   : diag.missingStrategyBasis
                     ? 'Waarde uit componentstrategie ontbreekt.'
                     : diag.missingManualAmount
@@ -279,7 +299,14 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
             const identitySurface = Number(c.surface_gbo ?? 0) || Number(c.surface_vvo ?? 0) || Number(c.surface_bvo ?? 0) || null;
             const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: identitySurface }, idx);
             const diag = perComp ? ovbPerComponent.find((p) => p.id === c.id) : null;
-            const ovbMissing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+            const ovbMissing = !!diag && (
+    diag.missingValueBasis
+    || diag.missingStrategyBasis
+    || diag.missingManualAmount
+    || diag.missingPurchaseBasis
+    || diag.mixedAllocationMethods
+    || diag.usesFutureStrategyAllocation
+  );
             const readOnly = !editMode;
             const v = componentValueFor(c, diag ?? null);
             const gbo = Number(c.surface_gbo ?? 0);
@@ -326,7 +353,7 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                   )}
                   {perComp && (
                     <div className="border-t pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <DrawerField label="Toegerekende waarde (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></DrawerField>
+                      <DrawerField label="Huidige componentwaarde bij verkrijging (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(c.allocated_component_value)} onCommit={(raw) => updateComponent(c.id, { allocated_component_value: parseRawNumber(raw) })} /></DrawerField>
                       <DrawerField label="OVB-classificatie">
                         <Select value={c.transfer_tax_classification ?? 'woning_belegging'} onValueChange={(value) => updateComponent(c.id, { transfer_tax_classification: value as Component['transfer_tax_classification'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
@@ -337,10 +364,10 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                         <Select value={c.transfer_tax_allocation_method ?? 'value'} onValueChange={(value) => updateComponent(c.id, { transfer_tax_allocation_method: value as Component['transfer_tax_allocation_method'] })} disabled={readOnly}>
                           <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="value">Op waarde (handmatige toerekening)</SelectItem>
-                            <SelectItem value="m2">Op m² (verdeling vraagprijs)</SelectItem>
-                            <SelectItem value="strategy" disabled={sellOffUnitsCount === 0}>Uit componentstrategie{sellOffUnitsCount === 0 ? ' — geen units' : ''}</SelectItem>
-                            <SelectItem value="manual">Handmatig bedrag</SelectItem>
+                            <SelectItem value="value">Huidige waarden bij verkrijging (aanbevolen)</SelectItem>
+                            <SelectItem value="m2">Indicatief op m² van huidige staat</SelectItem>
+                            <SelectItem value="strategy" disabled={sellOffUnitsCount === 0}>Toekomstige strategiewaarde — indicatief{sellOffUnitsCount === 0 ? ' — geen units' : ''}</SelectItem>
+                            <SelectItem value="manual">Handmatig OVB-bedrag</SelectItem>
                           </SelectContent>
                         </Select>
                       </DrawerField>
@@ -354,9 +381,12 @@ function ComponentenTable({ components, ovbPerComponent, ovbMode, sellOffUnitsCo
                       grondslag <span className="font-mono-data">€ {diag.basisValue.toLocaleString('nl-NL')}</span> ·{' '}
                       {diag.pct.toFixed(2)}% ·{' '}
                       bedrag <span className="font-mono-data">€ {diag.amount.toLocaleString('nl-NL')}</span>
-                      {diag.missingValueBasis && <div>⚠ Toegerekende waarde ontbreekt — OVB komt op € 0. Vul "Toegerekende waarde" in, kies "Op m²", "Uit componentstrategie" of voer handmatig bedrag in.</div>}
-                      {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden — koppel het component aan een sell_off_unit of kies een andere methode.</div>}
-                      {diag.missingManualAmount && <div>⚠ Handmatig bedrag niet ingevuld — OVB komt op € 0.</div>}
+                      {diag.missingPurchaseBasis && <div>⚠ Actuele aankoopbasis ontbreekt — vul vraagprijs of beoogde aankoopprijs in. De OVB blijft hier € 0 totdat die basis aanwezig is.</div>}
+                      {diag.mixedAllocationMethods && <div>⚠ Meerdere automatische verdeelmethoden worden gecombineerd. Kies één consistente methode voor alle componenten.</div>}
+                      {diag.usesFutureStrategyAllocation && <div>⚠ Toekomstige strategiewaarde wordt alleen als indicatieve verdeelsleutel gebruikt. Controleer de verdeling op basis van de huidige staat bij verkrijging.</div>}
+                      {diag.missingValueBasis && <div>⚠ Huidige componentwaarde bij verkrijging ontbreekt — vul deze waarde in of kies indicatief m².</div>}
+                      {diag.missingStrategyBasis && <div>⚠ Geen waarde uit componentstrategie gevonden — koppel het component of kies een huidige-staatmethode.</div>}
+                      {diag.missingManualAmount && <div>⚠ Handmatig OVB-bedrag niet ingevuld — OVB komt op € 0.</div>}
                     </div>
                   )}
                 </div>
@@ -422,7 +452,14 @@ function ComponentRow({ c, idx, perComp, diag, selected, onToggleSelect, onOpen,
 }) {
   const identitySurface = Number(c.surface_gbo ?? 0) || Number(c.surface_vvo ?? 0) || Number(c.surface_bvo ?? 0) || null;
   const ident = formatUnitIdentity({ label: c.component_name, type: c.component_type, surface: identitySurface }, idx);
-  const missing = !!diag && (diag.missingValueBasis || diag.missingStrategyBasis || diag.missingManualAmount);
+  const missing = !!diag && (
+    diag.missingValueBasis
+    || diag.missingStrategyBasis
+    || diag.missingManualAmount
+    || diag.missingPurchaseBasis
+    || diag.mixedAllocationMethods
+    || diag.usesFutureStrategyAllocation
+  );
   const monthly = Number(c.current_monthly_rent ?? 0);
   const markt = Number(c.market_monthly_rent ?? 0);
   const gbo = Number(c.surface_gbo ?? 0);

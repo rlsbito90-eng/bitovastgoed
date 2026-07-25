@@ -477,6 +477,51 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     });
   }
 
+  const purchaseBasis = Number(scenario.purchase_price ?? 0) > 0
+    || Number(scenario.asking_price ?? 0) > 0;
+  if (scenario.ovb_mode !== 'manual' && !purchaseBasis) {
+    out.push({
+      level: 'warning',
+      category: 'now',
+      title: 'Actuele aankoopbasis invullen',
+      message: 'De OVB in Aankoop & investering staat op € 0 omdat zowel de beoogde aankoopprijs als de vraagprijs ontbreekt. De residuele solver kan OVB per kandidaat-koopsom herberekenen, maar de actuele scenario-investering heeft eerst een aankoopbasis nodig.',
+      actions: [{ label: 'Open aankoop & investering', sectionId: 'sec-aankoop' }],
+    });
+  }
+
+  if (scenario.ovb_mode === 'per_component') {
+    const allocationMethods = new Set(
+      components
+        .map((component) => String(component.transfer_tax_allocation_method ?? 'value'))
+        .filter((method) => method !== 'manual'),
+    );
+    if (allocationMethods.size > 1) {
+      out.push({
+        level: 'warning',
+        category: 'now',
+        title: 'Eén OVB-verdeelmethode kiezen',
+        message: 'Er worden meerdere automatische OVB-verdeelmethoden door elkaar gebruikt. Kies één consistente methode voor de verkrijgingssituatie, zodat de totale grondslag exact aansluit op de aankoopprijs.',
+        actions: [{ label: 'Open componenten', sectionId: 'sec-componenten' }],
+      });
+    }
+
+    const strategyAllocated = components.filter((component) => component.transfer_tax_allocation_method === 'strategy');
+    if (strategyAllocated.length > 0) {
+      out.push({
+        level: 'warning',
+        category: 'now',
+        title: 'Toekomstige waarde niet als standaard OVB-verdeling gebruiken',
+        message: `${strategyAllocated.length} component(en) gebruiken de toekomstige strategiewaarde als indicatieve verdeelsleutel. De OVB wordt wel over de aankoopprijs berekend, maar de verdeling moet voor een harde bieding aansluiten op de huidige staat bij verkrijging. Gebruik bij voorkeur huidige componentwaarden of een externe verkrijgingswaardeverdeling.`,
+        actions: [{
+          label: 'Open eerste betreffende component',
+          sectionId: 'sec-componenten',
+          targetId: `componenten-unit-${strategyAllocated[0].id}`,
+          openTarget: true,
+        }],
+      });
+    }
+  }
+
   if (objectType === 'mixed_use' && scenario.ovb_mode !== 'per_component') {
     out.push({
       level: 'warning',

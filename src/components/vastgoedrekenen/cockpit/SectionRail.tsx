@@ -169,7 +169,17 @@ export function SectionRail({ items }: { items: RailItem[] }) {
                         title={`${item.number} ${item.title}${item.hint ? ` — ${item.hint}` : ''}`}
                         aria-label={`${item.number} ${item.title}`}
                       >
-                        <Icon className={`h-4 w-4 ${item.status === 'blocker' ? 'text-destructive' : item.status === 'aandacht' ? 'text-amber-600' : 'text-emerald-600'}`} />
+                        {item.status === 'ok' ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full border px-1 text-[9px] font-semibold font-mono-data ${
+                            item.status === 'blocker'
+                              ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                              : 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-200'
+                          }`}>
+                            {item.number}
+                          </span>
+                        )}
                       </button>
                     </li>
                   );

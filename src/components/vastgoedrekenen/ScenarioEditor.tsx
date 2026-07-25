@@ -857,7 +857,14 @@ export default function ScenarioEditor(props: Props) {
         // Componenten-samenvatting (woningen vs commercieel)
         const compWonen = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement').length;
         const compCommercieel = components.filter((c) => c.component_type && c.component_type !== 'woning' && c.component_type !== 'appartement').length;
-        const compWarnings = outputs.ovbPerComponent.filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount).length;
+        const compWarnings = outputs.ovbPerComponent.filter((p) => (
+          p.missingValueBasis
+          || p.missingStrategyBasis
+          || p.missingManualAmount
+          || p.missingPurchaseBasis
+          || p.mixedAllocationMethods
+          || p.usesFutureStrategyAllocation
+        )).length;
 
         // Strategie netto contributie
         const strategyNet = outputs.scenarioValue || 0;
@@ -884,43 +891,6 @@ export default function ScenarioEditor(props: Props) {
         const scoreStatus = `${outputs.scoreLabel}`;
         const notitiesStatus = s.notes ? '1 notitie' : 'Geen notities';
 
-        // Default open-heuristiek: open bij waarschuwingen/blockers of als de sectie leidend is
-        const aankoopOpen = true; // altijd open — kerninvoer
-        const huurOpen = exploitatie || huurRelevance === 'leidend';
-        const verkoopOpen = verkoop || verkoopRelevance === 'leidend';
-        const kostenOpen = draftCosts.length > 0 || outputs.totalCosts > 0;
-        const compOpen = isMixed || compWarnings > 0 || compRelevance === 'leidend';
-        const wwsOpen = wwsRelevance === 'aandacht';
-        const strategyOpen = strategyActive;
-        const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
-        // Waterfall standaard open bij verkoop/exit-focus of als de strategie leidend is.
-        const waterfallOpen = scenarioExitActive || strategyActive || leadingBasis !== 'huur';
-
-        const defaultOpenMap: Record<SubSectionKey, boolean> = {
-          'sec-resultaat': true,
-          'sec-waterfall': waterfallOpen,
-          'sec-aankoop': aankoopOpen,
-          'sec-huur': huurOpen,
-          'sec-verkoop': verkoopOpen,
-          'sec-kosten': kostenOpen,
-          'sec-componenten': compOpen,
-          'sec-strategie': strategyOpen,
-          'sec-wws': wwsOpen,
-          'sec-onderbouwing': onderbouwingOpen,
-          'sec-score': false,
-          'sec-notities': false,
-        };
-        // Initialiseer controlled open-state één keer per scenario.
-        if (openInitRef.current !== s.id) {
-          openInitRef.current = s.id;
-          setOpenSections(defaultOpenMap);
-        }
-        const sectionProps = (key: SubSectionKey) => ({
-          open: openSections[key] ?? defaultOpenMap[key] ?? false,
-          onOpenChange: (next: boolean) =>
-            setOpenSections((prev) => ({ ...prev, [key]: next })),
-          numberLabel: subNumber(key),
-        });
         const num = (key: SectionKey) => chapterNumber(key);
 
         // Rail-status helper: SectionRelevance + tellingen → RailStatus
@@ -936,20 +906,57 @@ export default function ScenarioEditor(props: Props) {
         const waterfallHint = outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge';
         const resultaatStatus: RailStatus = blockerCount > 0 ? 'blocker' : (warningCount > 0 ? 'aandacht' : 'ok');
 
+        const statusWithActions = (sectionId: SubSectionKey, base: RailStatus): RailStatus => {
+          const sectionIssues = nogTeControleren.filter((item) => (
+            (item.category ?? 'now') === 'now'
+            && item.actions?.some((action) => action.sectionId === sectionId)
+          ));
+          if (sectionIssues.some((item) => item.level === 'blocker')) return 'blocker';
+          if (sectionIssues.some((item) => item.level === 'warning')) return 'aandacht';
+          return base;
+        };
+
         const subMeta: Record<SubSectionKey, { status: RailStatus; hint?: string; count?: number | null }> = {
           'sec-resultaat': { status: resultaatStatus, hint: cockpitStatus },
-          'sec-waterfall': { status: 'ok', hint: waterfallHint },
-          'sec-aankoop': { status: 'ok', hint: aankoopStatus },
-          'sec-huur': { status: relToRailStatus(huurRelevance), hint: huurStatus },
-          'sec-verkoop': { status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          'sec-kosten': { status: 'ok', hint: kostenStatus },
-          'sec-componenten': { status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
-          'sec-strategie': { status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
-          'sec-wws': { status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          'sec-waterfall': { status: statusWithActions('sec-waterfall', 'ok'), hint: waterfallHint },
+          'sec-aankoop': { status: statusWithActions('sec-aankoop', 'ok'), hint: aankoopStatus },
+          'sec-huur': { status: statusWithActions('sec-huur', relToRailStatus(huurRelevance)), hint: huurStatus },
+          'sec-verkoop': { status: statusWithActions('sec-verkoop', relToRailStatus(verkoopRelevance)), hint: verkoopStatus },
+          'sec-kosten': { status: statusWithActions('sec-kosten', 'ok'), hint: kostenStatus },
+          'sec-componenten': { status: statusWithActions('sec-componenten', relToRailStatus(compRelevance, false, compWarnings > 0)), count: components.length, hint: compStatus },
+          'sec-strategie': { status: statusWithActions('sec-strategie', relToRailStatus(strategyRelevance)), count: sellOffUnits.length, hint: strategyStatus },
+          'sec-wws': { status: statusWithActions('sec-wws', relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0)), count: wwsUnits.length, hint: wwsStatus },
           'sec-onderbouwing': { status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
-          'sec-score': { status: 'ok', hint: scoreStatus },
-          'sec-notities': { status: 'ok', hint: notitiesStatus },
+          'sec-score': { status: statusWithActions('sec-score', 'ok'), hint: scoreStatus },
+          'sec-notities': { status: statusWithActions('sec-notities', 'ok'), hint: notitiesStatus },
         };
+
+        // Start rustig: standaard precies één relevante sectie open. Een eerder
+        // handmatig geopende sectie wordt per scenario onthouden.
+        const firstNowIssue = [
+          ...nogTeControleren.filter((item) => (item.category ?? 'now') === 'now' && item.level === 'blocker'),
+          ...nogTeControleren.filter((item) => (item.category ?? 'now') === 'now' && item.level === 'warning'),
+        ].find((item) => item.actions?.some((action) => ALL_SUB_SECTION_KEYS.includes(action.sectionId as SubSectionKey)));
+        const firstIssueSection = firstNowIssue?.actions?.find((action) => ALL_SUB_SECTION_KEYS.includes(action.sectionId as SubSectionKey))?.sectionId as SubSectionKey | undefined;
+        const storageKey = `vastgoedrekenen:last-open-section:${s.id}`;
+        const storedSection = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) as SubSectionKey | null : null;
+        const preferredSection = storedSection && ALL_SUB_SECTION_KEYS.includes(storedSection) && subMeta[storedSection].status !== 'niet_relevant'
+          ? storedSection
+          : firstIssueSection ?? 'sec-resultaat';
+        const defaultOpenMap = buildUniformOpenState(false);
+        defaultOpenMap[preferredSection] = true;
+        if (openInitRef.current !== s.id) {
+          openInitRef.current = s.id;
+          setOpenSections(defaultOpenMap);
+        }
+        const sectionProps = (key: SubSectionKey) => ({
+          open: openSections[key] ?? defaultOpenMap[key] ?? false,
+          onOpenChange: (next: boolean) => {
+            if (next && typeof window !== 'undefined') window.localStorage.setItem(storageKey, key);
+            setOpenSections((prev) => ({ ...prev, [key]: next }));
+          },
+          numberLabel: subNumber(key),
+        });
 
         // Rail items: per hoofdstuk een chapter-header + ingesprongen sub-items.
         const railItems: RailItem[] = [];
@@ -1109,7 +1116,9 @@ export default function ScenarioEditor(props: Props) {
                   </>
                 )}
                 {ovbMode === 'per_component' && (
-                  <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
+                  <div className="col-span-full rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
+                    OVB wordt over de actuele aankoopprijs bij verkrijging berekend. Verdeel die aankoopprijs in Componenten/units op basis van de huidige staat. Toekomstige strategiewaarden zijn alleen een expliciete, indicatieve verdeelsleutel.
+                  </div>
                 )}
 
                 {(() => {

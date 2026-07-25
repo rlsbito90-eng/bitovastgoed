@@ -69,6 +69,12 @@ export type OvbPerComponentDiag = {
   missingValueBasis: boolean;
   missingStrategyBasis: boolean;
   missingManualAmount: boolean;
+  /** De actuele aankoopprijs ontbreekt; er kan nog geen OVB-bedrag worden bepaald. */
+  missingPurchaseBasis: boolean;
+  /** De toekomstige componentstrategie wordt alleen als indicatieve verdeelsleutel gebruikt. */
+  usesFutureStrategyAllocation: boolean;
+  /** Meerdere automatische verdeelmethoden door elkaar maken de componenttoerekening onbetrouwbaar. */
+  mixedAllocationMethods: boolean;
 };
 
 export type ComputedOutputs = {

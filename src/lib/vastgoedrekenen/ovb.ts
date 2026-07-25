@@ -79,6 +79,9 @@ export type OvbPerComponent = {
   missingStrategyBasis: boolean;
   /** True als allocation_method='manual' maar transfer_tax_amount ontbreekt. */
   missingManualAmount: boolean;
+  missingPurchaseBasis: boolean;
+  usesFutureStrategyAllocation: boolean;
+  mixedAllocationMethods: boolean;
 };
 
 export function computeScenarioOvb(
@@ -103,6 +106,18 @@ export function computeScenarioOvb(
 
   if (scenario.ovb_mode === 'per_component' && components.length > 0) {
     const totalArea = components.reduce((s, c) => s + (c.surface_gbo ?? 0), 0);
+    const totalCurrentAcquisitionValue = components.reduce((sum, component) => {
+      const method = String(component.transfer_tax_allocation_method ?? 'value');
+      return method === 'value' || method === 'extern'
+        ? sum + Math.max(0, Number(component.allocated_component_value ?? 0))
+        : sum;
+    }, 0);
+    const automaticMethods = new Set(
+      components
+        .map((component) => String(component.transfer_tax_allocation_method ?? 'value'))
+        .filter((method) => method !== 'manual'),
+    );
+    const mixedAllocationMethods = automaticMethods.size > 1;
     const totalStrategyValue = components.reduce(
       (sum, component) => sum + Math.max(0, strategyValueByComponentId?.get(component.id) ?? 0),
       0,
@@ -122,6 +137,9 @@ export function computeScenarioOvb(
           missingValueBasis: false,
           missingStrategyBasis: false,
           missingManualAmount: !hasAmount,
+          missingPurchaseBasis: false,
+          usesFutureStrategyAllocation: false,
+          mixedAllocationMethods,
         };
       }
 
@@ -129,6 +147,7 @@ export function computeScenarioOvb(
       let basis = 0;
       let missingValueBasis = false;
       let missingStrategyBasis = false;
+      const missingPurchaseBasis = purchase <= 0;
       if (allocMethod === 'm2') {
         if (totalArea > 0 && Number(c.surface_gbo ?? 0) > 0) {
           basis = (purchase * (c.surface_gbo ?? 0)) / totalArea;
@@ -144,12 +163,16 @@ export function computeScenarioOvb(
         } else {
           missingStrategyBasis = true;
         }
-      } else if (allocMethod === 'extern') {
-        basis = Number(c.allocated_component_value ?? 0);
-      } else {
-        // 'value' (default)
-        basis = Number(c.allocated_component_value ?? 0);
-        if (basis <= 0) missingValueBasis = true;
+      } else if (allocMethod === 'extern' || allocMethod === 'value') {
+        // Huidige waarde bij verkrijging is uitsluitend de verdeelsleutel.
+        // De fiscale grondslag blijft de actuele aankoopprijs en telt over alle
+        // componenten op tot die aankoopprijs.
+        const currentValue = Number(c.allocated_component_value ?? 0);
+        if (currentValue > 0 && totalCurrentAcquisitionValue > 0 && purchase > 0) {
+          basis = (purchase * currentValue) / totalCurrentAcquisitionValue;
+        } else {
+          missingValueBasis = currentValue <= 0 || totalCurrentAcquisitionValue <= 0;
+        }
       }
 
       const effectiveClassification = (c.transfer_tax_classification as OvbClassification | null)
@@ -157,7 +180,9 @@ export function computeScenarioOvb(
       const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
         ? Number(c.transfer_tax_percentage)
         : getOvbPercentage(effectiveClassification, settings, null, objectType);
-      const amount = Math.round((basis * pct) / 100);
+      const amount = missingPurchaseBasis || mixedAllocationMethods
+        ? 0
+        : Math.round((basis * pct) / 100);
       return {
         id: c.id,
         amount,
@@ -167,9 +192,19 @@ export function computeScenarioOvb(
         missingValueBasis,
         missingStrategyBasis,
         missingManualAmount: false,
+        missingPurchaseBasis,
+        usesFutureStrategyAllocation: allocMethod === 'strategy',
+        mixedAllocationMethods,
       };
     });
-    const missingBasisCount = perComponent.filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount).length;
+    const missingBasisCount = perComponent.filter((p) => (
+      p.missingValueBasis
+      || p.missingStrategyBasis
+      || p.missingManualAmount
+      || p.missingPurchaseBasis
+      || p.mixedAllocationMethods
+      || p.usesFutureStrategyAllocation
+    )).length;
     return {
       totalOvb: perComponent.reduce((s, x) => s + x.amount, 0),
       perComponent,
