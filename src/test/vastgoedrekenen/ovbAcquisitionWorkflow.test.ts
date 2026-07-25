@@ -50,14 +50,14 @@ describe('OVB op actuele verkrijgingssituatie', () => {
     expect(result.perComponent.every((row) => row.missingPurchaseBasis)).toBe(true);
   });
 
-  it('markeert toekomstige strategiewaarde als indicatieve verdeelsleutel', () => {
+  it('markeert toekomstige strategiewaarde als indicatieve verdeelsleutel zonder ontbrekende grondslag', () => {
     const result = computeScenarioOvb(scenario(), [
       component('a', { transfer_tax_allocation_method: 'strategy' }),
       component('b', { transfer_tax_allocation_method: 'strategy' }),
     ], null, 'mixed_use', new Map([['a', 700_000], ['b', 300_000]]));
 
     expect(result.perComponent.every((row) => row.usesFutureStrategyAllocation)).toBe(true);
-    expect(result.missingBasisCount).toBe(2);
+    expect(result.missingBasisCount).toBe(0);
     expect(result.perComponent.reduce((sum, row) => sum + row.basisValue, 0)).toBe(1_000_000);
   });
 
