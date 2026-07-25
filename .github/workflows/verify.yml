@@ -28,6 +28,9 @@ jobs:
         shell: bash
         run: |
           if [ -f scripts/apply_acquisition_structure.py ]; then
+            if [ -f scripts/fix_acquisition_patch_whitespace.py ]; then
+              python3 scripts/fix_acquisition_patch_whitespace.py
+            fi
             set +e
             python3 scripts/apply_acquisition_structure.py > acquisition-patch.log 2>&1
             patch_status=$?
@@ -36,7 +39,7 @@ jobs:
             if [ "$patch_status" -ne 0 ]; then
               exit "$patch_status"
             fi
-            rm -f scripts/apply_acquisition_structure.py acquisition-patch.log
+            rm -f scripts/apply_acquisition_structure.py scripts/fix_acquisition_patch_whitespace.py acquisition-patch.log
             echo "applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "applied=false" >> "$GITHUB_OUTPUT"
