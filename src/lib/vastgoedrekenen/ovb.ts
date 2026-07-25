@@ -58,6 +58,8 @@ export function getOvbPercentage(
     case 'eigen_woning': return Number(s.transfer_tax_primary_residence_percentage);
     case 'woning_belegging': return Number(s.transfer_tax_residential_investment_percentage);
     case 'niet_woning': return Number(s.transfer_tax_non_residential_percentage);
+    // Scenario-level mixed-use blijft backwards-compatible. Bij OVB per component
+    // wordt mixed-use hieronder expliciet geblokkeerd en moet de gebruiker splitsen.
     case 'mixed_use': return Number(s.transfer_tax_non_residential_percentage);
     default:
       if (objectType === 'commercieel') return Number(s.transfer_tax_non_residential_percentage);
@@ -83,6 +85,8 @@ export type OvbPerComponent = {
   missingPurchaseBasis: boolean;
   usesFutureStrategyAllocation: boolean;
   mixedAllocationMethods: boolean;
+  /** Mixed-use is geen zelfstandig tarief; deze rij moet worden uitgesplitst. */
+  requiresSplit: boolean;
 };
 
 export function computeScenarioOvb(
@@ -141,6 +145,7 @@ export function computeScenarioOvb(
           missingPurchaseBasis: false,
           usesFutureStrategyAllocation: false,
           mixedAllocationMethods,
+          requiresSplit: false,
         };
       }
 
@@ -178,10 +183,13 @@ export function computeScenarioOvb(
 
       const effectiveClassification = (c.transfer_tax_classification as OvbClassification | null)
         ?? inferOvbClassificationFromComponentType(c.component_type);
-      const pct = c.transfer_tax_manual_override && c.transfer_tax_percentage != null
-        ? Number(c.transfer_tax_percentage)
-        : getOvbPercentage(effectiveClassification, settings, null, objectType);
-      const amount = missingPurchaseBasis || mixedAllocationMethods
+      const requiresSplit = effectiveClassification === 'mixed_use';
+      const pct = requiresSplit
+        ? 0
+        : c.transfer_tax_manual_override && c.transfer_tax_percentage != null
+          ? Number(c.transfer_tax_percentage)
+          : getOvbPercentage(effectiveClassification, settings, null, objectType);
+      const amount = missingPurchaseBasis || mixedAllocationMethods || requiresSplit
         ? 0
         : Math.round((basis * pct) / 100);
       return {
@@ -196,6 +204,7 @@ export function computeScenarioOvb(
         missingPurchaseBasis,
         usesFutureStrategyAllocation: allocMethod === 'strategy',
         mixedAllocationMethods,
+        requiresSplit,
       };
     });
     // Rond componentgrondslagen af zonder dat de som € 1 afwijkt van de aankoopprijs.
@@ -211,7 +220,7 @@ export function computeScenarioOvb(
         const last = perComponent[lastIndex];
         const adjustedBasis = Math.max(0, last.basisValue + difference);
         perComponent = perComponent.map((row, index) => index === lastIndex
-          ? { ...row, basisValue: adjustedBasis, amount: Math.round((adjustedBasis * row.pct) / 100) }
+          ? { ...row, basisValue: adjustedBasis, amount: row.requiresSplit ? 0 : Math.round((adjustedBasis * row.pct) / 100) }
           : row);
       }
     }
@@ -222,6 +231,7 @@ export function computeScenarioOvb(
       || p.missingManualAmount
       || p.missingPurchaseBasis
       || p.mixedAllocationMethods
+      || p.requiresSplit
     )).length;
     return {
       totalOvb: perComponent.reduce((s, x) => s + x.amount, 0),
