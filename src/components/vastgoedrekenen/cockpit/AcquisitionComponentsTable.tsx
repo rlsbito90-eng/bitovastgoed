@@ -8,9 +8,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RawNumberInput, RawTextInput, RawTextarea, numberToRaw, parseRawNumber } from '../RawInputs';
 import { fmtEur, fmtM2 } from '../format';
-import { VR_COMPONENT_LABELS, VR_OVB_CLASSIFICATION_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { VR_OVB_CLASSIFICATION_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import type { ComputedOutputs, SellOffUnit } from '@/lib/vastgoedrekenen/types';
-import type { AcquisitionComponent, AcquisitionStructureStatus, AcquisitionUnitLink } from '@/lib/vastgoedrekenen/acquisition';
+import { ACQUISITION_COMPONENT_TYPE_LABELS, type AcquisitionComponent, type AcquisitionStructureStatus, type AcquisitionUnitLink } from '@/lib/vastgoedrekenen/acquisition';
 
 const ALLOCATION_LABELS: Record<AcquisitionComponent['transfer_tax_allocation_method'], string> = {
   value: 'Huidige waarden bij verkrijging',
@@ -174,7 +174,7 @@ export default function AcquisitionComponentsTable({
                       onClick={() => setOpenId(component.id)}
                     >
                       <TableCell className="font-medium">{component.component_name}</TableCell>
-                      <TableCell>{VR_COMPONENT_LABELS[component.component_type] ?? component.component_type}</TableCell>
+                      <TableCell>{ACQUISITION_COMPONENT_TYPE_LABELS[component.component_type] ?? component.component_type}</TableCell>
                       <TableCell className="font-mono-data">{componentSurface(component)}</TableCell>
                       <TableCell>{linkedIds.length > 0 ? `${linkedIds.length} unit(s)` : 'Geen koppeling'}</TableCell>
                       <TableCell>{ALLOCATION_LABELS[component.transfer_tax_allocation_method]}</TableCell>
@@ -237,7 +237,7 @@ export default function AcquisitionComponentsTable({
                     <Field label="Huidig type">
                       <Select value={openComponent.component_type} onValueChange={(value) => onUpdate(openComponent.id, { component_type: value as AcquisitionComponent['component_type'] })}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>{Object.entries(VR_COMPONENT_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                        <SelectContent>{Object.entries(ACQUISITION_COMPONENT_TYPE_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
                       </Select>
                     </Field>
                     <Field label="Locatie / omschrijving">

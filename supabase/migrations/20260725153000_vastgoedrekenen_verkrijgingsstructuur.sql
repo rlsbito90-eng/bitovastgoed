@@ -18,7 +18,9 @@ create table if not exists public.calculation_acquisition_components (
       'woning', 'appartement', 'studio', 'kamer',
       'winkelruimte', 'kantoorruimte', 'bedrijfsruimte', 'bedrijfsunit',
       'opslagruimte', 'kelder', 'parkeerplaats', 'garagebox', 'berging',
-      'horeca', 'maatschappelijk', 'ontwikkelgrond', 'overig'
+      'horeca', 'maatschappelijk', 'ontwikkelgrond',
+      'woon_winkelpand', 'woon_kantoorpand', 'woon_bedrijfspand',
+      'winkel_kantoorpand', 'mixed_use', 'mixed_use_overig', 'overig'
     )),
   floor_or_location text null,
   surface_gbo numeric null check (surface_gbo is null or surface_gbo >= 0),

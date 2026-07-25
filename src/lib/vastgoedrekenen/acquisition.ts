@@ -1,5 +1,33 @@
 import type { Component, SellOffUnit } from './types';
 
+export const ACQUISITION_COMPONENT_TYPE_LABELS = {
+  woning: 'Woning',
+  appartement: 'Appartement',
+  studio: 'Studio',
+  kamer: 'Kamer',
+  winkelruimte: 'Winkelruimte',
+  kantoorruimte: 'Kantoorruimte',
+  bedrijfsruimte: 'Bedrijfsruimte',
+  bedrijfsunit: 'Bedrijfsunit',
+  opslagruimte: 'Opslagruimte',
+  kelder: 'Kelder',
+  parkeerplaats: 'Parkeerplaats',
+  garagebox: 'Garagebox',
+  berging: 'Berging',
+  horeca: 'Horeca',
+  maatschappelijk: 'Maatschappelijk',
+  ontwikkelgrond: 'Ontwikkelgrond',
+  woon_winkelpand: 'Woon-winkelpand',
+  woon_kantoorpand: 'Woon-kantoorpand',
+  woon_bedrijfspand: 'Woon-bedrijfspand',
+  winkel_kantoorpand: 'Winkel-kantoorpand',
+  mixed_use: 'Mixed-use / gecombineerd gebruik',
+  mixed_use_overig: 'Ander gecombineerd gebruik',
+  overig: 'Overig',
+} as const;
+
+export type AcquisitionComponentType = keyof typeof ACQUISITION_COMPONENT_TYPE_LABELS;
+
 export const ACQUISITION_STRUCTURE_MIGRATION = '20260725153000_vastgoedrekenen_verkrijgingsstructuur.sql';
 
 export type AcquisitionStructureStatus = 'available' | 'migration_required' | 'error';
@@ -48,7 +76,7 @@ export type AcquisitionComponent = {
   id: string;
   scenario_id: string;
   component_name: string;
-  component_type: Component['component_type'];
+  component_type: AcquisitionComponentType;
   floor_or_location: string | null;
   surface_gbo: number | null;
   surface_vvo: number | null;
