@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,28 +22,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Apply acquisition migration UX fix
-        id: acquisition_migration_ux_patch
-        shell: bash
-        run: |
-          if [ -f scripts/fix_acquisition_missing_migration_ux.py ]; then
-            python3 scripts/fix_acquisition_missing_migration_ux.py
-            rm -f scripts/fix_acquisition_missing_migration_ux.py
-            echo "applied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "applied=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit acquisition migration UX fix
-        if: steps.acquisition_migration_ux_patch.outputs.applied == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: explain missing acquisition structure migration"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Node.js
         uses: actions/setup-node@v4
