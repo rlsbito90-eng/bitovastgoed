@@ -4,6 +4,7 @@ import type { Scenario, ComputedOutputs } from '@/lib/vastgoedrekenen/types';
 import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE, RISK_BADGE } from './format';
 import { evaluateFeasibility, feasibilityLabel, type FeasibilityResult } from '@/lib/vastgoedrekenen/feasibility';
 import { buildScenarioReadiness } from '@/lib/vastgoedrekenen/readiness';
+import UitkomstOpbouw from './UitkomstOpbouw';
 
 /**
  * Compacte resultaat- en biedingsadvies-kaart bovenaan ieder scenario.
@@ -21,13 +22,6 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
   const remainingAttentionPoints = o.scoreAttentionPoints.filter(
     (point) => !readiness.items.some((item) => item.message === point),
   );
-  const residualBindingLabel = residual?.bindingTarget === 'winst_op_kosten'
-    ? 'Winst op kosten'
-    : residual?.bindingTarget === 'winst_op_gdv'
-      ? 'Winst op GDV'
-      : residual?.bindingTarget === 'vaste_winst'
-        ? 'Vaste doelwinst'
-        : 'Geen doelwinst';
   // Headline volgt ALTIJD de leidende waarde — geen stille fallback naar maximumBid.
   const headlineValue = o.leadingMaxValue;
   const headlineLabel = residual && (strategyLeading || (verkoopLeading && residual.source === 'scenario_exit'))
@@ -210,63 +204,7 @@ function ResultaatKaart({ o, s, compact = false }: { o: ComputedOutputs; s: Scen
           )}
         </div>
 
-        {residual && (
-          <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-medium">Residuele onderbouwing</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Bindend doel: {residualBindingLabel}
-                </p>
-              </div>
-              <p className="font-mono-data font-semibold">{fmtEur(residual.maxPurchasePrice)}</p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground">GDV / opbrengstwaarde</p>
-                <p className="font-mono-data font-medium">{fmtEur(residual.grossDevelopmentValue)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Doelwinst</p>
-                <p className="font-mono-data font-medium">{fmtEur(residual.targetProfitAmount)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Investering bij max</p>
-                <p className="font-mono-data font-medium">{fmtEur(residual.totalInvestmentAtMaxPurchase)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">OVB bij max</p>
-                <p className="font-mono-data font-medium">{fmtEur(residual.transferTaxAtMaxPurchase)}</p>
-              </div>
-            </div>
-            <details>
-              <summary className="cursor-pointer text-xs text-primary underline decoration-dotted underline-offset-2">
-                Toon kostenwaterfall
-              </summary>
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                {[
-                  ['GDV / opbrengstwaarde', residual.grossDevelopmentValue],
-                  ['Verkoop- en juridische kosten', -residual.componentDispositionCosts],
-                  ['Componentontwikkelkosten', -residual.componentDevelopmentCosts],
-                  ['Algemene projectkosten', -residual.sharedScenarioCosts],
-                  ['Financieringskosten', -residual.financingCosts],
-                  ['Doelwinst', -residual.targetProfitAmount],
-                  ['OVB bij maximale koopsom', -residual.transferTaxAtMaxPurchase],
-                  ['Aankoopkosten bij maximale koopsom', -residual.acquisitionCostsAtMaxPurchase],
-                  ['Maximale koopsom', residual.maxPurchasePrice],
-                ].map(([label, value]) => (
-                  <div key={String(label)} className="flex justify-between gap-3 border-b border-dashed py-1">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="font-mono-data">{fmtEur(Number(value))}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-            <p className="text-[10px] text-muted-foreground">
-              “Voor bieding” betekent dat de berekening compleet is op basis van de ingevoerde uitgangspunten; het is geen taxatie of juridische/fiscale goedkeuring.
-            </p>
-          </div>
-        )}
+        <UitkomstOpbouw scenario={s} outputs={o} />
 
         {!compact && (residual || readiness.items.length > 0) && (
           <div className={`rounded-md border p-3 text-xs ${
