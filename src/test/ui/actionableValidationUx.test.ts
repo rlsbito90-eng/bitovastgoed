@@ -20,7 +20,8 @@ describe('actiegerichte validatie-UX', () => {
     expect(list).toContain('onAction?.(action)');
     expect(list).toContain('action.openTarget');
     expect(list).toContain('item.details && item.details.length > 0');
-    expect(list).toContain('Waarom gemeld');
+    expect(list).toContain('detail.label');
+    expect(list).toContain('detail.value');
     expect(editor).toContain('navigateToValidationAction');
     expect(editor).toContain('id={`cost-${c.id}`}');
   });

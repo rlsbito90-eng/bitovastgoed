@@ -429,7 +429,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
       level: 'warning',
       category: 'now',
       title: `Controleer mogelijke dubbele ${detail.kind}kosten`,
-      message: `De module vond een automatische tekstmatch op ${matchedText}. Dit is nog geen bevestigde dubbeling. Controleer of de algemene kostenpost dezelfde werkzaamheden en grondslag bevat als de componentkosten.`,
+      message: `Mogelijke dubbele kosteninvoer: de module vond een automatische tekstmatch op ${matchedText}. Dit is nog geen bevestigde dubbeling. Controleer of de algemene kostenpost dezelfde werkzaamheden en grondslag bevat als de componentkosten.`,
       details: [
         {
           label: 'Waarom gemeld',
