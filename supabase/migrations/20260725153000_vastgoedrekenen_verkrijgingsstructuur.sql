@@ -5,19 +5,33 @@
 -- één of meer toekomstige sell_off_units. De bestaande calculation_components blijven
 -- beschikbaar voor huur, WWS en algemene projectcomponenten; bestaande scenario's blijven
 -- via het applicatie-fallbackpad functioneren zolang deze nieuwe tabel leeg is.
+--
+-- Bewust TEXT + CHECK in plaats van project-specifieke enums: oudere/handmatig opgebouwde
+-- Supabase-omgevingen hebben die enumtypes niet altijd, terwijl de applicatiewaarden gelijk zijn.
 
 create table if not exists public.calculation_acquisition_components (
   id uuid primary key default gen_random_uuid(),
   scenario_id uuid not null references public.calculation_scenarios(id) on delete cascade,
   component_name text not null,
-  component_type public.vr_component_type not null default 'overig',
+  component_type text not null default 'overig'
+    check (component_type in (
+      'woning', 'appartement', 'studio', 'kamer',
+      'winkelruimte', 'kantoorruimte', 'bedrijfsruimte', 'bedrijfsunit',
+      'opslagruimte', 'kelder', 'parkeerplaats', 'garagebox', 'berging',
+      'horeca', 'maatschappelijk', 'ontwikkelgrond', 'overig'
+    )),
   floor_or_location text null,
   surface_gbo numeric null check (surface_gbo is null or surface_gbo >= 0),
   surface_vvo numeric null check (surface_vvo is null or surface_vvo >= 0),
   surface_bvo numeric null check (surface_bvo is null or surface_bvo >= 0),
   allocated_component_value numeric null check (allocated_component_value is null or allocated_component_value >= 0),
-  transfer_tax_allocation_method public.vr_ovb_allocation_method not null default 'value',
-  transfer_tax_classification public.vr_ovb_classification null,
+  transfer_tax_allocation_method text not null default 'value'
+    check (transfer_tax_allocation_method in ('value', 'extern', 'm2', 'manual')),
+  transfer_tax_classification text null
+    check (transfer_tax_classification is null or transfer_tax_classification in (
+      'eigen_woning', 'woning_belegging', 'niet_woning',
+      'mixed_use', 'vrijgesteld', 'handmatig'
+    )),
   transfer_tax_percentage numeric null check (transfer_tax_percentage is null or transfer_tax_percentage >= 0),
   transfer_tax_amount numeric null check (transfer_tax_amount is null or transfer_tax_amount >= 0),
   transfer_tax_manual_override boolean not null default false,
@@ -26,9 +40,7 @@ create table if not exists public.calculation_acquisition_components (
   notes text null,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint calculation_acquisition_components_no_future_strategy_check
-    check (transfer_tax_allocation_method <> 'strategy')
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists calculation_acquisition_components_scenario_idx
