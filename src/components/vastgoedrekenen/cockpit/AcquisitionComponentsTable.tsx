@@ -94,7 +94,7 @@ export default function AcquisitionComponentsTable({
             <h4 className="text-sm font-semibold">Verkrijgingsstructuur & OVB</h4>
           </div>
           <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">
-            Leg hier uitsluitend vast wat juridisch en feitelijk wordt verkregen. Eén huidig verkrijgingsdeel kan aan meerdere toekomstige strategie-units worden gekoppeld. OVB wordt niet meer afgeleid uit de toekomstige verkoopstructuur zodra deze tabel is ingevuld.
+            Leg hier de huidige fiscale verkrijgingsdelen vast. Eén perceel of levering mag meerdere regels hebben, bijvoorbeeld een woondeel en een winkelgedeelte. Toekomstige strategie-units bepalen de OVB niet.
           </p>
         </div>
         <Button
@@ -164,8 +164,9 @@ export default function AcquisitionComponentsTable({
                     || diag.missingValueBasis
                     || diag.missingManualAmount
                     || diag.mixedAllocationMethods
+                    || diag.requiresSplit
                     || !component.transfer_tax_classification;
-                  const status = incomplete ? 'Incompleet' : exemptionNeedsSource ? 'Onderbouwen' : 'Compleet';
+                  const status = diag?.requiresSplit ? 'Splitsen' : incomplete ? 'Incompleet' : exemptionNeedsSource ? 'Onderbouwen' : 'Compleet';
                   return (
                     <TableRow
                       key={component.id}
@@ -252,7 +253,7 @@ export default function AcquisitionComponentsTable({
                     <Field label="GBO huidige staat (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(openComponent.surface_gbo)} onCommit={(raw) => onUpdate(openComponent.id, { surface_gbo: parseRawNumber(raw) })} /></Field>
                     <Field label="VVO huidige staat (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(openComponent.surface_vvo)} onCommit={(raw) => onUpdate(openComponent.id, { surface_vvo: parseRawNumber(raw) })} /></Field>
                     <Field label="BVO huidige staat (m²)"><RawNumberInput className="h-9" format="area" initialValue={numberToRaw(openComponent.surface_bvo)} onCommit={(raw) => onUpdate(openComponent.id, { surface_bvo: parseRawNumber(raw) })} /></Field>
-                    <Field label="Huidige waarde bij verkrijging (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(openComponent.allocated_component_value)} onCommit={(raw) => onUpdate(openComponent.id, { allocated_component_value: parseRawNumber(raw) })} /></Field>
+                    <Field label="Verdeelwaarde / aandeel aankoopprijs (€)"><RawNumberInput className="h-9" format="currency" initialValue={numberToRaw(openComponent.allocated_component_value)} onCommit={(raw) => onUpdate(openComponent.id, { allocated_component_value: parseRawNumber(raw) })} /></Field>
                     <Field label="OVB-classificatie">
                       <Select value={openComponent.transfer_tax_classification ?? '__leeg__'} onValueChange={(value) => onUpdate(openComponent.id, { transfer_tax_classification: value === '__leeg__' ? null : value as AcquisitionComponent['transfer_tax_classification'] })}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -272,6 +273,16 @@ export default function AcquisitionComponentsTable({
                       }} />
                     </Field>
                   </div>
+
+                  {openComponent.transfer_tax_classification === 'mixed_use' && (
+                    <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-xs text-amber-900 dark:text-amber-100">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="font-semibold">Splits dit gemengde deel in afzonderlijke fiscale regels</p>
+                        <p>Maak bijvoorbeeld één regel voor het bestaande woongedeelte en één regel voor de winkelruimte. Beide regels mogen bij hetzelfde perceel en dezelfde levering horen.</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="rounded-md border bg-muted/25 p-3 text-xs space-y-1">
                     <div className="flex justify-between gap-3"><span className="text-muted-foreground">Toegerekende OVB-grondslag</span><span className="font-mono-data">{diag ? fmtEur(diag.basisValue) : '—'}</span></div>
@@ -299,7 +310,7 @@ export default function AcquisitionComponentsTable({
                     )}
                   </div>
 
-                  <Field label="Bron / onderbouwing huidige waarde of vrijstelling">
+                  <Field label="Toelichting / onderbouwing — optioneel">
                     <RawTextarea initialValue={openComponent.source_note ?? ''} onCommit={(raw) => onUpdate(openComponent.id, { source_note: raw.trim() || null })} />
                   </Field>
                   <Field label="Notities">

@@ -402,7 +402,9 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   if (scenario.ovb_mode === 'per_component') {
     if (ovbComponents.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar verkrijgingscomponenten ontbreken.');
     for (const component of ovbComponents) {
-      if (!component.transfer_tax_classification) {
+      if (component.transfer_tax_classification === 'mixed_use') {
+        residualCriticalIssues.push(`${component.component_name ?? 'Component'}: mixed-use is geen eindtarief; splits dit in afzonderlijke fiscale verkrijgingsregels.`);
+      } else if (!component.transfer_tax_classification) {
         residualCriticalIssues.push(`${component.component_name ?? 'Component'}: expliciete OVB-classificatie bij verkrijging ontbreekt.`);
       }
     }

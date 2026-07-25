@@ -62,6 +62,7 @@ import {
   type SectionKey,
 } from '@/lib/vastgoedrekenen/sectionConfig';
 import AccordionToolbar from './cockpit/AccordionToolbar';
+import SensitivityAnalysis from './SensitivityAnalysis';
 
 
 
@@ -796,6 +797,22 @@ export default function ScenarioEditor(props: Props) {
       {/* Rekenbasis */}
       <RekenbasisBar scenario={s} outputs={outputs} />
 
+      <SensitivityAnalysis
+        scenario={s}
+        components={components}
+        acquisitionComponents={acquisitionComponents}
+        costs={draftCosts}
+        wwsUnits={wwsUnits}
+        strategyUnits={sellOffUnits}
+        taxSettings={taxSettings}
+        objectType={objectType}
+        objectArea={objectArea}
+        objectWoz={props.objectWoz}
+        objectEnergyLabel={props.objectEnergyLabel}
+        objectBouwjaar={props.objectBouwjaar}
+        propertyType={propertyType}
+      />
+
       {nogTeControleren.length > 0 && (
         <NogTeControleren
           items={nogTeControleren}
@@ -876,6 +893,7 @@ export default function ScenarioEditor(props: Props) {
           || p.missingManualAmount
           || p.missingPurchaseBasis
           || p.mixedAllocationMethods
+          || p.requiresSplit
           || p.usesFutureStrategyAllocation
         )).length;
 
