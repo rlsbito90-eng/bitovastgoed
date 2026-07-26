@@ -5,42 +5,121 @@
 
 import type { SellOffUnit } from './types';
 
-export type ComponentStrategyKey =
-  | 'verkopen_leeg'
-  | 'verkopen_verhuurd'
-  | 'aanhouden'
-  | 'renoveren_verkopen'
-  | 'renoveren_aanhouden'
-  | 'splitsen_verkopen'
-  | 'transformeren_verkopen'
-  | 'transformeren_aanhouden'
-  | 'sloop_nieuwbouw_verkopen'
-  | 'sloop_nieuwbouw_aanhouden'
-  | 'handmatige_waarde'
-  | 'later_beslissen';
+type ComponentStrategyDisposition = 'sale' | 'hold' | 'manual' | 'defer';
 
-export const STRATEGY_LABELS: Record<ComponentStrategyKey, string> = {
-  verkopen_leeg: 'Verkopen (leeg)',
-  verkopen_verhuurd: 'Verkopen (verhuurd)',
-  aanhouden: 'Aanhouden',
-  renoveren_verkopen: 'Renoveren en verkopen',
-  renoveren_aanhouden: 'Renoveren en aanhouden',
-  splitsen_verkopen: 'Splitsen en verkopen',
-  transformeren_verkopen: 'Transformeren en verkopen',
-  transformeren_aanhouden: 'Transformeren en aanhouden',
-  sloop_nieuwbouw_verkopen: 'Slopen, nieuwbouwen en verkopen',
-  sloop_nieuwbouw_aanhouden: 'Slopen, nieuwbouwen en aanhouden',
-  handmatige_waarde: 'Handmatige waarde',
-  later_beslissen: 'Later beslissen',
+type ComponentStrategyMetadata = {
+  label: string;
+  disposition: ComponentStrategyDisposition;
+  transformation: boolean;
 };
 
-export const SALE_STRATEGIES: ComponentStrategyKey[] = [
-  'verkopen_leeg', 'verkopen_verhuurd', 'renoveren_verkopen', 'splitsen_verkopen',
-  'transformeren_verkopen', 'sloop_nieuwbouw_verkopen',
-];
-export const HOLD_STRATEGIES: ComponentStrategyKey[] = [
-  'aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden', 'sloop_nieuwbouw_aanhouden',
-];
+/**
+ * Centrale strategiebron voor labels én inhoudelijke classificatie.
+ * Een nieuwe strategie wordt hier één keer geregistreerd; afgeleide exports
+ * en alle validatiepaden volgen daarna automatisch.
+ */
+export const COMPONENT_STRATEGY_METADATA = {
+  verkopen_leeg: {
+    label: 'Verkopen (leeg)',
+    disposition: 'sale',
+    transformation: false,
+  },
+  verkopen_verhuurd: {
+    label: 'Verkopen (verhuurd)',
+    disposition: 'sale',
+    transformation: false,
+  },
+  aanhouden: {
+    label: 'Aanhouden',
+    disposition: 'hold',
+    transformation: false,
+  },
+  renoveren_verkopen: {
+    label: 'Renoveren en verkopen',
+    disposition: 'sale',
+    transformation: false,
+  },
+  renoveren_aanhouden: {
+    label: 'Renoveren en aanhouden',
+    disposition: 'hold',
+    transformation: false,
+  },
+  splitsen_verkopen: {
+    label: 'Splitsen en verkopen',
+    disposition: 'sale',
+    transformation: false,
+  },
+  transformeren_verkopen: {
+    label: 'Transformeren en verkopen',
+    disposition: 'sale',
+    transformation: true,
+  },
+  transformeren_aanhouden: {
+    label: 'Transformeren en aanhouden',
+    disposition: 'hold',
+    transformation: true,
+  },
+  sloop_nieuwbouw_verkopen: {
+    label: 'Slopen, nieuwbouwen en verkopen',
+    disposition: 'sale',
+    transformation: true,
+  },
+  sloop_nieuwbouw_aanhouden: {
+    label: 'Slopen, nieuwbouwen en aanhouden',
+    disposition: 'hold',
+    transformation: true,
+  },
+  handmatige_waarde: {
+    label: 'Handmatige waarde',
+    disposition: 'manual',
+    transformation: false,
+  },
+  later_beslissen: {
+    label: 'Later beslissen',
+    disposition: 'defer',
+    transformation: false,
+  },
+} as const satisfies Record<string, ComponentStrategyMetadata>;
+
+export type ComponentStrategyKey = keyof typeof COMPONENT_STRATEGY_METADATA;
+
+const COMPONENT_STRATEGY_ENTRIES = Object.entries(COMPONENT_STRATEGY_METADATA) as Array<
+  [ComponentStrategyKey, ComponentStrategyMetadata]
+>;
+
+export const STRATEGY_LABELS = Object.fromEntries(
+  COMPONENT_STRATEGY_ENTRIES.map(([key, metadata]) => [key, metadata.label]),
+) as Record<ComponentStrategyKey, string>;
+
+export const SALE_STRATEGIES = COMPONENT_STRATEGY_ENTRIES
+  .filter(([, metadata]) => metadata.disposition === 'sale')
+  .map(([key]) => key);
+
+export const HOLD_STRATEGIES = COMPONENT_STRATEGY_ENTRIES
+  .filter(([, metadata]) => metadata.disposition === 'hold')
+  .map(([key]) => key);
+
+const COMPONENT_STRATEGY_KEYS = new Set<ComponentStrategyKey>(
+  Object.keys(COMPONENT_STRATEGY_METADATA) as ComponentStrategyKey[],
+);
+const SALE_STRATEGY_KEYS = new Set<ComponentStrategyKey>(SALE_STRATEGIES);
+const HOLD_STRATEGY_KEYS = new Set<ComponentStrategyKey>(HOLD_STRATEGIES);
+
+export function isComponentStrategyKey(value: unknown): value is ComponentStrategyKey {
+  return typeof value === 'string' && COMPONENT_STRATEGY_KEYS.has(value as ComponentStrategyKey);
+}
+
+export function isSaleStrategy(value: unknown): value is ComponentStrategyKey {
+  return isComponentStrategyKey(value) && SALE_STRATEGY_KEYS.has(value);
+}
+
+export function isHoldStrategy(value: unknown): value is ComponentStrategyKey {
+  return isComponentStrategyKey(value) && HOLD_STRATEGY_KEYS.has(value);
+}
+
+export function isTransformationStrategy(value: unknown): value is ComponentStrategyKey {
+  return isComponentStrategyKey(value) && COMPONENT_STRATEGY_METADATA[value].transformation;
+}
 
 export type ComponentBreakdown = {
   grossSaleValue: number;

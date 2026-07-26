@@ -6,6 +6,7 @@ import { fmtEur, fmtPct, fmtEurPerM2, DEAL_BADGE } from './format';
 import { VR_STRATEGY_LABELS, VR_STATUS_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { useScenarioChildren } from '@/hooks/useVastgoedrekenen';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
+import { buildScenarioComputeContext } from '@/lib/vastgoedrekenen/computeContext';
 import { mapToAssumptionType } from '@/lib/vastgoedrekenen/profiles';
 import { buildScenarioReadiness } from '@/lib/vastgoedrekenen/readiness';
 import { Trophy, TrendingUp, ShieldCheck, Target, Coins, ChevronDown, ChevronRight } from 'lucide-react';
@@ -97,14 +98,22 @@ export function getDevelopmentComparisonMetrics(outputs: ComputedOutputs): Devel
 function ScenarioComputer({
   s, shared, onReady,
 }: { s: Scenario; shared: SharedProps; onReady: (id: string, data: RowData | null) => void }) {
-  const { components, costs, wwsUnits, sellOffUnits, loading } = useScenarioChildren(s.id);
+  const {
+    components,
+    acquisitionComponents,
+    costs,
+    wwsUnits,
+    sellOffUnits,
+    loading,
+  } = useScenarioChildren(s.id);
   const propertyType = useMemo(
     () => mapToAssumptionType(shared.objectRawType ?? null, shared.objectType),
     [shared.objectRawType, shared.objectType],
   );
-  const outputs = useMemo(() => computeScenario({
+  const outputs = useMemo(() => computeScenario(buildScenarioComputeContext({
     scenario: s,
     components,
+    acquisitionComponents,
     costs,
     wwsUnits,
     strategyUnits: sellOffUnits,
@@ -115,8 +124,8 @@ function ScenarioComputer({
     objectEnergyLabel: shared.objectEnergyLabel,
     objectBouwjaar: shared.objectBouwjaar,
     propertyType,
-  }), [
-    s, components, costs, wwsUnits, sellOffUnits, propertyType,
+  })), [
+    s, components, acquisitionComponents, costs, wwsUnits, sellOffUnits, propertyType,
     shared.taxSettings, shared.objectType, shared.objectArea, shared.objectWoz,
     shared.objectEnergyLabel, shared.objectBouwjaar,
   ]);

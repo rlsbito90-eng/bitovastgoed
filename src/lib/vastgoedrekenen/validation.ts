@@ -6,6 +6,7 @@ import type { AcquisitionComponent } from './acquisition';
 import type { PropertyAssumptionType } from './profiles';
 import { isWoonComponentType } from './defaults';
 import { getEffectiveWwsMode } from './wws/mode';
+import { isHoldStrategy, isSaleStrategy } from './componentStrategy';
 
 export type ValidationAction = {
   label: string;
@@ -48,22 +49,6 @@ export type ValidationContext = {
   dirty?: boolean;
 };
 
-const SALE_STRATS = new Set([
-  'verkopen_leeg',
-  'verkopen_verhuurd',
-  'renoveren_verkopen',
-  'splitsen_verkopen',
-  'transformeren_verkopen',
-  'sloop_nieuwbouw_verkopen',
-]);
-
-const HOLD_STRATS = new Set([
-  'aanhouden',
-  'renoveren_aanhouden',
-  'transformeren_aanhouden',
-  'sloop_nieuwbouw_aanhouden',
-]);
-
 function unitRecord(unit: SellOffUnit): Record<string, unknown> {
   return unit as unknown as Record<string, unknown>;
 }
@@ -76,14 +61,14 @@ function hasComponentTerminalValue(units: SellOffUnit[]): boolean {
   return units.some((unit) => {
     const record = unitRecord(unit);
     const strategy = (record.strategy as string | null) ?? '';
-    if (SALE_STRATS.has(strategy)) {
+    if (isSaleStrategy(strategy)) {
       const source = (record.sale_price_source as string | null) ?? 'totaal';
       return source === 'per_m2'
         ? positive(record.sale_price_per_m2)
           && (positive(record.surface_gbo) || positive(record.surface_vvo) || positive(record.surface_bvo))
         : positive(record.sale_price_total);
     }
-    if (HOLD_STRATS.has(strategy)) {
+    if (isHoldStrategy(strategy)) {
       const method = (record.hold_valuation_method as string | null) ?? 'BAR';
       if (method === 'handmatige_waarde') return positive(record.hold_value_manual);
       return positive(record.hold_annual_rent) || positive(record.hold_monthly_rent);
@@ -340,14 +325,14 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
   const componentHasTerminalValue = hasComponentTerminalValue(sellOffUnits);
   const componentHasSale = sellOffUnits.some((unit) => {
     const strategy = (unitRecord(unit).strategy as string | null) ?? '';
-    return SALE_STRATS.has(strategy);
+    return isSaleStrategy(strategy);
   });
 
   if (sellOffUnits.length > 0) {
     const sellMissingValue = sellOffUnits.filter((u) => {
       const r = unitRecord(u);
       const strat = (r.strategy as string | null) ?? '';
-      if (!SALE_STRATS.has(strat)) return false;
+      if (!isSaleStrategy(strat)) return false;
       const src = (r.sale_price_source as string | null) ?? 'totaal';
       const total = Number(r.sale_price_total ?? 0);
       const perM2 = Number(r.sale_price_per_m2 ?? 0);
@@ -357,7 +342,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     const holdMissingRent = sellOffUnits.filter((u) => {
       const r = unitRecord(u);
       const strat = (r.strategy as string | null) ?? '';
-      if (!HOLD_STRATS.has(strat)) return false;
+      if (!isHoldStrategy(strat)) return false;
       const method = (r.hold_valuation_method as string | null) ?? 'BAR';
       if (method === 'handmatige_waarde') return Number(r.hold_value_manual ?? 0) <= 0;
       return Number(r.hold_annual_rent ?? 0) <= 0 && Number(r.hold_monthly_rent ?? 0) <= 0;
@@ -366,7 +351,7 @@ export function buildNogTeControleren(c: ValidationContext): ValidationItem[] {
     const manualValues = sellOffUnits.filter((u) => {
       const r = unitRecord(u);
       return (r.strategy as string | null) === 'handmatige_waarde'
-        || (HOLD_STRATS.has((r.strategy as string | null) ?? '')
+        || (isHoldStrategy((r.strategy as string | null) ?? '')
           && (r.hold_valuation_method as string | null) === 'handmatige_waarde');
     });
     if (sellMissingValue.length > 0) out.push({

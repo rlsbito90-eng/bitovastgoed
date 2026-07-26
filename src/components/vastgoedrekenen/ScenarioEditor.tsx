@@ -8,6 +8,7 @@ import { Trash2, Plus, Save, CheckCircle2, RotateCw, ListChecks } from 'lucide-r
 import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/lib/vastgoedrekenen/types';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
+import { buildScenarioComputeContext } from '@/lib/vastgoedrekenen/computeContext';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
 import { getWwsUnitStatus, WWS_SOURCE_LABEL, WWS_SCHEME_LABEL, WWS_RELIABILITY_LABEL, WWS_MISSING_LABEL } from '@/lib/vastgoedrekenen/wws/source';
 import { suggestWwsMode, getEffectiveWwsMode, WWS_MODE_LABEL, WWS_MODE_DESCRIPTION, type WwsMode } from '@/lib/vastgoedrekenen/wws/mode';
@@ -239,7 +240,7 @@ export default function ScenarioEditor(props: Props) {
     [props.objectRawType, objectType],
   );
 
-  const outputs = useMemo(() => computeScenario({
+  const outputs = useMemo(() => computeScenario(buildScenarioComputeContext({
     scenario: s,
     components, acquisitionComponents, costs: draftCosts, wwsUnits,
     strategyUnits: sellOffUnits,
@@ -250,7 +251,7 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  })), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
     scenario: s, components, acquisitionComponents, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
