@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,6 +22,74 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bouw importfunctie verkrijgingscomponenten
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          table = Path('src/components/vastgoedrekenen/cockpit/AcquisitionComponentsTable.tsx')
+          text = table.read_text()
+
+          text = text.replace(
+            "import { Plus, Trash2, Link2, AlertTriangle, CheckCircle2, CircleDollarSign } from 'lucide-react';",
+            "import { Plus, Trash2, Link2, AlertTriangle, CheckCircle2, CircleDollarSign, Download } from 'lucide-react';"
+          )
+          text = text.replace(
+            "import type { ComputedOutputs, SellOffUnit } from '@/lib/vastgoedrekenen/types';",
+            "import type { Component, ComputedOutputs, SellOffUnit } from '@/lib/vastgoedrekenen/types';"
+          )
+          text = text.replace(
+            "  components: AcquisitionComponent[];\n  links: AcquisitionUnitLink[];",
+            "  components: AcquisitionComponent[];\n  projectComponents: Component[];\n  links: AcquisitionUnitLink[];"
+          )
+
+          marker = "function componentSurface(component: AcquisitionComponent): string {\n"
+          helper = """function normalizeImportText(value: unknown): string {\n  return String(value ?? '').trim().toLowerCase();\n}\n\nfunction mapProjectComponentType(value: unknown): AcquisitionComponent['component_type'] {\n  const raw = normalizeImportText(value);\n  if (raw in ACQUISITION_COMPONENT_TYPE_LABELS) return raw as AcquisitionComponent['component_type'];\n  const aliases: Record<string, AcquisitionComponent['component_type']> = {\n    winkel: 'winkelruimte',\n    kantoor: 'kantoorruimte',\n    bedrijf: 'bedrijfsruimte',\n    bedrijfsgebouw: 'bedrijfsruimte',\n    opslag: 'opslagruimte',\n    parkeerplek: 'parkeerplaats',\n    garage: 'garagebox',\n    grond: 'ontwikkelgrond',\n  };\n  return aliases[raw] ?? 'overig';\n}\n\nfunction importSignature(input: {\n  component_name?: unknown;\n  component_type?: unknown;\n  surface_gbo?: unknown;\n  surface_vvo?: unknown;\n  surface_bvo?: unknown;\n}): string {\n  return [\n    normalizeImportText(input.component_name),\n    normalizeImportText(input.component_type),\n    Number(input.surface_gbo ?? 0),\n    Number(input.surface_vvo ?? 0),\n    Number(input.surface_bvo ?? 0),\n  ].join('|');\n}\n\n"""
+          if helper not in text:
+            text = text.replace(marker, helper + marker)
+
+          text = text.replace(
+            "  components,\n  links,",
+            "  components,\n  projectComponents,\n  links,"
+          )
+          text = text.replace(
+            "  const [openId, setOpenId] = useState<string | null>(null);",
+            "  const [openId, setOpenId] = useState<string | null>(null);\n  const [importing, setImporting] = useState(false);"
+          )
+
+          create_anchor = "  const createComponent = async () => {\n"
+          import_fn = """  const importProjectComponents = async () => {\n    if (availability !== 'available' || importing || projectComponents.length === 0) return;\n\n    const existing = new Set(components.map((component) => importSignature(component)));\n    const candidates = projectComponents.filter((component) => !existing.has(importSignature(component)));\n    if (candidates.length === 0) {\n      window.alert('Alle projectcomponenten lijken al in de verkrijgingsstructuur te staan.');\n      return;\n    }\n\n    const confirmed = window.confirm(\n      `${candidates.length} projectcomponent(en) worden als concept-verkrijgingsdelen geïmporteerd. `\n      + 'Controleer daarna per regel de huidige functie, verdeelmethode en OVB-classificatie. ' \n      + 'Toekomstige strategie bepaalt de OVB niet automatisch.'\n    );\n    if (!confirmed) return;\n\n    setImporting(true);\n    try {\n      let firstCreated: AcquisitionComponent | null = null;\n      for (const component of candidates) {\n        const record = component as unknown as Record<string, unknown>;\n        const allocatedValue = Number(record.allocated_component_value ?? 0);\n        const gbo = Number(record.surface_gbo ?? 0);\n        const vvo = Number(record.surface_vvo ?? 0);\n        const bvo = Number(record.surface_bvo ?? 0);\n        const created = await onCreate({\n          component_name: String(record.component_name ?? '').trim() || 'Geïmporteerd verkrijgingscomponent',\n          component_type: mapProjectComponentType(record.component_type),\n          floor_or_location: String(record.floor_or_location ?? '').trim() || null,\n          surface_gbo: gbo > 0 ? gbo : null,\n          surface_vvo: vvo > 0 ? vvo : null,\n          surface_bvo: bvo > 0 ? bvo : null,\n          allocated_component_value: allocatedValue > 0 ? allocatedValue : null,\n          transfer_tax_allocation_method: allocatedValue > 0 ? 'value' : gbo > 0 ? 'm2' : 'value',\n          transfer_tax_classification: null,\n          reliability_status: 'laag',\n          source_note: `Concept geïmporteerd uit projectcomponent ${component.id}; fiscale invoer nog controleren.`,\n        });\n        if (!firstCreated && created) firstCreated = created;\n      }\n      if (firstCreated) setOpenId(firstCreated.id);\n    } finally {\n      setImporting(false);\n    }\n  };\n\n"""
+          if import_fn not in text:
+            text = text.replace(create_anchor, import_fn + create_anchor)
+
+          old_buttons = """        <Button\n          size=\"sm\"\n          variant=\"outline\"\n          onClick={() => void createComponent()}\n          className=\"shrink-0\"\n          disabled={availability !== 'available'}\n          title={availability !== 'available' ? unavailableMessage ?? 'Verkrijgingsstructuur niet beschikbaar' : undefined}\n        >\n          <Plus className=\"mr-1 h-3.5 w-3.5\" /> Verkrijgingscomponent\n        </Button>"""
+          new_buttons = """        <div className=\"flex shrink-0 flex-wrap gap-2\">\n          <Button\n            size=\"sm\"\n            variant=\"outline\"\n            onClick={() => void importProjectComponents()}\n            disabled={availability !== 'available' || projectComponents.length === 0 || importing}\n            title={projectComponents.length === 0 ? 'Nog geen projectcomponenten beschikbaar' : 'Maak concept-verkrijgingsdelen uit bestaande projectcomponenten'}\n          >\n            <Download className=\"mr-1 h-3.5 w-3.5\" /> {importing ? 'Importeren…' : 'Importeer uit componenten'}\n          </Button>\n          <Button\n            size=\"sm\"\n            variant=\"outline\"\n            onClick={() => void createComponent()}\n            disabled={availability !== 'available'}\n            title={availability !== 'available' ? unavailableMessage ?? 'Verkrijgingsstructuur niet beschikbaar' : undefined}\n          >\n            <Plus className=\"mr-1 h-3.5 w-3.5\" /> Verkrijgingscomponent\n          </Button>\n        </div>"""
+          if old_buttons not in text:
+            raise SystemExit('Knoppenblok niet gevonden')
+          text = text.replace(old_buttons, new_buttons)
+          table.write_text(text)
+
+          editor = Path('src/components/vastgoedrekenen/ScenarioEditor.tsx')
+          text = editor.read_text()
+          old = """                     <AcquisitionComponentsTable\n                       components={acquisitionComponents}\n                       links={acquisitionUnitLinks}"""
+          new = """                     <AcquisitionComponentsTable\n                       components={acquisitionComponents}\n                       projectComponents={components}\n                       links={acquisitionUnitLinks}"""
+          if old not in text:
+            raise SystemExit('AcquisitionComponentsTable-aanroep niet gevonden')
+          editor.write_text(text.replace(old, new))
+          PY
+
+      - name: Commit gebouwde importfunctie
+        run: |
+          if git diff --quiet; then
+            echo "Geen codewijzigingen nodig."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/components/vastgoedrekenen/cockpit/AcquisitionComponentsTable.tsx src/components/vastgoedrekenen/ScenarioEditor.tsx
+            git commit -m "feat(vastgoedrekenen): importeer verkrijgingsdelen uit componenten"
+            git push origin HEAD:feat/vastgoedrekenen-fase-1-1
+          fi
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -60,17 +128,3 @@ jobs:
       - name: Production build
         if: always()
         run: npm run build
-
-      - name: Export Fase 1.1 patch
-        if: success()
-        run: |
-          git fetch origin main --depth=1
-          git diff --binary origin/main...HEAD > Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
-
-      - name: Upload Fase 1.1 patch
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: vastgoedrekenen-fase-1-1-patch
-          path: Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
-          retention-days: 7
