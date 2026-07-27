@@ -8,6 +8,7 @@ import { Trash2, Plus, Save, CheckCircle2, RotateCw, ListChecks } from 'lucide-r
 import BulkFillDialog, { type BulkField } from './BulkFillDialog';
 import type { Scenario, ScenarioCost, Component, WwsUnit, TaxSettings } from '@/lib/vastgoedrekenen/types';
 import { computeScenario } from '@/lib/vastgoedrekenen/compute';
+import { buildScenarioComputeContext } from '@/lib/vastgoedrekenen/computeContext';
 import { computeWwsPoints } from '@/lib/vastgoedrekenen/wws';
 import { getWwsUnitStatus, WWS_SOURCE_LABEL, WWS_SCHEME_LABEL, WWS_RELIABILITY_LABEL, WWS_MISSING_LABEL } from '@/lib/vastgoedrekenen/wws/source';
 import { suggestWwsMode, getEffectiveWwsMode, WWS_MODE_LABEL, WWS_MODE_DESCRIPTION, type WwsMode } from '@/lib/vastgoedrekenen/wws/mode';
@@ -18,7 +19,8 @@ import {
   mapToAssumptionType, defaultProfileFor, getAssumptionSet,
   type AssumptionProfileKey, type PropertyAssumptionType,
 } from '@/lib/vastgoedrekenen/profiles';
-import { buildNogTeControleren, buildAannameWaarschuwingen } from '@/lib/vastgoedrekenen/validation';
+import { buildNogTeControleren, buildAannameWaarschuwingen, type ValidationAction } from '@/lib/vastgoedrekenen/validation';
+import { assessInputReliability } from '@/lib/vastgoedrekenen/reliabilityAssessment';
 import HelpTooltip from './HelpTooltip';
 import BerekeningUitleg from './BerekeningUitleg';
 import RekenbasisBar from './RekenbasisBar';
@@ -29,9 +31,11 @@ import CockpitHeader from './cockpit/CockpitHeader';
 import { SectionRail, type RailItem, type RailStatus } from './cockpit/SectionRail';
 import ComponentStrategyTable from './ComponentStrategyTable';
 import ComponentenTable from './cockpit/ComponentenTable';
+import AcquisitionComponentsTable from './cockpit/AcquisitionComponentsTable';
 import WwsUnitsTable from './cockpit/WwsUnitsTable';
 import InvesteringsWaterfall from './cockpit/InvesteringsWaterfall';
 import AuditSidePanel from './cockpit/AuditSidePanel';
+import BetrouwbaarheidsOpbouw from './BetrouwbaarheidsOpbouw';
 import { Section, SectionGroup, type SectionRelevance } from './Section';
 import { fmtEur, fmtPct, fmtEurPerM2 } from './format';
 import { computeCostBreakdown, VAT_TREATMENT_LABELS, type VatTreatment } from '@/lib/vastgoedrekenen/investering';
@@ -59,6 +63,7 @@ import {
   type SectionKey,
 } from '@/lib/vastgoedrekenen/sectionConfig';
 import AccordionToolbar from './cockpit/AccordionToolbar';
+import SensitivityAnalysis from './SensitivityAnalysis';
 
 
 
@@ -203,7 +208,14 @@ export default function ScenarioEditor(props: Props) {
     }
   }, [scenario]);
 
-  const { components, costs, wwsUnits, sellOffUnits, loading: childrenLoading, refetch, upsertOutput, createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents } = useScenarioChildren(s.id);
+  const {
+    components, acquisitionComponents, acquisitionUnitLinks, acquisitionStructureStatus, acquisitionStructureMessage,
+    costs, wwsUnits, sellOffUnits,
+    loading: childrenLoading, refetch, upsertOutput,
+    createAcquisitionComponent, updateAcquisitionComponent, deleteAcquisitionComponent, setAcquisitionComponentLinks,
+    createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,
+  } = useScenarioChildren(s.id);
+  const hasSeparateAcquisitionStructure = acquisitionComponents.length > 0;
 
   // Selectie + bulk-fill state voor WWS-units (UX-helpers, geen rekenlogica).
   const [selectedWwsIds, setSelectedWwsIds] = useState<Set<string>>(new Set());
@@ -228,9 +240,9 @@ export default function ScenarioEditor(props: Props) {
     [props.objectRawType, objectType],
   );
 
-  const outputs = useMemo(() => computeScenario({
+  const outputs = useMemo(() => computeScenario(buildScenarioComputeContext({
     scenario: s,
-    components, costs: draftCosts, wwsUnits,
+    components, acquisitionComponents, costs: draftCosts, wwsUnits,
     strategyUnits: sellOffUnits,
     taxSettings,
     objectType,
@@ -239,13 +251,25 @@ export default function ScenarioEditor(props: Props) {
     objectEnergyLabel: props.objectEnergyLabel,
     objectBouwjaar: props.objectBouwjaar,
     propertyType,
-  }), [s, components, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
+  })), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, taxSettings, objectType, objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, propertyType]);
 
   const nogTeControleren = useMemo(() => buildNogTeControleren({
-    scenario: s, components, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
+    scenario: s, components, acquisitionComponents, costs: draftCosts, wwsUnits, sellOffUnits, objectType, propertyType,
     hasWoz: !!props.objectWoz, hasEnergyLabel: !!props.objectEnergyLabel, hasBouwjaar: !!props.objectBouwjaar,
     energyLabel: props.objectEnergyLabel, dirty,
-  }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
+  }), [s, components, acquisitionComponents, draftCosts, wwsUnits, sellOffUnits, objectType, propertyType, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, dirty]);
+
+  const reliabilityAssessment = useMemo(() => assessInputReliability({
+    scenario: s,
+    components,
+    costs: draftCosts,
+    wwsUnits,
+    strategyUnits: sellOffUnits,
+    objectType,
+    correctedAnnualRent: outputs.correctedAnnualRent,
+    saleHasInput: outputs.saleHasInput,
+    ovbMissingBasisCount: outputs.ovbMissingBasisCount,
+  }), [s, components, draftCosts, wwsUnits, sellOffUnits, objectType, outputs.correctedAnnualRent, outputs.saleHasInput, outputs.ovbMissingBasisCount]);
 
   const aannameWaarschuwingen = useMemo(() => buildAannameWaarschuwingen({
     scenario: s, components, costs: draftCosts, wwsUnits, objectType, propertyType,
@@ -269,6 +293,24 @@ export default function ScenarioEditor(props: Props) {
   // wijziging door patch() en wordt dirty opnieuw correct berekend.
   const markDirtyFromRaw = () => {
     setDirty((prev) => (prev ? prev : true));
+  };
+
+  const navigateToValidationAction = (action: ValidationAction) => {
+    const sectionKey = action.sectionId as SubSectionKey;
+    if (ALL_SUB_SECTION_KEYS.includes(sectionKey)) {
+      setOpenSections((prev) => ({ ...prev, [sectionKey]: true }));
+    }
+    window.setTimeout(() => {
+      const target = document.getElementById(action.targetId ?? action.sectionId);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2', 'ring-offset-background');
+      const focusable = target.querySelector<HTMLElement>('input, [role=combobox], textarea, button');
+      window.setTimeout(() => focusable?.focus({ preventScroll: true }), 250);
+      window.setTimeout(() => {
+        target.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2', 'ring-offset-background');
+      }, 2200);
+    }, 120);
   };
 
   // Lijst met velden die door de gebruiker bewust op € 0 zijn gezet.
@@ -697,6 +739,11 @@ export default function ScenarioEditor(props: Props) {
   const ovbMode = s.ovb_mode;
   const rentSource = (s.rent_source ?? 'handmatig') as keyof typeof RENT_SOURCE_LABELS;
   const rentFromComponents = rentSource === 'componenten';
+  const residualMaxPurchasePrice = Math.max(0, Number(outputs.residual?.maxPurchasePrice ?? 0));
+  const currentPurchasePrice = Math.max(0, Number(s.purchase_price ?? 0));
+  const purchaseDeltaToResidual = residualMaxPurchasePrice > 0 && currentPurchasePrice > 0
+    ? residualMaxPurchasePrice - currentPurchasePrice
+    : null;
 
   return (
     <div className="space-y-4">
@@ -750,6 +797,30 @@ export default function ScenarioEditor(props: Props) {
 
       {/* Rekenbasis */}
       <RekenbasisBar scenario={s} outputs={outputs} />
+
+      <SensitivityAnalysis
+        scenario={s}
+        components={components}
+        acquisitionComponents={acquisitionComponents}
+        costs={draftCosts}
+        wwsUnits={wwsUnits}
+        strategyUnits={sellOffUnits}
+        taxSettings={taxSettings}
+        objectType={objectType}
+        objectArea={objectArea}
+        objectWoz={props.objectWoz}
+        objectEnergyLabel={props.objectEnergyLabel}
+        objectBouwjaar={props.objectBouwjaar}
+        propertyType={propertyType}
+      />
+
+      {nogTeControleren.length > 0 && (
+        <NogTeControleren
+          items={nogTeControleren}
+          title="Acties om dit scenario te verbeteren"
+          onAction={navigateToValidationAction}
+        />
+      )}
 
       {/* Strategie-specifieke banner */}
       {(s.strategy_type === 'transformeren' || s.strategy_type === 'buy_transform_hold' || s.strategy_type === 'buy_transform_sell') && (
@@ -817,7 +888,15 @@ export default function ScenarioEditor(props: Props) {
         // Componenten-samenvatting (woningen vs commercieel)
         const compWonen = components.filter((c) => c.component_type === 'woning' || c.component_type === 'appartement').length;
         const compCommercieel = components.filter((c) => c.component_type && c.component_type !== 'woning' && c.component_type !== 'appartement').length;
-        const compWarnings = outputs.ovbPerComponent.filter((p) => p.missingValueBasis || p.missingStrategyBasis || p.missingManualAmount).length;
+        const compWarnings = outputs.ovbPerComponent.filter((p) => (
+          p.missingValueBasis
+          || p.missingStrategyBasis
+          || p.missingManualAmount
+          || p.missingPurchaseBasis
+          || p.mixedAllocationMethods
+          || p.requiresSplit
+          || p.usesFutureStrategyAllocation
+        )).length;
 
         // Strategie netto contributie
         const strategyNet = outputs.scenarioValue || 0;
@@ -844,43 +923,6 @@ export default function ScenarioEditor(props: Props) {
         const scoreStatus = `${outputs.scoreLabel}`;
         const notitiesStatus = s.notes ? '1 notitie' : 'Geen notities';
 
-        // Default open-heuristiek: open bij waarschuwingen/blockers of als de sectie leidend is
-        const aankoopOpen = true; // altijd open — kerninvoer
-        const huurOpen = exploitatie || huurRelevance === 'leidend';
-        const verkoopOpen = verkoop || verkoopRelevance === 'leidend';
-        const kostenOpen = draftCosts.length > 0 || outputs.totalCosts > 0;
-        const compOpen = isMixed || compWarnings > 0 || compRelevance === 'leidend';
-        const wwsOpen = wwsRelevance === 'aandacht';
-        const strategyOpen = strategyActive;
-        const onderbouwingOpen = blockerCount > 0 || warningCount > 0;
-        // Waterfall standaard open bij verkoop/exit-focus of als de strategie leidend is.
-        const waterfallOpen = scenarioExitActive || strategyActive || leadingBasis !== 'huur';
-
-        const defaultOpenMap: Record<SubSectionKey, boolean> = {
-          'sec-resultaat': true,
-          'sec-waterfall': waterfallOpen,
-          'sec-aankoop': aankoopOpen,
-          'sec-huur': huurOpen,
-          'sec-verkoop': verkoopOpen,
-          'sec-kosten': kostenOpen,
-          'sec-componenten': compOpen,
-          'sec-strategie': strategyOpen,
-          'sec-wws': wwsOpen,
-          'sec-onderbouwing': onderbouwingOpen,
-          'sec-score': false,
-          'sec-notities': false,
-        };
-        // Initialiseer controlled open-state één keer per scenario.
-        if (openInitRef.current !== s.id) {
-          openInitRef.current = s.id;
-          setOpenSections(defaultOpenMap);
-        }
-        const sectionProps = (key: SubSectionKey) => ({
-          open: openSections[key] ?? defaultOpenMap[key] ?? false,
-          onOpenChange: (next: boolean) =>
-            setOpenSections((prev) => ({ ...prev, [key]: next })),
-          numberLabel: subNumber(key),
-        });
         const num = (key: SectionKey) => chapterNumber(key);
 
         // Rail-status helper: SectionRelevance + tellingen → RailStatus
@@ -896,20 +938,57 @@ export default function ScenarioEditor(props: Props) {
         const waterfallHint = outputs.assessmentType === 'exploitatie' ? 'Opbouw investering' : 'Vraagprijs → nettomarge';
         const resultaatStatus: RailStatus = blockerCount > 0 ? 'blocker' : (warningCount > 0 ? 'aandacht' : 'ok');
 
+        const statusWithActions = (sectionId: SubSectionKey, base: RailStatus): RailStatus => {
+          const sectionIssues = nogTeControleren.filter((item) => (
+            (item.category ?? 'now') === 'now'
+            && item.actions?.some((action) => action.sectionId === sectionId)
+          ));
+          if (sectionIssues.some((item) => item.level === 'blocker')) return 'blocker';
+          if (sectionIssues.some((item) => item.level === 'warning')) return 'aandacht';
+          return base;
+        };
+
         const subMeta: Record<SubSectionKey, { status: RailStatus; hint?: string; count?: number | null }> = {
           'sec-resultaat': { status: resultaatStatus, hint: cockpitStatus },
-          'sec-waterfall': { status: 'ok', hint: waterfallHint },
-          'sec-aankoop': { status: 'ok', hint: aankoopStatus },
-          'sec-huur': { status: relToRailStatus(huurRelevance), hint: huurStatus },
-          'sec-verkoop': { status: relToRailStatus(verkoopRelevance), hint: verkoopStatus },
-          'sec-kosten': { status: 'ok', hint: kostenStatus },
-          'sec-componenten': { status: relToRailStatus(compRelevance, false, compWarnings > 0), count: components.length, hint: compStatus },
-          'sec-strategie': { status: relToRailStatus(strategyRelevance), count: sellOffUnits.length, hint: strategyStatus },
-          'sec-wws': { status: relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0), count: wwsUnits.length, hint: wwsStatus },
+          'sec-waterfall': { status: statusWithActions('sec-waterfall', 'ok'), hint: waterfallHint },
+          'sec-aankoop': { status: statusWithActions('sec-aankoop', 'ok'), hint: aankoopStatus },
+          'sec-huur': { status: statusWithActions('sec-huur', relToRailStatus(huurRelevance)), hint: huurStatus },
+          'sec-verkoop': { status: statusWithActions('sec-verkoop', relToRailStatus(verkoopRelevance)), hint: verkoopStatus },
+          'sec-kosten': { status: statusWithActions('sec-kosten', 'ok'), hint: kostenStatus },
+          'sec-componenten': { status: statusWithActions('sec-componenten', relToRailStatus(compRelevance, false, compWarnings > 0)), count: components.length, hint: compStatus },
+          'sec-strategie': { status: statusWithActions('sec-strategie', relToRailStatus(strategyRelevance)), count: sellOffUnits.length, hint: strategyStatus },
+          'sec-wws': { status: statusWithActions('sec-wws', relToRailStatus(wwsRelevance, false, wwsHasWarnings > 0)), count: wwsUnits.length, hint: wwsStatus },
           'sec-onderbouwing': { status: relToRailStatus(undefined, blockerCount > 0, warningCount > 0), count: nogTeControleren.length, hint: onderbouwingStatus },
-          'sec-score': { status: 'ok', hint: scoreStatus },
-          'sec-notities': { status: 'ok', hint: notitiesStatus },
+          'sec-score': { status: statusWithActions('sec-score', 'ok'), hint: scoreStatus },
+          'sec-notities': { status: statusWithActions('sec-notities', 'ok'), hint: notitiesStatus },
         };
+
+        // Start rustig: standaard precies één relevante sectie open. Een eerder
+        // handmatig geopende sectie wordt per scenario onthouden.
+        const firstNowIssue = [
+          ...nogTeControleren.filter((item) => (item.category ?? 'now') === 'now' && item.level === 'blocker'),
+          ...nogTeControleren.filter((item) => (item.category ?? 'now') === 'now' && item.level === 'warning'),
+        ].find((item) => item.actions?.some((action) => ALL_SUB_SECTION_KEYS.includes(action.sectionId as SubSectionKey)));
+        const firstIssueSection = firstNowIssue?.actions?.find((action) => ALL_SUB_SECTION_KEYS.includes(action.sectionId as SubSectionKey))?.sectionId as SubSectionKey | undefined;
+        const storageKey = `vastgoedrekenen:last-open-section:${s.id}`;
+        const storedSection = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) as SubSectionKey | null : null;
+        const preferredSection = storedSection && ALL_SUB_SECTION_KEYS.includes(storedSection) && subMeta[storedSection].status !== 'niet_relevant'
+          ? storedSection
+          : firstIssueSection ?? 'sec-resultaat';
+        const defaultOpenMap = buildUniformOpenState(false);
+        defaultOpenMap[preferredSection] = true;
+        if (openInitRef.current !== s.id) {
+          openInitRef.current = s.id;
+          setOpenSections(defaultOpenMap);
+        }
+        const sectionProps = (key: SubSectionKey) => ({
+          open: openSections[key] ?? defaultOpenMap[key] ?? false,
+          onOpenChange: (next: boolean) => {
+            if (next && typeof window !== 'undefined') window.localStorage.setItem(storageKey, key);
+            setOpenSections((prev) => ({ ...prev, [key]: next }));
+          },
+          numberLabel: subNumber(key),
+        });
 
         // Rail items: per hoofdstuk een chapter-header + ingesprongen sub-items.
         const railItems: RailItem[] = [];
@@ -977,7 +1056,7 @@ export default function ScenarioEditor(props: Props) {
               );
             })()}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)] gap-4 xl:gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-3 xl:gap-4 items-start">
               <SectionRail items={railItems} />
               <div className="space-y-3 min-w-0">
 
@@ -1037,7 +1116,36 @@ export default function ScenarioEditor(props: Props) {
                   <NumInput onRawChange={markDirtyFromRaw} value={s.asking_price} onChange={(v) => patch({ asking_price: v })} placeholder="bijv. 1625000" suffix="€" />
                 </MobileFieldGroup>
 
-                <MobileFieldGroup label="Beoogde aankoopprijs (€)"><NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" /></MobileFieldGroup>
+                <MobileFieldGroup
+                  label="Beoogde aankoopprijs (€)"
+                  helper={residualMaxPurchasePrice > 0 ? (
+                    <div className="space-y-1 text-[10px]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-muted-foreground">
+                          {outputs.residual?.status === 'voor_bieding' ? 'Residuele maximale aankoopprijs' : 'Indicatieve residuele maximale aankoopprijs'}: <span className="font-medium font-mono-data text-foreground">{fmtEur(residualMaxPurchasePrice)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => patch({ purchase_price: residualMaxPurchasePrice })}
+                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
+                          Neem residuele waarde over
+                        </button>
+                      </div>
+                      {purchaseDeltaToResidual != null && (
+                        <p className={purchaseDeltaToResidual < 0 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}>
+                          {purchaseDeltaToResidual > 0
+                            ? `${fmtEur(purchaseDeltaToResidual)} onder de residuele bovengrens`
+                            : purchaseDeltaToResidual < 0
+                              ? `${fmtEur(Math.abs(purchaseDeltaToResidual))} boven de residuele bovengrens`
+                              : 'Gelijk aan de residuele bovengrens'}
+                        </p>
+                      )}
+                    </div>
+                  ) : undefined}
+                >
+                  <NumInput onRawChange={markDirtyFromRaw} value={s.purchase_price} onChange={(v) => patch({ purchase_price: v })} placeholder="bijv. 1500000" suffix="€" />
+                </MobileFieldGroup>
                 <MobileFieldGroup label="Veiligheidsmarge (€)"><NumZero onRawChange={markDirtyFromRaw} value={s.safety_margin} onChange={(v) => patch({ safety_margin: v })} placeholder="bijv. 25000" suffix="€" zeroActive={isZero('safety_margin')} onZeroToggle={toggleZero('safety_margin')} /></MobileFieldGroup>
 
                 <MobileFieldGroup label={<span className="inline-flex flex-wrap items-center gap-1 min-w-0">OVB-classificatie {showHelp && <HelpTooltip text="Bij woningen die niet als hoofdverblijf worden gebruikt geldt standaard 8%. Bij niet-woningen 10,4%. Mixed-use: kies per component." />}</span>}>
@@ -1057,7 +1165,7 @@ export default function ScenarioEditor(props: Props) {
                   </Select>
                 </MobileFieldGroup>
                 <div className="rounded-md border bg-muted/30 p-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Berekende OVB</p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Totale berekende OVB</p>
                   <p className="text-sm font-semibold font-mono-data">{fmtEur(outputs.totalTransferTax)}</p>
                 </div>
 
@@ -1069,7 +1177,11 @@ export default function ScenarioEditor(props: Props) {
                   </>
                 )}
                 {ovbMode === 'per_component' && (
-                  <div className="col-span-full text-xs text-muted-foreground">OVB wordt per component berekend. Stel waarde en classificatie per component in (sectie Componenten/units hieronder).</div>
+                  <div className="col-span-full rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
+                    OVB wordt over de actuele aankoopprijs bij verkrijging berekend. {hasSeparateAcquisitionStructure
+                      ? `De aparte verkrijgingsstructuur met ${acquisitionComponents.length} huidig(e) deel/delen is leidend; toekomstige strategie-units bepalen de OVB niet.`
+                      : 'Er is nog geen aparte verkrijgingsstructuur. OVB valt daarom tijdelijk terug op de bestaande projectcomponenten.'}
+                  </div>
                 )}
 
                 {(() => {
@@ -1551,7 +1663,7 @@ export default function ScenarioEditor(props: Props) {
                   const unforeseenPct = Number(s.unforeseen_percentage ?? 0);
                   const bd = computeCostBreakdown(c, unforeseenPct);
                   return (
-                  <div key={c.id} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden">
+                  <div key={c.id} id={`cost-${c.id}`} className="border rounded-md p-3 sm:p-4 space-y-4 min-w-0 overflow-hidden scroll-mt-32 transition-shadow">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-medium text-muted-foreground">Kostenpost</p>
                       <Button size="sm" variant="ghost" onClick={() => deleteCost(c.id)} className="h-8 shrink-0 px-2 text-muted-foreground hover:text-destructive">
@@ -1638,6 +1750,41 @@ export default function ScenarioEditor(props: Props) {
                       )}
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0 border-t pt-3">
+                      <MobileFieldGroup
+                        label="Betrouwbaarheid kostenpost"
+                        helper="Hoog = projectspecifieke begroting, offerte of contract gecontroleerd. Leg de bron en datum in het veld hiernaast vast."
+                      >
+                        <Select
+                          value={c.reliability_status ?? '__niet_beoordeeld__'}
+                          onValueChange={(v) => updateCost(c.id, {
+                            reliability_status: v === '__niet_beoordeeld__' ? null : v,
+                          } as Partial<ScenarioCost>, true)}
+                        >
+                          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__niet_beoordeeld__">Niet beoordeeld</SelectItem>
+                            <SelectItem value="laag">Laag — globale werkhypothese</SelectItem>
+                            <SelectItem value="middel">Middel — onderbouwde referentie</SelectItem>
+                            <SelectItem value="hoog">Hoog — projectspecifiek gecontroleerd</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </MobileFieldGroup>
+                      <MobileFieldGroup
+                        label="Bron / onderbouwing"
+                        helper="Bijvoorbeeld: aannemersbegroting d.d. 15-07-2026, offerte X of eigen raming met uitgangspunten."
+                        className="md:col-span-2"
+                      >
+                        <RawTextInput
+                          className="h-9"
+                          initialValue={c.notes ?? ''}
+                          placeholder="Bron, datum en korte scope van deze kostenpost"
+                          onRawChange={(raw) => updateCost(c.id, { notes: raw.trim() || null }, true)}
+                          onCommit={(raw) => updateCost(c.id, { notes: raw.trim() || null })}
+                        />
+                      </MobileFieldGroup>
+                    </div>
+
                     {/* Btw-opbouw per kostenpost — altijd zichtbaar */}
                     <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-1">
                       <div className="flex justify-between"><span className="text-muted-foreground">Bouwkosten excl. btw</span><span className="font-mono-data">{fmtEur(bd.exVat)}</span></div>
@@ -1692,17 +1839,32 @@ export default function ScenarioEditor(props: Props) {
             <Section id="sec-componenten" title={`Componenten / units (${components.length})`} status={compStatus} {...sectionProps('sec-componenten')} source="Componenten" relevance={compRelevance}>
 
               <div className="pt-3 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <p className="text-xs text-muted-foreground max-w-xl">
-                    Gebruik componenten wanneer een object uit meerdere delen bestaat. Componenten werken door in huur, WWS, OVB per component, uitpondanalyse en prijs per m².
-                  </p>
-                  <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Component</Button>
-                </div>
+                 {ovbMode === 'per_component' && (
+                   <AcquisitionComponentsTable
+                     components={acquisitionComponents}
+                     links={acquisitionUnitLinks}
+                     strategyUnits={sellOffUnits}
+                     ovbPerComponent={outputs.ovbPerComponent}
+                     purchasePrice={Number(s.purchase_price ?? 0)}
+                     availability={acquisitionStructureStatus}
+                     unavailableMessage={acquisitionStructureMessage}
+                     onCreate={createAcquisitionComponent}
+                     onUpdate={updateAcquisitionComponent}
+                     onDelete={deleteAcquisitionComponent}
+                     onSetLinks={setAcquisitionComponentLinks}
+                   />
+                 )}
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t pt-3">
+                   <p className="text-xs text-muted-foreground max-w-xl">
+                     Projectcomponenten/rekenunits werken door in huur, WWS, toekomstige strategie, ontwikkelkosten en prijs per m². Zodra een aparte verkrijgingsstructuur bestaat, worden deze units niet meer voor OVB gebruikt.
+                   </p>
+                   <Button size="sm" variant="outline" onClick={addComponent} className="w-full sm:w-auto"><Plus className="h-3.5 w-3.5 mr-1" /> Projectcomponent</Button>
+                 </div>
                 {components.length === 0 && <p className="text-xs text-muted-foreground">Nog geen componenten.</p>}
                 <ComponentenTable
                   components={components}
-                  ovbPerComponent={outputs.ovbPerComponent}
-                  ovbMode={ovbMode}
+                   ovbPerComponent={hasSeparateAcquisitionStructure ? [] : outputs.ovbPerComponent}
+                   ovbMode={hasSeparateAcquisitionStructure ? 'auto' : ovbMode}
                   sellOffUnitsCount={sellOffUnits.length}
                   updateComponent={updateComponent}
                   deleteComponent={deleteComponent}
@@ -1718,8 +1880,7 @@ export default function ScenarioEditor(props: Props) {
               <ComponentStrategyTable
                 units={sellOffUnits}
                 components={components}
-                asking={s.asking_price}
-                onCreate={createStrategyUnit}
+                 onCreate={createStrategyUnit}
                 onUpdate={updateStrategyUnit}
                 onDelete={deleteStrategyUnit}
                 onImport={importStrategyFromComponents}
@@ -1857,7 +2018,8 @@ export default function ScenarioEditor(props: Props) {
             />
             <Section id="sec-onderbouwing" title="Onderbouwing & betrouwbaarheid" status={onderbouwingStatus} {...sectionProps('sec-onderbouwing')} source="Scenario" relevance={blockerCount + warningCount > 0 ? 'aandacht' : 'informatief'}>
               <div className="pt-3 space-y-3">
-                {nogTeControleren.length > 0 && <NogTeControleren items={nogTeControleren} />}
+                <BetrouwbaarheidsOpbouw assessment={reliabilityAssessment} onAction={navigateToValidationAction} />
+                <p className="text-xs text-muted-foreground">De concrete herstelacties staan bovenaan het scenario. Gebruik daar “Ga naar…” om direct naar de juiste invoer te springen.</p>
                 {manualZeroSet.size > 0 && (
                   <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{manualZeroSet.size}</span> veld(en) bewust op € 0 gezet: <span className="font-mono">{Array.from(manualZeroSet).join(', ')}</span>

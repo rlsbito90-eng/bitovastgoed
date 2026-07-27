@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
@@ -668,6 +668,7 @@ function SectionNav({ active, sections }: { active: string; sections: SectionDef
 export default function ObjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useDataStore();
   const { labelFor } = useSubcategorieen();
   const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
@@ -719,15 +720,23 @@ export default function ObjectDetailPage() {
   };
 
   const [activeTab, setActiveTabState] = useState<WorkspaceTabId>(readInitialTab);
+  const requestedCalculationId = useMemo(
+    () => new URLSearchParams(location.search).get('calculation'),
+    [location.search],
+  );
 
   const setActiveTab = (id: WorkspaceTabId) => {
     setActiveTabState(id);
     try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, id); } catch { /* ignore */ }
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', id);
-      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    } catch { /* ignore */ }
+    const params = new URLSearchParams(location.search);
+    params.set('tab', id);
+    if (id !== 'vastgoedrekenen') params.delete('calculation');
+    const search = params.toString();
+    navigate({
+      pathname: location.pathname,
+      search: search ? `?${search}` : '',
+      hash: '',
+    }, { replace: true });
   };
 
   // Zorg dat actieve tab geldig blijft als visibleTabs verandert (bv. 'meer' verdwijnt)
@@ -736,6 +745,18 @@ export default function ObjectDetailPage() {
       setActiveTabState('overzicht');
     }
   }, [visibleTabs, activeTab]);
+
+  // Browser back/forward en externe deep-links blijven in sync met de zichtbare tab.
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(location.search).get('tab');
+    const fromHash = ANCHOR_TO_TAB[location.hash.replace(/^#/, '')];
+    const requested = (fromQuery && WORKSPACE_TABS.some((tab) => tab.id === fromQuery)
+      ? fromQuery
+      : fromHash) as WorkspaceTabId | undefined;
+    if (requested && requested !== activeTab && visibleTabs.some((tab) => tab.id === requested)) {
+      setActiveTabState(requested);
+    }
+  }, [activeTab, location.hash, location.search, visibleTabs]);
 
   // Nummering alleen op hoofdworkspace-niveau: één NN per tab op de primaire sectie.
   // Sub-secties binnen dezelfde tab tonen alleen de suffix-label (geen herhaald nummer).
@@ -763,25 +784,59 @@ export default function ObjectDetailPage() {
     return suffix ? `${nn} — ${suffix}` : nn;
   };
 
-  // Scroll naar een element binnen huidige tab (gebruikt door deep-links en quick actions)
-  const performScroll = (id: string) => {
-    const target = document.getElementById(id);
-    if (!target) return false;
+  // Bepaal welk element werkelijk verticaal scrollt. In de desktop-CRM is dit
+  // doorgaans het centrale <main>-paneel en niet het browservenster.
+  const getScrollContext = (target: HTMLElement) => {
     const sectionNav = document.querySelector<HTMLElement>('[data-object-section-nav="true"]');
     const sectionNavHeight = sectionNav?.getBoundingClientRect().height ?? 60;
     const buffer = 12;
+
+    let node = target.parentElement;
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const overflowY = style.overflowY;
+      const isScrollable = /(auto|scroll|overlay)/.test(overflowY)
+        && node.scrollHeight > node.clientHeight + 1;
+      if (isScrollable) {
+        return {
+          container: node,
+          desiredViewportTop: node.getBoundingClientRect().top + sectionNavHeight + buffer,
+        };
+      }
+      node = node.parentElement;
+    }
+
     const rootStyles = getComputedStyle(document.documentElement);
-    const parsePx = (v: string, fb: number) => {
-      const n = parseFloat(v);
-      if (!n) return fb;
-      return v.trim().endsWith('rem') ? n * 16 : n;
+    const parsePx = (value: string, fallback: number) => {
+      const parsed = parseFloat(value);
+      if (!parsed) return fallback;
+      return value.trim().endsWith('rem') ? parsed * 16 : parsed;
     };
     const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
     const topbar = isDesktop
       ? parsePx(rootStyles.getPropertyValue('--desktop-header-height'), 64)
       : parsePx(rootStyles.getPropertyValue('--mobile-header-height'), 56);
-    const top = target.getBoundingClientRect().top + window.scrollY - (topbar + sectionNavHeight + buffer);
-    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+
+    return {
+      container: null as HTMLElement | null,
+      desiredViewportTop: topbar + sectionNavHeight + buffer,
+    };
+  };
+
+  // Scroll naar een element binnen de huidige tab. Gebruik de echte scrollcontainer,
+  // zodat deep links ook werken in de desktop-layout met een vast zijmenu en header.
+  const performScroll = (id: string, behavior: ScrollBehavior = 'smooth') => {
+    const target = document.getElementById(id);
+    if (!target) return false;
+
+    const { container, desiredViewportTop } = getScrollContext(target);
+    if (container) {
+      const top = container.scrollTop + target.getBoundingClientRect().top - desiredViewportTop;
+      container.scrollTo({ top: Math.max(0, top), behavior });
+    } else {
+      const top = target.getBoundingClientRect().top + window.scrollY - desiredViewportTop;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    }
     return true;
   };
 
@@ -792,22 +847,25 @@ export default function ObjectDetailPage() {
   const goToAnchor = (anchorId: string) => {
     const tab = ANCHOR_TO_TAB[anchorId];
     if (tab && tab !== activeTab) {
-      setActiveTab(tab);
-      // Wacht tot tab-content gemount is, dan scrollen
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => performScroll(anchorId));
-        setTimeout(() => performScroll(anchorId), 180);
-      });
-    } else {
+      setActiveTabState(tab);
+      try { window.localStorage.setItem(WORKSPACE_TAB_STORAGE_KEY, tab); } catch { /* ignore */ }
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (tab) params.set('tab', tab);
+    if (tab !== 'vastgoedrekenen') params.delete('calculation');
+    const search = params.toString();
+    navigate({
+      pathname: location.pathname,
+      search: search ? `?${search}` : '',
+      hash: `#${anchorId}`,
+    }, { replace: true });
+
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => performScroll(anchorId));
-    }
-    if (history.replaceState) {
-      try {
-        const url = new URL(window.location.href);
-        url.hash = anchorId;
-        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-      } catch { /* ignore */ }
-    }
+      setTimeout(() => performScroll(anchorId), 180);
+      setTimeout(() => performScroll(anchorId), 420);
+    });
   };
 
   const openDossierTab = (tab: DossierTab) => {
@@ -821,7 +879,7 @@ export default function ObjectDetailPage() {
       const hash = window.location.hash.replace(/^#/, '');
       if (hash && ANCHOR_TO_TAB[hash]) {
         const tab = ANCHOR_TO_TAB[hash];
-        if (tab !== activeTab) setActiveTab(tab);
+        if (tab !== activeTab) setActiveTabState(tab);
         requestAnimationFrame(() => performScroll(hash));
       }
     };
@@ -830,14 +888,53 @@ export default function ObjectDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Bij eerste mount: als URL al een hash heeft, scroll ernaartoe na render
+  // Deep-links worden pas definitief uitgelijnd nadat hero, navigatie en lazy tabinhoud
+  // hun uiteindelijke hoogte hebben. Korte hercontroles voorkomen dat een laat geladen
+  // objectfoto de gekozen quickscan opnieuw onder de viewport duwt.
   useEffect(() => {
-    const hash = window.location.hash.replace(/^#/, '');
-    if (hash && ANCHOR_TO_TAB[hash]) {
-      setTimeout(() => performScroll(hash), 120);
-    }
+    const hash = location.hash.replace(/^#/, '');
+    const targetTab = hash ? ANCHOR_TO_TAB[hash] : undefined;
+    if (!hash || !targetTab || activeTab !== targetTab) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+    let attempts = 0;
+    let stablePasses = 0;
+
+    const alignWhenStable = () => {
+      if (cancelled) return;
+      const target = document.getElementById(hash);
+      attempts += 1;
+
+      if (!target) {
+        if (attempts < 40) timer = window.setTimeout(alignWhenStable, 75);
+        return;
+      }
+
+      const { desiredViewportTop } = getScrollContext(target);
+      const delta = target.getBoundingClientRect().top - desiredViewportTop;
+
+      if (Math.abs(delta) > 3) {
+        performScroll(hash, 'auto');
+        stablePasses = 0;
+      } else {
+        stablePasses += 1;
+      }
+
+      // Minimaal circa 1,8 seconde blijven controleren voor laat geladen hero-media.
+      if (attempts < 40 && (attempts < 18 || stablePasses < 5)) {
+        timer = window.setTimeout(alignWhenStable, 100);
+      }
+    };
+
+    const frame = window.requestAnimationFrame(alignWhenStable);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      if (timer != null) window.clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab, location.hash, requestedCalculationId]);
 
   const fotos = id ? store.getFotosVoorObject(id) : [];
   useEffect(() => {
@@ -1343,7 +1440,7 @@ export default function ObjectDetailPage() {
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
           ================================================= */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start">
+      <div className={`grid ${activeTab === 'vastgoedrekenen' ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px]'} gap-4 lg:gap-6 xl:gap-8 min-w-0 items-start`}>
         {/* LEFT — content */}
         <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
 
@@ -2200,6 +2297,7 @@ export default function ObjectDetailPage() {
 
               <Suspense fallback={<p className="text-sm text-muted-foreground py-4">Vastgoedrekenen laden…</p>}>
                 <VastgoedrekenenTab
+                  initialCalculationId={requestedCalculationId}
                   objectId={object.id}
                   objectArea={(object as { woonoppervlak?: number; oppervlakte?: number }).woonoppervlak ?? (object as { oppervlakte?: number }).oppervlakte ?? null}
                   objectWoz={(object as { wozWaarde?: number }).wozWaarde ?? null}
@@ -2235,7 +2333,7 @@ export default function ObjectDetailPage() {
         </div>
 
         {/* RIGHT — sticky deal cockpit */}
-        <aside className={`${activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
+        <aside className={`${activeTab === 'vastgoedrekenen' ? 'hidden' : activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
           {/* Deal status cockpit */}
           <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">

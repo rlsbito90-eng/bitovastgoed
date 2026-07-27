@@ -98,7 +98,7 @@ export const VR_OVB_CLASSIFICATION_LABELS: Record<string, string> = {
   eigen_woning: 'Eigen woning / hoofdverblijf',
   woning_belegging: 'Woning niet-hoofdverblijf / belegging',
   niet_woning: 'Niet-woning / commercieel',
-  mixed_use: 'Gemengd / mixed-use',
+  mixed_use: 'Gemengd — splits in afzonderlijke fiscale regels',
   vrijgesteld: 'Vrijgesteld / n.v.t.',
   handmatig: 'Handmatig',
 };

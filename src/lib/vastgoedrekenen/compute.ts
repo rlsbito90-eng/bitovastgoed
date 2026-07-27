@@ -2,6 +2,7 @@
 // voor één scenario. Pure function — geen DB-calls.
 
 import type { Component, Scenario, ScenarioCost, WwsUnit, TaxSettings, ComputedOutputs, SellOffUnit } from './types';
+import type { AcquisitionComponent, TransferTaxComponent } from './acquisition';
 import { computeScenarioOvb } from './ovb';
 import {
   annualFromMonthly, getWwsCorrectedAnnualRent, pickCorrectedAnnualRent, bar as fnBar, factor as fnFactor,
@@ -25,10 +26,13 @@ import {
   type ComponentStrategyKey,
 } from './componentStrategy';
 import { computeResidualBid } from './residueel';
+import { findDuplicateDevelopmentCostDetails } from './validation';
 
 export type ComputeContext = {
   scenario: Scenario;
   components: Component[];
+  /** Optionele feitelijke verkrijgingsstructuur. Zodra gevuld leidend voor OVB. */
+  acquisitionComponents?: AcquisitionComponent[];
   costs: ScenarioCost[];
   wwsUnits: WwsUnit[];
   /** Optionele componentstrategie-units (uit sell_off_units). */
@@ -83,9 +87,21 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   }
 
   // --- OVB ---
+  // Een aparte verkrijgingsstructuur is leidend. Zonder nieuwe invoer blijft het
+  // bestaande componentmodel als backwards-compatible fallback functioneren.
+  const ovbComponents: TransferTaxComponent[] = (ctx.acquisitionComponents?.length ?? 0) > 0
+    ? (ctx.acquisitionComponents as TransferTaxComponent[])
+    : (components as TransferTaxComponent[]);
+  const hasSeparateAcquisitionStructure = (ctx.acquisitionComponents?.length ?? 0) > 0;
   const ovbObjectType: 'residentieel' | 'commercieel' | 'mixed_use' =
     propertyType === 'residentieel' ? 'residentieel' : propertyType === 'mixed_use' ? 'mixed_use' : 'commercieel';
-  const ovb = computeScenarioOvb(scenario, components, taxSettings, ovbObjectType, strategyValueByComponentId);
+  const ovb = computeScenarioOvb(
+    scenario,
+    ovbComponents,
+    taxSettings,
+    ovbObjectType,
+    hasSeparateAcquisitionStructure ? undefined : strategyValueByComponentId,
+  );
 
   // --- Aankoopkosten ---
   const acq = computeAcquisitionCosts(scenario);
@@ -134,17 +150,19 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     totalCosts: totals.total,
     financingCosts: financing,
   });
-  // Holdcomponenten dragen hun renovatie-/transformatiekosten niet in de
-  // terminale waarde; die horen daarom eenmaal bij de investering.
-  const totalInvestmentWithStrategy = strategy.enabled
+  // Alle componentontwikkelkosten horen bij de investering. Ze worden niet
+  // gesaldeerd met de verkoopopbrengst.
+  const reportedTotalInvestment = strategy.enabled
     ? totalInvestment + strategy.extraInvestmentCosts
     : totalInvestment;
 
   const barPurchase = fnBar(correctedAnnual, purchase);
-  const barTotal = fnBar(correctedAnnual, totalInvestment);
+  const barTotal = fnBar(correctedAnnual, reportedTotalInvestment);
   const factorPurchase = fnFactor(purchase, correctedAnnual);
-  const factorTotal = fnFactor(totalInvestment, correctedAnnual);
-  const narTotal = totalInvestment > 0 ? Number(((noi / totalInvestment) * 100).toFixed(2)) : null;
+  const factorTotal = fnFactor(reportedTotalInvestment, correctedAnnual);
+  const narTotal = reportedTotalInvestment > 0
+    ? Number(((noi / reportedTotalInvestment) * 100).toFixed(2))
+    : null;
 
   // --- Biedingsadvies ---
   const bid = computeBidAdvice({
@@ -158,7 +176,53 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   });
 
   // --- Verkoop / exit ---
-  const sale = computeSale(scenario, totalInvestmentWithStrategy, purchase);
+  const sale = computeSale(scenario, reportedTotalInvestment, purchase);
+
+  // Componentstrategie is een volwaardige opbrengstbron. Ontwikkelkosten staan
+  // aan de investeringszijde; netto verkoopopbrengst bevat alleen aftrek van
+  // verkoop- en juridische kosten.
+  const strategySaleResults = strategy.perUnit.filter(
+    (result) => result.strategy != null && SALE_STRATEGIES.includes(result.strategy),
+  );
+  const strategyGrossSaleProceeds = strategySaleResults.reduce(
+    (sum, result) => sum + result.breakdown.grossSaleValue,
+    0,
+  );
+  const strategyHasTerminalValue = strategy.enabled && strategy.grossDevelopmentValue > 0;
+  const strategyHasSale = strategySaleResults.length > 0;
+  const strategyNetMargin = strategyHasTerminalValue && purchase > 0 && reportedTotalInvestment > 0
+    ? strategy.scenarioValue - reportedTotalInvestment
+    : null;
+  const strategyRoi = strategyNetMargin != null && reportedTotalInvestment > 0
+    ? Number(((strategyNetMargin / reportedTotalInvestment) * 100).toFixed(2))
+    : null;
+
+  const reportedSaleHasInput = strategy.enabled ? strategyHasTerminalValue : sale.hasAnySaleInput;
+  const reportedGrossSaleProceeds = strategy.enabled
+    ? (strategyHasSale ? strategyGrossSaleProceeds : null)
+    : sale.grossSaleProceeds;
+  const reportedSaleCostsTotal = strategy.enabled
+    ? (strategyHasSale ? strategy.componentDispositionCosts : null)
+    : sale.saleCostsTotal;
+  const reportedNetSaleProceeds = strategy.enabled
+    ? (strategyHasSale ? strategy.netSaleProceeds : null)
+    : sale.netSaleProceeds;
+  const reportedExitValue = strategy.enabled
+    ? (strategyHasTerminalValue ? strategy.scenarioValue : null)
+    : sale.exitValue;
+  const reportedGrossMargin = strategy.enabled
+    ? (strategyHasTerminalValue && purchase > 0
+      ? strategy.grossDevelopmentValue - reportedTotalInvestment
+      : null)
+    : sale.grossMargin;
+  const reportedNetMargin = strategy.enabled ? strategyNetMargin : sale.netMargin;
+  const reportedRoi = strategy.enabled ? strategyRoi : sale.roi;
+  const reportedSaleVsPurchase = strategy.enabled
+    ? (strategyHasTerminalValue && purchase > 0 ? strategy.grossDevelopmentValue - purchase : null)
+    : sale.saleVsPurchase;
+  const reportedSaleVsTotalInvestment = strategy.enabled
+    ? strategyNetMargin
+    : sale.saleVsTotalInvestment;
 
   // Exit-gebaseerde max bieding: trek overhead af van de max toegestane totale investering.
   // Symmetrisch met huur-tak: OVB + aankoopkosten (incl. safety_margin) + kosten + financiering.
@@ -181,6 +245,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   // --- Scores ---
   const scoreInput = {
     scenario, components, costs, wwsUnits, objectType,
+    strategyUnits: ctx.strategyUnits ?? [],
+    correctedAnnualRent: correctedAnnual,
+    saleHasInput: reportedSaleHasInput,
+    ovbMissingBasisCount: ovb.missingBasisCount,
     barTotalInvestment: barTotal,
     hasObjectArea: !!objectArea && objectArea > 0,
     hasWoz: !!ctx.objectWoz,
@@ -195,11 +263,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const rec = scenario as Record<string, unknown>;
   const saleScore = assessmentType === 'verkoop'
     ? computeSaleScenarioScore({
-      netSaleProceeds: sale.netSaleProceeds,
-      exitValue: sale.exitValue,
-      totalInvestment,
-      netMargin: sale.netMargin,
-      roi: sale.roi,
+      netSaleProceeds: reportedNetSaleProceeds,
+      exitValue: reportedExitValue,
+      totalInvestment: reportedTotalInvestment,
+      netMargin: reportedNetMargin,
+      roi: reportedRoi,
       maximumBid: effectiveMaxBid,
       askingPrice: asking,
       purchasePrice: purchase,
@@ -207,8 +275,8 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       targetMarginAmount: Number(rec.sale_target_margin_amount ?? 0),
       targetMarginPercentage: Number(rec.sale_target_margin_percentage ?? 0),
       targetExitValue: Number(rec.sale_target_exit_value ?? 0),
-      saleHasInput: sale.hasAnySaleInput,
-      exitIsManual: Number(rec.sale_exit_value_manual ?? 0) > 0,
+      saleHasInput: reportedSaleHasInput,
+      exitIsManual: !strategy.enabled && Number(rec.sale_exit_value_manual ?? 0) > 0,
       hasIndicativeCosts: costs.some((c) => c.reliability_status !== 'hoog'),
     })
     : null;
@@ -229,7 +297,6 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
 
   // Conclusie + next step worden hieronder berekend, ná de leading-aware override.
 
-
   // --- €/m² afgeleide KPI's ---
   const safeDiv = (num: number | null | undefined, den: number | null | undefined): number | null => {
     if (num == null || den == null) return null;
@@ -238,23 +305,35 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     return Math.round(n2 / d2);
   };
   const gbo = objectArea && objectArea > 0 ? objectArea : null;
-  const sellableM2 = Number((scenario as Record<string, unknown>).sale_sellable_m2 ?? 0) || null;
-  const salePricePerM2 = sale.grossSaleProceeds != null && sellableM2
-    ? safeDiv(sale.grossSaleProceeds, sellableM2)
+  const strategySellableM2 = strategySaleResults.reduce((sum, result) => {
+    const unit = (ctx.strategyUnits ?? []).find((candidate) => candidate.id === result.unitId);
+    if (!unit) return sum;
+    const record = unit as unknown as Record<string, unknown>;
+    return sum + (
+      Number(record.surface_gbo ?? 0)
+      || Number(record.surface_vvo ?? 0)
+      || Number(record.surface_bvo ?? 0)
+    );
+  }, 0);
+  const sellableM2 = strategy.enabled
+    ? (strategySellableM2 > 0 ? strategySellableM2 : null)
+    : (Number((scenario as Record<string, unknown>).sale_sellable_m2 ?? 0) || null);
+  const salePricePerM2 = reportedGrossSaleProceeds != null && sellableM2
+    ? safeDiv(reportedGrossSaleProceeds, sellableM2)
     : null;
-  const netSaleProceedsPerM2 = sale.netSaleProceeds != null && sellableM2
-    ? safeDiv(sale.netSaleProceeds, sellableM2)
+  const netSaleProceedsPerM2 = reportedNetSaleProceeds != null && sellableM2
+    ? safeDiv(reportedNetSaleProceeds, sellableM2)
     : null;
-  const netMarginPerM2 = sale.netMargin != null && sellableM2
-    ? safeDiv(sale.netMargin, sellableM2)
+  const netMarginPerM2 = reportedNetMargin != null && sellableM2
+    ? safeDiv(reportedNetMargin, sellableM2)
     : null;
 
   // --- Componentstrategie en residuele maximale koopsom ---
   const scenarioResultAtAsking = strategy.enabled && asking > 0
     ? strategy.scenarioValue - (asking + ovb.totalOvb + acq.totalAcquisitionCosts + totals.total + financing + strategy.extraInvestmentCosts)
     : null;
-  const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && totalInvestmentWithStrategy > 0
-    ? Number(((scenarioResultAtAsking / totalInvestmentWithStrategy) * 100).toFixed(2))
+  const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && reportedTotalInvestment > 0
+    ? Number(((scenarioResultAtAsking / reportedTotalInvestment) * 100).toFixed(2))
     : null;
 
   const residualCriticalIssues: string[] = [];
@@ -300,14 +379,34 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     }
   }
 
-  if (costs.some((cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog')) {
-    residualCriticalIssues.push('Niet alle algemene projectkosten hebben betrouwbaarheid hoog.');
+  const insufficientlySupportedCosts = costs.filter(
+    (cost) => effectiveCostAmount(cost) > 0 && cost.reliability_status !== 'hoog',
+  );
+  if (insufficientlySupportedCosts.length > 0) {
+    const visibleNames = insufficientlySupportedCosts.slice(0, 3).map((cost) => {
+      const description = String(cost.description ?? '').trim();
+      const category = String(cost.cost_category ?? '').trim();
+      return description || category || 'Naamloze kostenpost';
+    });
+    const remaining = insufficientlySupportedCosts.length - visibleNames.length;
+    residualCriticalIssues.push(
+      `Algemene projectkosten hebben nog geen betrouwbaarheid Hoog: ${visibleNames.join(', ')}${remaining > 0 ? ` en ${remaining} overige post(en)` : ''}. Controleer bedrag en scope, leg bron met datum vast en kies daarna de passende betrouwbaarheid.`,
+    );
+  }
+
+  const duplicateDevelopmentCostDetails = findDuplicateDevelopmentCostDetails(costs, ctx.strategyUnits ?? []);
+  for (const detail of duplicateDevelopmentCostDetails) {
+    residualWarnings.push(
+      `Mogelijke dubbele ${detail.kind}kosten: algemene kostenpost “${detail.centralLabels.join(', ')}” (${eur(detail.centralAmount)}) en ${detail.componentUnitIds.length} component(en) (${eur(detail.componentAmount)}). Onvoorzien (%) telt niet als dubbele kostenpost.`,
+    );
   }
 
   if (scenario.ovb_mode === 'per_component') {
-    if (components.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar componenten ontbreken.');
-    for (const component of components) {
-      if (!component.transfer_tax_classification) {
+    if (ovbComponents.length === 0) residualCriticalIssues.push('OVB per component is gekozen, maar verkrijgingscomponenten ontbreken.');
+    for (const component of ovbComponents) {
+      if (component.transfer_tax_classification === 'mixed_use') {
+        residualCriticalIssues.push(`${component.component_name ?? 'Component'}: mixed-use is geen eindtarief; splits dit in afzonderlijke fiscale verkrijgingsregels.`);
+      } else if (!component.transfer_tax_classification) {
         residualCriticalIssues.push(`${component.component_name ?? 'Component'}: expliciete OVB-classificatie bij verkrijging ontbreekt.`);
       }
     }
@@ -331,7 +430,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const residual = residualSource
     ? computeResidualBid({
       scenario,
-      components,
+      components: ovbComponents,
       taxSettings,
       objectType: ovbObjectType,
       source: residualSource,
@@ -344,7 +443,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
       componentDevelopmentCosts: strategy.enabled ? strategy.componentDevelopmentCosts : 0,
       sharedScenarioCosts: totals.total,
       financingCosts: financing,
-      strategyValueByComponentId: strategy.enabled ? strategyValueByComponentId : undefined,
+      strategyValueByComponentId: strategy.enabled && !hasSeparateAcquisitionStructure ? strategyValueByComponentId : undefined,
       criticalIssues: residualCriticalIssues,
       warnings: [
         ...residualWarnings,
@@ -357,14 +456,6 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const roundsAtAsking = asking > 0 && maxPurchasePrice != null
     ? maxPurchasePrice >= asking
     : null;
-
-  if (
-    strategy.enabled
-    && strategy.componentDevelopmentCosts > 0
-    && totals.total > 0
-  ) {
-    residual?.warnings.push('Componentkosten en algemene scenario-kosten tellen beide mee; controleer handmatig of geen invoer overlapt.');
-  }
 
   // Leidende maximale prijs: standaard heuristiek (auto) plus expliciete override
   // via scenario.leading_valuation_track. Per spoor kiezen we de juiste onderliggende
@@ -448,10 +539,10 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     askingPrice: asking,
     assessmentType,
     scoreLabel,
-    netSaleProceeds: sale.netSaleProceeds,
-    netMargin: sale.netMargin,
-    roi: sale.roi,
-    exitValue: sale.exitValue,
+    netSaleProceeds: reportedNetSaleProceeds,
+    netMargin: reportedNetMargin,
+    roi: reportedRoi,
+    exitValue: reportedExitValue,
   });
   let nextStep = assessmentType === 'verkoop'
     ? (scoreLabel === 'Onvoldoende data' ? 'Vul verkoopopbrengst of exitwaarde aan vóór beoordeling.' : scoreLabel === 'Kansrijk' || scoreLabel === 'Acceptabel' ? 'Onderbouw exitwaarde en bereid biedingsbandbreedte voor.' : 'Controleer verkoopopbrengst, kosten, marge en ROI-targets.')
@@ -475,12 +566,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? [...risk.flags, ...strategy.warnings, ...(residual?.warnings ?? [])]
     : [...risk.flags, ...(residual?.warnings ?? [])];
 
-
   return {
     totalTransferTax: ovb.totalOvb,
     totalAcquisitionCosts: acq.totalAcquisitionCosts,
     totalCosts: totals.total,
-    totalInvestment: totalInvestmentWithStrategy,
+    totalInvestment: reportedTotalInvestment,
     currentAnnualRent: currentAnnual,
     marketAnnualRent: marketAnnual,
     wwsCorrectedAnnualRent: wwsAnnual,
@@ -519,22 +609,22 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     conclusion,
     recommendedNextStep: nextStep,
     warnings: combinedWarnings,
-    saleHasInput: sale.hasAnySaleInput,
-    grossSaleProceeds: sale.grossSaleProceeds,
-    saleCostsTotal: sale.saleCostsTotal,
-    netSaleProceeds: sale.netSaleProceeds,
-    grossMargin: sale.grossMargin,
-    netMargin: sale.netMargin,
-    roi: sale.roi,
-    exitValue: sale.exitValue,
-    saleVsPurchase: sale.saleVsPurchase,
-    saleVsTotalInvestment: sale.saleVsTotalInvestment,
+    saleHasInput: reportedSaleHasInput,
+    grossSaleProceeds: reportedGrossSaleProceeds,
+    saleCostsTotal: reportedSaleCostsTotal,
+    netSaleProceeds: reportedNetSaleProceeds,
+    grossMargin: reportedGrossMargin,
+    netMargin: reportedNetMargin,
+    roi: reportedRoi,
+    exitValue: reportedExitValue,
+    saleVsPurchase: reportedSaleVsPurchase,
+    saleVsTotalInvestment: reportedSaleVsTotalInvestment,
     exitBasedMaxBid: exitBasedMaxBidNet,
     exitBidBindingTarget: sale.exitBidBindingTarget,
     bidBasisUsed,
     purchasePricePerM2: safeDiv(purchase, gbo),
     askingPricePerM2: safeDiv(asking, gbo),
-    totalInvestmentPerM2: safeDiv(totalInvestmentWithStrategy, gbo),
+    totalInvestmentPerM2: safeDiv(reportedTotalInvestment, gbo),
     maximumBidPerM2: safeDiv(effectiveMaxBid, gbo),
     totalCostsPerM2: safeDiv(totals.total, gbo),
     salePricePerM2,

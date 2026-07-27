@@ -1,13 +1,16 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { useObjectCalculations, useQuickscanDetail, useTaxSettings } from '@/hooks/useVastgoedrekenen';
+import { cloneScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
 import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
+import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
 
@@ -19,9 +22,8 @@ type Props = {
   objectBouwjaar?: number | null;
   objectRawType?: string | null;
   objectVraagprijs?: number | null;
+  initialCalculationId?: string | null;
 };
-
-
 
 function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -34,7 +36,6 @@ function MobileFieldGroup({ label, children, className }: { label: ReactNode; ch
   );
 }
 
-
 function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, viewMode, objectRawType, objectVraagprijs }: {
   calculationId: string;
   taxSettings: ReturnType<typeof useTaxSettings>['settings'];
@@ -46,10 +47,17 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   objectRawType?: string | null;
   objectVraagprijs?: number | null;
 }) {
-
-
-  const { calculation, scenarios, updateCalculation, createScenario, updateScenario, deleteScenario } = useQuickscanDetail(calculationId);
+  const {
+    calculation,
+    scenarios,
+    updateCalculation,
+    createScenario,
+    updateScenario,
+    deleteScenario,
+    duplicateScenario,
+  } = useQuickscanDetail(calculationId);
   const [openScenarios, setOpenScenarios] = useState<Set<string>>(new Set());
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
 
@@ -69,6 +77,18 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
       const el = document.getElementById(`scenario-${id}`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
+  }
+
+  async function duplicateAndOpen(id: string) {
+    setDuplicatingId(id);
+    try {
+      const duplicate = await duplicateScenario(id);
+      if (!duplicate) return;
+      const snapshotsCopied = await cloneScenarioKengetalSnapshots(id, duplicate.id);
+      if (snapshotsCopied) openAndScrollTo(duplicate.id);
+    } finally {
+      setDuplicatingId(null);
+    }
   }
 
   return (
@@ -110,7 +130,6 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
             </Button>
           </div>
-
         </CardHeader>
       </Card>
 
@@ -126,22 +145,41 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         onSelectScenario={openAndScrollTo}
       />
 
-
       <div className="space-y-3">
         {scenarios.map((s) => {
           const open = openScenarios.has(s.id);
+          const duplicating = duplicatingId === s.id;
           return (
             <div key={s.id} id={`scenario-${s.id}`} className="border rounded-md scroll-mt-20">
-              <button type="button" onClick={() => toggle(s.id)} className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50">
-                <span className="flex items-center gap-2">
-                  {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <span className="font-medium">{s.scenario_name}</span>
-                  <span className="text-xs text-muted-foreground">{VR_STRATEGY_LABELS[s.strategy_type]}</span>
-                </span>
-                <span className="text-xs text-muted-foreground">{VR_STATUS_LABELS[s.status]}</span>
-              </button>
+              <div className="flex items-stretch bg-muted/30 hover:bg-muted/50">
+                <button
+                  type="button"
+                  onClick={() => toggle(s.id)}
+                  className="min-w-0 flex-1 flex items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <span className="min-w-0 flex items-center gap-2">
+                    {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                    <span className="font-medium truncate">{s.scenario_name}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">{VR_STRATEGY_LABELS[s.strategy_type]}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">{VR_STATUS_LABELS[s.status]}</span>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto rounded-none border-l px-3"
+                  disabled={duplicating}
+                  onClick={() => duplicateAndOpen(s.id)}
+                  title="Kopieer het laatst opgeslagen scenario inclusief onderliggende invoer en kengetal-snapshots"
+                >
+                  <Copy className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">{duplicating ? 'Kopiëren…' : 'Dupliceren'}</span>
+                </Button>
+              </div>
               {open && (
                 <div className="p-4">
+                  <ScenarioKengetallenPanel scenario={s} onUpdateScenario={updateScenario} />
                   <ScenarioEditor
                     scenario={s}
                     taxSettings={taxSettings}
@@ -156,8 +194,6 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                     onUpdate={updateScenario}
                     onDelete={deleteScenario}
                   />
-
-
                 </div>
               )}
             </div>
@@ -171,13 +207,39 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   );
 }
 
-export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs }: Props) {
-  const { calculations, create, remove } = useObjectCalculations(objectId);
+export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs, initialCalculationId }: Props) {
+  const { calculations, create } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeId, setActiveId] = useState<string | null>(initialCalculationId ?? null);
+
+  useEffect(() => {
+    if (initialCalculationId && calculations.some((calculation) => calculation.id === initialCalculationId)) {
+      setActiveId(initialCalculationId);
+      return;
+    }
+    setActiveId((current) => (
+      current && calculations.some((calculation) => calculation.id === current)
+        ? current
+        : calculations[0]?.id ?? null
+    ));
+  }, [calculations, initialCalculationId]);
 
   const active = activeId ?? calculations[0]?.id ?? null;
+
+  function selectQuickscan(id: string) {
+    setActiveId(id);
+    const params = new URLSearchParams(location.search);
+    params.set('tab', 'vastgoedrekenen');
+    params.set('calculation', id);
+    navigate({
+      pathname: location.pathname,
+      search: `?${params.toString()}`,
+      hash: '#vastgoedrekenen',
+    }, { replace: true });
+  }
 
   return (
     <div className="space-y-4">
@@ -194,7 +256,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
                   <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) setActiveId(c.id); }}>
+              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) selectQuickscan(c.id); }}>
                 <Plus className="h-4 w-4 mr-1" /> Nieuwe quickscan
               </Button>
             </div>
@@ -204,7 +266,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
         {calculations.length > 0 && (
           <CardContent className="pt-0 flex flex-wrap gap-2">
             {calculations.map((c) => (
-              <button key={c.id} onClick={() => setActiveId(c.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active === c.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/70 text-foreground'}`}>
+              <button key={c.id} onClick={() => selectQuickscan(c.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active === c.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/70 text-foreground'}`}>
                 {c.calculation_name} <span className="opacity-60">· {VR_STATUS_LABELS[c.status]}</span>
               </button>
             ))}
@@ -214,6 +276,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
 
       {active ? (
         <QuickscanDetail
+          key={active}
           calculationId={active}
           taxSettings={taxSettings}
           objectArea={objectArea}
@@ -224,8 +287,6 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
           objectVraagprijs={objectVraagprijs}
           viewMode={viewMode}
         />
-
-
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
           Nog geen quickscan aangemaakt. Klik op "Nieuwe quickscan" om te starten.

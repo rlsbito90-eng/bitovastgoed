@@ -4,9 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import PageHeader from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
+import KengetallenRegisterPanel from '@/components/vastgoedrekenen/KengetallenRegisterPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { Calculation } from '@/lib/vastgoedrekenen/types';
+import { buildQuickscanObjectHref } from '@/lib/vastgoedrekenen/quickscanNavigation';
 
 export default function VastgoedrekenenPage() {
   const [items, setItems] = useState<(Calculation & { object_naam?: string })[]>([]);
@@ -30,11 +32,12 @@ export default function VastgoedrekenenPage() {
   }, [store]);
 
   return (
-    <div className="page-container space-y-6">
+    <div className="page-shell">
       <PageHeader
         title="Vastgoedrekenen"
-        subtitle="Alle quickscans en scenarioanalyses per object."
+        subtitle="Alle quickscans, scenarioanalyses en centraal beheer van traceerbare kengetallen."
       />
+      <KengetallenRegisterPanel />
       {loading ? (
         <p className="text-sm text-muted-foreground">Laden…</p>
       ) : items.length === 0 ? (
@@ -45,7 +48,7 @@ export default function VastgoedrekenenPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {items.map((c) => (
-            <Link key={c.id} to={`/objecten/${c.object_id}#vastgoedrekenen`} className="block">
+            <Link key={c.id} to={buildQuickscanObjectHref(c.object_id, c.id)} className="block">
               <Card className="hover:border-primary/50 transition-colors h-full">
                 <CardContent className="p-4 space-y-1.5">
                   <p className="font-medium text-sm">{c.calculation_name}</p>

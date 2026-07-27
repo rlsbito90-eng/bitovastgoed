@@ -3,13 +3,25 @@ import { mapDbError, showAppErrorToast, describeDbError } from '@/lib/errors';
 // Beheert CRUD voor calculations, scenarios, components, costs, wws units, sell-off units,
 // risk items en outputs voor een specifiek object.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   Calculation, Scenario, Component, ScenarioCost, WwsUnit,
   SellOffUnit, RiskItem, CalcOutput, TaxSettings,
 } from '@/lib/vastgoedrekenen/types';
+import {
+  acquisitionStructureStatusMessage,
+  isAcquisitionStructureMigrationMissing,
+  type AcquisitionComponent,
+  type AcquisitionStructureStatus,
+  type AcquisitionUnitLink,
+} from '@/lib/vastgoedrekenen/acquisition';
 import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import {
+  buildScenarioChildClone,
+  nextScenarioCopyName,
+  stripCloneIdentity,
+} from '@/lib/vastgoedrekenen/duplicateScenario';
 import { toast } from 'sonner';
 
 export function useTaxSettings() {
@@ -107,21 +119,38 @@ export function useQuickscanDetail(calculationId: string | undefined) {
   const [calculation, setCalculation] = useState<Calculation | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
   const fetchAll = useCallback(async () => {
-    if (!calculationId) return;
+    const requestId = ++requestIdRef.current;
+    if (!calculationId) {
+      if (requestId !== requestIdRef.current) return;
+      setCalculation(null);
+      setScenarios([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const [cRes, sRes] = await Promise.all([
       supabase.from('real_estate_calculations').select('*').eq('id', calculationId).maybeSingle(),
       supabase.from('calculation_scenarios').select('*').eq('calculation_id', calculationId).order('created_at', { ascending: true }),
     ]);
+    if (requestId !== requestIdRef.current) return;
     if (cRes.error) toast.error('Kon quickscan niet laden');
     setCalculation((cRes.data as Calculation) ?? null);
     setScenarios((sRes.data ?? []) as Scenario[]);
     setLoading(false);
   }, [calculationId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    setCalculation(null);
+    setScenarios([]);
+    setLoading(true);
+    fetchAll();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [fetchAll]);
 
   const updateCalculation = useCallback(async (patch: Partial<Calculation>) => {
     if (!calculationId) return;
@@ -173,11 +202,205 @@ export function useQuickscanDetail(calculationId: string | undefined) {
     else { toast.success('Scenario verwijderd'); await fetchAll(); }
   }, [fetchAll]);
 
-  return { calculation, scenarios, loading, refetch: fetchAll, updateCalculation, createScenario, updateScenario, deleteScenario };
+  const duplicateScenario = useCallback(async (id: string) => {
+    if (!calculation) return null;
+    const source = scenarios.find((scenario) => scenario.id === id);
+    if (!source) {
+      toast.error('Scenario dupliceren mislukt: bron niet gevonden.');
+      return null;
+    }
+
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const [componentsRes, acquisitionRes, acquisitionLinksRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes] = await Promise.all([
+      supabase.from('calculation_components').select('*').eq('scenario_id', id).order('created_at'),
+      untyped.from('calculation_acquisition_components').select('*').eq('scenario_id', id).order('sort_order').order('created_at'),
+      untyped.from('calculation_acquisition_unit_links').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('scenario_costs').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('residential_wws_units').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('sell_off_units').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('risk_analysis').select('*').eq('scenario_id', id).order('created_at'),
+      supabase.from('exit_assumptions').select('*').eq('scenario_id', id).order('created_at'),
+    ]);
+
+    const requiredLoadError = [componentsRes, costsRes, wwsRes, sellOffRes, risksRes, exitRes]
+      .map((result) => result.error)
+      .find(Boolean);
+    const optionalAcquisitionError = [acquisitionRes.error, acquisitionLinksRes.error]
+      .find((error) => error && error.code !== '42P01');
+    const loadError = requiredLoadError ?? optionalAcquisitionError;
+    if (loadError) {
+      toast.error(mapDbError(loadError, 'Scenario dupliceren mislukt: onderliggende invoer kon niet worden geladen'));
+      return null;
+    }
+
+    const duplicateName = nextScenarioCopyName(
+      source.scenario_name,
+      scenarios.map((scenario) => scenario.scenario_name),
+    );
+    const scenarioPayload = {
+      ...stripCloneIdentity(source as unknown as Record<string, unknown>),
+      calculation_id: calculation.id,
+      object_id: calculation.object_id,
+      scenario_name: duplicateName,
+      status: 'concept',
+    };
+
+    const { data: duplicateData, error: duplicateError } = await supabase
+      .from('calculation_scenarios')
+      .insert(scenarioPayload as never)
+      .select('*')
+      .single();
+    if (duplicateError || !duplicateData) {
+      toast.error(mapDbError(duplicateError, 'Scenario dupliceren mislukt'));
+      return null;
+    }
+
+    const duplicate = duplicateData as Scenario;
+    const componentIdMap = new Map<string, string>();
+    const acquisitionComponentIdMap = new Map<string, string>();
+    const sellOffUnitIdMap = new Map<string, string>();
+
+    const rollback = async (cause: unknown) => {
+      const { error: rollbackError } = await supabase
+        .from('calculation_scenarios')
+        .delete()
+        .eq('id', duplicate.id);
+      const detail = cause instanceof Error ? cause.message : 'Onbekende fout';
+      if (rollbackError) {
+        toast.error(`Scenario is onvolledig gekopieerd en kon niet automatisch worden verwijderd. Controleer “${duplicateName}”.`);
+      } else {
+        toast.error(`Scenario dupliceren afgebroken: ${detail}`);
+      }
+    };
+
+    try {
+      for (const component of componentsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          component as unknown as Record<string, unknown>,
+          duplicate.id,
+        );
+        const { data, error } = await supabase
+          .from('calculation_components')
+          .insert(payload as never)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Component kopiëren mislukt');
+        componentIdMap.set(component.id, data.id);
+      }
+
+      for (const acquisitionComponent of acquisitionRes.error ? [] : acquisitionRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          acquisitionComponent as unknown as Record<string, unknown>,
+          duplicate.id,
+        );
+        const { data, error } = await untyped
+          .from('calculation_acquisition_components')
+          .insert(payload)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Verkrijgingscomponent kopiëren mislukt');
+        acquisitionComponentIdMap.set(acquisitionComponent.id, data.id);
+      }
+
+      for (const scenarioCost of costsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          scenarioCost as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('scenario_costs').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const wwsUnit of wwsRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          wwsUnit as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('residential_wws_units').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const sellOffUnit of sellOffRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          sellOffUnit as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { data, error } = await supabase
+          .from('sell_off_units')
+          .insert(payload as never)
+          .select('id')
+          .single();
+        if (error || !data) throw new Error(error?.message ?? 'Strategie-unit kopiëren mislukt');
+        sellOffUnitIdMap.set(sellOffUnit.id, data.id);
+      }
+
+      for (const acquisitionLink of acquisitionLinksRes.error ? [] : acquisitionLinksRes.data ?? []) {
+        const newAcquisitionId = acquisitionComponentIdMap.get(acquisitionLink.acquisition_component_id);
+        const newSellOffUnitId = sellOffUnitIdMap.get(acquisitionLink.sell_off_unit_id);
+        if (!newAcquisitionId || !newSellOffUnitId) {
+          throw new Error('Verkrijgingskoppeling kon niet veilig naar de gekopieerde records worden vertaald');
+        }
+        const payload = {
+          ...stripCloneIdentity(acquisitionLink as unknown as Record<string, unknown>),
+          scenario_id: duplicate.id,
+          acquisition_component_id: newAcquisitionId,
+          sell_off_unit_id: newSellOffUnitId,
+        };
+        const { error } = await untyped.from('calculation_acquisition_unit_links').insert(payload);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const risk of risksRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          risk as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('risk_analysis').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+
+      for (const exitAssumption of exitRes.data ?? []) {
+        const payload = buildScenarioChildClone(
+          exitAssumption as unknown as Record<string, unknown>,
+          duplicate.id,
+          componentIdMap,
+        );
+        const { error } = await supabase.from('exit_assumptions').insert(payload as never);
+        if (error) throw new Error(error.message);
+      }
+    } catch (error) {
+      await rollback(error);
+      return null;
+    }
+
+    toast.success(`Scenario gedupliceerd als “${duplicateName}”. Uitkomsten worden opnieuw berekend.`);
+    await fetchAll();
+    return duplicate;
+  }, [calculation, scenarios, fetchAll]);
+
+  return {
+    calculation,
+    scenarios,
+    loading,
+    refetch: fetchAll,
+    updateCalculation,
+    createScenario,
+    updateScenario,
+    deleteScenario,
+    duplicateScenario,
+  };
 }
 
 export function useScenarioChildren(scenarioId: string | undefined) {
   const [components, setComponents] = useState<Component[]>([]);
+  const [acquisitionComponents, setAcquisitionComponents] = useState<AcquisitionComponent[]>([]);
+  const [acquisitionUnitLinks, setAcquisitionUnitLinks] = useState<AcquisitionUnitLink[]>([]);
+  const [acquisitionStructureStatus, setAcquisitionStructureStatus] = useState<AcquisitionStructureStatus>('available');
+  const [acquisitionStructureError, setAcquisitionStructureError] = useState<string | null>(null);
   const [costs, setCosts] = useState<ScenarioCost[]>([]);
   const [wwsUnits, setWwsUnits] = useState<WwsUnit[]>([]);
   const [sellOffUnits, setSellOffUnits] = useState<SellOffUnit[]>([]);
@@ -188,8 +411,11 @@ export function useScenarioChildren(scenarioId: string | undefined) {
   const fetchAll = useCallback(async () => {
     if (!scenarioId) return;
     setLoading(true);
-    const [c, k, w, so, r, o] = await Promise.all([
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const [c, acq, acqLinks, k, w, so, r, o] = await Promise.all([
       supabase.from('calculation_components').select('*').eq('scenario_id', scenarioId).order('created_at'),
+      untyped.from('calculation_acquisition_components').select('*').eq('scenario_id', scenarioId).order('sort_order').order('created_at'),
+      untyped.from('calculation_acquisition_unit_links').select('*').eq('scenario_id', scenarioId).order('created_at'),
       supabase.from('scenario_costs').select('*').eq('scenario_id', scenarioId).order('created_at'),
       supabase.from('residential_wws_units').select('*').eq('scenario_id', scenarioId).order('created_at'),
       supabase.from('sell_off_units').select('*').eq('scenario_id', scenarioId).order('created_at'),
@@ -197,6 +423,27 @@ export function useScenarioChildren(scenarioId: string | undefined) {
       supabase.from('calculation_outputs').select('*').eq('scenario_id', scenarioId).maybeSingle(),
     ]);
     setComponents((c.data ?? []) as Component[]);
+    const acquisitionError = acq.error ?? acqLinks.error;
+    if (!acquisitionError) {
+      setAcquisitionComponents((acq.data ?? []) as AcquisitionComponent[]);
+      setAcquisitionUnitLinks((acqLinks.data ?? []) as AcquisitionUnitLink[]);
+      setAcquisitionStructureStatus('available');
+      setAcquisitionStructureError(null);
+    } else {
+      setAcquisitionComponents([]);
+      setAcquisitionUnitLinks([]);
+      if (isAcquisitionStructureMigrationMissing(acquisitionError)) {
+        setAcquisitionStructureStatus('migration_required');
+        setAcquisitionStructureError(null);
+      } else {
+        setAcquisitionStructureStatus('error');
+        setAcquisitionStructureError(describeDbError(acquisitionError, {
+          module: 'Vastgoedrekenen',
+          section: 'Verkrijgingsstructuur',
+          fallback: 'Verkrijgingsstructuur laden mislukt',
+        }));
+      }
+    }
     setCosts((k.data ?? []) as ScenarioCost[]);
     setWwsUnits((w.data ?? []) as WwsUnit[]);
     setSellOffUnits((so.data ?? []) as SellOffUnit[]);
@@ -215,6 +462,89 @@ export function useScenarioChildren(scenarioId: string | undefined) {
       .upsert({ scenario_id: scenarioId, ...payload }, { onConflict: 'scenario_id' });
     if (error) toast.error(mapDbError(error, 'Opslaan outputs mislukt'));
   }, [scenarioId]);
+
+  // --- Verkrijgingsstructuur (feitelijke situatie bij aankoop) ---
+  const recordAcquisitionError = useCallback((error: unknown, fallback: string): string => {
+    if (isAcquisitionStructureMigrationMissing(error as { code?: string; message?: string; details?: string; hint?: string })) {
+      setAcquisitionStructureStatus('migration_required');
+      setAcquisitionStructureError(null);
+      return acquisitionStructureStatusMessage('migration_required') as string;
+    }
+    const message = describeDbError(error as { code?: string; message?: string; details?: string; hint?: string }, {
+      module: 'Vastgoedrekenen',
+      section: 'Verkrijgingsstructuur',
+      fallback,
+    });
+    setAcquisitionStructureStatus('error');
+    setAcquisitionStructureError(message);
+    return message;
+  }, []);
+
+  const createAcquisitionComponent = useCallback(async (patch: Partial<AcquisitionComponent> = {}) => {
+    if (!scenarioId) return null;
+    if (acquisitionStructureStatus !== 'available') {
+      toast.error(acquisitionStructureStatusMessage(acquisitionStructureStatus, acquisitionStructureError) as string);
+      return null;
+    }
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const payload = {
+      scenario_id: scenarioId,
+      component_name: patch.component_name ?? 'Nieuw verkrijgingscomponent',
+      component_type: patch.component_type ?? 'overig',
+      transfer_tax_allocation_method: patch.transfer_tax_allocation_method ?? 'value',
+      transfer_tax_classification: patch.transfer_tax_classification ?? null,
+      sort_order: acquisitionComponents.length,
+      ...patch,
+    };
+    const { data, error } = await untyped.from('calculation_acquisition_components').insert(payload).select('*').single();
+    if (error) {
+      toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent aanmaken mislukt'));
+      return null;
+    }
+    await fetchAll();
+    return data as AcquisitionComponent;
+  }, [scenarioId, acquisitionComponents.length, acquisitionStructureStatus, acquisitionStructureError, fetchAll, recordAcquisitionError]);
+
+  const updateAcquisitionComponent = useCallback(async (id: string, patch: Partial<AcquisitionComponent>) => {
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const { error } = await untyped.from('calculation_acquisition_components').update(stripUndefinedEntries(patch)).eq('id', id);
+    if (error) toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent wijzigen mislukt'));
+    else await fetchAll();
+  }, [fetchAll, recordAcquisitionError]);
+
+  const deleteAcquisitionComponent = useCallback(async (id: string) => {
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const { error } = await untyped.from('calculation_acquisition_components').delete().eq('id', id);
+    if (error) toast.error(recordAcquisitionError(error, 'Verkrijgingscomponent verwijderen mislukt'));
+    else await fetchAll();
+  }, [fetchAll, recordAcquisitionError]);
+
+  const setAcquisitionComponentLinks = useCallback(async (acquisitionComponentId: string, sellOffUnitIds: string[]) => {
+    if (!scenarioId) return;
+    const untyped = supabase as unknown as { from: (table: string) => any };
+    const { error: deleteError } = await untyped
+      .from('calculation_acquisition_unit_links')
+      .delete()
+      .eq('acquisition_component_id', acquisitionComponentId);
+    if (deleteError) {
+      toast.error(recordAcquisitionError(deleteError, 'Koppelingen wijzigen mislukt'));
+      return;
+    }
+    if (sellOffUnitIds.length > 0) {
+      const rows = sellOffUnitIds.map((sellOffUnitId) => ({
+        scenario_id: scenarioId,
+        acquisition_component_id: acquisitionComponentId,
+        sell_off_unit_id: sellOffUnitId,
+      }));
+      const { error: insertError } = await untyped.from('calculation_acquisition_unit_links').insert(rows);
+      if (insertError) {
+        toast.error(recordAcquisitionError(insertError, 'Koppelingen opslaan mislukt'));
+        await fetchAll();
+        return;
+      }
+    }
+    await fetchAll();
+  }, [scenarioId, fetchAll, recordAcquisitionError]);
 
   // --- Componentstrategie (sell_off_units) ---
   const createStrategyUnit = useCallback(async (patch: Record<string, unknown> = {}) => {
@@ -333,10 +663,12 @@ export function useScenarioChildren(scenarioId: string | undefined) {
     await fetchAll();
   }, [scenarioId, components, sellOffUnits, fetchAll]);
 
-
   return {
-    components, costs, wwsUnits, sellOffUnits, risks, output, loading,
+    components, acquisitionComponents, acquisitionUnitLinks, acquisitionStructureStatus,
+    acquisitionStructureMessage: acquisitionStructureStatusMessage(acquisitionStructureStatus, acquisitionStructureError),
+    costs, wwsUnits, sellOffUnits, risks, output, loading,
     refetch: fetchAll, upsertOutput,
+    createAcquisitionComponent, updateAcquisitionComponent, deleteAcquisitionComponent, setAcquisitionComponentLinks,
     createStrategyUnit, updateStrategyUnit, deleteStrategyUnit, importStrategyFromComponents,
   };
 }
