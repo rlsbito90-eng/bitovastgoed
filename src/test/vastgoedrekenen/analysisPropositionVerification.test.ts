@@ -62,7 +62,7 @@ describe('Fase 2A.2 — persistente analysepropositie', () => {
 
   it('legt het databaseschema additief en zonder scenario-propositiekolom vast', () => {
     const migration = readFileSync(
-      new URL('../../../supabase/migrations/20260727203744_e43e7fe1-3c6a-4944-9da1-b27d1a824910.sql', import.meta.url),
+      `${process.cwd()}/supabase/migrations/20260727203744_e43e7fe1-3c6a-4944-9da1-b27d1a824910.sql`,
       'utf8',
     );
 
