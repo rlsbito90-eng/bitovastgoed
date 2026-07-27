@@ -247,6 +247,132 @@ export type Database = {
         }
         Relationships: []
       }
+      calculation_acquisition_components: {
+        Row: {
+          allocated_component_value: number | null
+          component_name: string
+          component_type: string
+          created_at: string
+          floor_or_location: string | null
+          id: string
+          notes: string | null
+          reliability_status: string | null
+          scenario_id: string
+          sort_order: number
+          source_note: string | null
+          surface_bvo: number | null
+          surface_gbo: number | null
+          surface_vvo: number | null
+          transfer_tax_allocation_method: string
+          transfer_tax_amount: number | null
+          transfer_tax_classification: string | null
+          transfer_tax_manual_override: boolean
+          transfer_tax_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          allocated_component_value?: number | null
+          component_name: string
+          component_type?: string
+          created_at?: string
+          floor_or_location?: string | null
+          id?: string
+          notes?: string | null
+          reliability_status?: string | null
+          scenario_id: string
+          sort_order?: number
+          source_note?: string | null
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          transfer_tax_allocation_method?: string
+          transfer_tax_amount?: number | null
+          transfer_tax_classification?: string | null
+          transfer_tax_manual_override?: boolean
+          transfer_tax_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allocated_component_value?: number | null
+          component_name?: string
+          component_type?: string
+          created_at?: string
+          floor_or_location?: string | null
+          id?: string
+          notes?: string | null
+          reliability_status?: string | null
+          scenario_id?: string
+          sort_order?: number
+          source_note?: string | null
+          surface_bvo?: number | null
+          surface_gbo?: number | null
+          surface_vvo?: number | null
+          transfer_tax_allocation_method?: string
+          transfer_tax_amount?: number | null
+          transfer_tax_classification?: string | null
+          transfer_tax_manual_override?: boolean
+          transfer_tax_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculation_acquisition_components_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calculation_acquisition_unit_links: {
+        Row: {
+          acquisition_component_id: string
+          allocation_weight: number | null
+          created_at: string
+          id: string
+          scenario_id: string
+          sell_off_unit_id: string
+        }
+        Insert: {
+          acquisition_component_id: string
+          allocation_weight?: number | null
+          created_at?: string
+          id?: string
+          scenario_id: string
+          sell_off_unit_id: string
+        }
+        Update: {
+          acquisition_component_id?: string
+          allocation_weight?: number | null
+          created_at?: string
+          id?: string
+          scenario_id?: string
+          sell_off_unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculation_acquisition_unit_link_acquisition_component_id_fkey"
+            columns: ["acquisition_component_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_acquisition_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculation_acquisition_unit_links_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculation_acquisition_unit_links_sell_off_unit_id_fkey"
+            columns: ["sell_off_unit_id"]
+            isOneToOne: false
+            referencedRelation: "sell_off_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calculation_components: {
         Row: {
           allocated_component_value: number | null
@@ -4295,6 +4421,120 @@ export type Database = {
         }
         Relationships: []
       }
+      scenario_kengetal_snapshots: {
+        Row: {
+          basis_waarde: number
+          betrouwbaarheid: string
+          bron_naam: string
+          bron_peildatum: string
+          bron_referentie: string | null
+          bron_type: string
+          categorie: string
+          created_at: string
+          created_by: string | null
+          eenheid: string
+          gekozen_band: string
+          gekozen_waarde: number
+          id: string
+          kengetal_code: string
+          kengetal_id: string | null
+          kengetal_naam: string
+          maximum_waarde: number
+          minimum_waarde: number
+          override_reden: string | null
+          overschreven: boolean
+          projectfase: string[]
+          regio: string[]
+          register_versie: number
+          risicoklasse: string[]
+          scenario_id: string
+          scenario_veld: string | null
+          snapshot_op: string
+          toepassingsgebied: string[]
+          updated_at: string
+          vervaldatum: string
+        }
+        Insert: {
+          basis_waarde: number
+          betrouwbaarheid: string
+          bron_naam: string
+          bron_peildatum: string
+          bron_referentie?: string | null
+          bron_type: string
+          categorie: string
+          created_at?: string
+          created_by?: string | null
+          eenheid: string
+          gekozen_band: string
+          gekozen_waarde: number
+          id?: string
+          kengetal_code: string
+          kengetal_id?: string | null
+          kengetal_naam: string
+          maximum_waarde: number
+          minimum_waarde: number
+          override_reden?: string | null
+          overschreven?: boolean
+          projectfase?: string[]
+          regio?: string[]
+          register_versie: number
+          risicoklasse?: string[]
+          scenario_id: string
+          scenario_veld?: string | null
+          snapshot_op?: string
+          toepassingsgebied?: string[]
+          updated_at?: string
+          vervaldatum: string
+        }
+        Update: {
+          basis_waarde?: number
+          betrouwbaarheid?: string
+          bron_naam?: string
+          bron_peildatum?: string
+          bron_referentie?: string | null
+          bron_type?: string
+          categorie?: string
+          created_at?: string
+          created_by?: string | null
+          eenheid?: string
+          gekozen_band?: string
+          gekozen_waarde?: number
+          id?: string
+          kengetal_code?: string
+          kengetal_id?: string | null
+          kengetal_naam?: string
+          maximum_waarde?: number
+          minimum_waarde?: number
+          override_reden?: string | null
+          overschreven?: boolean
+          projectfase?: string[]
+          regio?: string[]
+          register_versie?: number
+          risicoklasse?: string[]
+          scenario_id?: string
+          scenario_veld?: string | null
+          snapshot_op?: string
+          toepassingsgebied?: string[]
+          updated_at?: string
+          vervaldatum?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_kengetal_snapshots_kengetal_id_fkey"
+            columns: ["kengetal_id"]
+            isOneToOne: false
+            referencedRelation: "vastgoedrekenen_kengetallen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scenario_kengetal_snapshots_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sell_off_units: {
         Row: {
           component_id: string | null
@@ -4613,6 +4853,93 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vastgoedrekenen_kengetallen: {
+        Row: {
+          actief: boolean
+          basis_waarde: number
+          betrouwbaarheid: string
+          bron_naam: string
+          bron_peildatum: string
+          bron_referentie: string | null
+          bron_type: string
+          categorie: string
+          code: string
+          created_at: string
+          created_by: string | null
+          eenheid: string
+          geldig_vanaf: string | null
+          id: string
+          maximum_waarde: number
+          minimum_waarde: number
+          naam: string
+          projectfase: string[]
+          regio: string[]
+          risicoklasse: string[]
+          scenario_veld: string | null
+          toelichting: string | null
+          toepassingsgebied: string[]
+          updated_at: string
+          versie: number
+          vervaldatum: string
+        }
+        Insert: {
+          actief?: boolean
+          basis_waarde: number
+          betrouwbaarheid: string
+          bron_naam: string
+          bron_peildatum: string
+          bron_referentie?: string | null
+          bron_type?: string
+          categorie: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          eenheid: string
+          geldig_vanaf?: string | null
+          id?: string
+          maximum_waarde: number
+          minimum_waarde: number
+          naam: string
+          projectfase?: string[]
+          regio?: string[]
+          risicoklasse?: string[]
+          scenario_veld?: string | null
+          toelichting?: string | null
+          toepassingsgebied?: string[]
+          updated_at?: string
+          versie?: number
+          vervaldatum: string
+        }
+        Update: {
+          actief?: boolean
+          basis_waarde?: number
+          betrouwbaarheid?: string
+          bron_naam?: string
+          bron_peildatum?: string
+          bron_referentie?: string | null
+          bron_type?: string
+          categorie?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          eenheid?: string
+          geldig_vanaf?: string | null
+          id?: string
+          maximum_waarde?: number
+          minimum_waarde?: number
+          naam?: string
+          projectfase?: string[]
+          regio?: string[]
+          risicoklasse?: string[]
+          scenario_veld?: string | null
+          toelichting?: string | null
+          toepassingsgebied?: string[]
+          updated_at?: string
+          versie?: number
+          vervaldatum?: string
         }
         Relationships: []
       }
