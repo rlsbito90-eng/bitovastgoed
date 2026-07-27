@@ -11,11 +11,12 @@ import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
+import RenovateAndSellPanel from './RenovateAndSellPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
 import AnalysisPropositionSettings from './AnalysisPropositionSettings';
 import CreateAnalysisDialog from './CreateAnalysisDialog';
-import { propositionPersistencePatch } from '@/lib/vastgoedrekenen/analysis';
+import { propositionPersistencePatch, resolveAnalysisPropositionMetadata } from '@/lib/vastgoedrekenen/analysis';
 
 type Props = {
   objectId: string;
@@ -53,6 +54,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   const {
     calculation,
     scenarios,
+    refetch,
     updateCalculation,
     createScenario,
     updateScenario,
@@ -63,6 +65,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
+
+  const proposition = resolveAnalysisPropositionMetadata(calculation as unknown as Record<string, unknown>);
 
   function toggle(id: string) {
     const next = new Set(openScenarios);
@@ -186,6 +190,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               </div>
               {open && (
                 <div className="p-4">
+                  {proposition.propositionType === 'renovate_and_sell' && (
+                    <RenovateAndSellPanel scenario={s} onSaved={refetch} />
+                  )}
                   <ScenarioKengetallenPanel scenario={s} onUpdateScenario={updateScenario} />
                   <ScenarioEditor
                     scenario={s}
@@ -303,7 +310,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
         />
       ) : (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Nog geen quickscan aangemaakt. Klik op "Nieuwe quickscan" om te starten.
+          Nog geen analyse aangemaakt. Klik op "Nieuwe analyse" om te starten.
         </CardContent></Card>
       )}
     </div>
