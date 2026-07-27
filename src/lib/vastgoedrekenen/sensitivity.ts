@@ -1,4 +1,6 @@
-import type { Scenario, ScenarioCost, SellOffUnit } from './types';
+import { computeScenario, type ComputeContext } from './compute';
+import { buildScenarioComputeContext } from './computeContext';
+import type { ComputedOutputs, Scenario, ScenarioCost, SellOffUnit } from './types';
 
 export type SensitivityAdjustment = {
   revenuePct: number;
@@ -91,4 +93,27 @@ export function applySensitivityAdjustment(
     costs: scaleScenarioDevelopmentCosts(costs, adjustment.developmentCostsPct),
     strategyUnits: scaleStrategyDevelopmentCosts(revenueAdjustedUnits, adjustment.developmentCostsPct),
   };
+}
+
+/**
+ * Rekent één sensitiviteitscel door via exact dezelfde centrale rekencontext en
+ * rekenkern als de normale scenarioberekening.
+ */
+export function computeSensitivityScenario(
+  context: ComputeContext,
+  adjustment: SensitivityAdjustment,
+): ComputedOutputs {
+  const adjusted = applySensitivityAdjustment(
+    context.scenario,
+    context.costs,
+    context.strategyUnits ?? [],
+    adjustment,
+  );
+
+  return computeScenario(buildScenarioComputeContext({
+    ...context,
+    scenario: adjusted.scenario,
+    costs: adjusted.costs,
+    strategyUnits: adjusted.strategyUnits,
+  }));
 }

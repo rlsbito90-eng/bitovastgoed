@@ -3,8 +3,8 @@ import { Activity, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { Component, Scenario, ScenarioCost, SellOffUnit, TaxSettings, WwsUnit } from '@/lib/vastgoedrekenen/types';
 import type { AcquisitionComponent } from '@/lib/vastgoedrekenen/acquisition';
-import { computeScenario } from '@/lib/vastgoedrekenen/compute';
-import { applySensitivityAdjustment } from '@/lib/vastgoedrekenen/sensitivity';
+import { buildScenarioComputeContext } from '@/lib/vastgoedrekenen/computeContext';
+import { computeSensitivityScenario } from '@/lib/vastgoedrekenen/sensitivity';
 import type { PropertyAssumptionType } from '@/lib/vastgoedrekenen/profiles';
 import { fmtEur, fmtPct } from './format';
 
@@ -54,28 +54,33 @@ export default function SensitivityAnalysis(props: Props) {
   const { scenario, costs, strategyUnits } = props;
   const revenueAvailable = hasRevenueInput(scenario, strategyUnits);
 
+  const computeContext = useMemo(() => buildScenarioComputeContext({
+    scenario,
+    components: props.components,
+    acquisitionComponents: props.acquisitionComponents,
+    costs,
+    wwsUnits: props.wwsUnits,
+    strategyUnits,
+    taxSettings: props.taxSettings,
+    objectType: props.objectType,
+    objectArea: props.objectArea,
+    objectWoz: props.objectWoz,
+    objectEnergyLabel: props.objectEnergyLabel,
+    objectBouwjaar: props.objectBouwjaar,
+    propertyType: props.propertyType,
+  }), [
+    scenario, props.components, props.acquisitionComponents, costs, props.wwsUnits,
+    strategyUnits, props.taxSettings, props.objectType, props.objectArea,
+    props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, props.propertyType,
+  ]);
+
   const points = useMemo(() => {
     const map = new Map<string, SensitivityPoint>();
     for (const costsPct of STEPS) {
       for (const revenuePct of STEPS) {
-        const adjusted = applySensitivityAdjustment(scenario, costs, strategyUnits, {
+        const outputs = computeSensitivityScenario(computeContext, {
           revenuePct,
           developmentCostsPct: costsPct,
-        });
-        const outputs = computeScenario({
-          scenario: adjusted.scenario,
-          components: props.components,
-          acquisitionComponents: props.acquisitionComponents,
-          costs: adjusted.costs,
-          wwsUnits: props.wwsUnits,
-          strategyUnits: adjusted.strategyUnits,
-          taxSettings: props.taxSettings,
-          objectType: props.objectType,
-          objectArea: props.objectArea,
-          objectWoz: props.objectWoz,
-          objectEnergyLabel: props.objectEnergyLabel,
-          objectBouwjaar: props.objectBouwjaar,
-          propertyType: props.propertyType,
         });
         map.set(`${revenuePct}:${costsPct}`, {
           revenuePct,
@@ -87,7 +92,7 @@ export default function SensitivityAnalysis(props: Props) {
       }
     }
     return map;
-  }, [scenario, costs, strategyUnits, props.components, props.acquisitionComponents, props.wwsUnits, props.taxSettings, props.objectType, props.objectArea, props.objectWoz, props.objectEnergyLabel, props.objectBouwjaar, props.propertyType]);
+  }, [computeContext]);
 
   const getPoint = (revenuePct: number, costsPct: number) => points.get(`${revenuePct}:${costsPct}`) ?? null;
   const base = getPoint(0, 0);

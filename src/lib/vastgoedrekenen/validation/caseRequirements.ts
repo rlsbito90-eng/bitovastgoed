@@ -7,6 +7,11 @@
 // Geen rekenlogica. Wijzigingen hier breken geen berekeningen.
 
 import type { Scenario, Component, SellOffUnit } from '../types';
+import {
+  isHoldStrategy,
+  isSaleStrategy,
+  isTransformationStrategy,
+} from '../componentStrategy';
 
 export type CaseType =
   | 'verhuurde_belegging'
@@ -172,9 +177,6 @@ export const CASE_REQUIREMENTS: Record<CaseType, CaseRequirement> = {
   },
 };
 
-const SALE_STRATS = new Set(['verkopen_leeg', 'verkopen_verhuurd', 'renoveren_verkopen', 'splitsen_verkopen', 'transformeren_verkopen']);
-const HOLD_STRATS = new Set(['aanhouden', 'renoveren_aanhouden', 'transformeren_aanhouden']);
-
 const COMMERCIAL_TYPES = new Set(['winkel', 'winkelruimte', 'kantoor', 'kantoorruimte', 'bedrijfsruimte', 'horeca']);
 const RESIDENTIAL_TYPES = new Set(['woning', 'appartement', 'studio', 'kamer']);
 
@@ -195,26 +197,34 @@ export function detectCaseType(
 
   // Strategie-mix analyse
   if (strategyUnits.length > 0) {
-    const sells = strategyUnits.filter((u) => SALE_STRATS.has(String((u as unknown as Record<string, unknown>).strategy ?? '')));
-    const holds = strategyUnits.filter((u) => HOLD_STRATS.has(String((u as unknown as Record<string, unknown>).strategy ?? '')));
-    if (sells.length > 0 && holds.length === 0) return 'uitponden';
+    const strategyOf = (unit: SellOffUnit) => (unit as unknown as Record<string, unknown>).strategy;
+    const sells = strategyUnits.filter((unit) => isSaleStrategy(strategyOf(unit)));
+    const holds = strategyUnits.filter((unit) => isHoldStrategy(strategyOf(unit)));
+    const allTransformation = strategyUnits.every((unit) => isTransformationStrategy(strategyOf(unit)));
+    if (sells.length > 0 && holds.length === 0) {
+      return allTransformation ? 'transformatie_verkoop' : 'uitponden';
+    }
     if (sells.length > 0 && holds.length > 0) {
       const sellsWoning = sells.every((u) => RESIDENTIAL_TYPES.has(String((u as unknown as Record<string, unknown>).unit_type ?? '').toLowerCase()));
       const holdsComm = holds.every((u) => COMMERCIAL_TYPES.has(String((u as unknown as Record<string, unknown>).unit_type ?? '').toLowerCase()));
       if (sellsWoning && holdsComm) return 'woningen_verkopen_winkels_houden';
     }
-    if (holds.length > 0 && sells.length === 0) return 'alles_houden';
+    if (holds.length > 0 && sells.length === 0) {
+      return allTransformation ? 'transformatie_verhuur' : 'alles_houden';
+    }
   }
 
   // Strategie-string driven
-  if (['transformeren'].includes(strat)) {
+  if (strat === 'buy_transform_sell') return 'transformatie_verkoop';
+  if (strat === 'buy_transform_hold') return 'transformatie_verhuur';
+  if (strat === 'transformeren') {
     return saleStrat && saleStrat !== 'geen_verkoop' ? 'transformatie_verkoop' : 'transformatie_verhuur';
   }
   if (['renoveren', 'buy_fix_sell', 'buy_fix_rent'].includes(strat)) {
     return saleStrat && saleStrat !== 'geen_verkoop' ? 'renovatie_verkoop' : 'renovatie_verhuur';
   }
   if (['uitponden', 'splitsen', 'verkoop_per_unit', 'buy_split_sell'].includes(strat)) return 'uitponden';
-  if (['verkopen_geheel', 'buy_transform_sell'].includes(strat)) return 'alles_verkopen';
+  if (strat === 'verkopen_geheel') return 'alles_verkopen';
   if (['bedrijfsunits_los'].includes(strat)) return 'bedrijfsunits';
 
   if (isMixed) {
