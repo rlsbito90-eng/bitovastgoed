@@ -152,15 +152,17 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   });
   // Alle componentontwikkelkosten horen bij de investering. Ze worden niet
   // gesaldeerd met de verkoopopbrengst.
-  const totalInvestmentWithStrategy = strategy.enabled
+  const reportedTotalInvestment = strategy.enabled
     ? totalInvestment + strategy.extraInvestmentCosts
     : totalInvestment;
 
   const barPurchase = fnBar(correctedAnnual, purchase);
-  const barTotal = fnBar(correctedAnnual, totalInvestment);
+  const barTotal = fnBar(correctedAnnual, reportedTotalInvestment);
   const factorPurchase = fnFactor(purchase, correctedAnnual);
-  const factorTotal = fnFactor(totalInvestment, correctedAnnual);
-  const narTotal = totalInvestment > 0 ? Number(((noi / totalInvestment) * 100).toFixed(2)) : null;
+  const factorTotal = fnFactor(reportedTotalInvestment, correctedAnnual);
+  const narTotal = reportedTotalInvestment > 0
+    ? Number(((noi / reportedTotalInvestment) * 100).toFixed(2))
+    : null;
 
   // --- Biedingsadvies ---
   const bid = computeBidAdvice({
@@ -174,7 +176,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   });
 
   // --- Verkoop / exit ---
-  const sale = computeSale(scenario, totalInvestmentWithStrategy, purchase);
+  const sale = computeSale(scenario, reportedTotalInvestment, purchase);
 
   // Componentstrategie is een volwaardige opbrengstbron. Ontwikkelkosten staan
   // aan de investeringszijde; netto verkoopopbrengst bevat alleen aftrek van
@@ -188,11 +190,11 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   );
   const strategyHasTerminalValue = strategy.enabled && strategy.grossDevelopmentValue > 0;
   const strategyHasSale = strategySaleResults.length > 0;
-  const strategyNetMargin = strategyHasTerminalValue && purchase > 0 && totalInvestmentWithStrategy > 0
-    ? strategy.scenarioValue - totalInvestmentWithStrategy
+  const strategyNetMargin = strategyHasTerminalValue && purchase > 0 && reportedTotalInvestment > 0
+    ? strategy.scenarioValue - reportedTotalInvestment
     : null;
-  const strategyRoi = strategyNetMargin != null && totalInvestmentWithStrategy > 0
-    ? Number(((strategyNetMargin / totalInvestmentWithStrategy) * 100).toFixed(2))
+  const strategyRoi = strategyNetMargin != null && reportedTotalInvestment > 0
+    ? Number(((strategyNetMargin / reportedTotalInvestment) * 100).toFixed(2))
     : null;
 
   const reportedSaleHasInput = strategy.enabled ? strategyHasTerminalValue : sale.hasAnySaleInput;
@@ -210,7 +212,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     : sale.exitValue;
   const reportedGrossMargin = strategy.enabled
     ? (strategyHasTerminalValue && purchase > 0
-      ? strategy.grossDevelopmentValue - totalInvestmentWithStrategy
+      ? strategy.grossDevelopmentValue - reportedTotalInvestment
       : null)
     : sale.grossMargin;
   const reportedNetMargin = strategy.enabled ? strategyNetMargin : sale.netMargin;
@@ -263,7 +265,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     ? computeSaleScenarioScore({
       netSaleProceeds: reportedNetSaleProceeds,
       exitValue: reportedExitValue,
-      totalInvestment: totalInvestmentWithStrategy,
+      totalInvestment: reportedTotalInvestment,
       netMargin: reportedNetMargin,
       roi: reportedRoi,
       maximumBid: effectiveMaxBid,
@@ -330,8 +332,8 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
   const scenarioResultAtAsking = strategy.enabled && asking > 0
     ? strategy.scenarioValue - (asking + ovb.totalOvb + acq.totalAcquisitionCosts + totals.total + financing + strategy.extraInvestmentCosts)
     : null;
-  const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && totalInvestmentWithStrategy > 0
-    ? Number(((scenarioResultAtAsking / totalInvestmentWithStrategy) * 100).toFixed(2))
+  const scenarioMarginPct = strategy.enabled && scenarioResultAtAsking != null && reportedTotalInvestment > 0
+    ? Number(((scenarioResultAtAsking / reportedTotalInvestment) * 100).toFixed(2))
     : null;
 
   const residualCriticalIssues: string[] = [];
@@ -568,7 +570,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     totalTransferTax: ovb.totalOvb,
     totalAcquisitionCosts: acq.totalAcquisitionCosts,
     totalCosts: totals.total,
-    totalInvestment: totalInvestmentWithStrategy,
+    totalInvestment: reportedTotalInvestment,
     currentAnnualRent: currentAnnual,
     marketAnnualRent: marketAnnual,
     wwsCorrectedAnnualRent: wwsAnnual,
@@ -622,7 +624,7 @@ export function computeScenario(ctx: ComputeContext): ComputedOutputs {
     bidBasisUsed,
     purchasePricePerM2: safeDiv(purchase, gbo),
     askingPricePerM2: safeDiv(asking, gbo),
-    totalInvestmentPerM2: safeDiv(totalInvestmentWithStrategy, gbo),
+    totalInvestmentPerM2: safeDiv(reportedTotalInvestment, gbo),
     maximumBidPerM2: safeDiv(effectiveMaxBid, gbo),
     totalCostsPerM2: safeDiv(totals.total, gbo),
     salePricePerM2,
