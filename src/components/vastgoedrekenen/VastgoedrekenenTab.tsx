@@ -126,6 +126,10 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                 </SelectContent>
               </Select>
             </MobileFieldGroup>
+            <AnalysisPropositionSettings
+              analysis={calculation}
+              onChangeType={(type) => updateCalculation(propositionPersistencePatch({ propositionType: type }))}
+            />
             <Button className="w-full md:w-auto md:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
               <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
             </Button>
