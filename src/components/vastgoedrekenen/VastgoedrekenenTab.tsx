@@ -215,12 +215,13 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
 }
 
 export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs, initialCalculationId }: Props) {
-  const { calculations, create } = useObjectCalculations(objectId);
+  const { calculations, createAnalysis } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string | null>(initialCalculationId ?? null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     if (initialCalculationId && calculations.some((calculation) => calculation.id === initialCalculationId)) {
