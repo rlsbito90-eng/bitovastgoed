@@ -17,6 +17,7 @@ import {
   type AcquisitionUnitLink,
 } from '@/lib/vastgoedrekenen/acquisition';
 import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import { createAnalysisWithFirstScenario, propositionPersistencePatch } from '@/lib/vastgoedrekenen/analysis';
 import {
   buildScenarioChildClone,
   nextScenarioCopyName,
