@@ -13,6 +13,9 @@ import ScenarioVergelijking from './ScenarioVergelijking';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
+import AnalysisPropositionSettings from './AnalysisPropositionSettings';
+import CreateAnalysisDialog from './CreateAnalysisDialog';
+import { propositionPersistencePatch } from '@/lib/vastgoedrekenen/analysis';
 
 type Props = {
   objectId: string;
