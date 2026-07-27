@@ -13,17 +13,86 @@ export interface PropositionInputAdapter<TInput> {
   describeSources(input: TInput): SourceReference[];
 }
 
-/** Marker contracts; BUILD 2A.1B adds the sector-specific fields. */
 export interface RenovateAndSellInput {
-  sources?: SourceReference[];
+  acquisitionBasis: number;
+  renovationAreaM2: number;
+  renovationCosts: number;
+  otherProjectCosts: number;
+  targetSaleValue: number;
+  saleCosts: number;
+  durationMonths: number;
+  temporaryIncome?: number;
+  sources: SourceReference[];
+}
+
+export interface RooftopExtensionExistingBuildingInput {
+  propertyValue: number;
+  annualRent: number;
+  valueEffect: number;
+  leaseholdEffect?: number;
+  ownersAssociationEffect?: number;
+}
+
+export interface RooftopExtensionAddedBuildingInput {
+  addedGboM2: number;
+  addedBvoM2: number;
+  structuralReinforcementCosts: number;
+  foundationWorkCosts: number;
+  liftStairsAndAccessCosts: number;
+  installationCosts: number;
+  permitCosts: number;
+  constructionLogisticsCosts: number;
+  constructionCosts: number;
+  saleValue: number;
+  annualRentalValue: number;
 }
 
 export interface RooftopExtensionInput {
-  sources?: SourceReference[];
+  existingBuilding: RooftopExtensionExistingBuildingInput;
+  addedBuilding: RooftopExtensionAddedBuildingInput;
+  rentLoss: number;
+  nuisanceOrCompensationCosts: number;
+  rooftopRightCosts: number;
+  sources: SourceReference[];
+}
+
+export interface HotelLeaseIndexationRule {
+  method: "fixed_percentage" | "consumer_price_index" | "custom";
+  annualPercentage?: number;
+  reference?: string;
+}
+
+export interface HotelOperatorReference {
+  name: string;
+  registrationNumber?: string;
+  groupOrBrand?: string;
+}
+
+export interface HotelGuarantee {
+  type: string;
+  provider?: string;
+  amount?: number;
+  expiresAt?: string;
+}
+
+export interface RevenueRelatedRentInput {
+  percentage: number;
+  revenueBasis: string;
+  threshold?: number;
 }
 
 export interface LeasedHotelInput {
-  sources?: SourceReference[];
+  annualBaseRent: number;
+  leaseStartDate: string;
+  leaseEndDate: string;
+  indexationRule: HotelLeaseIndexationRule;
+  operator: HotelOperatorReference;
+  guarantees: HotelGuarantee[];
+  revenueRelatedRent?: RevenueRelatedRentInput;
+  ownerCapex: number;
+  landlordFfeObligations?: number;
+  requiredYield: number;
+  sources: SourceReference[];
 }
 
 export interface OperatingHotelValueSplit {
@@ -34,6 +103,31 @@ export interface OperatingHotelValueSplit {
 }
 
 export interface OperatingHotelInput {
+  roomCount: number;
+  availableRoomNights: number;
+  occupancyRate: number;
+  adr: number;
+  roomRevenue?: number;
+  foodAndBeverageRevenue: number;
+  otherRevenue: number;
+  personnelCosts: number;
+  energyCosts: number;
+  otherOperatingCosts: number;
+  managementFee: number;
+  franchiseFee: number;
+  gop: number;
+  ffeReserve: number;
+  normalizedOperatingCashResult: number;
+  stabilizationPeriodMonths: number;
+  exitYield?: number;
+  exitMultiple?: number;
+  renovationAndRepositioningCosts: number;
   valueSplit: OperatingHotelValueSplit;
-  sources?: SourceReference[];
+  sources: SourceReference[];
+  /**
+   * Exploitatie-input blijft expliciet gescheiden van vastgoedinkomen.
+   * Een adapter mag dit contract niet normaliseren naar vastgoed-NOI zonder
+   * een afzonderlijke, zichtbare mapping in de centrale rekenkern.
+   */
+  operatingIncomeClassification: "hotel_operations";
 }
