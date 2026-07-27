@@ -211,7 +211,7 @@ function WwsUnitsTable({ scenario, components, strategyUnits, wwsUnits, euroPerP
                         <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__auto__">Auto — {WWS_MODE_LABEL[suggestWwsMode(modeCtx).mode]}</SelectItem>
-                          <SelectItem value="indicatief_toegestaan">{WWS_MODE_LABEL.indicatief_toegestaan}</SelectItem>
+                          <SelectItem value="indicatief">{WWS_MODE_LABEL.indicatief}</SelectItem>
                           <SelectItem value="volledig_vereist">{WWS_MODE_LABEL.volledig_vereist}</SelectItem>
                         </SelectContent>
                       </Select>

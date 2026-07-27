@@ -18,7 +18,8 @@ function registerTable() {
 }
 
 function snapshotTable() {
-  return supabase.from('scenario_kengetal_snapshots' as 'calculation_scenarios');
+  // Tabel staat (nog) niet in de gegenereerde types; bewust ongetypeerd benaderd.
+  return (supabase as unknown as { from: (table: string) => any }).from('scenario_kengetal_snapshots');
 }
 
 function normalizeKengetal(row: unknown): VastgoedrekenenKengetal {
