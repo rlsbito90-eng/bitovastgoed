@@ -20,6 +20,7 @@ import {
 import type { Scenario } from '@/lib/vastgoedrekenen/types';
 import type { GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
 import { parseDutchNumber } from '@/lib/format/nl';
+import ComparativeValuationPanel from './ComparativeValuationPanel';
 
 type Props = {
   scenario: Scenario;
@@ -81,6 +82,8 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
 
   return (
     <>
+      <ComparativeValuationPanel scenario={scenario} onUpdateScenario={onUpdateScenario} />
+
       <Card className="mb-4 border-primary/20">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
