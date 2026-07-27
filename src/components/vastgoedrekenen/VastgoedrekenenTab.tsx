@@ -263,9 +263,15 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
                   <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) selectQuickscan(c.id); }}>
-                <Plus className="h-4 w-4 mr-1" /> Nieuwe quickscan
+              <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Nieuwe analyse
               </Button>
+              <CreateAnalysisDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                defaultName={`Analyse ${calculations.length + 1}`}
+                onCreate={async (input) => { const c = await createAnalysis(input); if (c) selectQuickscan(c.id); }}
+              />
             </div>
           </div>
         </CardHeader>
