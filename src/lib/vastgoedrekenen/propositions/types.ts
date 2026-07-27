@@ -57,6 +57,7 @@ export const VALUATION_METHOD_IDS = [
   "noi_nar",
   "rent_factor",
   "component_sale_value",
+  "comparative_market",
   "scenario_exit",
   "residual_cost_profit",
   "residual_gdv_profit",
