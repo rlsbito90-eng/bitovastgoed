@@ -3828,6 +3828,8 @@ export type Database = {
           notes: string | null
           object_id: string
           object_type: Database["public"]["Enums"]["vr_object_type"]
+          proposition_schema_version: number
+          proposition_type: string
           status: Database["public"]["Enums"]["vr_calc_status"]
           updated_at: string
         }
@@ -3841,6 +3843,8 @@ export type Database = {
           notes?: string | null
           object_id: string
           object_type?: Database["public"]["Enums"]["vr_object_type"]
+          proposition_schema_version?: number
+          proposition_type?: string
           status?: Database["public"]["Enums"]["vr_calc_status"]
           updated_at?: string
         }
@@ -3854,6 +3858,8 @@ export type Database = {
           notes?: string | null
           object_id?: string
           object_type?: Database["public"]["Enums"]["vr_object_type"]
+          proposition_schema_version?: number
+          proposition_type?: string
           status?: Database["public"]["Enums"]["vr_calc_status"]
           updated_at?: string
         }
