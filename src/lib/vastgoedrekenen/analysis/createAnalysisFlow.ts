@@ -11,9 +11,11 @@ export type CreateAnalysisDeps<TAnalysis extends { id: string }, TScenario> = {
 };
 
 export type CreateAnalysisResult<TAnalysis, TScenario> =
-  | { ok: true; analysis: TAnalysis; scenario: TScenario }
+  | { ok: true; analysis: TAnalysis; scenario: TScenario; message?: string; stage?: undefined; rolledBack?: undefined }
   | {
       ok: false;
+      analysis?: undefined;
+      scenario?: undefined;
       stage: 'analysis' | 'scenario';
       message: string;
       /** Alleen relevant bij stage 'scenario'. */
