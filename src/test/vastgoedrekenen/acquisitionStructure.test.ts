@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { computeScenarioOvb } from '@/lib/vastgoedrekenen/ovb';
-import type { AcquisitionComponent } from '@/lib/vastgoedrekenen/acquisition';
+import type { AcquisitionComponent, TransferTaxComponent } from '@/lib/vastgoedrekenen/acquisition';
 import type { Scenario } from '@/lib/vastgoedrekenen/types';
 
 const scenario = { purchase_price: 1_850_000, ovb_mode: 'per_component', ovb_classification: 'mixed_use' } as Scenario;
 
-function acquisition(id: string, value: number, classification: AcquisitionComponent['transfer_tax_classification']): AcquisitionComponent {
+function acquisition(id: string, value: number, classification: AcquisitionComponent['transfer_tax_classification']): TransferTaxComponent {
   return {
     id,
     scenario_id: 'scenario',
@@ -27,7 +27,7 @@ function acquisition(id: string, value: number, classification: AcquisitionCompo
     sort_order: 0,
     created_at: '',
     updated_at: '',
-  };
+  } as unknown as TransferTaxComponent;
 }
 
 describe('aparte verkrijgingsstructuur', () => {

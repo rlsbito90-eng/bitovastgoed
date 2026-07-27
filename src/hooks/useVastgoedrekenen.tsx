@@ -17,6 +17,7 @@ import {
   type AcquisitionUnitLink,
 } from '@/lib/vastgoedrekenen/acquisition';
 import { guardScenarioUpdatePatch, stripUndefinedEntries, type GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
+import { createAnalysisWithFirstScenario, propositionPersistencePatch } from '@/lib/vastgoedrekenen/analysis';
 import {
   buildScenarioChildClone,
   nextScenarioCopyName,
@@ -77,33 +78,119 @@ export function useObjectCalculations(objectId: string | undefined) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const create = useCallback(async (input: Partial<Calculation>) => {
+  const buildAnalysisInsert = useCallback((input: Partial<Calculation> & { propositionType?: unknown }, userId: string | null) => ({
+    object_id: objectId as string,
+    calculation_name: input.calculation_name ?? 'Nieuwe quickscan',
+    status: input.status ?? 'concept',
+    main_strategy: input.main_strategy ?? 'belegging',
+    object_type: input.object_type ?? 'enkelvoudig',
+    input_reliability: input.input_reliability ?? 'laag',
+    notes: input.notes ?? null,
+    created_by: userId,
+    ...propositionPersistencePatch({
+      propositionType: input.propositionType ?? input.proposition_type,
+      propositionSchemaVersion: input.proposition_schema_version,
+    }),
+  }), [objectId]);
+
+  const create = useCallback(async (input: Partial<Calculation> & { propositionType?: unknown }) => {
     if (!objectId) return null;
     const { data: userData } = await supabase.auth.getUser();
     const { data, error } = await supabase
       .from('real_estate_calculations')
-      .insert({
-        object_id: objectId,
-        calculation_name: input.calculation_name ?? 'Nieuwe quickscan',
-        status: input.status ?? 'concept',
-        main_strategy: input.main_strategy ?? 'belegging',
-        object_type: input.object_type ?? 'enkelvoudig',
-        input_reliability: input.input_reliability ?? 'laag',
-        notes: input.notes ?? null,
-        created_by: userData.user?.id ?? null,
-      })
+      .insert(buildAnalysisInsert(input, userData.user?.id ?? null))
       .select('*')
       .single();
     if (error) { toast.error(mapDbError(error, 'Aanmaken mislukt')); return null; }
     toast.success('Quickscan aangemaakt');
     await fetchAll();
     return data as Calculation;
-  }, [objectId, fetchAll]);
+  }, [objectId, fetchAll, buildAnalysisInsert]);
+
+  /**
+   * Createflow: analyse aanmaken én direct het eerste (generieke) scenario.
+   * Mislukt het scenario, dan wordt de analyse teruggedraaid.
+   */
+  const createAnalysis = useCallback(async (input: {
+    calculation_name?: string;
+    propositionType?: unknown;
+  }) => {
+    if (!objectId) return null;
+    const { data: userData } = await supabase.auth.getUser();
+    const { defaultNotaryProfileFor } = await import('@/lib/vastgoedrekenen/fees/notaryProfile');
+
+    const result = await createAnalysisWithFirstScenario<Calculation, Scenario>({
+      insertAnalysis: async () => {
+        const res = await supabase
+          .from('real_estate_calculations')
+          .insert(buildAnalysisInsert(
+            { calculation_name: input.calculation_name?.trim() || 'Nieuwe analyse', propositionType: input.propositionType },
+            userData.user?.id ?? null,
+          ))
+          .select('*')
+          .single();
+        return { data: (res.data as Calculation) ?? null, error: res.error ? { message: mapDbError(res.error, 'Analyse aanmaken mislukt.') } : null };
+      },
+      insertFirstScenario: async (analysis) => {
+        const res = await supabase
+          .from('calculation_scenarios')
+          .insert({
+            calculation_id: analysis.id,
+            object_id: analysis.object_id,
+            scenario_name: 'Scenario 1',
+            strategy_type: analysis.main_strategy,
+            status: 'concept',
+            buyer_fee_method: 'staffel',
+            notary_costs_method: 'profile',
+            notary_costs_profile: defaultNotaryProfileFor(analysis.main_strategy, analysis.object_type),
+          })
+          .select('*')
+          .single();
+        return { data: (res.data as Scenario) ?? null, error: res.error ? { message: mapDbError(res.error, 'Scenario aanmaken mislukt.') } : null };
+      },
+      deleteAnalysis: async (id) => {
+        const res = await supabase.from('real_estate_calculations').delete().eq('id', id);
+        return { error: res.error ? { message: res.error.message } : null };
+      },
+    });
+
+    if (result.ok) {
+      toast.success('Analyse aangemaakt');
+      await fetchAll();
+      return result.analysis;
+    }
+
+    toast.error(result.message);
+    await fetchAll();
+    return null;
+  }, [objectId, fetchAll, buildAnalysisInsert]);
 
   const update = useCallback(async (id: string, patch: Partial<Calculation>) => {
     const { error } = await supabase.from('real_estate_calculations').update(patch).eq('id', id);
     if (error) toast.error('Wijzigen mislukt');
     else await fetchAll();
+  }, [fetchAll]);
+
+  /** Beperkt updatepad: uitsluitend analysenaam en propositiemetadata (metadata-only). */
+  const updateAnalysisMetadata = useCallback(async (id: string, input: {
+    calculation_name?: string;
+    propositionType?: unknown;
+    propositionSchemaVersion?: unknown;
+  }) => {
+    const patch: Partial<Calculation> = {};
+    const naam = input.calculation_name?.trim();
+    if (naam) patch.calculation_name = naam;
+    if (input.propositionType !== undefined) {
+      Object.assign(patch, propositionPersistencePatch({
+        propositionType: input.propositionType,
+        propositionSchemaVersion: input.propositionSchemaVersion,
+      }));
+    }
+    if (Object.keys(patch).length === 0) return false;
+    const { error } = await supabase.from('real_estate_calculations').update(patch).eq('id', id);
+    if (error) { toast.error(mapDbError(error, 'Wijzigen mislukt')); return false; }
+    await fetchAll();
+    return true;
   }, [fetchAll]);
 
   const remove = useCallback(async (id: string) => {
@@ -112,7 +199,7 @@ export function useObjectCalculations(objectId: string | undefined) {
     else { toast.success('Quickscan verwijderd'); await fetchAll(); }
   }, [fetchAll]);
 
-  return { calculations, loading, refetch: fetchAll, create, update, remove };
+  return { calculations, loading, refetch: fetchAll, create, createAnalysis, update, updateAnalysisMetadata, remove };
 }
 
 export function useQuickscanDetail(calculationId: string | undefined) {

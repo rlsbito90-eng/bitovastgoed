@@ -13,6 +13,9 @@ import ScenarioVergelijking from './ScenarioVergelijking';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
+import AnalysisPropositionSettings from './AnalysisPropositionSettings';
+import CreateAnalysisDialog from './CreateAnalysisDialog';
+import { propositionPersistencePatch } from '@/lib/vastgoedrekenen/analysis';
 
 type Props = {
   objectId: string;
@@ -126,6 +129,10 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                 </SelectContent>
               </Select>
             </MobileFieldGroup>
+            <AnalysisPropositionSettings
+              analysis={calculation}
+              onChangeType={(type) => updateCalculation(propositionPersistencePatch({ propositionType: type }))}
+            />
             <Button className="w-full md:w-auto md:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
               <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
             </Button>
@@ -208,12 +215,13 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
 }
 
 export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, objectEnergyLabel, objectBouwjaar, objectRawType, objectVraagprijs, initialCalculationId }: Props) {
-  const { calculations, create } = useObjectCalculations(objectId);
+  const { calculations, createAnalysis } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string | null>(initialCalculationId ?? null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     if (initialCalculationId && calculations.some((calculation) => calculation.id === initialCalculationId)) {
@@ -256,9 +264,15 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
                   <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="w-full sm:w-auto" onClick={async () => { const c = await create({ calculation_name: `Quickscan ${calculations.length + 1}` }); if (c) selectQuickscan(c.id); }}>
-                <Plus className="h-4 w-4 mr-1" /> Nieuwe quickscan
+              <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Nieuwe analyse
               </Button>
+              <CreateAnalysisDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                defaultName={`Analyse ${calculations.length + 1}`}
+                onCreate={async (input) => { const c = await createAnalysis(input); if (c) selectQuickscan(c.id); }}
+              />
             </div>
           </div>
         </CardHeader>

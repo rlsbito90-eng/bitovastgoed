@@ -32,7 +32,7 @@ describe('OVB op actuele verkrijgingssituatie', () => {
   it('gebruikt huidige componentwaarden als verdeelsleutel voor de aankoopprijs', () => {
     const result = computeScenarioOvb(scenario(), [
       component('a', { allocated_component_value: 600_000 }),
-      component('b', { allocated_component_value: 400_000, component_type: 'kantoor', transfer_tax_classification: 'niet_woning' }),
+      component('b', { allocated_component_value: 400_000, component_type: 'kantoorruimte', transfer_tax_classification: 'niet_woning' }),
     ], null, 'mixed_use');
 
     expect(result.perComponent.map((row) => row.basisValue)).toEqual([600_000, 400_000]);

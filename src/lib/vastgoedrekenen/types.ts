@@ -4,7 +4,12 @@
 
 import type { Database } from '@/integrations/supabase/types';
 
-export type Calculation = Database['public']['Tables']['real_estate_calculations']['Row'];
+/**
+ * Persistente Analysis-laag. `Calculation` blijft als backward-compatible alias bestaan;
+ * `PersistedCalculationAnalysis` is de expliciete naam voor nieuwe code.
+ */
+export type PersistedCalculationAnalysis = Database['public']['Tables']['real_estate_calculations']['Row'];
+export type Calculation = PersistedCalculationAnalysis;
 export type Scenario = Database['public']['Tables']['calculation_scenarios']['Row'];
 export type Component = Database['public']['Tables']['calculation_components']['Row'];
 export type WwsUnit = Database['public']['Tables']['residential_wws_units']['Row'];
