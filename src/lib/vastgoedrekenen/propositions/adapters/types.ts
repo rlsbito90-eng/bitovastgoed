@@ -13,16 +13,49 @@ export interface PropositionInputAdapter<TInput> {
   describeSources(input: TInput): SourceReference[];
 }
 
+export type RenovationCostBasis = "total" | "per_m2";
+export type RenovateAndSellSaleValueSource = "total" | "per_m2";
+
+/**
+ * Sectorspecifieke invoer voor renoveren en doorverkopen.
+ * Dit contract bevat uitsluitend invoer en nooit berekende outputs.
+ * De oude velden blijven optioneel beschikbaar voor backward compatibility.
+ */
 export interface RenovateAndSellInput {
-  acquisitionBasis: number;
+  purchasePrice?: number;
   renovationAreaM2: number;
-  renovationCosts: number;
-  otherProjectCosts: number;
-  targetSaleValue: number;
-  saleCosts: number;
-  durationMonths: number;
-  temporaryIncome?: number;
+  renovationCostBasis?: RenovationCostBasis;
+  renovationCostsTotal?: number;
+  renovationCostsPerM2?: number;
+  otherProjectCosts?: number;
+  unforeseenPercentage?: number;
+  financingCosts?: number;
+  projectDurationMonths?: number;
+  saleValueSource?: RenovateAndSellSaleValueSource;
+  grossSaleValue?: number;
+  saleValuePerM2?: number;
+  sellableAreaM2?: number;
+  saleCostsPercentage?: number;
+  saleOtherCosts?: number;
+  targetMarginAmount?: number;
+  targetMarginPercentageOfGdv?: number;
+  targetRoiPercentage?: number;
+  temporaryProjectIncome?: number;
+  temporaryProjectIncomeCosts?: number;
   sources: SourceReference[];
+
+  /** @deprecated Gebruik purchasePrice. */
+  acquisitionBasis?: number;
+  /** @deprecated Gebruik renovationCostsTotal. */
+  renovationCosts?: number;
+  /** @deprecated Gebruik grossSaleValue. */
+  targetSaleValue?: number;
+  /** @deprecated Gebruik saleOtherCosts. */
+  saleCosts?: number;
+  /** @deprecated Gebruik projectDurationMonths. */
+  durationMonths?: number;
+  /** @deprecated Gebruik temporaryProjectIncome. */
+  temporaryIncome?: number;
 }
 
 export interface RooftopExtensionExistingBuildingInput {
