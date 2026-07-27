@@ -154,15 +154,15 @@ export function useObjectCalculations(objectId: string | undefined) {
       },
     });
 
-    if (!result.ok) {
-      toast.error(result.message);
+    if (result.ok) {
+      toast.success('Analyse aangemaakt');
       await fetchAll();
-      return null;
+      return result.analysis;
     }
 
-    toast.success('Analyse aangemaakt');
+    toast.error(result.message);
     await fetchAll();
-    return result.analysis;
+    return null;
   }, [objectId, fetchAll, buildAnalysisInsert]);
 
   const update = useCallback(async (id: string, patch: Partial<Calculation>) => {
