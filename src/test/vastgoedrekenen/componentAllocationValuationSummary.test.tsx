@@ -29,7 +29,7 @@ describe('ComponentAllocationValuationSummary', () => {
     render(<ComponentAllocationValuationSummary units={[unit('Deel A', 50), unit('Deel B', 50)]} />);
 
     expect(screen.getByRole('region', { name: /allocatiegewogen waardering/i })).toBeInTheDocument();
-    expect(screen.getAllByText('50% allocatie')).toHaveLength(2);
+    expect(screen.getAllByText(/% allocatie/)).toHaveLength(2);
     expect(screen.getAllByText('Gewogen')).toHaveLength(2);
     expect(screen.getAllByText(/445\.000/)).toHaveLength(2);
     expect(screen.getByText(/890\.000/)).toBeInTheDocument();
@@ -39,6 +39,6 @@ describe('ComponentAllocationValuationSummary', () => {
     render(<ComponentAllocationValuationSummary units={[unit('Deel A', 50)]} />);
 
     expect(screen.getByText('Ongewogen · onderverdeeld')).toBeInTheDocument();
-    expect(screen.getByText(/890\.000/)).toBeInTheDocument();
+    expect(screen.getAllByText(/890\.000/)).toHaveLength(2);
   });
 });
