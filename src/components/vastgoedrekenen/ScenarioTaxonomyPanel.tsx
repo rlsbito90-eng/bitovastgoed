@@ -42,7 +42,7 @@ import {
 interface Props {
   scenario: Scenario;
   onSave: (patch: ScenarioTaxonomyPersistencePatch) => Promise<boolean>;
-  onSyncCompatibility?: (patch: ScenarioLegacyCompatibilityPatch) => Promise<boolean>;
+  onSyncCompatibility: (patch: ScenarioLegacyCompatibilityPatch) => Promise<boolean>;
 }
 
 const SOURCE_LABELS = {
@@ -122,7 +122,7 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave, onSyncCompatib
   }
 
   async function syncCompatibility() {
-    if (!onSyncCompatibility || Object.keys(compatibilityPatch).length === 0) return;
+    if (Object.keys(compatibilityPatch).length === 0) return;
     setSyncBusy(true);
     try {
       const saved = await onSyncCompatibility(compatibilityPatch);
@@ -274,7 +274,7 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave, onSyncCompatib
             type="button"
             size="sm"
             variant="outline"
-            disabled={!!syncDisabledReason || !onSyncCompatibility}
+            disabled={!!syncDisabledReason}
             onClick={() => setSyncOpen(true)}
             className="w-full sm:w-auto"
           >
