@@ -48,6 +48,12 @@ function labelFor(cost: ScenarioCost | ScenarioCostCashflowTimingRecord): string
   return description || category || 'Naamloze kostenpost';
 }
 
+function storedInteger(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 function optionalInteger(value: unknown, fieldLabel: string): number | null {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
@@ -68,19 +74,15 @@ export function resolveScenarioCostCashflowTiming(
   const method: ScenarioCostCashflowTimingMethod | null = methodRaw === 'single' || methodRaw === 'linear'
     ? methodRaw
     : null;
-  const startMonth = Number.isInteger(Number(record.cashflow_start_month))
-    ? Number(record.cashflow_start_month)
-    : null;
-  const endMonth = Number.isInteger(Number(record.cashflow_end_month))
-    ? Number(record.cashflow_end_month)
-    : null;
-  const paymentMonth = Number.isInteger(Number(record.cashflow_payment_month))
-    ? Number(record.cashflow_payment_month)
-    : null;
-  const schemaVersion = Number.isInteger(Number(record.cashflow_timing_schema_version))
-    ? Number(record.cashflow_timing_schema_version)
-    : null;
-  const explicit = method !== null || startMonth !== null || endMonth !== null || paymentMonth !== null || schemaVersion !== null;
+  const startMonth = storedInteger(record.cashflow_start_month);
+  const endMonth = storedInteger(record.cashflow_end_month);
+  const paymentMonth = storedInteger(record.cashflow_payment_month);
+  const schemaVersion = storedInteger(record.cashflow_timing_schema_version);
+  const explicit = methodRaw !== null && methodRaw !== undefined && methodRaw !== ''
+    || startMonth !== null
+    || endMonth !== null
+    || paymentMonth !== null
+    || schemaVersion !== null;
   const warnings: string[] = [];
 
   if (!explicit) {
@@ -89,7 +91,9 @@ export function resolveScenarioCostCashflowTiming(
     warnings.push(`${label}: onbekende of ontbrekende timingschemaversie.`);
   }
 
-  if (methodRaw != null && method === null) warnings.push(`${label}: onbekende timingmethode.`);
+  if (methodRaw != null && methodRaw !== '' && method === null) {
+    warnings.push(`${label}: onbekende timingmethode.`);
+  }
 
   if (method === 'single') {
     if (paymentMonth === null) warnings.push(`${label}: betaalmaand ontbreekt.`);
