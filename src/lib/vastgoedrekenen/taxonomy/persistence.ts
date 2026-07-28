@@ -78,12 +78,8 @@ function resolveSchemaVersion(value: unknown): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function taxonomyFromLegacy(record: PersistedScenarioTaxonomyColumns) {
-  return mapLegacyStrategy(record.strategy_type).mapping;
-}
-
 function taxonomyValueFromLegacy(record: PersistedScenarioTaxonomyColumns): CanonicalScenarioTaxonomy {
-  const legacy = taxonomyFromLegacy(record);
+  const legacy = mapLegacyStrategy(record.strategy_type).mapping;
   return {
     businessCase: legacy.businessCase,
     intervention: legacy.intervention,
@@ -99,8 +95,8 @@ function validationMessages(issues: TaxonomyIssue[]): string[] {
 
 /**
  * Dual-read contract:
- * 1. een volledig en gemarkeerd canoniek record is leidend;
- * 2. een gedeeltelijk record wordt per veld veilig aangevuld vanuit de legacystrategie;
+ * 1. een volledig, gemarkeerd én intern consistent canoniek record is leidend;
+ * 2. een gedeeltelijk of inconsistent record wordt veilig aangevuld/genormaliseerd;
  * 3. zonder canonieke opslag blijft de bestaande legacystrategie volledig leidend.
  *
  * Deze functie schrijft niets terug en voert geen automatische migratie uit.
@@ -134,6 +130,7 @@ export function resolvePersistedScenarioTaxonomy(
     && exploitationValid
     && dispositionValid;
 
+  let storedCanonicalIssues: TaxonomyIssue[] = [];
   if (canonicalComplete) {
     const value: CanonicalScenarioTaxonomy = {
       businessCase: record.business_case,
@@ -143,14 +140,17 @@ export function resolvePersistedScenarioTaxonomy(
       disposition: record.disposition,
     };
     const validation = validateScenarioTaxonomy(value, 'draft');
-    return {
-      value,
-      source: 'canonical',
-      schemaVersion,
-      confidence: validation.valid ? 'exact' : 'ambiguous',
-      warnings: validationMessages(validation.issues),
-      validationIssues: validation.issues,
-    };
+    if (validation.valid) {
+      return {
+        value,
+        source: 'canonical',
+        schemaVersion,
+        confidence: validation.issues.length === 0 ? 'exact' : 'inferred',
+        warnings: validationMessages(validation.issues),
+        validationIssues: validation.issues,
+      };
+    }
+    storedCanonicalIssues = validation.issues;
   }
 
   if (!canonicalSignalPresent) {
@@ -175,24 +175,35 @@ export function resolvePersistedScenarioTaxonomy(
   if (!expansionValid) warnings.push('Canoniek uitbreidingstype is ongeldig; teruggevallen op de legacystrategie.');
   if (!exploitationValid) warnings.push('Canonieke exploitatievorm ontbreekt of is ongeldig; teruggevallen op de legacystrategie.');
   if (!dispositionValid) warnings.push('Canonieke disposition ontbreekt of is ongeldig; teruggevallen op de legacystrategie.');
+  if (storedCanonicalIssues.length > 0) {
+    warnings.push('De opgeslagen canonieke taxonomie is intern inconsistent en is defensief genormaliseerd.');
+    warnings.push(...validationMessages(storedCanonicalIssues));
+  }
 
-  const value: CanonicalScenarioTaxonomy = {
+  let value: CanonicalScenarioTaxonomy = {
     businessCase: businessCaseValid ? record.business_case : legacy.businessCase,
     intervention: interventionValid ? record.intervention : legacy.intervention,
     expansionSubtype: expansionValid ? record.expansion_subtype : legacy.expansionSubtype,
     exploitation: exploitationValid ? record.exploitation_mode : legacy.exploitation,
     disposition: dispositionValid ? record.disposition : legacy.disposition,
   };
+
+  if (value.intervention !== 'expand' && value.expansionSubtype !== null) {
+    warnings.push('Het uitbreidingstype is genegeerd omdat de ingreep niet “Uitbreiden” is.');
+    value = { ...value, expansionSubtype: null };
+  }
+
   const validation = validateScenarioTaxonomy(value, 'draft');
   warnings.push(...validationMessages(validation.issues));
+  const validationIssues = [...storedCanonicalIssues, ...validation.issues];
 
   return {
     value,
     source: 'mixed',
     schemaVersion,
-    confidence: warnings.length === 0 && validation.valid ? 'inferred' : 'ambiguous',
+    confidence: 'ambiguous',
     warnings: [...new Set(warnings)],
-    validationIssues: validation.issues,
+    validationIssues,
   };
 }
 
