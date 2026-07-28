@@ -11,12 +11,27 @@ import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
+import ScenarioTaxonomyPanel from './ScenarioTaxonomyPanel';
+import AnalysisScopeSettings from './AnalysisScopeSettings';
 import RenovateAndSellPanel from './RenovateAndSellPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { RawTextInput } from './RawInputs';
 import AnalysisPropositionSettings from './AnalysisPropositionSettings';
 import CreateAnalysisDialog from './CreateAnalysisDialog';
-import { propositionPersistencePatch, resolveAnalysisPropositionMetadata } from '@/lib/vastgoedrekenen/analysis';
+import {
+  propositionPersistencePatch,
+  resolveAnalysisPropositionMetadata,
+  type AnalysisMetadataPersistencePatch,
+} from '@/lib/vastgoedrekenen/analysis';
+import {
+  getBusinessCaseLabel,
+  getDispositionLabel,
+  getInterventionLabel,
+  resolvePersistedScenarioTaxonomy,
+  type ScenarioTaxonomyPersistencePatch,
+} from '@/lib/vastgoedrekenen/taxonomy';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type Props = {
   objectId: string;
@@ -29,13 +44,14 @@ type Props = {
   initialCalculationId?: string | null;
 };
 
-function MobileFieldGroup({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
+function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
   return (
     <div className={`min-w-0 w-full space-y-1.5 ${className ?? ''}`}>
       <Label className="block text-xs font-medium leading-snug whitespace-normal break-words">{label}</Label>
       <div className="min-w-0 w-full [&_input]:w-full [&_input]:min-w-0 [&_[role=combobox]]:w-full [&_[role=combobox]]:min-w-0">
         {children}
       </div>
+      {helper && <p className="text-[10px] leading-snug text-muted-foreground">{helper}</p>}
     </div>
   );
 }
@@ -67,6 +83,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
   if (!calculation) return <p className="text-sm text-muted-foreground">Quickscan wordt geladen…</p>;
 
   const proposition = resolveAnalysisPropositionMetadata(calculation as unknown as Record<string, unknown>);
+  const untypedSupabase = supabase as unknown as { from: (table: string) => any };
 
   function toggle(id: string) {
     const next = new Set(openScenarios);
@@ -98,6 +115,34 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     }
   }
 
+  async function saveAnalysisScope(patch: AnalysisMetadataPersistencePatch): Promise<boolean> {
+    const { error } = await untypedSupabase
+      .from('real_estate_calculations')
+      .update(patch)
+      .eq('id', calculation.id);
+    if (error) {
+      toast.error('Scope van de Quickscan opslaan mislukt');
+      return false;
+    }
+    toast.success('Scope van de Quickscan opgeslagen');
+    await refetch();
+    return true;
+  }
+
+  async function saveScenarioTaxonomy(id: string, patch: ScenarioTaxonomyPersistencePatch): Promise<boolean> {
+    const { error } = await untypedSupabase
+      .from('calculation_scenarios')
+      .update(patch)
+      .eq('id', id);
+    if (error) {
+      toast.error('Scenario-classificatie opslaan mislukt');
+      return false;
+    }
+    toast.success('Scenario-classificatie opgeslagen');
+    await refetch();
+    return true;
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -118,13 +163,16 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                 <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
             </MobileFieldGroup>
-            <MobileFieldGroup label="Hoofdstrategie">
+            <MobileFieldGroup
+              label="Legacy hoofdstrategie"
+              helper="Tijdelijk compatibiliteitsveld voor bestaande scenario’s en rekenlogica. Nieuwe strategiekeuzes staan per scenario."
+            >
               <Select value={calculation.main_strategy} onValueChange={(v) => updateCalculation({ main_strategy: v as typeof calculation.main_strategy })}>
                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
               </Select>
             </MobileFieldGroup>
-            <MobileFieldGroup label="Objecttype">
+            <MobileFieldGroup label="Objectstructuur">
               <Select value={calculation.object_type} onValueChange={(v) => updateCalculation({ object_type: v as typeof calculation.object_type })}>
                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -144,6 +192,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         </CardHeader>
       </Card>
 
+      <AnalysisScopeSettings analysis={calculation} onSave={saveAnalysisScope} />
+
       <ScenarioVergelijking
         scenarios={scenarios}
         taxSettings={taxSettings}
@@ -160,6 +210,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         {scenarios.map((s) => {
           const open = openScenarios.has(s.id);
           const duplicating = duplicatingId === s.id;
+          const taxonomy = resolvePersistedScenarioTaxonomy(s as unknown as Record<string, unknown>);
+          const taxonomySummary = `${taxonomy.source === 'canonical' ? '' : 'Afgeleid · '}${getBusinessCaseLabel(taxonomy.value.businessCase)} · ${getInterventionLabel(taxonomy.value.intervention)} · ${getDispositionLabel(taxonomy.value.disposition)}`;
           return (
             <div key={s.id} id={`scenario-${s.id}`} className="border rounded-md scroll-mt-20">
               <div className="flex items-stretch bg-muted/30 hover:bg-muted/50">
@@ -171,7 +223,9 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                   <span className="min-w-0 flex items-center gap-2">
                     {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                     <span className="font-medium truncate">{s.scenario_name}</span>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">{VR_STRATEGY_LABELS[s.strategy_type]}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline truncate" title={`Legacy rekenstrategie: ${VR_STRATEGY_LABELS[s.strategy_type]}`}>
+                      {taxonomySummary}
+                    </span>
                   </span>
                   <span className="text-xs text-muted-foreground shrink-0">{VR_STATUS_LABELS[s.status]}</span>
                 </button>
@@ -190,6 +244,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               </div>
               {open && (
                 <div className="p-4">
+                  <ScenarioTaxonomyPanel scenario={s} onSave={(patch) => saveScenarioTaxonomy(s.id, patch)} />
                   {proposition.propositionType === 'renovate_and_sell' && (
                     <RenovateAndSellPanel scenario={s} onSaved={refetch} />
                   )}
