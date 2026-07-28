@@ -19,7 +19,10 @@ describe('verkrijgingsstructuur UX', () => {
   });
 
   it('toont geen misleidend verschil met vraagprijs in de componentstrategie', () => {
-    const strategy = source('src/components/vastgoedrekenen/ComponentStrategyTable.tsx');
+    const wrapper = source('src/components/vastgoedrekenen/ComponentStrategyTable.tsx');
+    const strategy = source('src/components/vastgoedrekenen/ComponentStrategyTableLegacy.tsx');
+    expect(wrapper).toContain('ComponentStrategyTableLegacy');
+    expect(wrapper).toContain('ComponentAllocationTimingWorkspace');
     expect(strategy).not.toContain('Verschil met vraagprijs');
     expect(strategy).toContain('Bruto verkoopwaarde');
     expect(strategy).toContain('Verkoop- en juridische kosten');
