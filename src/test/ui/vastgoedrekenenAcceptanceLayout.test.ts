@@ -8,7 +8,10 @@ function source(path: string): string {
 
 describe('Vastgoedrekenen Fase 1.1 acceptatie-UX', () => {
   it('registreert GBO, VVO en BVO afzonderlijk in de componentstrategie', () => {
-    const code = source('src/components/vastgoedrekenen/ComponentStrategyTable.tsx');
+    const wrapper = source('src/components/vastgoedrekenen/ComponentStrategyTable.tsx');
+    const code = source('src/components/vastgoedrekenen/ComponentStrategyTableLegacy.tsx');
+    expect(wrapper).toContain('ComponentStrategyTableLegacy');
+    expect(wrapper).toContain('ComponentAllocationTimingWorkspace');
     expect(code).toContain('GBO (m²)');
     expect(code).toContain('VVO (m²)');
     expect(code).toContain('BVO (m²)');
