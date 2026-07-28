@@ -4,6 +4,7 @@
 // later beslissen. Geen DB-calls. Geen UI-imports.
 
 import type { SellOffUnit } from './types';
+import { resolveComponentAllocationWeighting } from './componentAllocationWeighting';
 
 type ComponentStrategyDisposition = 'sale' | 'hold' | 'manual' | 'defer';
 
@@ -167,6 +168,7 @@ export type StrategyTotals = {
 function f(u: SellOffUnit): Record<string, unknown> {
   return u as unknown as Record<string, unknown>;
 }
+
 function num(v: unknown): number {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
@@ -175,7 +177,9 @@ function num(v: unknown): number {
 export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
   const r = f(u);
   const strategy = (r.strategy as ComponentStrategyKey | null) ?? null;
-  const label = (r.unit_label as string | null) ?? (u as unknown as { unit_name?: string }).unit_name ?? 'Unit';
+  const label = (r.unit_label as string | null)
+    ?? (u as unknown as { unit_name?: string }).unit_name
+    ?? 'Unit';
   const type = (r.unit_type as string | null) ?? null;
 
   const surface = num(r.surface_gbo) || num(r.surface_vvo) || num(r.surface_bvo);
@@ -251,9 +255,15 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
       extraInvestmentCosts = renovationCosts + splittingCosts + transformationCosts;
       if (grossSale <= 0) warnings.push(`${label}: verkoopwaarde ontbreekt.`);
       if (saleCosts <= 0 && grossSale > 0) warnings.push(`${label}: verkoopkosten ontbreken.`);
-      if (strategy === 'splitsen_verkopen' && splittingCosts <= 0) warnings.push(`${label}: splitsingskosten ontbreken.`);
-      if (strategy === 'transformeren_verkopen' && transformationCosts <= 0) warnings.push(`${label}: transformatiekosten ontbreken.`);
-      if (strategy === 'sloop_nieuwbouw_verkopen' && transformationCosts <= 0) warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
+      if (strategy === 'splitsen_verkopen' && splittingCosts <= 0) {
+        warnings.push(`${label}: splitsingskosten ontbreken.`);
+      }
+      if (strategy === 'transformeren_verkopen' && transformationCosts <= 0) {
+        warnings.push(`${label}: transformatiekosten ontbreken.`);
+      }
+      if (strategy === 'sloop_nieuwbouw_verkopen' && transformationCosts <= 0) {
+        warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
+      }
       break;
     }
     case 'aanhouden':
@@ -264,19 +274,29 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
       // Kosten voor renoveren/transformeren tellen bovenop de investering
       // (hold-waarde is exclusief deze kosten).
       extraInvestmentCosts = renovationCosts + transformationCosts;
-      if (holdAnnual <= 0 && valMethod !== 'handmatige_waarde') warnings.push(`${label}: huur ontbreekt voor aanhouden.`);
+      if (holdAnnual <= 0 && valMethod !== 'handmatige_waarde') {
+        warnings.push(`${label}: huur ontbreekt voor aanhouden.`);
+      }
       if (valMethod === 'BAR' && holdBar <= 0) warnings.push(`${label}: BAR ontbreekt.`);
       if (valMethod === 'NAR' && holdNar <= 0) warnings.push(`${label}: NAR ontbreekt.`);
       if (valMethod === 'factor' && holdFactor <= 0) warnings.push(`${label}: factor ontbreekt.`);
-      if (strategy === 'renoveren_aanhouden' && renovationCosts <= 0) warnings.push(`${label}: renovatiekosten ontbreken.`);
-      if (strategy === 'transformeren_aanhouden' && transformationCosts <= 0) warnings.push(`${label}: transformatiekosten ontbreken.`);
-      if (strategy === 'sloop_nieuwbouw_aanhouden' && transformationCosts <= 0) warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
+      if (strategy === 'renoveren_aanhouden' && renovationCosts <= 0) {
+        warnings.push(`${label}: renovatiekosten ontbreken.`);
+      }
+      if (strategy === 'transformeren_aanhouden' && transformationCosts <= 0) {
+        warnings.push(`${label}: transformatiekosten ontbreken.`);
+      }
+      if (strategy === 'sloop_nieuwbouw_aanhouden' && transformationCosts <= 0) {
+        warnings.push(`${label}: sloop- en nieuwbouwkosten ontbreken.`);
+      }
       break;
     }
     case 'handmatige_waarde': {
       contribution = holdManual;
       if (holdManual <= 0) warnings.push(`${label}: handmatige waarde ontbreekt.`);
-      if (!(r.notes as string | null)?.trim()) warnings.push(`${label}: handmatige waarde gebruikt — leg onderbouwing vast.`);
+      if (!(r.notes as string | null)?.trim()) {
+        warnings.push(`${label}: handmatige waarde gebruikt — leg onderbouwing vast.`);
+      }
       break;
     }
     case 'later_beslissen': {
@@ -290,7 +310,58 @@ export function computeComponentStrategy(u: SellOffUnit): ComponentResult {
     }
   }
 
-  return { unitId: u.id, label, type, strategy, contribution, extraInvestmentCosts, breakdown, warnings };
+  return {
+    unitId: u.id,
+    label,
+    type,
+    strategy,
+    contribution,
+    extraInvestmentCosts,
+    breakdown,
+    warnings,
+  };
+}
+
+function weightedMoney(value: number, weight: number): number {
+  return Math.round(value * weight);
+}
+
+function applyAllocationWeight(result: ComponentResult, weight: number): ComponentResult {
+  if (Math.abs(weight - 1) < 0.0000001) return result;
+
+  const breakdown: ComponentBreakdown = {
+    grossSaleValue: weightedMoney(result.breakdown.grossSaleValue, weight),
+    saleCosts: weightedMoney(result.breakdown.saleCosts, weight),
+    legalCosts: weightedMoney(result.breakdown.legalCosts, weight),
+    renovationCosts: weightedMoney(result.breakdown.renovationCosts, weight),
+    splittingCosts: weightedMoney(result.breakdown.splittingCosts, weight),
+    transformationCosts: weightedMoney(result.breakdown.transformationCosts, weight),
+    totalCosts: 0,
+    netSaleProceeds: weightedMoney(result.breakdown.netSaleProceeds, weight),
+    holdValue: weightedMoney(result.breakdown.holdValue, weight),
+  };
+  breakdown.totalCosts = breakdown.saleCosts
+    + breakdown.legalCosts
+    + breakdown.renovationCosts
+    + breakdown.splittingCosts
+    + breakdown.transformationCosts;
+
+  let contribution = 0;
+  if (result.strategy && SALE_STRATEGIES.includes(result.strategy)) {
+    contribution = breakdown.netSaleProceeds;
+  } else if (
+    result.strategy
+    && (HOLD_STRATEGIES.includes(result.strategy) || result.strategy === 'handmatige_waarde')
+  ) {
+    contribution = breakdown.holdValue;
+  }
+
+  return {
+    ...result,
+    contribution,
+    extraInvestmentCosts: weightedMoney(result.extraInvestmentCosts, weight),
+    breakdown,
+  };
 }
 
 export function aggregateStrategy(units: SellOffUnit[]): StrategyTotals {
@@ -309,38 +380,53 @@ export function aggregateStrategy(units: SellOffUnit[]): StrategyTotals {
       perUnit: [],
     };
   }
-  const perUnit = units.map(computeComponentStrategy);
+
+  const allocation = resolveComponentAllocationWeighting(units);
+  const perUnit = units
+    .map(computeComponentStrategy)
+    .map((result) => applyAllocationWeight(
+      result,
+      allocation.byUnitId.get(result.unitId)?.effectiveWeight ?? 1,
+    ));
+
   let holdValue = 0;
   let netSaleProceeds = 0;
   let grossDevelopmentValue = 0;
   let componentDispositionCosts = 0;
   let componentDevelopmentCosts = 0;
   let extraInvestmentCosts = 0;
-  const warnings: string[] = [];
+  const warnings: string[] = [...allocation.warnings];
   const mixCount: Record<string, number> = {};
-  for (const r of perUnit) {
-    if (r.strategy && SALE_STRATEGIES.includes(r.strategy)) {
-      netSaleProceeds += r.contribution;
-      grossDevelopmentValue += r.breakdown.grossSaleValue;
-      componentDispositionCosts += r.breakdown.saleCosts + r.breakdown.legalCosts;
-      componentDevelopmentCosts += r.breakdown.renovationCosts
-        + r.breakdown.splittingCosts
-        + r.breakdown.transformationCosts;
-    } else if (r.strategy && (HOLD_STRATEGIES.includes(r.strategy) || r.strategy === 'handmatige_waarde')) {
-      holdValue += r.contribution;
-      grossDevelopmentValue += r.breakdown.holdValue;
-      if (HOLD_STRATEGIES.includes(r.strategy)) {
-        componentDevelopmentCosts += r.breakdown.renovationCosts + r.breakdown.transformationCosts;
+
+  for (const result of perUnit) {
+    if (result.strategy && SALE_STRATEGIES.includes(result.strategy)) {
+      netSaleProceeds += result.contribution;
+      grossDevelopmentValue += result.breakdown.grossSaleValue;
+      componentDispositionCosts += result.breakdown.saleCosts + result.breakdown.legalCosts;
+      componentDevelopmentCosts += result.breakdown.renovationCosts
+        + result.breakdown.splittingCosts
+        + result.breakdown.transformationCosts;
+    } else if (
+      result.strategy
+      && (HOLD_STRATEGIES.includes(result.strategy) || result.strategy === 'handmatige_waarde')
+    ) {
+      holdValue += result.contribution;
+      grossDevelopmentValue += result.breakdown.holdValue;
+      if (HOLD_STRATEGIES.includes(result.strategy)) {
+        componentDevelopmentCosts += result.breakdown.renovationCosts
+          + result.breakdown.transformationCosts;
       }
     }
-    extraInvestmentCosts += r.extraInvestmentCosts;
-    warnings.push(...r.warnings);
-    const key = r.strategy ?? 'onbekend';
+    extraInvestmentCosts += result.extraInvestmentCosts;
+    warnings.push(...result.warnings);
+    const key = result.strategy ?? 'onbekend';
     mixCount[key] = (mixCount[key] ?? 0) + 1;
   }
+
   const mix = Object.entries(mixCount)
-    .map(([k, n]) => `${n}× ${STRATEGY_LABELS[k as ComponentStrategyKey] ?? k}`)
+    .map(([key, count]) => `${count}× ${STRATEGY_LABELS[key as ComponentStrategyKey] ?? key}`)
     .join(', ');
+
   return {
     enabled: true,
     holdValue,
@@ -385,8 +471,20 @@ export function defaultStrategyForType(type: string | null | undefined): Compone
 
 /** Hybride preset: woningen verkopen leeg, commercieel aanhouden. */
 export function hybridStrategyForType(type: string | null | undefined): ComponentStrategyKey {
-  const t = (type ?? '').toLowerCase();
-  if (['woning', 'appartement', 'studio', 'kamer'].includes(t)) return 'verkopen_leeg';
-  if (['winkel', 'winkelruimte', 'kantoor', 'kantoorruimte', 'bedrijfsruimte', 'bedrijfsunit', 'horeca'].includes(t)) return 'aanhouden';
+  const normalized = (type ?? '').toLowerCase();
+  if (['woning', 'appartement', 'studio', 'kamer'].includes(normalized)) return 'verkopen_leeg';
+  if (
+    [
+      'winkel',
+      'winkelruimte',
+      'kantoor',
+      'kantoorruimte',
+      'bedrijfsruimte',
+      'bedrijfsunit',
+      'horeca',
+    ].includes(normalized)
+  ) {
+    return 'aanhouden';
+  }
   return 'later_beslissen';
 }
