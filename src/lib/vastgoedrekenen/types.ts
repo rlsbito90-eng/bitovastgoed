@@ -3,14 +3,35 @@
 // zodat berekeningen pure functions kunnen blijven.
 
 import type { Database } from '@/integrations/supabase/types';
+import type {
+  BusinessCase,
+  Disposition,
+  ExpansionSubtype,
+  ExploitationMode,
+  Intervention,
+} from '@/lib/vastgoedrekenen/taxonomy';
 
 /**
  * Persistente Analysis-laag. `Calculation` blijft als backward-compatible alias bestaan;
  * `PersistedCalculationAnalysis` is de expliciete naam voor nieuwe code.
+ *
+ * De intersection houdt de moduletypes gelijk aan het actuele productieschema totdat
+ * het volledige gegenereerde Supabase-bestand opnieuw via de CLI wordt gegenereerd.
  */
-export type PersistedCalculationAnalysis = Database['public']['Tables']['real_estate_calculations']['Row'];
+export type PersistedCalculationAnalysis = Database['public']['Tables']['real_estate_calculations']['Row'] & {
+  analysis_question: string | null;
+  valuation_date: string | null;
+  time_horizon_months: number | null;
+};
 export type Calculation = PersistedCalculationAnalysis;
-export type Scenario = Database['public']['Tables']['calculation_scenarios']['Row'];
+export type Scenario = Database['public']['Tables']['calculation_scenarios']['Row'] & {
+  business_case: BusinessCase | null;
+  intervention: Intervention | null;
+  expansion_subtype: ExpansionSubtype | null;
+  exploitation_mode: ExploitationMode | null;
+  disposition: Disposition | null;
+  taxonomy_schema_version: number | null;
+};
 export type Component = Database['public']['Tables']['calculation_components']['Row'];
 export type WwsUnit = Database['public']['Tables']['residential_wws_units']['Row'];
 export type ScenarioCost = Database['public']['Tables']['scenario_costs']['Row'];

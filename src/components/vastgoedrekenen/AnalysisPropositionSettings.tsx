@@ -1,4 +1,4 @@
-// Beperkte analyse-instellingen: propositietype wijzigen (metadata-only).
+// Beperkte analyse-instellingen: rekenpropositie wijzigen (metadata-only).
 // Er worden geen invoervelden, aannames of uitkomsten gewijzigd of verwijderd.
 
 import { useEffect, useState } from 'react';
@@ -37,7 +37,7 @@ export default function AnalysisPropositionSettings({ analysis, onChangeType }: 
 
   return (
     <div className="min-w-0 w-full space-y-1.5">
-      <Label className="block text-xs font-medium leading-snug">Propositietype</Label>
+      <Label className="block text-xs font-medium leading-snug">Rekenpropositie (modules)</Label>
       <Select
         value={meta.propositionType}
         onValueChange={(v) => { if (v !== meta.propositionType) setPending(v as PropositionType); }}
@@ -49,21 +49,24 @@ export default function AnalysisPropositionSettings({ analysis, onChangeType }: 
           ))}
         </SelectContent>
       </Select>
+      <p className="text-[10px] leading-snug text-muted-foreground">
+        Bepaalt voorlopig welke gespecialiseerde reken- en waarderingspanelen beschikbaar zijn; dit is niet de businesscase van een scenario.
+      </p>
 
       <AlertDialog open={pending !== null} onOpenChange={(open) => { if (!open) setPending(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Propositietype wijzigen?</AlertDialogTitle>
+            <AlertDialogTitle>Rekenpropositie wijzigen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Het propositietype wijzigt van “{meta.propositionLabel}” naar “{pending ? getPropositionLabel(pending) : ''}”.
-              Dit wijzigt uitsluitend de classificatie van deze analyse. Ingevoerde gegevens, aannames, scenario's en
-              uitkomsten worden niet gewijzigd, herberekend of verwijderd.
+              De rekenpropositie wijzigt van “{meta.propositionLabel}” naar “{pending ? getPropositionLabel(pending) : ''}”.
+              Dit wijzigt uitsluitend welke gespecialiseerde modules bij deze analyse beschikbaar zijn. Ingevoerde gegevens,
+              scenario-classificaties, aannames en uitkomsten worden niet gewijzigd, herberekend of verwijderd.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Annuleren</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); confirm(); }} disabled={busy}>
-              {busy ? 'Wijzigen…' : 'Type wijzigen'}
+              {busy ? 'Wijzigen…' : 'Rekenpropositie wijzigen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
