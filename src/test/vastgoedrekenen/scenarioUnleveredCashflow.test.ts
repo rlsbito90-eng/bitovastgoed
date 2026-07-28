@@ -127,7 +127,7 @@ describe('ongefinancierde scenariokasstroom', () => {
       savedOutput: {
         ...savedOutput,
         total_costs: 120_000,
-        total_investment: 1_320_000,
+        total_investment: 1_340_000,
       },
     });
 
