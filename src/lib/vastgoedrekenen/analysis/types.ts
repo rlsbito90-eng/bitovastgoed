@@ -14,6 +14,12 @@ export interface CalculationAnalysis {
   name: string;
   propositionType: PropositionType;
   propositionSchemaVersion: number;
+  /** Centrale vraag die deze Quickscan moet beantwoorden. */
+  analysisQuestion?: string | null;
+  /** Waarderings-/analysepeildatum in YYYY-MM-DD-formaat. */
+  valuationDate?: string | null;
+  /** Totale beschouwde periode; nog niet gekoppeld aan DCF of financiering. */
+  timeHorizonMonths?: number | null;
   createdAt: string;
   createdBy?: string;
 }
