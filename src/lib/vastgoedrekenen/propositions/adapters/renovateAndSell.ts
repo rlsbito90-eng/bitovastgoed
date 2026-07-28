@@ -2,9 +2,9 @@ import { getPropositionDefinition } from "../registry";
 import type { PropositionNormalizedInput, SourceReference, ValidationIssue, ValidationResult } from "../types";
 import type { PropositionInputAdapter, RenovateAndSellInput } from "./types";
 
-export const RENOVATE_AND_SELL_COST_SOURCE = "proposition:renovate_and_sell";
-export const RENOVATION_COST_KEY = `${RENOVATE_AND_SELL_COST_SOURCE}:renovation`;
-export const OTHER_PROJECT_COST_KEY = `${RENOVATE_AND_SELL_COST_SOURCE}:other_project`;
+export const RENOVATE_AND_SELL_COST_SOURCE = "proposition:renovate_and_sell" as const;
+export const RENOVATION_COST_KEY = "proposition:renovate_and_sell:renovation" as const;
+export const OTHER_PROJECT_COST_KEY = "proposition:renovate_and_sell:other_project" as const;
 export const TEMPORARY_INCOME_WARNING = "Geregistreerd, nog niet meegenomen in de berekening.";
 
 export type RenovateAndSellScenarioPatch = {
@@ -128,7 +128,7 @@ function normalize(input: RenovateAndSellInput): PropositionNormalizedInput {
       sale_target_margin_percentage: finite(input.targetMarginPercentageOfGdv),
       sale_target_roi_percentage: finite(input.targetRoiPercentage),
     },
-    scenarioCosts: [
+    scenarioCosts: ([
       {
         ownershipKey: RENOVATION_COST_KEY,
         category: "bouwkosten",
@@ -143,7 +143,7 @@ function normalize(input: RenovateAndSellInput): PropositionNormalizedInput {
         amount: otherProjectCosts,
         source: RENOVATE_AND_SELL_COST_SOURCE,
       },
-    ].filter((cost) => cost.amount > 0),
+    ] as RenovateAndSellCostInput[]).filter((cost) => cost.amount > 0),
     warnings,
   };
 
@@ -178,7 +178,7 @@ export function mergeRenovateAndSellCosts<T extends AdapterOwnedCost>(
   adapterCosts: readonly RenovateAndSellCostInput[],
   mapCost: (cost: RenovateAndSellCostInput) => T,
 ): T[] {
-  const ownedKeys = new Set([RENOVATION_COST_KEY, OTHER_PROJECT_COST_KEY]);
+  const ownedKeys = new Set<string>([RENOVATION_COST_KEY, OTHER_PROJECT_COST_KEY]);
   const manual = existing.filter((cost) => !ownedKeys.has(String(cost.ownership_key ?? cost.source_reference ?? "")));
   return [...manual, ...adapterCosts.map(mapCost)];
 }

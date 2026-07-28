@@ -105,12 +105,12 @@ describe('RenovateAndSellInputAdapter', () => {
   });
 
   it('vervangt adapter-owned regels en behoudt handmatige kostenregels', () => {
-    const existing = [
+    const existing: Array<{ ownership_key: string | null; description?: string; amount: number }> = [
       { ownership_key: RENOVATION_COST_KEY, amount: 100 },
       { ownership_key: null, description: 'Handmatig', amount: 123 },
     ];
     const merged = mergeRenovateAndSellCosts(existing, normalized().scenarioCosts, (cost) => ({
-      ownership_key: cost.ownershipKey,
+      ownership_key: cost.ownershipKey as string,
       amount: cost.amount,
     }));
     expect(merged.filter((cost) => cost.ownership_key === RENOVATION_COST_KEY)).toHaveLength(1);

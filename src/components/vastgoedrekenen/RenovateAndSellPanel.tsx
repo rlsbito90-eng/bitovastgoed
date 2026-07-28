@@ -110,11 +110,12 @@ export default function RenovateAndSellPanel({ scenario, onSaved }: Props) {
     try {
       const result = await saveRenovateAndSellInput(scenario, input);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error('message' in result ? result.message : 'Opslaan mislukt');
         return;
       }
       toast.success('Renovatiepropositie opgeslagen');
-      result.warnings.forEach((warning) => toast.warning(warning));
+      const warnings = 'warnings' in result ? result.warnings : [];
+      warnings.forEach((warning) => toast.warning(warning));
       await onSaved();
     } finally {
       setBusy(false);
