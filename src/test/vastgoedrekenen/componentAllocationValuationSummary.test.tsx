@@ -25,6 +25,13 @@ function unit(id: string, allocation: number): SellOffUnit {
   } as unknown as SellOffUnit;
 }
 
+function effectiveSurfaceRows(value: string) {
+  return screen.getAllByText((_, element) => (
+    element?.tagName === 'P'
+    && element.textContent?.includes(`effectief ${value}`) === true
+  ));
+}
+
 describe('ComponentAllocationValuationSummary', () => {
   it('toont per 50%-deel de effectieve bijdrage, oppervlakte en één totale componentwaarde', () => {
     render(<ComponentAllocationValuationSummary units={[unit('Deel A', 50), unit('Deel B', 50)]} />);
@@ -35,8 +42,7 @@ describe('ComponentAllocationValuationSummary', () => {
     expect(screen.getAllByText(/445\.000/)).toHaveLength(2);
     expect(screen.getByText(/890\.000/)).toBeInTheDocument();
     expect(screen.getByText('Effectief oppervlak')).toBeInTheDocument();
-    expect(screen.getAllByText((_, element) => element?.textContent?.includes('effectief 50') === true))
-      .toHaveLength(2);
+    expect(effectiveSurfaceRows('50')).toHaveLength(2);
     expect(screen.getAllByText(/8\.900.*\/m²/)).toHaveLength(3);
   });
 
@@ -45,7 +51,6 @@ describe('ComponentAllocationValuationSummary', () => {
 
     expect(screen.getByText('Ongewogen · onderverdeeld')).toBeInTheDocument();
     expect(screen.getAllByText(/890\.000/)).toHaveLength(2);
-    expect(screen.getAllByText((_, element) => element?.textContent?.includes('effectief 100') === true))
-      .toHaveLength(1);
+    expect(effectiveSurfaceRows('100')).toHaveLength(1);
   });
 });
