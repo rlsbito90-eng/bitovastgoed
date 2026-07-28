@@ -1,6 +1,6 @@
 // Kleine herbruikbare dialoog om een nieuwe analyse aan te maken.
-// Legt uitsluitend naam + propositietype vast; er worden geen defaults toegepast,
-// geen secties getoond/verborgen en geen formules geselecteerd.
+// Legt uitsluitend naam + rekenpropositie vast; er worden geen scenario-classificaties,
+// aannames of financiële formules geselecteerd.
 
 import { useEffect, useState } from 'react';
 import {
@@ -51,7 +51,7 @@ export default function CreateAnalysisDialog({ open, onOpenChange, defaultName, 
         <DialogHeader>
           <DialogTitle>Nieuwe analyse</DialogTitle>
           <DialogDescription>
-            Er wordt direct één generiek scenario aangemaakt. Het propositietype legt alleen de classificatie vast.
+            Er wordt direct één generiek scenario aangemaakt. De rekenpropositie bepaalt alleen welke gespecialiseerde modules beschikbaar zijn; de businesscase en exit kies je daarna per scenario.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -65,7 +65,7 @@ export default function CreateAnalysisDialog({ open, onOpenChange, defaultName, 
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="analyse-propositietype">Propositietype</Label>
+            <Label htmlFor="analyse-propositietype">Rekenpropositie (modules)</Label>
             <Select value={type} onValueChange={(v) => setType(v as PropositionType)}>
               <SelectTrigger id="analyse-propositietype" className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -74,6 +74,7 @@ export default function CreateAnalysisDialog({ open, onOpenChange, defaultName, 
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">Dit is niet de strategie of businesscase van het scenario.</p>
           </div>
         </div>
         <DialogFooter>
