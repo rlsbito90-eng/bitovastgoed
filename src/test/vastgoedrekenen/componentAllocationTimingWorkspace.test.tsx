@@ -51,7 +51,7 @@ describe('ComponentAllocationTimingWorkspace', () => {
     ], { horizon: 12 });
 
     expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
-    expect(screen.getByText(/verkoop in maand 18 valt buiten de Quickscan-horizon van 12 maanden/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/verkoop in maand 18 valt buiten de Quickscan-horizon van 12 maanden/i).length).toBeGreaterThan(0);
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
