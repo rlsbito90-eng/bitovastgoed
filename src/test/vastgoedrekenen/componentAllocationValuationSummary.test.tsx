@@ -12,6 +12,7 @@ function unit(id: string, allocation: number): SellOffUnit {
     unit_label: id,
     unit_type: 'woning',
     strategy: 'verkopen_leeg',
+    surface_gbo: 100,
     sale_price_source: 'totaal',
     sale_price_total: 1_000_000,
     sale_costs_pct: 10,
@@ -25,7 +26,7 @@ function unit(id: string, allocation: number): SellOffUnit {
 }
 
 describe('ComponentAllocationValuationSummary', () => {
-  it('toont per 50%-deel de effectieve bijdrage en één totale componentwaarde', () => {
+  it('toont per 50%-deel de effectieve bijdrage, oppervlakte en één totale componentwaarde', () => {
     render(<ComponentAllocationValuationSummary units={[unit('Deel A', 50), unit('Deel B', 50)]} />);
 
     expect(screen.getByRole('region', { name: /allocatiegewogen waardering/i })).toBeInTheDocument();
@@ -33,6 +34,10 @@ describe('ComponentAllocationValuationSummary', () => {
     expect(screen.getAllByText('Gewogen')).toHaveLength(2);
     expect(screen.getAllByText(/445\.000/)).toHaveLength(2);
     expect(screen.getByText(/890\.000/)).toBeInTheDocument();
+    expect(screen.getByText('Effectief oppervlak')).toBeInTheDocument();
+    expect(screen.getAllByText((_, element) => element?.textContent?.includes('effectief 50') === true))
+      .toHaveLength(2);
+    expect(screen.getAllByText(/8\.900.*\/m²/)).toHaveLength(3);
   });
 
   it('markeert een enkele 50%-regel als ongewogen onderverdeeld', () => {
@@ -40,5 +45,7 @@ describe('ComponentAllocationValuationSummary', () => {
 
     expect(screen.getByText('Ongewogen · onderverdeeld')).toBeInTheDocument();
     expect(screen.getAllByText(/890\.000/)).toHaveLength(2);
+    expect(screen.getAllByText((_, element) => element?.textContent?.includes('effectief 100') === true))
+      .toHaveLength(1);
   });
 });
