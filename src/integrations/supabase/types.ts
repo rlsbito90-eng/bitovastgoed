@@ -666,7 +666,9 @@ export type Database = {
           other_annual_costs: number | null
           ovb_classification: Database["public"]["Enums"]["vr_ovb_classification"]
           ovb_mode: Database["public"]["Enums"]["vr_ovb_mode"]
+          project_duration_months: number | null
           purchase_price: number | null
+          renovation_area_m2: number | null
           rent_choice:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
@@ -694,6 +696,8 @@ export type Database = {
           target_bar: number | null
           target_factor: number | null
           target_margin: number | null
+          temporary_project_income: number | null
+          temporary_project_income_costs: number | null
           transfer_tax_amount: number | null
           transfer_tax_percentage: number | null
           unforeseen_percentage: number | null
@@ -741,7 +745,9 @@ export type Database = {
           other_annual_costs?: number | null
           ovb_classification?: Database["public"]["Enums"]["vr_ovb_classification"]
           ovb_mode?: Database["public"]["Enums"]["vr_ovb_mode"]
+          project_duration_months?: number | null
           purchase_price?: number | null
+          renovation_area_m2?: number | null
           rent_choice?:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
@@ -769,6 +775,8 @@ export type Database = {
           target_bar?: number | null
           target_factor?: number | null
           target_margin?: number | null
+          temporary_project_income?: number | null
+          temporary_project_income_costs?: number | null
           transfer_tax_amount?: number | null
           transfer_tax_percentage?: number | null
           unforeseen_percentage?: number | null
@@ -816,7 +824,9 @@ export type Database = {
           other_annual_costs?: number | null
           ovb_classification?: Database["public"]["Enums"]["vr_ovb_classification"]
           ovb_mode?: Database["public"]["Enums"]["vr_ovb_mode"]
+          project_duration_months?: number | null
           purchase_price?: number | null
+          renovation_area_m2?: number | null
           rent_choice?:
             | Database["public"]["Enums"]["vr_huurtype_voor_bieding"]
             | null
@@ -844,6 +854,8 @@ export type Database = {
           target_bar?: number | null
           target_factor?: number | null
           target_margin?: number | null
+          temporary_project_income?: number | null
+          temporary_project_income_costs?: number | null
           transfer_tax_amount?: number | null
           transfer_tax_percentage?: number | null
           unforeseen_percentage?: number | null
@@ -852,6 +864,203 @@ export type Database = {
           wws_mode_default?: string | null
         }
         Relationships: []
+      }
+      comparative_valuation_references: {
+        Row: {
+          adjusted_unit_price: number | null
+          condition_adjustment_pct: number
+          created_at: string
+          energy_adjustment_pct: number
+          id: string
+          included: boolean
+          location_adjustment_pct: number
+          notes: string | null
+          occupancy_adjustment_pct: number
+          other_adjustment_pct: number
+          other_adjustment_reason: string | null
+          reference_object_id: string | null
+          size_adjustment_pct: number
+          snapshot_address: string
+          snapshot_area_m2: number | null
+          snapshot_asset_class: string
+          snapshot_place: string
+          snapshot_price: number
+          snapshot_price_type: string
+          snapshot_source_reference: string | null
+          snapshot_source_reliability: string | null
+          snapshot_transaction_date: string | null
+          snapshot_unit_price: number | null
+          snapshot_valuation_date: string | null
+          updated_at: string
+          valuation_id: string
+          weight: number
+        }
+        Insert: {
+          adjusted_unit_price?: number | null
+          condition_adjustment_pct?: number
+          created_at?: string
+          energy_adjustment_pct?: number
+          id?: string
+          included?: boolean
+          location_adjustment_pct?: number
+          notes?: string | null
+          occupancy_adjustment_pct?: number
+          other_adjustment_pct?: number
+          other_adjustment_reason?: string | null
+          reference_object_id?: string | null
+          size_adjustment_pct?: number
+          snapshot_address: string
+          snapshot_area_m2?: number | null
+          snapshot_asset_class: string
+          snapshot_place: string
+          snapshot_price: number
+          snapshot_price_type: string
+          snapshot_source_reference?: string | null
+          snapshot_source_reliability?: string | null
+          snapshot_transaction_date?: string | null
+          snapshot_unit_price?: number | null
+          snapshot_valuation_date?: string | null
+          updated_at?: string
+          valuation_id: string
+          weight?: number
+        }
+        Update: {
+          adjusted_unit_price?: number | null
+          condition_adjustment_pct?: number
+          created_at?: string
+          energy_adjustment_pct?: number
+          id?: string
+          included?: boolean
+          location_adjustment_pct?: number
+          notes?: string | null
+          occupancy_adjustment_pct?: number
+          other_adjustment_pct?: number
+          other_adjustment_reason?: string | null
+          reference_object_id?: string | null
+          size_adjustment_pct?: number
+          snapshot_address?: string
+          snapshot_area_m2?: number | null
+          snapshot_asset_class?: string
+          snapshot_place?: string
+          snapshot_price?: number
+          snapshot_price_type?: string
+          snapshot_source_reference?: string | null
+          snapshot_source_reliability?: string | null
+          snapshot_transaction_date?: string | null
+          snapshot_unit_price?: number | null
+          snapshot_valuation_date?: string | null
+          updated_at?: string
+          valuation_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparative_valuation_references_reference_object_id_fkey"
+            columns: ["reference_object_id"]
+            isOneToOne: false
+            referencedRelation: "referentie_objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comparative_valuation_references_valuation_id_fkey"
+            columns: ["valuation_id"]
+            isOneToOne: false
+            referencedRelation: "comparative_valuations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comparative_valuations: {
+        Row: {
+          basis: string
+          calculation_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          indicated_total_value: number | null
+          indicated_unit_value: number | null
+          lower_value: number | null
+          method: string
+          notes: string | null
+          object_id: string
+          purpose: string
+          reliability: string
+          scenario_id: string | null
+          subject_area_m2: number | null
+          updated_at: string
+          upper_value: number | null
+          valuation_date: string
+        }
+        Insert: {
+          basis?: string
+          calculation_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          indicated_total_value?: number | null
+          indicated_unit_value?: number | null
+          lower_value?: number | null
+          method?: string
+          notes?: string | null
+          object_id: string
+          purpose: string
+          reliability?: string
+          scenario_id?: string | null
+          subject_area_m2?: number | null
+          updated_at?: string
+          upper_value?: number | null
+          valuation_date: string
+        }
+        Update: {
+          basis?: string
+          calculation_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          indicated_total_value?: number | null
+          indicated_unit_value?: number | null
+          lower_value?: number | null
+          method?: string
+          notes?: string | null
+          object_id?: string
+          purpose?: string
+          reliability?: string
+          scenario_id?: string | null
+          subject_area_m2?: number | null
+          updated_at?: string
+          upper_value?: number | null
+          valuation_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparative_valuations_calculation_id_fkey"
+            columns: ["calculation_id"]
+            isOneToOne: false
+            referencedRelation: "real_estate_calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comparative_valuations_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "object_huur_metrics"
+            referencedColumns: ["object_id"]
+          },
+          {
+            foreignKeyName: "comparative_valuations_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comparative_valuations_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_moments: {
         Row: {
@@ -3882,9 +4091,14 @@ export type Database = {
           notities: string | null
           plaats: string
           postcode: string
+          price_type: string
           prijs_per_m2: number | null
           soft_deleted_at: string | null
+          source_reference: string | null
+          source_reliability: string | null
+          transaction_date: string | null
           updated_at: string
+          valuation_date: string | null
           vraagprijs: number
         }
         Insert: {
@@ -3903,9 +4117,14 @@ export type Database = {
           notities?: string | null
           plaats: string
           postcode: string
+          price_type?: string
           prijs_per_m2?: number | null
           soft_deleted_at?: string | null
+          source_reference?: string | null
+          source_reliability?: string | null
+          transaction_date?: string | null
           updated_at?: string
+          valuation_date?: string | null
           vraagprijs: number
         }
         Update: {
@@ -3924,9 +4143,14 @@ export type Database = {
           notities?: string | null
           plaats?: string
           postcode?: string
+          price_type?: string
           prijs_per_m2?: number | null
           soft_deleted_at?: string | null
+          source_reference?: string | null
+          source_reliability?: string | null
+          transaction_date?: string | null
           updated_at?: string
+          valuation_date?: string | null
           vraagprijs?: number
         }
         Relationships: [
