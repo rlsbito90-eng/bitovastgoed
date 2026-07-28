@@ -151,7 +151,7 @@ describe('ComponentAllocationTimingWorkspace', () => {
     expect(screen.getByText('120%')).toBeInTheDocument();
   });
 
-  it('laat de bestaande componentwaardering exact gelijk bij uitsluitend timinginvoer', () => {
+  it('laat timingbedragen gelijk en waarschuwt wanneer slechts 50% is toegewezen', () => {
     const before = unit({ id: 'same-value' });
     const after = unit({
       id: 'same-value',
@@ -161,7 +161,17 @@ describe('ComponentAllocationTimingWorkspace', () => {
       expected_sale_period_months: 18,
       allocation_timing_schema_version: 1,
     });
+    const beforeTotals = aggregateStrategy([before]);
+    const afterTotals = aggregateStrategy([after]);
 
-    expect(aggregateStrategy([after])).toEqual(aggregateStrategy([before]));
+    expect(afterTotals.scenarioValue).toBe(beforeTotals.scenarioValue);
+    expect(afterTotals.grossDevelopmentValue).toBe(beforeTotals.grossDevelopmentValue);
+    expect(afterTotals.componentDispositionCosts).toBe(beforeTotals.componentDispositionCosts);
+    expect(afterTotals.componentDevelopmentCosts).toBe(beforeTotals.componentDevelopmentCosts);
+    expect(afterTotals.extraInvestmentCosts).toBe(beforeTotals.extraInvestmentCosts);
+    expect(afterTotals.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('onderverdeeld (50%)'),
+      expect.stringContaining('ongewogen rekenwijze'),
+    ]));
   });
 });
