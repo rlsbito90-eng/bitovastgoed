@@ -51,6 +51,27 @@ describe('scenario-taxonomie Fase 2 — dual read en persistence', () => {
     });
   });
 
+  it('normaliseert een intern inconsistent canoniek record defensief naar mixed-read', () => {
+    const result = resolvePersistedScenarioTaxonomy({
+      strategy_type: 'belegging',
+      business_case: 'value_add',
+      intervention: 'renovate',
+      expansion_subtype: 'rooftop_addition',
+      exploitation_mode: 'rental',
+      disposition: 'hold',
+      taxonomy_schema_version: 1,
+    });
+
+    expect(result.source).toBe('mixed');
+    expect(result.confidence).toBe('ambiguous');
+    expect(result.value.intervention).toBe('renovate');
+    expect(result.value.expansionSubtype).toBeNull();
+    expect(result.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('intern inconsistent'),
+      expect.stringContaining('genegeerd'),
+    ]));
+  });
+
   it('vult een gedeeltelijk record per veld veilig aan vanuit legacy zonder write', () => {
     const record = {
       strategy_type: 'belegging',
