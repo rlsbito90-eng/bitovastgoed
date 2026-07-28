@@ -50,9 +50,10 @@ describe('Vastgoedrekenen taxonomie Fase 3A — Quickscan-scope', () => {
   });
 });
 
-describe('Vastgoedrekenen taxonomie Fase 3A — scenario-classificatie', () => {
+describe('Vastgoedrekenen taxonomie Fase 3A/3B — scenario-classificatie', () => {
   it('toont een legacy-afleiding maar schrijft pas na expliciete bevestiging', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
+    const onSyncCompatibility = vi.fn().mockResolvedValue(true);
     const scenario = {
       id: 'scenario-1',
       strategy_type: 'buy_transform_sell',
@@ -64,10 +65,18 @@ describe('Vastgoedrekenen taxonomie Fase 3A — scenario-classificatie', () => {
       taxonomy_schema_version: null,
     } as Scenario;
 
-    render(<ScenarioTaxonomyPanel scenario={scenario} onSave={onSave} />);
+    render(
+      <ScenarioTaxonomyPanel
+        scenario={scenario}
+        onSave={onSave}
+        onSyncCompatibility={onSyncCompatibility}
+      />,
+    );
 
     expect(screen.getByText('Afgeleid uit bestaande strategie')).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
+    expect(onSyncCompatibility).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Rekenvelden controleren' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Classificatie vastleggen' }));
 
@@ -82,10 +91,11 @@ describe('Vastgoedrekenen taxonomie Fase 3A — scenario-classificatie', () => {
     });
   });
 
-  it('herkent een volledig opgeslagen canonieke classificatie', () => {
+  it('herkent een opgeslagen optopscenario en weigert een misleidende legacykoppeling', () => {
     const scenario = {
       id: 'scenario-2',
       strategy_type: 'belegging',
+      sale_strategy: 'geen_verkoop',
       business_case: 'redevelopment',
       intervention: 'expand',
       expansion_subtype: 'rooftop_addition',
@@ -94,10 +104,56 @@ describe('Vastgoedrekenen taxonomie Fase 3A — scenario-classificatie', () => {
       taxonomy_schema_version: 1,
     } as Scenario;
 
-    render(<ScenarioTaxonomyPanel scenario={scenario} onSave={vi.fn().mockResolvedValue(true)} />);
+    render(
+      <ScenarioTaxonomyPanel
+        scenario={scenario}
+        onSave={vi.fn().mockResolvedValue(true)}
+        onSyncCompatibility={vi.fn().mockResolvedValue(true)}
+      />,
+    );
 
     expect(screen.getByText('Canoniek opgeslagen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Classificatie opslaan' })).toBeDisabled();
     expect(screen.getByText(/bouwvolume bovenop bestaande bouw toevoegen/i)).toBeInTheDocument();
+    expect(screen.getByText('Nieuwe rekenadapter nodig')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rekenvelden controleren' })).toBeDisabled();
+  });
+
+  it('past legacy rekenvelden pas toe na een tweede expliciete bevestiging', async () => {
+    const onSyncCompatibility = vi.fn().mockResolvedValue(true);
+    const scenario = {
+      id: 'scenario-3',
+      strategy_type: 'buy_transform_sell',
+      sale_strategy: 'transformeren_verkopen',
+      business_case: 'redevelopment',
+      intervention: 'transform',
+      expansion_subtype: null,
+      exploitation_mode: 'rental',
+      disposition: 'hold',
+      taxonomy_schema_version: 1,
+    } as Scenario;
+
+    render(
+      <ScenarioTaxonomyPanel
+        scenario={scenario}
+        onSave={vi.fn().mockResolvedValue(true)}
+        onSyncCompatibility={onSyncCompatibility}
+      />,
+    );
+
+    expect(screen.getByText('Veilige vertaling')).toBeInTheDocument();
+    expect(onSyncCompatibility).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rekenvelden controleren' }));
+    expect(screen.getByText('Rekencompatibiliteit toepassen?')).toBeInTheDocument();
+    expect(onSyncCompatibility).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rekenvelden toepassen' }));
+
+    await waitFor(() => expect(onSyncCompatibility).toHaveBeenCalledTimes(1));
+    expect(onSyncCompatibility).toHaveBeenCalledWith({
+      strategy_type: 'buy_transform_hold',
+      sale_strategy: 'geen_verkoop',
+    });
   });
 });
