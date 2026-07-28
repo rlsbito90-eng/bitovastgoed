@@ -55,7 +55,6 @@ export const INTERVENTION_METADATA = {
   maintain: { label: 'Onderhouden', description: 'Regulier of achterstallig onderhoud uitvoeren.' },
   renovate: { label: 'Renoveren', description: 'Bestaande kwaliteit herstellen of verbeteren.' },
   sustainability_upgrade: { label: 'Verduurzamen', description: 'Energie- en duurzaamheidsmaatregelen uitvoeren.' },
-  relet: { label: 'Herverhuren', description: 'Verhuurbaar maken en opnieuw in de markt zetten.' },
   split: { label: 'Splitsen', description: 'Juridisch, functioneel of bouwkundig opdelen.' },
   transform: { label: 'Transformeren', description: 'Functie of gebruik van het vastgoed wijzigen.' },
   expand: { label: 'Uitbreiden', description: 'Extra bouwvolume of bruikbaar oppervlak toevoegen.' },
@@ -89,13 +88,10 @@ export type ExploitationMode = keyof typeof EXPLOITATION_MODE_METADATA;
 
 export const DISPOSITION_METADATA = {
   hold: { label: 'Aanhouden', description: 'Het onderdeel blijft in eigendom.' },
-  sell_as_whole_vacant: { label: 'Als geheel leeg verkopen', description: 'Verkoop van het gehele onderdeel zonder huurder.' },
-  sell_as_whole_tenanted: { label: 'Als geheel verhuurd verkopen', description: 'Verkoop van het gehele onderdeel met huurcontract.' },
+  sell_as_whole: { label: 'Als geheel verkopen', description: 'Het gehele onderdeel in één transactie verkopen.' },
   sell_unit: { label: 'Per unit verkopen', description: 'Afzonderlijke eenheden individueel verkopen.' },
   sell_component: { label: 'Per component verkopen', description: 'Een bouwdeel of gebruikscomponent afzonderlijk verkopen.' },
-  sale_and_leaseback: { label: 'Sale-and-leaseback', description: 'Verkopen en gelijktijdig terughuren.' },
-  refinance_and_hold: { label: 'Herfinancieren en aanhouden', description: 'Kapitaal vrijmaken via herfinanciering en eigendom behouden.' },
-  deferred: { label: 'Later beslissen / uitgestelde exit', description: 'De exit wordt naar een later beslismoment verschoven.' },
+  sale_and_leaseback: { label: 'Sale-and-leaseback', description: 'Verkopen met een gelijktijdige terughuurovereenkomst.' },
   undecided: { label: 'Nog te bepalen', description: 'De disposition is nog niet vastgesteld.' },
 } as const satisfies Record<string, TaxonomyMetadata>;
 
