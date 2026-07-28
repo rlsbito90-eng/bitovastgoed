@@ -45,19 +45,29 @@ describe('canonieke Vastgoedrekenen-taxonomie', () => {
     expect(new Set(Object.keys(exhaustive)).size).toBe(17);
   });
 
-  it('houdt businesscase en disposition als onafhankelijke dimensies', () => {
+  it('houdt businesscase, ingreep, exploitatie, disposition, timing en financiering onafhankelijk', () => {
     expect(BUSINESS_CASES).not.toContain('value_add_hold');
     expect(BUSINESS_CASES).not.toContain('value_add_sell');
     expect(BUSINESS_CASES).not.toContain('redevelop_sell');
+
+    expect(INTERVENTIONS).not.toContain('relet');
+    expect(DISPOSITIONS).not.toContain('sell_as_whole_vacant');
+    expect(DISPOSITIONS).not.toContain('sell_as_whole_tenanted');
+    expect(DISPOSITIONS).not.toContain('refinance_and_hold');
+    expect(DISPOSITIONS).not.toContain('deferred');
     expect(DISPOSITIONS).toContain('hold');
+    expect(DISPOSITIONS).toContain('sell_as_whole');
     expect(DISPOSITIONS).toContain('sell_unit');
 
     const hold = mapLegacyStrategy('buy_fix_hold').mapping;
     const sell = mapLegacyStrategy('buy_fix_sell').mapping;
+    const rentOptimization = mapLegacyStrategy('huur_optimaliseren').mapping;
     expect(hold.businessCase).toBe('value_add');
     expect(sell.businessCase).toBe('value_add');
     expect(hold.disposition).toBe('hold');
-    expect(sell.disposition).toBe('sell_as_whole_vacant');
+    expect(sell.disposition).toBe('sell_as_whole');
+    expect(sell.exploitation).toBe('vacant');
+    expect(rentOptimization.intervention).toBe('none');
   });
 
   it('modelleert optoppen uitsluitend als subtype van uitbreiden', () => {
