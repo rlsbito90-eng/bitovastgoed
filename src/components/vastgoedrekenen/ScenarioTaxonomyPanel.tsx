@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Save, SplitSquareVertical } from 'lucide-react';
+import { Link2, Save, SplitSquareVertical } from 'lucide-react';
 import type { Scenario } from '@/lib/vastgoedrekenen/types';
+import { VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
+import { SALE_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/verkoop';
 import {
   BUSINESS_CASE_METADATA,
   DISPOSITION_METADATA,
@@ -12,26 +24,37 @@ import {
   EXPLOITATION_MODE_METADATA,
   INTERVENTION_METADATA,
   ScenarioTaxonomyPersistenceError,
+  buildLegacyCompatibilityPatch,
+  isLegacyCompatibilityAligned,
   resolvePersistedScenarioTaxonomy,
   scenarioTaxonomyPersistencePatch,
+  suggestLegacyScenarioCompatibility,
   type BusinessCase,
   type CanonicalScenarioTaxonomy,
   type Disposition,
   type ExpansionSubtype,
   type ExploitationMode,
   type Intervention,
+  type ScenarioLegacyCompatibilityPatch,
   type ScenarioTaxonomyPersistencePatch,
 } from '@/lib/vastgoedrekenen/taxonomy';
 
 interface Props {
   scenario: Scenario;
   onSave: (patch: ScenarioTaxonomyPersistencePatch) => Promise<boolean>;
+  onSyncCompatibility?: (patch: ScenarioLegacyCompatibilityPatch) => Promise<boolean>;
 }
 
 const SOURCE_LABELS = {
   canonical: 'Canoniek opgeslagen',
   legacy: 'Afgeleid uit bestaande strategie',
   mixed: 'Gedeeltelijke historische classificatie',
+} as const;
+
+const BRIDGE_LABELS = {
+  exact: 'Veilige vertaling',
+  inferred: 'Benadering met waarschuwing',
+  unsupported: 'Nieuwe rekenadapter nodig',
 } as const;
 
 function sameTaxonomy(a: CanonicalScenarioTaxonomy, b: CanonicalScenarioTaxonomy): boolean {
@@ -42,7 +65,7 @@ function sameTaxonomy(a: CanonicalScenarioTaxonomy, b: CanonicalScenarioTaxonomy
     && a.disposition === b.disposition;
 }
 
-export default function ScenarioTaxonomyPanel({ scenario, onSave }: Props) {
+export default function ScenarioTaxonomyPanel({ scenario, onSave, onSyncCompatibility }: Props) {
   const resolved = useMemo(
     () => resolvePersistedScenarioTaxonomy(scenario as unknown as Record<string, unknown>),
     [scenario],
@@ -50,13 +73,27 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave }: Props) {
   const [draft, setDraft] = useState<CanonicalScenarioTaxonomy>(resolved.value);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   useEffect(() => {
     setDraft(resolved.value);
     setError(null);
+    setSyncOpen(false);
   }, [scenario.id, resolved.source, resolved.schemaVersion, resolved.value.businessCase, resolved.value.intervention, resolved.value.expansionSubtype, resolved.value.exploitation, resolved.value.disposition]);
 
   const dirty = resolved.source !== 'canonical' || !sameTaxonomy(draft, resolved.value);
+  const bridge = useMemo(() => suggestLegacyScenarioCompatibility(draft), [draft]);
+  const compatibilityPatch = useMemo(
+    () => buildLegacyCompatibilityPatch(scenario as unknown as Record<string, unknown>, bridge),
+    [scenario, bridge],
+  );
+  const compatibilityAligned = isLegacyCompatibilityAligned(
+    scenario as unknown as Record<string, unknown>,
+    bridge,
+  );
+  const currentStrategy = String(scenario.strategy_type ?? 'overig');
+  const currentSaleStrategy = String((scenario as unknown as Record<string, unknown>).sale_strategy ?? 'geen_verkoop');
 
   function setIntervention(intervention: Intervention) {
     setDraft((current) => ({
@@ -84,6 +121,25 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave }: Props) {
     }
   }
 
+  async function syncCompatibility() {
+    if (!onSyncCompatibility || Object.keys(compatibilityPatch).length === 0) return;
+    setSyncBusy(true);
+    try {
+      const saved = await onSyncCompatibility(compatibilityPatch);
+      if (saved) setSyncOpen(false);
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
+  const syncDisabledReason = resolved.source !== 'canonical' || dirty
+    ? 'Sla de classificatie eerst op.'
+    : bridge.status === 'unsupported'
+      ? 'Voor deze combinatie bestaat nog geen veilige adapter naar de huidige rekenkern.'
+      : compatibilityAligned
+        ? 'De bestaande rekenvelden zijn al gekoppeld.'
+        : null;
+
   return (
     <div className="mb-4 rounded-lg border border-primary/20 bg-primary/[0.025] p-4 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -96,7 +152,7 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave }: Props) {
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Businesscase, fysieke ingreep, exploitatie en exit worden hier onafhankelijk vastgelegd. De bestaande strategie-dropdown blijft voorlopig alleen voor rekencompatibiliteit.
+            Businesscase, fysieke ingreep, exploitatie en exit worden hier onafhankelijk vastgelegd. De bestaande strategievelden blijven tijdelijk de huidige rekenkern aansturen.
           </p>
         </div>
         <Button type="button" size="sm" onClick={save} disabled={!dirty || busy} className="w-full sm:w-auto">
@@ -196,6 +252,84 @@ export default function ScenarioTaxonomyPanel({ scenario, onSave }: Props) {
           {resolved.warnings.join(' ')}
         </div>
       )}
+
+      <div className="rounded-md border bg-card p-3 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs font-semibold">Koppeling met bestaande rekenkern</p>
+              <Badge
+                variant={bridge.status === 'unsupported' ? 'outline' : compatibilityAligned ? 'default' : 'secondary'}
+                className="text-[10px]"
+              >
+                {compatibilityAligned && bridge.status !== 'unsupported' ? 'Rekenvelden gekoppeld' : BRIDGE_LABELS[bridge.status]}
+              </Badge>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              De koppeling verandert uitsluitend de tijdelijke velden ‘legacy rekenstrategie’ en, wanneer eenduidig, ‘verkoopstrategie’. Zij verwijdert geen financiële invoer.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!!syncDisabledReason || !onSyncCompatibility}
+            onClick={() => setSyncOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Link2 className="h-4 w-4 mr-1" />
+            {compatibilityAligned && bridge.status !== 'unsupported' ? 'Rekenvelden gekoppeld' : 'Rekenvelden controleren'}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="rounded-md bg-muted/35 p-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Huidige rekenvelden</p>
+            <p className="mt-1"><span className="text-muted-foreground">Strategie:</span> {VR_STRATEGY_LABELS[currentStrategy] ?? currentStrategy}</p>
+            <p><span className="text-muted-foreground">Verkoop:</span> {SALE_STRATEGY_LABELS[currentSaleStrategy] ?? currentSaleStrategy}</p>
+          </div>
+          <div className="rounded-md bg-muted/35 p-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Voorgestelde vertaling</p>
+            <p className="mt-1"><span className="text-muted-foreground">Strategie:</span> {bridge.strategyType ? (VR_STRATEGY_LABELS[bridge.strategyType] ?? bridge.strategyType) : 'Geen veilige vertaling'}</p>
+            <p><span className="text-muted-foreground">Verkoop:</span> {bridge.saleStrategy ? (SALE_STRATEGY_LABELS[bridge.saleStrategy] ?? bridge.saleStrategy) : 'Ongewijzigd'}</p>
+          </div>
+        </div>
+
+        <div className="text-[11px] leading-relaxed space-y-1">
+          {bridge.reasons.map((reason) => <p key={reason}>{reason}</p>)}
+          {bridge.warnings.map((warning) => <p key={warning} className="text-amber-700 dark:text-amber-300">⚠ {warning}</p>)}
+          {syncDisabledReason && <p className="text-muted-foreground">{syncDisabledReason}</p>}
+        </div>
+      </div>
+
+      <AlertDialog open={syncOpen} onOpenChange={setSyncOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rekencompatibiliteit toepassen?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                De huidige legacy rekenstrategie wijzigt van “{VR_STRATEGY_LABELS[currentStrategy] ?? currentStrategy}” naar “{bridge.strategyType ? (VR_STRATEGY_LABELS[bridge.strategyType] ?? bridge.strategyType) : '—'}”.
+              </span>
+              {bridge.saleStrategy && compatibilityPatch.sale_strategy && (
+                <span className="block">
+                  De verkoopstrategie wijzigt van “{SALE_STRATEGY_LABELS[currentSaleStrategy] ?? currentSaleStrategy}” naar “{SALE_STRATEGY_LABELS[bridge.saleStrategy] ?? bridge.saleStrategy}”.
+                </span>
+              )}
+              <span className="block">
+                Financiële invoer wordt niet verwijderd. De bestaande rekenkern kan na deze wijziging wel andere secties, heuristieken en uitkomsten activeren op basis van dezelfde invoer.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={syncBusy}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); syncCompatibility(); }} disabled={syncBusy}>
+              {syncBusy ? 'Toepassen…' : 'Rekenvelden toepassen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
