@@ -16,7 +16,7 @@ const SPLIT_PATCH_KEYS = [
   'allocation_timing_schema_version',
 ] as const;
 
-function isSplitOnlyPatch(patch: Record<string, unknown>): boolean {
+export function isSplitOnlyPatch(patch: Record<string, unknown>): boolean {
   const keys = Object.keys(patch).sort();
   return keys.length === SPLIT_PATCH_KEYS.length
     && SPLIT_PATCH_KEYS.every((key) => keys.includes(key));
