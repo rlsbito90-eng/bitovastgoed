@@ -28,6 +28,7 @@ import {
   getDispositionLabel,
   getInterventionLabel,
   resolvePersistedScenarioTaxonomy,
+  type ScenarioLegacyCompatibilityPatch,
   type ScenarioTaxonomyPersistencePatch,
 } from '@/lib/vastgoedrekenen/taxonomy';
 import { supabase } from '@/integrations/supabase/client';
@@ -143,6 +144,21 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     return true;
   }
 
+  async function syncScenarioCompatibility(id: string, patch: ScenarioLegacyCompatibilityPatch): Promise<boolean> {
+    if (Object.keys(patch).length === 0) return true;
+    const { error } = await untypedSupabase
+      .from('calculation_scenarios')
+      .update(patch)
+      .eq('id', id);
+    if (error) {
+      toast.error('Koppeling met de bestaande rekenkern mislukt');
+      return false;
+    }
+    toast.success('Bestaande rekenvelden gekoppeld aan de scenario-classificatie');
+    await refetch();
+    return true;
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -244,7 +260,11 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               </div>
               {open && (
                 <div className="p-4">
-                  <ScenarioTaxonomyPanel scenario={s} onSave={(patch) => saveScenarioTaxonomy(s.id, patch)} />
+                  <ScenarioTaxonomyPanel
+                    scenario={s}
+                    onSave={(patch) => saveScenarioTaxonomy(s.id, patch)}
+                    onSyncCompatibility={(patch) => syncScenarioCompatibility(s.id, patch)}
+                  />
                   {proposition.propositionType === 'renovate_and_sell' && (
                     <RenovateAndSellPanel scenario={s} onSaved={refetch} />
                   )}
