@@ -17,10 +17,14 @@ type Props = {
 
 function readStoredViewMode(): ViewMode {
   if (typeof window === 'undefined') return 'begeleid';
-  const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-  return stored === 'compact' || stored === 'expert' || stored === 'begeleid'
-    ? stored
-    : 'begeleid';
+  try {
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return stored === 'compact' || stored === 'expert' || stored === 'begeleid'
+      ? stored
+      : 'begeleid';
+  } catch {
+    return 'begeleid';
+  }
 }
 
 function HelpPart({ label, children }: { label: string; children: ReactNode }) {
