@@ -1,4 +1,5 @@
 import type { Scenario } from './types';
+import { CONTROLLED_TAXONOMY_SCHEMA_VERSION } from './controlledTaxonomy';
 
 export type KengetalCategorie =
   | 'rendement'
@@ -26,7 +27,23 @@ export type KengetalScenarioVeld =
   | 'maintenance_reserve_percentage'
   | 'management_cost_percentage';
 
-export type VastgoedrekenenKengetal = {
+export type KengetalClassificatie = {
+  asset_type_codes: string[] | null;
+  strategy_codes: string[] | null;
+  project_phase_codes: string[] | null;
+  risk_class_codes: string[] | null;
+  quality_level_codes: string[] | null;
+  complexity_codes: string[] | null;
+  location_type_codes: string[] | null;
+  market_condition_codes: string[] | null;
+  scenario_profile_codes: string[] | null;
+  location_keys: string[] | null;
+  unit_code: string | null;
+  vat_treatment_code: string | null;
+  classification_schema_version: number | null;
+};
+
+export type VastgoedrekenenKengetal = KengetalClassificatie & {
   id: string;
   code: string;
   naam: string;
@@ -42,6 +59,7 @@ export type VastgoedrekenenKengetal = {
   bron_peildatum: string;
   geldig_vanaf: string | null;
   vervaldatum: string;
+  /** Legacy vrije labels; blijven leesbaar voor bestaande records. */
   toepassingsgebied: string[];
   regio: string[];
   projectfase: string[];
@@ -55,7 +73,7 @@ export type VastgoedrekenenKengetal = {
   updated_at: string;
 };
 
-export type ScenarioKengetalSnapshot = {
+export type ScenarioKengetalSnapshot = KengetalClassificatie & {
   id: string;
   scenario_id: string;
   kengetal_id: string | null;
@@ -93,6 +111,22 @@ export type KengetalDraft = Omit<
   'id' | 'created_by' | 'created_at' | 'updated_at' | 'versie'
 > & { versie?: number };
 
+export const EMPTY_KENGETAL_CLASSIFICATIE: KengetalClassificatie = {
+  asset_type_codes: [],
+  strategy_codes: [],
+  project_phase_codes: [],
+  risk_class_codes: [],
+  quality_level_codes: [],
+  complexity_codes: [],
+  location_type_codes: [],
+  market_condition_codes: [],
+  scenario_profile_codes: [],
+  location_keys: [],
+  unit_code: null,
+  vat_treatment_code: null,
+  classification_schema_version: CONTROLLED_TAXONOMY_SCHEMA_VERSION,
+};
+
 export const KENGETAL_CATEGORIE_LABELS: Record<KengetalCategorie, string> = {
   rendement: 'Rendement',
   opbrengst: 'Opbrengst',
@@ -123,6 +157,24 @@ export const KENGETAL_SCENARIOVELD_LABELS: Record<KengetalScenarioVeld, string> 
   maintenance_reserve_percentage: 'Onderhoudsreserve (%)',
   management_cost_percentage: 'Beheerkosten (%)',
 };
+
+export function normalizeClassification<T extends Partial<KengetalClassificatie>>(item: T): KengetalClassificatie {
+  return {
+    asset_type_codes: item.asset_type_codes ?? [],
+    strategy_codes: item.strategy_codes ?? [],
+    project_phase_codes: item.project_phase_codes ?? [],
+    risk_class_codes: item.risk_class_codes ?? [],
+    quality_level_codes: item.quality_level_codes ?? [],
+    complexity_codes: item.complexity_codes ?? [],
+    location_type_codes: item.location_type_codes ?? [],
+    market_condition_codes: item.market_condition_codes ?? [],
+    scenario_profile_codes: item.scenario_profile_codes ?? [],
+    location_keys: item.location_keys ?? [],
+    unit_code: item.unit_code ?? null,
+    vat_treatment_code: item.vat_treatment_code ?? null,
+    classification_schema_version: item.classification_schema_version ?? null,
+  };
+}
 
 export function valueForBand(
   kengetal: Pick<VastgoedrekenenKengetal, 'minimum_waarde' | 'basis_waarde' | 'maximum_waarde'>,
@@ -198,6 +250,7 @@ export function buildSnapshotPayload(args: {
     projectfase: [...kengetal.projectfase],
     risicoklasse: [...kengetal.risicoklasse],
     betrouwbaarheid: kengetal.betrouwbaarheid,
+    ...normalizeClassification(kengetal),
     register_versie: Number(kengetal.versie),
     overschreven: manual,
     override_reden: manual ? args.overrideReason!.trim() : null,

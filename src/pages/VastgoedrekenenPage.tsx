@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
 import KengetallenRegisterPanel from '@/components/vastgoedrekenen/KengetallenRegisterPanel';
+import GebiedsvoorkeurenPanel from '@/components/admin/GebiedsvoorkeurenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { Calculation } from '@/lib/vastgoedrekenen/types';
@@ -50,12 +51,17 @@ export default function VastgoedrekenenPage() {
   }, [store]);
 
   return (
-    <div className="page-shell">
+    <div className="page-shell space-y-4">
       <PageHeader
         title="Vastgoedrekenen"
-        subtitle="Alle quickscans, scenarioanalyses en centraal beheer van traceerbare kengetallen."
+        subtitle="Alle quickscans, scenarioanalyses, traceerbare kengetallen en strategische gebiedsvoorkeuren."
       />
       <KengetallenRegisterPanel />
+      <Card>
+        <CardContent className="p-4">
+          <GebiedsvoorkeurenPanel />
+        </CardContent>
+      </Card>
       {loading ? (
         <p className="text-sm text-muted-foreground">Laden…</p>
       ) : items.length === 0 ? (
