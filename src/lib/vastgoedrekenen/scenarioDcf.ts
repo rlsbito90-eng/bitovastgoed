@@ -233,14 +233,15 @@ export function buildScenarioDcf(
     };
   });
 
-  const totalInflows = cashflow.monthly.reduce(
-    (sum, row) => sum + Math.max(0, row.netCashflow),
-    0,
-  );
-  const totalOutflows = cashflow.monthly.reduce(
-    (sum, row) => sum + Math.abs(Math.min(0, row.netCashflow)),
-    0,
-  );
+  const totalInflows = cashflow.totals.rentalIncome
+    + cashflow.totals.grossSaleProceeds
+    + cashflow.totals.terminalValue;
+  const totalOutflows = cashflow.totals.purchasePrice
+    + cashflow.totals.transferTax
+    + cashflow.totals.acquisitionCosts
+    + cashflow.totals.componentDevelopmentCosts
+    + cashflow.totals.sharedScenarioCosts
+    + cashflow.totals.dispositionCosts;
   const investmentMultiple = totalOutflows > 0 ? totalInflows / totalOutflows : null;
 
   let cumulativeNominal = 0;
