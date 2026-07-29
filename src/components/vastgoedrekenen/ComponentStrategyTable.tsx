@@ -4,6 +4,7 @@ import ComponentAllocationValuationSummary from './ComponentAllocationValuationS
 import ComponentPeriodicCashflowWorkspace from './ComponentPeriodicCashflowWorkspace';
 import ComponentAllocationTimingWorkspace from './ComponentAllocationTimingWorkspace';
 import ScenarioUnleveredCashflowWorkspace from './ScenarioUnleveredCashflowWorkspace';
+import ScenarioDcfWorkspace from './ScenarioDcfWorkspace';
 
 type Props = {
   units: SellOffUnit[];
@@ -22,9 +23,9 @@ export default function ComponentStrategyTable(props: Props) {
       <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-200">
         Complete allocatiegroepen van exact 100% worden financieel gewogen. Onder- of oververdeelde
         groepen blijven tijdelijk ongewogen en tonen een waarschuwing, zodat onvolledige invoer de
-        nominale scenariowaarde niet stilzwijgend verandert. Vastgelegde timing voedt nu de
-        periodieke componentkasstroom en, zodra alle algemene kosten zijn getimed, de afzonderlijke
-        ongefinancierde scenariokasstroom.
+        nominale scenariowaarde niet stilzwijgend verandert. Vastgelegde timing voedt de periodieke
+        componentkasstroom, de ongefinancierde scenariokasstroom en — na een expliciet opgeslagen
+        disconteringsvoet — de DCF- en unlevered-IRR-analyse.
       </div>
       <ComponentPeriodicCashflowWorkspace units={props.units} />
       <ComponentAllocationTimingWorkspace
@@ -33,6 +34,7 @@ export default function ComponentStrategyTable(props: Props) {
         onUpdate={props.onUpdate}
       />
       <ScenarioUnleveredCashflowWorkspace units={props.units} components={props.components} />
+      <ScenarioDcfWorkspace units={props.units} components={props.components} />
     </div>
   );
 }
