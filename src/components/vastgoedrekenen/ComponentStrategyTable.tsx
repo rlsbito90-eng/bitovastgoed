@@ -5,6 +5,7 @@ import ComponentPeriodicCashflowWorkspace from './ComponentPeriodicCashflowWorks
 import ComponentAllocationTimingWorkspace from './ComponentAllocationTimingWorkspace';
 import ScenarioUnleveredCashflowWorkspace from './ScenarioUnleveredCashflowWorkspace';
 import ScenarioDcfWorkspace from './ScenarioDcfWorkspace';
+import ScenarioFinancingWorkspace from './ScenarioFinancingWorkspace';
 import PlainLanguageHelp from './PlainLanguageHelp';
 
 type Props = {
@@ -82,6 +83,16 @@ export default function ComponentStrategyTable(props: Props) {
         warning={<>Een positieve NCW of hoge IRR is geen garantie. Controleer vooral aannames over kosten, verkoopwaarde, huur, looptijd en terminale waarde.</>}
       />
       <ScenarioDcfWorkspace units={props.units} components={props.components} />
+
+      <PlainLanguageHelp
+        title="Uitleg financiering en eigen geld"
+        what={<>De financieringslaag laat zien welk deel van de projectuitgaven met geleend geld wordt betaald en welk deel je zelf moet inleggen. Ook rente, afsluitkosten en aflossing worden per maand zichtbaar.</>}
+        why={<>Een lening kan het rendement op je eigen geld verhogen, maar maakt het project ook gevoeliger voor rente, timing en tegenvallende opbrengsten. Daarom blijven het vastgoedrendement zonder lening en het rendement op eigen geld naast elkaar staan.</>}
+        action={<>Leg per lening het maximale bedrag, de opnamemethode, rente, afsluitkosten en eindmaand vast. Controleer daarna de piekschuld, piek eigen geld, LTC en levered IRR.</>}
+        example={<>Bij € 1.000.000 projectuitgaven en € 600.000 werkelijk opgenomen schuld moet vóór rente en kosten ongeveer € 400.000 uit eigen middelen komen.</>}
+        warning={<>De maximale leenruimte is niet automatisch een opname. Alleen negatieve projectkasstromen worden gefinancierd. Bij het dupliceren van een scenario worden financieringsfaciliteiten bewust niet automatisch overgenomen; leg de actuele voorwaarden in de kopie opnieuw vast. LTV en DSCR volgen pas zodra de waardebasis en netto exploitatiekasstroom per periode betrouwbaar zijn.</>}
+      />
+      <ScenarioFinancingWorkspace units={props.units} components={props.components} />
     </div>
   );
 }
