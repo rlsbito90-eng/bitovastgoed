@@ -102,5 +102,5 @@ export function validateTaxonomyCodes(args: {
 
 export function legacyUnitValue(unitCode: string | null | undefined, fallback = ''): string {
   if (!unitCode) return fallback;
-  return UNIT_LEGACY_VALUES[unitCode] ?? fallback || unitCode;
+  return UNIT_LEGACY_VALUES[unitCode] ?? (fallback || unitCode);
 }
