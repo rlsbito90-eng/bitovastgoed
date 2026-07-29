@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import PlainLanguageHelp from '@/components/vastgoedrekenen/PlainLanguageHelp';
 
 const helpProps = {
@@ -12,6 +12,10 @@ const helpProps = {
 };
 
 describe('PlainLanguageHelp', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('toont de uitleg standaard open in Begeleid-modus', () => {
     render(<PlainLanguageHelp {...helpProps} viewMode="begeleid" />);
 
@@ -44,5 +48,14 @@ describe('PlainLanguageHelp', () => {
 
     fireEvent.click(trigger);
     expect(screen.getByText(/dit is de uitleg van het begrip/i)).toBeInTheDocument();
+  });
+
+  it('volgt de bestaande opgeslagen Vastgoedrekenen-modus zonder extra prop', () => {
+    window.localStorage.setItem('vr.viewMode', 'compact');
+
+    render(<PlainLanguageHelp {...helpProps} />);
+
+    expect(screen.getByRole('button', { name: /uitleg testonderdeel/i })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Wat betekent dit?')).not.toBeInTheDocument();
   });
 });
