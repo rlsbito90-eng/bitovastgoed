@@ -44,7 +44,7 @@ describe('Fase 6C standaardregister', () => {
     expect(entry?.maximum_waarde).not.toBe(ASSUMPTION_PROFILES.kantoor.zwaar.vacancy_percentage);
   });
 
-  it('rapporteert ontbrekende, inactieve en verlopen standaardregels afzonderlijk', () => {
+  it('rapporteert ontbrekende, inactieve en verlopen standaardregels zonder dubbeltelling', () => {
     const [first, second] = STANDARD_REGISTER_CODES;
     const coverage = assessStandardRegisterCoverage([
       { code: first, actief: true, vervaldatum: '2027-01-30' },
@@ -58,6 +58,7 @@ describe('Fase 6C standaardregister', () => {
       active: 1,
       inactive: 1,
       expired: 1,
+      attention: 27,
       complete: false,
     });
     expect(coverage.missingCodes).toHaveLength(26);
@@ -75,6 +76,7 @@ describe('Fase 6C standaardregister', () => {
       active: 28,
       expired: 0,
       inactive: 0,
+      attention: 0,
       missingCodes: [],
       complete: true,
     });
