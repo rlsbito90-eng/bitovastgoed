@@ -53,10 +53,10 @@ export type VastgoedrekenenKengetal = KengetalClassificatie & {
   minimum_waarde: number;
   basis_waarde: number;
   maximum_waarde: number;
-  /** Expliciete band voor een conservatief profiel; null = niet automatisch toepassen. */
-  conservative_band: KengetalProfielBand | null;
-  /** Expliciete band voor een optimistisch profiel; null = niet automatisch toepassen. */
-  optimistic_band: KengetalProfielBand | null;
+  /** Expliciete band voor een conservatief profiel; null = gebruik veilige veldconventie of niet automatisch toepassen. */
+  conservative_band?: KengetalProfielBand | null;
+  /** Expliciete band voor een optimistisch profiel; null = gebruik veilige veldconventie of niet automatisch toepassen. */
+  optimistic_band?: KengetalProfielBand | null;
   scenario_veld: KengetalScenarioVeld | null;
   bron_type: KengetalBronType;
   bron_naam: string;
