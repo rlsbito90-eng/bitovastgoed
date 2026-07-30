@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
 import KengetallenRegisterPanel from '@/components/vastgoedrekenen/KengetallenRegisterPanel';
+import StandardRegisterCoverageCard from '@/components/vastgoedrekenen/StandardRegisterCoverageCard';
 import GebiedsvoorkeurenPanel from '@/components/admin/GebiedsvoorkeurenPanel';
 import { VR_STATUS_LABELS, VR_STRATEGY_LABELS } from '@/lib/vastgoedrekenen/defaults';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -56,6 +57,7 @@ export default function VastgoedrekenenPage() {
         title="Vastgoedrekenen"
         subtitle="Alle quickscans, scenarioanalyses, traceerbare kengetallen en strategische gebiedsvoorkeuren."
       />
+      <StandardRegisterCoverageCard />
       <KengetallenRegisterPanel />
       <Card>
         <CardContent className="p-4">
