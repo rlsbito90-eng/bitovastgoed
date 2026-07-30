@@ -16,7 +16,6 @@ import { parseDutchNumber } from '@/lib/format/nl';
 import { gebiedspad } from '@/lib/acquisitie/gebiedsvoorkeuren';
 import {
   legacyUnitValue,
-  taxonomyLabel,
   taxonomyLabels,
   taxonomyOptionsFor,
   type TaxonomyDimension,
@@ -31,6 +30,7 @@ import {
   type KengetalBronType,
   type KengetalCategorie,
   type KengetalDraft,
+  type KengetalProfielBand,
   type KengetalScenarioVeld,
   type VastgoedrekenenKengetal,
 } from '@/lib/vastgoedrekenen/kengetallen';
@@ -54,6 +54,8 @@ const EMPTY_DRAFT: KengetalDraft = {
   minimum_waarde: 0,
   basis_waarde: 0,
   maximum_waarde: 0,
+  conservative_band: null,
+  optimistic_band: null,
   scenario_veld: null,
   bron_type: 'extern',
   bron_naam: '',
@@ -70,6 +72,12 @@ const EMPTY_DRAFT: KengetalDraft = {
   actief: true,
 };
 
+const PROFILE_BAND_LABELS: Record<KengetalProfielBand, string> = {
+  minimum: 'Minimum',
+  basis: 'Basis',
+  maximum: 'Maximum',
+};
+
 function valueText(value: number, unit: string): string {
   const formatted = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 }).format(value);
   return unit === '€' ? `€ ${formatted}` : `${formatted}${unit === '%' ? '%' : ` ${unit}`}`;
@@ -84,6 +92,8 @@ function copyDraft(entry: VastgoedrekenenKengetal): KengetalDraft {
     minimum_waarde: entry.minimum_waarde,
     basis_waarde: entry.basis_waarde,
     maximum_waarde: entry.maximum_waarde,
+    conservative_band: entry.conservative_band ?? null,
+    optimistic_band: entry.optimistic_band ?? null,
     scenario_veld: entry.scenario_veld,
     bron_type: entry.bron_type,
     bron_naam: entry.bron_naam,
@@ -136,6 +146,8 @@ export default function KengetallenRegisterPanel() {
     setDraft({
       ...EMPTY_DRAFT,
       ...EMPTY_KENGETAL_CLASSIFICATIE,
+      conservative_band: null,
+      optimistic_band: null,
       toepassingsgebied: [],
       regio: [],
       projectfase: [],
@@ -230,6 +242,10 @@ export default function KengetallenRegisterPanel() {
                       Bron: {entry.bron_naam} · peildatum {entry.bron_peildatum}
                       {entry.scenario_veld ? ` · koppeling: ${KENGETAL_SCENARIOVELD_LABELS[entry.scenario_veld]}` : ' · alleen als onderbouwing/snapshot'}
                     </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Profielrichting: conservatief {entry.conservative_band ? PROFILE_BAND_LABELS[entry.conservative_band].toLowerCase() : 'niet ingericht'}
+                      {' · '}optimistisch {entry.optimistic_band ? PROFILE_BAND_LABELS[entry.optimistic_band].toLowerCase() : 'niet ingericht'}
+                    </p>
                     {(labels.length > 0 || legacyLabels.length > 0) && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         {[...labels, ...legacyLabels.map((label) => `${label} (legacy)`)].join(' · ')}
@@ -283,6 +299,38 @@ export default function KengetallenRegisterPanel() {
                 </SelectContent>
               </Select>
             </Field>
+
+            <Field label="Conservatief profiel gebruikt">
+              <Select
+                value={draft.conservative_band ?? '__none__'}
+                onValueChange={(value) => setDraft({ ...draft, conservative_band: value === '__none__' ? null : value as KengetalProfielBand })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Niet automatisch toepassen</SelectItem>
+                  <SelectItem value="minimum">Minimum</SelectItem>
+                  <SelectItem value="basis">Basis</SelectItem>
+                  <SelectItem value="maximum">Maximum</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">Kies bewust welke band voorzichtiger is. Bij kosten is dit vaak maximum; bij opbrengsten vaak minimum.</p>
+            </Field>
+            <Field label="Optimistisch profiel gebruikt">
+              <Select
+                value={draft.optimistic_band ?? '__none__'}
+                onValueChange={(value) => setDraft({ ...draft, optimistic_band: value === '__none__' ? null : value as KengetalProfielBand })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Niet automatisch toepassen</SelectItem>
+                  <SelectItem value="minimum">Minimum</SelectItem>
+                  <SelectItem value="basis">Basis</SelectItem>
+                  <SelectItem value="maximum">Maximum</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">Leg ook hier de richting expliciet vast; de CRM leidt dit niet af uit categorie of veldnaam.</p>
+            </Field>
+
             <Field label="Scenario-koppeling">
               <Select value={draft.scenario_veld ?? '__none__'} onValueChange={(value) => setDraft({ ...draft, scenario_veld: value === '__none__' ? null : value as KengetalScenarioVeld })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
