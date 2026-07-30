@@ -133,7 +133,7 @@ begin
   if jsonb_typeof(p_bestand) <> 'object' or jsonb_typeof(p_kolom_mapping) <> 'object' then
     raise exception 'Bestandsmetadata of kolomkoppeling is ongeldig.';
   end if;
-  if v_file_name is null or v_file_type not in ('csv', 'xls', 'xlsx') then
+  if v_file_name is null or v_file_type is null or v_file_type not in ('csv', 'xls', 'xlsx') then
     raise exception 'Bestandsnaam of bestandstype is ongeldig.';
   end if;
   if jsonb_typeof(p_bestand->'bestand_grootte') <> 'number' then
@@ -192,6 +192,9 @@ begin
     end if;
     if v_name is null then
       raise exception 'Naam ontbreekt bij registercode %.', v_code;
+    end if;
+    if nullif(btrim(v_row->>'eenheid'), '') is null then
+      raise exception 'Leesbare eenheid ontbreekt bij registercode %.', v_code;
     end if;
     if v_category not in ('rendement', 'opbrengst', 'bouwkosten', 'projectkosten', 'verkoopkosten', 'exploitatie', 'fiscaal', 'methodologie', 'overig') then
       raise exception 'Categorie is ongeldig bij registercode %.', v_code;
