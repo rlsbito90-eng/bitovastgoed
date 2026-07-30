@@ -16,7 +16,7 @@ Een bronpakket heeft minimaal:
 - prijspeildatum;
 - geldig-vanafdatum en vervaldatum;
 - valutacode;
-- geografische scope;
+- geografische scope en optionele officiële CRM-gebiedssleutels;
 - meet- of rekengrondslag;
 - inbegrepen en uitgesloten scope;
 - indexerings- of vernieuwingsmethode;
@@ -34,15 +34,18 @@ Goedkeuring is alleen mogelijk wanneer:
 5. een eurogrondslag ook een expliciete btw-behandeling heeft;
 6. brontype en bronnaam overeenkomen met het pakket;
 7. prijspeildatum en geldigheidsdata overeenkomen met het pakket;
-8. een niet-systeembeheerd pakket een beoordelaar heeft.
+8. een niet-systeembeheerd pakket een beoordelaar heeft;
+9. de vastgelegde beoordelaar gelijk is aan de werkelijk aangemelde gebruiker.
 
-Deze regels worden zowel client-side als door PostgreSQL afgedwongen.
+Een normale geauthenticeerde client kan zichzelf niet als systeemmigratie markeren of een andere gebruiker als beoordelaar opgeven. Deze regels worden zowel client-side als door PostgreSQL afgedwongen.
 
 ## Vergrendeling
 
-Na goedkeuring zijn de gekoppelde registerregels onveranderlijk. Wijzigen, verwijderen, koppelen of ontkoppelen is dan niet toegestaan.
+Na goedkeuring zijn zowel het pakket als de gekoppelde registerregels onveranderlijk. Wijzigen, verwijderen, koppelen of ontkoppelen is dan niet toegestaan.
 
-De beheerder moet het pakket eerst archiveren. Daardoor wordt een inhoudelijke wijziging zichtbaar als een governancehandeling in plaats van een stille mutatie van een goedgekeurde bronset.
+De beheerder moet een regulier pakket eerst archiveren. Daarna kan een nieuwe pakketversie met gewijzigde brondata worden aangemaakt. Een gearchiveerd pakket blijft zelf als historische bronversie onveranderlijk. Het systeembeheerde interne quickscanpakket kan niet via de gebruikersinterface worden gearchiveerd.
+
+Het Vastgoedrekenen-overzicht toont hoeveel registerregels door goedgekeurde pakketten zijn vergrendeld. Mutaties worden vooraf door de applicatielaag en definitief door PostgreSQL geblokkeerd.
 
 ## Scenario-snapshots
 
@@ -53,7 +56,7 @@ Bij het toepassen van een gekoppeld kengetal vult een databasetrigger automatisc
 
 De JSON-momentopname bevat onder andere pakketcode, versie, bronreferentie, prijspeil, geldigheid, geografische scope, meetgrondslag, scope en goedkeuringsdatum.
 
-Bij het dupliceren van een scenario blijft een bestaande momentopname behouden en wordt deze niet opnieuw opgebouwd uit de actuele pakketversie.
+Bij het dupliceren van een scenario blijft een bestaande momentopname behouden en wordt deze niet opnieuw opgebouwd uit de actuele pakketversie. Bij een bewuste hernieuwde toepassing wordt de actuele goedgekeurde pakketcontext opnieuw vastgelegd.
 
 ## Bestaand quickscanpakket
 
@@ -77,6 +80,12 @@ Deze goedkeuring bevestigt uitsluitend dat de set compleet, onderling consistent
 - wijziging van financiële formules;
 - wijziging van bestaande scenario-uitkomsten;
 - automatische Kadaster-, BAG- of vergelijkbaarobjectacties.
+
+## Validatie
+
+De hoofdmigratie is volledig binnen een PostgreSQL-transactie tegen de actuele productiegegevens uitgevoerd en daarna teruggedraaid. Daarmee zijn tabellen, constraints, triggers, de koppeling van de 28 standaardregels en de systeemgoedkeuring zonder blijvende mutatie getest.
+
+De actor-guard is afzonderlijk transactioneel getest met een gesimuleerde aangemelde gebruiker. Het aanmaken van een systeembeheerd pakket en het vastleggen van een andere beoordelaar werden geblokkeerd; goedkeuring door de werkelijk aangemelde gebruiker werd toegestaan. Ook deze test is volledig teruggedraaid.
 
 ## Vervolg
 
