@@ -80,6 +80,7 @@ export type StandardRegisterCoverage = {
   active: number;
   expired: number;
   inactive: number;
+  attention: number;
   missingCodes: string[];
   complete: boolean;
 };
@@ -96,6 +97,8 @@ export function assessStandardRegisterCoverage(
   const active = expectedEntries.filter((entry) => entry.actief).length;
   const expired = expectedEntries.filter((entry) => entry.vervaldatum < todayIso).length;
   const inactive = expectedEntries.filter((entry) => !entry.actief).length;
+  const unhealthyPresent = expectedEntries.filter((entry) => !entry.actief || entry.vervaldatum < todayIso).length;
+  const attention = missingCodes.length + unhealthyPresent;
 
   return {
     expected: STANDARD_REGISTER_CODES.length,
@@ -103,7 +106,8 @@ export function assessStandardRegisterCoverage(
     active,
     expired,
     inactive,
+    attention,
     missingCodes,
-    complete: missingCodes.length === 0 && inactive === 0 && expired === 0,
+    complete: attention === 0,
   };
 }
