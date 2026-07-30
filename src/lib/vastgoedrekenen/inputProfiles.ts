@@ -246,7 +246,7 @@ function assetTypeCode(raw: string | null | undefined): string | null {
   if (!value) return null;
   if (/mixed|gemengd/.test(value)) return 'mixed_use';
   if (/wonen|woning|appartement/.test(value)) return 'residential';
-  if (/kantoor|office/.test(value)) return 'office';
+  if (/kantoor|kantor|office/.test(value)) return 'office';
   if (/winkel|retail/.test(value)) return 'retail';
   if (/horeca|restaurant|café|cafe/.test(value)) return 'hospitality';
   if (/hotel|short.?stay/.test(value)) return 'hotel';
