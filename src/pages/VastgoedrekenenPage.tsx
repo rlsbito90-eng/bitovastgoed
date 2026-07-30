@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calculator } from 'lucide-react';
 import KengetallenRegisterPanel from '@/components/vastgoedrekenen/KengetallenRegisterPanel';
+import RegisterPackageLockSummary from '@/components/vastgoedrekenen/RegisterPackageLockSummary';
 import SourcePackagesPanel from '@/components/vastgoedrekenen/SourcePackagesPanel';
 import StandardRegisterCoverageCard from '@/components/vastgoedrekenen/StandardRegisterCoverageCard';
 import GebiedsvoorkeurenPanel from '@/components/admin/GebiedsvoorkeurenPanel';
@@ -60,6 +61,7 @@ export default function VastgoedrekenenPage() {
       />
       <SourcePackagesPanel />
       <StandardRegisterCoverageCard />
+      <RegisterPackageLockSummary />
       <KengetallenRegisterPanel />
       <Card>
         <CardContent className="p-4">
