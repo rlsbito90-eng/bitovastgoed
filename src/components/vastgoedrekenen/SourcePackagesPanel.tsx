@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, Archive, CheckCircle2, Link2, LockKeyhole, PackageCheck, Pencil, Plus } from 'lucide-react';
+import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useGebiedsvoorkeuren } from '@/hooks/useGebiedsvoorkeuren';
 import { useKengetalSourcePackages } from '@/hooks/useKengetalSourcePackages';
+import { gebiedspad } from '@/lib/acquisitie/gebiedsvoorkeuren';
 import {
   SOURCE_PACKAGE_HEALTH_LABELS,
   SOURCE_PACKAGE_STATUS_LABELS,
@@ -93,6 +96,7 @@ export default function SourcePackagesPanel() {
     approve,
     archive,
   } = useKengetalSourcePackages();
+  const { preferences } = useGebiedsvoorkeuren();
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SourcePackageDraft>(EMPTY_DRAFT);
@@ -102,6 +106,12 @@ export default function SourcePackagesPanel() {
 
   const linkPackage = packages.find((item) => item.id === linkPackageId) ?? null;
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.naam.localeCompare(b.naam, 'nl-NL')), [entries]);
+  const areaOptions = useMemo(
+    () => preferences
+      .filter((item) => item.active)
+      .map((item) => ({ value: item.location_key, label: gebiedspad(item) })),
+    [preferences],
+  );
 
   function startNew() {
     setEditingId(null);
@@ -184,6 +194,7 @@ export default function SourcePackagesPanel() {
                       <p><span className="font-medium text-foreground">Regels:</span> {assessment.linkedEntries}</p>
                       <p className="sm:col-span-2"><span className="font-medium text-foreground">Gebied:</span> {pkg.geografische_scope || 'niet vastgelegd'}</p>
                       <p className="sm:col-span-2"><span className="font-medium text-foreground">Grondslag:</span> {pkg.meetgrondslag || 'niet vastgelegd'}</p>
+                      <p className="sm:col-span-2"><span className="font-medium text-foreground">Officiële gebieden:</span> {pkg.location_keys.length || 'geen gekoppeld'}</p>
                     </div>
 
                     {pkg.bron_referentie && <p className="text-[11px] text-muted-foreground">Referentie: {pkg.bron_referentie}</p>}
@@ -265,6 +276,15 @@ export default function SourcePackagesPanel() {
             <Field label="Geldig vanaf"><Input type="date" value={draft.geldig_vanaf ?? ''} onChange={(event) => setDraft({ ...draft, geldig_vanaf: event.target.value || null })} /></Field>
             <Field label="Vervaldatum"><Input type="date" value={draft.vervaldatum ?? ''} onChange={(event) => setDraft({ ...draft, vervaldatum: event.target.value || null })} /></Field>
             <Field label="Geografische scope" className="sm:col-span-2"><Textarea rows={2} value={draft.geografische_scope ?? ''} onChange={(event) => setDraft({ ...draft, geografische_scope: event.target.value || null })} placeholder="Bijvoorbeeld: Nederland, Randstad, gemeente Den Haag of projectspecifieke locatie." /></Field>
+            <Field label="Officiële voorkeursgebieden" className="sm:col-span-2">
+              <MultiSelectChips
+                options={areaOptions}
+                value={draft.location_keys}
+                onChange={(value) => setDraft({ ...draft, location_keys: value })}
+                emptyLabel="Leg eerst een gemeente, wijk of buurt vast bij Beheer › Gebiedsvoorkeuren."
+              />
+              <p className="text-[10px] text-muted-foreground">Gebruik deze selectie naast de tekstuele scope wanneer het pakket aan vaste CRM-gebieden is gebonden.</p>
+            </Field>
             <Field label="Meet- of rekengrondslag" className="sm:col-span-2"><Textarea rows={2} value={draft.meetgrondslag ?? ''} onChange={(event) => setDraft({ ...draft, meetgrondslag: event.target.value || null })} placeholder="Bijvoorbeeld: prijs per m² BVO, GBO, VVO, per eenheid of percentage van GDV." /></Field>
             <Field label="Inbegrepen scope" className="sm:col-span-2"><Textarea rows={3} value={draft.scope_inclusief ?? ''} onChange={(event) => setDraft({ ...draft, scope_inclusief: event.target.value || null })} /></Field>
             <Field label="Uitgesloten scope" className="sm:col-span-2"><Textarea rows={3} value={draft.scope_exclusief ?? ''} onChange={(event) => setDraft({ ...draft, scope_exclusief: event.target.value || null })} /></Field>
