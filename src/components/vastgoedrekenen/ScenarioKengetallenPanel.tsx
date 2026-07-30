@@ -21,6 +21,7 @@ import type { Scenario } from '@/lib/vastgoedrekenen/types';
 import type { GuardedScenarioPatch } from '@/lib/vastgoedrekenen/saveGuards';
 import { parseDutchNumber } from '@/lib/format/nl';
 import ComparativeValuationPanel from './ComparativeValuationPanel';
+import ScenarioInputProfileWorkspace from './ScenarioInputProfileWorkspace';
 
 type Props = {
   scenario: Scenario;
@@ -50,7 +51,12 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
     [entries],
   );
 
-  async function applyBand(entry: VastgoedrekenenKengetal, band: KengetalBand, manualValue?: number, reason?: string) {
+  async function applyBand(
+    entry: VastgoedrekenenKengetal,
+    band: KengetalBand,
+    manualValue?: number,
+    reason?: string,
+  ): Promise<boolean> {
     setApplyingCode(entry.code);
     try {
       const snapshot = await apply({
@@ -59,12 +65,20 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
         manualValue,
         overrideReason: reason,
       });
-      if (!snapshot) return;
+      if (!snapshot) return false;
 
       const patch = buildScenarioPatchForKengetal(entry.scenario_veld, snapshot.gekozen_waarde);
       if (Object.keys(patch).length > 0) {
-        await onUpdateScenario(scenario.id, patch as GuardedScenarioPatch);
+        try {
+          await onUpdateScenario(scenario.id, patch as GuardedScenarioPatch);
+        } catch {
+          // Houd snapshot en scenarioveld bij elkaar. Bij een mislukte scenariowijziging
+          // wordt de zojuist gemaakte snapshot teruggedraaid.
+          await remove(snapshot.id);
+          return false;
+        }
       }
+      return true;
     } finally {
       setApplyingCode(null);
     }
@@ -74,7 +88,8 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
     if (!manualEntry) return;
     const value = parseDutchNumber(manualRaw);
     if (value == null) return;
-    await applyBand(manualEntry, 'handmatig', value, manualReason);
+    const ok = await applyBand(manualEntry, 'handmatig', value, manualReason);
+    if (!ok) return;
     setManualEntry(null);
     setManualRaw('');
     setManualReason('');
@@ -83,6 +98,13 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
   return (
     <>
       <ComparativeValuationPanel scenario={scenario} onUpdateScenario={onUpdateScenario} />
+
+      <ScenarioInputProfileWorkspace
+        scenario={scenario}
+        entries={activeEntries}
+        snapshots={snapshots}
+        onApply={(entry, band) => applyBand(entry, band)}
+      />
 
       <Card className="mb-4 border-primary/20">
         <CardHeader className="pb-3">
