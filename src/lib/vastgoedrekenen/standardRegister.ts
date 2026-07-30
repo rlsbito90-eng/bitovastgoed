@@ -23,8 +23,14 @@ const ASSET_TYPE_CODES: Record<PropertyAssumptionType, string[]> = {
   zorg: ['care'],
 };
 
+type StandardAssumptionMetric =
+  | 'vacancy_percentage'
+  | 'operating_cost_percentage'
+  | 'maintenance_reserve_percentage'
+  | 'management_cost_percentage';
+
 const METRICS: Array<{
-  field: KengetalScenarioVeld;
+  field: StandardAssumptionMetric;
   slug: string;
   label: string;
 }> = [
