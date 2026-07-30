@@ -7,7 +7,7 @@ import { assessStandardRegisterCoverage } from '@/lib/vastgoedrekenen/standardRe
 export default function StandardRegisterCoverageCard() {
   const { entries, loading } = useKengetallenregister();
   const coverage = assessStandardRegisterCoverage(entries);
-  const attentionCount = coverage.missingCodes.length + coverage.inactive + coverage.expired;
+  const unhealthyPresent = coverage.attention - coverage.missingCodes.length;
 
   return (
     <Card className={coverage.complete ? 'border-emerald-500/25' : 'border-amber-500/30'}>
@@ -25,7 +25,7 @@ export default function StandardRegisterCoverageCard() {
             </p>
           </div>
           <Badge variant={coverage.complete ? 'default' : 'secondary'}>
-            {loading ? 'Controleren…' : coverage.complete ? 'Compleet' : `${coverage.active} van ${coverage.expected} actief`}
+            {loading ? 'Controleren…' : coverage.complete ? 'Compleet' : `${coverage.present} van ${coverage.expected} aanwezig`}
           </Badge>
         </div>
       </CardHeader>
@@ -35,13 +35,13 @@ export default function StandardRegisterCoverageCard() {
           <CoverageMetric label="Aanwezig" value={coverage.present} />
           <CoverageMetric label="Actief" value={coverage.active} />
           <CoverageMetric label="Ontbrekend" value={coverage.missingCodes.length} attention={coverage.missingCodes.length > 0} />
-          <CoverageMetric label="Inactief/verlopen" value={coverage.inactive + coverage.expired} attention={coverage.inactive + coverage.expired > 0} />
+          <CoverageMetric label="Inactief/verlopen" value={unhealthyPresent} attention={unhealthyPresent > 0} />
         </div>
 
         <div className="rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:text-amber-200">
           <span className="font-medium">Gebruik:</span> geschikt als eerste quickscanwerkhypothese. Controleer en vervang materiële waarden vóór een serieuze bieding door actuele externe of projectspecifieke bronnen.
-          {!loading && attentionCount > 0 && (
-            <span> Het pakket heeft momenteel {attentionCount} aandachtspunt{attentionCount === 1 ? '' : 'en'}.</span>
+          {!loading && coverage.attention > 0 && (
+            <span> Het pakket heeft momenteel {coverage.attention} aandachtspunt{coverage.attention === 1 ? '' : 'en'}.</span>
           )}
         </div>
       </CardContent>
