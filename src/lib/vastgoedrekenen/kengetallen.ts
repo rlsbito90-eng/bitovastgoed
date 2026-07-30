@@ -14,6 +14,7 @@ export type KengetalCategorie =
 
 export type KengetalBetrouwbaarheid = 'laag' | 'middel' | 'hoog';
 export type KengetalBand = 'minimum' | 'basis' | 'maximum' | 'handmatig';
+export type KengetalProfielBand = Exclude<KengetalBand, 'handmatig'>;
 export type KengetalBronType = 'extern' | 'intern' | 'interne_werkhypothese' | 'projectspecifiek' | 'methodologie';
 export type KengetalScenarioVeld =
   | 'sale_target_margin_percentage'
@@ -52,6 +53,10 @@ export type VastgoedrekenenKengetal = KengetalClassificatie & {
   minimum_waarde: number;
   basis_waarde: number;
   maximum_waarde: number;
+  /** Expliciete band voor een conservatief profiel; null = gebruik veilige veldconventie of niet automatisch toepassen. */
+  conservative_band?: KengetalProfielBand | null;
+  /** Expliciete band voor een optimistisch profiel; null = gebruik veilige veldconventie of niet automatisch toepassen. */
+  optimistic_band?: KengetalProfielBand | null;
   scenario_veld: KengetalScenarioVeld | null;
   bron_type: KengetalBronType;
   bron_naam: string;
