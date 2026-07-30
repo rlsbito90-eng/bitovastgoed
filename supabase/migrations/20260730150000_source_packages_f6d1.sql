@@ -3,7 +3,7 @@
 -- Doel:
 -- - groepeer registerregels onder één controleerbare bron-, versie- en scopecontext;
 -- - blokkeer goedkeuring bij onvolledige of onderling strijdige metadata;
--- - vergrendel goedgekeurde pakketregels;
+-- - vergrendel goedgekeurde pakketmetadata en gekoppelde regels;
 -- - bewaar bij een scenario-snapshot automatisch een onveranderlijke pakketkopie.
 --
 -- Deze migratie wijzigt geen financiële waarde en past geen kengetal op een scenario toe.
@@ -119,6 +119,53 @@ create trigger vastgoedrekenen_bronpakket_touch_updated_at
 before update on public.vastgoedrekenen_bronpakketten
 for each row execute function public.vastgoedrekenen_bronpakket_touch_updated_at();
 
+create or replace function public.vastgoedrekenen_lock_bronpakket_metadata()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.system_managed or old.status <> 'concept' then
+      raise exception 'Alleen een niet-systeembeheerd conceptbronpakket kan worden verwijderd.';
+    end if;
+    return old;
+  end if;
+
+  if old.system_managed then
+    if old.status = 'concept'
+      and new.status = 'goedgekeurd'
+      and (to_jsonb(new) - array['status', 'goedgekeurd_door', 'goedgekeurd_op', 'updated_at'])
+        = (to_jsonb(old) - array['status', 'goedgekeurd_door', 'goedgekeurd_op', 'updated_at'])
+    then
+      return new;
+    end if;
+    raise exception 'Een systeembeheerd bronpakket kan niet handmatig worden gewijzigd of gearchiveerd.';
+  end if;
+
+  if old.status = 'goedgekeurd' then
+    if new.status = 'gearchiveerd'
+      and (to_jsonb(new) - array['status', 'updated_at']) = (to_jsonb(old) - array['status', 'updated_at'])
+    then
+      return new;
+    end if;
+    raise exception 'Een goedgekeurd bronpakket is onveranderlijk. Alleen archiveren zonder overige wijzigingen is toegestaan.';
+  end if;
+
+  if old.status = 'gearchiveerd' then
+    raise exception 'Een gearchiveerd bronpakket blijft als historische bronversie onveranderlijk.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists vastgoedrekenen_lock_bronpakket_metadata on public.vastgoedrekenen_bronpakketten;
+create trigger vastgoedrekenen_lock_bronpakket_metadata
+before update or delete on public.vastgoedrekenen_bronpakketten
+for each row execute function public.vastgoedrekenen_lock_bronpakket_metadata();
+
 create or replace function public.vastgoedrekenen_validate_bronpakket_approval()
 returns trigger
 language plpgsql
@@ -177,7 +224,7 @@ begin
       not k.actief
       or k.vervaldatum < current_date
       or k.unit_code is null
-      or ((k.unit_code = 'eur' or k.unit_code like 'eur\_%' escape '\') and k.vat_treatment_code is null)
+      or ((k.unit_code = 'eur' or left(k.unit_code, 4) = 'eur_') and k.vat_treatment_code is null)
       or k.bron_type <> new.bron_type
       or btrim(k.bron_naam) <> btrim(new.bron_naam)
       or k.bron_peildatum <> new.prijspeildatum
@@ -196,7 +243,7 @@ $$;
 
 drop trigger if exists vastgoedrekenen_validate_bronpakket_approval on public.vastgoedrekenen_bronpakketten;
 create trigger vastgoedrekenen_validate_bronpakket_approval
-before insert or update of status on public.vastgoedrekenen_bronpakketten
+before insert or update on public.vastgoedrekenen_bronpakketten
 for each row execute function public.vastgoedrekenen_validate_bronpakket_approval();
 
 create or replace function public.vastgoedrekenen_lock_approved_package_entries()
@@ -221,7 +268,19 @@ begin
     return old;
   end if;
 
-  if tg_op = 'UPDATE' and old.bronpakket_id is not null then
+  if tg_op = 'INSERT' then
+    if new.bronpakket_id is not null then
+      select status into new_status
+      from public.vastgoedrekenen_bronpakketten
+      where id = new.bronpakket_id;
+      if new_status = 'goedgekeurd' then
+        raise exception 'Nieuwe regels kunnen niet aan een reeds goedgekeurd bronpakket worden gekoppeld.';
+      end if;
+    end if;
+    return new;
+  end if;
+
+  if old.bronpakket_id is not null then
     select status into old_status
     from public.vastgoedrekenen_bronpakketten
     where id = old.bronpakket_id;
@@ -230,7 +289,7 @@ begin
     end if;
   end if;
 
-  if new.bronpakket_id is not null and (tg_op = 'INSERT' or new.bronpakket_id is distinct from old.bronpakket_id) then
+  if new.bronpakket_id is not null and new.bronpakket_id is distinct from old.bronpakket_id then
     select status into new_status
     from public.vastgoedrekenen_bronpakketten
     where id = new.bronpakket_id;
@@ -258,7 +317,13 @@ declare
   linked_package_id uuid;
   package_payload jsonb;
 begin
-  if new.bronpakket_snapshot is not null or new.kengetal_id is null then
+  if new.kengetal_id is null then
+    return new;
+  end if;
+
+  -- Bij een clone komt de historische JSON expliciet mee en blijft die behouden.
+  -- Bij een hernieuwde toepassing (UPDATE) wordt de actuele pakketcontext opnieuw vastgelegd.
+  if tg_op = 'INSERT' and new.bronpakket_snapshot is not null then
     return new;
   end if;
 
@@ -293,7 +358,7 @@ begin
   left join public.vastgoedrekenen_bronpakketten p on p.id = k.bronpakket_id
   where k.id = new.kengetal_id;
 
-  new.bronpakket_id := coalesce(new.bronpakket_id, linked_package_id);
+  new.bronpakket_id := linked_package_id;
   new.bronpakket_snapshot := package_payload;
   return new;
 end;
