@@ -87,6 +87,8 @@ De hoofdmigratie is volledig binnen een PostgreSQL-transactie tegen de actuele p
 
 De actor-guard is afzonderlijk transactioneel getest met een gesimuleerde aangemelde gebruiker. Het aanmaken van een systeembeheerd pakket en het vastleggen van een andere beoordelaar werden geblokkeerd; goedkeuring door de werkelijk aangemelde gebruiker werd toegestaan. Ook deze test is volledig teruggedraaid.
 
+De finale Verify-run omvatte 304 testbestanden en 2.034 geslaagde tests, naast een geslaagde TypeScript-typecheck en production build. Eén reeds bestaande test bleef overgeslagen.
+
 ## Vervolg
 
 Fase 6D.2 kan vervolgens een gecontroleerd importcontract toevoegen voor echte bronbestanden en projectspecifieke ramingen. Pas daarna worden inhoudelijke kosten-, opbrengst- en rendementsets als afzonderlijke bronpakketversies ingevoerd.
