@@ -9,21 +9,40 @@ import {
   type VastgoedrekenenKengetal,
 } from '@/lib/vastgoedrekenen/kengetallen';
 import { mapDbError } from '@/lib/errors';
+import type { SourcePackageStatus } from '@/lib/vastgoedrekenen/sourcePackages';
 
 // De gegenereerde Supabase-types worden pas na toepassing van de migratie vernieuwd.
-// Runtime gebruikt de letterlijke nieuwe tabelnaam; de bestaande tabelcast voorkomt dat
-// deze feature afhankelijk wordt van een voortijdige handmatige wijziging in generated types.
+// Runtime gebruikt de letterlijke nieuwe tabelnamen; de casts voorkomen dat deze
+// feature afhankelijk wordt van een voortijdige handmatige wijziging in generated types.
 function registerTable() {
   return supabase.from('vastgoedrekenen_kengetallen' as 'calculation_scenarios');
 }
 
-function snapshotTable() {
-  // Tabel staat (nog) niet in de gegenereerde types; bewust ongetypeerd benaderd.
-  return (supabase as unknown as { from: (table: string) => any }).from('scenario_kengetal_snapshots');
+function untypedTable(table: string) {
+  return (supabase as unknown as { from: (name: string) => any }).from(table);
 }
 
-function normalizeKengetal(row: unknown): VastgoedrekenenKengetal {
-  const item = row as VastgoedrekenenKengetal;
+function snapshotTable() {
+  return untypedTable('scenario_kengetal_snapshots');
+}
+
+export type RegisterKengetal = VastgoedrekenenKengetal & {
+  bronpakket_id: string | null;
+  bronpakket_naam: string | null;
+  bronpakket_status: SourcePackageStatus | null;
+  bronpakket_locked: boolean;
+};
+
+type PackageSummary = {
+  id: string;
+  naam: string;
+  status: SourcePackageStatus;
+};
+
+function normalizeKengetal(row: unknown, packages = new Map<string, PackageSummary>()): RegisterKengetal {
+  const item = row as VastgoedrekenenKengetal & { bronpakket_id?: string | null };
+  const bronpakketId = item.bronpakket_id ?? null;
+  const sourcePackage = bronpakketId ? packages.get(bronpakketId) : null;
   return {
     ...item,
     minimum_waarde: Number(item.minimum_waarde),
@@ -34,6 +53,10 @@ function normalizeKengetal(row: unknown): VastgoedrekenenKengetal {
     regio: item.regio ?? [],
     projectfase: item.projectfase ?? [],
     risicoklasse: item.risicoklasse ?? [],
+    bronpakket_id: bronpakketId,
+    bronpakket_naam: sourcePackage?.naam ?? null,
+    bronpakket_status: sourcePackage?.status ?? null,
+    bronpakket_locked: sourcePackage?.status === 'goedgekeurd',
   };
 }
 
@@ -72,9 +95,8 @@ export async function cloneScenarioKengetalSnapshots(sourceScenarioId: string, t
   if (rows.length === 0) return true;
 
   const now = new Date().toISOString();
-  const payloads = rows.map((row) => {
-    const record = row as unknown as Record<string, unknown>;
-    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...snapshot } = record;
+  const payloads = rows.map((row: Record<string, unknown>) => {
+    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...snapshot } = row;
     return {
       ...snapshot,
       scenario_id: targetScenarioId,
@@ -97,18 +119,33 @@ export async function cloneScenarioKengetalSnapshots(sourceScenarioId: string, t
 }
 
 export function useKengetallenregister() {
-  const [entries, setEntries] = useState<VastgoedrekenenKengetal[]>([]);
+  const [entries, setEntries] = useState<RegisterKengetal[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await registerTable().select('*');
-    if (error) {
-      toast.error(mapDbError(error, 'Kengetallenregister kon niet worden geladen. Is de migratie al toegepast?'));
+    const [registerResult, packageResult] = await Promise.all([
+      registerTable().select('*'),
+      untypedTable('vastgoedrekenen_bronpakketten').select('id, naam, status'),
+    ]);
+
+    if (registerResult.error) {
+      toast.error(mapDbError(registerResult.error, 'Kengetallenregister kon niet worden geladen. Is de migratie al toegepast?'));
       setEntries([]);
     } else {
-      const next = (data ?? [])
-        .map(normalizeKengetal)
+      const packageMap = new Map<string, PackageSummary>();
+      if (!packageResult.error) {
+        (packageResult.data ?? []).forEach((row: Record<string, unknown>) => {
+          const item: PackageSummary = {
+            id: String(row.id),
+            naam: String(row.naam),
+            status: row.status as SourcePackageStatus,
+          };
+          packageMap.set(item.id, item);
+        });
+      }
+      const next = (registerResult.data ?? [])
+        .map((row) => normalizeKengetal(row, packageMap))
         .sort((a, b) => a.categorie.localeCompare(b.categorie, 'nl-NL') || a.naam.localeCompare(b.naam, 'nl-NL'));
       setEntries(next);
     }
@@ -130,6 +167,10 @@ export function useKengetallenregister() {
     const now = new Date().toISOString();
     if (id) {
       const current = entries.find((entry) => entry.id === id);
+      if (current?.bronpakket_locked) {
+        toast.error('Dit kengetal behoort tot een goedgekeurd bronpakket en is vergrendeld. Archiveer het pakket voor een nieuwe bronversie.');
+        return null;
+      }
       const payload = {
         ...draft,
         code: draft.code.trim(),
@@ -180,7 +221,11 @@ export function useKengetallenregister() {
     return normalizeKengetal(data);
   }, [entries, refetch]);
 
-  const setActive = useCallback(async (entry: VastgoedrekenenKengetal, active: boolean) => {
+  const setActive = useCallback(async (entry: RegisterKengetal, active: boolean) => {
+    if (entry.bronpakket_locked) {
+      toast.error('Dit kengetal behoort tot een goedgekeurd bronpakket en is vergrendeld.');
+      return;
+    }
     const { error } = await registerTable()
       .update({
         actief: active,
@@ -213,7 +258,7 @@ export function useScenarioKengetalSnapshots(scenarioId: string) {
     } else {
       setSnapshots((data ?? [])
         .map(normalizeSnapshot)
-        .sort((a, b) => b.snapshot_op.localeCompare(a.snapshot_op)));
+        .sort((a: ScenarioKengetalSnapshot, b: ScenarioKengetalSnapshot) => b.snapshot_op.localeCompare(a.snapshot_op)));
     }
     setLoading(false);
   }, [scenarioId]);
