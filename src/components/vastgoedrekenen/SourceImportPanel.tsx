@@ -1,5 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, History, Upload, XCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  Archive,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  History,
+  Save,
+  Upload,
+  XCircle,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useControlledTaxonomy } from '@/hooks/useControlledTaxonomy';
 import { useKengetalSourcePackages } from '@/hooks/useKengetalSourcePackages';
+import { useSourceImportMappingProfiles } from '@/hooks/useSourceImportMappingProfiles';
 import { useSourcePackageImport } from '@/hooks/useSourcePackageImport';
 import {
   optionalSourceImportFields,
@@ -21,6 +32,17 @@ import {
   type SourceImportColumnDefinition,
   type SourceImportColumnMapping,
 } from '@/lib/vastgoedrekenen/sourceImport';
+import {
+  applySourceImportMappingProfile,
+  bestSourceImportMappingProfile,
+  mappingProfileColumns,
+  type SourceImportMappingProfile,
+  type SourceImportMappingProfileDraft,
+} from '@/lib/vastgoedrekenen/sourceImportMappingProfiles';
+import {
+  downloadSourceImportCsvTemplate,
+  downloadSourceImportXlsxTemplate,
+} from '@/lib/vastgoedrekenen/sourceImportTemplates';
 import type { VastgoedrekenenSourcePackage } from '@/lib/vastgoedrekenen/sourcePackages';
 
 function formatDateTime(value: string): string {
@@ -39,6 +61,12 @@ export default function SourceImportPanel() {
   const { packages, entries, refetch: refetchPackages } = useKengetalSourcePackages();
   const { options, loading: taxonomyLoading } = useControlledTaxonomy();
   const { runs, loading: runsLoading, importPreview } = useSourcePackageImport();
+  const {
+    profiles,
+    loading: profilesLoading,
+    saveProfile,
+    archiveProfile,
+  } = useSourceImportMappingProfiles();
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [open, setOpen] = useState(false);
 
@@ -52,15 +80,37 @@ export default function SourceImportPanel() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Upload className="h-4 w-4" /> Gecontroleerde bronimport
-        </CardTitle>
-        <p className="max-w-4xl text-xs text-muted-foreground">
-          Lees CSV-, XLS- en XLSX-bestanden eerst als controlevoorbeeld in. Kolommen, eenheden, btw, bandbreedten,
-          taxonomiecodes en duplicaten worden gecontroleerd voordat één registerregel wordt opgeslagen.
-        </p>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Upload className="h-4 w-4" /> Gecontroleerde bronimport
+            </CardTitle>
+            <p className="mt-1 max-w-4xl text-xs text-muted-foreground">
+              Lees CSV-, XLS- en XLSX-bestanden eerst als controlevoorbeeld in. Kolommen, eenheden, btw, bandbreedten,
+              taxonomiecodes en duplicaten worden gecontroleerd voordat één registerregel wordt opgeslagen.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={downloadSourceImportCsvTemplate}>
+              <Download className="mr-1 h-3.5 w-3.5" /> CSV-sjabloon
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={taxonomyLoading}
+              onClick={() => downloadSourceImportXlsxTemplate(options)}
+            >
+              <Download className="mr-1 h-3.5 w-3.5" /> Excel-sjabloon
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Sjabloongrens:</span> de downloads bevatten alleen kolommen,
+          instructies en geldige keuzecodes. Ze bevatten geen voorbeeldmarktwaarden. Alleen het tabblad <span className="font-medium">Kengetallen</span> is bedoeld voor importdata.
+        </div>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1 space-y-1.5">
             <Label>Conceptbronpakket</Label>
@@ -73,7 +123,7 @@ export default function SourceImportPanel() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setOpen(true)} disabled={!selectedPackage || taxonomyLoading}>
+          <Button onClick={() => setOpen(true)} disabled={!selectedPackage || taxonomyLoading || profilesLoading}>
             <FileSpreadsheet className="mr-1 h-4 w-4" /> Bestand controleren
           </Button>
         </div>
@@ -112,6 +162,9 @@ export default function SourceImportPanel() {
           pkg={selectedPackage}
           existingCodes={entries.map((entry) => entry.code)}
           taxonomyOptions={options}
+          mappingProfiles={profiles}
+          onSaveMappingProfile={saveProfile}
+          onArchiveMappingProfile={archiveProfile}
           onImport={async (args) => {
             const result = await importPreview(args);
             if (!result) return false;
@@ -130,6 +183,9 @@ function SourceImportDialog(props: {
   pkg: VastgoedrekenenSourcePackage;
   existingCodes: string[];
   taxonomyOptions: ReturnType<typeof useControlledTaxonomy>['options'];
+  mappingProfiles: SourceImportMappingProfile[];
+  onSaveMappingProfile: (draft: SourceImportMappingProfileDraft) => Promise<SourceImportMappingProfile | null>;
+  onArchiveMappingProfile: (profile: SourceImportMappingProfile) => Promise<boolean>;
   onImport: (args: Parameters<ReturnType<typeof useSourcePackageImport>['importPreview']>[0]) => Promise<boolean>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -140,8 +196,23 @@ function SourceImportDialog(props: {
   const [reading, setReading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState('__auto__');
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileSourceName, setProfileSourceName] = useState(props.pkg.bron_naam);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const sheet = parsed?.sheets.find((item) => item.name === sheetName) ?? parsed?.sheets[0] ?? null;
+  const selectedProfile = props.mappingProfiles.find((profile) => profile.id === selectedProfileId) ?? null;
+  const requiredFields = useMemo(() => requiredSourceImportFields().map((item) => item.field), []);
+  const mappedIndices = Object.values(mapping).filter((value): value is number => value !== undefined);
+  const hasDuplicateMappedColumns = new Set(mappedIndices).size !== mappedIndices.length;
+  const canSaveMappingProfile = Boolean(
+    sheet
+    && requiredFields.every((field) => mapping[field] !== undefined)
+    && !hasDuplicateMappedColumns,
+  );
   const preview = useMemo(() => sheet ? validateSourceImport({
     sheet,
     mapping,
@@ -157,12 +228,36 @@ function SourceImportDialog(props: {
     setFileError(null);
     setConfirmed(false);
     setImporting(false);
+    setSelectedProfileId('__auto__');
+    setProfileMessage(null);
+    setProfileEditorOpen(false);
+    setProfileName('');
+    setProfileSourceName(props.pkg.bron_naam);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   function handleOpenChange(open: boolean) {
     if (!open) reset();
     props.onOpenChange(open);
+  }
+
+  function applyAutomaticMapping(nextSheet: NonNullable<typeof sheet>) {
+    setMapping(suggestSourceImportMapping(nextSheet.headers));
+    setSelectedProfileId('__auto__');
+    setProfileMessage('Kolommen zijn opnieuw automatisch herkend. Controleer iedere koppeling.');
+    setConfirmed(false);
+  }
+
+  function applyProfile(profile: SourceImportMappingProfile, nextSheet: NonNullable<typeof sheet>, automatic = false) {
+    const applied = applySourceImportMappingProfile(profile, nextSheet.headers);
+    setMapping(applied.mapping);
+    setSelectedProfileId(profile.id);
+    setConfirmed(false);
+    setProfileMessage(
+      applied.missingFields.length === 0
+        ? `${profile.naam} ${automatic ? 'automatisch ' : ''}toegepast: ${applied.matchedFields.length} kolommen gekoppeld.`
+        : `${profile.naam} gedeeltelijk toegepast: ${applied.matchedFields.length} gekoppeld en ${applied.missingFields.length} bronkolommen niet gevonden.`,
+    );
   }
 
   async function readFile(file: File | null) {
@@ -173,9 +268,11 @@ function SourceImportDialog(props: {
     try {
       const result = await parseSourceImportFile(file);
       const firstSheet = result.sheets[0];
+      const exactProfile = bestSourceImportMappingProfile(props.mappingProfiles, firstSheet.headers, props.pkg.bron_naam);
       setParsed(result);
       setSheetName(firstSheet.name);
-      setMapping(suggestSourceImportMapping(firstSheet.headers));
+      if (exactProfile) applyProfile(exactProfile, firstSheet, true);
+      else applyAutomaticMapping(firstSheet);
     } catch (error) {
       reset();
       setFileError(error instanceof Error ? error.message : 'Bestand kon niet worden gelezen.');
@@ -187,8 +284,50 @@ function SourceImportDialog(props: {
   function selectSheet(name: string) {
     const next = parsed?.sheets.find((item) => item.name === name);
     setSheetName(name);
-    setMapping(next ? suggestSourceImportMapping(next.headers) : {});
+    if (next) {
+      const exactProfile = bestSourceImportMappingProfile(props.mappingProfiles, next.headers, props.pkg.bron_naam);
+      if (exactProfile) applyProfile(exactProfile, next, true);
+      else applyAutomaticMapping(next);
+    } else {
+      setMapping({});
+    }
     setConfirmed(false);
+  }
+
+  function selectMappingProfile(value: string) {
+    if (!sheet) return;
+    if (value === '__auto__') {
+      applyAutomaticMapping(sheet);
+      return;
+    }
+    const profile = props.mappingProfiles.find((item) => item.id === value);
+    if (profile) applyProfile(profile, sheet);
+  }
+
+  async function saveCurrentMappingProfile() {
+    if (!sheet || !canSaveMappingProfile) return;
+    setSavingProfile(true);
+    try {
+      const saved = await props.onSaveMappingProfile({
+        naam: profileName,
+        bron_naam: profileSourceName || null,
+        kolommen: mappingProfileColumns(mapping, sheet.headers),
+      });
+      if (!saved) return;
+      setSelectedProfileId(saved.id);
+      setProfileMessage(`${saved.naam} opgeslagen. Het profiel bewaart alleen kolomnamen, geen kengetalwaarden.`);
+      setProfileEditorOpen(false);
+      setProfileName('');
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function archiveSelectedProfile() {
+    if (!selectedProfile) return;
+    const archived = await props.onArchiveMappingProfile(selectedProfile);
+    if (!archived || !sheet) return;
+    applyAutomaticMapping(sheet);
   }
 
   async function submit() {
@@ -249,6 +388,65 @@ function SourceImportDialog(props: {
                     <SelectContent>{parsed.sheets.map((item) => <SelectItem key={item.name} value={item.name}>{item.name} ({item.rows.length})</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Label>Herbruikbaar kolommappingprofiel</Label>
+                    <Select value={selectedProfileId} onValueChange={selectMappingProfile}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__auto__">Automatisch herkennen — altijd controleren</SelectItem>
+                        {props.mappingProfiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.naam}{profile.bron_naam ? ` · ${profile.bron_naam}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!canSaveMappingProfile}
+                      onClick={() => {
+                        setProfileSourceName(props.pkg.bron_naam);
+                        setProfileEditorOpen((current) => !current);
+                      }}
+                    >
+                      <Save className="mr-1 h-3.5 w-3.5" /> Opslaan als profiel
+                    </Button>
+                    {selectedProfile && !selectedProfile.system_managed && (
+                      <Button size="sm" variant="ghost" onClick={() => void archiveSelectedProfile()}>
+                        <Archive className="mr-1 h-3.5 w-3.5" /> Archiveren
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {profileMessage && <p className="mt-2 text-[11px] text-muted-foreground">{profileMessage}</p>}
+                {hasDuplicateMappedColumns && (
+                  <p className="mt-2 text-[11px] text-destructive">Eén bronkolom is aan meerdere velden gekoppeld. Herstel dit voordat je de mapping als profiel opslaat.</p>
+                )}
+                {profileEditorOpen && (
+                  <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Profielnaam</Label>
+                      <Input value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Bijvoorbeeld: Bouwkostenleverancier standaardexport" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Bron of leverancier</Label>
+                      <Input value={profileSourceName} onChange={(event) => setProfileSourceName(event.target.value)} />
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <Button size="sm" onClick={() => void saveCurrentMappingProfile()} disabled={!profileName.trim() || savingProfile}>
+                        {savingProfile ? 'Profiel opslaan…' : 'Profiel bevestigen'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setProfileEditorOpen(false)}>Annuleren</Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <MappingGrid definitions={requiredSourceImportFields()} headers={sheet.headers} mapping={mapping} setMapping={setMapping} />
