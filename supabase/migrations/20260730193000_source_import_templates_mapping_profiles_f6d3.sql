@@ -11,7 +11,7 @@ set search_path = public
 as $$
   select
     jsonb_typeof(p_kolommen) = 'object'
-    and jsonb_object_length(p_kolommen) between 7 and 22
+    and (select count(*) from jsonb_each(p_kolommen)) between 7 and 22
     and p_kolommen ?& array[
       'code', 'naam', 'categorie', 'unit_code',
       'minimum_waarde', 'basis_waarde', 'maximum_waarde'
@@ -33,7 +33,7 @@ as $$
     and (
       select count(distinct lower(regexp_replace(item.value #>> '{}', '[^a-zA-Z0-9]+', '', 'g')))
       from jsonb_each(p_kolommen) item(key, value)
-    ) = jsonb_object_length(p_kolommen);
+    ) = (select count(*) from jsonb_each(p_kolommen));
 $$;
 
 create table if not exists public.vastgoedrekenen_bronimport_mapping_profielen (
