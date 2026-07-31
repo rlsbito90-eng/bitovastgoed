@@ -529,6 +529,52 @@ export default function AcquisitieSelectieTab() {
     setFocusOpen(true);
   };
 
+  /** Huidige view als werkronde-bron. */
+  function huidigeBron(): { bron: WerkrondeBron; naam: string } {
+    if (bulkSelectie.size > 0) {
+      return { bron: 'handmatig', naam: `Handmatige selectie (${bulkSelectie.size})` };
+    }
+    if (werkbak === 'actie' && subfilter === 'brief_voorbereiden') {
+      return { bron: 'brief_voorbereiden', naam: 'Brief voorbereiden' };
+    }
+    if (werkbak === 'actie' && subfilter === 'printen_posten' && printPost !== 'alles') {
+      return { bron: printPost, naam: PRINT_POST_LABEL[printPost] };
+    }
+    if (werkbak === 'actie') return { bron: 'werkbak', naam: 'Actie' };
+    return { bron: 'handmatig', naam: WERKBAK_LABEL[werkbak] };
+  }
+
+  const startNieuweWerkronde = () => {
+    const ids = bulkSelectie.size > 0
+      ? gefilterd.filter(x => bulkSelectie.has(x.signaal.id)).map(x => x.signaal.id)
+      : gefilterd.map(x => x.signaal.id);
+    if (ids.length === 0) return;
+    const { bron, naam } = huidigeBron();
+    const w = startWerkronde({ bron, naam: `${naam} (${ids.length})`, scopeIds: ids });
+    bewaarWerkronde(w);
+    setVerwerkScopeIds(ids);
+    setFocusIndex(0);
+    setFocusOpen(true);
+  };
+
+  const hervatWerkronde = () => {
+    if (!werkronde) return;
+    const ids = werkrondeItems.map(x => x.signaal.id);
+    if (ids.length === 0) return;
+    const volgende = eerstVolgendeId(werkronde, ids);
+    const idx = volgende ? Math.max(0, ids.indexOf(volgende)) : 0;
+    setVerwerkScopeIds(ids);
+    setFocusIndex(idx);
+    setFocusOpen(true);
+  };
+
+  const beeindigWerkronde = () => {
+    bewaarWerkronde(null);
+    setVerwerkScopeIds(null);
+    toast.success('Werkronde beëindigd');
+  };
+
+
   const openVerwerkVanSignaal = (signaalId: string) => {
     setVerwerkScopeIds(null);
     const idx = readiness.lijst.findIndex(x => x.signaal.id === signaalId);
