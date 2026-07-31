@@ -961,7 +961,20 @@ export default function AcquisitieSelectieTab() {
                       <p className="text-[11px] text-muted-foreground break-words">
                         {r.blokkadeReden ?? r.info.reden}
                       </p>
+                      {ctx.actieCategorie === 'onderzoek' && (() => {
+                        const tekst = onderzoekRedenTekst(bepaalOnderzoekRedenen(r));
+                        if (!tekst) return null;
+                        return (
+                          <p
+                            data-testid="acquisitie-rij-onderzoekredenen"
+                            className="text-[11px] text-destructive break-words"
+                          >
+                            Nog nodig: {tekst}
+                          </p>
+                        );
+                      })()}
                       <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
+
 
                       {/* Geadresseerden onder het signaal — compact, niet-genest */}
                       {r.geadresseerden.length > 0 && (
