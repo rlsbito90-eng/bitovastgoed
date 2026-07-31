@@ -265,10 +265,14 @@ export default function AcquisitieSelectieTab() {
     vorigeCtxRef.current = huidig;
   }, [werkbakPerSignaal, navigate]);
 
+  // Actieve sortering: expliciete keuze of standaard voor deze view.
+  const actieveSortering: SorteerOptie = sorteerKeuze
+    ?? standaardSortering(werkbak, subfilter, printPost);
+
   // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
     // Verzamel rijen die in de huidige werkbak passen.
-    const rijen: SorteerRij[] = [];
+    const rijen: SorteerbareRij[] = [];
     for (const { signaal } of readiness.lijst) {
       const ctx = werkbakPerSignaal.get(signaal.id);
       if (!ctx) continue;
@@ -276,14 +280,21 @@ export default function AcquisitieSelectieTab() {
         werkbak === 'alles' ? true : ctx.werkbak === werkbak;
       if (!inWerkbak) continue;
       if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
+      if (
+        werkbak === 'actie' && subfilter === 'printen_posten'
+        && !matchtPrintPostFilter(ctx.actieCategorie, printPost)
+      ) continue;
       rijen.push({
         signaalId: signaal.id,
         toegevoegdOp: toegevoegdOpPerSignaal.get(signaal.id) ?? null,
         ctx,
         procesDatumIsoWachten: ctx.werkbak === 'wachten' ? (ctx.procesDatum?.iso ?? null) : null,
+        prioriteit: (signaal.prioriteit as string | null) ?? null,
+        aiScore: typeof signaal.ai_score === 'number' ? signaal.ai_score : null,
+        plaats: cleanPlaats(signaal.plaats) || null,
       });
     }
-    const gesorteerd = sorteerWerkvolgorde(werkbak, rijen);
+    const gesorteerd = sorteerRijen(actieveSortering, werkbak, rijen);
     // Terug-map naar { signaal, readiness, ctx }.
     const byId = new Map(readiness.lijst.map(x => [x.signaal.id, x]));
     return gesorteerd
@@ -293,7 +304,11 @@ export default function AcquisitieSelectieTab() {
         return { ...item, ctx: r.ctx };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [readiness.lijst, werkbakPerSignaal, werkbak, subfilter, toegevoegdOpPerSignaal]);
+  }, [
+    readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost,
+    actieveSortering, toegevoegdOpPerSignaal,
+  ]);
+
 
   // ---- Bulk-selectie per signaal ---------------------------------------
   const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
