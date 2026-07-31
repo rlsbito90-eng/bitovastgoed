@@ -97,6 +97,9 @@ function tekstType(s: OffMarketSignaal): string {
 
 const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
+const PRINTPOST_KEY = 'off-market-acq:printpost';
+const SORTEER_KEY = 'off-market-acq:sortering';
+
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
