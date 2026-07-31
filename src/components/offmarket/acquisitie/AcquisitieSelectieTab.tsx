@@ -669,6 +669,106 @@ export default function AcquisitieSelectieTab() {
         </Button>
       </div>
 
+      {/* Tweede filterlaag: Printen & posten */}
+      {werkbak === 'actie' && subfilter === 'printen_posten' && (
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          data-testid="acquisitie-printpost-chips"
+          role="group"
+          aria-label="Printen en posten filteren"
+        >
+          {PRINT_POST_VOLGORDE.map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setPrintPost(f)}
+              data-testid={`acquisitie-printpost-${f}`}
+              aria-pressed={printPost === f}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                printPost === f
+                  ? 'border-accent/50 bg-accent/15 text-accent font-medium'
+                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              {PRINT_POST_LABEL[f]} ({tellingen.printPost[f]})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sortering + werkronde */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ArrowDownUp className="h-3.5 w-3.5" />
+          <span>Sorteren</span>
+          <select
+            data-testid="acquisitie-sortering"
+            value={actieveSortering}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSorteerKeuze(isSorteerOptie(v) ? v : null);
+            }}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            {SORTEER_VOLGORDE.map((o) => (
+              <option key={o} value={o}>{SORTEER_LABEL[o]}</option>
+            ))}
+          </select>
+          {sorteerKeuze && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSorteerKeuze(null)}>
+              Standaard
+            </Button>
+          )}
+        </label>
+        {!werkronde && (
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={startNieuweWerkronde}
+            disabled={gefilterd.length === 0}
+            data-testid="acquisitie-werkronde-start"
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            Werkronde starten
+          </Button>
+        )}
+      </div>
+
+      {werkronde && werkrondeVoortgang && (
+        <div
+          data-testid="acquisitie-werkronde-balk"
+          className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+        >
+          <div className="min-w-0 text-xs">
+            <p className="font-medium text-foreground truncate">
+              Werkronde: {werkronde.naam}
+            </p>
+            <p className="text-muted-foreground" data-testid="acquisitie-werkronde-voortgang">
+              {voortgangTekst(werkrondeVoortgang)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button" size="sm" variant="secondary"
+              onClick={hervatWerkronde}
+              data-testid="acquisitie-werkronde-hervat"
+              disabled={werkrondeVoortgang.resterend === 0}
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              Hervatten
+            </Button>
+            <Button
+              type="button" size="sm" variant="ghost"
+              onClick={beeindigWerkronde}
+              data-testid="acquisitie-werkronde-beeindig"
+            >
+              Beëindigen
+            </Button>
+          </div>
+        </div>
+      )}
+
+
+
       {/* Bulktoolbar */}
       <div
         data-testid="acquisitie-bulk-toolbar"
