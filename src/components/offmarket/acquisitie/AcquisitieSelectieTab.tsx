@@ -57,6 +57,39 @@ import {
   WERKBAK_KEY,
   SUBFILTER_KEY,
 } from '@/lib/offMarket/acquisitie/selectieViewState';
+import {
+  bepaalPrintPostGroep,
+  isPrintPostFilter,
+  matchtPrintPostFilter,
+  PRINT_POST_LABEL,
+  PRINT_POST_VOLGORDE,
+  type PrintPostFilter,
+} from '@/lib/offMarket/acquisitie/printPostFilter';
+import {
+  isSorteerOptie,
+  SORTEER_LABEL,
+  SORTEER_VOLGORDE,
+  sorteerRijen,
+  standaardSortering,
+  type SorteerbareRij,
+  type SorteerOptie,
+} from '@/lib/offMarket/acquisitie/sortering';
+import {
+  eerstVolgendeId,
+  leesWerkronde,
+  markeerBehandeld,
+  schrijfWerkronde,
+  startWerkronde,
+  voortgang,
+  voortgangTekst,
+  wisWerkronde,
+  type Werkronde,
+  type WerkrondeBron,
+} from '@/lib/offMarket/acquisitie/werkronde';
+import {
+  bepaalOnderzoekRedenen, onderzoekRedenTekst,
+} from '@/lib/offMarket/acquisitie/onderzoekRedenen';
+
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
