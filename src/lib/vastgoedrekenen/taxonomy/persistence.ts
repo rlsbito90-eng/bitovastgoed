@@ -189,11 +189,12 @@ export function resolvePersistedScenarioTaxonomy(
   }
 
   let value: CanonicalScenarioTaxonomy = {
-    businessCase: businessCaseValid ? record.business_case : legacy.businessCase,
-    intervention: interventionValid ? record.intervention : legacy.intervention,
-    expansionSubtype: expansionValid ? record.expansion_subtype : legacy.expansionSubtype,
-    exploitation: exploitationValid ? record.exploitation_mode : legacy.exploitation,
-    disposition: dispositionValid ? record.disposition : legacy.disposition,
+    businessCase: businessCaseWaarde ?? legacy.businessCase,
+    intervention: interventionWaarde ?? legacy.intervention,
+    expansionSubtype: expansionValid ? expansionWaarde : legacy.expansionSubtype,
+    exploitation: exploitationWaarde ?? legacy.exploitation,
+    disposition: dispositionWaarde ?? legacy.disposition,
+
   };
 
   if (value.intervention !== 'expand' && value.expansionSubtype !== null) {
