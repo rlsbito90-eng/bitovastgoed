@@ -205,16 +205,20 @@ export default function AcquisitieSelectieTab() {
     const sf: Record<ActieSubfilter, number> = {
       alle: 0, onderzoeken: 0, brief_voorbereiden: 0, printen_posten: 0, opvolgen: 0,
     };
+    const pp: Record<PrintPostFilter, number> = { alles: 0, te_printen: 0, te_posten: 0 };
     for (const ctx of werkbakPerSignaal.values()) {
       wb.alles += 1;
       wb[ctx.werkbak] += 1;
       if (ctx.werkbak === 'actie' && ctx.actieSubfilter) {
         sf.alle += 1;
         sf[ctx.actieSubfilter] += 1;
+        const groep = bepaalPrintPostGroep(ctx.actieCategorie);
+        if (groep) { pp.alles += 1; pp[groep] += 1; }
       }
     }
-    return { werkbak: wb, subfilter: sf };
+    return { werkbak: wb, subfilter: sf, printPost: pp };
   }, [werkbakPerSignaal]);
+
 
   // ---- Verplaatsfeedback ------------------------------------------------
   // Toont uitsluitend een toast wanneer een signaal door een expliciete
