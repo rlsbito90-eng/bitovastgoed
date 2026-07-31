@@ -32,9 +32,23 @@ const kengetal: VastgoedrekenenKengetal = {
   toelichting: 'Interne werkhypothese',
   actief: true,
   versie: 2,
+  asset_type_codes: null,
+  strategy_codes: null,
+  project_phase_codes: null,
+  risk_class_codes: null,
+  quality_level_codes: null,
+  complexity_codes: null,
+  location_type_codes: null,
+  market_condition_codes: null,
+  scenario_profile_codes: null,
+  location_keys: null,
+  unit_code: null,
+  vat_treatment_code: null,
+  classification_schema_version: null,
   created_by: null,
   created_at: '2026-07-23T20:00:00.000Z',
   updated_at: '2026-07-23T20:00:00.000Z',
+
 };
 
 describe('kengetallenregister en scenariosnapshots', () => {
