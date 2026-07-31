@@ -53,6 +53,84 @@ export type Database = {
         }
         Relationships: []
       }
+      acquisitie_gebiedsvoorkeuren: {
+        Row: {
+          active: boolean
+          asset_type_codes: string[]
+          created_at: string
+          created_by: string | null
+          district_code: string | null
+          district_name: string | null
+          id: string
+          location_key: string
+          location_level: string
+          motivation: string
+          municipality_code: string | null
+          municipality_name: string | null
+          neighbourhood_code: string | null
+          neighbourhood_name: string | null
+          notes: string | null
+          preference_status: string
+          priority: number
+          province_code: string | null
+          province_name: string | null
+          source_type: string
+          strategy_codes: string[]
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          asset_type_codes?: string[]
+          created_at?: string
+          created_by?: string | null
+          district_code?: string | null
+          district_name?: string | null
+          id?: string
+          location_key: string
+          location_level: string
+          motivation: string
+          municipality_code?: string | null
+          municipality_name?: string | null
+          neighbourhood_code?: string | null
+          neighbourhood_name?: string | null
+          notes?: string | null
+          preference_status: string
+          priority?: number
+          province_code?: string | null
+          province_name?: string | null
+          source_type?: string
+          strategy_codes?: string[]
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          asset_type_codes?: string[]
+          created_at?: string
+          created_by?: string | null
+          district_code?: string | null
+          district_name?: string | null
+          id?: string
+          location_key?: string
+          location_level?: string
+          motivation?: string
+          municipality_code?: string | null
+          municipality_name?: string | null
+          neighbourhood_code?: string | null
+          neighbourhood_name?: string | null
+          notes?: string | null
+          preference_status?: string
+          priority?: number
+          province_code?: string | null
+          province_name?: string | null
+          source_type?: string
+          strategy_codes?: string[]
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       acquisitie_targets: {
         Row: {
           aangemaakt_door: string | null
@@ -635,6 +713,7 @@ export type Database = {
           assumptions_reliability: string | null
           assumptions_source: string | null
           bid_basis: string | null
+          business_case: string | null
           buyer_fee_amount: number | null
           buyer_fee_method: string
           buyer_fee_percentage: number | null
@@ -644,11 +723,19 @@ export type Database = {
           cost_structure: string | null
           created_at: string
           current_monthly_rent: number | null
+          dcf_discount_rate_notes: string | null
+          dcf_discount_rate_pct: number | null
+          dcf_discount_rate_source: string | null
+          dcf_schema_version: number | null
           description: string | null
+          disposition: string | null
           due_diligence_costs: number | null
+          expansion_subtype: string | null
+          exploitation_mode: string | null
           financing_costs: number | null
           id: string
           incentive_reserve: boolean | null
+          intervention: string | null
           leading_valuation_track: string
           maintenance_reserve_percentage: number | null
           management_cost_percentage: number | null
@@ -696,6 +783,7 @@ export type Database = {
           target_bar: number | null
           target_factor: number | null
           target_margin: number | null
+          taxonomy_schema_version: number | null
           temporary_project_income: number | null
           temporary_project_income_costs: number | null
           transfer_tax_amount: number | null
@@ -714,6 +802,7 @@ export type Database = {
           assumptions_reliability?: string | null
           assumptions_source?: string | null
           bid_basis?: string | null
+          business_case?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_method?: string
           buyer_fee_percentage?: number | null
@@ -723,11 +812,19 @@ export type Database = {
           cost_structure?: string | null
           created_at?: string
           current_monthly_rent?: number | null
+          dcf_discount_rate_notes?: string | null
+          dcf_discount_rate_pct?: number | null
+          dcf_discount_rate_source?: string | null
+          dcf_schema_version?: number | null
           description?: string | null
+          disposition?: string | null
           due_diligence_costs?: number | null
+          expansion_subtype?: string | null
+          exploitation_mode?: string | null
           financing_costs?: number | null
           id?: string
           incentive_reserve?: boolean | null
+          intervention?: string | null
           leading_valuation_track?: string
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
@@ -775,6 +872,7 @@ export type Database = {
           target_bar?: number | null
           target_factor?: number | null
           target_margin?: number | null
+          taxonomy_schema_version?: number | null
           temporary_project_income?: number | null
           temporary_project_income_costs?: number | null
           transfer_tax_amount?: number | null
@@ -793,6 +891,7 @@ export type Database = {
           assumptions_reliability?: string | null
           assumptions_source?: string | null
           bid_basis?: string | null
+          business_case?: string | null
           buyer_fee_amount?: number | null
           buyer_fee_method?: string
           buyer_fee_percentage?: number | null
@@ -802,11 +901,19 @@ export type Database = {
           cost_structure?: string | null
           created_at?: string
           current_monthly_rent?: number | null
+          dcf_discount_rate_notes?: string | null
+          dcf_discount_rate_pct?: number | null
+          dcf_discount_rate_source?: string | null
+          dcf_schema_version?: number | null
           description?: string | null
+          disposition?: string | null
           due_diligence_costs?: number | null
+          expansion_subtype?: string | null
+          exploitation_mode?: string | null
           financing_costs?: number | null
           id?: string
           incentive_reserve?: boolean | null
+          intervention?: string | null
           leading_valuation_track?: string
           maintenance_reserve_percentage?: number | null
           management_cost_percentage?: number | null
@@ -854,6 +961,7 @@ export type Database = {
           target_bar?: number | null
           target_factor?: number | null
           target_margin?: number | null
+          taxonomy_schema_version?: number | null
           temporary_project_income?: number | null
           temporary_project_income_costs?: number | null
           transfer_tax_amount?: number | null
@@ -4028,6 +4136,7 @@ export type Database = {
       }
       real_estate_calculations: {
         Row: {
+          analysis_question: string | null
           calculation_name: string
           created_at: string
           created_by: string | null
@@ -4040,9 +4149,12 @@ export type Database = {
           proposition_schema_version: number
           proposition_type: string
           status: Database["public"]["Enums"]["vr_calc_status"]
+          time_horizon_months: number | null
           updated_at: string
+          valuation_date: string | null
         }
         Insert: {
+          analysis_question?: string | null
           calculation_name: string
           created_at?: string
           created_by?: string | null
@@ -4055,9 +4167,12 @@ export type Database = {
           proposition_schema_version?: number
           proposition_type?: string
           status?: Database["public"]["Enums"]["vr_calc_status"]
+          time_horizon_months?: number | null
           updated_at?: string
+          valuation_date?: string | null
         }
         Update: {
+          analysis_question?: string | null
           calculation_name?: string
           created_at?: string
           created_by?: string | null
@@ -4070,7 +4185,9 @@ export type Database = {
           proposition_schema_version?: number
           proposition_type?: string
           status?: Database["public"]["Enums"]["vr_calc_status"]
+          time_horizon_months?: number | null
           updated_at?: string
+          valuation_date?: string | null
         }
         Relationships: []
       }
@@ -4593,6 +4710,11 @@ export type Database = {
           amount: number
           amount_per_m2: number | null
           calc_mode: string
+          cashflow_end_month: number | null
+          cashflow_payment_month: number | null
+          cashflow_start_month: number | null
+          cashflow_timing_method: string | null
+          cashflow_timing_schema_version: number | null
           cost_category: string
           created_at: string
           description: string | null
@@ -4613,6 +4735,11 @@ export type Database = {
           amount?: number
           amount_per_m2?: number | null
           calc_mode?: string
+          cashflow_end_month?: number | null
+          cashflow_payment_month?: number | null
+          cashflow_start_month?: number | null
+          cashflow_timing_method?: string | null
+          cashflow_timing_schema_version?: number | null
           cost_category: string
           created_at?: string
           description?: string | null
@@ -4633,6 +4760,11 @@ export type Database = {
           amount?: number
           amount_per_m2?: number | null
           calc_mode?: string
+          cashflow_end_month?: number | null
+          cashflow_payment_month?: number | null
+          cashflow_start_month?: number | null
+          cashflow_timing_method?: string | null
+          cashflow_timing_schema_version?: number | null
           cost_category?: string
           created_at?: string
           description?: string | null
@@ -4651,15 +4783,206 @@ export type Database = {
         }
         Relationships: []
       }
+      scenario_financing_facilities: {
+        Row: {
+          amortization_start_month: number | null
+          annual_interest_rate_pct: number
+          arrangement_fee_amount: number | null
+          arrangement_fee_pct: number | null
+          commitment_amount: number
+          created_at: string
+          draw_method: string
+          draw_start_month: number
+          facility_name: string
+          facility_type: string
+          id: string
+          interest_method: string
+          maturity_month: number
+          notes: string | null
+          repayment_method: string
+          scenario_id: string
+          schema_version: number
+          sort_order: number
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          amortization_start_month?: number | null
+          annual_interest_rate_pct: number
+          arrangement_fee_amount?: number | null
+          arrangement_fee_pct?: number | null
+          commitment_amount: number
+          created_at?: string
+          draw_method: string
+          draw_start_month: number
+          facility_name: string
+          facility_type: string
+          id?: string
+          interest_method: string
+          maturity_month: number
+          notes?: string | null
+          repayment_method: string
+          scenario_id: string
+          schema_version: number
+          sort_order?: number
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          amortization_start_month?: number | null
+          annual_interest_rate_pct?: number
+          arrangement_fee_amount?: number | null
+          arrangement_fee_pct?: number | null
+          commitment_amount?: number
+          created_at?: string
+          draw_method?: string
+          draw_start_month?: number
+          facility_name?: string
+          facility_type?: string
+          id?: string
+          interest_method?: string
+          maturity_month?: number
+          notes?: string | null
+          repayment_method?: string
+          scenario_id?: string
+          schema_version?: number
+          sort_order?: number
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_financing_facilities_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenario_kengetal_contexts: {
+        Row: {
+          asset_type_code: string | null
+          complexity_code: string | null
+          created_at: string
+          derivation_notes: Json
+          location_keys: string[]
+          location_type_code: string | null
+          market_condition_code: string | null
+          project_phase_code: string | null
+          quality_level_code: string | null
+          risk_class_code: string | null
+          scenario_id: string
+          scenario_profile_code: string
+          schema_version: number
+          strategy_code: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          asset_type_code?: string | null
+          complexity_code?: string | null
+          created_at?: string
+          derivation_notes?: Json
+          location_keys?: string[]
+          location_type_code?: string | null
+          market_condition_code?: string | null
+          project_phase_code?: string | null
+          quality_level_code?: string | null
+          risk_class_code?: string | null
+          scenario_id: string
+          scenario_profile_code: string
+          schema_version: number
+          strategy_code?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          asset_type_code?: string | null
+          complexity_code?: string | null
+          created_at?: string
+          derivation_notes?: Json
+          location_keys?: string[]
+          location_type_code?: string | null
+          market_condition_code?: string | null
+          project_phase_code?: string | null
+          quality_level_code?: string | null
+          risk_class_code?: string | null
+          scenario_id?: string
+          scenario_profile_code?: string
+          schema_version?: number
+          strategy_code?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_kengetal_contexts_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: true
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenario_kengetal_profile_applications: {
+        Row: {
+          applied_items: Json
+          context_snapshot: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          profile_code: string
+          scenario_id: string
+          skipped_items: Json
+          status: string
+        }
+        Insert: {
+          applied_items?: Json
+          context_snapshot: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          profile_code: string
+          scenario_id: string
+          skipped_items?: Json
+          status: string
+        }
+        Update: {
+          applied_items?: Json
+          context_snapshot?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          profile_code?: string
+          scenario_id?: string
+          skipped_items?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_kengetal_profile_applications_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "calculation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scenario_kengetal_snapshots: {
         Row: {
+          asset_type_codes: string[] | null
           basis_waarde: number
           betrouwbaarheid: string
           bron_naam: string
           bron_peildatum: string
           bron_referentie: string | null
           bron_type: string
+          bronpakket_id: string | null
+          bronpakket_snapshot: Json | null
           categorie: string
+          classification_schema_version: number | null
+          complexity_codes: string[] | null
           created_at: string
           created_by: string | null
           eenheid: string
@@ -4669,29 +4992,44 @@ export type Database = {
           kengetal_code: string
           kengetal_id: string | null
           kengetal_naam: string
+          location_keys: string[] | null
+          location_type_codes: string[] | null
+          market_condition_codes: string[] | null
           maximum_waarde: number
           minimum_waarde: number
           override_reden: string | null
           overschreven: boolean
+          project_phase_codes: string[] | null
           projectfase: string[]
+          quality_level_codes: string[] | null
           regio: string[]
           register_versie: number
           risicoklasse: string[]
+          risk_class_codes: string[] | null
           scenario_id: string
+          scenario_profile_codes: string[] | null
           scenario_veld: string | null
           snapshot_op: string
+          strategy_codes: string[] | null
           toepassingsgebied: string[]
+          unit_code: string | null
           updated_at: string
+          vat_treatment_code: string | null
           vervaldatum: string
         }
         Insert: {
+          asset_type_codes?: string[] | null
           basis_waarde: number
           betrouwbaarheid: string
           bron_naam: string
           bron_peildatum: string
           bron_referentie?: string | null
           bron_type: string
+          bronpakket_id?: string | null
+          bronpakket_snapshot?: Json | null
           categorie: string
+          classification_schema_version?: number | null
+          complexity_codes?: string[] | null
           created_at?: string
           created_by?: string | null
           eenheid: string
@@ -4701,29 +5039,44 @@ export type Database = {
           kengetal_code: string
           kengetal_id?: string | null
           kengetal_naam: string
+          location_keys?: string[] | null
+          location_type_codes?: string[] | null
+          market_condition_codes?: string[] | null
           maximum_waarde: number
           minimum_waarde: number
           override_reden?: string | null
           overschreven?: boolean
+          project_phase_codes?: string[] | null
           projectfase?: string[]
+          quality_level_codes?: string[] | null
           regio?: string[]
           register_versie: number
           risicoklasse?: string[]
+          risk_class_codes?: string[] | null
           scenario_id: string
+          scenario_profile_codes?: string[] | null
           scenario_veld?: string | null
           snapshot_op?: string
+          strategy_codes?: string[] | null
           toepassingsgebied?: string[]
+          unit_code?: string | null
           updated_at?: string
+          vat_treatment_code?: string | null
           vervaldatum: string
         }
         Update: {
+          asset_type_codes?: string[] | null
           basis_waarde?: number
           betrouwbaarheid?: string
           bron_naam?: string
           bron_peildatum?: string
           bron_referentie?: string | null
           bron_type?: string
+          bronpakket_id?: string | null
+          bronpakket_snapshot?: Json | null
           categorie?: string
+          classification_schema_version?: number | null
+          complexity_codes?: string[] | null
           created_at?: string
           created_by?: string | null
           eenheid?: string
@@ -4733,22 +5086,39 @@ export type Database = {
           kengetal_code?: string
           kengetal_id?: string | null
           kengetal_naam?: string
+          location_keys?: string[] | null
+          location_type_codes?: string[] | null
+          market_condition_codes?: string[] | null
           maximum_waarde?: number
           minimum_waarde?: number
           override_reden?: string | null
           overschreven?: boolean
+          project_phase_codes?: string[] | null
           projectfase?: string[]
+          quality_level_codes?: string[] | null
           regio?: string[]
           register_versie?: number
           risicoklasse?: string[]
+          risk_class_codes?: string[] | null
           scenario_id?: string
+          scenario_profile_codes?: string[] | null
           scenario_veld?: string | null
           snapshot_op?: string
+          strategy_codes?: string[] | null
           toepassingsgebied?: string[]
+          unit_code?: string | null
           updated_at?: string
+          vat_treatment_code?: string | null
           vervaldatum?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "scenario_kengetal_snapshots_bronpakket_id_fkey"
+            columns: ["bronpakket_id"]
+            isOneToOne: false
+            referencedRelation: "vastgoedrekenen_bronpakketten"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scenario_kengetal_snapshots_kengetal_id_fkey"
             columns: ["kengetal_id"]
@@ -4767,15 +5137,20 @@ export type Database = {
       }
       sell_off_units: {
         Row: {
+          allocation_percentage: number | null
+          allocation_timing_schema_version: number | null
           component_id: string | null
           contribution_to_scenario_value: number | null
           created_at: string
           current_rent: number | null
+          development_end_month: number | null
+          development_start_month: number | null
           expected_sale_period_months: number | null
           expected_sale_value_rented: number | null
           expected_sale_value_vacant: number | null
           hold_annual_rent: number | null
           hold_bar: number | null
+          hold_exit_month: number | null
           hold_factor: number | null
           hold_monthly_rent: number | null
           hold_nar: number | null
@@ -4789,6 +5164,7 @@ export type Database = {
           net_sale_proceeds: number | null
           notes: string | null
           renovation_costs: number | null
+          rent_start_month: number | null
           risk_level: Database["public"]["Enums"]["vr_risk_level"] | null
           sale_costs_amount: number | null
           sale_costs_pct: number | null
@@ -4815,15 +5191,20 @@ export type Database = {
           wws_segment: Database["public"]["Enums"]["vr_rent_segment"] | null
         }
         Insert: {
+          allocation_percentage?: number | null
+          allocation_timing_schema_version?: number | null
           component_id?: string | null
           contribution_to_scenario_value?: number | null
           created_at?: string
           current_rent?: number | null
+          development_end_month?: number | null
+          development_start_month?: number | null
           expected_sale_period_months?: number | null
           expected_sale_value_rented?: number | null
           expected_sale_value_vacant?: number | null
           hold_annual_rent?: number | null
           hold_bar?: number | null
+          hold_exit_month?: number | null
           hold_factor?: number | null
           hold_monthly_rent?: number | null
           hold_nar?: number | null
@@ -4837,6 +5218,7 @@ export type Database = {
           net_sale_proceeds?: number | null
           notes?: string | null
           renovation_costs?: number | null
+          rent_start_month?: number | null
           risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
           sale_costs_amount?: number | null
           sale_costs_pct?: number | null
@@ -4863,15 +5245,20 @@ export type Database = {
           wws_segment?: Database["public"]["Enums"]["vr_rent_segment"] | null
         }
         Update: {
+          allocation_percentage?: number | null
+          allocation_timing_schema_version?: number | null
           component_id?: string | null
           contribution_to_scenario_value?: number | null
           created_at?: string
           current_rent?: number | null
+          development_end_month?: number | null
+          development_start_month?: number | null
           expected_sale_period_months?: number | null
           expected_sale_value_rented?: number | null
           expected_sale_value_vacant?: number | null
           hold_annual_rent?: number | null
           hold_bar?: number | null
+          hold_exit_month?: number | null
           hold_factor?: number | null
           hold_monthly_rent?: number | null
           hold_nar?: number | null
@@ -4885,6 +5272,7 @@ export type Database = {
           net_sale_proceeds?: number | null
           notes?: string | null
           renovation_costs?: number | null
+          rent_start_month?: number | null
           risk_level?: Database["public"]["Enums"]["vr_risk_level"] | null
           sale_costs_amount?: number | null
           sale_costs_pct?: number | null
@@ -5086,92 +5474,333 @@ export type Database = {
         }
         Relationships: []
       }
+      vastgoedrekenen_bronimport_mapping_profielen: {
+        Row: {
+          actief: boolean
+          bron_naam: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          kolommen: Json
+          naam: string
+          schema_version: number
+          system_managed: boolean
+          updated_at: string
+        }
+        Insert: {
+          actief?: boolean
+          bron_naam?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kolommen: Json
+          naam: string
+          schema_version?: number
+          system_managed?: boolean
+          updated_at?: string
+        }
+        Update: {
+          actief?: boolean
+          bron_naam?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kolommen?: Json
+          naam?: string
+          schema_version?: number
+          system_managed?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vastgoedrekenen_bronimport_runs: {
+        Row: {
+          bestand_grootte: number
+          bestand_naam: string
+          bestand_sha256: string
+          bestand_type: string
+          bronpakket_id: string
+          created_at: string
+          created_by: string | null
+          geimporteerd_aantal: number
+          id: string
+          kolom_mapping: Json
+          rij_aantal: number
+          validatie_samenvatting: Json
+          werkblad: string | null
+        }
+        Insert: {
+          bestand_grootte: number
+          bestand_naam: string
+          bestand_sha256: string
+          bestand_type: string
+          bronpakket_id: string
+          created_at?: string
+          created_by?: string | null
+          geimporteerd_aantal: number
+          id?: string
+          kolom_mapping: Json
+          rij_aantal: number
+          validatie_samenvatting: Json
+          werkblad?: string | null
+        }
+        Update: {
+          bestand_grootte?: number
+          bestand_naam?: string
+          bestand_sha256?: string
+          bestand_type?: string
+          bronpakket_id?: string
+          created_at?: string
+          created_by?: string | null
+          geimporteerd_aantal?: number
+          id?: string
+          kolom_mapping?: Json
+          rij_aantal?: number
+          validatie_samenvatting?: Json
+          werkblad?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vastgoedrekenen_bronimport_runs_bronpakket_id_fkey"
+            columns: ["bronpakket_id"]
+            isOneToOne: false
+            referencedRelation: "vastgoedrekenen_bronpakketten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vastgoedrekenen_bronpakketten: {
+        Row: {
+          betrouwbaarheid: string
+          bron_naam: string
+          bron_referentie: string | null
+          bron_type: string
+          bron_versie: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          geldig_vanaf: string | null
+          geografische_scope: string | null
+          goedgekeurd_door: string | null
+          goedgekeurd_op: string | null
+          id: string
+          indexeringsmethode: string | null
+          location_keys: string[]
+          meetgrondslag: string | null
+          naam: string
+          prijspeildatum: string | null
+          scope_exclusief: string | null
+          scope_inclusief: string | null
+          status: string
+          system_managed: boolean
+          toelichting: string | null
+          updated_at: string
+          valuta_code: string
+          versie: number
+          vervaldatum: string | null
+        }
+        Insert: {
+          betrouwbaarheid?: string
+          bron_naam: string
+          bron_referentie?: string | null
+          bron_type: string
+          bron_versie?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          geldig_vanaf?: string | null
+          geografische_scope?: string | null
+          goedgekeurd_door?: string | null
+          goedgekeurd_op?: string | null
+          id?: string
+          indexeringsmethode?: string | null
+          location_keys?: string[]
+          meetgrondslag?: string | null
+          naam: string
+          prijspeildatum?: string | null
+          scope_exclusief?: string | null
+          scope_inclusief?: string | null
+          status?: string
+          system_managed?: boolean
+          toelichting?: string | null
+          updated_at?: string
+          valuta_code?: string
+          versie?: number
+          vervaldatum?: string | null
+        }
+        Update: {
+          betrouwbaarheid?: string
+          bron_naam?: string
+          bron_referentie?: string | null
+          bron_type?: string
+          bron_versie?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          geldig_vanaf?: string | null
+          geografische_scope?: string | null
+          goedgekeurd_door?: string | null
+          goedgekeurd_op?: string | null
+          id?: string
+          indexeringsmethode?: string | null
+          location_keys?: string[]
+          meetgrondslag?: string | null
+          naam?: string
+          prijspeildatum?: string | null
+          scope_exclusief?: string | null
+          scope_inclusief?: string | null
+          status?: string
+          system_managed?: boolean
+          toelichting?: string | null
+          updated_at?: string
+          valuta_code?: string
+          versie?: number
+          vervaldatum?: string | null
+        }
+        Relationships: []
+      }
       vastgoedrekenen_kengetallen: {
         Row: {
           actief: boolean
+          asset_type_codes: string[] | null
           basis_waarde: number
           betrouwbaarheid: string
           bron_naam: string
           bron_peildatum: string
           bron_referentie: string | null
           bron_type: string
+          bronpakket_id: string | null
           categorie: string
+          classification_schema_version: number | null
           code: string
+          complexity_codes: string[] | null
+          conservative_band: string | null
           created_at: string
           created_by: string | null
           eenheid: string
           geldig_vanaf: string | null
           id: string
+          location_keys: string[] | null
+          location_type_codes: string[] | null
+          market_condition_codes: string[] | null
           maximum_waarde: number
           minimum_waarde: number
           naam: string
+          optimistic_band: string | null
+          project_phase_codes: string[] | null
           projectfase: string[]
+          quality_level_codes: string[] | null
           regio: string[]
           risicoklasse: string[]
+          risk_class_codes: string[] | null
+          scenario_profile_codes: string[] | null
           scenario_veld: string | null
+          strategy_codes: string[] | null
           toelichting: string | null
           toepassingsgebied: string[]
+          unit_code: string | null
           updated_at: string
+          vat_treatment_code: string | null
           versie: number
           vervaldatum: string
         }
         Insert: {
           actief?: boolean
+          asset_type_codes?: string[] | null
           basis_waarde: number
           betrouwbaarheid: string
           bron_naam: string
           bron_peildatum: string
           bron_referentie?: string | null
           bron_type?: string
+          bronpakket_id?: string | null
           categorie: string
+          classification_schema_version?: number | null
           code: string
+          complexity_codes?: string[] | null
+          conservative_band?: string | null
           created_at?: string
           created_by?: string | null
           eenheid: string
           geldig_vanaf?: string | null
           id?: string
+          location_keys?: string[] | null
+          location_type_codes?: string[] | null
+          market_condition_codes?: string[] | null
           maximum_waarde: number
           minimum_waarde: number
           naam: string
+          optimistic_band?: string | null
+          project_phase_codes?: string[] | null
           projectfase?: string[]
+          quality_level_codes?: string[] | null
           regio?: string[]
           risicoklasse?: string[]
+          risk_class_codes?: string[] | null
+          scenario_profile_codes?: string[] | null
           scenario_veld?: string | null
+          strategy_codes?: string[] | null
           toelichting?: string | null
           toepassingsgebied?: string[]
+          unit_code?: string | null
           updated_at?: string
+          vat_treatment_code?: string | null
           versie?: number
           vervaldatum: string
         }
         Update: {
           actief?: boolean
+          asset_type_codes?: string[] | null
           basis_waarde?: number
           betrouwbaarheid?: string
           bron_naam?: string
           bron_peildatum?: string
           bron_referentie?: string | null
           bron_type?: string
+          bronpakket_id?: string | null
           categorie?: string
+          classification_schema_version?: number | null
           code?: string
+          complexity_codes?: string[] | null
+          conservative_band?: string | null
           created_at?: string
           created_by?: string | null
           eenheid?: string
           geldig_vanaf?: string | null
           id?: string
+          location_keys?: string[] | null
+          location_type_codes?: string[] | null
+          market_condition_codes?: string[] | null
           maximum_waarde?: number
           minimum_waarde?: number
           naam?: string
+          optimistic_band?: string | null
+          project_phase_codes?: string[] | null
           projectfase?: string[]
+          quality_level_codes?: string[] | null
           regio?: string[]
           risicoklasse?: string[]
+          risk_class_codes?: string[] | null
+          scenario_profile_codes?: string[] | null
           scenario_veld?: string | null
+          strategy_codes?: string[] | null
           toelichting?: string | null
           toepassingsgebied?: string[]
+          unit_code?: string | null
           updated_at?: string
+          vat_treatment_code?: string | null
           versie?: number
           vervaldatum?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vastgoedrekenen_kengetallen_bronpakket_id_fkey"
+            columns: ["bronpakket_id"]
+            isOneToOne: false
+            referencedRelation: "vastgoedrekenen_bronpakketten"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vastgoedrekenen_tax_settings: {
         Row: {
@@ -5212,6 +5841,57 @@ export type Database = {
           transfer_tax_residential_investment_percentage?: number
           updated_at?: string
           wws_euro_per_point?: number
+        }
+        Relationships: []
+      }
+      vastgoedrekenen_taxonomie_opties: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          dimension_code: string
+          id: string
+          label: string
+          option_code: string
+          parent_dimension_code: string | null
+          parent_option_code: string | null
+          sort_order: number
+          system_managed: boolean
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimension_code: string
+          id?: string
+          label: string
+          option_code: string
+          parent_dimension_code?: string | null
+          parent_option_code?: string | null
+          sort_order?: number
+          system_managed?: boolean
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimension_code?: string
+          id?: string
+          label?: string
+          option_code?: string
+          parent_dimension_code?: string | null
+          parent_option_code?: string | null
+          sort_order?: number
+          system_managed?: boolean
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -5360,6 +6040,24 @@ export type Database = {
         }
         Relationships: []
       }
+      view_acquisitie_gebiedsfrequentie: {
+        Row: {
+          active_signal_count: number | null
+          district_code: string | null
+          district_name: string | null
+          latest_signal_date: string | null
+          location_key: string | null
+          location_level: string | null
+          municipality_code: string | null
+          municipality_name: string | null
+          neighbourhood_code: string | null
+          neighbourhood_name: string | null
+          province_code: string | null
+          province_name: string | null
+          signal_count: number | null
+        }
+        Relationships: []
+      }
       view_off_market_dealpotentie: {
         Row: {
           ai_laatst_verrijkt_op: string | null
@@ -5452,6 +6150,23 @@ export type Database = {
       off_market_promote_to_object: {
         Args: { _signaal_id: string }
         Returns: string
+      }
+      vastgoedrekenen_bronimport_mapping_geldig: {
+        Args: { p_kolommen: Json }
+        Returns: boolean
+      }
+      vastgoedrekenen_import_codes_valid: {
+        Args: { p_codes: Json; p_dimension: string }
+        Returns: boolean
+      }
+      vastgoedrekenen_import_kengetallen: {
+        Args: {
+          p_bestand: Json
+          p_bronpakket_id: string
+          p_kolom_mapping: Json
+          p_rows: Json
+        }
+        Returns: Json
       }
     }
     Enums: {
