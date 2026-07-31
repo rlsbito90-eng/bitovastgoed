@@ -140,11 +140,12 @@ export function resolvePersistedScenarioTaxonomy(
   let storedCanonicalIssues: TaxonomyIssue[] = [];
   if (canonicalComplete) {
     const value: CanonicalScenarioTaxonomy = {
-      businessCase: record.business_case,
-      intervention: record.intervention,
-      expansionSubtype: record.expansion_subtype,
-      exploitation: record.exploitation_mode,
-      disposition: record.disposition,
+      businessCase: businessCaseWaarde!,
+      intervention: interventionWaarde!,
+      expansionSubtype: expansionWaarde,
+      exploitation: exploitationWaarde!,
+      disposition: dispositionWaarde!,
+
     };
     const validation = validateScenarioTaxonomy(value, 'draft');
     if (validation.valid) {
