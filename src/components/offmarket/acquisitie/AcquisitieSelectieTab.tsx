@@ -146,6 +146,35 @@ export default function AcquisitieSelectieTab() {
     try { sessionStorage.setItem(SUBFILTER_KEY, v); } catch { /* ignore */ }
   };
 
+  // ---- Printen & posten: tweede filterlaag -------------------------------
+  const [printPost, setPrintPostState] = useState<PrintPostFilter>(() => {
+    try {
+      const v = sessionStorage.getItem(PRINTPOST_KEY);
+      return isPrintPostFilter(v) ? v : 'te_printen';
+    } catch { return 'te_printen'; }
+  });
+  const setPrintPost = (v: PrintPostFilter) => {
+    setPrintPostState(v);
+    try { sessionStorage.setItem(PRINTPOST_KEY, v); } catch { /* ignore */ }
+  };
+
+  // ---- Zichtbare sorteerkeuze -------------------------------------------
+  // `null` = volg de standaardsortering van de huidige view.
+  const [sorteerKeuze, setSorteerKeuzeState] = useState<SorteerOptie | null>(() => {
+    try {
+      const v = sessionStorage.getItem(SORTEER_KEY);
+      return isSorteerOptie(v) ? v : null;
+    } catch { return null; }
+  });
+  const setSorteerKeuze = (v: SorteerOptie | null) => {
+    setSorteerKeuzeState(v);
+    try {
+      if (v) sessionStorage.setItem(SORTEER_KEY, v);
+      else sessionStorage.removeItem(SORTEER_KEY);
+    } catch { /* ignore */ }
+  };
+
+
   // Werkbak-context per signaal (fase → werkbak/actieCategorie/subfilter/procesdatum).
   const werkbakPerSignaal = useMemo(() => {
     const m = new Map<string, WerkbakContext>();
