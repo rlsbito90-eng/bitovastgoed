@@ -312,6 +312,58 @@ export default function AcquisitieSelectieTab() {
     actieveSortering, toegevoegdOpPerSignaal,
   ]);
 
+  // ---- Hervatbare werkronde ---------------------------------------------
+  // De scope is een momentopname bij starten; items verdwijnen niet meer
+  // uit de ronde wanneer hun processtatus tussentijds wijzigt.
+  const [werkronde, setWerkrondeState] = useState<Werkronde | null>(() => leesWerkronde());
+  const bewaarWerkronde = (w: Werkronde | null) => {
+    setWerkrondeState(w);
+    if (w) schrijfWerkronde(w); else wisWerkronde();
+  };
+
+  /** Hoort dit signaal nog bij de oorspronkelijke groep van de werkronde? */
+  const hoortNogBijBron = (bron: WerkrondeBron, ctx: WerkbakContext | undefined): boolean => {
+    if (!ctx) return false;
+    if (bron === 'brief_voorbereiden') {
+      return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'brief_voorbereiden';
+    }
+    if (bron === 'te_printen') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_printen';
+    if (bron === 'te_posten') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_posten';
+    if (bron === 'werkbak') return ctx.werkbak === 'actie';
+    return true;
+  };
+
+  // Voortgang bijwerken: alles wat de oorspronkelijke groep verlaten heeft,
+  // geldt als behandeld.
+  useEffect(() => {
+    if (!werkronde) return;
+    if (werkronde.bron === 'handmatig') return;
+    let next = werkronde;
+    for (const id of werkronde.scopeIds) {
+      const ctx = werkbakPerSignaal.get(id);
+      if (!ctx) continue;
+      if (!hoortNogBijBron(werkronde.bron, ctx) && !next.behandeldeIds.includes(id)) {
+        next = markeerBehandeld(next, id);
+      }
+    }
+    if (next !== werkronde) bewaarWerkronde(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [werkbakPerSignaal, werkronde]);
+
+  const werkrondeVoortgang = werkronde ? voortgang(werkronde) : null;
+
+  /** Scope van de werkronde in de huidige zichtbare volgorde. */
+  const werkrondeItems = useMemo(() => {
+    if (!werkronde) return [];
+    const set = new Set(werkronde.scopeIds);
+    const inVolgorde = gefilterd.filter(x => set.has(x.signaal.id));
+    const aanwezig = new Set(inVolgorde.map(x => x.signaal.id));
+    const rest = readiness.lijst.filter(
+      x => set.has(x.signaal.id) && !aanwezig.has(x.signaal.id),
+    );
+    return [...inVolgorde, ...rest];
+  }, [werkronde, gefilterd, readiness.lijst]);
+
 
   // ---- Bulk-selectie per signaal ---------------------------------------
   const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
