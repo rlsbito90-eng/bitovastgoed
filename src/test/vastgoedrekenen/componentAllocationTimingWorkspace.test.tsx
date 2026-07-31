@@ -35,8 +35,9 @@ function renderWorkspace(units: SellOffUnit[], options: {
   const view = render(
     <ComponentAllocationTimingWorkspace
       units={units}
-      onCreate={onCreate}
-      onUpdate={onUpdate}
+      onCreate={onCreate as unknown as (patch?: Record<string, unknown>) => Promise<unknown>}
+      onUpdate={onUpdate as unknown as (id: string, patch: Record<string, unknown>) => Promise<void>}
+
       timeHorizonMonthsOverride={options.horizon ?? null}
       verifySplitUpdate={options.verifySplitUpdate ?? (async () => true)}
     />,
