@@ -41,15 +41,14 @@ import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   bepaalWerkbakContext,
-  sorteerWerkvolgorde,
   toegevoegdOpLabel,
   WERKBAK_LABEL,
   type ActieSubfilter,
-  type SorteerRij,
   type Werkbak,
   type WerkbakContext,
   type WerkbakView,
 } from '@/lib/offMarket/acquisitie/werkbak';
+
 import {
   bepaalVerplaatsToasts,
   extraheerSignaalIds,
