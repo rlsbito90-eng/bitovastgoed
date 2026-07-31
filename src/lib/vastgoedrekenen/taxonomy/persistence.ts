@@ -108,11 +108,18 @@ export function resolvePersistedScenarioTaxonomy(
   const legacy = legacyResolution.mapping;
   const schemaVersion = resolveSchemaVersion(record.taxonomy_schema_version);
 
-  const businessCaseValid = isBusinessCase(record.business_case);
-  const interventionValid = isIntervention(record.intervention);
-  const expansionValid = record.expansion_subtype === null || isExpansionSubtype(record.expansion_subtype);
-  const exploitationValid = isExploitationMode(record.exploitation_mode);
-  const dispositionValid = isDisposition(record.disposition);
+  const businessCaseWaarde = isBusinessCase(record.business_case) ? record.business_case : null;
+  const interventionWaarde = isIntervention(record.intervention) ? record.intervention : null;
+  const expansionWaarde = isExpansionSubtype(record.expansion_subtype) ? record.expansion_subtype : null;
+  const exploitationWaarde = isExploitationMode(record.exploitation_mode) ? record.exploitation_mode : null;
+  const dispositionWaarde = isDisposition(record.disposition) ? record.disposition : null;
+
+  const businessCaseValid = businessCaseWaarde !== null;
+  const interventionValid = interventionWaarde !== null;
+  const expansionValid = record.expansion_subtype === null || expansionWaarde !== null;
+  const exploitationValid = exploitationWaarde !== null;
+  const dispositionValid = dispositionWaarde !== null;
+
 
   const canonicalSignalPresent = [
     record.business_case,
