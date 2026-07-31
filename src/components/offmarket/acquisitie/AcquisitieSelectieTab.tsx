@@ -456,9 +456,13 @@ export default function AcquisitieSelectieTab() {
 
   const focusItems = useMemo(() => {
     if (!verwerkScopeIds || verwerkScopeIds.length === 0) return readiness.lijst;
-    const set = new Set(verwerkScopeIds);
-    return readiness.lijst.filter((x) => set.has(x.signaal.id));
+    const byId = new Map(readiness.lijst.map((x) => [x.signaal.id, x]));
+    // Volgorde volgt de scope-ids (zichtbare volgorde), niet de ruwe lijst.
+    return verwerkScopeIds
+      .map((id) => byId.get(id))
+      .filter((x): x is NonNullable<typeof x> => !!x);
   }, [readiness.lijst, verwerkScopeIds]);
+
 
   // Restore scrollpositie bij terugkeer
   useEffect(() => {
