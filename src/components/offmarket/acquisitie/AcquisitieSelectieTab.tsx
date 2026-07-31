@@ -7,8 +7,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
+  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
 } from 'lucide-react';
+
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
@@ -41,15 +42,14 @@ import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   bepaalWerkbakContext,
-  sorteerWerkvolgorde,
   toegevoegdOpLabel,
   WERKBAK_LABEL,
   type ActieSubfilter,
-  type SorteerRij,
   type Werkbak,
   type WerkbakContext,
   type WerkbakView,
 } from '@/lib/offMarket/acquisitie/werkbak';
+
 import {
   bepaalVerplaatsToasts,
   extraheerSignaalIds,
@@ -57,6 +57,39 @@ import {
   WERKBAK_KEY,
   SUBFILTER_KEY,
 } from '@/lib/offMarket/acquisitie/selectieViewState';
+import {
+  bepaalPrintPostGroep,
+  isPrintPostFilter,
+  matchtPrintPostFilter,
+  PRINT_POST_LABEL,
+  PRINT_POST_VOLGORDE,
+  type PrintPostFilter,
+} from '@/lib/offMarket/acquisitie/printPostFilter';
+import {
+  isSorteerOptie,
+  SORTEER_LABEL,
+  SORTEER_VOLGORDE,
+  sorteerRijen,
+  standaardSortering,
+  type SorteerbareRij,
+  type SorteerOptie,
+} from '@/lib/offMarket/acquisitie/sortering';
+import {
+  eerstVolgendeId,
+  leesWerkronde,
+  markeerBehandeld,
+  schrijfWerkronde,
+  startWerkronde,
+  voortgang,
+  voortgangTekst,
+  wisWerkronde,
+  type Werkronde,
+  type WerkrondeBron,
+} from '@/lib/offMarket/acquisitie/werkronde';
+import {
+  bepaalOnderzoekRedenen, onderzoekRedenTekst,
+} from '@/lib/offMarket/acquisitie/onderzoekRedenen';
+
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
@@ -64,6 +97,9 @@ function tekstType(s: OffMarketSignaal): string {
 
 const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
+const PRINTPOST_KEY = 'off-market-acq:printpost';
+const SORTEER_KEY = 'off-market-acq:sortering';
+
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
@@ -113,6 +149,35 @@ export default function AcquisitieSelectieTab() {
     try { sessionStorage.setItem(SUBFILTER_KEY, v); } catch { /* ignore */ }
   };
 
+  // ---- Printen & posten: tweede filterlaag -------------------------------
+  const [printPost, setPrintPostState] = useState<PrintPostFilter>(() => {
+    try {
+      const v = sessionStorage.getItem(PRINTPOST_KEY);
+      return isPrintPostFilter(v) ? v : 'te_printen';
+    } catch { return 'te_printen'; }
+  });
+  const setPrintPost = (v: PrintPostFilter) => {
+    setPrintPostState(v);
+    try { sessionStorage.setItem(PRINTPOST_KEY, v); } catch { /* ignore */ }
+  };
+
+  // ---- Zichtbare sorteerkeuze -------------------------------------------
+  // `null` = volg de standaardsortering van de huidige view.
+  const [sorteerKeuze, setSorteerKeuzeState] = useState<SorteerOptie | null>(() => {
+    try {
+      const v = sessionStorage.getItem(SORTEER_KEY);
+      return isSorteerOptie(v) ? v : null;
+    } catch { return null; }
+  });
+  const setSorteerKeuze = (v: SorteerOptie | null) => {
+    setSorteerKeuzeState(v);
+    try {
+      if (v) sessionStorage.setItem(SORTEER_KEY, v);
+      else sessionStorage.removeItem(SORTEER_KEY);
+    } catch { /* ignore */ }
+  };
+
+
   // Werkbak-context per signaal (fase → werkbak/actieCategorie/subfilter/procesdatum).
   const werkbakPerSignaal = useMemo(() => {
     const m = new Map<string, WerkbakContext>();
@@ -140,16 +205,20 @@ export default function AcquisitieSelectieTab() {
     const sf: Record<ActieSubfilter, number> = {
       alle: 0, onderzoeken: 0, brief_voorbereiden: 0, printen_posten: 0, opvolgen: 0,
     };
+    const pp: Record<PrintPostFilter, number> = { alles: 0, te_printen: 0, te_posten: 0 };
     for (const ctx of werkbakPerSignaal.values()) {
       wb.alles += 1;
       wb[ctx.werkbak] += 1;
       if (ctx.werkbak === 'actie' && ctx.actieSubfilter) {
         sf.alle += 1;
         sf[ctx.actieSubfilter] += 1;
+        const groep = bepaalPrintPostGroep(ctx.actieCategorie);
+        if (groep) { pp.alles += 1; pp[groep] += 1; }
       }
     }
-    return { werkbak: wb, subfilter: sf };
+    return { werkbak: wb, subfilter: sf, printPost: pp };
   }, [werkbakPerSignaal]);
+
 
   // ---- Verplaatsfeedback ------------------------------------------------
   // Toont uitsluitend een toast wanneer een signaal door een expliciete
@@ -200,10 +269,14 @@ export default function AcquisitieSelectieTab() {
     vorigeCtxRef.current = huidig;
   }, [werkbakPerSignaal, navigate]);
 
+  // Actieve sortering: expliciete keuze of standaard voor deze view.
+  const actieveSortering: SorteerOptie = sorteerKeuze
+    ?? standaardSortering(werkbak, subfilter, printPost);
+
   // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
     // Verzamel rijen die in de huidige werkbak passen.
-    const rijen: SorteerRij[] = [];
+    const rijen: SorteerbareRij[] = [];
     for (const { signaal } of readiness.lijst) {
       const ctx = werkbakPerSignaal.get(signaal.id);
       if (!ctx) continue;
@@ -211,14 +284,21 @@ export default function AcquisitieSelectieTab() {
         werkbak === 'alles' ? true : ctx.werkbak === werkbak;
       if (!inWerkbak) continue;
       if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
+      if (
+        werkbak === 'actie' && subfilter === 'printen_posten'
+        && !matchtPrintPostFilter(ctx.actieCategorie, printPost)
+      ) continue;
       rijen.push({
         signaalId: signaal.id,
         toegevoegdOp: toegevoegdOpPerSignaal.get(signaal.id) ?? null,
         ctx,
         procesDatumIsoWachten: ctx.werkbak === 'wachten' ? (ctx.procesDatum?.iso ?? null) : null,
+        prioriteit: (signaal.prioriteit as string | null) ?? null,
+        aiScore: typeof signaal.ai_score === 'number' ? signaal.ai_score : null,
+        plaats: cleanPlaats(signaal.plaats) || null,
       });
     }
-    const gesorteerd = sorteerWerkvolgorde(werkbak, rijen);
+    const gesorteerd = sorteerRijen(actieveSortering, werkbak, rijen);
     // Terug-map naar { signaal, readiness, ctx }.
     const byId = new Map(readiness.lijst.map(x => [x.signaal.id, x]));
     return gesorteerd
@@ -228,7 +308,63 @@ export default function AcquisitieSelectieTab() {
         return { ...item, ctx: r.ctx };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [readiness.lijst, werkbakPerSignaal, werkbak, subfilter, toegevoegdOpPerSignaal]);
+  }, [
+    readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost,
+    actieveSortering, toegevoegdOpPerSignaal,
+  ]);
+
+  // ---- Hervatbare werkronde ---------------------------------------------
+  // De scope is een momentopname bij starten; items verdwijnen niet meer
+  // uit de ronde wanneer hun processtatus tussentijds wijzigt.
+  const [werkronde, setWerkrondeState] = useState<Werkronde | null>(() => leesWerkronde());
+  const bewaarWerkronde = (w: Werkronde | null) => {
+    setWerkrondeState(w);
+    if (w) schrijfWerkronde(w); else wisWerkronde();
+  };
+
+  /** Hoort dit signaal nog bij de oorspronkelijke groep van de werkronde? */
+  const hoortNogBijBron = (bron: WerkrondeBron, ctx: WerkbakContext | undefined): boolean => {
+    if (!ctx) return false;
+    if (bron === 'brief_voorbereiden') {
+      return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'brief_voorbereiden';
+    }
+    if (bron === 'te_printen') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_printen';
+    if (bron === 'te_posten') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_posten';
+    if (bron === 'werkbak') return ctx.werkbak === 'actie';
+    return true;
+  };
+
+  // Voortgang bijwerken: alles wat de oorspronkelijke groep verlaten heeft,
+  // geldt als behandeld.
+  useEffect(() => {
+    if (!werkronde) return;
+    if (werkronde.bron === 'handmatig') return;
+    let next = werkronde;
+    for (const id of werkronde.scopeIds) {
+      const ctx = werkbakPerSignaal.get(id);
+      if (!ctx) continue;
+      if (!hoortNogBijBron(werkronde.bron, ctx) && !next.behandeldeIds.includes(id)) {
+        next = markeerBehandeld(next, id);
+      }
+    }
+    if (next !== werkronde) bewaarWerkronde(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [werkbakPerSignaal, werkronde]);
+
+  const werkrondeVoortgang = werkronde ? voortgang(werkronde) : null;
+
+  /** Scope van de werkronde in de huidige zichtbare volgorde. */
+  const werkrondeItems = useMemo(() => {
+    if (!werkronde) return [];
+    const set = new Set(werkronde.scopeIds);
+    const inVolgorde = gefilterd.filter(x => set.has(x.signaal.id));
+    const aanwezig = new Set(inVolgorde.map(x => x.signaal.id));
+    const rest = readiness.lijst.filter(
+      x => set.has(x.signaal.id) && !aanwezig.has(x.signaal.id),
+    );
+    return [...inVolgorde, ...rest];
+  }, [werkronde, gefilterd, readiness.lijst]);
+
 
   // ---- Bulk-selectie per signaal ---------------------------------------
   const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
@@ -321,9 +457,13 @@ export default function AcquisitieSelectieTab() {
 
   const focusItems = useMemo(() => {
     if (!verwerkScopeIds || verwerkScopeIds.length === 0) return readiness.lijst;
-    const set = new Set(verwerkScopeIds);
-    return readiness.lijst.filter((x) => set.has(x.signaal.id));
+    const byId = new Map(readiness.lijst.map((x) => [x.signaal.id, x]));
+    // Volgorde volgt de scope-ids (zichtbare volgorde), niet de ruwe lijst.
+    return verwerkScopeIds
+      .map((id) => byId.get(id))
+      .filter((x): x is NonNullable<typeof x> => !!x);
   }, [readiness.lijst, verwerkScopeIds]);
+
 
   // Restore scrollpositie bij terugkeer
   useEffect(() => {
@@ -393,6 +533,52 @@ export default function AcquisitieSelectieTab() {
     setFocusIndex(startIdx >= 0 ? startIdx : 0);
     setFocusOpen(true);
   };
+
+  /** Huidige view als werkronde-bron. */
+  function huidigeBron(): { bron: WerkrondeBron; naam: string } {
+    if (bulkSelectie.size > 0) {
+      return { bron: 'handmatig', naam: `Handmatige selectie (${bulkSelectie.size})` };
+    }
+    if (werkbak === 'actie' && subfilter === 'brief_voorbereiden') {
+      return { bron: 'brief_voorbereiden', naam: 'Brief voorbereiden' };
+    }
+    if (werkbak === 'actie' && subfilter === 'printen_posten' && printPost !== 'alles') {
+      return { bron: printPost, naam: PRINT_POST_LABEL[printPost] };
+    }
+    if (werkbak === 'actie') return { bron: 'werkbak', naam: 'Actie' };
+    return { bron: 'handmatig', naam: WERKBAK_LABEL[werkbak] };
+  }
+
+  const startNieuweWerkronde = () => {
+    const ids = bulkSelectie.size > 0
+      ? gefilterd.filter(x => bulkSelectie.has(x.signaal.id)).map(x => x.signaal.id)
+      : gefilterd.map(x => x.signaal.id);
+    if (ids.length === 0) return;
+    const { bron, naam } = huidigeBron();
+    const w = startWerkronde({ bron, naam: `${naam} (${ids.length})`, scopeIds: ids });
+    bewaarWerkronde(w);
+    setVerwerkScopeIds(ids);
+    setFocusIndex(0);
+    setFocusOpen(true);
+  };
+
+  const hervatWerkronde = () => {
+    if (!werkronde) return;
+    const ids = werkrondeItems.map(x => x.signaal.id);
+    if (ids.length === 0) return;
+    const volgende = eerstVolgendeId(werkronde, ids);
+    const idx = volgende ? Math.max(0, ids.indexOf(volgende)) : 0;
+    setVerwerkScopeIds(ids);
+    setFocusIndex(idx);
+    setFocusOpen(true);
+  };
+
+  const beeindigWerkronde = () => {
+    bewaarWerkronde(null);
+    setVerwerkScopeIds(null);
+    toast.success('Werkronde beëindigd');
+  };
+
 
   const openVerwerkVanSignaal = (signaalId: string) => {
     setVerwerkScopeIds(null);
@@ -483,6 +669,106 @@ export default function AcquisitieSelectieTab() {
               : 'Verwerk selectie'}
         </Button>
       </div>
+
+      {/* Tweede filterlaag: Printen & posten */}
+      {werkbak === 'actie' && subfilter === 'printen_posten' && (
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          data-testid="acquisitie-printpost-chips"
+          role="group"
+          aria-label="Printen en posten filteren"
+        >
+          {PRINT_POST_VOLGORDE.map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setPrintPost(f)}
+              data-testid={`acquisitie-printpost-${f}`}
+              aria-pressed={printPost === f}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                printPost === f
+                  ? 'border-accent/50 bg-accent/15 text-accent font-medium'
+                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              {PRINT_POST_LABEL[f]} ({tellingen.printPost[f]})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sortering + werkronde */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ArrowDownUp className="h-3.5 w-3.5" />
+          <span>Sorteren</span>
+          <select
+            data-testid="acquisitie-sortering"
+            value={actieveSortering}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSorteerKeuze(isSorteerOptie(v) ? v : null);
+            }}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            {SORTEER_VOLGORDE.map((o) => (
+              <option key={o} value={o}>{SORTEER_LABEL[o]}</option>
+            ))}
+          </select>
+          {sorteerKeuze && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSorteerKeuze(null)}>
+              Standaard
+            </Button>
+          )}
+        </label>
+        {!werkronde && (
+          <Button
+            type="button" size="sm" variant="outline"
+            onClick={startNieuweWerkronde}
+            disabled={gefilterd.length === 0}
+            data-testid="acquisitie-werkronde-start"
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            Werkronde starten
+          </Button>
+        )}
+      </div>
+
+      {werkronde && werkrondeVoortgang && (
+        <div
+          data-testid="acquisitie-werkronde-balk"
+          className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+        >
+          <div className="min-w-0 text-xs">
+            <p className="font-medium text-foreground truncate">
+              Werkronde: {werkronde.naam}
+            </p>
+            <p className="text-muted-foreground" data-testid="acquisitie-werkronde-voortgang">
+              {voortgangTekst(werkrondeVoortgang)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button" size="sm" variant="secondary"
+              onClick={hervatWerkronde}
+              data-testid="acquisitie-werkronde-hervat"
+              disabled={werkrondeVoortgang.resterend === 0}
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              Hervatten
+            </Button>
+            <Button
+              type="button" size="sm" variant="ghost"
+              onClick={beeindigWerkronde}
+              data-testid="acquisitie-werkronde-beeindig"
+            >
+              Beëindigen
+            </Button>
+          </div>
+        </div>
+      )}
+
+
 
       {/* Bulktoolbar */}
       <div
@@ -675,7 +961,20 @@ export default function AcquisitieSelectieTab() {
                       <p className="text-[11px] text-muted-foreground break-words">
                         {r.blokkadeReden ?? r.info.reden}
                       </p>
+                      {ctx.actieCategorie === 'onderzoek' && (() => {
+                        const tekst = onderzoekRedenTekst(bepaalOnderzoekRedenen(r));
+                        if (!tekst) return null;
+                        return (
+                          <p
+                            data-testid="acquisitie-rij-onderzoekredenen"
+                            className="text-[11px] text-destructive break-words"
+                          >
+                            Nog nodig: {tekst}
+                          </p>
+                        );
+                      })()}
                       <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
+
 
                       {/* Geadresseerden onder het signaal — compact, niet-genest */}
                       {r.geadresseerden.length > 0 && (
