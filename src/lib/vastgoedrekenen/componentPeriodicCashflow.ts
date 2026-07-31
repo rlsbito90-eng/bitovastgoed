@@ -207,7 +207,10 @@ function buildPlans(units: SellOffUnit[]): {
   const discountingBlockers: string[] = [];
   const warnings: string[] = [];
   const allocation = resolveComponentAllocationWeighting(units);
-  const timing = analyzeComponentAllocationTiming(units as unknown as Array<Record<string, unknown>>);
+  const timing = analyzeComponentAllocationTiming(
+    units as unknown as Parameters<typeof analyzeComponentAllocationTiming>[0],
+  );
+
   const totals = aggregateStrategy(units);
   const timingById = new Map(timing.units.map((unit) => [unit.unitId, unit]));
   const resultById = new Map(totals.perUnit.map((result) => [result.unitId, result]));
