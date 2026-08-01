@@ -233,7 +233,7 @@ export default function FocusModus({
 
   return (
     <>
-      {verbergLosseWerkrondeKnop}
+      
       <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
         <DialogContent
           data-testid="focus-modus"
