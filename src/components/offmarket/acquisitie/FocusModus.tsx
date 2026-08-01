@@ -59,14 +59,20 @@ function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
-function dezelfdeScope(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((id, index) => id === b[index]);
-}
-
 function volledigBehandeld(ronde: Werkronde): boolean {
   const behandeld = new Set(ronde.behandeldeIds);
   return ronde.scopeIds.every((id) => behandeld.has(id));
+}
+
+/**
+ * Een lopende ronde mag worden hervat wanneer haar vaste momentopname nog
+ * volledig binnen de aangevraagde view aanwezig is. Extra, later toegevoegde
+ * signalen worden daardoor niet stilletjes aan de bestaande ronde toegevoegd.
+ */
+function kanHervatten(ronde: Werkronde, aangevraagdeIds: string[]): boolean {
+  if (volledigBehandeld(ronde)) return false;
+  const aangevraagd = new Set(aangevraagdeIds);
+  return ronde.scopeIds.every((id) => aangevraagd.has(id));
 }
 
 export default function FocusModus({
@@ -85,6 +91,12 @@ export default function FocusModus({
     () => items.map((item) => item.signaal.id),
     [items],
   );
+
+  const werkrondeBeschikbareIds = useMemo(() => {
+    if (!werkronde) return beschikbareIds;
+    const scope = new Set(werkronde.scopeIds);
+    return beschikbareIds.filter((id) => scope.has(id));
+  }, [beschikbareIds, werkronde]);
 
   const veiligIndex = useMemo(() => {
     if (items.length === 0) return 0;
@@ -106,29 +118,27 @@ export default function FocusModus({
   };
 
   // Iedere klik op "Verwerk" start automatisch een persistente werkronde.
-  // Alleen een werkronde met exact dezelfde vaste scope wordt hervat.
-  // Een oude ronde met een andere selectie of filter blokkeert zo nooit een nieuwe ronde.
+  // Een bestaande ronde houdt haar oorspronkelijke vaste scope. Nieuwe
+  // signalen in dezelfde view komen pas in een volgende ronde mee.
   useEffect(() => {
     if (!open || beschikbareIds.length === 0) return;
 
     const opgeslagen = leesWerkronde();
-    const scopeIds = focusScopeIds?.length ? focusScopeIds : beschikbareIds;
-    const kanHervatten = !!opgeslagen
-      && dezelfdeScope(opgeslagen.scopeIds, scopeIds)
-      && !volledigBehandeld(opgeslagen);
-
-    const ronde = kanHervatten
+    const aangevraagdeIds = focusScopeIds?.length ? focusScopeIds : beschikbareIds;
+    const ronde = opgeslagen && kanHervatten(opgeslagen, aangevraagdeIds)
       ? opgeslagen
       : startWerkronde({
           bron: selectedIds?.length ? 'handmatig' : 'werkbak',
           naam: selectedIds?.length
-            ? `Geselecteerde signalen (${scopeIds.length})`
-            : `Verwerk selectie (${scopeIds.length})`,
-          scopeIds,
+            ? `Geselecteerde signalen (${aangevraagdeIds.length})`
+            : `Verwerk selectie (${aangevraagdeIds.length})`,
+          scopeIds: aangevraagdeIds,
         });
 
-    const volgendeId = eerstVolgendeId(ronde, beschikbareIds)
-      ?? ronde.huidigeId
+    const rondeIds = beschikbareIds.filter((id) => ronde.scopeIds.includes(id));
+    const volgendeId = eerstVolgendeId(ronde, rondeIds)
+      ?? (ronde.huidigeId && rondeIds.includes(ronde.huidigeId) ? ronde.huidigeId : null)
+      ?? rondeIds[0]
       ?? beschikbareIds[0];
     const volgendeIndex = Math.max(0, beschikbareIds.indexOf(volgendeId));
     const bijgewerkt = zetPositie(ronde, volgendeId);
@@ -161,7 +171,9 @@ export default function FocusModus({
       return;
     }
 
-    const volgendeId = eerstVolgendeId(ronde, beschikbareIds);
+    const scope = new Set(ronde.scopeIds);
+    const rondeIds = beschikbareIds.filter((id) => scope.has(id));
+    const volgendeId = eerstVolgendeId(ronde, rondeIds);
     if (!volgendeId) {
       bewaarWerkronde(zetPositie(ronde, null));
       onClose();
@@ -176,6 +188,7 @@ export default function FocusModus({
   const markeerHuidigBehandeld = () => {
     if (!werkronde || items.length === 0) return;
     const id = items[veiligIndex].signaal.id;
+    if (!werkronde.scopeIds.includes(id)) return;
     const bijgewerkt = markeerBehandeld(werkronde, id);
     gaNaarVolgendeResterende(bijgewerkt);
   };
@@ -183,6 +196,7 @@ export default function FocusModus({
   const slaHuidigOver = () => {
     if (!werkronde || items.length === 0) return;
     const id = items[veiligIndex].signaal.id;
+    if (!werkronde.scopeIds.includes(id)) return;
     const bijgewerkt = markeerOvergeslagen(werkronde, id);
     gaNaarVolgendeResterende(bijgewerkt);
   };
@@ -190,7 +204,9 @@ export default function FocusModus({
   const sluitEnBewaar = () => {
     if (werkronde && items.length > 0) {
       const id = items[veiligIndex].signaal.id;
-      bewaarWerkronde(zetPositie(werkronde, id));
+      if (werkronde.scopeIds.includes(id)) {
+        bewaarWerkronde(zetPositie(werkronde, id));
+      }
     }
     onClose();
   };
@@ -208,8 +224,14 @@ export default function FocusModus({
   const { signaal, readiness } = huidig;
   const adres = formatSignaalAdres(signaal) || cleanAdres(signaal.adres) || '—';
   const plaats = cleanPlaats(signaal.plaats) || '';
+  const positieInWerkronde = Math.max(0, werkrondeBeschikbareIds.indexOf(signaal.id));
 
-  const goVorige = () => onIndexChange(Math.max(0, veiligIndex - 1));
+  const goVorige = () => {
+    if (positieInWerkronde <= 0) return;
+    const vorigeId = werkrondeBeschikbareIds[positieInWerkronde - 1];
+    const vorigeIndex = beschikbareIds.indexOf(vorigeId);
+    if (vorigeIndex >= 0) onIndexChange(vorigeIndex);
+  };
 
   return (
     <>
@@ -234,7 +256,7 @@ export default function FocusModus({
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60 bg-background/70 backdrop-blur">
             <div className="min-w-0 pr-8">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Focus · {veiligIndex + 1} van {items.length}
+                Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
               </p>
               <h2 className="text-sm font-medium text-foreground truncate">Verwerk selectie</h2>
               {voortgangInfo && (
@@ -326,7 +348,7 @@ export default function FocusModus({
                     state: {
                       fromAcquisitieFocus: true,
                       focusIndex: veiligIndex,
-                      focusScopeIds: focusScopeIds ?? null,
+                      focusScopeIds: werkronde?.scopeIds ?? focusScopeIds ?? null,
                       selectedIds: selectedIds ?? [],
                     },
                   },
@@ -341,7 +363,7 @@ export default function FocusModus({
                 variant="outline"
                 size="sm"
                 onClick={goVorige}
-                disabled={veiligIndex === 0}
+                disabled={positieInWerkronde <= 0}
                 data-testid="focus-vorige"
               >
                 <ChevronLeft className="h-4 w-4" />
