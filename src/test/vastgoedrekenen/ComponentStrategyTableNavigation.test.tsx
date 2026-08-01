@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import ComponentStrategyTable from '@/components/vastgoedrekenen/ComponentStrategyTable';
 
@@ -47,23 +48,24 @@ describe('ComponentStrategyTable scenario navigation', () => {
     expect(screen.queryByText('financiering-werkblad')).not.toBeInTheDocument();
   });
 
-  it('wisselt naar elk afzonderlijk werkblad zonder de lange totaalpagina te tonen', () => {
+  it('wisselt naar elk afzonderlijk werkblad zonder de lange totaalpagina te tonen', async () => {
+    const user = userEvent.setup();
     render(<ComponentStrategyTable {...props} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /2 timing/i }));
+    await user.click(screen.getByRole('tab', { name: /2 timing/i }));
     expect(screen.getByText('timing-werkblad')).toBeInTheDocument();
     expect(screen.queryByText('strategie-editor')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: /3 kasstroom/i }));
+    await user.click(screen.getByRole('tab', { name: /3 kasstroom/i }));
     expect(screen.getByText('componentkasstroom-werkblad')).toBeInTheDocument();
     expect(screen.getByText('scenariokasstroom-werkblad')).toBeInTheDocument();
     expect(screen.queryByText('timing-werkblad')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: /4 rendement/i }));
+    await user.click(screen.getByRole('tab', { name: /4 rendement/i }));
     expect(screen.getByText('rendement-werkblad')).toBeInTheDocument();
     expect(screen.queryByText('componentkasstroom-werkblad')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: /5 financiering/i }));
+    await user.click(screen.getByRole('tab', { name: /5 financiering/i }));
     expect(screen.getByText('financiering-werkblad')).toBeInTheDocument();
     expect(screen.queryByText('rendement-werkblad')).not.toBeInTheDocument();
   });
