@@ -58,6 +58,39 @@ function scrollTo(container: HTMLElement | Window, top: number): void {
   (container as HTMLElement).scrollTo({ top, behavior: 'smooth' });
 }
 
+function prepareScenarioTabs(): void {
+  const workspace = document.querySelector<HTMLElement>('[data-testid="vastgoedrekenen-case-workspace"]');
+  if (!workspace) return;
+
+  const tabLists = Array.from(workspace.querySelectorAll<HTMLElement>('[role="tablist"]'));
+  const scenarioTabList = tabLists.find((list) => {
+    const labels = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]')).map((tab) => tab.textContent?.trim() ?? '');
+    return labels.some((label) => label.includes('Doorrekenen'))
+      && labels.some((label) => label.includes('Opzet & classificatie'))
+      && labels.some((label) => label.includes('Kengetallen & aannames'));
+  });
+  if (!scenarioTabList) return;
+
+  const tabs = Array.from(scenarioTabList.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+  const calculation = tabs.find((tab) => tab.textContent?.includes('Doorrekenen'));
+  const setup = tabs.find((tab) => tab.textContent?.includes('Opzet & classificatie'));
+  const assumptions = tabs.find((tab) => tab.textContent?.includes('Kengetallen & aannames'));
+  if (!calculation || !setup || !assumptions) return;
+
+  // De gewenste visuele en toetsenbordvolgorde: eerst de dagelijkse werkruimte.
+  scenarioTabList.append(calculation, setup, assumptions);
+
+  const activeScenarioTitle = workspace
+    .querySelector<HTMLElement>('[data-scroll-label="Actief scenario"] h1, [data-scroll-label="Actief scenario"] h2, [data-scroll-label="Actief scenario"] h3')
+    ?.textContent?.trim()
+    || workspace.querySelector<HTMLElement>('p')?.textContent?.trim()
+    || 'scenario';
+
+  if (scenarioTabList.dataset.defaultScenarioKey === activeScenarioTitle) return;
+  scenarioTabList.dataset.defaultScenarioKey = activeScenarioTitle;
+  window.requestAnimationFrame(() => calculation.click());
+}
+
 export default function DynamicSectionNavigator() {
   const location = useLocation();
   const [visible, setVisible] = useState(false);
@@ -74,6 +107,8 @@ export default function DynamicSectionNavigator() {
     const update = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
+        prepareScenarioTabs();
+
         const scrollTop = getScrollTop(container);
         setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
 
