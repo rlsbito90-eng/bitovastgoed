@@ -4,8 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
-// Tijdelijke productie-diagnostiek: behoud leesbare functie- en componentnamen
-// totdat de huidige runtimecrash is gelokaliseerd. Na de fix terugzetten.
+// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -13,10 +12,6 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-  },
-  build: {
-    minify: false,
-    sourcemap: true,
   },
   plugins: [react(), mode === "development" && componentTagger(), mcpPlugin()].filter(Boolean),
   resolve: {

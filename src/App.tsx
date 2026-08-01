@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
 import { AuthProvider } from "@/hooks/useAuth";
-import { DataStoreProvider } from "@/hooks/useDataStore";
+import { DataStoreProvider, useDataStore } from "@/hooks/useDataStore";
 import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
 import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
 import { AcquisitieProvider } from "@/hooks/useAcquisitie";
@@ -37,6 +37,29 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function SafeObjectDetailRoute() {
+  const { id } = useParams<{ id: string }>();
+  const { loading, getObjectById } = useDataStore();
+  const object = id ? getObjectById(id) : undefined;
+
+  if (!object) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-8 text-center">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {loading ? "Object wordt geladen…" : "Object wordt opgehaald…"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            De detailpagina opent zodra de objectdata beschikbaar is.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ObjectDetailPage />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -61,7 +84,7 @@ const App = () => (
                           <Route path="/relaties" element={<RelatiesPage />} />
                           <Route path="/relaties/:id" element={<RelatieDetailPage />} />
                           <Route path="/objecten" element={<ObjectenPage />} />
-                          <Route path="/objecten/:id" element={<ObjectDetailPage />} />
+                          <Route path="/objecten/:id" element={<SafeObjectDetailRoute />} />
                           <Route path="/deals" element={<DealsPage />} />
                           <Route path="/deals/:id" element={<DealDetailPage />} />
                           <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
