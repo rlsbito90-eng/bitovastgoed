@@ -91,6 +91,18 @@ function prepareScenarioTabs(): void {
   window.requestAnimationFrame(() => setup.click());
 }
 
+function refreshVisibleScenarioName(previousName: string, name: string): void {
+  const workspace = document.querySelector<HTMLElement>('[data-testid="vastgoedrekenen-case-workspace"]');
+  if (!workspace || !previousName || !name) return;
+
+  const candidates = Array.from(workspace.querySelectorAll<HTMLElement>('h1,h2,h3,h4,p,span,button'));
+  candidates.forEach((element) => {
+    if (element.children.length === 0 && element.textContent?.trim() === previousName) {
+      element.textContent = name;
+    }
+  });
+}
+
 export default function DynamicSectionNavigator() {
   const location = useLocation();
   const [visible, setVisible] = useState(false);
@@ -100,6 +112,17 @@ export default function DynamicSectionNavigator() {
   const armedSectionTop = useRef<number | null>(null);
 
   const title = useMemo(() => label, [label]);
+
+  useEffect(() => {
+    const handleScenarioNameUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ previousName?: string; name?: string }>).detail;
+      if (!detail?.previousName || !detail?.name) return;
+      refreshVisibleScenarioName(detail.previousName, detail.name);
+    };
+
+    window.addEventListener('scenario-name-updated', handleScenarioNameUpdated);
+    return () => window.removeEventListener('scenario-name-updated', handleScenarioNameUpdated);
+  }, []);
 
   useEffect(() => {
     armedSectionTop.current = null;
