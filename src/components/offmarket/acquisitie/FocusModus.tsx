@@ -23,6 +23,7 @@ import {
   SIGNAALTYPE_LABEL, type OffMarketSignaal,
 } from '@/lib/offMarket/types';
 import type { SignaalReadiness } from '@/lib/offMarket/acquisitie/readiness';
+import { bepaalFocusContext } from '@/lib/offMarket/acquisitie/focusContext';
 import ToevoegenAanAcquisitieSelectieKnop from './ToevoegenAanAcquisitieSelectieKnop';
 import {
   eerstVolgendeId,
@@ -222,6 +223,7 @@ export default function FocusModus({
 
   const huidig = items[veiligIndex];
   const { signaal, readiness } = huidig;
+  const focusContext = bepaalFocusContext(readiness.fase);
   const adres = formatSignaalAdres(signaal) || cleanAdres(signaal.adres) || '—';
   const plaats = cleanPlaats(signaal.plaats) || '';
   const positieInWerkronde = Math.max(0, werkrondeBeschikbareIds.indexOf(signaal.id));
@@ -239,6 +241,7 @@ export default function FocusModus({
       <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
         <DialogContent
           data-testid="focus-modus"
+          data-focus-context={focusContext.context}
           className="
             p-0 gap-0
             sm:max-w-2xl
@@ -248,9 +251,9 @@ export default function FocusModus({
             flex flex-col overflow-hidden
           "
         >
-          <DialogTitle className="sr-only">Verwerk selectie</DialogTitle>
+          <DialogTitle className="sr-only">{focusContext.titel}</DialogTitle>
           <DialogDescription className="sr-only">
-            Focusmodus voor de acquisitieselectie. Behandel signalen één voor één.
+            Focusmodus voor de acquisitieselectie. {focusContext.instructie}
           </DialogDescription>
 
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60 bg-background/70 backdrop-blur">
@@ -258,7 +261,7 @@ export default function FocusModus({
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                 Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
               </p>
-              <h2 className="text-sm font-medium text-foreground truncate">Verwerk selectie</h2>
+              <h2 className="text-sm font-medium text-foreground truncate">{focusContext.titel}</h2>
               {voortgangInfo && (
                 <p className="text-[11px] text-muted-foreground" data-testid="focus-werkronde-voortgang">
                   {voortgangTekst(voortgangInfo)}
@@ -286,6 +289,9 @@ export default function FocusModus({
             </section>
 
             <section className="rounded-lg border border-border bg-card p-3 space-y-2">
+              <p className="text-xs font-medium text-foreground" data-testid="focus-context-instructie">
+                {focusContext.instructie}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <ReadinessBadge fase={readiness.fase} />
                 <span className="text-xs text-muted-foreground">{readiness.info.reden}</span>
