@@ -20,12 +20,22 @@ function getViewportTop(container: HTMLElement | Window): number {
   return (container as HTMLElement).getBoundingClientRect().top;
 }
 
+function isEditing(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLInputElement
+    || active instanceof HTMLTextAreaElement
+    || active instanceof HTMLSelectElement
+    || active?.getAttribute('contenteditable') === 'true';
+}
+
 function getCandidateSections(): HTMLElement[] {
   const explicit = Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-section]'));
   if (explicit.length > 0) return explicit.filter((element) => element.offsetParent !== null);
 
   const fallback = Array.from(
-    document.querySelectorAll<HTMLElement>('main section[id], main [role="tabpanel"] > section, main h2[id], main h3[id], main [id^="section-"]'),
+    document.querySelectorAll<HTMLElement>(
+      'main section[id], main [role="tabpanel"] > section, main h2[id], main h3[id], main [id^="section-"]',
+    ),
   );
   return fallback.filter((element) => element.offsetParent !== null);
 }
@@ -65,7 +75,7 @@ export default function DynamicSectionNavigator() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const scrollTop = getScrollTop(container);
-        setVisible(scrollTop > MIN_SCROLL_Y);
+        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
 
         const sections = getCandidateSections();
         if (sections.length === 0) {
@@ -78,7 +88,6 @@ export default function DynamicSectionNavigator() {
         const viewportTop = getViewportTop(container);
         const positions = sections
           .map((element) => ({
-            element,
             label: getLabel(element),
             top: element.getBoundingClientRect().top - viewportTop + scrollTop,
           }))
@@ -121,37 +130,43 @@ export default function DynamicSectionNavigator() {
     update();
     container.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
+    document.addEventListener('focusin', update);
+    document.addEventListener('focusout', update);
     const observer = new MutationObserver(update);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class', 'data-state'] });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['hidden', 'class', 'data-state'],
+    });
 
     return () => {
       window.cancelAnimationFrame(frame);
       container.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
+      document.removeEventListener('focusin', update);
+      document.removeEventListener('focusout', update);
       observer.disconnect();
     };
   }, [location.pathname, location.search, location.hash]);
 
-  useEffect(() => {
-    const active = document.activeElement;
-    const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement || active?.getAttribute('contenteditable') === 'true';
-    if (editing) setVisible(false);
-  }, [location.pathname, location.search]);
-
-  if (!visible) return null;
-
   return (
-    <button
-      type="button"
-      onClick={() => scrollTo(getScrollContainer(), targetTop)}
-      title={title}
-      aria-label={title}
-      className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
-    >
-      {mode === 'previous' ? <CornerLeftUp className="h-5 w-5 shrink-0" /> : <ArrowUp className="h-5 w-5 shrink-0" />}
-      <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">
-        {label}
-      </span>
-    </button>
+    <>
+      <style>{`[data-testid="vastgoedrekenen-case-workspace"] > .sticky { position: static !important; top: auto !important; }`}</style>
+      {visible && (
+        <button
+          type="button"
+          onClick={() => scrollTo(getScrollContainer(), targetTop)}
+          title={title}
+          aria-label={title}
+          className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
+        >
+          {mode === 'previous' ? <CornerLeftUp className="h-5 w-5 shrink-0" /> : <ArrowUp className="h-5 w-5 shrink-0" />}
+          <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">
+            {label}
+          </span>
+        </button>
+      )}
+    </>
   );
 }
