@@ -1,5 +1,5 @@
 // Bulk-actiedialoog voor geprint/gepost met expliciete opvolgkeuze.
-// Geen automatische Kadaster- of andere externe acties.
+// Geen automatische externe acties.
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
