@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowUp, CornerLeftUp } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 const MIN_SCROLL_Y = 420;
 const SECTION_START_TOLERANCE = 72;
+const ARMED_POSITION_TOLERANCE = 120;
 
 function getScrollContainer(): HTMLElement | Window {
   const main = document.querySelector('main');
@@ -66,24 +67,28 @@ function prepareScenarioTabs(): void {
   const scenarioTabList = tabLists.find((list) => {
     const labels = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]')).map((tab) => tab.textContent?.trim() ?? '');
     return labels.some((label) => label.includes('Doorrekenen'))
-      && labels.some((label) => label.includes('Opzet & classificatie'))
+      && labels.some((label) => label.includes('Opzet & classificatie') || label === 'Scenario')
       && labels.some((label) => label.includes('Kengetallen & aannames'));
   });
   if (!scenarioTabList) return;
 
   const tabs = Array.from(scenarioTabList.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
   const calculation = tabs.find((tab) => tab.textContent?.includes('Doorrekenen'));
-  const setup = tabs.find((tab) => tab.textContent?.includes('Opzet & classificatie'));
+  const setup = tabs.find((tab) => tab.textContent?.includes('Opzet & classificatie') || tab.textContent?.trim() === 'Scenario');
   const assumptions = tabs.find((tab) => tab.textContent?.includes('Kengetallen & aannames'));
   if (!calculation || !setup || !assumptions) return;
 
-  if (scenarioTabList.firstElementChild !== calculation) {
-    scenarioTabList.append(calculation, setup, assumptions);
+  const setupText = Array.from(setup.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+  if (setupText) setupText.textContent = ' Scenario';
+  setup.setAttribute('aria-label', 'Scenario');
+
+  if (scenarioTabList.firstElementChild !== setup || setup.nextElementSibling !== calculation) {
+    scenarioTabList.append(setup, calculation, assumptions);
   }
 
-  if (scenarioTabList.dataset.defaultCalculationApplied === 'true') return;
-  scenarioTabList.dataset.defaultCalculationApplied = 'true';
-  window.requestAnimationFrame(() => calculation.click());
+  if (scenarioTabList.dataset.defaultScenarioApplied === 'true') return;
+  scenarioTabList.dataset.defaultScenarioApplied = 'true';
+  window.requestAnimationFrame(() => setup.click());
 }
 
 export default function DynamicSectionNavigator() {
@@ -91,11 +96,13 @@ export default function DynamicSectionNavigator() {
   const [visible, setVisible] = useState(false);
   const [label, setLabel] = useState('Naar boven');
   const [targetTop, setTargetTop] = useState(0);
-  const [mode, setMode] = useState<'section' | 'previous' | 'top'>('top');
+  const [mode, setMode] = useState<'section' | 'top'>('top');
+  const armedSectionTop = useRef<number | null>(null);
 
   const title = useMemo(() => label, [label]);
 
   useEffect(() => {
+    armedSectionTop.current = null;
     let frame = 0;
     const container = getScrollContainer();
 
@@ -106,6 +113,17 @@ export default function DynamicSectionNavigator() {
 
         const scrollTop = getScrollTop(container);
         setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
+
+        if (armedSectionTop.current !== null) {
+          const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
+          if (distanceToArmedSection <= ARMED_POSITION_TOLERANCE) {
+            setMode('top');
+            setLabel('Naar boven');
+            setTargetTop(0);
+            return;
+          }
+          armedSectionTop.current = null;
+        }
 
         const sections = getCandidateSections();
         if (sections.length === 0) {
@@ -135,19 +153,13 @@ export default function DynamicSectionNavigator() {
         }
 
         const current = positions[currentIndex];
+        const sectionTop = Math.max(0, current.top - 16);
         const distanceFromStart = scrollTop - current.top;
+
         if (distanceFromStart > SECTION_START_TOLERANCE) {
           setMode('section');
           setLabel(`Naar begin van ${current.label}`);
-          setTargetTop(Math.max(0, current.top - 16));
-          return;
-        }
-
-        const previous = positions[currentIndex - 1];
-        if (previous) {
-          setMode('previous');
-          setLabel(`Naar vorig onderdeel: ${previous.label}`);
-          setTargetTop(Math.max(0, previous.top - 16));
+          setTargetTop(sectionTop);
           return;
         }
 
@@ -180,18 +192,25 @@ export default function DynamicSectionNavigator() {
     };
   }, [location.pathname, location.search, location.hash]);
 
+  function handleClick() {
+    const container = getScrollContainer();
+    if (mode === 'section') armedSectionTop.current = targetTop;
+    else armedSectionTop.current = null;
+    scrollTo(container, targetTop);
+  }
+
   return (
     <>
       <style>{`[data-testid="vastgoedrekenen-case-workspace"] > .sticky { position: static !important; top: auto !important; }`}</style>
       {visible && (
         <button
           type="button"
-          onClick={() => scrollTo(getScrollContainer(), targetTop)}
+          onClick={handleClick}
           title={title}
           aria-label={title}
           className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
         >
-          {mode === 'previous' ? <CornerLeftUp className="h-5 w-5 shrink-0" /> : <ArrowUp className="h-5 w-5 shrink-0" />}
+          <ArrowUp className="h-5 w-5 shrink-0" />
           <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">
             {label}
           </span>
