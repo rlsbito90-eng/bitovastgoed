@@ -77,17 +77,12 @@ function prepareScenarioTabs(): void {
   const assumptions = tabs.find((tab) => tab.textContent?.includes('Kengetallen & aannames'));
   if (!calculation || !setup || !assumptions) return;
 
-  // De gewenste visuele en toetsenbordvolgorde: eerst de dagelijkse werkruimte.
-  scenarioTabList.append(calculation, setup, assumptions);
+  if (scenarioTabList.firstElementChild !== calculation) {
+    scenarioTabList.append(calculation, setup, assumptions);
+  }
 
-  const activeScenarioTitle = workspace
-    .querySelector<HTMLElement>('[data-scroll-label="Actief scenario"] h1, [data-scroll-label="Actief scenario"] h2, [data-scroll-label="Actief scenario"] h3')
-    ?.textContent?.trim()
-    || workspace.querySelector<HTMLElement>('p')?.textContent?.trim()
-    || 'scenario';
-
-  if (scenarioTabList.dataset.defaultScenarioKey === activeScenarioTitle) return;
-  scenarioTabList.dataset.defaultScenarioKey = activeScenarioTitle;
+  if (scenarioTabList.dataset.defaultCalculationApplied === 'true') return;
+  scenarioTabList.dataset.defaultCalculationApplied = 'true';
   window.requestAnimationFrame(() => calculation.click());
 }
 
