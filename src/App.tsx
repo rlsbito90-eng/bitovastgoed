@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
+import DynamicSectionNavigator from "@/components/DynamicSectionNavigator";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DataStoreProvider, useDataStore } from "@/hooks/useDataStore";
 import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
@@ -66,6 +67,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ScrollToTop />
+        <DynamicSectionNavigator />
         <AuthProvider>
           <SubcategorieProvider>
             <PropertyTaxonomieProvider>
