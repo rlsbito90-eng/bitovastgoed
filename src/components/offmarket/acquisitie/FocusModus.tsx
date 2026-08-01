@@ -3,6 +3,7 @@
 // Geen automatische dossierwijzigingen. Geen Kadaster-/BAG-/AI-aanroep.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Check, ChevronLeft, ExternalLink, SkipForward,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
   startWerkronde,
   voortgang,
   voortgangTekst,
+  wisWerkronde,
   zetPositie,
   type Werkronde,
 } from '@/lib/offMarket/acquisitie/werkronde';
@@ -55,6 +57,16 @@ interface Props {
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
+}
+
+function dezelfdeScope(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((id, index) => id === b[index]);
+}
+
+function volledigBehandeld(ronde: Werkronde): boolean {
+  const behandeld = new Set(ronde.behandeldeIds);
+  return ronde.scopeIds.every((id) => behandeld.has(id));
 }
 
 export default function FocusModus({
@@ -86,24 +98,34 @@ export default function FocusModus({
     schrijfWerkronde(volgende);
   };
 
+  const rondWerkrondeAf = () => {
+    wisWerkronde();
+    setWerkronde(null);
+    toast.success('Werkronde afgerond');
+    onClose();
+  };
+
   // Iedere klik op "Verwerk" start automatisch een persistente werkronde.
-  // Bestaat al een werkronde, dan wordt die hervat op het eerste resterende item.
+  // Alleen een werkronde met exact dezelfde vaste scope wordt hervat.
+  // Een oude ronde met een andere selectie of filter blokkeert zo nooit een nieuwe ronde.
   useEffect(() => {
     if (!open || beschikbareIds.length === 0) return;
 
     const opgeslagen = leesWerkronde();
     const scopeIds = focusScopeIds?.length ? focusScopeIds : beschikbareIds;
-    let ronde = opgeslagen;
+    const kanHervatten = !!opgeslagen
+      && dezelfdeScope(opgeslagen.scopeIds, scopeIds)
+      && !volledigBehandeld(opgeslagen);
 
-    if (!ronde) {
-      ronde = startWerkronde({
-        bron: selectedIds?.length ? 'handmatig' : 'werkbak',
-        naam: selectedIds?.length
-          ? `Geselecteerde signalen (${scopeIds.length})`
-          : `Verwerk selectie (${scopeIds.length})`,
-        scopeIds,
-      });
-    }
+    const ronde = kanHervatten
+      ? opgeslagen
+      : startWerkronde({
+          bron: selectedIds?.length ? 'handmatig' : 'werkbak',
+          naam: selectedIds?.length
+            ? `Geselecteerde signalen (${scopeIds.length})`
+            : `Verwerk selectie (${scopeIds.length})`,
+          scopeIds,
+        });
 
     const volgendeId = eerstVolgendeId(ronde, beschikbareIds)
       ?? ronde.huidigeId
@@ -134,6 +156,11 @@ export default function FocusModus({
   }, [items.length, index, open, onClose, onIndexChange]);
 
   const gaNaarVolgendeResterende = (ronde: Werkronde) => {
+    if (volledigBehandeld(ronde)) {
+      rondWerkrondeAf();
+      return;
+    }
+
     const volgendeId = eerstVolgendeId(ronde, beschikbareIds);
     if (!volgendeId) {
       bewaarWerkronde(zetPositie(ronde, null));
