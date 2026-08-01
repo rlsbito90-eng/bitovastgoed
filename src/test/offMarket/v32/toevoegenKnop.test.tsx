@@ -7,6 +7,8 @@ const addMock = vi.fn(() => Promise.resolve());
 const removeMock = vi.fn(() => Promise.resolve());
 let isIn = false;
 
+vi.stubGlobal('confirm', vi.fn(() => true));
+
 vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useIsInAcquisitieSelectie: () => isIn,
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: addMock, isPending: false }),
@@ -41,12 +43,12 @@ describe('ToevoegenAanAcquisitieSelectieKnop', () => {
     expect(screen.getByTestId('acquisitie-selectie-toggle').textContent).toMatch(/Uit selectie/i);
   });
 
-  it('labelMode="remove" toont "Verwijderen" met juist aria-label', () => {
+  it('labelMode="remove" toont "Uit selectie" met juist aria-label', () => {
     isIn = true;
     render(<ToevoegenAanAcquisitieSelectieKnop signaalId="r-1" variant="compact" labelMode="remove" />);
     const btn = screen.getByTestId('acquisitie-selectie-toggle');
-    expect(btn.textContent).toMatch(/Verwijderen/);
-    expect(btn.getAttribute('aria-label')).toMatch(/Verwijder dit signaal uit de acquisitieselectie/i);
+    expect(btn.textContent).toMatch(/Uit selectie/i);
+    expect(btn.getAttribute('aria-label')).toMatch(/Haal dit signaal uit de acquisitieselectie/i);
   });
 
   it('roept toevoegen aan bij klik', async () => {
@@ -57,11 +59,12 @@ describe('ToevoegenAanAcquisitieSelectieKnop', () => {
     expect(addMock).toHaveBeenCalledWith('sig-3');
   });
 
-  it('roept verwijderen aan bij klik wanneer in selectie', async () => {
+  it('roept soft-remove aan na bevestiging wanneer in selectie', async () => {
     isIn = true;
     removeMock.mockClear();
     render(<ToevoegenAanAcquisitieSelectieKnop signaalId="sig-4" />);
     fireEvent.click(screen.getByTestId('acquisitie-selectie-toggle'));
+    expect(window.confirm).toHaveBeenCalled();
     expect(removeMock).toHaveBeenCalledWith('sig-4');
   });
 
