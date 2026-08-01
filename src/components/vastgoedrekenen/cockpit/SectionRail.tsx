@@ -65,7 +65,7 @@ export function SectionRail({ items }: { items: RailItem[] }) {
   const percentage = used.length > 0 ? Math.round((completeCount / used.length) * 100) : 0;
 
   return (
-    <section className="lg:col-span-2 lg:[&+div]:col-span-2 min-w-0 rounded-lg border border-border/70 bg-card shadow-sm">
+    <section className="sticky top-[178px] z-10 min-w-0 rounded-lg border border-border/70 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:col-span-2 lg:[&+div]:col-span-2">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -87,7 +87,7 @@ export function SectionRail({ items }: { items: RailItem[] }) {
       </button>
 
       {open && (
-        <div className="border-t border-border/60 p-2 sm:p-3">
+        <div className="max-h-[55vh] overflow-y-auto border-t border-border/60 p-2 sm:p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">Status gaat over gebruik en volledigheid binnen dit scenario, niet over taxatiekwaliteit.</p>
             <button
@@ -131,7 +131,7 @@ function RailButton({ item }: { item: RailItem }) {
       title={`${config.label}${item.hint ? ` — ${item.hint}` : ''}`}
       className="flex min-w-[190px] max-w-[250px] items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-left hover:border-primary/30 hover:bg-muted/30"
     >
-      <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground">{item.number}</span>
+      <span className="text-[10px] tabular-nums text-muted-foreground">{item.number}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium text-foreground">{item.title}</span>
         <span className="block truncate text-[10px] text-muted-foreground">{item.hint || config.label}</span>
