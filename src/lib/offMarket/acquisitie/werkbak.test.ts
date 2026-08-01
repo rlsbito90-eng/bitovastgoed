@@ -1,3 +1,4 @@
+// Tijdelijke verificatiewijziging voor GitHub Actions; deze branch wordt niet gemerged.
 import { describe, expect, it } from 'vitest';
 import {
   bepaalWerkbakContext,
