@@ -15,6 +15,7 @@ import {
 } from '@/lib/acquisitie';
 import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge';
 import AcquisitieEigenarenOverzicht from '@/components/acquisitie/AcquisitieEigenarenOverzicht';
+import AcquisitieRapportageOverzicht from '@/components/acquisitie/AcquisitieRapportageOverzicht';
 import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import AcquisitieCampagneFormDialog from '@/components/forms/AcquisitieCampagneFormDialog';
@@ -25,7 +26,7 @@ import { byDate, byString, combine } from '@/lib/sorting/comparators';
 import { smartAcquisitieCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 
-type Tab = 'targets' | 'eigenaren' | 'campagnes';
+type Tab = 'targets' | 'eigenaren' | 'campagnes' | 'rapportage';
 
 export default function AcquisitiePage() {
   const { targets, campagnes, laden } = useAcquisitie();
@@ -94,14 +95,15 @@ export default function AcquisitiePage() {
   const tabLabel = (t: Tab): string => {
     if (t === 'targets') return `Targets (${targets.length})`;
     if (t === 'eigenaren') return `Eigenaren (${new Set(targets.map(x => x.relatieId).filter(Boolean)).size})`;
-    return `Campagnes (${campagnes.length})`;
+    if (t === 'campagnes') return `Campagnes (${campagnes.length})`;
+    return 'Rapportage';
   };
 
   return (
     <div className="page-shell-wide">
       <PageHeader
         title="Acquisitie"
-        subtitle="Targets, eigenaren en campagnes vóór een pand aanbod wordt."
+        subtitle="Targets, eigenaren, campagnes en conversie vóór een pand aanbod wordt."
         actions={
           tab === 'targets' ? (
             <Button onClick={() => setTargetForm({ open: true, target: null })}>
@@ -116,7 +118,7 @@ export default function AcquisitiePage() {
       />
 
       <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {(['targets', 'eigenaren', 'campagnes'] as Tab[]).map(t => (
+        {(['targets', 'eigenaren', 'campagnes', 'rapportage'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -203,6 +205,7 @@ export default function AcquisitiePage() {
       )}
 
       {tab === 'eigenaren' && <AcquisitieEigenarenOverzicht />}
+      {tab === 'rapportage' && <AcquisitieRapportageOverzicht />}
 
       {tab === 'campagnes' && (
         <section className="section-card overflow-hidden">
