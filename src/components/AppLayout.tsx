@@ -246,9 +246,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-accent" : ""}`} />
                   {!desktopCollapsed && <span className="tracking-tight">{item.label}</span>}
                 </Link>
+                {item.path === "/vastgoedrekenen" && !desktopCollapsed && (
+                  <VastgoedrekenenSubmenu pathname={location.pathname} search={location.search} />
+                )}
                 {item.groupEnd && (
                   <div className={`my-2 border-t border-sidebar-border/40 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
                 )}
+
               </div>
             );
           })}
@@ -378,9 +382,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
                         {item.label}
                       </Link>
+                      {item.path === "/vastgoedrekenen" && (
+                        <VastgoedrekenenSubmenu
+                          pathname={location.pathname}
+                          search={location.search}
+                          onNavigate={() => setMobileOpen(false)}
+                        />
+                      )}
                       {item.groupEnd && (
                         <div className="my-1.5 mx-1 border-t border-sidebar-border/60" aria-hidden />
                       )}
+
                     </div>
                   );
                 })}
