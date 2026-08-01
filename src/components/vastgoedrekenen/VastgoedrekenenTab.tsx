@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { useObjectCalculations, useQuickscanDetail, useTaxSettings } from '@/hooks/useVastgoedrekenen';
 import { cloneScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
@@ -44,6 +45,13 @@ type Props = {
   objectVraagprijs?: number | null;
   initialCalculationId?: string | null;
 };
+
+const CASE_WORKSPACE_TABS = [
+  { value: 'overview', label: 'Overzicht' },
+  { value: 'scope', label: 'Object & uitgangspunten' },
+  { value: 'scenarios', label: "Scenario's" },
+  { value: 'results', label: 'Resultaten & vergelijking' },
+] as const;
 
 function MobileFieldGroup({ label, children, helper, className }: { label: ReactNode; children: ReactNode; helper?: ReactNode; className?: string }) {
   return (
@@ -159,70 +167,123 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
     return true;
   }
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
-            <MobileFieldGroup label="Naam quickscan" className="md:col-span-2 lg:col-span-1 lg:flex-1">
-              <RawTextInput
-                initialValue={calculation.calculation_name}
-                onCommit={(value) => {
-                  const trimmed = value.trim();
-                  if (trimmed && trimmed !== calculation.calculation_name) updateCalculation({ calculation_name: trimmed });
-                }}
-              />
-            </MobileFieldGroup>
-            <MobileFieldGroup label="Status">
-              <Select value={calculation.status} onValueChange={(v) => updateCalculation({ status: v as typeof calculation.status })}>
-                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-              </Select>
-            </MobileFieldGroup>
-            <MobileFieldGroup
-              label="Legacy hoofdstrategie"
-              helper="Tijdelijk compatibiliteitsveld voor bestaande scenario’s en rekenlogica. Nieuwe strategiekeuzes staan per scenario."
-            >
-              <Select value={calculation.main_strategy} onValueChange={(v) => updateCalculation({ main_strategy: v as typeof calculation.main_strategy })}>
-                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-              </Select>
-            </MobileFieldGroup>
-            <MobileFieldGroup label="Objectstructuur">
-              <Select value={calculation.object_type} onValueChange={(v) => updateCalculation({ object_type: v as typeof calculation.object_type })}>
-                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="enkelvoudig">Enkelvoudig</SelectItem>
-                  <SelectItem value="mixed_use">Mixed-use</SelectItem>
-                </SelectContent>
-              </Select>
-            </MobileFieldGroup>
-            <AnalysisPropositionSettings
-              analysis={calculation}
-              onChangeType={(type) => updateCalculation(propositionPersistencePatch({ propositionType: type }))}
+  const analysisSettings = (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+          <MobileFieldGroup label="Naam quickscan" className="md:col-span-2 lg:col-span-1 lg:flex-1">
+            <RawTextInput
+              initialValue={calculation.calculation_name}
+              onCommit={(value) => {
+                const trimmed = value.trim();
+                if (trimmed && trimmed !== calculation.calculation_name) updateCalculation({ calculation_name: trimmed });
+              }}
             />
-            <Button className="w-full md:w-auto md:col-span-2 lg:col-span-4 lg:justify-self-end" onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
-              <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Status">
+            <Select value={calculation.status} onValueChange={(v) => updateCalculation({ status: v as typeof calculation.status })}>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>{Object.entries(VR_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+            </Select>
+          </MobileFieldGroup>
+          <MobileFieldGroup
+            label="Legacy hoofdstrategie"
+            helper="Tijdelijk compatibiliteitsveld voor bestaande scenario’s en rekenlogica. Nieuwe strategiekeuzes staan per scenario."
+          >
+            <Select value={calculation.main_strategy} onValueChange={(v) => updateCalculation({ main_strategy: v as typeof calculation.main_strategy })}>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>{Object.entries(VR_STRATEGY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+            </Select>
+          </MobileFieldGroup>
+          <MobileFieldGroup label="Objectstructuur">
+            <Select value={calculation.object_type} onValueChange={(v) => updateCalculation({ object_type: v as typeof calculation.object_type })}>
+              <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="enkelvoudig">Enkelvoudig</SelectItem>
+                <SelectItem value="mixed_use">Mixed-use</SelectItem>
+              </SelectContent>
+            </Select>
+          </MobileFieldGroup>
+          <AnalysisPropositionSettings
+            analysis={calculation}
+            onChangeType={(type) => updateCalculation(propositionPersistencePatch({ propositionType: type }))}
+          />
+        </div>
+      </CardHeader>
+    </Card>
+  );
 
-      <AnalysisScopeSettings analysis={calculation} onSave={saveAnalysisScope} />
+  return (
+    <Tabs defaultValue="overview" className="space-y-4" data-testid="vastgoedrekenen-case-workspace">
+      <div className="rounded-lg border bg-card/70 p-2 shadow-sm">
+        <div className="mb-2 px-1">
+          <p className="text-sm font-medium">Case doorrekenen</p>
+          <p className="text-xs text-muted-foreground">
+            Open alleen het onderdeel dat je nodig hebt. De bestaande invoer, berekeningen en opslag blijven ongewijzigd.
+          </p>
+        </div>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="inline-flex h-auto min-w-max gap-1 bg-muted/50 p-1">
+            {CASE_WORKSPACE_TABS.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="min-h-9 whitespace-nowrap px-3 text-xs">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+      </div>
 
-      <ScenarioVergelijking
-        scenarios={scenarios}
-        taxSettings={taxSettings}
-        objectType={calculation.object_type}
-        objectArea={objectArea}
-        objectWoz={objectWoz}
-        objectEnergyLabel={objectEnergyLabel}
-        objectBouwjaar={objectBouwjaar}
-        objectRawType={objectRawType}
-        onSelectScenario={openAndScrollTo}
-      />
+      <TabsContent value="overview" className="mt-0 space-y-4">
+        {analysisSettings}
+        <Card>
+          <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Scenario's</p>
+              <p className="mt-1 text-xl font-semibold font-mono-data">{scenarios.length}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Objectstructuur</p>
+              <p className="mt-1 text-sm font-medium">{calculation.object_type === 'mixed_use' ? 'Mixed-use' : 'Enkelvoudig'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Propositie</p>
+              <p className="mt-1 text-sm font-medium">{proposition.propositionType === 'renovate_and_sell' ? 'Renoveren en verkopen' : 'Reguliere analyse'}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
+            <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
+          </Button>
+        </div>
+      </TabsContent>
 
-      <div className="space-y-3">
+      <TabsContent value="scope" className="mt-0 space-y-4">
+        {analysisSettings}
+        <AnalysisScopeSettings analysis={calculation} onSave={saveAnalysisScope} />
+      </TabsContent>
+
+      <TabsContent value="results" className="mt-0">
+        <ScenarioVergelijking
+          scenarios={scenarios}
+          taxSettings={taxSettings}
+          objectType={calculation.object_type}
+          objectArea={objectArea}
+          objectWoz={objectWoz}
+          objectEnergyLabel={objectEnergyLabel}
+          objectBouwjaar={objectBouwjaar}
+          objectRawType={objectRawType}
+          onSelectScenario={openAndScrollTo}
+        />
+      </TabsContent>
+
+      <TabsContent value="scenarios" className="mt-0 space-y-3">
+        <div className="flex justify-end">
+          <Button onClick={() => createScenario({ scenario_name: `Scenario ${scenarios.length + 1}` })}>
+            <Plus className="h-4 w-4 mr-1" /> Nieuw scenario
+          </Button>
+        </div>
+
         {scenarios.map((s) => {
           const open = openScenarios.has(s.id);
           const duplicating = duplicatingId === s.id;
@@ -260,29 +321,47 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
               </div>
               {open && (
                 <div className="p-4">
-                  <ScenarioTaxonomyPanel
-                    scenario={s}
-                    onSave={(patch) => saveScenarioTaxonomy(s.id, patch)}
-                    onSyncCompatibility={(patch) => syncScenarioCompatibility(s.id, patch)}
-                  />
-                  {proposition.propositionType === 'renovate_and_sell' && (
-                    <RenovateAndSellPanel scenario={s} onSaved={refetch} />
-                  )}
-                  <ScenarioKengetallenPanel scenario={s} onUpdateScenario={updateScenario} />
-                  <ScenarioEditor
-                    scenario={s}
-                    taxSettings={taxSettings}
-                    objectType={calculation.object_type}
-                    objectArea={objectArea}
-                    objectWoz={objectWoz}
-                    objectEnergyLabel={objectEnergyLabel}
-                    objectBouwjaar={objectBouwjaar}
-                    objectRawType={objectRawType}
-                    objectVraagprijs={objectVraagprijs}
-                    viewMode={viewMode}
-                    onUpdate={updateScenario}
-                    onDelete={deleteScenario}
-                  />
+                  <Tabs defaultValue="setup" className="space-y-4">
+                    <div className="overflow-x-auto pb-1">
+                      <TabsList className="inline-flex h-auto min-w-max gap-1">
+                        <TabsTrigger value="setup">Opzet & classificatie</TabsTrigger>
+                        <TabsTrigger value="assumptions">Kengetallen & aannames</TabsTrigger>
+                        <TabsTrigger value="calculation">Doorrekenen</TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value="setup" className="mt-0 space-y-4">
+                      <ScenarioTaxonomyPanel
+                        scenario={s}
+                        onSave={(patch) => saveScenarioTaxonomy(s.id, patch)}
+                        onSyncCompatibility={(patch) => syncScenarioCompatibility(s.id, patch)}
+                      />
+                      {proposition.propositionType === 'renovate_and_sell' && (
+                        <RenovateAndSellPanel scenario={s} onSaved={refetch} />
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="assumptions" className="mt-0">
+                      <ScenarioKengetallenPanel scenario={s} onUpdateScenario={updateScenario} />
+                    </TabsContent>
+
+                    <TabsContent value="calculation" className="mt-0">
+                      <ScenarioEditor
+                        scenario={s}
+                        taxSettings={taxSettings}
+                        objectType={calculation.object_type}
+                        objectArea={objectArea}
+                        objectWoz={objectWoz}
+                        objectEnergyLabel={objectEnergyLabel}
+                        objectBouwjaar={objectBouwjaar}
+                        objectRawType={objectRawType}
+                        objectVraagprijs={objectVraagprijs}
+                        viewMode={viewMode}
+                        onUpdate={updateScenario}
+                        onDelete={deleteScenario}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
             </div>
@@ -291,8 +370,8 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
         {scenarios.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-6">Nog geen scenario's. Maak een eerste scenario aan om te beginnen.</p>
         )}
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 
