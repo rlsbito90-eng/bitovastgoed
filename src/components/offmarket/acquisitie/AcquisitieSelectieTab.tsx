@@ -695,17 +695,14 @@ export default function AcquisitieSelectieTab() {
           type="button"
           size="sm"
           variant="default"
-          onClick={openVerwerk}
+          onClick={primaireVerwerkActie}
           data-testid="acquisitie-verwerk-selectie"
-          disabled={readiness.lijst.length === 0}
+          disabled={primaireVerwerkDisabled}
         >
           <PlayCircle className="h-4 w-4" />
-          {bulkSelectie.size > 0
-            ? `Verwerk geselecteerde (${bulkSelectie.size})`
-            : werkbak !== 'alles'
-              ? `Verwerk ${WERKBAK_LABEL[werkbak]} (${gefilterd.length})`
-              : 'Verwerk selectie'}
+          {primaireVerwerkLabel()}
         </Button>
+
       </div>
 
       {/* Tweede filterlaag: Printen & posten */}
