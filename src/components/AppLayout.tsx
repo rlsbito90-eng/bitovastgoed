@@ -39,10 +39,49 @@ import NotificationsBell from "@/components/NotificationsBell";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
+import {
+  VR_WORKSPACE_NAV_ITEMS,
+  resolveVrWorkspaceSection,
+} from "@/lib/vastgoedrekenen/workspaceNavigation";
 
 // Test-flag: hamburger rechts op mobiel. Zet op `false` om terug te draaien.
 // Zie .lovable/plan.md (Mobile Workflow Polish — Blok 6).
 const HAMBURGER_RIGHT_MOBILE = true;
+
+function VastgoedrekenenSubmenu({
+  pathname,
+  search,
+  onNavigate,
+}: {
+  pathname: string;
+  search: string;
+  onNavigate?: () => void;
+}) {
+  if (!pathname.startsWith("/vastgoedrekenen")) return null;
+  const actief = resolveVrWorkspaceSection(search);
+  return (
+    <ul className="mt-1 ml-5 space-y-0.5 border-l border-sidebar-border/60 pl-2" data-testid="vr-submenu">
+      {VR_WORKSPACE_NAV_ITEMS.map((item) => (
+        <li key={item.section}>
+          <Link
+            to={item.href}
+            onClick={() => onNavigate?.()}
+            data-testid={`vr-submenu-${item.section}`}
+            aria-current={item.section === actief ? "page" : undefined}
+            className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
+              item.section === actief
+                ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+            }`}
+          >
+            {item.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 
 const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
