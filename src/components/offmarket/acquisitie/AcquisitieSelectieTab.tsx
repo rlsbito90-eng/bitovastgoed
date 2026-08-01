@@ -7,10 +7,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Users,
+  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Trash2, Users,
 } from 'lucide-react';
 
-import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
+import {
+  useAcquisitieSelectie,
+  useVerwijderUitAcquisitieSelectie,
+} from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import {
   useAcquisitieReadiness, useBrievenVoorSignalen,
@@ -105,6 +108,7 @@ export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: items = [], isLoading } = useAcquisitieSelectie();
+  const verwijderUitSelectie = useVerwijderUitAcquisitieSelectie();
   const { data: signalen = [] } = useOffMarketSignalen();
 
   const signaalIndex = useMemo(() => {
@@ -433,6 +437,31 @@ export default function AcquisitieSelectieTab() {
   }
 
   function wisBulk() { setBulkSelectie(new Set()); }
+
+  async function verwijderBulkUitSelectie() {
+    const ids = Array.from(bulkSelectie);
+    if (ids.length === 0 || verwijderUitSelectie.isPending) return;
+
+    const bevestigd = window.confirm(
+      `${ids.length} geselecteerde signalen uit de acquisitieselectie halen?\n\n` +
+      'De oorspronkelijke signalen, eigenaren, brieven en historie blijven behouden.',
+    );
+    if (!bevestigd) return;
+
+    try {
+      for (const id of ids) {
+        await verwijderUitSelectie.mutateAsync(id);
+      }
+      setBulkSelectie(new Set());
+      toast.success(`${ids.length} signalen uit de acquisitieselectie gehaald`, {
+        description: 'De oorspronkelijke signalen en historie zijn behouden.',
+      });
+    } catch (err) {
+      toast.error('Geselecteerde signalen uit selectie halen mislukt', {
+        description: err instanceof Error ? err.message : 'Onbekende fout',
+      });
+    }
+  }
 
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -850,6 +879,20 @@ export default function AcquisitieSelectieTab() {
           >
             <Send className="h-3.5 w-3.5" />
             Markeer gepost
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={verwijderBulkUitSelectie}
+            disabled={bulkSelectie.size === 0 || verwijderUitSelectie.isPending}
+            data-testid="acquisitie-bulk-uit-selectie"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {verwijderUitSelectie.isPending
+              ? 'Uit selectie halen…'
+              : `Geselecteerde uit selectie (${bulkSelectie.size})`}
           </Button>
         </div>
       </div>
