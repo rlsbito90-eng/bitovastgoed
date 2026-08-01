@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { isValidElement, useState, type ReactNode } from 'react';
 import { ChevronRight, AlertTriangle } from 'lucide-react';
 
 export type SectionRelevance = 'leidend' | 'informatief' | 'niet_relevant' | 'aandacht';
+export type SectionInputPresence = 'aanwezig' | 'leeg';
 
 const RELEVANCE_LABEL: Record<SectionRelevance, string> = {
   leidend: 'Leidend',
@@ -16,6 +17,45 @@ const RELEVANCE_CLS: Record<SectionRelevance, string> = {
   niet_relevant: 'bg-muted/50 text-muted-foreground/70 border-border',
   aandacht: 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/40',
 };
+
+function reactNodeText(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(reactNodeText).join(' ');
+  if (isValidElement<{ children?: ReactNode }>(node)) return reactNodeText(node.props.children);
+  return '';
+}
+
+/**
+ * Tijdelijke, terugdraaibare fallback voor bestaande secties. De statusregel
+ * bevat in deze module meestal een bedrag, aantal of expliciete leegmelding.
+ * Callers kunnen dit later exact overschrijven via inputPresence.
+ */
+function inferInputPresence(status: ReactNode): SectionInputPresence {
+  const text = reactNodeText(status).replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!text) return 'leeg';
+
+  const explicitEmpty = [
+    'geen componenten',
+    'geen units',
+    'geen woonunits',
+    'geen verkoopdata',
+    'geen notities',
+    'onvoldoende gegevens',
+    'niet leidend voor dit verkoopscenario',
+  ];
+  if (explicitEmpty.some((label) => text.includes(label))) return 'leeg';
+  if (/^0\s+aandachtspunt/.test(text)) return 'leeg';
+
+  const numericTokens = text.match(/-?\d[\d.\s]*(?:,\d+)?/g) ?? [];
+  const hasNonZeroNumber = numericTokens.some((token) => {
+    const normalized = token.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+    const value = Number(normalized);
+    return Number.isFinite(value) && Math.abs(value) > 0;
+  });
+
+  return hasNonZeroNumber ? 'aanwezig' : 'leeg';
+}
 
 /**
  * Lichte, inklapbare sectie voor de Vastgoedrekenen-module.
@@ -34,6 +74,7 @@ export function Section({
   id,
   source,
   relevance,
+  inputPresence,
   numberLabel,
 }: {
   title: string;
@@ -50,6 +91,8 @@ export function Section({
   source?: string;
   /** Rol van de sectie binnen het huidige scenario. */
   relevance?: SectionRelevance;
+  /** Expliciete invoerstatus. Zonder waarde wordt tijdelijk uit de statusregel afgeleid. */
+  inputPresence?: SectionInputPresence;
   /** Subnummer (bv. "03.2") subtiel getoond vóór de titel. */
   numberLabel?: string;
 }) {
@@ -61,12 +104,16 @@ export function Section({
     else { setInnerOpen((v) => !v); onOpenChange?.(!open); }
   };
   if (hidden) return null;
+
+  const effectiveInputPresence = inputPresence ?? inferInputPresence(status);
+  const hasInput = effectiveInputPresence === 'aanwezig';
   const borderCls =
     relevance === 'aandacht'
       ? 'border-amber-500/50'
       : tone === 'primary' || relevance === 'leidend'
       ? 'border-primary/40'
       : 'border-border/70';
+
   return (
     <div
       id={id}
@@ -91,6 +138,11 @@ export function Section({
           >
             {title}
           </span>
+          <span
+            aria-label={hasInput ? 'Invoer aanwezig' : 'Nog geen invoer'}
+            title={hasInput ? 'Invoer aanwezig' : 'Nog geen invoer herkend'}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full border ${hasInput ? 'border-accent bg-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.12)]' : 'border-muted-foreground/35 bg-transparent'}`}
+          />
           {relevance && (
             <span
               className={`hidden sm:inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wide font-semibold ${RELEVANCE_CLS[relevance]}`}
@@ -115,9 +167,6 @@ export function Section({
     </div>
   );
 }
-
-
-
 
 /**
  * Visuele groep-heading boven een reeks Sections. Geen wrapper — render
@@ -158,7 +207,3 @@ export function SectionGroup({
     </section>
   );
 }
-
-
-
-
