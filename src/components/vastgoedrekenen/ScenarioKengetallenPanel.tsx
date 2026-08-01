@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useKengetallenregister, useScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
 import {
   KENGETAL_BETROUWBAARHEID_LABELS,
@@ -42,38 +43,19 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
   const [manualReason, setManualReason] = useState('');
 
   const activeEntries = useMemo(() => entries.filter((entry) => entry.actief), [entries]);
-  const snapshotByCode = useMemo(
-    () => new Map(snapshots.map((snapshot) => [snapshot.kengetal_code, snapshot])),
-    [snapshots],
-  );
-  const entryByCode = useMemo(
-    () => new Map(entries.map((entry) => [entry.code, entry])),
-    [entries],
-  );
+  const snapshotByCode = useMemo(() => new Map(snapshots.map((snapshot) => [snapshot.kengetal_code, snapshot])), [snapshots]);
+  const entryByCode = useMemo(() => new Map(entries.map((entry) => [entry.code, entry])), [entries]);
 
-  async function applyBand(
-    entry: VastgoedrekenenKengetal,
-    band: KengetalBand,
-    manualValue?: number,
-    reason?: string,
-  ): Promise<boolean> {
+  async function applyBand(entry: VastgoedrekenenKengetal, band: KengetalBand, manualValue?: number, reason?: string): Promise<boolean> {
     setApplyingCode(entry.code);
     try {
-      const snapshot = await apply({
-        kengetal: entry,
-        band,
-        manualValue,
-        overrideReason: reason,
-      });
+      const snapshot = await apply({ kengetal: entry, band, manualValue, overrideReason: reason });
       if (!snapshot) return false;
-
       const patch = buildScenarioPatchForKengetal(entry.scenario_veld, snapshot.gekozen_waarde);
       if (Object.keys(patch).length > 0) {
         try {
           await onUpdateScenario(scenario.id, patch as GuardedScenarioPatch);
         } catch {
-          // Houd snapshot en scenarioveld bij elkaar. Bij een mislukte scenariowijziging
-          // wordt de zojuist gemaakte snapshot teruggedraaid.
           await remove(snapshot.id);
           return false;
         }
@@ -97,111 +79,103 @@ export default function ScenarioKengetallenPanel({ scenario, onUpdateScenario }:
 
   return (
     <>
-      <ComparativeValuationPanel scenario={scenario} onUpdateScenario={onUpdateScenario} />
+      <Tabs defaultValue="valuation" className="space-y-4">
+        <div className="overflow-x-auto rounded-lg border border-border/60 bg-muted/20 p-1">
+          <TabsList className="inline-flex h-auto min-w-max gap-1 bg-transparent p-0">
+            <TabsTrigger value="valuation" className="px-3 py-2">Marktwaardering</TabsTrigger>
+            <TabsTrigger value="profile" className="px-3 py-2">Invoerprofiel</TabsTrigger>
+            <TabsTrigger value="register" className="px-3 py-2">Kengetallen & snapshots</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <ScenarioInputProfileWorkspace
-        scenario={scenario}
-        entries={activeEntries}
-        snapshots={snapshots}
-        onApply={(entry, band) => applyBand(entry, band)}
-      />
+        <TabsContent value="valuation" className="mt-0">
+          <ComparativeValuationPanel scenario={scenario} onUpdateScenario={onUpdateScenario} />
+        </TabsContent>
 
-      <Card className="mb-4 border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Camera className="h-4 w-4" /> Kengetallen en momentopnamen
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Toepassen legt bron, peildatum, bandbreedte en registerversie vast. Latere registerwijzigingen veranderen dit scenario niet automatisch.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(registerLoading || snapshotLoading) && <p className="text-xs text-muted-foreground">Kengetallen laden…</p>}
+        <TabsContent value="profile" className="mt-0">
+          <ScenarioInputProfileWorkspace
+            scenario={scenario}
+            entries={activeEntries}
+            snapshots={snapshots}
+            onApply={(entry, band) => applyBand(entry, band)}
+          />
+        </TabsContent>
 
-          {!registerLoading && activeEntries.length === 0 && (
-            <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-              Geen actieve kengetallen. Voeg eerst een kengetal toe in het centrale register.
-            </p>
-          )}
+        <TabsContent value="register" className="mt-0">
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="border-b border-border/50 pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Camera className="h-4 w-4" /> Kengetallen en momentopnamen
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Toepassen legt bron, peildatum, bandbreedte en registerversie vast. Latere registerwijzigingen veranderen dit scenario niet automatisch.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              {(registerLoading || snapshotLoading) && <p className="text-xs text-muted-foreground">Kengetallen laden…</p>}
 
-          {activeEntries.map((entry) => {
-            const snapshot = snapshotByCode.get(entry.code);
-            const expired = isKengetalExpired(entry);
-            const applying = applyingCode === entry.code;
-            return (
-              <div key={entry.id} className="rounded-md border p-3">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-sm">{entry.naam}</p>
-                      <Badge variant={expired ? 'destructive' : 'outline'}>{expired ? 'Registerwaarde verlopen' : `v${entry.versie}`}</Badge>
-                      <Badge variant="outline">{KENGETAL_BETROUWBAARHEID_LABELS[entry.betrouwbaarheid]}</Badge>
-                    </div>
-                    <p className="mt-1 font-mono-data text-xs">
-                      Min {valueText(entry.minimum_waarde, entry.eenheid)} · Basis {valueText(entry.basis_waarde, entry.eenheid)} · Max {valueText(entry.maximum_waarde, entry.eenheid)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {entry.bron_naam} · peildatum {entry.bron_peildatum}
-                      {entry.scenario_veld ? ` · vult ${KENGETAL_SCENARIOVELD_LABELS[entry.scenario_veld]}` : ' · alleen onderbouwing'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    <Button size="sm" variant="outline" disabled={applying || expired} onClick={() => void applyBand(entry, 'minimum')}>Minimum</Button>
-                    <Button size="sm" disabled={applying || expired} onClick={() => void applyBand(entry, 'basis')}>Basis</Button>
-                    <Button size="sm" variant="secondary" disabled={applying || expired} onClick={() => void applyBand(entry, 'maximum')}>Maximum</Button>
-                    <Button size="sm" variant="ghost" disabled={applying} onClick={() => { setManualEntry(entry); setManualRaw(String(snapshot?.gekozen_waarde ?? entry.basis_waarde).replace('.', ',')); }}>Handmatig</Button>
-                  </div>
-                </div>
+              {!registerLoading && activeEntries.length === 0 && (
+                <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Geen actieve kengetallen. Voeg eerst een kengetal toe in het centrale register.</p>
+              )}
 
-                {snapshot && (
-                  <div className="mt-3 rounded-md border border-dashed bg-muted/30 p-2 text-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="font-medium">Vastgelegd:</span>{' '}
-                        <span className="font-mono-data">{valueText(snapshot.gekozen_waarde, snapshot.eenheid)}</span>{' '}
-                        · {snapshot.gekozen_band} · register v{snapshot.register_versie} · snapshot {new Date(snapshot.snapshot_op).toLocaleString('nl-NL')}
+              {activeEntries.map((entry) => {
+                const snapshot = snapshotByCode.get(entry.code);
+                const expired = isKengetalExpired(entry);
+                const applying = applyingCode === entry.code;
+                return (
+                  <div key={entry.id} className="rounded-md border p-3">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">{entry.naam}</p>
+                          <Badge variant={expired ? 'destructive' : 'outline'}>{expired ? 'Registerwaarde verlopen' : `v${entry.versie}`}</Badge>
+                          <Badge variant="outline">{KENGETAL_BETROUWBAARHEID_LABELS[entry.betrouwbaarheid]}</Badge>
+                        </div>
+                        <p className="mt-1 font-mono-data text-xs">Min {valueText(entry.minimum_waarde, entry.eenheid)} · Basis {valueText(entry.basis_waarde, entry.eenheid)} · Max {valueText(entry.maximum_waarde, entry.eenheid)}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {entry.bron_naam} · peildatum {entry.bron_peildatum}
+                          {entry.scenario_veld ? ` · vult ${KENGETAL_SCENARIOVELD_LABELS[entry.scenario_veld]}` : ' · alleen onderbouwing'}
+                        </p>
                       </div>
-                      <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => void remove(snapshot.id)}>
-                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Verwijder snapshot
-                      </Button>
+                      <div className="flex flex-wrap gap-1">
+                        <Button size="sm" variant="outline" disabled={applying || expired} onClick={() => void applyBand(entry, 'minimum')}>Minimum</Button>
+                        <Button size="sm" disabled={applying || expired} onClick={() => void applyBand(entry, 'basis')}>Basis</Button>
+                        <Button size="sm" variant="secondary" disabled={applying || expired} onClick={() => void applyBand(entry, 'maximum')}>Maximum</Button>
+                        <Button size="sm" variant="ghost" disabled={applying} onClick={() => { setManualEntry(entry); setManualRaw(String(snapshot?.gekozen_waarde ?? entry.basis_waarde).replace('.', ',')); }}>Handmatig</Button>
+                      </div>
                     </div>
-                    {snapshot.overschreven && <p className="mt-1 text-amber-700 dark:text-amber-300">Handmatig overschreven: {snapshot.override_reden}</p>}
-                    {isSnapshotOutdated(snapshot, entry) && (
-                      <p className="mt-1 flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                        <RefreshCw className="h-3.5 w-3.5" /> Register is inmiddels v{entry.versie}; dit scenario blijft bewust op v{snapshot.register_versie} tot je opnieuw toepast.
-                      </p>
-                    )}
-                    {isKengetalExpired(snapshot) && (
-                      <p className="mt-1 flex items-center gap-1 text-destructive">
-                        <AlertTriangle className="h-3.5 w-3.5" /> De bron van deze snapshot is verlopen. Herbeoordeel vóór gebruik als biedingsgrens.
-                      </p>
+
+                    {snapshot && (
+                      <div className="mt-3 rounded-md border border-dashed bg-muted/30 p-2 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div><span className="font-medium">Vastgelegd:</span>{' '}<span className="font-mono-data">{valueText(snapshot.gekozen_waarde, snapshot.eenheid)}</span>{' '}· {snapshot.gekozen_band} · register v{snapshot.register_versie} · snapshot {new Date(snapshot.snapshot_op).toLocaleString('nl-NL')}</div>
+                          <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => void remove(snapshot.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Verwijder snapshot</Button>
+                        </div>
+                        {snapshot.overschreven && <p className="mt-1 text-amber-700 dark:text-amber-300">Handmatig overschreven: {snapshot.override_reden}</p>}
+                        {isSnapshotOutdated(snapshot, entry) && <p className="mt-1 flex items-center gap-1 text-amber-700 dark:text-amber-300"><RefreshCw className="h-3.5 w-3.5" /> Register is inmiddels v{entry.versie}; dit scenario blijft bewust op v{snapshot.register_versie} tot je opnieuw toepast.</p>}
+                        {isKengetalExpired(snapshot) && <p className="mt-1 flex items-center gap-1 text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> De bron van deze snapshot is verlopen. Herbeoordeel vóór gebruik als biedingsgrens.</p>}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
 
-          {snapshots.filter((snapshot) => !entryByCode.has(snapshot.kengetal_code)).map((snapshot) => (
-            <div key={snapshot.id} className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-              Gearchiveerde/verwijderde registerbron: <span className="font-medium text-foreground">{snapshot.kengetal_naam}</span> · momentopname {valueText(snapshot.gekozen_waarde, snapshot.eenheid)} blijft behouden.
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+              {snapshots.filter((snapshot) => !entryByCode.has(snapshot.kengetal_code)).map((snapshot) => (
+                <div key={snapshot.id} className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                  Gearchiveerde/verwijderde registerbron: <span className="font-medium text-foreground">{snapshot.kengetal_naam}</span> · momentopname {valueText(snapshot.gekozen_waarde, snapshot.eenheid)} blijft behouden.
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={manualEntry !== null} onOpenChange={(open) => !open && setManualEntry(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Handmatige kengetalwaarde</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Waarde {manualEntry ? `(${manualEntry.eenheid})` : ''}</Label>
-              <Input inputMode="decimal" value={manualRaw} onChange={(event) => setManualRaw(event.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reden van afwijking</Label>
-              <Textarea rows={4} value={manualReason} onChange={(event) => setManualReason(event.target.value)} placeholder="Projectspecifieke onderbouwing, bron en reden van afwijking…" />
-            </div>
+            <div className="space-y-1.5"><Label>Waarde {manualEntry ? `(${manualEntry.eenheid})` : ''}</Label><Input inputMode="decimal" value={manualRaw} onChange={(event) => setManualRaw(event.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Reden van afwijking</Label><Textarea rows={4} value={manualReason} onChange={(event) => setManualReason(event.target.value)} placeholder="Projectspecifieke onderbouwing, bron en reden van afwijking…" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setManualEntry(null)}>Annuleren</Button>
