@@ -1,8 +1,21 @@
 import { createRoot } from "react-dom/client";
 import { Buffer } from "buffer";
 import App from "./App.tsx";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import { installGlobalAppRecovery, markAppBootSuccessful } from "./lib/appRecovery";
 import "./index.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
-createRoot(document.getElementById("root")!).render(<App />);
+installGlobalAppRecovery();
+
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("App-root ontbreekt");
+
+createRoot(rootElement).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>,
+);
+
+requestAnimationFrame(() => markAppBootSuccessful());
