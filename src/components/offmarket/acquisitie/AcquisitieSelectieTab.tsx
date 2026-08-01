@@ -534,34 +534,8 @@ export default function AcquisitieSelectieTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openVerwerk = () => {
-    // 1) Handmatige bulkselectie heeft voorrang.
-    if (bulkSelectie.size > 0) {
-      const ids = Array.from(bulkSelectie);
-      setVerwerkScopeIds(ids);
-      const lijst = readiness.lijst.filter((x) => bulkSelectie.has(x.signaal.id));
-      const startIdx = lijst.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
-      setFocusIndex(startIdx >= 0 ? startIdx : 0);
-      setFocusOpen(true);
-      return;
-    }
-    // 2) Geen bulkselectie + view is niet "alles": verwerk uitsluitend de
-    //    zichtbare/gefilterde rijen.
-    if (werkbak !== 'alles') {
-      const ids = gefilterd.map((x) => x.signaal.id);
-      setVerwerkScopeIds(ids);
-      const startIdx = gefilterd.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
-      setFocusIndex(startIdx >= 0 ? startIdx : 0);
-      setFocusOpen(true);
-      return;
-    }
-    // 3) View "alles" + geen bulkselectie: volledige acquisitieselectie.
-    setVerwerkScopeIds(null);
-    const startIdx = readiness.lijst.findIndex(({ readiness: r }) =>
-      r.info.status !== 'afgehandeld');
-    setFocusIndex(startIdx >= 0 ? startIdx : 0);
-    setFocusOpen(true);
-  };
+
+
 
   /** Huidige view als werkronde-bron. */
   function huidigeBron(): { bron: WerkrondeBron; naam: string } {
