@@ -756,17 +756,7 @@ export default function AcquisitieSelectieTab() {
             </Button>
           )}
         </label>
-        {!werkronde && (
-          <Button
-            type="button" size="sm" variant="outline"
-            onClick={startNieuweWerkronde}
-            disabled={gefilterd.length === 0}
-            data-testid="acquisitie-werkronde-start"
-          >
-            <PlayCircle className="h-3.5 w-3.5" />
-            Werkronde starten
-          </Button>
-        )}
+
       </div>
 
       {werkronde && werkrondeVoortgang && (
