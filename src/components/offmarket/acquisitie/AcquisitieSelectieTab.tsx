@@ -44,6 +44,7 @@ import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
+  ACTIE_SUBFILTER_LABEL,
   bepaalWerkbakContext,
   toegevoegdOpLabel,
   WERKBAK_LABEL,
