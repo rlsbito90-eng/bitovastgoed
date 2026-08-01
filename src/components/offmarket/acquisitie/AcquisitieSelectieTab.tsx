@@ -576,6 +576,40 @@ export default function AcquisitieSelectieTab() {
     setFocusOpen(true);
   };
 
+  /** Eén primaire bediening: hervat een open werkronde of start een nieuwe. */
+  const primaireVerwerkActie = () => {
+    if (werkronde) {
+      hervatWerkronde();
+      return;
+    }
+    startNieuweWerkronde();
+  };
+
+  const primaireVerwerkLabel = (): string => {
+    if (werkronde && werkrondeVoortgang) {
+      return `Hervat werkronde (${werkrondeVoortgang.resterend})`;
+    }
+    const n = bulkSelectie.size > 0 ? bulkSelectie.size : gefilterd.length;
+    if (bulkSelectie.size > 0) return `Verwerk geselecteerde (${n})`;
+    if (werkbak === 'actie') {
+      if (subfilter === 'alle') return `Verwerk Actie (${n})`;
+      if (subfilter === 'printen_posten') {
+        return printPost === 'alles'
+          ? `Verwerk Printen & posten (${n})`
+          : `Verwerk ${PRINT_POST_LABEL[printPost]} (${n})`;
+      }
+      return `Verwerk ${ACTIE_SUBFILTER_LABEL[subfilter]} (${n})`;
+    }
+    if (werkbak === 'alles') return `Verwerk selectie (${n})`;
+    return `Verwerk ${WERKBAK_LABEL[werkbak]} (${n})`;
+  };
+
+  const primaireVerwerkDisabled = werkronde
+    ? (werkrondeVoortgang?.resterend ?? 0) === 0
+    : bulkSelectie.size === 0 && gefilterd.length === 0;
+
+
+
   const beeindigWerkronde = () => {
     bewaarWerkronde(null);
     setVerwerkScopeIds(null);
