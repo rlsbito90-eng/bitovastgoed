@@ -214,12 +214,8 @@ export default function FocusModus({
 
   const voortgangInfo = werkronde ? voortgang(werkronde) : null;
 
-  // De losse knop "Werkronde starten" is overbodig: Verwerk doet dit nu altijd.
-  const verbergLosseWerkrondeKnop = (
-    <style>{'[data-testid="acquisitie-werkronde-start"]{display:none!important}'}</style>
-  );
+  if (!open || items.length === 0) return null;
 
-  if (!open || items.length === 0) return verbergLosseWerkrondeKnop;
 
   const huidig = items[veiligIndex];
   const { signaal, readiness } = huidig;
@@ -237,7 +233,7 @@ export default function FocusModus({
 
   return (
     <>
-      {verbergLosseWerkrondeKnop}
+      
       <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
         <DialogContent
           data-testid="focus-modus"

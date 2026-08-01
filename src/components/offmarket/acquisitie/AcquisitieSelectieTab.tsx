@@ -44,6 +44,7 @@ import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
+  ACTIE_SUBFILTER_LABEL,
   bepaalWerkbakContext,
   toegevoegdOpLabel,
   WERKBAK_LABEL,
@@ -534,34 +535,8 @@ export default function AcquisitieSelectieTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openVerwerk = () => {
-    // 1) Handmatige bulkselectie heeft voorrang.
-    if (bulkSelectie.size > 0) {
-      const ids = Array.from(bulkSelectie);
-      setVerwerkScopeIds(ids);
-      const lijst = readiness.lijst.filter((x) => bulkSelectie.has(x.signaal.id));
-      const startIdx = lijst.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
-      setFocusIndex(startIdx >= 0 ? startIdx : 0);
-      setFocusOpen(true);
-      return;
-    }
-    // 2) Geen bulkselectie + view is niet "alles": verwerk uitsluitend de
-    //    zichtbare/gefilterde rijen.
-    if (werkbak !== 'alles') {
-      const ids = gefilterd.map((x) => x.signaal.id);
-      setVerwerkScopeIds(ids);
-      const startIdx = gefilterd.findIndex(({ readiness: r }) => r.info.status !== 'afgehandeld');
-      setFocusIndex(startIdx >= 0 ? startIdx : 0);
-      setFocusOpen(true);
-      return;
-    }
-    // 3) View "alles" + geen bulkselectie: volledige acquisitieselectie.
-    setVerwerkScopeIds(null);
-    const startIdx = readiness.lijst.findIndex(({ readiness: r }) =>
-      r.info.status !== 'afgehandeld');
-    setFocusIndex(startIdx >= 0 ? startIdx : 0);
-    setFocusOpen(true);
-  };
+
+
 
   /** Huidige view als werkronde-bron. */
   function huidigeBron(): { bron: WerkrondeBron; naam: string } {
@@ -601,6 +576,40 @@ export default function AcquisitieSelectieTab() {
     setFocusIndex(idx);
     setFocusOpen(true);
   };
+
+  /** Eén primaire bediening: hervat een open werkronde of start een nieuwe. */
+  const primaireVerwerkActie = () => {
+    if (werkronde) {
+      hervatWerkronde();
+      return;
+    }
+    startNieuweWerkronde();
+  };
+
+  const primaireVerwerkLabel = (): string => {
+    if (werkronde && werkrondeVoortgang) {
+      return `Hervat werkronde (${werkrondeVoortgang.resterend})`;
+    }
+    const n = bulkSelectie.size > 0 ? bulkSelectie.size : gefilterd.length;
+    if (bulkSelectie.size > 0) return `Verwerk geselecteerde (${n})`;
+    if (werkbak === 'actie') {
+      if (subfilter === 'alle') return `Verwerk Actie (${n})`;
+      if (subfilter === 'printen_posten') {
+        return printPost === 'alles'
+          ? `Verwerk Printen & posten (${n})`
+          : `Verwerk ${PRINT_POST_LABEL[printPost]} (${n})`;
+      }
+      return `Verwerk ${ACTIE_SUBFILTER_LABEL[subfilter]} (${n})`;
+    }
+    if (werkbak === 'alles') return `Verwerk selectie (${n})`;
+    return `Verwerk ${WERKBAK_LABEL[werkbak]} (${n})`;
+  };
+
+  const primaireVerwerkDisabled = werkronde
+    ? (werkrondeVoortgang?.resterend ?? 0) === 0
+    : bulkSelectie.size === 0 && gefilterd.length === 0;
+
+
 
   const beeindigWerkronde = () => {
     bewaarWerkronde(null);
@@ -686,17 +695,14 @@ export default function AcquisitieSelectieTab() {
           type="button"
           size="sm"
           variant="default"
-          onClick={openVerwerk}
+          onClick={primaireVerwerkActie}
           data-testid="acquisitie-verwerk-selectie"
-          disabled={readiness.lijst.length === 0}
+          disabled={primaireVerwerkDisabled}
         >
           <PlayCircle className="h-4 w-4" />
-          {bulkSelectie.size > 0
-            ? `Verwerk geselecteerde (${bulkSelectie.size})`
-            : werkbak !== 'alles'
-              ? `Verwerk ${WERKBAK_LABEL[werkbak]} (${gefilterd.length})`
-              : 'Verwerk selectie'}
+          {primaireVerwerkLabel()}
         </Button>
+
       </div>
 
       {/* Tweede filterlaag: Printen & posten */}
@@ -750,17 +756,7 @@ export default function AcquisitieSelectieTab() {
             </Button>
           )}
         </label>
-        {!werkronde && (
-          <Button
-            type="button" size="sm" variant="outline"
-            onClick={startNieuweWerkronde}
-            disabled={gefilterd.length === 0}
-            data-testid="acquisitie-werkronde-start"
-          >
-            <PlayCircle className="h-3.5 w-3.5" />
-            Werkronde starten
-          </Button>
-        )}
+
       </div>
 
       {werkronde && werkrondeVoortgang && (
