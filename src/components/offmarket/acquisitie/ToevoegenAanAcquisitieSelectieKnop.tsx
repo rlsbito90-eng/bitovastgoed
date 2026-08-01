@@ -1,7 +1,9 @@
-// V1A — Toggle-knop: voegt signaal toe of verwijdert het uit de centrale
-// Off-Market Acquisitieselectie. Pending-state voorkomt dubbelklik.
+// V1A — Toggle-knop: voegt een signaal toe aan of haalt het uit de centrale
+// Off-Market Acquisitieselectie. Uit selectie is een soft-remove: alleen de
+// selectie-relatie wordt gearchiveerd; signaal, eigenaar, brieven en historie
+// blijven behouden. Pending-state voorkomt dubbelklik.
 import { useState } from 'react';
-import { ListPlus, ListChecks, Loader2, Trash2 } from 'lucide-react';
+import { ListPlus, ListChecks, Loader2, ListMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -17,9 +19,9 @@ interface Props {
   signaalId: string;
   variant?: Variant;
   /** Tekstvariant.
-   *  - 'long'   : "Toevoegen aan acquisitieselectie" / "Uit acquisitieselectie" (desktop detail)
-   *  - 'short'  : "Aan selectie" / "Uit selectie" (mobiel, kaartpopup, lijst)
-   *  - 'remove' : "Verwijderen" (binnen de Acquisitieselectie-tab)
+   *  - 'long'   : "Toevoegen aan acquisitieselectie" / "Uit acquisitieselectie"
+   *  - 'short'  : "Aan selectie" / "Uit selectie"
+   *  - 'remove' : "Uit selectie" binnen de Acquisitieselectie-tab
    *  Default volgt het variant: default→long, compact→short.
    */
   labelMode?: LabelMode;
@@ -48,17 +50,27 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
   const handleClick = async (e: React.MouseEvent) => {
     if (stopPropagation) e.stopPropagation();
     if (pending) return;
+
+    if (inSelectie) {
+      const bevestigd = window.confirm(
+        'Dit signaal uit de acquisitieselectie halen?\n\nHet oorspronkelijke signaal, de eigenaar, brieven en historie blijven behouden.',
+      );
+      if (!bevestigd) return;
+    }
+
     setLocalPending(true);
     try {
       if (inSelectie) {
         await verwijder.mutateAsync(signaalId);
-        toast.success('Verwijderd uit selectie');
+        toast.success('Uit acquisitieselectie gehaald', {
+          description: 'Het oorspronkelijke signaal en de historie zijn behouden.',
+        });
       } else {
         await voegToe.mutateAsync(signaalId);
         toast.success('Toegevoegd aan selectie');
       }
     } catch (err) {
-      toast.error(inSelectie ? 'Verwijderen mislukt' : 'Toevoegen mislukt', {
+      toast.error(inSelectie ? 'Uit selectie halen mislukt' : 'Toevoegen mislukt', {
         description: err instanceof Error ? err.message : 'Onbekende fout',
       });
     } finally {
@@ -73,7 +85,7 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
         onClick={handleClick}
         disabled={pending}
         aria-pressed={inSelectie}
-        aria-label={inSelectie ? 'Verwijder dit signaal uit de acquisitieselectie' : 'Voeg dit signaal toe aan de acquisitieselectie'}
+        aria-label={inSelectie ? 'Haal dit signaal uit de acquisitieselectie' : 'Voeg dit signaal toe aan de acquisitieselectie'}
         data-testid="acquisitie-selectie-toggle"
         data-variant="icon"
         data-in-selectie={inSelectie ? 'true' : 'false'}
@@ -89,24 +101,18 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
   }
 
   const mode: LabelMode = labelMode ?? (variant === 'compact' ? 'short' : 'long');
-  const labelToevoegen =
-    mode === 'long' ? 'Toevoegen aan acquisitieselectie'
-    : mode === 'remove' ? 'Verwijderen'
-    : 'Aan selectie';
-  const labelVerwijderen =
-    mode === 'long' ? 'Uit acquisitieselectie'
-    : mode === 'remove' ? 'Verwijderen'
-    : 'Uit selectie';
+  const labelToevoegen = mode === 'long' ? 'Toevoegen aan acquisitieselectie' : 'Aan selectie';
+  const labelVerwijderen = mode === 'long' ? 'Uit acquisitieselectie' : 'Uit selectie';
   const label = pending
-    ? (inSelectie ? 'Verwijderen…' : 'Toevoegen…')
+    ? (inSelectie ? 'Uit selectie halen…' : 'Toevoegen…')
     : inSelectie ? labelVerwijderen : labelToevoegen;
   const ariaLabel = inSelectie || mode === 'remove'
-    ? 'Verwijder dit signaal uit de acquisitieselectie'
+    ? 'Haal dit signaal uit de acquisitieselectie'
     : 'Voeg dit signaal toe aan de acquisitieselectie';
   const Icon = pending
     ? Loader2
     : mode === 'remove'
-      ? Trash2
+      ? ListMinus
       : inSelectie ? ListChecks : ListPlus;
 
   return (
