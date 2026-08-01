@@ -117,6 +117,8 @@ export function Section({
   return (
     <div
       id={id}
+      data-scroll-section
+      data-scroll-label={title}
       className={`group/section relative rounded-xl border bg-card/95 overflow-hidden transition-all duration-200 scroll-mt-32 lg:scroll-mt-36 ${borderCls} ${open ? 'shadow-[0_2px_10px_-6px_hsl(var(--shadow-color)/0.18),inset_3px_0_0_0_hsl(var(--accent)/0.65)]' : 'hover:border-border'}`}
     >
       <button
@@ -186,7 +188,12 @@ export function SectionGroup({
     ? (typeof step === 'number' ? String(step).padStart(2, '0') : step)
     : null;
   return (
-    <section className="pt-10 pb-3 first:pt-3 scroll-mt-32 lg:scroll-mt-36" aria-label={title}>
+    <section
+      data-scroll-section
+      data-scroll-label={title}
+      className="pt-10 pb-3 first:pt-3 scroll-mt-32 lg:scroll-mt-36"
+      aria-label={title}
+    >
       <div className="flex items-center gap-3 min-w-0">
         {stepLabel && (
           <span className="text-[11px] uppercase tracking-[0.22em] text-primary font-mono-data font-bold tabular-nums">
