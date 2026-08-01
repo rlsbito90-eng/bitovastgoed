@@ -18,4 +18,6 @@ createRoot(rootElement).render(
   </AppErrorBoundary>,
 );
 
-requestAnimationFrame(() => markAppBootSuccessful());
+// Houd de herstelvergrendeling kort actief. Wanneer dezelfde asset direct na
+// de cache-refresh opnieuw faalt, voorkomt dit een oneindige herlaadlus.
+window.setTimeout(() => markAppBootSuccessful(), 8_000);
