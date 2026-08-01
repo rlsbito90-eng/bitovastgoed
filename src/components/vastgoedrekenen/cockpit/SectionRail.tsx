@@ -13,29 +13,29 @@ export type RailItem = {
   hint?: string;
 };
 
-const STATUS_CFG: Record<RailStatus, { label: string; icon: typeof CheckCircle2; dot: string; chip: string }> = {
+const STATUS_CFG: Record<RailStatus, { label: string; shortLabel: string; icon: typeof CheckCircle2; chip: string }> = {
   ok: {
-    label: 'OK',
+    label: 'Ingevuld en gebruikt',
+    shortLabel: 'Gebruikt',
     icon: CheckCircle2,
-    dot: 'bg-emerald-500',
     chip: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   },
   aandacht: {
-    label: 'Aandacht',
+    label: 'Deels ingevuld of controleren',
+    shortLabel: 'Controleren',
     icon: AlertTriangle,
-    dot: 'bg-amber-500',
     chip: 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200',
   },
   blocker: {
-    label: 'Blocker',
+    label: 'Benodigde invoer ontbreekt',
+    shortLabel: 'Ontbreekt',
     icon: AlertOctagon,
-    dot: 'bg-destructive',
     chip: 'border-destructive/40 bg-destructive/10 text-destructive',
   },
   niet_relevant: {
-    label: 'N.v.t.',
+    label: 'Niet gebruikt in dit scenario',
+    shortLabel: 'Niet gebruikt',
     icon: MinusCircle,
-    dot: 'bg-muted-foreground/40',
     chip: 'border-border bg-muted text-muted-foreground',
   },
 };
@@ -53,13 +53,16 @@ function scrollToId(id: string) {
 
 export function SectionRail({ items }: { items: RailItem[] }) {
   const [open, setOpen] = useState(false);
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const subItems = useMemo(() => items.filter((item) => item.level === 'sub'), [items]);
-  const relevant = useMemo(() => subItems.filter((item) => item.status !== 'niet_relevant'), [subItems]);
-  const notRelevant = useMemo(() => subItems.filter((item) => item.status === 'niet_relevant'), [subItems]);
-  const okCount = relevant.filter((item) => item.status === 'ok').length;
-  const blockerCount = relevant.filter((item) => item.status === 'blocker').length;
-  const warningCount = relevant.filter((item) => item.status === 'aandacht').length;
-  const percentage = relevant.length > 0 ? Math.round((okCount / relevant.length) * 100) : 0;
+  const used = useMemo(() => subItems.filter((item) => item.status !== 'niet_relevant'), [subItems]);
+  const notUsed = useMemo(() => subItems.filter((item) => item.status === 'niet_relevant'), [subItems]);
+  const completeCount = used.filter((item) => item.status === 'ok').length;
+  const blockerCount = used.filter((item) => item.status === 'blocker').length;
+  const warningCount = used.filter((item) => item.status === 'aandacht').length;
+  const attentionItems = useMemo(() => used.filter((item) => item.status === 'aandacht' || item.status === 'blocker'), [used]);
+  const visibleUsed = attentionOnly ? attentionItems : used;
+  const percentage = used.length > 0 ? Math.round((completeCount / used.length) * 100) : 0;
 
   return (
     <section className="lg:col-span-2 lg:[&+div]:col-span-2 min-w-0 rounded-lg border border-border/70 bg-card shadow-sm">
@@ -70,10 +73,11 @@ export function SectionRail({ items }: { items: RailItem[] }) {
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/70">Werkstroom</span>
-            <span className="text-xs font-medium text-foreground">{okCount}/{relevant.length} compleet</span>
-            {blockerCount > 0 && <span className="text-xs font-medium text-destructive">{blockerCount} blocker{blockerCount === 1 ? '' : 's'}</span>}
-            {warningCount > 0 && <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{warningCount} aandacht</span>}
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/70">Scenario-invoer</span>
+            <span className="text-xs font-medium text-foreground">{completeCount}/{used.length} gebruikt en compleet</span>
+            {blockerCount > 0 && <span className="text-xs font-medium text-destructive">{blockerCount} ontbreekt</span>}
+            {warningCount > 0 && <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{warningCount} controleren</span>}
+            {notUsed.length > 0 && <span className="text-xs text-muted-foreground">{notUsed.length} niet gebruikt</span>}
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
             <div className="h-full bg-accent transition-all duration-300" style={{ width: `${percentage}%` }} />
@@ -84,14 +88,30 @@ export function SectionRail({ items }: { items: RailItem[] }) {
 
       {open && (
         <div className="border-t border-border/60 p-2 sm:p-3">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {relevant.map((item) => <RailButton key={item.id} item={item} />)}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">Status gaat over gebruik en volledigheid binnen dit scenario, niet over taxatiekwaliteit.</p>
+            <button
+              type="button"
+              onClick={() => setAttentionOnly((value) => !value)}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${attentionOnly ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200' : 'border-border bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground'}`}
+            >
+              {attentionOnly ? 'Toon alle gebruikte onderdelen' : `Alleen aandachtspunten (${attentionItems.length})`}
+            </button>
           </div>
-          {notRelevant.length > 0 && (
+
+          {visibleUsed.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {visibleUsed.map((item) => <RailButton key={item.id} item={item} />)}
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Geen openstaande aandachtspunten.</div>
+          )}
+
+          {!attentionOnly && notUsed.length > 0 && (
             <details className="mt-2 rounded-md border border-border/60 bg-muted/20">
-              <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">Niet relevant ({notRelevant.length})</summary>
+              <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">Niet gebruikt in dit scenario ({notUsed.length})</summary>
               <div className="flex gap-2 overflow-x-auto border-t border-border/50 p-2">
-                {notRelevant.map((item) => <RailButton key={item.id} item={item} />)}
+                {notUsed.map((item) => <RailButton key={item.id} item={item} />)}
               </div>
             </details>
           )}
@@ -108,17 +128,18 @@ function RailButton({ item }: { item: RailItem }) {
     <button
       type="button"
       onClick={() => scrollToId(item.id)}
-      title={item.hint ?? item.title}
-      className="flex min-w-[170px] max-w-[230px] items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-left hover:border-primary/30 hover:bg-muted/30"
+      title={`${config.label}${item.hint ? ` — ${item.hint}` : ''}`}
+      className="flex min-w-[190px] max-w-[250px] items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-left hover:border-primary/30 hover:bg-muted/30"
     >
       <span className="text-[10px] font-mono-data tabular-nums text-muted-foreground">{item.number}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium text-foreground">{item.title}</span>
-        {item.hint && <span className="block truncate text-[10px] text-muted-foreground">{item.hint}</span>}
+        <span className="block truncate text-[10px] text-muted-foreground">{item.hint || config.label}</span>
       </span>
       {item.count != null && item.count > 0 && <span className="text-[10px] text-muted-foreground">{item.count}</span>}
-      <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${config.chip}`}>
+      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-medium ${config.chip}`}>
         <Icon className="h-3 w-3" />
+        {config.shortLabel}
       </span>
     </button>
   );
