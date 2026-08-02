@@ -1,22 +1,25 @@
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface OptionalDateFieldProps {
-  id: string;
+  id?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
 }
 
-export default function OptionalDateField({ id, label, value, onChange, disabled }: OptionalDateFieldProps) {
+export function OptionalDateField({ id, label, value, onChange, disabled }: OptionalDateFieldProps) {
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
   return (
     <div className="min-w-0">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={fieldId}>{label}</Label>
       <div className="flex min-w-0 items-center gap-2">
         <Input
-          id={id}
+          id={fieldId}
           type="date"
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -39,3 +42,5 @@ export default function OptionalDateField({ id, label, value, onChange, disabled
     </div>
   );
 }
+
+export default OptionalDateField;
