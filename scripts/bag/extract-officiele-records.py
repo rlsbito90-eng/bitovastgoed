@@ -32,14 +32,35 @@ def main() -> int:
     with output.open("w", encoding="utf-8") as handle:
         for xml_path in sorted(source.rglob("*.xml")):
             try:
-                for _, element in ET.iterparse(xml_path, events=("end",)):
-                    if local_name(element.tag).lower() == "stand":
-                        payload = ET.tostring(element, encoding="unicode")
-                        handle.write(json.dumps({
-                            "bronpad": str(xml_path.relative_to(source)),
-                            "xml": payload,
-                        }, ensure_ascii=False) + "\n")
-                        aantal += 1
+                in_stand = False
+                stand_depth = 0
+
+                for event, element in ET.iterparse(xml_path, events=("start", "end")):
+                    naam = local_name(element.tag).lower()
+
+                    if event == "start":
+                        if in_stand:
+                            stand_depth += 1
+                        elif naam == "stand":
+                            in_stand = True
+                            stand_depth = 1
+                        continue
+
+                    if in_stand:
+                        stand_depth -= 1
+                        if stand_depth == 0:
+                            payload = ET.tostring(element, encoding="unicode")
+                            handle.write(json.dumps({
+                                "bronpad": str(xml_path.relative_to(source)),
+                                "xml": payload,
+                            }, ensure_ascii=False) + "\n")
+                            aantal += 1
+                            in_stand = False
+                            element.clear()
+                        # Kinderen binnen een stand niet voortijdig wissen: anders
+                        # blijft alleen een lege recordwrapper over.
+                        continue
+
                     element.clear()
             except ET.ParseError as exc:
                 parse_fouten.append(f"{xml_path.relative_to(source)}: {exc}")
@@ -57,7 +78,7 @@ def main() -> int:
         print("Geen officiële BAG-standrecords aangetroffen.", file=sys.stderr)
         return 1
 
-    print(f"{aantal} officiële BAG-standrecords naar {output} geschreven.")
+    print(f"{aantal} volledige officiële BAG-standrecords naar {output} geschreven.")
     return 0
 
 
