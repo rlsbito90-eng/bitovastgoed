@@ -39,11 +39,10 @@ type Ring = Punt[];
 type Bbox = [number, number, number, number];
 interface GemeenteGebied { bbox: Bbox; ringen: Ring[]; naam: string; }
 
-const LOCATIESERVER_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';
+const GEMEENTEGRENZEN_URL = 'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items';
 const MAX_PAGINAS = 12;
 const PAGINA_LIMIET = 100;
-const adresGemeenteCache = new Map<string, string | null>();
 
 export function normaliseerGemeentenaam(value: unknown): string {
   const woorden = String(value ?? '')
@@ -55,10 +54,7 @@ export function normaliseerGemeentenaam(value: unknown): string {
     .split(/\s+/)
     .filter(Boolean)
     .filter((woord) => woord !== 'gemeente' && woord !== 'gem');
-
-  return woorden
-    .filter((woord, index) => index === 0 || woord !== woorden[index - 1])
-    .join('');
+  return woorden.filter((woord, index) => index === 0 || woord !== woorden[index - 1]).join('');
 }
 
 export function zelfdeGemeente(a: unknown, b: unknown): boolean {
@@ -168,13 +164,6 @@ export function bboxUitGeometrie(raw: unknown): Bbox | null {
   return bboxUitPunten(coordinates);
 }
 
-function vergrootPuntTotZoekgebied(bbox: Bbox): Bbox {
-  const [minX, minY, maxX, maxY] = bbox;
-  if (minX !== maxX || minY !== maxY) return bbox;
-  const marge = 0.08;
-  return [minX - marge, minY - marge, maxX + marge, maxY + marge];
-}
-
 function puntInRing([x, y]: Punt, ring: Ring): boolean {
   let binnen = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -197,29 +186,26 @@ async function fetchJson(url: string): Promise<any> {
   return response.json();
 }
 
+function gemeentenaamUitFeature(feature: any): string | null {
+  const p = feature?.properties ?? {};
+  return tekst(p.naam ?? p.gemeentenaam ?? p.gemeente_naam ?? p.name);
+}
+
 async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
   const opgeschoond = gemeente.trim();
-  const params = new URLSearchParams({ q: opgeschoond, fq: 'type:gemeente', rows: '10' });
-  const data = await fetchJson(`${LOCATIESERVER_URL}?${params}`);
-  const docs = data?.response?.docs ?? [];
-  const exact = docs.find((doc: any) => {
-    const namen = [doc.gemeentenaam, doc.weergavenaam, doc.naam].filter(Boolean).map((value) => String(value).toLowerCase());
-    return namen.some((naam) => naam === opgeschoond.toLowerCase() || naam.startsWith(`${opgeschoond.toLowerCase()} `));
-  }) ?? docs[0];
-  if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden.`);
+  if (!opgeschoond) throw new Error('Vul een gemeente in.');
 
-  const contourBron = exact.geometrie_ll ?? exact.geometry;
-  const ringen = ringenUitGeometrie(contourBron);
-  const bbox = bboxUitGeometrie(contourBron)
-    ?? bboxUitGeometrie(exact.centroide_ll)
-    ?? bboxUitGeometrie(exact.geometrie_rd)
-    ?? bboxUitGeometrie(exact.centroide_rd);
-  if (!bbox) throw new Error(`Voor gemeente “${gemeente}” kon geen zoekgebied worden bepaald.`);
-  return {
-    bbox: vergrootPuntTotZoekgebied(bbox),
-    ringen,
-    naam: String(exact.gemeentenaam ?? exact.weergavenaam ?? opgeschoond),
-  };
+  const params = new URLSearchParams({ limit: '500', f: 'json' });
+  const data = await fetchJson(`${GEMEENTEGRENZEN_URL}?${params}`);
+  const features = data?.features ?? [];
+  const exact = features.find((feature: any) => zelfdeGemeente(gemeentenaamUitFeature(feature), opgeschoond));
+  if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden in de officiële gemeentegrenzen.`);
+
+  const ringen = ringenUitGeometrie(exact.geometry);
+  const bbox = bboxUitGeometrie(exact.geometry) ?? bboxUitGeometrie(exact.bbox);
+  if (!bbox || !ringen.length) throw new Error(`Voor gemeente “${gemeente}” kon geen officiële gemeentegrens worden bepaald.`);
+
+  return { bbox, ringen, naam: gemeentenaamUitFeature(exact) ?? opgeschoond };
 }
 
 export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
@@ -272,29 +258,6 @@ function voldoetVoorVerrijking(feature: any, criteria: BagSelectieCriteria): boo
   if (criteria.bouwjaarVan != null && bouwjaar != null && bouwjaar < criteria.bouwjaarVan) return false;
   if (criteria.bouwjaarTot != null && bouwjaar != null && bouwjaar > criteria.bouwjaarTot) return false;
   return gebruiksdoel ? pastGebruiksdoel(gebruiksdoel, criteria.gebruiksdoelen) : true;
-}
-
-async function zoekGemeenteVoorAdres(item: BagKandidaat): Promise<string | null> {
-  const sleutel = `${item.postcode ?? ''}|${item.adres}`.toLowerCase();
-  if (adresGemeenteCache.has(sleutel)) return adresGemeenteCache.get(sleutel) ?? null;
-
-  const params = new URLSearchParams({
-    q: [item.adres, item.postcode, item.plaats].filter(Boolean).join(' '),
-    fq: 'type:adres',
-    rows: '5',
-  });
-  try {
-    const data = await fetchJson(`${LOCATIESERVER_URL}?${params}`);
-    const docs = data?.response?.docs ?? [];
-    const postcode = normaliseerGemeentenaam(item.postcode);
-    const exact = docs.find((doc: any) => normaliseerGemeentenaam(doc.postcode) === postcode) ?? docs[0];
-    const gemeente = tekst(exact?.gemeentenaam ?? exact?.gemeente_naam);
-    adresGemeenteCache.set(sleutel, gemeente);
-    return gemeente;
-  } catch {
-    adresGemeenteCache.set(sleutel, null);
-    return null;
-  }
 }
 
 async function verrijkMetAdres(feature: any): Promise<BagKandidaat | null> {
@@ -368,12 +331,8 @@ export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriter
     for (const item of enriched) {
       if (!item) { statistiek.technischAfgevallen += 1; continue; }
       if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) { statistiek.criteriaAfgevallen += 1; continue; }
-
-      const adresGemeente = await zoekGemeenteVoorAdres(item);
-      if (adresGemeente && !zelfdeGemeente(adresGemeente, gebied.naam)) { statistiek.buitenGemeente += 1; continue; }
-
       if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
-      if (gebied.ringen.length && !puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
+      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
       const key = item.bagPandId || `${item.adres}|${item.postcode}`;
       if (!unique.has(key)) unique.set(key, item);
     }
