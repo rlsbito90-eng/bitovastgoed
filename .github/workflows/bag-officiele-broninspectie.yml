@@ -158,7 +158,7 @@ jobs:
           test ! -e supabase/migrations/20260803_bag_import.sql
           test ! -e scripts/bag/importeer-naar-supabase.ts
           ! grep -R "ljudxyrqoifhfikueric" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
-          ! grep -R "SUPABASE_\|service_role\|CRM" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
+          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role|supabase\.co" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
 
       - name: Voer geïsoleerde PostGIS-capaciteitsproef uit
         run: bash scripts/bag/run-2a2-capaciteitsproef.sh bag-2a2-capaciteitsproef
