@@ -35,6 +35,14 @@ describe('puntInGemeente', () => {
     expect(puntInGemeente([5.2, 52.5], contour)).toBe(false);
   });
 
+  it('houdt een buurgemeente buiten een officiële polygonale grens', () => {
+    const vereenvoudigdeGemeentegrens: [number, number][][] = [[
+      [4.72, 52.30], [5.02, 52.30], [5.02, 52.43], [4.72, 52.43], [4.72, 52.30],
+    ]];
+    expect(puntInGemeente([4.90, 52.37], vereenvoudigdeGemeentegrens)).toBe(true);
+    expect(puntInGemeente([5.08, 52.30], vereenvoudigdeGemeentegrens)).toBe(false);
+  });
+
   it('respecteert een gat in een contour via de even-odd-regel', () => {
     const metGat: [number, number][][] = [
       [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
