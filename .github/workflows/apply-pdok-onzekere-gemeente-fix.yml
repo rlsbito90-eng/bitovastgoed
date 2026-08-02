@@ -1,0 +1,77 @@
+name: Apply PDOK gemeente normalization fix
+
+on:
+  push:
+    branches:
+      - fix/pdok-onzekere-gemeentevalidatie
+    paths:
+      - '.github/workflows/apply-pdok-onzekere-gemeente-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pdok-onzekere-gemeentevalidatie
+          fetch-depth: 0
+      - name: Patch gemeente normalization and tests
+        shell: python
+        run: |
+          from pathlib import Path
+
+          source = Path('src/lib/pdokBagSelectie.ts')
+          text = source.read_text()
+          old = """export function normaliseerGemeentenaam(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+"""
+          new = """export function normaliseerGemeentenaam(value: unknown): string {
+  const woorden = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\\s+/)
+    .filter(Boolean)
+    .filter((woord) => woord !== 'gemeente' && woord !== 'gem');
+
+  // Locatieserver-weergaven kunnen de gemeentenaam herhalen, bijvoorbeeld
+  // “Tilburg, gemeente Tilburg”. Houd één exemplaar per opeenvolgende naam over.
+  return woorden.filter((woord, index) => index === 0 || woord !== woorden[index - 1]).join('');
+}
+"""
+          if old not in text:
+            raise SystemExit('normaliseerGemeentenaam snippet niet gevonden')
+          source.write_text(text.replace(old, new))
+
+          test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
+          t = test.read_text()
+          old_test = """  it('vergelijkt gemeenten hoofdletter- en accentongevoelig', () => {
+    expect(zelfdeGemeente('Amsterdam', 'amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Amstelveen', 'Amsterdam')).toBe(false);
+  });
+"""
+          new_test = """  it('vergelijkt officiële gemeentenaamvarianten zonder buurgemeenten gelijk te maken', () => {
+    expect(zelfdeGemeente('Amsterdam', 'amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Gemeente Amsterdam', 'Amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Tilburg, gemeente Tilburg', 'Tilburg')).toBe(true);
+    expect(zelfdeGemeente('Amstelveen', 'Amsterdam')).toBe(false);
+  });
+"""
+          if old_test not in t:
+            raise SystemExit('gemeentenaam-test snippet niet gevonden')
+          test.write_text(t.replace(old_test, new_test))
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/apply-pdok-onzekere-gemeente-fix.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts
+          git commit -m "fix: normaliseer officiële gemeentenaamvarianten"
+          git push origin HEAD:fix/pdok-onzekere-gemeentevalidatie
