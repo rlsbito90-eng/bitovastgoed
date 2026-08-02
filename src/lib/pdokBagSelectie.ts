@@ -30,6 +30,7 @@ export interface BagUitvalredenen {
   geenGeldigeGeometrie: number;
   buitenGemeente: number;
   duplicaat: number;
+  nietVerwerktDoorOnderzoeksgrens: number;
 }
 
 export interface BagDekking {
@@ -40,6 +41,7 @@ export interface BagDekking {
   maximumPaginasPerVak: number;
   onderzoeksgrensBereikt: boolean;
   paginalimietBereiktInVakken: number;
+  verdelingsmethode: 'round_robin';
 }
 
 export interface BagSelectieStatistiek {
@@ -75,12 +77,24 @@ interface VerrijkUitkomst {
   uitvalreden: TechnischeUitval | null;
 }
 
+interface RastervakState {
+  bbox: Bbox;
+  url: string | null;
+  paginas: number;
+  geraakt: boolean;
+  bronVolledig: boolean;
+  paginalimietBereikt: boolean;
+  wachtrij: any[];
+}
+
 const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';
 const GEMEENTEGRENZEN_URL = 'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items';
 const CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84';
 const RASTER_GROOTTE = 6;
 const MAX_PAGINAS_PER_VAK = 5;
 const PAGINA_LIMIET = 100;
+const FETCH_CONCURRENCY = 6;
+const VERRIJK_CONCURRENCY = 6;
 
 export function normaliseerGemeentenaam(value: unknown): string {
   const woorden = String(value ?? '')
@@ -91,7 +105,7 @@ export function normaliseerGemeentenaam(value: unknown): string {
     .replace(/[^a-z0-9]+/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
-    .filter((woord) => woord !== 'gemeente' && woord !== 'gem');
+    .filter(woord => woord !== 'gemeente' && woord !== 'gem');
 
   return woorden
     .filter((woord, index) => index === 0 || woord !== woorden[index - 1])
@@ -163,7 +177,7 @@ function ringenUitGeoJson(raw: any): Ring[] {
     if (!Array.isArray(node)) return;
     if (node.length >= 3 && Array.isArray(node[0]) && typeof node[0][0] === 'number' && typeof node[0][1] === 'number') {
       const ring = node
-        .filter((punt): punt is number[] => Array.isArray(punt) && typeof punt[0] === 'number' && typeof punt[1] === 'number')
+        .filter((punt): punt is number[] => Array.isArray(punt) && typeof punt[0] === 'number' && typeof punt[0] === 'number' && typeof punt[1] === 'number')
         .map(punt => [punt[0], punt[1]] as Punt);
       if (ring.length >= 3) result.push(ring);
       return;
@@ -394,12 +408,19 @@ function volgendePagina(data: any): string | null {
   return typeof link?.href === 'string' ? link.href : null;
 }
 
-export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriteria): Promise<BagSelectieResultaat> {
-  const gebied = await zoekGemeenteGebied(criteria.gemeente);
-  const vakken = verdeelBboxInVakken(gebied.bbox);
-  const unique = new Map<string, BagKandidaat>();
-  const gezieneFeatures = new Set<string>();
-  const statistiek: BagSelectieStatistiek = {
+function initieleVakUrl(bbox: Bbox): string {
+  const params = new URLSearchParams({
+    bbox: bbox.join(','),
+    'bbox-crs': CRS84,
+    crs: CRS84,
+    limit: String(PAGINA_LIMIET),
+    f: 'json',
+  });
+  return `${BAG_PANDEN_URL}?${params}`;
+}
+
+function maakStatistiek(aantalVakken: number): BagSelectieStatistiek {
+  return {
     onderzocht: 0,
     technischAfgevallen: 0,
     buitenGemeente: 0,
@@ -416,91 +437,136 @@ export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriter
       geenGeldigeGeometrie: 0,
       buitenGemeente: 0,
       duplicaat: 0,
+      nietVerwerktDoorOnderzoeksgrens: 0,
     },
     dekking: {
-      totaalRastervakken: vakken.length,
+      totaalRastervakken: aantalVakken,
       geraakteRastervakken: 0,
       volledigVerwerkteRastervakken: 0,
       paginasGelezen: 0,
       maximumPaginasPerVak: MAX_PAGINAS_PER_VAK,
       onderzoeksgrensBereikt: false,
       paginalimietBereiktInVakken: 0,
+      verdelingsmethode: 'round_robin',
     },
   };
+}
 
-  for (const vak of vakken) {
-    if (unique.size >= criteria.limiet) {
-      statistiek.dekking.onderzoeksgrensBereikt = true;
-      break;
-    }
-    statistiek.dekking.geraakteRastervakken += 1;
-    const params = new URLSearchParams({ bbox: vak.join(','), 'bbox-crs': CRS84, crs: CRS84, limit: String(PAGINA_LIMIET), f: 'json' });
-    let url: string | null = `${BAG_PANDEN_URL}?${params}`;
-    let paginasInVak = 0;
-    let vakVolledig = false;
+function verwerkKandidaat(
+  uitkomst: VerrijkUitkomst,
+  criteria: BagSelectieCriteria,
+  gebied: GemeenteGebied,
+  unique: Map<string, BagKandidaat>,
+  statistiek: BagSelectieStatistiek,
+): void {
+  if (!uitkomst.kandidaat) {
+    if (uitkomst.uitvalreden) statistiek.uitvalredenen[uitkomst.uitvalreden] += 1;
+    statistiek.technischAfgevallen += 1;
+    return;
+  }
 
-    while (url && paginasInVak < MAX_PAGINAS_PER_VAK && unique.size < criteria.limiet) {
+  const item = uitkomst.kandidaat;
+  if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) {
+    statistiek.uitvalredenen.nietPassendGebruiksdoel += 1;
+    statistiek.criteriaAfgevallen += 1;
+    return;
+  }
+  if (!puntInGemeente([item.longitude!, item.latitude!], gebied.ringen)) {
+    statistiek.uitvalredenen.buitenGemeente += 1;
+    statistiek.buitenGemeente += 1;
+    return;
+  }
+
+  const key = item.bagPandId || `${item.adres}|${item.postcode}`;
+  if (unique.has(key)) {
+    statistiek.uitvalredenen.duplicaat += 1;
+    return;
+  }
+  unique.set(key, item);
+}
+
+export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriteria): Promise<BagSelectieResultaat> {
+  const gebied = await zoekGemeenteGebied(criteria.gemeente);
+  const vakken = verdeelBboxInVakken(gebied.bbox);
+  const states: RastervakState[] = vakken.map(bbox => ({
+    bbox,
+    url: initieleVakUrl(bbox),
+    paginas: 0,
+    geraakt: false,
+    bronVolledig: false,
+    paginalimietBereikt: false,
+    wachtrij: [],
+  }));
+  const unique = new Map<string, BagKandidaat>();
+  const gezieneFeatures = new Set<string>();
+  const statistiek = maakStatistiek(vakken.length);
+
+  for (let ronde = 0; ronde < MAX_PAGINAS_PER_VAK && unique.size < criteria.limiet; ronde += 1) {
+    const actieveStates = states.filter(state => state.url && !state.bronVolledig && !state.paginalimietBereikt);
+    if (!actieveStates.length) break;
+
+    const responses = await mapBegrensd(actieveStates, FETCH_CONCURRENCY, async state => {
+      const url = state.url!;
       const data = await fetchJson(url);
-      paginasInVak += 1;
+      return { state, data };
+    });
+
+    for (const { state, data } of responses) {
+      state.geraakt = true;
+      state.paginas += 1;
       statistiek.paginas += 1;
       statistiek.dekking.paginasGelezen += 1;
-      const features = (data?.features ?? []).filter((feature: any) => {
+
+      const next = volgendePagina(data);
+      state.url = next;
+      if (!next) state.bronVolledig = true;
+      else if (state.paginas >= MAX_PAGINAS_PER_VAK) state.paginalimietBereikt = true;
+
+      for (const feature of data?.features ?? []) {
         const id = String(feature?.properties?.identificatie ?? feature?.id ?? '');
         if (id && gezieneFeatures.has(id)) {
           statistiek.uitvalredenen.duplicaat += 1;
-          return false;
-        }
-        if (id) gezieneFeatures.add(id);
-        return true;
-      });
-      statistiek.onderzocht += features.length;
-
-      const voorVerrijking = features.filter((feature: any) => {
-        const reden = bepaalCriteriaUitval(feature, criteria);
-        if (!reden) return true;
-        statistiek.uitvalredenen[reden] += 1;
-        statistiek.criteriaAfgevallen += 1;
-        return false;
-      });
-
-      const verrijkt = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);
-      for (const uitkomst of verrijkt) {
-        if (!uitkomst.kandidaat) {
-          if (uitkomst.uitvalreden) statistiek.uitvalredenen[uitkomst.uitvalreden] += 1;
-          statistiek.technischAfgevallen += 1;
           continue;
         }
-        const item = uitkomst.kandidaat;
-        if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) {
-          statistiek.uitvalredenen.nietPassendGebruiksdoel += 1;
+        if (id) gezieneFeatures.add(id);
+        statistiek.onderzocht += 1;
+
+        const reden = bepaalCriteriaUitval(feature, criteria);
+        if (reden) {
+          statistiek.uitvalredenen[reden] += 1;
           statistiek.criteriaAfgevallen += 1;
           continue;
         }
-        if (!puntInGemeente([item.longitude!, item.latitude!], gebied.ringen)) {
-          statistiek.uitvalredenen.buitenGemeente += 1;
-          statistiek.buitenGemeente += 1;
-          continue;
-        }
-        const key = item.bagPandId || `${item.adres}|${item.postcode}`;
-        if (unique.has(key)) {
-          statistiek.uitvalredenen.duplicaat += 1;
-          continue;
-        }
-        unique.set(key, item);
-        if (unique.size >= criteria.limiet) {
-          statistiek.dekking.onderzoeksgrensBereikt = true;
-          break;
-        }
+        state.wachtrij.push(feature);
       }
-
-      const next = volgendePagina(data);
-      url = next;
-      if (!next) vakVolledig = true;
     }
 
-    if (vakVolledig) statistiek.dekking.volledigVerwerkteRastervakken += 1;
-    else if (url && paginasInVak >= MAX_PAGINAS_PER_VAK) statistiek.dekking.paginalimietBereiktInVakken += 1;
+    while (unique.size < criteria.limiet && states.some(state => state.wachtrij.length > 0)) {
+      const rondeFeatures: any[] = [];
+      for (const state of states) {
+        const feature = state.wachtrij.shift();
+        if (feature) rondeFeatures.push(feature);
+      }
+      if (!rondeFeatures.length) break;
+
+      const resterend = criteria.limiet - unique.size;
+      const teVerrijken = rondeFeatures.slice(0, Math.max(resterend, 1));
+      const uitkomsten = await mapBegrensd(teVerrijken, VERRIJK_CONCURRENCY, verrijkMetAdres);
+      uitkomsten.forEach(uitkomst => verwerkKandidaat(uitkomst, criteria, gebied, unique, statistiek));
+
+      if (teVerrijken.length < rondeFeatures.length) {
+        statistiek.uitvalredenen.nietVerwerktDoorOnderzoeksgrens += rondeFeatures.length - teVerrijken.length;
+      }
+    }
   }
+
+  statistiek.dekking.onderzoeksgrensBereikt = unique.size >= criteria.limiet;
+  if (statistiek.dekking.onderzoeksgrensBereikt) {
+    statistiek.uitvalredenen.nietVerwerktDoorOnderzoeksgrens += states.reduce((som, state) => som + state.wachtrij.length, 0);
+  }
+  statistiek.dekking.geraakteRastervakken = states.filter(state => state.geraakt).length;
+  statistiek.dekking.volledigVerwerkteRastervakken = states.filter(state => state.bronVolledig && state.wachtrij.length === 0).length;
+  statistiek.dekking.paginalimietBereiktInVakken = states.filter(state => state.paginalimietBereikt).length;
 
   const kandidaten = [...unique.values()].slice(0, criteria.limiet);
   statistiek.kandidaten = kandidaten.length;
