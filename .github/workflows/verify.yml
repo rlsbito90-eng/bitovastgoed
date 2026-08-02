@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,46 +22,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Apply BAG pand geometry fix
-        if: github.head_ref == 'fix/pdok-pandgeometrie'
-        shell: python
-        run: |
-          from pathlib import Path
-          path = Path('src/lib/pdokBagSelectie.ts')
-          text = path.read_text()
-          old = "const [longitude, latitude] = puntUitGeometry(vbo?.geometry ?? feature?.geometry);"
-          new = "const [longitude, latitude] = puntUitGeometry(feature?.geometry ?? vbo?.geometry);"
-          if old not in text:
-            raise SystemExit('verwachte geometriekeuze niet gevonden')
-          path.write_text(text.replace(old, new, 1))
-
-          test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
-          t = test.read_text()
-          marker = "describe('puntInGemeente', () => {"
-          insertion = """describe('pandgeometrie voor geografische selectie', () => {
-  it('houdt de geografische selectie gebaseerd op het BAG-pand en niet op een gekoppeld verblijfsobject', () => {
-    const pandPunt: [number, number] = [5.0913, 51.5555];
-    const gemeente: [number, number][][] = [[[5.0, 51.5], [5.2, 51.5], [5.2, 51.7], [5.0, 51.7], [5.0, 51.5]]];
-    expect(puntInGemeente(pandPunt, gemeente)).toBe(true);
-  });
-});
-
-"""
-          if marker not in t:
-            raise SystemExit('testmarker niet gevonden')
-          if 'pandgeometrie voor geografische selectie' not in t:
-            test.write_text(t.replace(marker, insertion + marker, 1))
-
-      - name: Commit applied patch
-        if: github.head_ref == 'fix/pdok-pandgeometrie'
-        run: |
-          git checkout origin/main -- .github/workflows/verify.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts .github/workflows/verify.yml
-          git commit -m "fix: gebruik BAG-pandgeometrie voor gemeentecontrole"
-          git push origin HEAD:fix/pdok-pandgeometrie
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -100,3 +60,17 @@ jobs:
       - name: Production build
         if: always()
         run: npm run build
+
+      - name: Export Fase 1.1 patch
+        if: success()
+        run: |
+          git fetch origin main --depth=1
+          git diff --binary origin/main...HEAD > Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+
+      - name: Upload Fase 1.1 patch
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vastgoedrekenen-fase-1-1-patch
+          path: Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
+          retention-days: 7
