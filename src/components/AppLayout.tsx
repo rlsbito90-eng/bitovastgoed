@@ -21,6 +21,7 @@ import {
   Radar,
   Plus,
   HelpCircle,
+  Lightbulb,
   ChevronDown,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
@@ -93,6 +94,7 @@ const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[]
   { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, groupEnd: true },
   { path: "/deals", label: "Deals", icon: Handshake },
   { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
+  { path: "/vastgoedkansen", label: "Vastgoedkansen", icon: Lightbulb },
   { path: "/acquisitie", label: "Acquisitie", icon: Target },
   { path: "/acquisitie/funnel", label: "Acquisitie-funnel", icon: BarChart3 },
   { path: "/off-market", label: "Off-Market Radar", icon: Radar },

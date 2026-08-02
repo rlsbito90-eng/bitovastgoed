@@ -9,6 +9,7 @@ import { DataStoreProvider, useDataStore } from "@/hooks/useDataStore";
 import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
 import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
 import { AcquisitieProvider } from "@/hooks/useAcquisitie";
+import { VastgoedkansenProvider } from "@/hooks/useVastgoedkansen";
 import AcquisitiePage from "@/pages/AcquisitiePage";
 import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
 import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
@@ -32,6 +33,7 @@ import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
 import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import OffMarketPage from "@/pages/OffMarketPage";
+import VastgoedkansenPage from "@/pages/VastgoedkansenPage";
 import OffMarketSignaalDetailPage from "@/pages/OffMarketSignaalDetailPage";
 import OAuthConsentPage from "@/pages/OAuthConsentPage";
 import NotFound from "@/pages/NotFound";
@@ -73,6 +75,7 @@ const App = () => (
             <PropertyTaxonomieProvider>
             <DataStoreProvider>
               <AcquisitieProvider>
+              <VastgoedkansenProvider>
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
@@ -95,6 +98,7 @@ const App = () => (
                           <Route path="/acquisitie/funnel" element={<AcquisitieFunnelPage />} />
                           <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
+                          <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
                           <Route path="/off-market" element={<OffMarketPage />} />
                           <Route path="/off-market/:id" element={<OffMarketSignaalDetailPage />} />
                           <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
@@ -117,6 +121,7 @@ const App = () => (
                   }
                 />
               </Routes>
+              </VastgoedkansenProvider>
               </AcquisitieProvider>
             </DataStoreProvider>
             </PropertyTaxonomieProvider>

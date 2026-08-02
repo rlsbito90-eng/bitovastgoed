@@ -1,0 +1,2 @@
+import {describe,it,expect} from 'vitest'; import {kansTitel,STATUS_VOLGORDE,type Vastgoedkans} from '@/lib/vastgoedkansen';
+describe('vastgoedkansen kernmodel',()=>{it('houdt de werkbakvolgorde stabiel',()=>expect(STATUS_VOLGORDE[0]).toBe('te_beoordelen'));it('bouwt een herkenbare titel',()=>expect(kansTitel({adres:'Markt 1',postcode:'5038 AB',plaats:'Tilburg'} as Vastgoedkans)).toBe('Markt 1, 5038 AB, Tilburg'))});
