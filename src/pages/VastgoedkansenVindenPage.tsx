@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
-import { zoekBagKandidaten, type BagKandidaat } from '@/lib/pdokBagSelectie';
+import { zoekBagKandidatenMetStatistiek, type BagKandidaat, type BagSelectieStatistiek } from '@/lib/pdokBagSelectie';
 
 const GEBRUIKSDOELEN = [
   ['kantoorfunctie', 'Kantoor'],
@@ -38,6 +38,7 @@ export default function VastgoedkansenVindenPage() {
   const [limiet, setLimiet] = useState('30');
   const [gebruiksdoelen, setGebruiksdoelen] = useState<string[]>(['kantoorfunctie', 'industriefunctie', 'winkelfunctie']);
   const [resultaten, setResultaten] = useState<BagKandidaat[]>([]);
+  const [statistiek, setStatistiek] = useState<BagSelectieStatistiek | null>(null);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
   const [zoeken, setZoeken] = useState(false);
   const [opslaan, setOpslaan] = useState(false);
@@ -55,16 +56,18 @@ export default function VastgoedkansenVindenPage() {
     if (!gemeente.trim()) { toast.error('Vul een gemeente in.'); return; }
     setZoeken(true);
     setGeselecteerd(new Set());
+    setStatistiek(null);
     try {
-      const items = await zoekBagKandidaten({
+      const result = await zoekBagKandidatenMetStatistiek({
         gemeente: gemeente.trim(),
         bouwjaarVan: bouwjaarVan ? Number(bouwjaarVan) : null,
         bouwjaarTot: bouwjaarTot ? Number(bouwjaarTot) : null,
         gebruiksdoelen,
         limiet: Math.min(Math.max(Number(limiet) || 30, 5), 100),
       });
-      setResultaten(items);
-      toast.success(`${items.length} kandidaatpanden gevonden.`);
+      setResultaten(result.kandidaten);
+      setStatistiek(result.statistiek);
+      toast.success(`${result.kandidaten.length} kandidaatpanden binnen gemeente ${gemeente.trim()} gevonden.`);
     } catch (error: any) {
       toast.error(error?.message ?? 'PDOK-selectie mislukt.');
     } finally { setZoeken(false); }
@@ -100,7 +103,7 @@ export default function VastgoedkansenVindenPage() {
 
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
     <Link to="/vastgoedkansen" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1.5 h-4 w-4"/>Vastgoedkansen</Link>
-    <PageHeader title="Panden vinden" subtitle="Eerste gecontroleerde selectie uit de officiële BAG via PDOK." />
+    <PageHeader title="Panden vinden" subtitle="Gecontroleerde selectie uit de officiële BAG via PDOK, begrensd op de gekozen gemeente." />
 
     <section className="section-card p-4 sm:p-5">
       <div className="grid gap-4 md:grid-cols-4">
@@ -113,9 +116,17 @@ export default function VastgoedkansenVindenPage() {
       <div className="mt-4 flex flex-wrap gap-2"><Button onClick={run} disabled={zoeken}>{zoeken?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}{zoeken?'PDOK doorzoeken…':'Zoek kandidaatpanden'}</Button><p className="self-center text-xs text-muted-foreground">BAG bevat gebouw- en adreskenmerken, geen eigenaar of verkoopbereidheid.</p></div>
     </section>
 
+    {statistiek && <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">BAG-panden onderzocht</p><p className="mt-1 text-lg font-semibold">{statistiek.onderzocht}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Buiten gemeente</p><p className="mt-1 text-lg font-semibold">{statistiek.buitenGemeente}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Niet passend op criteria</p><p className="mt-1 text-lg font-semibold">{statistiek.criteriaAfgevallen}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Niet te verrijken</p><p className="mt-1 text-lg font-semibold">{statistiek.technischAfgevallen}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Kandidaten</p><p className="mt-1 text-lg font-semibold">{statistiek.kandidaten}</p><p className="text-[11px] text-muted-foreground">uit {statistiek.paginas} pagina{statistiek.paginas===1?'':'’s'}</p></div>
+    </section>}
+
     <section className="section-card overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b p-4"><div><h2 className="text-sm font-medium">Kandidaatpanden</h2><p className="text-xs text-muted-foreground">Selecteer alleen panden die je daadwerkelijk wilt onderzoeken.</p></div><Button onClick={save} disabled={opslaan || geselecteerd.size===0}><Plus className="mr-2 h-4 w-4"/>{opslaan?'Toevoegen…':`${geselecteerd.size} toevoegen`}</Button></div>
-      {resultaten.length===0?<div className="p-10 text-center text-sm text-muted-foreground"><Database className="mx-auto mb-3 h-8 w-8 opacity-50"/>Voer een selectie uit om panden te tonen.</div>:<div className="divide-y">{resultaten.map(item=>{const bestaand=isBestaand(item);return <div key={item.bagPandId} className="flex min-w-0 items-start gap-3 p-4"><Checkbox className="mt-1" disabled={bestaand} checked={geselecteerd.has(item.bagPandId)} onCheckedChange={()=>setGeselecteerd(prev=>{const next=new Set(prev);next.has(item.bagPandId)?next.delete(item.bagPandId):next.add(item.bagPandId);return next;})}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words text-sm font-medium">{item.adres}</p>{bestaand&&<Badge variant="secondary">Al bekend</Badge>}<Badge variant="outline">{item.bouwjaar ?? 'Bouwjaar onbekend'}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{[item.postcode,item.plaats,item.gebruiksdoel,item.oppervlakte?`${item.oppervlakte} m²`:null].filter(Boolean).join(' · ')}</p><p className="mt-1 font-mono-data text-[11px] text-muted-foreground">BAG-pand {item.bagPandId}</p></div>{item.latitude&&item.longitude&&<a className="shrink-0 text-muted-foreground hover:text-foreground" href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} target="_blank" rel="noreferrer" aria-label="Open in Google Maps"><MapPin className="h-4 w-4"/></a>}</div>})}</div>}
+      {resultaten.length===0?<div className="p-10 text-center text-sm text-muted-foreground"><Database className="mx-auto mb-3 h-8 w-8 opacity-50"/>{statistiek ? 'Geen passende panden gevonden. Verruim bouwjaar of gebruiksdoelen.' : 'Voer een selectie uit om panden te tonen.'}</div>:<div className="divide-y">{resultaten.map(item=>{const bestaand=isBestaand(item);return <div key={item.bagPandId} className="flex min-w-0 items-start gap-3 p-4"><Checkbox className="mt-1" disabled={bestaand} checked={geselecteerd.has(item.bagPandId)} onCheckedChange={()=>setGeselecteerd(prev=>{const next=new Set(prev);next.has(item.bagPandId)?next.delete(item.bagPandId):next.add(item.bagPandId);return next;})}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words text-sm font-medium">{item.adres}</p>{bestaand&&<Badge variant="secondary">Al bekend</Badge>}<Badge variant="outline">{item.bouwjaar ?? 'Bouwjaar onbekend'}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{[item.postcode,item.plaats,item.gebruiksdoel,item.oppervlakte?`${item.oppervlakte} m²`:null].filter(Boolean).join(' · ')}</p><p className="mt-1 font-mono-data text-[11px] text-muted-foreground">BAG-pand {item.bagPandId}</p></div>{item.latitude&&item.longitude&&<a className="shrink-0 text-muted-foreground hover:text-foreground" href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} target="_blank" rel="noreferrer" aria-label="Open in Google Maps"><MapPin className="h-4 w-4"/></a>}</div>})}</div>}
     </section>
 
     <div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><Building2 className="mr-2 inline h-4 w-4"/>Na toevoegen open je ieder dossier voor visuele beoordeling, handmatig Kadaster- en eigenaaronderzoek en briefvoorbereiding. Er wordt niets automatisch besteld of verzonden.</div>
