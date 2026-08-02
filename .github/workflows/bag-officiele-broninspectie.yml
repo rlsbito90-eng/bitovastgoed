@@ -1,0 +1,46 @@
+name: BAG officiële broninspectie
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installeer inspectiehulpmiddelen
+        run: sudo apt-get update && sudo apt-get install -y unzip file libxml2-utils
+
+      - name: Inspecteer officiële Kadaster-bronnen
+        run: bash scripts/bag/inspect-officiele-bronnen.sh bag-broninspectie
+
+      - name: Valideer dat bronbestanden bruikbaar zijn
+        run: |
+          test -s bag-broninspectie/sha256.txt
+          test -s bag-broninspectie/xsd-inhoud.txt
+          test -s bag-broninspectie/proef-inhoud.txt
+          test "$(find bag-broninspectie/unpacked/xsd -type f -iname '*.xsd' | wc -l)" -gt 0
+          test "$(find bag-broninspectie/unpacked/proef -type f -iname '*.xml' | wc -l)" -gt 0
+
+      - name: Publiceer alleen inspectierapport
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-officiele-broninspectie
+          path: |
+            bag-broninspectie/rapport.md
+            bag-broninspectie/sha256.txt
+            bag-broninspectie/file-types.txt
+            bag-broninspectie/xsd-zip-test.txt
+            bag-broninspectie/proef-zip-test.txt
+            bag-broninspectie/xsd-inhoud.txt
+            bag-broninspectie/proef-inhoud.txt
+            bag-broninspectie/bestanden-en-grootte.tsv
+            bag-broninspectie/namespaces.txt
+            bag-broninspectie/objectelementen.txt
+          retention-days: 14
