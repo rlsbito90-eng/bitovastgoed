@@ -1,0 +1,134 @@
+name: Deploy CRM objectnummer A1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-crm-objectnummer-a1
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.head_ref == 'ops/deploy-crm-objectnummer-a1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT }}
+
+    steps:
+      - name: Checkout deployed main commit
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Report configured GitHub deployment capabilities
+        id: capabilities
+        shell: bash
+        run: |
+          has_db_url=false
+          has_supabase_cli=false
+          has_vite_env=false
+          has_vercel=false
+          has_netlify=false
+          has_cloudflare=false
+
+          if [[ -n "$SUPABASE_DATABASE_URL" || -n "$DATABASE_URL" ]]; then has_db_url=true; fi
+          if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_DB_PASSWORD" ]]; then has_supabase_cli=true; fi
+          if [[ -n "$VITE_SUPABASE_URL" && -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ]]; then has_vite_env=true; fi
+          if [[ -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then has_vercel=true; fi
+          if [[ -n "$NETLIFY_AUTH_TOKEN" && -n "$NETLIFY_SITE_ID" ]]; then has_netlify=true; fi
+          if [[ -n "$CLOUDFLARE_API_TOKEN" && -n "$CLOUDFLARE_ACCOUNT_ID" && -n "$CLOUDFLARE_PAGES_PROJECT" ]]; then has_cloudflare=true; fi
+
+          echo "has_db_url=$has_db_url" >> "$GITHUB_OUTPUT"
+          echo "has_supabase_cli=$has_supabase_cli" >> "$GITHUB_OUTPUT"
+          echo "has_vite_env=$has_vite_env" >> "$GITHUB_OUTPUT"
+          echo "has_vercel=$has_vercel" >> "$GITHUB_OUTPUT"
+          echo "has_netlify=$has_netlify" >> "$GITHUB_OUTPUT"
+          echo "has_cloudflare=$has_cloudflare" >> "$GITHUB_OUTPUT"
+
+          {
+            echo '### GitHub deployment capabilities'
+            echo "- Direct database URL: $has_db_url"
+            echo "- Supabase CLI credentials: $has_supabase_cli"
+            echo "- Vite production environment: $has_vite_env"
+            echo "- Vercel: $has_vercel"
+            echo "- Netlify: $has_netlify"
+            echo "- Cloudflare Pages: $has_cloudflare"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply Supabase migration with database URL
+        if: steps.capabilities.outputs.has_db_url == 'true'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          target_url="${SUPABASE_DATABASE_URL:-$DATABASE_URL}"
+          psql "$target_url" -v ON_ERROR_STOP=1 -f supabase/migrations/20260802021000_add_crm_objectnummer.sql
+
+      - name: Apply Supabase migration with linked CLI
+        if: steps.capabilities.outputs.has_db_url != 'true' && steps.capabilities.outputs.has_supabase_cli == 'true'
+        shell: bash
+        run: |
+          npx --yes supabase@latest link --project-ref ljudxyrqoifhfikueric --password "$SUPABASE_DB_PASSWORD"
+          npx --yes supabase@latest db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Verify database migration capability
+        if: steps.capabilities.outputs.has_db_url != 'true' && steps.capabilities.outputs.has_supabase_cli != 'true'
+        run: echo 'No Supabase deployment credential is configured in GitHub.'
+
+      - name: Install application dependencies
+        if: steps.capabilities.outputs.has_vercel == 'true' || steps.capabilities.outputs.has_netlify == 'true' || steps.capabilities.outputs.has_cloudflare == 'true'
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+
+      - name: Deploy frontend to Vercel
+        if: steps.capabilities.outputs.has_vercel == 'true'
+        shell: bash
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN" | tee deployment-url.txt
+
+      - name: Deploy frontend to Netlify
+        if: steps.capabilities.outputs.has_vercel != 'true' && steps.capabilities.outputs.has_netlify == 'true'
+        shell: bash
+        run: |
+          npm run build
+          npx --yes netlify-cli@latest deploy --prod --dir=dist --auth="$NETLIFY_AUTH_TOKEN" --site="$NETLIFY_SITE_ID" | tee deployment-url.txt
+
+      - name: Deploy frontend to Cloudflare Pages
+        if: steps.capabilities.outputs.has_vercel != 'true' && steps.capabilities.outputs.has_netlify != 'true' && steps.capabilities.outputs.has_cloudflare == 'true'
+        shell: bash
+        run: |
+          npm run build
+          npx --yes wrangler@latest pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-dirty=true | tee deployment-url.txt
+
+      - name: Report missing GitHub frontend deployment route
+        if: steps.capabilities.outputs.has_vercel != 'true' && steps.capabilities.outputs.has_netlify != 'true' && steps.capabilities.outputs.has_cloudflare != 'true'
+        run: echo 'No supported frontend hosting credential is configured in GitHub.'
+
+      - name: Enforce database deployment
+        if: steps.capabilities.outputs.has_db_url != 'true' && steps.capabilities.outputs.has_supabase_cli != 'true'
+        run: exit 21
+
+      - name: Enforce frontend deployment route
+        if: steps.capabilities.outputs.has_vercel != 'true' && steps.capabilities.outputs.has_netlify != 'true' && steps.capabilities.outputs.has_cloudflare != 'true'
+        run: exit 22
