@@ -47,7 +47,8 @@ interface GemeenteGebied {
 const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';
 const GEMEENTEGRENZEN_URL = 'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items';
 const CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84';
-const MAX_PAGINAS = 12;
+const RASTER_GROOTTE = 4;
+const MAX_PAGINAS_PER_VAK = 3;
 const PAGINA_LIMIET = 100;
 
 export function normaliseerGemeentenaam(value: unknown): string {
@@ -214,7 +215,7 @@ function puntInRing([x, y]: Punt, ring: Ring): boolean {
 
 export function puntInGemeente(punt: Punt, ringen: Ring[]): boolean {
   if (!ringen.length) return false;
-  return ringen.reduce((binnen, ring) => (puntInRing(punt, ring) ? !binnen : binnen), false);
+  return ringen.reduce((binnen, ring) => (puntInRing(punt, ring) ? !binnen : binnen), false;
 }
 
 async function fetchJson(url: string): Promise<any> {
@@ -263,6 +264,33 @@ async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
 
 export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
   return (await zoekGemeenteGebied(gemeente)).bbox;
+}
+
+export function verdeelBboxInVakken(bbox: Bbox, rasterGrootte = RASTER_GROOTTE): Bbox[] {
+  const [minX, minY, maxX, maxY] = bbox;
+  const breedte = (maxX - minX) / rasterGrootte;
+  const hoogte = (maxY - minY) / rasterGrootte;
+  const vakken: Bbox[] = [];
+
+  for (let rij = 0; rij < rasterGrootte; rij += 1) {
+    for (let kolom = 0; kolom < rasterGrootte; kolom += 1) {
+      vakken.push([
+        minX + kolom * breedte,
+        minY + rij * hoogte,
+        kolom === rasterGrootte - 1 ? maxX : minX + (kolom + 1) * breedte,
+        rij === rasterGrootte - 1 ? maxY : minY + (rij + 1) * hoogte,
+      ]);
+    }
+  }
+
+  const midden = (rasterGrootte - 1) / 2;
+  return vakken.sort((a, b) => {
+    const ax = ((a[0] + a[2]) / 2 - minX) / breedte - midden;
+    const ay = ((a[1] + a[3]) / 2 - minY) / hoogte - midden;
+    const bx = ((b[0] + b[2]) / 2 - minX) / breedte - midden;
+    const by = ((b[1] + b[3]) / 2 - minY) / hoogte - midden;
+    return ax * ax + ay * ay - (bx * bx + by * by);
+  });
 }
 
 function eersteVboHref(feature: any): string | null {
@@ -395,16 +423,9 @@ export async function zoekBagKandidatenMetStatistiek(
   criteria: BagSelectieCriteria,
 ): Promise<BagSelectieResultaat> {
   const gebied = await zoekGemeenteGebied(criteria.gemeente);
-  const eersteParams = new URLSearchParams({
-    bbox: gebied.bbox.join(','),
-    'bbox-crs': CRS84,
-    crs: CRS84,
-    limit: String(PAGINA_LIMIET),
-    f: 'json',
-  });
-
-  let url: string | null = `${BAG_PANDEN_URL}?${eersteParams}`;
+  const vakken = verdeelBboxInVakken(gebied.bbox);
   const unique = new Map<string, BagKandidaat>();
+  const gezieneFeatures = new Set<string>();
   const statistiek: BagSelectieStatistiek = {
     onderzocht: 0,
     technischAfgevallen: 0,
@@ -414,42 +435,63 @@ export async function zoekBagKandidatenMetStatistiek(
     paginas: 0,
   };
 
-  while (url && statistiek.paginas < MAX_PAGINAS && unique.size < criteria.limiet) {
-    const data = await fetchJson(url);
-    statistiek.paginas += 1;
-    const features = data?.features ?? [];
-    statistiek.onderzocht += features.length;
+  for (const vak of vakken) {
+    if (unique.size >= criteria.limiet) break;
 
-    const voorVerrijking = features.filter((feature: any) => {
-      const voldoet = voldoetVoorVerrijking(feature, criteria);
-      if (!voldoet) statistiek.criteriaAfgevallen += 1;
-      return voldoet;
+    const params = new URLSearchParams({
+      bbox: vak.join(','),
+      'bbox-crs': CRS84,
+      crs: CRS84,
+      limit: String(PAGINA_LIMIET),
+      f: 'json',
     });
+    let url: string | null = `${BAG_PANDEN_URL}?${params}`;
+    let paginasInVak = 0;
 
-    const enriched = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);
-    for (const item of enriched) {
-      if (!item) {
-        statistiek.technischAfgevallen += 1;
-        continue;
-      }
-      if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) {
-        statistiek.criteriaAfgevallen += 1;
-        continue;
-      }
-      if (item.longitude == null || item.latitude == null) {
-        statistiek.technischAfgevallen += 1;
-        continue;
-      }
-      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) {
-        statistiek.buitenGemeente += 1;
-        continue;
+    while (url && paginasInVak < MAX_PAGINAS_PER_VAK && unique.size < criteria.limiet) {
+      const data = await fetchJson(url);
+      paginasInVak += 1;
+      statistiek.paginas += 1;
+      const features = (data?.features ?? []).filter((feature: any) => {
+        const id = String(feature?.properties?.identificatie ?? feature?.id ?? '');
+        if (id && gezieneFeatures.has(id)) return false;
+        if (id) gezieneFeatures.add(id);
+        return true;
+      });
+      statistiek.onderzocht += features.length;
+
+      const voorVerrijking = features.filter((feature: any) => {
+        const voldoet = voldoetVoorVerrijking(feature, criteria);
+        if (!voldoet) statistiek.criteriaAfgevallen += 1;
+        return voldoet;
+      });
+
+      const enriched = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);
+      for (const item of enriched) {
+        if (!item) {
+          statistiek.technischAfgevallen += 1;
+          continue;
+        }
+        if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) {
+          statistiek.criteriaAfgevallen += 1;
+          continue;
+        }
+        if (item.longitude == null || item.latitude == null) {
+          statistiek.technischAfgevallen += 1;
+          continue;
+        }
+        if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) {
+          statistiek.buitenGemeente += 1;
+          continue;
+        }
+
+        const key = item.bagPandId || `${item.adres}|${item.postcode}`;
+        if (!unique.has(key)) unique.set(key, item);
+        if (unique.size >= criteria.limiet) break;
       }
 
-      const key = item.bagPandId || `${item.adres}|${item.postcode}`;
-      if (!unique.has(key)) unique.set(key, item);
+      url = volgendePagina(data);
     }
-
-    url = volgendePagina(data);
   }
 
   const kandidaten = [...unique.values()].slice(0, criteria.limiet);
