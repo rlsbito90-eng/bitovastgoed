@@ -10,9 +10,24 @@ PROEF_URL="https://www.kadaster.nl/documents/1953498/2762071/Proefbestand%2Bgeme
 fetch() {
   local url="$1"
   local target="$2"
-  curl --fail --location --silent --show-error \
-    --retry 4 --retry-delay 3 --connect-timeout 20 --max-time 300 \
-    "$url" --output "$target"
+  local tmp="${target}.part"
+
+  rm -f "$tmp"
+
+  if curl --ipv4 --fail --location --silent --show-error \
+    --retry 8 --retry-all-errors --retry-delay 5 \
+    --connect-timeout 60 --max-time 900 \
+    "$url" --output "$tmp"; then
+    mv "$tmp" "$target"
+    return 0
+  fi
+
+  echo "curl-download mislukt; probeer wget-fallback voor $url" >&2
+  rm -f "$tmp"
+  wget --inet4-only --quiet \
+    --tries=5 --timeout=90 --waitretry=5 \
+    --output-document="$tmp" "$url"
+  mv "$tmp" "$target"
 }
 
 fetch "$XSD_URL" "$OUT_DIR/downloads/lvbag-extract-v20200601.zip"
