@@ -9,13 +9,22 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
       - name: Installeer inspectiehulpmiddelen
-        run: sudo apt-get update && sudo apt-get install -y unzip file libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y unzip file libxml2-utils wget
 
       - name: Inspecteer officiële Kadaster-bronnen
         run: bash scripts/bag/inspect-officiele-bronnen.sh bag-broninspectie
@@ -26,18 +35,46 @@ jobs:
             bag-broninspectie/unpacked/proef \
             bag-broninspectie/fixtures
 
-      - name: Valideer dat bronbestanden en fixtures bruikbaar zijn
+      - name: Valideer BAG-domeinlagen
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/officieleXmlRecordAdapter.test.ts \
+            src/lib/bag/relationeleNormalisatie.test.ts \
+            src/lib/bag/stagingModel.test.ts \
+            src/lib/bag/importBatch.test.ts \
+            src/lib/bag/integraleDryRun.test.ts \
+            src/lib/bag/releaseGates.test.ts
+
+      - name: Extraheer volledige records voor tijdelijke dry-run
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-broninspectie/unpacked/proef \
+            bag-broninspectie/records.ndjson
+
+      - name: Voer integrale Assen-dry-run uit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          npx --no-install vite-node \
+            scripts/bag/run-integrale-assen-dry-run.ts \
+            bag-broninspectie/records.ndjson \
+            bag-broninspectie/dry-run
+
+      - name: Valideer dat bronbestanden, fixtures en dry-run bruikbaar zijn
         run: |
           test -s bag-broninspectie/sha256.txt
           test -s bag-broninspectie/xsd-inhoud.txt
           test -s bag-broninspectie/proef-inhoud.txt
           test -s bag-broninspectie/fixtures/manifest.json
           test -s bag-broninspectie/fixtures/README.md
+          test -s bag-broninspectie/records.summary.json
+          test -s bag-broninspectie/dry-run/resultaat.json
+          test -s bag-broninspectie/dry-run/rapport.md
           test "$(find bag-broninspectie/unpacked/xsd -type f -iname '*.xsd' | wc -l)" -gt 0
           test "$(find bag-broninspectie/unpacked/proef -type f -iname '*.xml' | wc -l)" -gt 0
           test "$(find bag-broninspectie/fixtures -type f -iname '*.xml' | wc -l)" -ge 10
 
-      - name: Publiceer alleen inspectierapport en kleine fixtures
+      - name: Publiceer alleen rapporten en kleine fixtures
         uses: actions/upload-artifact@v4
         with:
           name: bag-officiele-broninspectie
@@ -52,6 +89,9 @@ jobs:
             bag-broninspectie/bestanden-en-grootte.tsv
             bag-broninspectie/namespaces.txt
             bag-broninspectie/objectelementen.txt
+            bag-broninspectie/records.summary.json
+            bag-broninspectie/dry-run/resultaat.json
+            bag-broninspectie/dry-run/rapport.md
             bag-broninspectie/fixtures/README.md
             bag-broninspectie/fixtures/manifest.json
             bag-broninspectie/fixtures/*.xml
