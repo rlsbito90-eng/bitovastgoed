@@ -5,7 +5,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, Archive, RotateCcw, Building2 } from 'lucide-react';
+import { Search, Plus, ChevronRight, Archive, RotateCcw, Building2, AlertTriangle } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import type { ObjectStatus, ObjectVastgoed } from '@/data/mock-data';
@@ -19,7 +19,7 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartObjectCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { objectMatchesCrmSearch } from '@/lib/objecten/crmObjectnummer';
-import { ObjectIntegriteitSamenvatting } from '@/components/objecten/ObjectIntegriteitSamenvatting';
+import { getObjectIntegriteitVoorObject } from '@/lib/objecten/objectIntegriteit';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
@@ -110,8 +110,6 @@ export default function ObjectenPage() {
         }
       />
 
-      <ObjectIntegriteitSamenvatting objecten={objecten} />
-
       <div className="flex gap-1 border-b border-border">
         {tabs.map(t => (
           <button
@@ -195,6 +193,7 @@ export default function ObjectenPage() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filtered.map(obj => {
+              const integriteit = getObjectIntegriteitVoorObject(obj);
               const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
               return (
                 <Link key={obj.id} to={`/objecten/${obj.id}`} className="section-card block p-3.5 active:bg-muted/40 transition-colors">
@@ -207,9 +206,14 @@ export default function ObjectenPage() {
                       <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                     </div>
                   </div>
-                  {obj.crmObjectnummer && (
-                    <p className="text-[11px] text-muted-foreground mt-1 font-mono-data">{obj.crmObjectnummer}</p>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {obj.crmObjectnummer && <p className="text-[11px] text-muted-foreground font-mono-data">{obj.crmObjectnummer}</p>}
+                    {integriteit.heeftWaarschuwing && (
+                      <span title={integriteit.label} aria-label={integriteit.label} className="inline-flex text-amber-500/75">
+                        <AlertTriangle className="h-3 w-3" />
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                   </p>
@@ -260,6 +264,7 @@ export default function ObjectenPage() {
                 </thead>
                 <tbody className="divide-y divide-border/70">
                   {filtered.map(obj => {
+                    const integriteit = getObjectIntegriteitVoorObject(obj);
                     const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
                     return (
                       <tr
@@ -271,6 +276,11 @@ export default function ObjectenPage() {
                           <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {obj.crmObjectnummer && <span className="font-mono-data">{obj.crmObjectnummer}</span>}
+                            {integriteit.heeftWaarschuwing && (
+                              <span title={integriteit.label} aria-label={integriteit.label} className="inline-flex ml-1 text-amber-500/75 align-middle">
+                                <AlertTriangle className="h-3 w-3" />
+                              </span>
+                            )}
                             {obj.crmObjectnummer && (obj.plaats || obj.provincie) && <span> · </span>}
                             {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                           </p>

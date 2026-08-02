@@ -105,3 +105,23 @@ export function analyseerObjectIntegriteit(objecten: ObjectVastgoed[]): ObjectIn
     aantallen,
   };
 }
+
+
+export interface ObjectIntegriteitContext {
+  ontbrekendeVelden: Array<'adres' | 'postcode' | 'plaats'>;
+  heeftWaarschuwing: boolean;
+  label: string;
+}
+
+export function getObjectIntegriteitVoorObject(object: Pick<ObjectVastgoed, 'adres' | 'postcode' | 'plaats'>): ObjectIntegriteitContext {
+  const ontbrekendeVelden: ObjectIntegriteitContext['ontbrekendeVelden'] = [];
+  if (!object.adres?.trim()) ontbrekendeVelden.push('adres');
+  if (!object.postcode?.trim()) ontbrekendeVelden.push('postcode');
+  if (!object.plaats?.trim()) ontbrekendeVelden.push('plaats');
+  const labels = ontbrekendeVelden.map(v => v === 'adres' ? 'adres' : v === 'postcode' ? 'postcode' : 'plaats');
+  return {
+    ontbrekendeVelden,
+    heeftWaarschuwing: ontbrekendeVelden.length > 0,
+    label: labels.length ? 'Ontbreekt: ' + labels.join(', ') : 'Adresgegevens compleet',
+  };
+}

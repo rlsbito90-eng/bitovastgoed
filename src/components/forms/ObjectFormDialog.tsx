@@ -596,12 +596,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label={<>Adres<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.adres ?? ''} onChange={e => set('adres', e.target.value || undefined)} />
+                    <OntbrekendHint show={isEdit && !form.adres?.trim()} label="Adres ontbreekt" />
                   </Veld>
                   <Veld label={<>Postcode<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.postcode ?? ''} onChange={e => set('postcode', e.target.value || undefined)} />
+                    <OntbrekendHint show={isEdit && !form.postcode?.trim()} label="Postcode ontbreekt" />
                   </Veld>
                   <Veld label={<>Plaats<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <Input value={form.plaats} onChange={e => set('plaats', e.target.value)} />
+                    <OntbrekendHint show={isEdit && !form.plaats.trim()} label="Plaats ontbreekt" />
                   </Veld>
                   <Veld label="Provincie">
                     <select
@@ -1611,6 +1614,11 @@ function Veld({ label, children, span = 1 }: { label: ReactNode; children: React
 
 /** Visuele markering: ** = sterk aanbevolen voor referentiegebruik, * = nuttig. */
 /** Kleine `auto`-indicator naast afgeleide velden. */
+function OntbrekendHint({ show, label }: { show: boolean; label: string }) {
+  if (!show) return null;
+  return <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600/80 dark:text-amber-400/80"><AlertTriangle className="h-3 w-3" />{label}</p>;
+}
+
 function AutoBadge({ show = true }: { show?: boolean }) {
   if (!show) return null;
   return (
