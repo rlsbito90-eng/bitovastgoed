@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Pencil, MapPin, Database } from 'lucide-react';
+import { Plus, Search, Pencil, MapPin, Database, Radar } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,7 @@ export default function VastgoedkansenPage() {
       <PageHeader
         title="Vastgoedkansen"
         subtitle="Criteriagedreven pandenselectie en mailingfunnel — vóór een pand een CRM-Object wordt."
-        actions={<Button onClick={() => setForm({ open: true, kans: null })}><Plus className="mr-1.5 h-4 w-4" /> Nieuwe kans</Button>}
+        actions={<div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/vastgoedkansen/vinden"><Radar className="mr-1.5 h-4 w-4"/>Panden vinden</Link></Button><Button onClick={() => setForm({ open: true, kans: null })}><Plus className="mr-1.5 h-4 w-4" /> Nieuwe kans</Button></div>}
       />
 
       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
@@ -87,7 +87,7 @@ export default function VastgoedkansenPage() {
         )}
       </section>
 
-      <div className="flex min-w-0 gap-2 rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /><p>Open een kans voor BAG-context, handmatig eigenaarsonderzoek, kadastrale context en onderzoeksnotities. Automatische selectie, Kadasteracties en brieven volgen afzonderlijk.</p></div>
+      <div className="flex min-w-0 gap-2 rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /><p>Gebruik Panden vinden voor een gecontroleerde BAG-selectie. Open daarna een kans voor visuele beoordeling, handmatig eigenaarsonderzoek, kadastrale context en briefvoorbereiding.</p></div>
 
       <VastgoedkansFormDialog open={form.open} onOpenChange={(open) => setForm({ open, kans: open ? form.kans : null })} kans={form.kans} />
     </div>
