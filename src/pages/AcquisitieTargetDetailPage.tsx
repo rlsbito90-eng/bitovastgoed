@@ -12,6 +12,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { targetTitel } from '@/lib/acquisitie';
 import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge';
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
+import AcquisitieObjectPreflightDialog from '@/components/acquisitie/AcquisitieObjectPreflightDialog';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import ListNavigator from '@/components/ListNavigator';
@@ -20,11 +21,11 @@ import { getListNavigation } from '@/lib/listNavigation';
 export default function AcquisitieTargetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { targets, campagnes, deleteTarget, converteerNaarObject } = useAcquisitie();
+  const { targets, campagnes, deleteTarget } = useAcquisitie();
   const { getRelatieById, contactpersonen } = useDataStore();
   const [editOpen, setEditOpen] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
-  const [bezig, setBezig] = useState(false);
+  const [preflightOpen, setPreflightOpen] = useState(false);
 
   const target = targets.find(t => t.id === id);
   if (!target) {
@@ -40,20 +41,6 @@ export default function AcquisitieTargetDetailPage() {
 
   const relatie = target.relatieId ? getRelatieById(target.relatieId) : null;
   const campagne = target.campagneId ? campagnes.find(c => c.id === target.campagneId) : null;
-
-  const maakObject = async () => {
-    if (bezig) return;
-    setBezig(true);
-    try {
-      const { objectId } = await converteerNaarObject(target.id);
-      toast.success('Object aangemaakt vanuit target.');
-      navigate(`/objecten/${objectId}`);
-    } catch (err: any) {
-      toast.error(err.message ?? 'Conversie mislukt.');
-    } finally {
-      setBezig(false);
-    }
-  };
 
   const verwijder = async () => {
     try {
@@ -85,7 +72,7 @@ export default function AcquisitieTargetDetailPage() {
           <>
             <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 mr-1.5" /> Bewerken</Button>
             {target.status !== 'object_aangemaakt' ? (
-              <Button onClick={maakObject} disabled={bezig}><Building2 className="h-4 w-4 mr-1.5" /> Maak Object</Button>
+              <Button onClick={() => setPreflightOpen(true)}><Building2 className="h-4 w-4 mr-1.5" /> Naar Objecten</Button>
             ) : target.objectId ? (
               <Button variant="outline" asChild>
                 <Link to={`/objecten/${target.objectId}`}><ExternalLink className="h-4 w-4 mr-1.5" /> Naar object</Link>
@@ -130,6 +117,7 @@ export default function AcquisitieTargetDetailPage() {
       </div>
 
       <AcquisitieTargetFormDialog open={editOpen} onOpenChange={setEditOpen} target={target} />
+      <AcquisitieObjectPreflightDialog open={preflightOpen} onOpenChange={setPreflightOpen} target={target} />
 
       <AlertDialog open={verwijderOpen} onOpenChange={setVerwijderOpen}>
         <AlertDialogContent>
