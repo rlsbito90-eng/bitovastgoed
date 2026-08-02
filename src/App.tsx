@@ -34,6 +34,7 @@ import AdminPage from "@/pages/AdminPage";
 import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
 import OffMarketPage from "@/pages/OffMarketPage";
 import VastgoedkansenPage from "@/pages/VastgoedkansenPage";
+import VastgoedkansDetailPage from "@/pages/VastgoedkansDetailPage";
 import OffMarketSignaalDetailPage from "@/pages/OffMarketSignaalDetailPage";
 import OAuthConsentPage from "@/pages/OAuthConsentPage";
 import NotFound from "@/pages/NotFound";
@@ -99,6 +100,7 @@ const App = () => (
                           <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
+                          <Route path="/vastgoedkansen/:id" element={<VastgoedkansDetailPage />} />
                           <Route path="/off-market" element={<OffMarketPage />} />
                           <Route path="/off-market/:id" element={<OffMarketSignaalDetailPage />} />
                           <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
