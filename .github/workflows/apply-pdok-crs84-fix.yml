@@ -1,0 +1,136 @@
+name: Apply PDOK CRS84 consistency fix
+
+on:
+  push:
+    branches:
+      - fix/pdok-crs84-consistentie
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pdok-crs84-consistentie
+          fetch-depth: 0
+
+      - name: Apply CRS84 consistency patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/lib/pdokBagSelectie.ts')
+          text = path.read_text()
+
+          text = text.replace(
+            "const PAGINA_LIMIET = 100;",
+            "const PAGINA_LIMIET = 100;\nconst CRS84 = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84';"
+          )
+
+          marker = "function puntUitGeometry(geometry: any): [number | null, number | null] {\n"
+          replacement = """export function isGeldigeNederlandseCrs84Punt(value: unknown): value is Punt {
+  if (!Array.isArray(value) || value.length < 2) return false;
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+  return Number.isFinite(longitude)
+    && Number.isFinite(latitude)
+    && longitude >= 2.5
+    && longitude <= 7.8
+    && latitude >= 50.5
+    && latitude <= 54.0;
+}
+
+function puntUitGeometry(geometry: any): [number | null, number | null] {
+"""
+          if marker not in text:
+            raise SystemExit('puntUitGeometry marker niet gevonden')
+          text = text.replace(marker, replacement, 1)
+
+          old_point = """  const x = coordinates.reduce((sum, point) => sum + point[0], 0) / coordinates.length;
+  const y = coordinates.reduce((sum, point) => sum + point[1], 0) / coordinates.length;
+  return [x, y];
+}"""
+          new_point = """  const x = coordinates.reduce((sum, point) => sum + point[0], 0) / coordinates.length;
+  const y = coordinates.reduce((sum, point) => sum + point[1], 0) / coordinates.length;
+  return isGeldigeNederlandseCrs84Punt([x, y]) ? [x, y] : [null, null];
+}"""
+          if old_point not in text:
+            raise SystemExit('puntUitGeometry body niet gevonden')
+          text = text.replace(old_point, new_point, 1)
+
+          old_municipality_params = "const params = new URLSearchParams({ limit: '500', f: 'json' });"
+          new_municipality_params = "const params = new URLSearchParams({ limit: '500', f: 'json', crs: CRS84 });"
+          if old_municipality_params not in text:
+            raise SystemExit('gemeentegrens params niet gevonden')
+          text = text.replace(old_municipality_params, new_municipality_params, 1)
+
+          old_vbo = "try { vbo = await fetchJson(`${href}${href.includes('?') ? '&' : '?'}f=json`); } catch { return null; }"
+          new_vbo = "try {\n    const separator = href.includes('?') ? '&' : '?';\n    vbo = await fetchJson(`${href}${separator}f=json&crs=${encodeURIComponent(CRS84)}`);\n  } catch { return null; }"
+          if old_vbo not in text:
+            raise SystemExit('VBO fetch niet gevonden')
+          text = text.replace(old_vbo, new_vbo, 1)
+
+          old_bag_params = "const eersteParams = new URLSearchParams({ bbox: gebied.bbox.join(','), limit: String(PAGINA_LIMIET), f: 'json' });"
+          new_bag_params = "const eersteParams = new URLSearchParams({\n    bbox: gebied.bbox.join(','),\n    'bbox-crs': CRS84,\n    crs: CRS84,\n    limit: String(PAGINA_LIMIET),\n    f: 'json',\n  });"
+          if old_bag_params not in text:
+            raise SystemExit('BAG params niet gevonden')
+          text = text.replace(old_bag_params, new_bag_params, 1)
+
+          old_boundary_validation = """  const ringen = ringenUitGeometrie(exact.geometry);
+  const bbox = bboxUitGeometrie(exact.geometry) ?? bboxUitGeometrie(exact.bbox);
+  if (!bbox || !ringen.length) throw new Error(`Voor gemeente “${gemeente}” kon geen officiële gemeentegrens worden bepaald.`);
+
+  return { bbox, ringen, naam: gemeentenaamUitFeature(exact) ?? opgeschoond };"""
+          new_boundary_validation = """  const ringen = ringenUitGeometrie(exact.geometry);
+  const bbox = bboxUitGeometrie(exact.geometry) ?? bboxUitGeometrie(exact.bbox);
+  const allePunten = ringen.flat();
+  if (!bbox || !ringen.length || !allePunten.every(isGeldigeNederlandseCrs84Punt)) {
+    throw new Error(`Voor gemeente “${gemeente}” kon geen geldige CRS84-gemeentegrens worden bepaald.`);
+  }
+
+  return { bbox, ringen, naam: gemeentenaamUitFeature(exact) ?? opgeschoond };"""
+          if old_boundary_validation not in text:
+            raise SystemExit('gemeentegrens validatie niet gevonden')
+          text = text.replace(old_boundary_validation, new_boundary_validation, 1)
+
+          path.write_text(text)
+
+          test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
+          t = test.read_text()
+          t = t.replace(
+            "import { bboxUitGeometrie, puntInGemeente, zelfdeGemeente } from '@/lib/pdokBagSelectie';",
+            "import { bboxUitGeometrie, isGeldigeNederlandseCrs84Punt, puntInGemeente, zelfdeGemeente } from '@/lib/pdokBagSelectie';"
+          )
+          insertion = """
+describe('CRS84-validatie', () => {
+  it('accepteert Nederlandse longitude/latitude', () => {
+    expect(isGeldigeNederlandseCrs84Punt([4.9041, 52.3676])).toBe(true);
+    expect(isGeldigeNederlandseCrs84Punt([5.0913, 51.5555])).toBe(true);
+  });
+
+  it('weigert RD-coördinaten en omgedraaide assen', () => {
+    expect(isGeldigeNederlandseCrs84Punt([121000, 487000])).toBe(false);
+    expect(isGeldigeNederlandseCrs84Punt([52.3676, 4.9041])).toBe(false);
+  });
+});
+
+"""
+          marker_test = "describe('puntInGemeente', () => {"
+          if marker_test not in t:
+            raise SystemExit('testmarker niet gevonden')
+          t = t.replace(marker_test, insertion + marker_test, 1)
+          test.write_text(t)
+
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/apply-pdok-crs84-fix.yml
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts
+          git commit -m "fix: forceer CRS84 in PDOK BAG-selectie"
+          git push origin HEAD:fix/pdok-crs84-consistentie
