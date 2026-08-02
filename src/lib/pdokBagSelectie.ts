@@ -43,6 +43,17 @@ const LOCATIESERVER_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/fre
 const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';
 const MAX_PAGINAS = 12;
 const PAGINA_LIMIET = 100;
+const adresGemeenteCache = new Map<string, string | null>();
+
+export function normaliseerGemeentenaam(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+export function zelfdeGemeente(a: unknown, b: unknown): boolean {
+  const left = normaliseerGemeentenaam(a);
+  const right = normaliseerGemeentenaam(b);
+  return Boolean(left && right && left === right);
+}
 
 function getal(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -254,6 +265,29 @@ function voldoetVoorVerrijking(feature: any, criteria: BagSelectieCriteria): boo
   return gebruiksdoel ? pastGebruiksdoel(gebruiksdoel, criteria.gebruiksdoelen) : true;
 }
 
+async function zoekGemeenteVoorAdres(item: BagKandidaat): Promise<string | null> {
+  const sleutel = `${item.postcode ?? ''}|${item.adres}`.toLowerCase();
+  if (adresGemeenteCache.has(sleutel)) return adresGemeenteCache.get(sleutel) ?? null;
+
+  const params = new URLSearchParams({
+    q: [item.adres, item.postcode, item.plaats].filter(Boolean).join(' '),
+    fq: 'type:adres',
+    rows: '5',
+  });
+  try {
+    const data = await fetchJson(`${LOCATIESERVER_URL}?${params}`);
+    const docs = data?.response?.docs ?? [];
+    const postcode = normaliseerGemeentenaam(item.postcode);
+    const exact = docs.find((doc: any) => normaliseerGemeentenaam(doc.postcode) === postcode) ?? docs[0];
+    const gemeente = tekst(exact?.gemeentenaam ?? exact?.gemeente_naam);
+    adresGemeenteCache.set(sleutel, gemeente);
+    return gemeente;
+  } catch {
+    adresGemeenteCache.set(sleutel, null);
+    return null;
+  }
+}
+
 async function verrijkMetAdres(feature: any): Promise<BagKandidaat | null> {
   const p = feature?.properties ?? {};
   const href = eersteVboHref(feature);
@@ -322,14 +356,20 @@ export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriter
     });
     const enriched = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);
 
-    enriched.forEach((item) => {
-      if (!item) { statistiek.technischAfgevallen += 1; return; }
-      if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) { statistiek.criteriaAfgevallen += 1; return; }
-      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; return; }
-      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; return; }
+    for (const item of enriched) {
+      if (!item) { statistiek.technischAfgevallen += 1; continue; }
+      if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) { statistiek.criteriaAfgevallen += 1; continue; }
+
+      // De Locatieserver levert bij gemeenterecords vaak alleen een centroide.
+      // Valideer daarom ieder verrijkt adres expliciet op de officiële gemeentenaam.
+      const adresGemeente = await zoekGemeenteVoorAdres(item);
+      if (adresGemeente && !zelfdeGemeente(adresGemeente, gebied.naam)) { statistiek.buitenGemeente += 1; continue; }
+
+      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
+      if (gebied.ringen.length && !puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
       const key = item.bagPandId || `${item.adres}|${item.postcode}`;
       if (!unique.has(key)) unique.set(key, item);
-    });
+    }
 
     url = volgendePagina(data);
   }
