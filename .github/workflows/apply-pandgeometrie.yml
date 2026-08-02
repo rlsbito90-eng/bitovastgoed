@@ -57,3 +57,5 @@ jobs:
           git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts
           git commit -m "fix: gebruik BAG-pandgeometrie voor gemeentecontrole"
           git push origin HEAD:fix/pdok-pandgeometrie
+
+# trigger
