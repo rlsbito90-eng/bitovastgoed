@@ -47,21 +47,61 @@ function verzamelCoordinaten(value: unknown, out: [number, number][]) {
   value.forEach((child) => verzamelCoordinaten(child, out));
 }
 
-function bboxUitGeoJson(raw: unknown): Bbox | null {
+function bboxUitPunten(coordinates: [number, number][]): Bbox | null {
+  if (!coordinates.length) return null;
+  const xs = coordinates.map(([x]) => x);
+  const ys = coordinates.map(([, y]) => y);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+function coordinatenUitWkt(raw: string): [number, number][] {
+  const body = raw.replace(/^\s*SRID=\d+;\s*/i, '').trim();
+  const pairs: [number, number][] = [];
+  const coordinatePattern = /(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  let match: RegExpExecArray | null;
+  while ((match = coordinatePattern.exec(body)) !== null) {
+    const x = Number(match[1]);
+    const y = Number(match[2]);
+    if (Number.isFinite(x) && Number.isFinite(y)) pairs.push([x, y]);
+  }
+  return pairs;
+}
+
+export function bboxUitGeometrie(raw: unknown): Bbox | null {
   if (!raw) return null;
-  let geometry: any = raw;
+
   if (typeof raw === 'string') {
-    try { geometry = JSON.parse(raw); } catch { return null; }
+    const value = raw.trim();
+    if (!value) return null;
+
+    try {
+      const parsed = JSON.parse(value);
+      const coordinates: [number, number][] = [];
+      verzamelCoordinaten(parsed?.coordinates ?? parsed?.geometry?.coordinates, coordinates);
+      const geoJsonBbox = bboxUitPunten(coordinates);
+      if (geoJsonBbox) return geoJsonBbox;
+    } catch {
+      // Locatieserver levert geometrieën doorgaans als WKT, niet als JSON.
+    }
+
+    return bboxUitPunten(coordinatenUitWkt(value));
+  }
+
+  const geometry: any = raw;
+  if (Array.isArray(geometry?.bbox) && geometry.bbox.length >= 4) {
+    const bbox = geometry.bbox.slice(0, 4).map(Number);
+    if (bbox.every(Number.isFinite)) return bbox as Bbox;
   }
   const coordinates: [number, number][] = [];
-  verzamelCoordinaten(geometry?.coordinates, coordinates);
-  if (!coordinates.length) return null;
-  return [
-    Math.min(...coordinates.map(([x]) => x)),
-    Math.min(...coordinates.map(([, y]) => y)),
-    Math.max(...coordinates.map(([x]) => x)),
-    Math.max(...coordinates.map(([, y]) => y)),
-  ];
+  verzamelCoordinaten(geometry?.coordinates ?? geometry?.geometry?.coordinates, coordinates);
+  return bboxUitPunten(coordinates);
+}
+
+function vergrootPuntTotZoekgebied(bbox: Bbox): Bbox {
+  const [minX, minY, maxX, maxY] = bbox;
+  if (minX !== maxX || minY !== maxY) return bbox;
+  const marge = 0.08;
+  return [minX - marge, minY - marge, maxX + marge, maxY + marge];
 }
 
 async function fetchJson(url: string): Promise<any> {
@@ -71,23 +111,28 @@ async function fetchJson(url: string): Promise<any> {
 }
 
 export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
-  const params = new URLSearchParams({ q: gemeente, fq: 'type:gemeente', rows: '5' });
+  const opgeschoond = gemeente.trim();
+  const params = new URLSearchParams({ q: opgeschoond, fq: 'type:gemeente', rows: '10' });
   const data = await fetchJson(`${LOCATIESERVER_URL}?${params}`);
   const docs = data?.response?.docs ?? [];
-  const exact = docs.find((doc: any) => String(doc.weergavenaam ?? doc.gemeentenaam ?? '').toLowerCase().startsWith(gemeente.toLowerCase())) ?? docs[0];
+  const exact = docs.find((doc: any) => {
+    const namen = [doc.gemeentenaam, doc.weergavenaam, doc.naam].filter(Boolean).map((value) => String(value).toLowerCase());
+    return namen.some((naam) => naam === opgeschoond.toLowerCase() || naam.startsWith(`${opgeschoond.toLowerCase()} `));
+  }) ?? docs[0];
   if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden.`);
-  const bbox = bboxUitGeoJson(exact.geometrie_ll ?? exact.geometry ?? exact.centroide_ll);
-  if (!bbox) throw new Error(`Voor gemeente “${gemeente}” kon geen zoekgebied worden bepaald.`);
-  return bbox;
+
+  const bronnen = [exact.geometrie_ll, exact.geometry, exact.geometrie_rd, exact.centroide_ll, exact.centroide_rd];
+  for (const bron of bronnen) {
+    const bbox = bboxUitGeometrie(bron);
+    if (bbox) return vergrootPuntTotZoekgebied(bbox);
+  }
+
+  throw new Error(`Voor gemeente “${gemeente}” kon geen zoekgebied worden bepaald.`);
 }
 
 function eersteVboHref(feature: any): string | null {
   const properties = feature?.properties ?? {};
-  const candidates = [
-    properties['verblijfsobject.href'],
-    properties.verblijfsobject_href,
-    properties.verblijfsobject,
-  ];
+  const candidates = [properties['verblijfsobject.href'], properties.verblijfsobject_href, properties.verblijfsobject];
   for (const candidate of candidates) {
     if (typeof candidate === 'string' && candidate.startsWith('http')) return candidate;
     if (Array.isArray(candidate)) {
@@ -167,11 +212,7 @@ async function mapBegrensd<T, R>(items: T[], concurrency: number, mapper: (item:
 
 export async function zoekBagKandidaten(criteria: BagSelectieCriteria): Promise<BagKandidaat[]> {
   const bbox = await zoekGemeenteBbox(criteria.gemeente);
-  const params = new URLSearchParams({
-    bbox: bbox.join(','),
-    limit: String(Math.min(Math.max(criteria.limiet * 5, 50), 500)),
-    f: 'json',
-  });
+  const params = new URLSearchParams({ bbox: bbox.join(','), limit: String(Math.min(Math.max(criteria.limiet * 5, 50), 500)), f: 'json' });
   const data = await fetchJson(`${BAG_PANDEN_URL}?${params}`);
   const features = (data?.features ?? []).filter((feature: any) => {
     const p = feature?.properties ?? {};
