@@ -19,6 +19,7 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartObjectCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { objectMatchesCrmSearch } from '@/lib/objecten/crmObjectnummer';
+import { ObjectIntegriteitSamenvatting } from '@/components/objecten/ObjectIntegriteitSamenvatting';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
@@ -108,6 +109,8 @@ export default function ObjectenPage() {
           </button>
         }
       />
+
+      <ObjectIntegriteitSamenvatting objecten={objecten} />
 
       <div className="flex gap-1 border-b border-border">
         {tabs.map(t => (
