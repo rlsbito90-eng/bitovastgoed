@@ -1,0 +1,55 @@
+name: Apply CRM objectnummer A1
+
+on:
+  push:
+    branches:
+      - feat/crm-objectnummer-a1
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply scoped BUILD A1 patch
+        run: python3 scripts/apply_crm_objectnummer_a1.py
+
+      - name: Install dependencies without changing lockfile
+        run: npm install --package-lock=false --ignore-scripts --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Remove one-time patch machinery
+        run: |
+          rm scripts/apply_crm_objectnummer_a1.py
+          rm .github/workflows/apply-crm-objectnummer-a1.yml
+
+      - name: Commit verified implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add immutable CRM object numbers"
+          git push origin HEAD:feat/crm-objectnummer-a1
