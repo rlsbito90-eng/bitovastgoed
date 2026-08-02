@@ -16,76 +16,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Patch target branch
-        shell: bash
         run: |
           git fetch origin fix/pdok-gebiedsdekkende-selectie
           git checkout -B fix/pdok-gebiedsdekkende-selectie origin/fix/pdok-gebiedsdekkende-selectie
-          python - <<'PY'
-          from pathlib import Path
-
-          page = Path('src/pages/VastgoedkansenVindenPage.tsx')
-          text = page.read_text()
-          text = text.replace("const [gemeente, setGemeente] = useState('Oisterwijk');", "const [gemeente, setGemeente] = useState('Amsterdam');")
-          page.write_text(text)
-
-          path = Path('src/lib/pdokBagSelectie.ts')
-          text = path.read_text()
-          text = text.replace("const MAX_PAGINAS = 12;\nconst PAGINA_LIMIET = 100;", "const RASTER_GROOTTE = 4;\nconst MAX_PAGINAS_PER_VAK = 3;\nconst PAGINA_LIMIET = 100;")
-
-          marker = "export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {\n  return (await zoekGemeenteGebied(gemeente)).bbox;\n}\n"
-          insertion = marker + "\nexport function verdeelBboxInVakken(bbox: Bbox, rasterGrootte = RASTER_GROOTTE): Bbox[] {\n  const [minX, minY, maxX, maxY] = bbox;\n  const breedte = (maxX - minX) / rasterGrootte;\n  const hoogte = (maxY - minY) / rasterGrootte;\n  const vakken: Bbox[] = [];\n  for (let rij = 0; rij < rasterGrootte; rij += 1) {\n    for (let kolom = 0; kolom < rasterGrootte; kolom += 1) {\n      vakken.push([\n        minX + kolom * breedte,\n        minY + rij * hoogte,\n        kolom === rasterGrootte - 1 ? maxX : minX + (kolom + 1) * breedte,\n        rij === rasterGrootte - 1 ? maxY : minY + (rij + 1) * hoogte,\n      ]);\n    }\n  }\n  const midden = (rasterGrootte - 1) / 2;\n  return vakken.sort((a, b) => {\n    const ax = ((a[0] + a[2]) / 2 - minX) / breedte - midden;\n    const ay = ((a[1] + a[3]) / 2 - minY) / hoogte - midden;\n    const bx = ((b[0] + b[2]) / 2 - minX) / breedte - midden;\n    const by = ((b[1] + b[3]) / 2 - minY) / hoogte - midden;\n    return ax * ax + ay * ay - (bx * bx + by * by);\n  });\n}\n"
-          if marker not in text:
-              raise SystemExit('bbox helper marker niet gevonden')
-          text = text.replace(marker, insertion, 1)
-
-          start = text.index("  const eersteParams = new URLSearchParams({")
-          end = text.index("  const kandidaten = [...unique.values()].slice(0, criteria.limiet);", start)
-          replacement = """  const vakken = verdeelBboxInVakken(gebied.bbox);\n  const unique = new Map<string, BagKandidaat>();\n  const gezieneFeatures = new Set<string>();\n  const statistiek: BagSelectieStatistiek = {\n    onderzocht: 0,\n    technischAfgevallen: 0,\n    buitenGemeente: 0,\n    criteriaAfgevallen: 0,\n    kandidaten: 0,\n    paginas: 0,\n  };\n\n  for (const vak of vakken) {\n    if (unique.size >= criteria.limiet) break;\n    const params = new URLSearchParams({\n      bbox: vak.join(','),\n      'bbox-crs': CRS84,\n      crs: CRS84,\n      limit: String(PAGINA_LIMIET),\n      f: 'json',\n    });\n    let url: string | null = `${BAG_PANDEN_URL}?${params}`;\n    let paginasInVak = 0;\n\n    while (url && paginasInVak < MAX_PAGINAS_PER_VAK && unique.size < criteria.limiet) {\n      const data = await fetchJson(url);\n      paginasInVak += 1;\n      statistiek.paginas += 1;\n      const features = (data?.features ?? []).filter((feature: any) => {\n        const id = String(feature?.properties?.identificatie ?? feature?.id ?? '');\n        if (id && gezieneFeatures.has(id)) return false;\n        if (id) gezieneFeatures.add(id);\n        return true;\n      });\n      statistiek.onderzocht += features.length;\n\n      const voorVerrijking = features.filter((feature: any) => {\n        const voldoet = voldoetVoorVerrijking(feature, criteria);\n        if (!voldoet) statistiek.criteriaAfgevallen += 1;\n        return voldoet;\n      });\n\n      const enriched = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);\n      for (const item of enriched) {\n        if (!item) {\n          statistiek.technischAfgevallen += 1;\n          continue;\n        }\n        if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) {\n          statistiek.criteriaAfgevallen += 1;\n          continue;\n        }\n        if (item.longitude == null || item.latitude == null) {\n          statistiek.technischAfgevallen += 1;\n          continue;\n        }\n        if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) {\n          statistiek.buitenGemeente += 1;\n          continue;\n        }\n\n        const key = item.bagPandId || `${item.adres}|${item.postcode}`;\n        if (!unique.has(key)) unique.set(key, item);\n        if (unique.size >= criteria.limiet) break;\n      }\n\n      url = volgendePagina(data);\n    }\n  }\n\n"""
-          text = text[:start] + replacement + text[end:]
-          path.write_text(text)
-
-          test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
-          t = test.read_text()
-          if 'verdeelBboxInVakken' not in t.split('\n', 5)[0:5]:
-              t = t.replace("puntInGemeente,", "puntInGemeente,\n  verdeelBboxInVakken,")
-          if "describe('gebiedsdekkend raster'" not in t:
-              t += """\n\ndescribe('gebiedsdekkend raster', () => {\n  it('verdeelt een bbox in zestien unieke vakken met volledige dekking', () => {\n    const vakken = verdeelBboxInVakken([4, 51, 8, 55], 4);\n    expect(vakken).toHaveLength(16);\n    expect(new Set(vakken.map(vak => vak.join(','))).size).toBe(16);\n    expect(Math.min(...vakken.map(vak => vak[0]))).toBe(4);\n    expect(Math.min(...vakken.map(vak => vak[1]))).toBe(51);\n    expect(Math.max(...vakken.map(vak => vak[2]))).toBe(8);\n    expect(Math.max(...vakken.map(vak => vak[3]))).toBe(55);\n  });\n});\n"""
-          test.write_text(t)
-          PY
-
+          git show origin/main:.github/scripts/apply-pdok-grid.py > /tmp/apply-pdok-grid.py
+          python /tmp/apply-pdok-grid.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/lib/pdokBagSelectie.ts src/pages/VastgoedkansenVindenPage.tsx src/test/vastgoedkansen/pdokBagSelectie.test.ts
           git commit -m "fix: doorzoek grote gemeenten gebiedsdekkend"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
-      - name: Install
-        run: npm install --no-package-lock
-
-      - name: Typecheck
-        run: npx tsc --noEmit
-
-      - name: Tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Push target branch
-        run: git push origin HEAD:fix/pdok-gebiedsdekkende-selectie
-
-      - name: Remove temporary workflow from main
+      - run: npm install --no-package-lock
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+      - run: git push origin HEAD:fix/pdok-gebiedsdekkende-selectie
+      - name: Cleanup main
         if: always()
-        shell: bash
         run: |
           git checkout -B main origin/main
-          git rm .github/workflows/apply-pdok-grid.yml
+          git rm .github/workflows/apply-pdok-grid.yml .github/scripts/apply-pdok-grid.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: verwijder tijdelijke PDOK-rasterworkflow"
