@@ -1,9 +1,6 @@
 name: Apply CRM objectnummer A1
 
 on:
-  push:
-    branches:
-      - feat/crm-objectnummer-a1
   pull_request:
     branches:
       - main
@@ -12,9 +9,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: crm-objectnummer-a1
+  cancel-in-progress: true
+
 jobs:
   apply-and-verify:
-    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'feat/crm-objectnummer-a1')
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'feat/crm-objectnummer-a1'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
