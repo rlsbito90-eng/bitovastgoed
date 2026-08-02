@@ -1,0 +1,48 @@
+name: Apply acquisitietarget objectkoppeling C2
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'feat/acquisitietarget-objectkoppeling-c2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply BUILD C2
+        run: node scripts/apply-acquisitietarget-objectkoppeling-c2.mjs
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-package-lock
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test -- --run
+      - name: Production build
+        run: npm run build
+      - name: Remove temporary automation
+        run: |
+          rm scripts/apply-acquisitietarget-objectkoppeling-c2.mjs
+          rm .github/workflows/apply-acquisitietarget-objectkoppeling-c2.yml
+      - name: Commit generated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: add controlled acquisitie target object linking"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
