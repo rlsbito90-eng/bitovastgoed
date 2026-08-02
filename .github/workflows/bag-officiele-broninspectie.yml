@@ -20,15 +20,24 @@ jobs:
       - name: Inspecteer officiële Kadaster-bronnen
         run: bash scripts/bag/inspect-officiele-bronnen.sh bag-broninspectie
 
-      - name: Valideer dat bronbestanden bruikbaar zijn
+      - name: Extraheer kleine officiële XML-fixtures
+        run: |
+          python3 scripts/bag/extract-officiele-fixtures.py \
+            bag-broninspectie/unpacked/proef \
+            bag-broninspectie/fixtures
+
+      - name: Valideer dat bronbestanden en fixtures bruikbaar zijn
         run: |
           test -s bag-broninspectie/sha256.txt
           test -s bag-broninspectie/xsd-inhoud.txt
           test -s bag-broninspectie/proef-inhoud.txt
+          test -s bag-broninspectie/fixtures/manifest.json
+          test -s bag-broninspectie/fixtures/README.md
           test "$(find bag-broninspectie/unpacked/xsd -type f -iname '*.xsd' | wc -l)" -gt 0
           test "$(find bag-broninspectie/unpacked/proef -type f -iname '*.xml' | wc -l)" -gt 0
+          test "$(find bag-broninspectie/fixtures -type f -iname '*.xml' | wc -l)" -ge 16
 
-      - name: Publiceer alleen inspectierapport
+      - name: Publiceer alleen inspectierapport en kleine fixtures
         uses: actions/upload-artifact@v4
         with:
           name: bag-officiele-broninspectie
@@ -43,4 +52,7 @@ jobs:
             bag-broninspectie/bestanden-en-grootte.tsv
             bag-broninspectie/namespaces.txt
             bag-broninspectie/objectelementen.txt
+            bag-broninspectie/fixtures/README.md
+            bag-broninspectie/fixtures/manifest.json
+            bag-broninspectie/fixtures/*.xml
           retention-days: 14
