@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Extracteer kleine officiële BAG XML-fixtures uit de recursief uitgepakte gemeenteproef.
+"""Extracteer kleine officiële BAG XML-fixtures uit de gemeenteproef.
 
 De volledige BAG-bronbestanden worden niet gepubliceerd. Per geselecteerde combinatie
-van objecttype en leveringscategorie wordt maximaal één compleet XML-element bewaard.
+van objecttype en leveringscategorie wordt maximaal één volledig recordfragment bewaard:
+het directe omhullende element rond het BAG-object, inclusief voorkomenmetadata,
+relaties en geometrie.
 """
 
 from __future__ import annotations
@@ -48,6 +50,10 @@ def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag.split(":")[-1]
 
 
+def namespace_uri(tag: str) -> str | None:
+    return tag[1:].split("}", 1)[0] if tag.startswith("{") else None
+
+
 def category_for(path: Path) -> str | None:
     normalized = "/" + path.as_posix()
     for category, markers in CATEGORY_MARKERS.items():
@@ -56,24 +62,31 @@ def category_for(path: Path) -> str | None:
     return None
 
 
-def write_fixture(element: ET.Element, output: Path) -> dict[str, object]:
-    payload = ET.tostring(element, encoding="utf-8", xml_declaration=True)
+def write_fixture(
+    wrapper: ET.Element,
+    object_element: ET.Element,
+    output: Path,
+) -> dict[str, object]:
+    payload = ET.tostring(wrapper, encoding="utf-8", xml_declaration=True)
     output.write_bytes(payload)
     return {
         "bestand": output.name,
         "bytes": len(payload),
         "sha256": hashlib.sha256(payload).hexdigest(),
-        "root": local_name(element.tag),
-        "namespace": element.tag[1:].split("}", 1)[0] if element.tag.startswith("{") else None,
-        "elementen": sum(1 for _ in element.iter()),
+        "root": local_name(wrapper.tag),
+        "root_namespace": namespace_uri(wrapper.tag),
+        "object_root": local_name(object_element.tag),
+        "object_namespace": namespace_uri(object_element.tag),
+        "elementen": sum(1 for _ in wrapper.iter()),
         "heeft_gml": any(
             child.tag.startswith("{http://www.opengis.net/gml/3.2}")
-            for child in element.iter()
+            for child in wrapper.iter()
         ),
         "heeft_xlink": any(
             any(key.startswith("{http://www.w3.org/1999/xlink}") for key in child.attrib)
-            for child in element.iter()
+            for child in wrapper.iter()
         ),
+        "heeft_voorkomen": any(local_name(child.tag) == "voorkomen" for child in wrapper.iter()),
     }
 
 
@@ -94,28 +107,50 @@ def main() -> int:
         if category is None:
             continue
 
+        stack: list[ET.Element] = []
+        active_capture: tuple[str, str, ET.Element, ET.Element] | None = None
+
         try:
-            iterator = ET.iterparse(xml_path, events=("end",))
-            for _, element in iterator:
-                object_type = local_name(element.tag)
-                key = f"{category}:{object_type}"
-                should_capture = object_type in OBJECT_TYPES and key in wanted and key not in found
+            iterator = ET.iterparse(xml_path, events=("start", "end"))
+            for event, element in iterator:
+                if event == "start":
+                    stack.append(element)
+                    object_type = local_name(element.tag)
+                    key = f"{category}:{object_type}"
+                    if (
+                        active_capture is None
+                        and object_type in OBJECT_TYPES
+                        and key in wanted
+                        and key not in found
+                        and len(stack) >= 2
+                    ):
+                        active_capture = (key, object_type, element, stack[-2])
+                    continue
 
-                if should_capture:
-                    file_name = f"{category}-{object_type.lower()}.xml"
-                    metadata = write_fixture(element, output / file_name)
-                    metadata["bronpad"] = str(xml_path.relative_to(source))
-                    found[key] = metadata
+                if active_capture is not None:
+                    key, object_type, object_element, wrapper = active_capture
+                    if element is wrapper:
+                        file_name = f"{category}-{object_type.lower()}.xml"
+                        metadata = write_fixture(wrapper, object_element, output / file_name)
+                        metadata["bronpad"] = str(xml_path.relative_to(source))
+                        found[key] = metadata
+                        active_capture = None
+                        wrapper.clear()
+                else:
+                    element.clear()
 
-                element.clear()
-        except ET.ParseError as exc:
-            print(f"Waarschuwing: XML kon niet worden gelezen: {xml_path}: {exc}", file=sys.stderr)
+                if not stack or stack[-1] is not element:
+                    raise RuntimeError(f"Ongeldige XML-stack bij {xml_path}")
+                stack.pop()
+        except (ET.ParseError, RuntimeError) as exc:
+            print(f"Waarschuwing: XML kon niet worden verwerkt: {xml_path}: {exc}", file=sys.stderr)
 
     missing_required = sorted(REQUIRED - found.keys())
     missing_optional = sorted(OPTIONAL - found.keys())
     manifest = {
         "fixture_contract": "BAG Extract v20200601 officiële gemeenteproef Assen 0106",
         "bronmap": str(source),
+        "fixture_niveau": "directe omhulling van het BAG-object",
         "fixtures": dict(sorted(found.items())),
         "ontbrekend_verplicht": missing_required,
         "ontbrekend_optioneel": missing_optional,
@@ -128,6 +163,9 @@ def main() -> int:
     summary_lines = [
         "# Officiële BAG XML-fixtures",
         "",
+        "De fixtures bevatten het directe omhullende record rond het BAG-object,",
+        "zodat voorkomenmetadata, relaties en GML behouden blijven.",
+        "",
         f"- Aangemaakt: {len(found)}",
         f"- Ontbrekend verplicht: {len(missing_required)}",
         f"- Ontbrekend optioneel: {len(missing_optional)}",
@@ -136,7 +174,8 @@ def main() -> int:
     for key, metadata in sorted(found.items()):
         summary_lines.append(
             f"- `{key}` → `{metadata['bestand']}` ({metadata['bytes']} bytes, "
-            f"GML={metadata['heeft_gml']}, XLink={metadata['heeft_xlink']})"
+            f"root={metadata['root']}, GML={metadata['heeft_gml']}, "
+            f"XLink={metadata['heeft_xlink']}, voorkomen={metadata['heeft_voorkomen']})"
         )
     if missing_optional:
         summary_lines.extend([
@@ -159,7 +198,7 @@ def main() -> int:
     if missing_optional:
         print("Optionele fixtures niet aangetroffen: " + ", ".join(missing_optional), file=sys.stderr)
 
-    print(f"{len(found)} officiële BAG-fixtures geëxtraheerd naar {output}")
+    print(f"{len(found)} volledige officiële BAG-recordfixtures geëxtraheerd naar {output}")
     return 0
 
 
