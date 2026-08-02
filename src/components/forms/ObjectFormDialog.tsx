@@ -15,6 +15,7 @@
 // (oftewel: eerst één keer opslaan, daarna upload).
 
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
 import { round2, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
@@ -76,6 +77,12 @@ import { Info, Image, FileText, Users, AlertCircle, AlertTriangle, CheckCircle2,
 import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
 import type { DocumentType } from '@/data/mock-data';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { beoordeelObjectAanmaakPreflight } from '@/lib/objecten/objectAanmaakPreflight';
+import type { ObjectMatchResultaat } from '@/lib/objecten/objectMatchService';
 
 interface Props {
   open: boolean;
@@ -220,6 +227,7 @@ const ENERGIELABELS: Energielabel[] =
 // ---------------------------------------------------------------------
 
 export default function ObjectFormDialog({ open, onOpenChange, object, initialTab = 'algemeen' }: Props) {
+  const navigate = useNavigate();
   const { addObject, updateObject, objecten, genereerRefnummer } = useDataStore();
   const isEdit = !!object;
 
@@ -230,6 +238,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState(initialTab);
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [preflightMatches, setPreflightMatches] = useState<ObjectMatchResultaat[]>([]);
 
   // Reset tab alleen bij een echte open-transitie (false → true). Hierdoor
   // valt de tab niet terug naar 'algemeen' wanneer de parent re-rendert na
@@ -373,6 +383,22 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
       toast.error('Titel is verplicht');
       setTab('algemeen');
       return;
+    }
+    if (!isEdit && !gemaaktId) {
+      const matches = beoordeelObjectAanmaakPreflight({
+        internReferentienummer: form.internReferentienummer,
+        adres: form.adres,
+        postcode: form.postcode,
+        plaats: form.plaats,
+        kadastraleGemeente: form.kadastraleGemeente,
+        kadastraleSectie: form.kadastraleSectie,
+        kadastraalNummer: form.kadastraalNummer,
+      }, objecten);
+      if (matches.length > 0) {
+        setPreflightMatches(matches);
+        setPreflightOpen(true);
+        return;
+      }
     }
     const triggertArchief = finalStatussen.includes(form.status)
       && (!object || !object.isArchived);
@@ -1562,6 +1588,60 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
           </div>
         </Tabs>
       </DialogContent>
+      <AlertDialog open={preflightOpen} onOpenChange={setPreflightOpen}>
+        <AlertDialogContent className="max-w-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mogelijk bestaand Object gevonden</AlertDialogTitle>
+            <AlertDialogDescription>
+              Controleer eerst of de nieuwe invoer al bestaat. Er wordt niets automatisch gekoppeld of samengevoegd.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+            {preflightMatches.map((match) => (
+              <button
+                key={match.object.id}
+                type="button"
+                onClick={() => {
+                  setPreflightOpen(false);
+                  onOpenChange(false);
+                  navigate(`/objecten/${match.object.id}`);
+                }}
+                className="w-full rounded-lg border border-border bg-card p-3 text-left hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{match.object.titel}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {[match.object.adres, match.object.postcode, match.object.plaats].filter(Boolean).join(', ') || 'Locatie onbekend'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Match op {match.redenen.map((reden) => reden === 'volledig_adres' ? 'volledig adres' : reden === 'kadastrale_identiteit' ? 'kadastrale identiteit' : reden === 'intern_referentienummer' ? 'intern referentienummer' : 'CRM-objectnummer').join(' en ')}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] font-mono-data text-muted-foreground">
+                    {match.score}/100
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Terug naar invoer</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={bezig}
+              onClick={async () => {
+                setPreflightOpen(false);
+                await persist();
+              }}
+            >
+              Toch nieuw Object aanmaken
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ArchiveerDialog
         open={archiefOpen}
         onOpenChange={setArchiefOpen}
