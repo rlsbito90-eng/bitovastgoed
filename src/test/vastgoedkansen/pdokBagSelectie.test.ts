@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bboxUitGeometrie } from '@/lib/pdokBagSelectie';
+import { bboxUitGeometrie, puntInGemeente } from '@/lib/pdokBagSelectie';
 
 describe('bboxUitGeometrie', () => {
   it('leest WKT polygonen uit de Locatieserver', () => {
@@ -12,5 +12,26 @@ describe('bboxUitGeometrie', () => {
 
   it('blijft GeoJSON ondersteunen', () => {
     expect(bboxUitGeometrie({ type: 'Polygon', coordinates: [[[4, 52], [5, 52], [5, 53], [4, 53], [4, 52]]] })).toEqual([4, 52, 5, 53]);
+  });
+});
+
+describe('puntInGemeente', () => {
+  const contour: [number, number][][] = [[[4, 52], [5, 52], [5, 53], [4, 53], [4, 52]]];
+
+  it('laat een pand binnen de gemeentecontour door', () => {
+    expect(puntInGemeente([4.5, 52.5], contour)).toBe(true);
+  });
+
+  it('sluit een pand buiten de gemeentecontour uit, ook als het binnen de bounding box-selectie van een buurgebied zat', () => {
+    expect(puntInGemeente([5.2, 52.5], contour)).toBe(false);
+  });
+
+  it('respecteert een gat in een contour via de even-odd-regel', () => {
+    const metGat: [number, number][][] = [
+      [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
+      [[4, 4], [6, 4], [6, 6], [4, 6], [4, 4]],
+    ];
+    expect(puntInGemeente([5, 5], metGat)).toBe(false);
+    expect(puntInGemeente([2, 2], metGat)).toBe(true);
   });
 });
