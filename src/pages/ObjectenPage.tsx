@@ -18,6 +18,7 @@ import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartObjectCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
+import { objectMatchesCrmSearch } from '@/lib/objecten/crmObjectnummer';
 
 type ArchiefView = 'actief' | 'archief' | 'alles';
 
@@ -61,9 +62,7 @@ export default function ObjectenPage() {
     const list = objecten.filter(o => {
       if (archiefView === 'actief' && o.isArchived) return false;
       if (archiefView === 'archief' && !o.isArchived) return false;
-      const matchZoek = !zoek
-        || o.titel.toLowerCase().includes(zoek.toLowerCase())
-        || o.plaats.toLowerCase().includes(zoek.toLowerCase());
+      const matchZoek = objectMatchesCrmSearch(o, zoek);
       const matchType = !typeFilter || o.propertyTypeId === typeFilter;
       const matchSub = !subtypeFilter || (o.propertySubtypeIds ?? []).includes(subtypeFilter);
       const matchDeal = !dealtypeFilter || (o.dealTypeIds ?? []).includes(dealtypeFilter);
@@ -129,7 +128,7 @@ export default function ObjectenPage() {
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Zoek op naam of plaats..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+          <Input placeholder="Zoek op naam, plaats of object-ID..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
           <select
@@ -205,6 +204,9 @@ export default function ObjectenPage() {
                       <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                     </div>
                   </div>
+                  {obj.crmObjectnummer && (
+                    <p className="text-[11px] text-muted-foreground mt-1 font-mono-data">{obj.crmObjectnummer}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                   </p>
@@ -264,7 +266,11 @@ export default function ObjectenPage() {
                       >
                         <td className="px-5 py-3.5">
                           <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{obj.plaats}, {obj.provincie}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {obj.crmObjectnummer && <span className="font-mono-data">{obj.crmObjectnummer}</span>}
+                            {obj.crmObjectnummer && (obj.plaats || obj.provincie) && <span> · </span>}
+                            {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
+                          </p>
                         </td>
                         <td className="px-5 py-3.5 text-right font-mono-data text-foreground">{formatCurrency(obj.vraagprijs)}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data">

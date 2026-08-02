@@ -1274,6 +1274,7 @@ export default function ObjectDetailPage() {
               </HeaderChip>
               <HeaderChip icon={Building2}>{propertyTypeLabel}</HeaderChip>
               {subtypeLabel && <HeaderChip>{subtypeLabel}</HeaderChip>}
+              {object.crmObjectnummer && <HeaderChip>{object.crmObjectnummer}</HeaderChip>}
               {object.internReferentienummer && (
                 <HeaderChip>{object.internReferentienummer}</HeaderChip>
               )}
@@ -1481,6 +1482,7 @@ export default function ObjectDetailPage() {
                     <h3 className="section-title">Identificatie</h3>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3">
+                    {object.crmObjectnummer && <Field label="CRM-object-ID">{object.crmObjectnummer}</Field>}
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
                     <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
                     {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}

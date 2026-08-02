@@ -211,6 +211,7 @@ function mapAppObjectStatusNaarDb(s: any): string {
 
 const objectFromDb = (o: any): ObjectVastgoed => ({
   id: o.id,
+  crmObjectnummer: o.crm_objectnummer ?? undefined,
   titel: o.objectnaam ?? '',
   internReferentienummer: o.intern_referentienummer ?? undefined,
   anoniem: !!o.anoniem,

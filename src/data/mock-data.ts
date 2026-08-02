@@ -266,6 +266,8 @@ export interface RelatieContactpersoon {
 
 export interface ObjectVastgoed {
   id: string;
+  /** Blijvend, app-breed leesbaar CRM-objectnummer (bijv. OBJ-000001). */
+  crmObjectnummer?: string;
   titel: string;
   internReferentienummer?: string;
 
