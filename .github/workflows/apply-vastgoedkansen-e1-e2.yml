@@ -19,7 +19,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply BUILD E1 E2
-        run: node scripts/apply-vastgoedkansen-e1-e2.mjs
+        run: |
+          sed -i '$s/`$//' scripts/apply-vastgoedkansen-e1-e2.mjs
+          node scripts/apply-vastgoedkansen-e1-e2.mjs
       - name: Install dependencies
         run: npm install --no-package-lock
       - name: Typecheck
