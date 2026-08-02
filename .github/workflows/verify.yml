@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: verify-${{ github.event.pull_request.number || github.ref }}
@@ -22,6 +22,78 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Apply official municipality boundary patch
+        if: github.head_ref == 'fix/pdok-officiele-gemeentegrens'
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('src/lib/pdokBagSelectie.ts')
+          text = path.read_text()
+          text = text.replace(
+            "const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';",
+            "const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';\nconst GEMEENTEGRENZEN_URL = 'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items';"
+          )
+
+          patroon = re.compile(r"async function zoekGemeenteGebied\(gemeente: string\): Promise<GemeenteGebied> \{.*?\n\}\n\nexport async function zoekGemeenteBbox", re.S)
+          vervanging = '''async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
+  const opgeschoond = gemeente.trim();
+  if (!opgeschoond) throw new Error('Vul een gemeente in.');
+
+  const params = new URLSearchParams({ limit: '500', f: 'json' });
+  const data = await fetchJson(`${GEMEENTEGRENZEN_URL}?${params}`);
+  const features = data?.features ?? [];
+  const exact = features.find((feature: any) =>
+    zelfdeGemeente(feature?.properties?.naam, opgeschoond)
+  );
+
+  if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden in de officiële gemeentegrenzen.`);
+
+  const ringen = ringenUitGeometrie(exact.geometry);
+  const bbox = bboxUitGeometrie(exact.geometry) ?? bboxUitGeometrie(exact.bbox);
+  if (!bbox || !ringen.length) {
+    throw new Error(`Voor gemeente “${gemeente}” kon geen officiële gemeentegrens worden bepaald.`);
+  }
+
+  return {
+    bbox,
+    ringen,
+    naam: String(exact.properties?.naam ?? opgeschoond),
+  };
+}
+
+export async function zoekGemeenteBbox'''
+          text, count = patroon.subn(vervanging, text)
+          if count != 1:
+            raise SystemExit(f'zoekGemeenteGebied vervangen: {count}')
+
+          oud = '''      // De Locatieserver levert bij gemeenterecords vaak alleen een centroide.
+      // Valideer daarom ieder verrijkt adres expliciet op de officiële gemeentenaam.
+      const adresGemeente = await zoekGemeenteVoorAdres(item);
+      if (adresGemeente && !zelfdeGemeente(adresGemeente, gebied.naam)) { statistiek.buitenGemeente += 1; continue; }
+
+      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
+      if (gebied.ringen.length && !puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
+'''
+          nieuw = '''      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
+      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
+'''
+          if oud not in text:
+            raise SystemExit('oude adres-/gemeentevalidatie niet gevonden')
+          path.write_text(text.replace(oud, nieuw))
+
+      - name: Commit applied patch
+        if: github.head_ref == 'fix/pdok-officiele-gemeentegrens'
+        run: |
+          git rm .github/workflows/apply-officiele-gemeentegrens.yml
+          git checkout origin/main -- .github/workflows/verify.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/pdokBagSelectie.ts .github/workflows/verify.yml
+          git commit -m "fix: gebruik officiële BRK-gemeentegrenzen voor BAG-selectie"
+          git push origin HEAD:fix/pdok-officiele-gemeentegrens
 
       - name: Node.js
         uses: actions/setup-node@v4
