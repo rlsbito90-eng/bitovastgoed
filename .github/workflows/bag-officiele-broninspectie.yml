@@ -58,7 +58,7 @@ jobs:
           BAG_DRY_RUN_OUTPUT: bag-broninspectie/dry-run
         run: |
           npx --no-install vitest run \
-            scripts/bag/run-integrale-assen-dry-run.test.ts \
+            src/lib/bag/integraleAssenWorkflow.test.ts \
             --reporter=verbose
 
       - name: Valideer dat bronbestanden, fixtures en dry-run bruikbaar zijn
