@@ -1,17 +1,17 @@
-import type { BagOfficieelRecord } from './officieleXmlRecordAdapter';
+import type { BagOfficieelAdapterRecord } from './officieleXmlRecordAdapter';
 import { maakDryRunRapport, maakImportBatches, type BagDryRunRapport } from './importBatch';
-import { bouwStagingDataset, type BagStagingDataset } from './stagingModel';
+import { bouwBagStagingModel, type BagStagingModel } from './stagingModel';
 
 export interface BagIntegraleDryRunInvoer {
   datasetVersie: string;
   scopeCode: string;
-  records: readonly BagOfficieelRecord[];
+  records: readonly BagOfficieelAdapterRecord[];
   batchGrootte: number;
   startIndex?: number;
 }
 
 export interface BagIntegraleDryRunResultaat {
-  staging: BagStagingDataset;
+  staging: BagStagingModel;
   rapport: BagDryRunRapport;
   batches: number;
 }
@@ -23,13 +23,33 @@ export function voerIntegraleBagDryRunUit(invoer: BagIntegraleDryRunInvoer): Bag
     startIndex: invoer.startIndex,
   });
   const verwerkteRecords = batchResultaat.batches.flatMap(batch => [...batch.records]);
-  const staging = bouwStagingDataset(verwerkteRecords);
+  const voorkomens = verwerkteRecords.map(record => ({
+    objecttype: record.objecttype,
+    identificatie: record.identificatie,
+    voorkomenidentificatie: record.voorkomen.voorkomenidentificatie,
+    beginGeldigheid: record.voorkomen.beginGeldigheid,
+    eindGeldigheid: record.voorkomen.eindGeldigheid,
+    tijdstipRegistratie: record.voorkomen.tijdstipRegistratie,
+    eindRegistratie: record.voorkomen.eindRegistratie,
+    tijdstipInactief: record.voorkomen.tijdstipInactief ?? record.voorkomen.tijdstipInactiefLV,
+    status: record.status,
+    relaties: record.relaties,
+    velden: record.velden,
+    geometrie: record.geometrie.crs === 'EPSG:28992' && record.geometrie.dimensie
+      ? {
+          crs: record.geometrie.crs,
+          dimensie: record.geometrie.dimensie,
+          coordinaten: record.geometrie.coordinaten,
+        }
+      : null,
+  }));
+  const staging = bouwBagStagingModel(voorkomens);
 
   const perObjecttype = verwerkteRecords.reduce<Record<string, number>>((acc, record) => {
     acc[record.objecttype] = (acc[record.objecttype] ?? 0) + 1;
     return acc;
   }, {});
-  const fouten = staging.fouten.map(fout => `${fout.code}:${fout.identificatie ?? ''}:${fout.reden}`);
+  const fouten = staging.fouten.map(fout => `${fout.code}:${fout.identificatie}:${fout.reden}`);
 
   const rapport = maakDryRunRapport({
     datasetVersie: invoer.datasetVersie,
