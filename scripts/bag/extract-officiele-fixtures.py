@@ -32,12 +32,15 @@ CATEGORY_MARKERS = {
 
 REQUIRED = {
     *(f"actief:{object_type}" for object_type in OBJECT_TYPES),
-    "in_onderzoek:Pand",
-    "in_onderzoek:Verblijfsobject",
-    "in_onderzoek:Nummeraanduiding",
     "inactief:Pand",
     "inactief:Verblijfsobject",
     "inactief:Nummeraanduiding",
+}
+
+OPTIONAL = {
+    "in_onderzoek:Pand",
+    "in_onderzoek:Verblijfsobject",
+    "in_onderzoek:Nummeraanduiding",
 }
 
 
@@ -84,6 +87,7 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
 
     found: dict[str, dict[str, object]] = {}
+    wanted = REQUIRED | OPTIONAL
 
     for xml_path in sorted(source.rglob("*.xml")):
         category = category_for(xml_path)
@@ -95,11 +99,7 @@ def main() -> int:
             for _, element in iterator:
                 object_type = local_name(element.tag)
                 key = f"{category}:{object_type}"
-                should_capture = (
-                    object_type in OBJECT_TYPES
-                    and key not in found
-                    and (key in REQUIRED or category == "actief")
-                )
+                should_capture = object_type in OBJECT_TYPES and key in wanted and key not in found
 
                 if should_capture:
                     file_name = f"{category}-{object_type.lower()}.xml"
@@ -108,21 +108,17 @@ def main() -> int:
                     found[key] = metadata
 
                 element.clear()
-
-                if REQUIRED.issubset(found):
-                    break
         except ET.ParseError as exc:
             print(f"Waarschuwing: XML kon niet worden gelezen: {xml_path}: {exc}", file=sys.stderr)
 
-        if REQUIRED.issubset(found):
-            break
-
-    missing = sorted(REQUIRED - found.keys())
+    missing_required = sorted(REQUIRED - found.keys())
+    missing_optional = sorted(OPTIONAL - found.keys())
     manifest = {
         "fixture_contract": "BAG Extract v20200601 officiële gemeenteproef Assen 0106",
         "bronmap": str(source),
         "fixtures": dict(sorted(found.items())),
-        "ontbrekend": missing,
+        "ontbrekend_verplicht": missing_required,
+        "ontbrekend_optioneel": missing_optional,
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -133,7 +129,8 @@ def main() -> int:
         "# Officiële BAG XML-fixtures",
         "",
         f"- Aangemaakt: {len(found)}",
-        f"- Ontbrekend: {len(missing)}",
+        f"- Ontbrekend verplicht: {len(missing_required)}",
+        f"- Ontbrekend optioneel: {len(missing_optional)}",
         "",
     ]
     for key, metadata in sorted(found.items()):
@@ -141,13 +138,26 @@ def main() -> int:
             f"- `{key}` → `{metadata['bestand']}` ({metadata['bytes']} bytes, "
             f"GML={metadata['heeft_gml']}, XLink={metadata['heeft_xlink']})"
         )
-    if missing:
-        summary_lines.extend(["", "## Ontbrekend", *[f"- `{key}`" for key in missing]])
+    if missing_optional:
+        summary_lines.extend([
+            "",
+            "## Niet aanwezig in dit officiële proefbestand",
+            *[f"- `{key}`" for key in missing_optional],
+        ])
+    if missing_required:
+        summary_lines.extend([
+            "",
+            "## Ontbrekend verplicht",
+            *[f"- `{key}`" for key in missing_required],
+        ])
     (output / "README.md").write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
-    if missing:
-        print("Ontbrekende verplichte fixtures: " + ", ".join(missing), file=sys.stderr)
+    if missing_required:
+        print("Ontbrekende verplichte fixtures: " + ", ".join(missing_required), file=sys.stderr)
         return 1
+
+    if missing_optional:
+        print("Optionele fixtures niet aangetroffen: " + ", ".join(missing_optional), file=sys.stderr)
 
     print(f"{len(found)} officiële BAG-fixtures geëxtraheerd naar {output}")
     return 0
