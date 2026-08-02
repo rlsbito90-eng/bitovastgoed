@@ -108,10 +108,10 @@ jobs:
           retention-days: 14
 
   capacity:
-    name: 2A.2 geïsoleerde PostGIS-capaciteitsproef
+    name: 2A.2 officiële Assen PostGIS-laadproef
     needs: inspect
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       postgis:
         image: postgis/postgis:16-3.4
@@ -143,8 +143,8 @@ jobs:
       - name: Installeer projectafhankelijkheden
         run: npm ci
 
-      - name: Installeer PostgreSQL-client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Installeer PostgreSQL- en inspectiehulpmiddelen
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client unzip file libxml2-utils wget
 
       - name: Valideer experimentcontracten
         run: |
@@ -157,34 +157,59 @@ jobs:
           test "${DATABASE_URL}" = "postgresql://bag_experiment:bag_experiment_local_only@127.0.0.1:5432/bag_experiment"
           test ! -e supabase/migrations/20260803_bag_import.sql
           test ! -e scripts/bag/importeer-naar-supabase.ts
-          ! grep -R "ljudxyrqoifhfikueric" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
-          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role|supabase\.co" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
+          ! grep -R "ljudxyrqoifhfikueric" experiments/bag/2a2 scripts/bag/run-2a2-officiele-assen-proef.sh
+          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role|supabase\.co" experiments/bag/2a2 scripts/bag/run-2a2-officiele-assen-proef.sh
 
-      - name: Voer geïsoleerde PostGIS-capaciteitsproef uit
-        run: bash scripts/bag/run-2a2-capaciteitsproef.sh bag-2a2-capaciteitsproef
+      - name: Download en inspecteer officiële Assen-bron opnieuw
+        run: bash scripts/bag/inspect-officiele-bronnen.sh bag-2a2-bron
+
+      - name: Extraheer officiële reguliere records
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-2a2-bron/unpacked/proef \
+            bag-2a2-bron/records.ndjson
+
+      - name: Exporteer bestaande staginglaag naar tijdelijke laadbestanden
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DB_EXPORT_INPUT: bag-2a2-bron/records.ndjson
+          BAG_DB_EXPORT_OUTPUT: bag-2a2-bron/postgis-export
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/integraleAssenDatabaseExportWorkflow.test.ts \
+            --reporter=verbose
+
+      - name: Voer officiële Assen PostGIS-laadproef uit
+        run: |
+          bash scripts/bag/run-2a2-officiele-assen-proef.sh \
+            bag-2a2-bron/postgis-export \
+            bag-2a2-officiele-assen-proef
 
       - name: Valideer rapportage
         run: |
-          test -s bag-2a2-capaciteitsproef/resultaat.json
-          test -s bag-2a2-capaciteitsproef/rapport.md
-          test -s bag-2a2-capaciteitsproef/tellingen.tsv
-          test -s bag-2a2-capaciteitsproef/opslag.tsv
-          test -s bag-2a2-capaciteitsproef/queryplannen.txt
-          grep -q '"productiedatabaseGebruikt": false' bag-2a2-capaciteitsproef/resultaat.json
-          grep -q '"rollbackBehouden": true' bag-2a2-capaciteitsproef/resultaat.json
+          test -s bag-2a2-officiele-assen-proef/resultaat.json
+          test -s bag-2a2-officiele-assen-proef/rapport.md
+          test -s bag-2a2-officiele-assen-proef/tellingen.tsv
+          test -s bag-2a2-officiele-assen-proef/opslag.tsv
+          test -s bag-2a2-officiele-assen-proef/queryplannen.txt
+          test -s bag-2a2-officiele-assen-proef/export-manifest.json
+          grep -q '"productiedatabaseGebruikt": false' bag-2a2-officiele-assen-proef/resultaat.json
+          grep -q '"rollbackBehouden": true' bag-2a2-officiele-assen-proef/resultaat.json
 
-      - name: Publiceer uitsluitend capaciteitsrapporten
+      - name: Publiceer uitsluitend officiële laadproefrapporten
         uses: actions/upload-artifact@v4
         with:
-          name: bag-2a2-postgis-capaciteitsproef
+          name: bag-2a2-officiele-assen-postgis-proef
           path: |
-            bag-2a2-capaciteitsproef/resultaat.json
-            bag-2a2-capaciteitsproef/rapport.md
-            bag-2a2-capaciteitsproef/tellingen.tsv
-            bag-2a2-capaciteitsproef/opslag.tsv
-            bag-2a2-capaciteitsproef/postgis.txt
-            bag-2a2-capaciteitsproef/queryplannen.txt
-            bag-2a2-capaciteitsproef/schema.log
-            bag-2a2-capaciteitsproef/load.log
-            bag-2a2-capaciteitsproef/rollback.log
+            bag-2a2-officiele-assen-proef/resultaat.json
+            bag-2a2-officiele-assen-proef/rapport.md
+            bag-2a2-officiele-assen-proef/tellingen.tsv
+            bag-2a2-officiele-assen-proef/opslag.tsv
+            bag-2a2-officiele-assen-proef/queryplannen.txt
+            bag-2a2-officiele-assen-proef/export-manifest.json
+            bag-2a2-officiele-assen-proef/schema.log
+            bag-2a2-officiele-assen-proef/raw-schema.log
+            bag-2a2-officiele-assen-proef/copy.log
+            bag-2a2-officiele-assen-proef/load.log
+            bag-2a2-officiele-assen-proef/rollback.log
           retention-days: 14
