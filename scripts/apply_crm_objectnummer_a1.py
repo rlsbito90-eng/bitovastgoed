@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -219,7 +220,7 @@ describe('CRM-objectnummer', () => {
     expect(sql).toContain('CREATE UNIQUE INDEX IF NOT EXISTS objecten_crm_objectnummer_key');
     expect(sql).toContain('ALTER COLUMN crm_objectnummer SET NOT NULL');
     expect(sql).toContain('objecten_crm_objectnummer_immutable');
-    expect(sql).toContain("ORDER BY created_at, id");
+    expect(sql).toContain('ORDER BY created_at, id');
   });
 });
 '''
@@ -243,7 +244,10 @@ replace_once(
 types_path = ROOT / "src/integrations/supabase/types.ts"
 types_text = types_path.read_text(encoding="utf-8")
 start = types_text.index("      objecten: {\n")
-end = types_text.index("      object_fotos: {\n", start)
+next_table = re.search(r"(?m)^      [A-Za-z0-9_]+: \{$", types_text[start + 1:])
+if next_table is None:
+    raise RuntimeError("Could not find the table boundary after public.Tables.objecten")
+end = start + 1 + next_table.start()
 object_block = types_text[start:end]
 for old, new in [
     ("          created_at: string\n", "          created_at: string\n          crm_objectnummer: string\n"),
@@ -253,10 +257,7 @@ for old, new in [
     expected = 1 if old.startswith("          created_at: string") else 2
     if count != expected:
         raise RuntimeError(f"Unexpected objecten type shape for {old!r}: {count}")
-    if expected == 1:
-        object_block = object_block.replace(old, new, 1)
-    else:
-        object_block = object_block.replace(old, new, 2)
+    object_block = object_block.replace(old, new, expected)
 types_path.write_text(types_text[:start] + object_block + types_text[end:], encoding="utf-8")
 
 replace_once(
@@ -273,11 +274,6 @@ replace_once(
     "src/pages/ObjectenPage.tsx",
     '          <Input placeholder="Zoek op naam of plaats..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />',
     '          <Input placeholder="Zoek op naam, plaats of object-ID..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />',
-)
-replace_once(
-    "src/pages/ObjectenPage.tsx",
-    "                    </p>\n                    <div className=\"flex items-center gap-1 shrink-0\">",
-    "                    </p>\n                    <div className=\"flex items-center gap-1 shrink-0\">",
 )
 replace_once(
     "src/pages/ObjectenPage.tsx",
