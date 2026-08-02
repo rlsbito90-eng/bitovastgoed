@@ -44,7 +44,8 @@ jobs:
             src/lib/bag/importBatch.test.ts \
             src/lib/bag/integraleDryRun.test.ts \
             src/lib/bag/releaseGates.test.ts \
-            src/lib/bag/databaseImportOntwerp.test.ts
+            src/lib/bag/databaseImportOntwerp.test.ts \
+            src/lib/bag/databaseCapaciteitsExperiment.test.ts
 
       - name: Bewaak read-only scope
         run: |
@@ -104,4 +105,86 @@ jobs:
             bag-broninspectie/fixtures/README.md
             bag-broninspectie/fixtures/manifest.json
             bag-broninspectie/fixtures/*.xml
+          retention-days: 14
+
+  capacity:
+    name: 2A.2 geïsoleerde PostGIS-capaciteitsproef
+    needs: inspect
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: bag_experiment
+          POSTGRES_USER: bag_experiment
+          POSTGRES_PASSWORD: bag_experiment_local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bag_experiment -d bag_experiment"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://bag_experiment:bag_experiment_local_only@127.0.0.1:5432/bag_experiment
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
+      - name: Installeer PostgreSQL-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Valideer experimentcontracten
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/databaseImportOntwerp.test.ts \
+            src/lib/bag/databaseCapaciteitsExperiment.test.ts
+
+      - name: Bewaak geïsoleerde scope
+        run: |
+          test "${DATABASE_URL}" = "postgresql://bag_experiment:bag_experiment_local_only@127.0.0.1:5432/bag_experiment"
+          test ! -e supabase/migrations/20260803_bag_import.sql
+          test ! -e scripts/bag/importeer-naar-supabase.ts
+          ! grep -R "ljudxyrqoifhfikueric" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
+          ! grep -R "SUPABASE_\|service_role\|CRM" experiments/bag/2a2 scripts/bag/run-2a2-capaciteitsproef.sh
+
+      - name: Voer geïsoleerde PostGIS-capaciteitsproef uit
+        run: bash scripts/bag/run-2a2-capaciteitsproef.sh bag-2a2-capaciteitsproef
+
+      - name: Valideer rapportage
+        run: |
+          test -s bag-2a2-capaciteitsproef/resultaat.json
+          test -s bag-2a2-capaciteitsproef/rapport.md
+          test -s bag-2a2-capaciteitsproef/tellingen.tsv
+          test -s bag-2a2-capaciteitsproef/opslag.tsv
+          test -s bag-2a2-capaciteitsproef/queryplannen.txt
+          grep -q '"productiedatabaseGebruikt": false' bag-2a2-capaciteitsproef/resultaat.json
+          grep -q '"rollbackBehouden": true' bag-2a2-capaciteitsproef/resultaat.json
+
+      - name: Publiceer uitsluitend capaciteitsrapporten
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-2a2-postgis-capaciteitsproef
+          path: |
+            bag-2a2-capaciteitsproef/resultaat.json
+            bag-2a2-capaciteitsproef/rapport.md
+            bag-2a2-capaciteitsproef/tellingen.tsv
+            bag-2a2-capaciteitsproef/opslag.tsv
+            bag-2a2-capaciteitsproef/postgis.txt
+            bag-2a2-capaciteitsproef/queryplannen.txt
+            bag-2a2-capaciteitsproef/schema.log
+            bag-2a2-capaciteitsproef/load.log
+            bag-2a2-capaciteitsproef/rollback.log
           retention-days: 14
