@@ -2556,6 +2556,7 @@ export type Database = {
           contact_naam: string | null
           contact_telefoon: string | null
           created_at: string
+          crm_objectnummer: string
           dataroom_url: string | null
           deal_type_ids: string[]
           documentatie_beschikbaar: boolean | null
@@ -2675,6 +2676,7 @@ export type Database = {
           contact_naam?: string | null
           contact_telefoon?: string | null
           created_at?: string
+          crm_objectnummer?: string
           dataroom_url?: string | null
           deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
@@ -2796,6 +2798,7 @@ export type Database = {
           contact_naam?: string | null
           contact_telefoon?: string | null
           created_at?: string
+          crm_objectnummer?: string
           dataroom_url?: string | null
           deal_type_ids?: string[]
           documentatie_beschikbaar?: boolean | null
