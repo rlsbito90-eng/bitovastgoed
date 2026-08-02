@@ -3,6 +3,17 @@
 SET search_path TO bag_experiment, public;
 SET synchronous_commit = off;
 
+CREATE OR REPLACE FUNCTION assert_eq(actual bigint, expected bigint, label text)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF actual <> expected THEN
+    RAISE EXCEPTION '% wijkt af: verwacht %, ontvangen %', label, expected, actual;
+  END IF;
+END;
+$$;
+
 INSERT INTO datasetversies(datasetversie, scope_code, status, is_actief, bron_checksum)
 VALUES ('assen-volumeprofiel-2a2', '0106', 'staging', false, repeat('a', 64));
 
@@ -135,23 +146,26 @@ ANALYZE staging_voorkomens;
 ANALYZE staging_relaties;
 ANALYZE staging_geometrieen;
 
-DO $$
-DECLARE
-  objecten_aantal bigint;
-  voorkomens_aantal bigint;
-  relaties_aantal bigint;
-  geometrieen_aantal bigint;
-BEGIN
-  SELECT count(*) INTO objecten_aantal FROM staging_objecten WHERE datasetversie_id = :datasetversie_id;
-  SELECT count(*) INTO voorkomens_aantal FROM staging_voorkomens WHERE datasetversie_id = :datasetversie_id;
-  SELECT count(*) INTO relaties_aantal FROM staging_relaties WHERE datasetversie_id = :datasetversie_id;
-  SELECT count(*) INTO geometrieen_aantal FROM staging_geometrieen WHERE datasetversie_id = :datasetversie_id;
-
-  IF objecten_aantal <> 128745 THEN RAISE EXCEPTION 'Objecttelling wijkt af: %', objecten_aantal; END IF;
-  IF voorkomens_aantal <> 168047 THEN RAISE EXCEPTION 'Voorkomentelling wijkt af: %', voorkomens_aantal; END IF;
-  IF relaties_aantal <> 212738 THEN RAISE EXCEPTION 'Relatietelling wijkt af: %', relaties_aantal; END IF;
-  IF geometrieen_aantal <> 122388 THEN RAISE EXCEPTION 'Geometrietelling wijkt af: %', geometrieen_aantal; END IF;
-END $$;
+SELECT assert_eq(
+  (SELECT count(*) FROM staging_objecten WHERE datasetversie_id = :datasetversie_id),
+  128745,
+  'Objecttelling'
+);
+SELECT assert_eq(
+  (SELECT count(*) FROM staging_voorkomens WHERE datasetversie_id = :datasetversie_id),
+  168047,
+  'Voorkomentelling'
+);
+SELECT assert_eq(
+  (SELECT count(*) FROM staging_relaties WHERE datasetversie_id = :datasetversie_id),
+  212738,
+  'Relatietelling'
+);
+SELECT assert_eq(
+  (SELECT count(*) FROM staging_geometrieen WHERE datasetversie_id = :datasetversie_id),
+  122388,
+  'Geometrietelling'
+);
 
 BEGIN;
   INSERT INTO objecten SELECT * FROM staging_objecten WHERE datasetversie_id = :datasetversie_id;
