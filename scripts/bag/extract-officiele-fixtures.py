@@ -95,19 +95,22 @@ def main() -> int:
             for _, element in iterator:
                 object_type = local_name(element.tag)
                 key = f"{category}:{object_type}"
-                if object_type not in OBJECT_TYPES or key in found:
-                    continue
-                if key not in REQUIRED and category != "actief":
-                    continue
+                should_capture = (
+                    object_type in OBJECT_TYPES
+                    and key not in found
+                    and (key in REQUIRED or category == "actief")
+                )
 
-                file_name = f"{category}-{object_type.lower()}.xml"
-                metadata = write_fixture(element, output / file_name)
-                metadata["bronpad"] = str(xml_path.relative_to(source))
-                found[key] = metadata
+                if should_capture:
+                    file_name = f"{category}-{object_type.lower()}.xml"
+                    metadata = write_fixture(element, output / file_name)
+                    metadata["bronpad"] = str(xml_path.relative_to(source))
+                    found[key] = metadata
+
+                element.clear()
 
                 if REQUIRED.issubset(found):
                     break
-                element.clear()
         except ET.ParseError as exc:
             print(f"Waarschuwing: XML kon niet worden gelezen: {xml_path}: {exc}", file=sys.stderr)
 
