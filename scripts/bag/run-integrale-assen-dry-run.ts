@@ -1,6 +1,7 @@
 import { createReadStream, mkdirSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseOfficieelBagRecord, type BagOfficieelAdapterRecord } from '../../src/lib/bag/officieleXmlRecordAdapter';
 import { voerIntegraleBagDryRunUit } from '../../src/lib/bag/integraleDryRun';
 import { beoordeelBagDryRun } from '../../src/lib/bag/releaseGates';
@@ -11,9 +12,21 @@ interface NdjsonRecord {
   xml: string;
 }
 
-async function main(): Promise<void> {
-  const input = resolve(process.argv[2] ?? 'bag-broninspectie/records.ndjson');
-  const outputDir = resolve(process.argv[3] ?? 'bag-broninspectie/dry-run');
+export interface IntegraleAssenDryRunSamenvatting {
+  ontvangen: number;
+  verwerkt: number;
+  geweigerd: number;
+  releaseGatesToegestaan: boolean;
+  resultaatPad: string;
+  rapportPad: string;
+}
+
+export async function runIntegraleAssenDryRun(
+  inputPath = 'bag-broninspectie/records.ndjson',
+  outputPath = 'bag-broninspectie/dry-run',
+): Promise<IntegraleAssenDryRunSamenvatting> {
+  const input = resolve(inputPath);
+  const outputDir = resolve(outputPath);
   mkdirSync(outputDir, { recursive: true });
 
   const records: BagOfficieelAdapterRecord[] = [];
@@ -82,7 +95,9 @@ async function main(): Promise<void> {
     stagingFouten: dryRun.staging.fouten,
   };
 
-  writeFileSync(resolve(outputDir, 'resultaat.json'), `${JSON.stringify(resultaat, null, 2)}\n`, 'utf-8');
+  const resultaatPad = resolve(outputDir, 'resultaat.json');
+  const rapportPad = resolve(outputDir, 'rapport.md');
+  writeFileSync(resultaatPad, `${JSON.stringify(resultaat, null, 2)}\n`, 'utf-8');
 
   const markdown = [
     '# BAG integrale Assen-dry-run',
@@ -112,13 +127,28 @@ async function main(): Promise<void> {
     '## Waarschuwingen',
     ...(gate.waarschuwingen.length ? gate.waarschuwingen.map(item => `- ${item}`) : ['- Geen']),
   ].join('\n');
-  writeFileSync(resolve(outputDir, 'rapport.md'), `${markdown}\n`, 'utf-8');
+  writeFileSync(rapportPad, `${markdown}\n`, 'utf-8');
 
   console.log(`Integrale dry-run afgerond: ${records.length}/${ontvangen} records verwerkt.`);
   console.log(`Release-gates toegestaan: ${gate.toegestaan ? 'ja' : 'nee'}.`);
+
+  return {
+    ontvangen,
+    verwerkt: records.length,
+    geweigerd: rapport.tellingen.geweigerd,
+    releaseGatesToegestaan: gate.toegestaan,
+    resultaatPad,
+    rapportPad,
+  };
 }
 
-main().catch(error => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isDirectUitgevoerd = process.argv[1]
+  ? resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
+
+if (isDirectUitgevoerd) {
+  runIntegraleAssenDryRun(process.argv[2], process.argv[3]).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
