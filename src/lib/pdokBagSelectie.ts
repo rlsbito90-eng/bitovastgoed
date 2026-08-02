@@ -20,10 +20,29 @@ export interface BagKandidaat {
   latitude: number | null;
 }
 
+export interface BagSelectieStatistiek {
+  onderzocht: number;
+  technischAfgevallen: number;
+  buitenGemeente: number;
+  criteriaAfgevallen: number;
+  kandidaten: number;
+  paginas: number;
+}
+
+export interface BagSelectieResultaat {
+  kandidaten: BagKandidaat[];
+  statistiek: BagSelectieStatistiek;
+}
+
+type Punt = [number, number];
+type Ring = Punt[];
 type Bbox = [number, number, number, number];
+interface GemeenteGebied { bbox: Bbox; ringen: Ring[]; naam: string; }
 
 const LOCATIESERVER_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
 const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';
+const MAX_PAGINAS = 12;
+const PAGINA_LIMIET = 100;
 
 function getal(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -38,7 +57,7 @@ function tekst(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function verzamelCoordinaten(value: unknown, out: [number, number][]) {
+function verzamelCoordinaten(value: unknown, out: Punt[]) {
   if (!Array.isArray(value)) return;
   if (value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') {
     out.push([value[0], value[1]]);
@@ -47,19 +66,18 @@ function verzamelCoordinaten(value: unknown, out: [number, number][]) {
   value.forEach((child) => verzamelCoordinaten(child, out));
 }
 
-function bboxUitPunten(coordinates: [number, number][]): Bbox | null {
+function bboxUitPunten(coordinates: Punt[]): Bbox | null {
   if (!coordinates.length) return null;
   const xs = coordinates.map(([x]) => x);
   const ys = coordinates.map(([, y]) => y);
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
 
-function coordinatenUitWkt(raw: string): [number, number][] {
-  const body = raw.replace(/^\s*SRID=\d+;\s*/i, '').trim();
-  const pairs: [number, number][] = [];
-  const coordinatePattern = /(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+function coordinatenUitTekst(raw: string): Punt[] {
+  const pairs: Punt[] = [];
+  const patroon = /(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
   let match: RegExpExecArray | null;
-  while ((match = coordinatePattern.exec(body)) !== null) {
+  while ((match = patroon.exec(raw)) !== null) {
     const x = Number(match[1]);
     const y = Number(match[2]);
     if (Number.isFinite(x) && Number.isFinite(y)) pairs.push([x, y]);
@@ -67,33 +85,63 @@ function coordinatenUitWkt(raw: string): [number, number][] {
   return pairs;
 }
 
-export function bboxUitGeometrie(raw: unknown): Bbox | null {
-  if (!raw) return null;
+function ringenUitWkt(raw: string): Ring[] {
+  const value = raw.replace(/^\s*SRID=\d+;\s*/i, '').trim();
+  const ringen: Ring[] = [];
+  const ringPatroon = /\(([^()]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = ringPatroon.exec(value)) !== null) {
+    const ring = coordinatenUitTekst(match[1]);
+    if (ring.length >= 3) ringen.push(ring);
+  }
+  if (!ringen.length) {
+    const ring = coordinatenUitTekst(value);
+    if (ring.length >= 3) ringen.push(ring);
+  }
+  return ringen;
+}
 
+function ringenUitGeoJson(raw: any): Ring[] {
+  const geometry = raw?.geometry ?? raw;
+  const coordinates = geometry?.coordinates;
+  if (!Array.isArray(coordinates)) return [];
+  const ringen: Ring[] = [];
+  const bezoek = (node: unknown) => {
+    if (!Array.isArray(node)) return;
+    if (node.length >= 3 && Array.isArray(node[0]) && typeof node[0][0] === 'number' && typeof node[0][1] === 'number') {
+      const ring = node
+        .filter((p): p is number[] => Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number')
+        .map((p) => [p[0], p[1]] as Punt);
+      if (ring.length >= 3) ringen.push(ring);
+      return;
+    }
+    node.forEach(bezoek);
+  };
+  bezoek(coordinates);
+  return ringen;
+}
+
+function ringenUitGeometrie(raw: unknown): Ring[] {
+  if (!raw) return [];
   if (typeof raw === 'string') {
     const value = raw.trim();
-    if (!value) return null;
-
-    try {
-      const parsed = JSON.parse(value);
-      const coordinates: [number, number][] = [];
-      verzamelCoordinaten(parsed?.coordinates ?? parsed?.geometry?.coordinates, coordinates);
-      const geoJsonBbox = bboxUitPunten(coordinates);
-      if (geoJsonBbox) return geoJsonBbox;
-    } catch {
-      // Locatieserver levert geometrieën doorgaans als WKT, niet als JSON.
-    }
-
-    return bboxUitPunten(coordinatenUitWkt(value));
+    if (!value) return [];
+    try { return ringenUitGeoJson(JSON.parse(value)); } catch { return ringenUitWkt(value); }
   }
+  return ringenUitGeoJson(raw);
+}
 
-  const geometry: any = raw;
-  if (Array.isArray(geometry?.bbox) && geometry.bbox.length >= 4) {
-    const bbox = geometry.bbox.slice(0, 4).map(Number);
+export function bboxUitGeometrie(raw: unknown): Bbox | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && Array.isArray((raw as any)?.bbox) && (raw as any).bbox.length >= 4) {
+    const bbox = (raw as any).bbox.slice(0, 4).map(Number);
     if (bbox.every(Number.isFinite)) return bbox as Bbox;
   }
-  const coordinates: [number, number][] = [];
-  verzamelCoordinaten(geometry?.coordinates ?? geometry?.geometry?.coordinates, coordinates);
+  const punten = ringenUitGeometrie(raw).flat();
+  if (punten.length) return bboxUitPunten(punten);
+  if (typeof raw === 'string') return bboxUitPunten(coordinatenUitTekst(raw));
+  const coordinates: Punt[] = [];
+  verzamelCoordinaten((raw as any)?.coordinates ?? (raw as any)?.geometry?.coordinates, coordinates);
   return bboxUitPunten(coordinates);
 }
 
@@ -104,13 +152,30 @@ function vergrootPuntTotZoekgebied(bbox: Bbox): Bbox {
   return [minX - marge, minY - marge, maxX + marge, maxY + marge];
 }
 
+function puntInRing([x, y]: Punt, ring: Ring): boolean {
+  let binnen = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const kruist = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+    if (kruist) binnen = !binnen;
+  }
+  return binnen;
+}
+
+export function puntInGemeente(punt: Punt, ringen: Ring[]): boolean {
+  if (!ringen.length) return true;
+  // Even-odd-regel over alle buitenringen en eventuele gaten.
+  return ringen.reduce((binnen, ring) => puntInRing(punt, ring) ? !binnen : binnen, false);
+}
+
 async function fetchJson(url: string): Promise<any> {
   const response = await fetch(url, { headers: { Accept: 'application/geo+json, application/json' } });
   if (!response.ok) throw new Error(`PDOK gaf fout ${response.status}. Probeer het later opnieuw.`);
   return response.json();
 }
 
-export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
+async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
   const opgeschoond = gemeente.trim();
   const params = new URLSearchParams({ q: opgeschoond, fq: 'type:gemeente', rows: '10' });
   const data = await fetchJson(`${LOCATIESERVER_URL}?${params}`);
@@ -121,13 +186,23 @@ export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
   }) ?? docs[0];
   if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden.`);
 
-  const bronnen = [exact.geometrie_ll, exact.geometry, exact.geometrie_rd, exact.centroide_ll, exact.centroide_rd];
-  for (const bron of bronnen) {
-    const bbox = bboxUitGeometrie(bron);
-    if (bbox) return vergrootPuntTotZoekgebied(bbox);
-  }
+  // Alleen geometrie_ll is geschikt voor de WGS84-coördinaten van de BAG OGC API.
+  const contourBron = exact.geometrie_ll ?? exact.geometry;
+  const ringen = ringenUitGeometrie(contourBron);
+  const bbox = bboxUitGeometrie(contourBron)
+    ?? bboxUitGeometrie(exact.centroide_ll)
+    ?? bboxUitGeometrie(exact.geometrie_rd)
+    ?? bboxUitGeometrie(exact.centroide_rd);
+  if (!bbox) throw new Error(`Voor gemeente “${gemeente}” kon geen zoekgebied worden bepaald.`);
+  return {
+    bbox: vergrootPuntTotZoekgebied(bbox),
+    ringen,
+    naam: String(exact.gemeentenaam ?? exact.weergavenaam ?? opgeschoond),
+  };
+}
 
-  throw new Error(`Voor gemeente “${gemeente}” kon geen zoekgebied worden bepaald.`);
+export async function zoekGemeenteBbox(gemeente: string): Promise<Bbox> {
+  return (await zoekGemeenteGebied(gemeente)).bbox;
 }
 
 function eersteVboHref(feature: any): string | null {
@@ -147,7 +222,7 @@ function eersteVboHref(feature: any): string | null {
 }
 
 function puntUitGeometry(geometry: any): [number | null, number | null] {
-  const coordinates: [number, number][] = [];
+  const coordinates: Punt[] = [];
   verzamelCoordinaten(geometry?.coordinates, coordinates);
   if (!coordinates.length) return [null, null];
   const x = coordinates.reduce((sum, point) => sum + point[0], 0) / coordinates.length;
@@ -165,6 +240,18 @@ function pastGebruiksdoel(doel: string | null, filters: string[]): boolean {
   if (!doel) return false;
   const lower = doel.toLowerCase();
   return filters.some((filter) => lower.includes(filter.toLowerCase()));
+}
+
+function voldoetVoorVerrijking(feature: any, criteria: BagSelectieCriteria): boolean {
+  const p = feature?.properties ?? {};
+  const bouwjaar = getal(p.bouwjaar);
+  const status = String(p.status ?? '').toLowerCase();
+  const gebruiksdoel = normaliseerGebruiksdoel(p.gebruiksdoel);
+  if (status.includes('gesloopt') || status.includes('niet gerealiseerd')) return false;
+  if (criteria.bouwjaarVan != null && bouwjaar != null && bouwjaar < criteria.bouwjaarVan) return false;
+  if (criteria.bouwjaarTot != null && bouwjaar != null && bouwjaar > criteria.bouwjaarTot) return false;
+  // Bij panden ontbreekt gebruiksdoel soms; dan pas na VBO-verrijking beoordelen.
+  return gebruiksdoel ? pastGebruiksdoel(gebruiksdoel, criteria.gebruiksdoelen) : true;
 }
 
 async function verrijkMetAdres(feature: any): Promise<BagKandidaat | null> {
@@ -210,26 +297,48 @@ async function mapBegrensd<T, R>(items: T[], concurrency: number, mapper: (item:
   return results;
 }
 
-export async function zoekBagKandidaten(criteria: BagSelectieCriteria): Promise<BagKandidaat[]> {
-  const bbox = await zoekGemeenteBbox(criteria.gemeente);
-  const params = new URLSearchParams({ bbox: bbox.join(','), limit: String(Math.min(Math.max(criteria.limiet * 5, 50), 500)), f: 'json' });
-  const data = await fetchJson(`${BAG_PANDEN_URL}?${params}`);
-  const features = (data?.features ?? []).filter((feature: any) => {
-    const p = feature?.properties ?? {};
-    const bouwjaar = getal(p.bouwjaar);
-    const status = String(p.status ?? '').toLowerCase();
-    const gebruiksdoel = normaliseerGebruiksdoel(p.gebruiksdoel);
-    if (status.includes('gesloopt') || status.includes('niet gerealiseerd')) return false;
-    if (criteria.bouwjaarVan != null && bouwjaar != null && bouwjaar < criteria.bouwjaarVan) return false;
-    if (criteria.bouwjaarTot != null && bouwjaar != null && bouwjaar > criteria.bouwjaarTot) return false;
-    return pastGebruiksdoel(gebruiksdoel, criteria.gebruiksdoelen);
-  }).slice(0, Math.min(criteria.limiet * 2, 80));
+function volgendePagina(data: any): string | null {
+  const link = (data?.links ?? []).find((item: any) => String(item.rel ?? '').toLowerCase() === 'next');
+  return typeof link?.href === 'string' ? link.href : null;
+}
 
-  const enriched = await mapBegrensd(features, 6, verrijkMetAdres);
+export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriteria): Promise<BagSelectieResultaat> {
+  const gebied = await zoekGemeenteGebied(criteria.gemeente);
+  const eersteParams = new URLSearchParams({ bbox: gebied.bbox.join(','), limit: String(PAGINA_LIMIET), f: 'json' });
+  let url: string | null = `${BAG_PANDEN_URL}?${eersteParams}`;
   const unique = new Map<string, BagKandidaat>();
-  enriched.filter((item): item is BagKandidaat => Boolean(item)).forEach((item) => {
-    const key = item.bagPandId || `${item.adres}|${item.postcode}`;
-    if (!unique.has(key)) unique.set(key, item);
-  });
-  return [...unique.values()].slice(0, criteria.limiet);
+  const statistiek: BagSelectieStatistiek = { onderzocht: 0, technischAfgevallen: 0, buitenGemeente: 0, criteriaAfgevallen: 0, kandidaten: 0, paginas: 0 };
+
+  while (url && statistiek.paginas < MAX_PAGINAS && unique.size < criteria.limiet) {
+    const data = await fetchJson(url);
+    statistiek.paginas += 1;
+    const features = data?.features ?? [];
+    statistiek.onderzocht += features.length;
+
+    const voorVerrijking = features.filter((feature: any) => {
+      const voldoet = voldoetVoorVerrijking(feature, criteria);
+      if (!voldoet) statistiek.criteriaAfgevallen += 1;
+      return voldoet;
+    });
+    const enriched = await mapBegrensd(voorVerrijking, 6, verrijkMetAdres);
+
+    enriched.forEach((item) => {
+      if (!item) { statistiek.technischAfgevallen += 1; return; }
+      if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) { statistiek.criteriaAfgevallen += 1; return; }
+      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; return; }
+      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; return; }
+      const key = item.bagPandId || `${item.adres}|${item.postcode}`;
+      if (!unique.has(key)) unique.set(key, item);
+    });
+
+    url = volgendePagina(data);
+  }
+
+  const kandidaten = [...unique.values()].slice(0, criteria.limiet);
+  statistiek.kandidaten = kandidaten.length;
+  return { kandidaten, statistiek };
+}
+
+export async function zoekBagKandidaten(criteria: BagSelectieCriteria): Promise<BagKandidaat[]> {
+  return (await zoekBagKandidatenMetStatistiek(criteria)).kandidaten;
 }
