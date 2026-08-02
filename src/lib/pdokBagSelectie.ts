@@ -215,7 +215,7 @@ function puntInRing([x, y]: Punt, ring: Ring): boolean {
 
 export function puntInGemeente(punt: Punt, ringen: Ring[]): boolean {
   if (!ringen.length) return false;
-  return ringen.reduce((binnen, ring) => (puntInRing(punt, ring) ? !binnen : binnen), false;
+  return ringen.reduce((binnen, ring) => (puntInRing(punt, ring) ? !binnen : binnen), false);
 }
 
 async function fetchJson(url: string): Promise<any> {
