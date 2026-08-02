@@ -348,7 +348,7 @@ async function verrijkMetAdres(feature: any): Promise<BagKandidaat | null> {
 
   const huisletter = tekst(vboProperties.huisletter) ?? '';
   const toevoeging = tekst(vboProperties.huisnummertoevoeging) ?? '';
-  const [longitude, latitude] = puntUitGeometry(vbo?.geometry ?? feature?.geometry);
+  const [longitude, latitude] = puntUitGeometry(feature?.geometry ?? vbo?.geometry);
 
   return {
     bagPandId: String(properties.identificatie ?? feature?.id ?? ''),
