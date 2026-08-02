@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bboxUitGeometrie, puntInGemeente } from '@/lib/pdokBagSelectie';
+import { bboxUitGeometrie, puntInGemeente, zelfdeGemeente } from '@/lib/pdokBagSelectie';
 
 describe('bboxUitGeometrie', () => {
   it('leest WKT polygonen uit de Locatieserver', () => {
@@ -12,6 +12,13 @@ describe('bboxUitGeometrie', () => {
 
   it('blijft GeoJSON ondersteunen', () => {
     expect(bboxUitGeometrie({ type: 'Polygon', coordinates: [[[4, 52], [5, 52], [5, 53], [4, 53], [4, 52]]] })).toEqual([4, 52, 5, 53]);
+  });
+});
+
+describe('zelfdeGemeente', () => {
+  it('vergelijkt gemeenten hoofdletter- en accentongevoelig', () => {
+    expect(zelfdeGemeente('Amsterdam', 'amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Amstelveen', 'Amsterdam')).toBe(false);
   });
 });
 
