@@ -208,11 +208,13 @@ export default function VastgoedkansenVindenPage() {
             <span className="text-muted-foreground">Geen volledig adres</span><span className="text-right font-medium">{uitval?.geenVolledigAdres ?? 0}</span>
             <span className="text-muted-foreground">Geen geldige geometrie</span><span className="text-right font-medium">{uitval?.geenGeldigeGeometrie ?? 0}</span>
             <span className="text-muted-foreground">Duplicaat in raster/paginering</span><span className="text-right font-medium">{uitval?.duplicaat ?? 0}</span>
+            <span className="text-muted-foreground">Niet verwerkt door onderzoeksgrens</span><span className="text-right font-medium">{uitval?.nietVerwerktDoorOnderzoeksgrens ?? 0}</span>
           </div>
         </div>
         <div className="section-card p-4">
           <h2 className="text-sm font-medium">Dekking van deze zoekrun</h2>
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <span className="text-muted-foreground">Verdelingsmethode</span><span className="text-right font-medium">Gelijkmatig per rasterronde</span>
             <span className="text-muted-foreground">Rastervakken geraakt</span><span className="text-right font-medium">{dekking?.geraakteRastervakken ?? 0} van {dekking?.totaalRastervakken ?? 0}</span>
             <span className="text-muted-foreground">Rastervakken volledig verwerkt</span><span className="text-right font-medium">{dekking?.volledigVerwerkteRastervakken ?? 0}</span>
             <span className="text-muted-foreground">PDOK-pagina’s gelezen</span><span className="text-right font-medium">{dekking?.paginasGelezen ?? 0}</span>
@@ -220,10 +222,10 @@ export default function VastgoedkansenVindenPage() {
           </div>
           <div className={`mt-3 rounded-md border p-2 text-xs ${dekking?.onderzoeksgrensBereikt ? 'border-amber-500/30 bg-amber-500/5' : 'bg-muted/20'}`}>
             {dekking?.onderzoeksgrensBereikt
-              ? 'De onderzoeksgrens is bereikt. Dit is geen volledige inventarisatie van de gemeente.'
+              ? `De onderzoeksgrens is bereikt na een gelijkmatige ronde over de rastervakken. ${uitval?.nietVerwerktDoorOnderzoeksgrens ?? 0} reeds opgehaalde panden zijn daardoor niet meer verrijkt.`
               : dekking?.volledigVerwerkteRastervakken === dekking?.totaalRastervakken
                 ? 'Alle rastervakken zijn binnen de ingestelde paginalimiet volledig verwerkt.'
-                : 'De gemeente is gedeeltelijk verwerkt; één of meer rastervakken bevatten meer pagina’s dan deze browserrun leest.'}
+                : 'Alle beschikbare rastervakken zijn per ronde benaderd; één of meer vakken bevatten meer pagina’s dan deze browserrun leest.'}
           </div>
         </div>
       </section>
