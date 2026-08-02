@@ -54,11 +54,12 @@ jobs:
       - name: Voer integrale Assen-dry-run uit
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DRY_RUN_INPUT: bag-broninspectie/records.ndjson
+          BAG_DRY_RUN_OUTPUT: bag-broninspectie/dry-run
         run: |
-          npx --no-install vite-node \
-            scripts/bag/run-integrale-assen-dry-run.ts \
-            bag-broninspectie/records.ndjson \
-            bag-broninspectie/dry-run
+          npx --no-install vitest run \
+            scripts/bag/run-integrale-assen-dry-run.test.ts \
+            --reporter=verbose
 
       - name: Valideer dat bronbestanden, fixtures en dry-run bruikbaar zijn
         run: |
