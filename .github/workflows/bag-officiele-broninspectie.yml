@@ -35,7 +35,7 @@ jobs:
             bag-broninspectie/unpacked/proef \
             bag-broninspectie/fixtures
 
-      - name: Valideer BAG-domeinlagen
+      - name: Valideer BAG-domeinlagen en database-importontwerp
         run: |
           npx --no-install vitest run \
             src/lib/bag/officieleXmlRecordAdapter.test.ts \
@@ -43,7 +43,15 @@ jobs:
             src/lib/bag/stagingModel.test.ts \
             src/lib/bag/importBatch.test.ts \
             src/lib/bag/integraleDryRun.test.ts \
-            src/lib/bag/releaseGates.test.ts
+            src/lib/bag/releaseGates.test.ts \
+            src/lib/bag/databaseImportOntwerp.test.ts
+
+      - name: Bewaak read-only scope
+        run: |
+          test ! -e supabase/migrations/20260803_bag_import.sql
+          test ! -e scripts/bag/importeer-naar-database.ts
+          test ! -e scripts/bag/importeer-naar-supabase.ts
+          grep -q "crmSchrijfactiesToegestaan: false" src/lib/bag/databaseImportOntwerp.ts
 
       - name: Extraheer volledige records voor tijdelijke dry-run
         run: |
