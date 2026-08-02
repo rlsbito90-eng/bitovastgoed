@@ -16,8 +16,10 @@ describe('bboxUitGeometrie', () => {
 });
 
 describe('zelfdeGemeente', () => {
-  it('vergelijkt gemeenten hoofdletter- en accentongevoelig', () => {
+  it('accepteert officiële schrijfwijzen zonder buurgemeenten gelijk te maken', () => {
     expect(zelfdeGemeente('Amsterdam', 'amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Gemeente Amsterdam', 'Amsterdam')).toBe(true);
+    expect(zelfdeGemeente('Tilburg, gemeente Tilburg', 'Tilburg')).toBe(true);
     expect(zelfdeGemeente('Amstelveen', 'Amsterdam')).toBe(false);
   });
 });

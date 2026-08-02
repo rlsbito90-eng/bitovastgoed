@@ -46,7 +46,19 @@ const PAGINA_LIMIET = 100;
 const adresGemeenteCache = new Map<string, string | null>();
 
 export function normaliseerGemeentenaam(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const woorden = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((woord) => woord !== 'gemeente' && woord !== 'gem');
+
+  return woorden
+    .filter((woord, index) => index === 0 || woord !== woorden[index - 1])
+    .join('');
 }
 
 export function zelfdeGemeente(a: unknown, b: unknown): boolean {
@@ -176,7 +188,6 @@ function puntInRing([x, y]: Punt, ring: Ring): boolean {
 
 export function puntInGemeente(punt: Punt, ringen: Ring[]): boolean {
   if (!ringen.length) return true;
-  // Even-odd-regel over alle buitenringen en eventuele gaten.
   return ringen.reduce((binnen, ring) => puntInRing(punt, ring) ? !binnen : binnen, false);
 }
 
@@ -197,7 +208,6 @@ async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
   }) ?? docs[0];
   if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden.`);
 
-  // Alleen geometrie_ll is geschikt voor de WGS84-coördinaten van de BAG OGC API.
   const contourBron = exact.geometrie_ll ?? exact.geometry;
   const ringen = ringenUitGeometrie(contourBron);
   const bbox = bboxUitGeometrie(contourBron)
@@ -261,7 +271,6 @@ function voldoetVoorVerrijking(feature: any, criteria: BagSelectieCriteria): boo
   if (status.includes('gesloopt') || status.includes('niet gerealiseerd')) return false;
   if (criteria.bouwjaarVan != null && bouwjaar != null && bouwjaar < criteria.bouwjaarVan) return false;
   if (criteria.bouwjaarTot != null && bouwjaar != null && bouwjaar > criteria.bouwjaarTot) return false;
-  // Bij panden ontbreekt gebruiksdoel soms; dan pas na VBO-verrijking beoordelen.
   return gebruiksdoel ? pastGebruiksdoel(gebruiksdoel, criteria.gebruiksdoelen) : true;
 }
 
@@ -360,8 +369,6 @@ export async function zoekBagKandidatenMetStatistiek(criteria: BagSelectieCriter
       if (!item) { statistiek.technischAfgevallen += 1; continue; }
       if (!pastGebruiksdoel(item.gebruiksdoel, criteria.gebruiksdoelen)) { statistiek.criteriaAfgevallen += 1; continue; }
 
-      // De Locatieserver levert bij gemeenterecords vaak alleen een centroide.
-      // Valideer daarom ieder verrijkt adres expliciet op de officiële gemeentenaam.
       const adresGemeente = await zoekGemeenteVoorAdres(item);
       if (adresGemeente && !zelfdeGemeente(adresGemeente, gebied.naam)) { statistiek.buitenGemeente += 1; continue; }
 
