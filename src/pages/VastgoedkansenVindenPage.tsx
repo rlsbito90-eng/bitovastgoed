@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
-import { zoekBagKandidatenMetStatistiek, type BagKandidaat, type BagSelectieStatistiek } from '@/lib/pdokBagSelectie';
+import { zoekBagKandidatenMetStatistiek, type BagSelectieStatistiek } from '@/lib/pdokBagSelectie';
+import { pastFunctiefilter, verrijkBagPanden, type VerrijktBagPand } from '@/lib/pandenverkenner';
 
 const GEBRUIKSDOELEN = [
+  ['woonfunctie', 'Wonen'],
   ['kantoorfunctie', 'Kantoor'],
   ['industriefunctie', 'Bedrijfsruimte / industrie'],
   ['winkelfunctie', 'Winkel'],
@@ -24,33 +26,88 @@ const GEBRUIKSDOELEN = [
   ['overige gebruiksfunctie', 'Overig'],
 ] as const;
 
+type Sorteerwijze = 'straat' | 'oppervlakte_desc' | 'bouwjaar_asc' | 'vbos_desc';
+
 function norm(value: unknown) {
   return String(value ?? '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function pandKey(pand: VerrijktBagPand) {
+  return pand.bagPandId || norm(`${pand.adres}|${pand.postcode}`);
 }
 
 export default function VastgoedkansenVindenPage() {
   const { kansen, addKans } = useVastgoedkansen();
   const dataStore = useDataStore() as any;
   const objecten = dataStore.objecten ?? [];
+  const signalen = dataStore.offMarketSignalen ?? dataStore.signalen ?? [];
+
   const [gemeente, setGemeente] = useState('Amsterdam');
   const [bouwjaarVan, setBouwjaarVan] = useState('');
-  const [bouwjaarTot, setBouwjaarTot] = useState('1995');
-  const [limiet, setLimiet] = useState('30');
-  const [gebruiksdoelen, setGebruiksdoelen] = useState<string[]>(['kantoorfunctie', 'industriefunctie', 'winkelfunctie']);
-  const [resultaten, setResultaten] = useState<BagKandidaat[]>([]);
+  const [bouwjaarTot, setBouwjaarTot] = useState('');
+  const [limiet, setLimiet] = useState('100');
+  const [gebruiksdoelen, setGebruiksdoelen] = useState<string[]>([]);
+  const [alleenGemengd, setAlleenGemengd] = useState(false);
+  const [zoekterm, setZoekterm] = useState('');
+  const [sorteerwijze, setSorteerwijze] = useState<Sorteerwijze>('straat');
+  const [resultaten, setResultaten] = useState<VerrijktBagPand[]>([]);
   const [statistiek, setStatistiek] = useState<BagSelectieStatistiek | null>(null);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
   const [zoeken, setZoeken] = useState(false);
   const [opslaan, setOpslaan] = useState(false);
 
-  const bestaandeBagIds = useMemo(() => new Set(kansen.map(k => k.bagPandId).filter(Boolean)), [kansen]);
+  const bestaandeBagIds = useMemo(() => new Set([
+    ...kansen.map(k => k.bagPandId).filter(Boolean),
+    ...objecten.map((o: any) => o.bagPandId).filter(Boolean),
+    ...signalen.map((s: any) => s.bagPandId ?? s.bag_pand_id).filter(Boolean),
+  ]), [kansen, objecten, signalen]);
+
   const bestaandeAdressen = useMemo(() => new Set([
     ...kansen.map(k => norm(`${k.adres}|${k.postcode}`)),
     ...objecten.map((o: any) => norm(`${o.adres ?? o.straatAdres ?? ''}|${o.postcode ?? ''}`)),
-  ]), [kansen, objecten]);
+    ...signalen.map((s: any) => norm(`${s.adres ?? s.straat_adres ?? ''}|${s.postcode ?? ''}`)),
+  ]), [kansen, objecten, signalen]);
 
   const toggleDoel = (doel: string) => setGebruiksdoelen(prev => prev.includes(doel) ? prev.filter(x => x !== doel) : [...prev, doel]);
-  const isBestaand = (k: BagKandidaat) => bestaandeBagIds.has(k.bagPandId) || bestaandeAdressen.has(norm(`${k.adres}|${k.postcode}`));
+  const isBestaand = (pand: VerrijktBagPand) => bestaandeBagIds.has(pand.bagPandId) || bestaandeAdressen.has(norm(`${pand.adres}|${pand.postcode}`));
+
+  const zichtbareResultaten = useMemo(() => {
+    const term = zoekterm.trim().toLowerCase();
+    return resultaten
+      .filter(pand => pastFunctiefilter(pand, gebruiksdoelen))
+      .filter(pand => !alleenGemengd || pand.gemengdGebruik)
+      .filter(pand => !term || [pand.adres, pand.postcode, pand.plaats, pand.straat, pand.wijk, pand.buurt, ...pand.gebruiksdoelen]
+        .some(value => String(value ?? '').toLowerCase().includes(term)))
+      .sort((a, b) => {
+        if (sorteerwijze === 'oppervlakte_desc') return (b.oppervlakte ?? 0) - (a.oppervlakte ?? 0);
+        if (sorteerwijze === 'bouwjaar_asc') return (a.bouwjaar ?? 9999) - (b.bouwjaar ?? 9999);
+        if (sorteerwijze === 'vbos_desc') return b.aantalVerblijfsobjecten - a.aantalVerblijfsobjecten;
+        return `${a.straat ?? ''}|${a.adres}`.localeCompare(`${b.straat ?? ''}|${b.adres}`, 'nl', { numeric: true });
+      });
+  }, [resultaten, gebruiksdoelen, alleenGemengd, zoekterm, sorteerwijze]);
+
+  const straten = useMemo(() => {
+    const groepen = new Map<string, VerrijktBagPand[]>();
+    for (const pand of zichtbareResultaten) {
+      const straat = pand.straat || 'Straat onbekend';
+      groepen.set(straat, [...(groepen.get(straat) ?? []), pand]);
+    }
+    return [...groepen.entries()];
+  }, [zichtbareResultaten]);
+
+  const togglePand = (pand: VerrijktBagPand) => setGeselecteerd(prev => {
+    const next = new Set(prev);
+    const key = pandKey(pand);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+
+  const selecteerPanden = (panden: VerrijktBagPand[]) => setGeselecteerd(prev => {
+    const next = new Set(prev);
+    const selecteer = panden.some(pand => !isBestaand(pand) && !next.has(pandKey(pand)));
+    panden.filter(pand => !isBestaand(pand)).forEach(pand => selecteer ? next.add(pandKey(pand)) : next.delete(pandKey(pand)));
+    return next;
+  });
 
   const run = async () => {
     if (!gemeente.trim()) { toast.error('Vul een gemeente in.'); return; }
@@ -58,23 +115,25 @@ export default function VastgoedkansenVindenPage() {
     setGeselecteerd(new Set());
     setStatistiek(null);
     try {
-      const result = await zoekBagKandidatenMetStatistiek({
+      const maximum = Math.min(Math.max(Number(limiet) || 100, 10), 250);
+      const basis = await zoekBagKandidatenMetStatistiek({
         gemeente: gemeente.trim(),
         bouwjaarVan: bouwjaarVan ? Number(bouwjaarVan) : null,
         bouwjaarTot: bouwjaarTot ? Number(bouwjaarTot) : null,
-        gebruiksdoelen,
-        limiet: Math.min(Math.max(Number(limiet) || 30, 5), 100),
+        gebruiksdoelen: [],
+        limiet: maximum,
       });
-      setResultaten(result.kandidaten);
-      setStatistiek(result.statistiek);
-      toast.success(`${result.kandidaten.length} kandidaatpanden binnen gemeente ${gemeente.trim()} gevonden.`);
+      const verrijkt = await verrijkBagPanden(basis.kandidaten);
+      setResultaten(verrijkt);
+      setStatistiek({ ...basis.statistiek, kandidaten: verrijkt.length });
+      toast.success(`${verrijkt.length} BAG-panden verrijkt binnen gemeente ${gemeente.trim()}.`);
     } catch (error: any) {
       toast.error(error?.message ?? 'PDOK-selectie mislukt.');
     } finally { setZoeken(false); }
   };
 
   const save = async () => {
-    const items = resultaten.filter(item => geselecteerd.has(item.bagPandId) && !isBestaand(item));
+    const items = resultaten.filter(item => geselecteerd.has(pandKey(item)) && !isBestaand(item));
     if (!items.length) { toast.error('Selecteer minimaal één nieuw kandidaatpand.'); return; }
     setOpslaan(true);
     try {
@@ -83,13 +142,13 @@ export default function VastgoedkansenVindenPage() {
           adres: item.adres,
           postcode: item.postcode ?? undefined,
           plaats: item.plaats ?? gemeente,
-          typeVastgoed: item.gebruiksdoel ?? undefined,
-          korteOmschrijving: item.gebruiksdoel ? `${item.gebruiksdoel} — ${item.adres}` : item.adres,
+          typeVastgoed: item.gebruiksdoelen.join(', ') || undefined,
+          korteOmschrijving: `${item.gemengdGebruik ? 'Gemengd pand' : item.gebruiksdoelen[0] ?? 'BAG-pand'} — ${item.adres}`,
           herkomst: 'bag_selectie',
-          herkomstReferentie: `PDOK BAG selectie ${gemeente}`,
+          herkomstReferentie: `PDOK BAG verkenning ${gemeente}`,
           bagPandId: item.bagPandId,
           bagVerblijfsobjectId: item.bagVerblijfsobjectId ?? undefined,
-          redenInteressant: `Gevonden via BAG-selectie: gemeente ${gemeente}${bouwjaarTot ? `, bouwjaar t/m ${bouwjaarTot}` : ''}.`,
+          redenInteressant: `Geselecteerd in Pandenverkenner: ${item.straat ?? item.adres}${item.buurt ? `, buurt ${item.buurt}` : ''}.`,
           status: 'te_beoordelen',
           prioriteit: 3,
         });
@@ -103,32 +162,46 @@ export default function VastgoedkansenVindenPage() {
 
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
     <Link to="/vastgoedkansen" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1.5 h-4 w-4"/>Vastgoedkansen</Link>
-    <PageHeader title="Panden vinden" subtitle="Gecontroleerde selectie uit de officiële BAG via PDOK, begrensd op de gekozen gemeente." />
+    <PageHeader title="Pandenverkenner" subtitle="Verken brede BAG-populaties, filter op functie en locatie en selecteer individuele panden of volledige straten." />
 
     <section className="section-card p-4 sm:p-5">
       <div className="grid gap-4 md:grid-cols-4">
         <div className="md:col-span-2"><Label>Gemeente</Label><Input value={gemeente} onChange={e=>setGemeente(e.target.value)} placeholder="Bijv. Tilburg" /></div>
         <div><Label>Bouwjaar vanaf</Label><Input type="number" value={bouwjaarVan} onChange={e=>setBouwjaarVan(e.target.value)} placeholder="Geen minimum" /></div>
-        <div><Label>Bouwjaar t/m</Label><Input type="number" value={bouwjaarTot} onChange={e=>setBouwjaarTot(e.target.value)} placeholder="Bijv. 1995" /></div>
-        <div><Label>Maximaal resultaten</Label><Input type="number" min="5" max="100" value={limiet} onChange={e=>setLimiet(e.target.value)} /></div>
-        <div className="md:col-span-3"><Label>Gebruiksdoelen</Label><div className="mt-2 flex flex-wrap gap-2">{GEBRUIKSDOELEN.map(([value,label])=><label key={value} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={gebruiksdoelen.includes(value)} onCheckedChange={()=>toggleDoel(value)} />{label}</label>)}</div></div>
+        <div><Label>Bouwjaar t/m</Label><Input type="number" value={bouwjaarTot} onChange={e=>setBouwjaarTot(e.target.value)} placeholder="Geen maximum" /></div>
+        <div><Label>Maximaal te verrijken</Label><Input type="number" min="10" max="250" value={limiet} onChange={e=>setLimiet(e.target.value)} /></div>
+        <div className="md:col-span-3"><Label>Gebruiksdoelen</Label><p className="mt-1 text-xs text-muted-foreground">Niets geselecteerd betekent alle functies.</p><div className="mt-2 flex flex-wrap gap-2">{GEBRUIKSDOELEN.map(([value,label])=><label key={value} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={gebruiksdoelen.includes(value)} onCheckedChange={()=>toggleDoel(value)} />{label}</label>)}</div></div>
+        <label className="flex items-center gap-2 self-end rounded-md border px-3 py-2 text-xs"><Checkbox checked={alleenGemengd} onCheckedChange={value=>setAlleenGemengd(Boolean(value))} />Alleen gemengd gebruik</label>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2"><Button onClick={run} disabled={zoeken}>{zoeken?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}{zoeken?'PDOK doorzoeken…':'Zoek kandidaatpanden'}</Button><p className="self-center text-xs text-muted-foreground">BAG bevat gebouw- en adreskenmerken, geen eigenaar of verkoopbereidheid.</p></div>
+      <div className="mt-4 flex flex-wrap gap-2"><Button onClick={run} disabled={zoeken}>{zoeken?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}{zoeken?'BAG en verblijfsobjecten verrijken…':'Verken panden'}</Button><p className="self-center text-xs text-muted-foreground">Er wordt niets automatisch opgeslagen, besteld of verzonden.</p></div>
     </section>
 
     {statistiek && <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
       <div className="section-card p-3"><p className="text-xs text-muted-foreground">BAG-panden onderzocht</p><p className="mt-1 text-lg font-semibold">{statistiek.onderzocht}</p></div>
       <div className="section-card p-3"><p className="text-xs text-muted-foreground">Buiten gemeente</p><p className="mt-1 text-lg font-semibold">{statistiek.buitenGemeente}</p></div>
-      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Niet passend op criteria</p><p className="mt-1 text-lg font-semibold">{statistiek.criteriaAfgevallen}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Niet passend op bouwjaar/status</p><p className="mt-1 text-lg font-semibold">{statistiek.criteriaAfgevallen}</p></div>
       <div className="section-card p-3"><p className="text-xs text-muted-foreground">Niet te verrijken</p><p className="mt-1 text-lg font-semibold">{statistiek.technischAfgevallen}</p></div>
-      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Kandidaten</p><p className="mt-1 text-lg font-semibold">{statistiek.kandidaten}</p><p className="text-[11px] text-muted-foreground">uit {statistiek.paginas} pagina{statistiek.paginas===1?'':'’s'}</p></div>
+      <div className="section-card p-3"><p className="text-xs text-muted-foreground">Zichtbaar na filters</p><p className="mt-1 text-lg font-semibold">{zichtbareResultaten.length}</p><p className="text-[11px] text-muted-foreground">uit {resultaten.length} verrijkte panden</p></div>
+    </section>}
+
+    {resultaten.length > 0 && <section className="section-card p-4">
+      <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+        <Input value={zoekterm} onChange={e=>setZoekterm(e.target.value)} placeholder="Filter op straat, buurt, wijk, postcode, adres of functie" />
+        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={sorteerwijze} onChange={e=>setSorteerwijze(e.target.value as Sorteerwijze)}>
+          <option value="straat">Straat en adres</option><option value="oppervlakte_desc">Grootste oppervlakte</option><option value="bouwjaar_asc">Oudste bouwjaar</option><option value="vbos_desc">Meeste verblijfsobjecten</option>
+        </select>
+        <Button variant="outline" onClick={()=>selecteerPanden(zichtbareResultaten)}>Selecteer zichtbare ({zichtbareResultaten.length})</Button>
+      </div>
     </section>}
 
     <section className="section-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b p-4"><div><h2 className="text-sm font-medium">Kandidaatpanden</h2><p className="text-xs text-muted-foreground">Selecteer alleen panden die je daadwerkelijk wilt onderzoeken.</p></div><Button onClick={save} disabled={opslaan || geselecteerd.size===0}><Plus className="mr-2 h-4 w-4"/>{opslaan?'Toevoegen…':`${geselecteerd.size} toevoegen`}</Button></div>
-      {resultaten.length===0?<div className="p-10 text-center text-sm text-muted-foreground"><Database className="mx-auto mb-3 h-8 w-8 opacity-50"/>{statistiek ? 'Geen passende panden gevonden. Verruim bouwjaar of gebruiksdoelen.' : 'Voer een selectie uit om panden te tonen.'}</div>:<div className="divide-y">{resultaten.map(item=>{const bestaand=isBestaand(item);return <div key={item.bagPandId} className="flex min-w-0 items-start gap-3 p-4"><Checkbox className="mt-1" disabled={bestaand} checked={geselecteerd.has(item.bagPandId)} onCheckedChange={()=>setGeselecteerd(prev=>{const next=new Set(prev);next.has(item.bagPandId)?next.delete(item.bagPandId):next.add(item.bagPandId);return next;})}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words text-sm font-medium">{item.adres}</p>{bestaand&&<Badge variant="secondary">Al bekend</Badge>}<Badge variant="outline">{item.bouwjaar ?? 'Bouwjaar onbekend'}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{[item.postcode,item.plaats,item.gebruiksdoel,item.oppervlakte?`${item.oppervlakte} m²`:null].filter(Boolean).join(' · ')}</p><p className="mt-1 font-mono-data text-[11px] text-muted-foreground">BAG-pand {item.bagPandId}</p></div>{item.latitude&&item.longitude&&<a className="shrink-0 text-muted-foreground hover:text-foreground" href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} target="_blank" rel="noreferrer" aria-label="Open in Google Maps"><MapPin className="h-4 w-4"/></a>}</div>})}</div>}
+      <div className="flex items-center justify-between gap-3 border-b p-4"><div><h2 className="text-sm font-medium">Kandidaatpanden per straat</h2><p className="text-xs text-muted-foreground">Bekende CRM-panden blijven zichtbaar, maar kunnen niet opnieuw worden toegevoegd.</p></div><Button onClick={save} disabled={opslaan || geselecteerd.size===0}><Plus className="mr-2 h-4 w-4"/>{opslaan?'Toevoegen…':`${geselecteerd.size} toevoegen`}</Button></div>
+      {zichtbareResultaten.length===0?<div className="p-10 text-center text-sm text-muted-foreground"><Database className="mx-auto mb-3 h-8 w-8 opacity-50"/>{statistiek ? 'Geen panden binnen de actieve filters.' : 'Voer een verkenning uit om panden te tonen.'}</div>:<div className="divide-y">{straten.map(([straat, panden])=><div key={straat}>
+        <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2"><div><p className="text-sm font-medium">{straat}</p><p className="text-xs text-muted-foreground">{panden.length} pand{panden.length===1?'':'en'}{panden[0]?.buurt?` · ${panden[0].buurt}`:''}{panden[0]?.wijk?` · ${panden[0].wijk}`:''}</p></div><Button size="sm" variant="outline" onClick={()=>selecteerPanden(panden)}>Selecteer straat</Button></div>
+        <div className="divide-y">{panden.map(item=>{const bestaand=isBestaand(item);const key=pandKey(item);return <div key={key} className="flex min-w-0 items-start gap-3 p-4"><Checkbox className="mt-1" disabled={bestaand} checked={geselecteerd.has(key)} onCheckedChange={()=>togglePand(item)}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words text-sm font-medium">{item.adres}</p>{bestaand&&<Badge variant="secondary">Al bekend in CRM</Badge>}{item.gemengdGebruik&&<Badge>Gemengd</Badge>}<Badge variant="outline">{item.bouwjaar ?? 'Bouwjaar onbekend'}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{[item.postcode,item.plaats,item.buurt,item.wijk,item.oppervlakte?`${Math.round(item.oppervlakte)} m² totaal`:null,`${item.aantalVerblijfsobjecten} VBO${item.aantalVerblijfsobjecten===1?'':'’s'}`].filter(Boolean).join(' · ')}</p><div className="mt-2 flex flex-wrap gap-1">{item.gebruiksdoelen.map(doel=><Badge key={doel} variant="outline" className="text-[10px]">{doel}{item.oppervlaktePerGebruiksdoel[doel]?` · ${Math.round(item.oppervlaktePerGebruiksdoel[doel])} m²`:''}</Badge>)}</div><p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {item.bagPandId}</p></div>{item.latitude&&item.longitude&&<a className="shrink-0 text-muted-foreground hover:text-foreground" href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} target="_blank" rel="noreferrer" aria-label="Open in Google Maps"><MapPin className="h-4 w-4"/></a>}</div>})}</div>
+      </div>)}</div>}
     </section>
 
-    <div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><Building2 className="mr-2 inline h-4 w-4"/>Na toevoegen open je ieder dossier voor visuele beoordeling, handmatig Kadaster- en eigenaaronderzoek en briefvoorbereiding. Er wordt niets automatisch besteld of verzonden.</div>
+    <div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><Building2 className="mr-2 inline h-4 w-4"/>Selecteren is vrijblijvend. Pas na toevoegen aan Vastgoedkansen volgt visuele beoordeling, handmatig Kadaster- en eigenaaronderzoek en eventuele briefvoorbereiding.</div>
   </div>;
 }
