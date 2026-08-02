@@ -32,7 +32,7 @@ export default function VastgoedkansenVindenPage() {
   const { kansen, addKans } = useVastgoedkansen();
   const dataStore = useDataStore() as any;
   const objecten = dataStore.objecten ?? [];
-  const [gemeente, setGemeente] = useState('Oisterwijk');
+  const [gemeente, setGemeente] = useState('Amsterdam');
   const [bouwjaarVan, setBouwjaarVan] = useState('');
   const [bouwjaarTot, setBouwjaarTot] = useState('1995');
   const [limiet, setLimiet] = useState('30');
