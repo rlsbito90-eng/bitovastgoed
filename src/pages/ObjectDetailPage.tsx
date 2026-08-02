@@ -88,6 +88,7 @@ import KadasterOpgeslagenKaart from '@/components/object/kadaster/KadasterOpgesl
 import { buildMapsUrl } from '@/lib/maps';
 import { useKadasterDataRecords } from '@/hooks/useKadasterDataRecords';
 import { useKadasterDocumentenForObject } from '@/hooks/useKadasterDocumenten';
+import { getObjectIntegriteitVoorObject } from '@/lib/objecten/objectIntegriteit';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
@@ -958,6 +959,7 @@ export default function ObjectDetailPage() {
     );
   }
 
+  const objectIntegriteit = getObjectIntegriteitVoorObject(object);
   const huurders = store.getHuurdersVoorObject(object.id);
   const documenten = store.getDocumentenVoorObject(object.id);
   // Centrale verhuur-derivation (Prompt 3.3): huurdersregels leidend, object fallback.
@@ -1462,6 +1464,11 @@ export default function ObjectDetailPage() {
                   <div className="flex items-center gap-2 mb-3">
                     <MapPin className="h-4 w-4 text-accent" />
                     <h3 className="section-title">Locatie</h3>
+                    {objectIntegriteit.heeftWaarschuwing && (
+                      <span title={objectIntegriteit.label} className="ml-auto inline-flex text-amber-500/75">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
                     {object.adres && <Field label="Adres">{object.adres}</Field>}
@@ -1469,6 +1476,12 @@ export default function ObjectDetailPage() {
                     {object.plaats && <Field label="Plaats">{object.plaats}</Field>}
                     {object.provincie && <Field label="Provincie">{object.provincie}</Field>}
                     {object.publiekeRegio && <Field label="Publieke regio">{object.publiekeRegio}</Field>}
+                    {objectIntegriteit.ontbrekendeVelden.map((veld) => (
+                      <div key={veld} className="flex items-center gap-1.5 text-[11px] text-amber-600/80 dark:text-amber-400/80">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span>{veld === 'adres' ? 'Adres ontbreekt' : veld === 'postcode' ? 'Postcode ontbreekt' : 'Plaats ontbreekt'}</span>
+                      </div>
+                    ))}
                     {object.locatieOmschrijving && (
                       <div className="sm:col-span-2">
                         <Field label="Locatie-omschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>
