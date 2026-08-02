@@ -1,0 +1,89 @@
+name: Apply official municipality boundary fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-officiele-gemeentegrens.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'fix/pdok-officiele-gemeentegrens'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pdok-officiele-gemeentegrens
+          fetch-depth: 0
+      - name: Replace centroid search area with BRK municipality boundary
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('src/lib/pdokBagSelectie.ts')
+          text = path.read_text()
+
+          text = text.replace(
+            "const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';",
+            "const BAG_PANDEN_URL = 'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items';\nconst GEMEENTEGRENZEN_URL = 'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items';"
+          )
+
+          patroon = re.compile(r"async function zoekGemeenteGebied\(gemeente: string\): Promise<GemeenteGebied> \{.*?\n\}\n\nexport async function zoekGemeenteBbox", re.S)
+          vervanging = '''async function zoekGemeenteGebied(gemeente: string): Promise<GemeenteGebied> {
+  const opgeschoond = gemeente.trim();
+  if (!opgeschoond) throw new Error('Vul een gemeente in.');
+
+  const params = new URLSearchParams({ limit: '500', f: 'json' });
+  const data = await fetchJson(`${GEMEENTEGRENZEN_URL}?${params}`);
+  const features = data?.features ?? [];
+  const exact = features.find((feature: any) =>
+    zelfdeGemeente(feature?.properties?.naam, opgeschoond)
+  );
+
+  if (!exact) throw new Error(`Gemeente “${gemeente}” is niet gevonden in de officiële gemeentegrenzen.`);
+
+  const ringen = ringenUitGeometrie(exact.geometry);
+  const bbox = bboxUitGeometrie(exact.geometry) ?? bboxUitGeometrie(exact.bbox);
+  if (!bbox || !ringen.length) {
+    throw new Error(`Voor gemeente “${gemeente}” kon geen officiële gemeentegrens worden bepaald.`);
+  }
+
+  return {
+    bbox,
+    ringen,
+    naam: String(exact.properties?.naam ?? opgeschoond),
+  };
+}
+
+export async function zoekGemeenteBbox'''
+          text, count = patroon.subn(vervanging, text)
+          if count != 1:
+            raise SystemExit(f'zoekGemeenteGebied vervangen: {count}')
+
+          oud = '''      // De Locatieserver levert bij gemeenterecords vaak alleen een centroide.
+      // Valideer daarom ieder verrijkt adres expliciet op de officiële gemeentenaam.
+      const adresGemeente = await zoekGemeenteVoorAdres(item);
+      if (adresGemeente && !zelfdeGemeente(adresGemeente, gebied.naam)) { statistiek.buitenGemeente += 1; continue; }
+
+      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
+      if (gebied.ringen.length && !puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
+'''
+          nieuw = '''      if (item.longitude == null || item.latitude == null) { statistiek.technischAfgevallen += 1; continue; }
+      if (!puntInGemeente([item.longitude, item.latitude], gebied.ringen)) { statistiek.buitenGemeente += 1; continue; }
+'''
+          if oud not in text:
+            raise SystemExit('oude adres-/gemeentevalidatie niet gevonden')
+          path.write_text(text.replace(oud, nieuw))
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/apply-officiele-gemeentegrens.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/pdokBagSelectie.ts
+          git commit -m "fix: gebruik officiële BRK-gemeentegrenzen voor BAG-selectie"
+          git push origin HEAD:fix/pdok-officiele-gemeentegrens
