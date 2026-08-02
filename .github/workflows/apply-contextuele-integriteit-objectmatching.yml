@@ -21,6 +21,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Repair generated script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-contextuele-integriteit-objectmatching.mjs')
+          s = p.read_text()
+          s = s.replace("label: labels.length ? \\\\`Ontbreekt: \\\\${labels.join(', ')}\\\\` : 'Adresgegevens compleet',", "label: labels.length ? 'Ontbreekt: ' + labels.join(', ') : 'Adresgegevens compleet',")
+          p.write_text(s)
+          PY
       - name: Apply BUILD A2.1 + B2 + B3
         run: node scripts/apply-contextuele-integriteit-objectmatching.mjs
       - name: Install dependencies
