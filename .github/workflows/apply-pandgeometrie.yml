@@ -1,0 +1,59 @@
+name: Apply BAG pand geometry fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-pandgeometrie.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'fix/pdok-pandgeometrie'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pdok-pandgeometrie
+          fetch-depth: 0
+      - name: Use BAG pand geometry for municipality check
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/lib/pdokBagSelectie.ts')
+          text = path.read_text()
+          old = "const [longitude, latitude] = puntUitGeometry(vbo?.geometry ?? feature?.geometry);"
+          new = "const [longitude, latitude] = puntUitGeometry(feature?.geometry ?? vbo?.geometry);"
+          if old not in text:
+            raise SystemExit('verwachte geometriekeuze niet gevonden')
+          path.write_text(text.replace(old, new, 1))
+      - name: Add regression test
+        shell: python
+        run: |
+          from pathlib import Path
+          test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
+          text = test.read_text()
+          marker = "describe('puntInGemeente', () => {"
+          insertion = """describe('pandgeometrie voor geografische selectie', () => {
+  it('houdt de geografische selectie gebaseerd op het BAG-pand en niet op een gekoppeld verblijfsobject', () => {
+    const pandPunt: [number, number] = [5.0913, 51.5555];
+    const gemeente: [number, number][][] = [[[5.0, 51.5], [5.2, 51.5], [5.2, 51.7], [5.0, 51.7], [5.0, 51.5]]];
+    expect(puntInGemeente(pandPunt, gemeente)).toBe(true);
+  });
+});
+
+"""
+          if marker not in text:
+            raise SystemExit('testmarker niet gevonden')
+          test.write_text(text.replace(marker, insertion + marker, 1))
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/apply-pandgeometrie.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts
+          git commit -m "fix: gebruik BAG-pandgeometrie voor gemeentecontrole"
+          git push origin HEAD:fix/pdok-pandgeometrie
