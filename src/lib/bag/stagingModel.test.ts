@@ -29,6 +29,13 @@ describe('bouwBagStagingModel', () => {
       { bronObjecttype: 'Verblijfsobject', bronIdentificatie: 'vbo-1', relatietype: 'maaktDeelUitVan', doelIdentificatie: 'pand-1' },
     ]);
     expect(model.geometrieen[0].crs).toBe('EPSG:28992');
+    expect(model.geometrieen[0]).toMatchObject({
+      beginGeldigheid: basis.beginGeldigheid,
+      eindGeldigheid: basis.eindGeldigheid,
+      tijdstipRegistratie: basis.tijdstipRegistratie,
+      eindRegistratie: basis.eindRegistratie,
+      tijdstipInactief: basis.tijdstipInactief,
+    });
   });
 
   it('behoudt historie en selecteert het actuele voorkomen', () => {
@@ -68,5 +75,38 @@ describe('bouwBagStagingModel', () => {
     const a = { ...basis, objecttype: 'Pand', identificatie: 'pand-2', voorkomenidentificatie: 1, relaties: {} };
     const b = { ...basis, objecttype: 'Pand', identificatie: 'pand-1', voorkomenidentificatie: 1, relaties: {} };
     expect(stagingFingerprint(bouwBagStagingModel([a, b]))).toBe(stagingFingerprint(bouwBagStagingModel([b, a])));
+  });
+
+  it('behoudt twee geometrieën met dezelfde officiële voorkomen-ID als afzonderlijke voorkomens', () => {
+    const model = bouwBagStagingModel([
+      {
+        ...basis,
+        objecttype: 'Verblijfsobject',
+        identificatie: '0106010000033804',
+        voorkomenidentificatie: 1,
+        tijdstipRegistratie: '2009-11-06T13:37:13.000',
+        status: 'Verblijfsobject gevormd',
+        relaties: {},
+        geometrie: { crs: 'EPSG:28992', dimensie: 3, coordinaten: [100, 200, 0] },
+      },
+      {
+        ...basis,
+        objecttype: 'Verblijfsobject',
+        identificatie: '0106010000033804',
+        voorkomenidentificatie: 1,
+        eindGeldigheid: '2011-01-06',
+        tijdstipRegistratie: '2011-07-12T11:03:58.000',
+        eindRegistratie: '2011-07-12T11:03:58.000',
+        status: 'Verblijfsobject in gebruik',
+        relaties: {},
+        geometrie: { crs: 'EPSG:28992', dimensie: 3, coordinaten: [101, 201, 0] },
+      },
+    ]);
+
+    expect(model.geometrieen).toHaveLength(2);
+    expect(model.geometrieen.map(item => item.tijdstipRegistratie)).toEqual([
+      '2009-11-06T13:37:13.000',
+      '2011-07-12T11:03:58.000',
+    ]);
   });
 });

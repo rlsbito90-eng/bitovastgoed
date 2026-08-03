@@ -3,6 +3,12 @@ import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
 import { parseOfficieelBagRecord, type BagOfficieelAdapterRecord } from '../../src/lib/bag/officieleXmlRecordAdapter';
 import { voerIntegraleBagDryRunUit } from '../../src/lib/bag/integraleDryRun';
+import {
+  koppelGeometrieAanVoorkomen,
+  maakVoorkomenBrongroepSleutel,
+  maakVoorkomenSleutel,
+  type BagVoorkomenKandidaat,
+} from '../../src/lib/bag/geometrieVoorkomenKoppeling';
 
 interface NdjsonRecord {
   bronpad: string;
@@ -21,24 +27,6 @@ function datum(value: string | null): string | null {
   if (!value) return null;
   const match = value.match(/^\d{4}-\d{2}-\d{2}/);
   return match?.[0] ?? null;
-}
-
-function voorkomenSleutel(item: {
-  voorkomenidentificatie: number | null;
-  beginGeldigheid: string | null;
-  eindGeldigheid: string | null;
-  tijdstipRegistratie: string | null;
-  eindRegistratie: string | null;
-  tijdstipInactief: string | null;
-}): string {
-  return [
-    item.voorkomenidentificatie ?? '',
-    item.beginGeldigheid ?? '',
-    item.eindGeldigheid ?? '',
-    item.tijdstipRegistratie ?? '',
-    item.eindRegistratie ?? '',
-    item.tijdstipInactief ?? '',
-  ].join('|');
 }
 
 function geometrieWkt(
@@ -79,6 +67,8 @@ export interface BagPostgisCsvExportSamenvatting {
   relatiesUniek: number;
   geometrieen: number;
   overgeslagenGeometrieen: number;
+  ontbrekendeVoorkomenkoppelingen: number;
+  ambigueVoorkomenkoppelingen: number;
   dubbeleVoorkomenidentificaties: number;
   outputDir: string;
 }
@@ -125,7 +115,7 @@ export async function exporteerAssenNaarPostgisCsv(
     'utf-8',
   );
 
-  const voorkomenSleutelsPerBron = new Map<string, string[]>();
+  const voorkomenKandidatenPerBron = new Map<string, BagVoorkomenKandidaat[]>();
   const voorkomenBasisTellingen = new Map<string, number>();
   writeFileSync(
     resolve(outputDir, 'voorkomens.csv'),
@@ -136,11 +126,11 @@ export async function exporteerAssenNaarPostgisCsv(
         eindRegistratie: item.eindRegistratie,
         tijdstipInactief: item.tijdstipInactief,
       };
-      const sleutel = voorkomenSleutel(item);
-      const bronSleutel = `${item.objecttype}\u0000${item.identificatie}\u0000${item.voorkomenidentificatie ?? ''}`;
-      const sleutels = voorkomenSleutelsPerBron.get(bronSleutel) ?? [];
-      sleutels.push(sleutel);
-      voorkomenSleutelsPerBron.set(bronSleutel, sleutels);
+      const sleutel = maakVoorkomenSleutel(item);
+      const bronSleutel = maakVoorkomenBrongroepSleutel(item);
+      const kandidaten = voorkomenKandidatenPerBron.get(bronSleutel) ?? [];
+      kandidaten.push({ ...item, voorkomenSleutel: sleutel, status: item.status });
+      voorkomenKandidatenPerBron.set(bronSleutel, kandidaten);
       voorkomenBasisTellingen.set(bronSleutel, (voorkomenBasisTellingen.get(bronSleutel) ?? 0) + 1);
       return [
         item.objecttype,
@@ -170,40 +160,86 @@ export async function exporteerAssenNaarPostgisCsv(
     'utf-8',
   );
 
-  let overgeslagenGeometrieen = 0;
   const geometrieRegels: string[] = [];
   const geometrieVolgnummers = new Map<string, number>();
+  const geometrieKoppelafwijkingen: Array<{
+    code: 'ontbrekende_voorkomenkoppeling' | 'ambigue_voorkomenkoppeling' | 'ongeldige_brongeometrie';
+    objecttype: string;
+    identificatie: string;
+    bronmetadata: {
+      voorkomenidentificatie: number | null;
+      beginGeldigheid: string | null;
+      eindGeldigheid: string | null;
+      tijdstipRegistratie: string | null;
+      eindRegistratie: string | null;
+      tijdstipInactief: string | null;
+    };
+    bronWkt: string | null;
+    bronGeometrie: {
+      crs: 'EPSG:28992';
+      dimensie: 2 | 3;
+      coordinaten: number[];
+    };
+    kandidaten: BagVoorkomenKandidaat[];
+  }> = [];
   for (const item of staging.geometrieen) {
-    if (item.voorkomenidentificatie == null) {
-      overgeslagenGeometrieen += 1;
-      continue;
-    }
     const wkt = geometrieWkt(item.coordinaten, item.dimensie, item.objecttype);
-    if (!wkt) {
-      overgeslagenGeometrieen += 1;
+    const bronSleutel = maakVoorkomenBrongroepSleutel(item);
+    const koppeling = koppelGeometrieAanVoorkomen(
+      item,
+      voorkomenKandidatenPerBron.get(bronSleutel) ?? [],
+    );
+    if (koppeling.status !== 'gekoppeld' || !wkt) {
+      geometrieKoppelafwijkingen.push({
+        code: koppeling.status === 'gekoppeld' ? 'ongeldige_brongeometrie' : koppeling.status,
+        objecttype: item.objecttype,
+        identificatie: item.identificatie,
+        bronmetadata: {
+          voorkomenidentificatie: item.voorkomenidentificatie,
+          beginGeldigheid: item.beginGeldigheid,
+          eindGeldigheid: item.eindGeldigheid,
+          tijdstipRegistratie: item.tijdstipRegistratie,
+          eindRegistratie: item.eindRegistratie,
+          tijdstipInactief: item.tijdstipInactief,
+        },
+        bronWkt: wkt,
+        bronGeometrie: {
+          crs: item.crs,
+          dimensie: item.dimensie,
+          coordinaten: [...item.coordinaten],
+        },
+        kandidaten: koppeling.kandidaten,
+      });
       continue;
     }
-    const bronSleutel = `${item.objecttype}\u0000${item.identificatie}\u0000${item.voorkomenidentificatie}`;
-    const mogelijkeVoorkomenSleutels = voorkomenSleutelsPerBron.get(bronSleutel);
-    const voorkomen_sleutel = mogelijkeVoorkomenSleutels?.[0];
-    if (!voorkomen_sleutel) {
-      overgeslagenGeometrieen += 1;
-      continue;
-    }
-    const geometrieVolgnummer = (geometrieVolgnummers.get(bronSleutel) ?? 0) + 1;
-    geometrieVolgnummers.set(bronSleutel, geometrieVolgnummer);
+    const geometrieSleutel = [item.objecttype, item.identificatie, koppeling.voorkomenSleutel].join('\u0000');
+    const geometrieVolgnummer = (geometrieVolgnummers.get(geometrieSleutel) ?? 0) + 1;
+    geometrieVolgnummers.set(geometrieSleutel, geometrieVolgnummer);
     geometrieRegels.push([
       item.objecttype,
       item.identificatie,
-      voorkomen_sleutel,
+      koppeling.voorkomenSleutel,
       item.voorkomenidentificatie,
       geometrieVolgnummer,
       wkt,
     ].map(csv).join(','));
   }
   writeFileSync(resolve(outputDir, 'geometrieen.csv'), geometrieRegels.join('\n') + '\n', 'utf-8');
+  writeFileSync(
+    resolve(outputDir, 'geometrie-koppelafwijkingen.jsonl'),
+    geometrieKoppelafwijkingen.length > 0
+      ? `${geometrieKoppelafwijkingen.map(item => JSON.stringify(item)).join('\n')}\n`
+      : '',
+    'utf-8',
+  );
 
   const dubbeleVoorkomenidentificaties = [...voorkomenBasisTellingen.values()].filter(aantal => aantal > 1).length;
+  const ontbrekendeVoorkomenkoppelingen = geometrieKoppelafwijkingen.filter(
+    item => item.code === 'ontbrekende_voorkomenkoppeling',
+  ).length;
+  const ambigueVoorkomenkoppelingen = geometrieKoppelafwijkingen.filter(
+    item => item.code === 'ambigue_voorkomenkoppeling',
+  ).length;
   const samenvatting: BagPostgisCsvExportSamenvatting = {
     ontvangen,
     verwerkt: records.length,
@@ -214,7 +250,9 @@ export async function exporteerAssenNaarPostgisCsv(
     relatiesBron: staging.relaties.length,
     relatiesUniek: relaties.length,
     geometrieen: geometrieRegels.length,
-    overgeslagenGeometrieen,
+    overgeslagenGeometrieen: geometrieKoppelafwijkingen.length,
+    ontbrekendeVoorkomenkoppelingen,
+    ambigueVoorkomenkoppelingen,
     dubbeleVoorkomenidentificaties,
     outputDir,
   };

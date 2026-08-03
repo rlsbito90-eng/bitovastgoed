@@ -123,7 +123,7 @@ describe('BAG database-importontwerp', () => {
     expect(officieleAssenLoadSql).not.toContain('st_makevalid');
   });
 
-  it('blokkeert semantisch ambigue geometriekoppeling bij dubbele officiële voorkomen-ID’s', () => {
+  it('dwingt semantische geometriekoppeling af bij dubbele officiële voorkomen-ID’s', () => {
     const geometrieKoppelcode = officieleAssenExporter.slice(
       officieleAssenExporter.indexOf('for (const item of staging.geometrieen)'),
       officieleAssenExporter.indexOf("writeFileSync(resolve(outputDir, 'geometrieen.csv')"),
@@ -141,12 +141,9 @@ describe('BAG database-importontwerp', () => {
       ],
     });
 
-    expect(geometrieKoppelcode).toContain(
-      'const voorkomen_sleutel = mogelijkeVoorkomenSleutels?.[0];',
-    );
-    expect(geometrieKoppelcode).not.toMatch(
-      /item\.(beginGeldigheid|eindGeldigheid|tijdstipRegistratie|eindRegistratie)/,
-    );
+    expect(geometrieKoppelcode).toContain('koppelGeometrieAanVoorkomen(');
+    expect(geometrieKoppelcode).toContain('item.tijdstipInactief');
+    expect(geometrieKoppelcode).not.toContain('mogelijkeVoorkomenSleutels?.[0]');
   });
 
   it('verbiedt CRM-schrijfacties en bewaart de vorige datasetversie', () => {
