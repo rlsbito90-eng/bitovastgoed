@@ -55,12 +55,17 @@ describe('BAG parserproef', () => {
       { type: 'verblijfsobject', identificatie: 'V1', pandIds: ['ONBEKEND'], nummeraanduidingIds: ['N1'], oppervlakte: 0 },
     ]);
 
-    expect(resultaat.afwijzingen.map(item => item.code)).toEqual([
+    const codes = resultaat.afwijzingen.map(item => item.code);
+    const verwachteCodes = [
       'ontbrekende_identificatie',
       'ongeldig_bouwjaar',
       'onvolledig_adres',
       'ongeldige_oppervlakte',
-    ]);
+    ];
+
+    expect(codes).toHaveLength(4);
+    expect(new Set(codes).size).toBe(4);
+    expect([...codes].sort()).toEqual([...verwachteCodes].sort());
     expect(resultaat.afwijzingen.every(item => item.reden.length > 0)).toBe(true);
   });
 
