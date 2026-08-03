@@ -1,0 +1,166 @@
+// BAG BUILD 2A.9 — geauthenticeerde, shadow-only transportgrens.
+// @ts-nocheck — Deno Edge Runtime; contract wordt statisch en via pure clienttests bewaakt.
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import postgres from 'npm:postgres@3.4.7';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
+const PRODUCTION_REF = 'ljudxyrqoifhfikueric';
+const MAX_BODY_BYTES = 16_384;
+
+let database: ReturnType<typeof postgres> | null = null;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
+}
+
+function requiredEnv(name: string): string {
+  const value = Deno.env.get(name)?.trim();
+  if (!value) throw new Error(`Ontbrekende serverconfiguratie: ${name}`);
+  return value;
+}
+
+function databaseClient(): ReturnType<typeof postgres> {
+  if (database) return database;
+
+  const environment = requiredEnv('BAG_ENVIRONMENT');
+  const projectRef = requiredEnv('BAG_PROJECT_REF');
+  const expectedRef = requiredEnv('BAG_EXPECTED_PROJECT_REF');
+  const databaseUrl = requiredEnv('BAG_READER_DATABASE_URL');
+  if (environment !== 'shadow' || projectRef !== expectedRef || projectRef === PRODUCTION_REF) {
+    throw new Error('BAG-transport is niet aan de bevestigde shadow gebonden');
+  }
+  if (!/^[a-z0-9]{20}$/.test(projectRef)) {
+    throw new Error('Ongeldige BAG-projectref');
+  }
+
+  const parsed = new URL(databaseUrl);
+  const username = decodeURIComponent(parsed.username);
+  const sslmode = parsed.searchParams.get('sslmode');
+  if ((username !== 'bag_gateway' && username !== `bag_gateway.${projectRef}`)
+    || (sslmode !== 'require' && sslmode !== 'verify-full')
+    || (!parsed.hostname.includes(projectRef) && !username.includes(`.${projectRef}`))) {
+    throw new Error('BAG-database-URL voldoet niet aan het gatewaycontract');
+  }
+
+  database = postgres(databaseUrl, {
+    max: 2,
+    idle_timeout: 5,
+    connect_timeout: 5,
+    prepare: false,
+    ssl: 'require',
+  });
+  return database;
+}
+
+function scopeCode(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(value)) {
+    throw new TypeError('Ongeldige BAG-scopecode');
+  }
+  return value;
+}
+
+function integer(value: unknown, min: number, max: number, label: string): number {
+  if (!Number.isInteger(value) || Number(value) < min || Number(value) > max) {
+    throw new TypeError(`${label} moet tussen ${min} en ${max} liggen`);
+  }
+  return Number(value);
+}
+
+function coordinate(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError('Viewportcoördinaten moeten eindig zijn');
+  }
+  return value;
+}
+
+async function authorize(req: Request): Promise<string> {
+  const authorization = req.headers.get('Authorization');
+  if (!authorization?.startsWith('Bearer ')) throw new TypeError('Unauthorized');
+
+  const client = createClient(
+    requiredEnv('SUPABASE_URL'),
+    requiredEnv('SUPABASE_ANON_KEY'),
+    { global: { headers: { Authorization: authorization } } },
+  );
+  const token = authorization.slice('Bearer '.length);
+  const { data: claims, error } = await client.auth.getClaims(token);
+  const userId = claims?.claims?.sub;
+  if (error || typeof userId !== 'string') throw new TypeError('Unauthorized');
+
+  const { data: roles, error: rolesError } = await client
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId);
+  const internal = !rolesError && (roles ?? [])
+    .some(({ role }) => role === 'admin' || role === 'medewerker');
+  if (!internal) throw new RangeError('Forbidden');
+  return userId;
+}
+
+async function execute(body: Record<string, unknown>): Promise<unknown> {
+  const sql = databaseClient();
+  if (body.action === 'viewport') {
+    const scope = scopeCode(body.scopeCode);
+    const minX = coordinate(body.minX);
+    const minY = coordinate(body.minY);
+    const maxX = coordinate(body.maxX);
+    const maxY = coordinate(body.maxY);
+    const limit = integer(body.limit ?? 2500, 1, 2500, 'Viewportlimiet');
+    if (minX < -10_000 || maxX > 300_000 || minY < 275_000 || maxY > 630_000
+      || minX >= maxX || minY >= maxY) {
+      throw new TypeError('Viewport valt buiten de begrensde RD New-zone');
+    }
+    return sql.begin(async (tx) => {
+      await tx.unsafe('SET LOCAL ROLE bag_reader');
+      return tx`SELECT * FROM bag_service.panden_in_viewport(
+        ${scope}, ${minX}, ${minY}, ${maxX}, ${maxY}, ${limit}
+      )`;
+    });
+  }
+
+  if (body.action === 'search') {
+    const scope = scopeCode(body.scopeCode);
+    const limit = integer(body.limit ?? 100, 1, 250, 'Zoeklimiet');
+    const cursor = body.cursor == null ? null : String(body.cursor).trim();
+    if (cursor !== null && (!cursor || cursor.length > 128)) {
+      throw new TypeError('Ongeldige keysetcursor');
+    }
+    return sql.begin(async (tx) => {
+      await tx.unsafe('SET LOCAL ROLE bag_reader');
+      return tx`SELECT * FROM bag_service.zoek_panden(${scope}, ${cursor}, ${limit})`;
+    });
+  }
+
+  throw new TypeError('Onbekende BAG-queryactie');
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const contentLength = Number(req.headers.get('content-length') ?? 0);
+  if (contentLength > MAX_BODY_BYTES) return json({ error: 'Request te groot' }, 413);
+
+  try {
+    await authorize(req);
+    const raw = await req.text();
+    if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
+      return json({ error: 'Request te groot' }, 413);
+    }
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    const rows = await execute(body);
+    return json({ rows });
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof TypeError) {
+      const unauthorized = error.message === 'Unauthorized';
+      return json({ error: unauthorized ? 'Unauthorized' : error.message }, unauthorized ? 401 : 400);
+    }
+    if (error instanceof RangeError) return json({ error: 'Forbidden' }, 403);
+    console.error('[bag-query-service] request failed');
+    return json({ error: 'BAG-queryservice tijdelijk niet beschikbaar' }, 503);
+  }
+});

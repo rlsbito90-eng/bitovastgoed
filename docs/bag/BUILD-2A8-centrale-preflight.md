@@ -26,6 +26,8 @@ De preflight bewijst in één read-only transactie:
 - exact vier private BAG-schema's en tien tabellen;
 - geforceerde RLS op alle tabellen en het volledige policycontract;
 - drie veilige `NOLOGIN`, `NOINHERIT`, `NOBYPASSRLS`-rollen;
+- de minimale `bag_gateway`-login, zonder credential op clean shadow en alleen
+  met geconfigureerd credential voor een actieve release;
 - PostGIS in `extensions` en alleen de benodigde BAG-roltoegang;
 - aanwezigheid en geldigheid van de ruimtelijke, object- en versie-indexen;
 - aanwezigheid van versiebeheer- en queryfuncties, met vaste owner en
@@ -35,8 +37,8 @@ De preflight bewijst in één read-only transactie:
 - nul schema-, tabel- of functierechten voor `anon`, `authenticated` en
   `service_role`;
 - alleen de bedoelde functiegrants voor publisher en reader;
-- exact de drie oorspronkelijke `supabase_admin`-memberships met
-  `ADMIN TRUE`, `INHERIT FALSE` en `SET FALSE`;
+- exact de drie oorspronkelijke `supabase_admin`-memberships plus één
+  `SET`-only readerlidmaatschap voor `bag_gateway`;
 - consistente datasetstatus en maximaal één actieve versie per scope;
 - de gekozen clean-shadow- of active-dataset-gate.
 
@@ -70,9 +72,11 @@ worden beoordeeld tegen deze private servicegrens.
 ## Live shadowbewijs
 
 Op 3 augustus 2026 is de volledige `clean-shadow`-variant read-only uitgevoerd op
-Lovable-shadow `6a89a812-bc24-4545-8da4-dcf44e209fcf`. Alle vijftien controles
+Lovable-shadow `6a89a812-bc24-4545-8da4-dcf44e209fcf`. Na BUILD 2A.9 zijn alle
+zestien controles
 waren groen. De database bevatte nul BAG-rijen en nul actieve datasets; productie
-is niet benaderd of gewijzigd. Dezelfde lege shadow is vervolgens bewust met de
-`active-dataset`-verwachting beoordeeld: uitsluitend `mode_dataset_gate` faalde,
-zoals vereist; de gate kan een lege omgeving dus niet als actieve release
-goedkeuren.
+is niet benaderd of gewijzigd. Dezelfde lege shadow wordt in
+`active-dataset`-modus bewust geblokkeerd op zowel de ontbrekende actieve dataset
+als het nog niet geconfigureerde gatewaycredential. Een leeg of nog niet
+operationeel ontsloten project kan dus niet als actieve release worden
+goedgekeurd.
