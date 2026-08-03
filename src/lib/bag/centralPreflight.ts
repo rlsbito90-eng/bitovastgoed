@@ -3,6 +3,7 @@ export const VERPLICHTE_CENTRALE_BAG_CONTROLES = [
   'dataset_state_invariant',
   'forced_rls',
   'function_contract',
+  'gateway_role_hardening',
   'index_contract',
   'intended_function_grants',
   'mode_dataset_gate',

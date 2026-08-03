@@ -92,6 +92,31 @@ checks AS (
       AND NOT rolinherit AND NOT rolreplication AND NOT rolbypassrls),
     '3 NOLOGIN/NOINHERIT/NOBYPASSRLS roles'
   UNION ALL
+  SELECT 'gateway_role_hardening',
+    (SELECT count(*) = 1
+      FROM pg_catalog.pg_roles AS r
+      JOIN pg_catalog.pg_authid AS a ON a.oid = r.oid
+      WHERE r.rolname = 'bag_gateway'
+        AND r.rolcanlogin AND NOT r.rolsuper AND NOT r.rolcreatedb AND NOT r.rolcreaterole
+        AND NOT r.rolinherit AND NOT r.rolreplication AND NOT r.rolbypassrls
+        AND r.rolconnlimit = 8
+        AND CASE :'expectation'
+          WHEN 'clean-shadow' THEN a.rolpassword IS NULL
+          WHEN 'active-dataset' THEN a.rolpassword IS NOT NULL
+          ELSE false
+        END),
+    COALESCE((SELECT 'login=' || r.rolcanlogin::text
+      || ',connlimit=' || r.rolconnlimit::text
+      || ',credential=' || (a.rolpassword IS NOT NULL)::text
+      FROM pg_catalog.pg_roles AS r
+      JOIN pg_catalog.pg_authid AS a ON a.oid = r.oid
+      WHERE r.rolname = 'bag_gateway'), 'missing'),
+    CASE :'expectation'
+      WHEN 'clean-shadow' THEN 'minimal login, connection limit 8, no credential'
+      WHEN 'active-dataset' THEN 'minimal login, connection limit 8, credential configured'
+      ELSE 'known expectation'
+    END
+  UNION ALL
   SELECT 'postgis_contract',
     EXISTS (
       SELECT 1 FROM pg_catalog.pg_extension AS e
@@ -207,7 +232,7 @@ checks AS (
     'publisher=2 version; reader=2 query; cross-role=0'
   UNION ALL
   SELECT 'role_membership_contract',
-    (SELECT count(*) = 3
+    (SELECT count(*) = 4
       FROM pg_catalog.pg_auth_members AS m
       JOIN pg_catalog.pg_roles AS r ON r.oid = m.roleid
       WHERE r.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader'))
@@ -219,18 +244,32 @@ checks AS (
       WHERE r.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')
         AND member_role.rolname = 'postgres'
         AND grantor_role.rolname = 'supabase_admin'
-        AND m.admin_option AND NOT m.inherit_option AND NOT m.set_option),
-    (SELECT count(*)::text || '/' || count(*) FILTER (
+        AND m.admin_option AND NOT m.inherit_option AND NOT m.set_option)
+    AND (SELECT count(*) = 1
+      FROM pg_catalog.pg_auth_members AS m
+      JOIN pg_catalog.pg_roles AS r ON r.oid = m.roleid
+      JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = m.member
+      JOIN pg_catalog.pg_roles AS grantor_role ON grantor_role.oid = m.grantor
+      WHERE r.rolname = 'bag_reader'
+        AND member_role.rolname = 'bag_gateway'
+        AND grantor_role.rolname = 'postgres'
+        AND NOT m.admin_option AND NOT m.inherit_option AND m.set_option),
+    (SELECT count(*)::text || '/original=' || count(*) FILTER (
         WHERE member_role.rolname = 'postgres'
           AND grantor_role.rolname = 'supabase_admin'
           AND m.admin_option AND NOT m.inherit_option AND NOT m.set_option
+      )::text || '/gateway=' || count(*) FILTER (
+        WHERE r.rolname = 'bag_reader'
+          AND member_role.rolname = 'bag_gateway'
+          AND grantor_role.rolname = 'postgres'
+          AND NOT m.admin_option AND NOT m.inherit_option AND m.set_option
       )::text
       FROM pg_catalog.pg_auth_members AS m
       JOIN pg_catalog.pg_roles AS r ON r.oid = m.roleid
       JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = m.member
       JOIN pg_catalog.pg_roles AS grantor_role ON grantor_role.oid = m.grantor
       WHERE r.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')),
-    '3 supabase_admin grants to postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE'
+    '4 total: 3 original Supabase grants plus 1 SET-only reader grant to gateway'
   UNION ALL
   SELECT 'dataset_state_invariant',
     NOT EXISTS (
