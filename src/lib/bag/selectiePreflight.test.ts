@@ -7,7 +7,7 @@ function pand(overrides: Partial<BagVerkennerPand> = {}): BagVerkennerPand {
     datasetversieId: '1', bagPandId: 'P1', voorkomenSleutel: 'P1:1', status: null,
     adres: 'Markt 1', adresCompleet: true, postcode: '4811AA', plaats: 'Breda',
     bouwjaar: 1900, gebruiksdoelen: ['winkelfunctie'], oppervlakte: 100,
-    gemengdGebruik: false, cursor: 'P1', ...overrides,
+    gemengdGebruik: false, cursor: 'P1', straat: 'Markt', aantalVerblijfsobjecten: 1, ...overrides,
   };
 }
 

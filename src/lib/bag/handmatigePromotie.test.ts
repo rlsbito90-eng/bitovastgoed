@@ -7,7 +7,7 @@ const pand: BagVerkennerPand = {
   status: 'Pand in gebruik', adres: 'Markt 1', adresCompleet: true,
   postcode: '4811AA', plaats: 'Breda', bouwjaar: 1920,
   gebruiksdoelen: ['winkelfunctie', 'woonfunctie'], oppervlakte: 350,
-  gemengdGebruik: true, cursor: 'P123',
+  gemengdGebruik: true, cursor: 'P123', straat: 'Markt', aantalVerblijfsobjecten: 3,
 };
 
 describe('BAG 2A.12 handmatige promotiemapping', () => {

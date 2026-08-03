@@ -40,7 +40,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportRes
   }
 
   if (!response.ok) throw new Error('De BAG-queryservice is niet beschikbaar.');
-  const data: unknown = await response.json().catch(() => null);
+  const data = await response.json().catch(() => null) as { rows?: unknown } | null;
   if (!data || !Array.isArray(data.rows)) throw new Error('Ongeldig antwoord van de BAG-queryservice.');
   return { rows: data.rows as T[] };
 }
