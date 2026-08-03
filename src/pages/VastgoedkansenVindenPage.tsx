@@ -12,6 +12,8 @@ import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { zoekBagKandidatenMetStatistiek, type BagKandidaat, type BagSelectieStatistiek } from '@/lib/pdokBagSelectie';
 import BagServicePandenlijst from '@/components/bag/BagServicePandenlijst';
+import { maakHandmatigeBagKans, type BagPromotieResultaat } from '@/lib/bag/handmatigePromotie';
+import type { BagVerkennerPand } from '@/lib/bag/pandenverkennerModel';
 
 const BAG_SERVICE_ENABLED = import.meta.env.VITE_BAG_QUERY_SERVICE_ENABLED === 'true';
 const BAG_SERVICE_SCOPE = import.meta.env.VITE_BAG_QUERY_SCOPE_CODE || 'NL';
@@ -58,6 +60,18 @@ export default function VastgoedkansenVindenPage() {
 
   const toggleDoel = (doel: string) => setGebruiksdoelen(prev => prev.includes(doel) ? prev.filter(x => x !== doel) : [...prev, doel]);
   const isBestaand = (k: BagKandidaat) => bestaandeBagIds.has(k.bagPandId) || bestaandeAdressen.has(norm(`${k.adres}|${k.postcode}`));
+  const promoveerPrivateBagPanden = async (panden: BagVerkennerPand[]): Promise<BagPromotieResultaat> => {
+    const resultaat: BagPromotieResultaat = { toegevoegd: [], mislukt: [] };
+    for (const pand of panden) {
+      try {
+        await addKans(maakHandmatigeBagKans(pand, BAG_SERVICE_SCOPE));
+        resultaat.toegevoegd.push(pand.bagPandId);
+      } catch {
+        resultaat.mislukt.push(pand.bagPandId);
+      }
+    }
+    return resultaat;
+  };
 
   const run = async () => {
     if (!gemeente.trim()) { toast.error('Vul een gemeente in.'); return; }
@@ -112,7 +126,7 @@ export default function VastgoedkansenVindenPage() {
     <Link to="/vastgoedkansen" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1.5 h-4 w-4"/>Vastgoedkansen</Link>
     <PageHeader title="Panden vinden" subtitle="Gecontroleerde selectie uit de officiële BAG via PDOK, begrensd op de gekozen gemeente." />
 
-    {BAG_SERVICE_ENABLED && <BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} bestaandeBagIds={bestaandeBagIds as Set<string>} bestaandeAdresSleutels={bestaandeAdressen} />}
+    {BAG_SERVICE_ENABLED && <BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} bestaandeBagIds={bestaandeBagIds as Set<string>} bestaandeAdresSleutels={bestaandeAdressen} onHandmatigPromoveren={promoveerPrivateBagPanden} />}
 
     <section className="section-card p-4 sm:p-5">
       <div className="grid gap-4 md:grid-cols-4">

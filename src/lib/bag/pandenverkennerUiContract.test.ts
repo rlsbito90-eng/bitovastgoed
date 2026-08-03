@@ -35,4 +35,11 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
     expect(component).toContain('maximaalAantal: 250');
     expect(component).not.toContain('addKans');
   });
+
+  it('promoveert alleen na groene preflight en een afzonderlijke dialoog', () => {
+    expect(component).toContain("if (!preflight?.toegestaan) return");
+    expect(component).toContain('BagHandmatigePromotieDialog');
+    expect(component).toContain('Handmatig toevoegen…');
+    expect(page).toContain('onHandmatigPromoveren={promoveerPrivateBagPanden}');
+  });
 });

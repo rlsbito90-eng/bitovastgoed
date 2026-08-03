@@ -13,11 +13,13 @@ import {
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
 import { zoekPandenViaService } from '@/lib/bag/queryTransport';
+import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import {
   beoordeelBagSelectie,
   blokkadeVoorPand,
   type BagSelectiePreflight,
 } from '@/lib/bag/selectiePreflight';
+import type { BagPromotieResultaat } from '@/lib/bag/handmatigePromotie';
 
 const PAGE_SIZE = 100;
 const FUNCTIES = ['woonfunctie', 'kantoorfunctie', 'industriefunctie', 'winkelfunctie'];
@@ -26,6 +28,7 @@ interface Props {
   scopeCode: string;
   bestaandeBagIds: Set<string>;
   bestaandeAdresSleutels: Set<string>;
+  onHandmatigPromoveren: (panden: BagVerkennerPand[]) => Promise<BagPromotieResultaat>;
 }
 
 const REDEN_LABEL = {
@@ -36,7 +39,7 @@ const REDEN_LABEL = {
 } as const;
 
 export default function BagServicePandenlijst({
-  scopeCode, bestaandeBagIds, bestaandeAdresSleutels,
+  scopeCode, bestaandeBagIds, bestaandeAdresSleutels, onHandmatigPromoveren,
 }: Props) {
   const [panden, setPanden] = useState<BagVerkennerPand[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -44,6 +47,8 @@ export default function BagServicePandenlijst({
   const [laden, setLaden] = useState(false);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
   const [preflight, setPreflight] = useState<BagSelectiePreflight | null>(null);
+  const [promotieOpen, setPromotieOpen] = useState(false);
+  const [promotieBezig, setPromotieBezig] = useState(false);
   const [filters, setFilters] = useState<BagVerkennerFilters>({
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
   });
@@ -94,6 +99,24 @@ export default function BagServicePandenlijst({
     setGeselecteerd(next);
     setPreflight(null);
   };
+  const promoveer = async () => {
+    if (!preflight?.toegestaan) return;
+    setPromotieBezig(true);
+    try {
+      const resultaat = await onHandmatigPromoveren(preflight.kandidaten);
+      setGeselecteerd(previous => {
+        const next = new Set(previous);
+        resultaat.toegevoegd.forEach(id => next.delete(id));
+        return next;
+      });
+      if (resultaat.toegevoegd.length) toast.success(`${resultaat.toegevoegd.length} panden handmatig toegevoegd aan Vastgoedkansen.`);
+      if (resultaat.mislukt.length) toast.error(`${resultaat.mislukt.length} panden konden niet worden toegevoegd; controleer de bijgewerkte CRM-status.`);
+      setPreflight(null);
+      setPromotieOpen(false);
+    } finally {
+      setPromotieBezig(false);
+    }
+  };
 
   return <section className="section-card overflow-hidden">
     <div className="border-b p-4">
@@ -121,7 +144,8 @@ export default function BagServicePandenlijst({
       <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
       <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
     </div></div>; })}</div>}
-    {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
+    {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
     {panden.length>0 && <div className="flex items-center justify-between gap-3 border-t p-4 text-xs text-muted-foreground"><span>{zichtbaar.length} zichtbaar van {panden.length} geladen</span><Button variant="outline" size="sm" disabled={laden || !heeftVolgende} onClick={() => laad(false)}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}{heeftVolgende?'Volgende 100 laden':'Einde bereikt'}</Button></div>}
+    <BagHandmatigePromotieDialog open={promotieOpen} aantal={preflight?.kandidaten.length ?? 0} bezig={promotieBezig} onOpenChange={setPromotieOpen} onConfirm={promoveer}/>
   </section>;
 }
