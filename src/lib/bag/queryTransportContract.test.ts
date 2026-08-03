@@ -30,18 +30,36 @@ describe('BAG 2A.9 servertransportcontract', () => {
     expect(edge).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });
 
-  it('vereist JWT plus interne CRM-rol en voert alleen vaste queryacties uit', () => {
+  it('valideert de productie-JWT server-side en vereist een interne CRM-rol', () => {
     expect(edge).toContain('BAG_AUTH_SUPABASE_URL');
     expect(edge).toContain('BAG_AUTH_SUPABASE_ANON_KEY');
     expect(edge).toContain('authUrl !== PRODUCTION_AUTH_URL');
     expect(edge).not.toContain("requiredEnv('SUPABASE_URL')");
     expect(edge).not.toContain("requiredEnv('SUPABASE_ANON_KEY')");
-    expect(edge).toContain("client.auth.getClaims(token)");
+    expect(edge).toContain('client.auth.getUser(token)');
+    expect(edge).not.toContain('client.auth.getClaims(token)');
+    expect(edge).toContain('const userId = userData.user?.id');
+    expect(edge).toContain("if (error || typeof userId !== 'string') throw new TypeError('Unauthorized')");
     expect(edge).toContain("role === 'admin' || role === 'medewerker'");
+    expect(edge).toContain("if (!internal) throw new RangeError('Forbidden')");
+  });
+
+  it('bereikt de database pas na succesvolle JWT- en rolcontrole', () => {
+    const authorizeCall = edge.indexOf('await authorize(req)');
+    const executeCall = edge.indexOf('const rows = await execute(body)');
+    const databaseCall = edge.indexOf('const sql = databaseClient()');
+    expect(authorizeCall).toBeGreaterThan(-1);
+    expect(executeCall).toBeGreaterThan(authorizeCall);
+    expect(databaseCall).toBeGreaterThan(-1);
     expect(edge).toContain("body.action === 'viewport'");
     expect(edge).toContain("body.action === 'search'");
-    expect(edge).toContain("SET LOCAL ROLE bag_reader");
+    expect(edge).toContain('SET LOCAL ROLE bag_reader');
     expect(edge).not.toMatch(/\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER)\b/);
+  });
+
+  it('logt geen secrets, tokens of persoonsgegevens', () => {
+    expect(edge).not.toMatch(/console\.(?:log|error|warn)\([^\n]*(?:token|authorization|authAnonKey|databaseUrl|userId)/i);
+    expect(edge).toContain("console.error('[bag-query-service] request failed')");
   });
 
   it('begrensd requestgrootte, databasepool, viewport en zoekpagina', () => {
