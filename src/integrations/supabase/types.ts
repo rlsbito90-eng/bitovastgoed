@@ -5477,6 +5477,168 @@ export type Database = {
         }
         Relationships: []
       }
+      vastgoedkansen: {
+        Row: {
+          aangemaakt_door: string | null
+          adres: string | null
+          algoritme_score: number | null
+          bag_pand_id: string | null
+          bag_verblijfsobject_id: string | null
+          brief_geadresseerde: string | null
+          brief_kenmerk: string | null
+          brief_status: string
+          brief_verzendwijze: string | null
+          brief_verzonden_op: string | null
+          created_at: string
+          eigenaar_bron: string | null
+          eigenaar_laatst_gecontroleerd_op: string | null
+          eigenaar_naam: string | null
+          eigenaar_status: string
+          herkomst: string
+          herkomst_referentie: string | null
+          id: string
+          kadaster_laatst_gecontroleerd_op: string | null
+          kadaster_status: string
+          kadastrale_aanduiding: string | null
+          kansnummer: string | null
+          korte_omschrijving: string | null
+          notities: string | null
+          object_id: string | null
+          onderzoeksnotities: string | null
+          opvolgactie: string | null
+          opvolgdatum: string | null
+          plaats: string | null
+          postcode: string | null
+          prioriteit: number
+          provincie: string | null
+          reactie_kanaal: string | null
+          reactie_ontvangen_op: string | null
+          reactie_samenvatting: string | null
+          reactie_status: string
+          reactie_uitkomst: string | null
+          reden_interessant: string | null
+          score_uitleg: string | null
+          selectieprofiel_id: string | null
+          selectierun_id: string | null
+          status: string
+          type_vastgoed: string | null
+          updated_at: string
+          volgende_actie_datum: string | null
+          volgende_actie_omschrijving: string | null
+        }
+        Insert: {
+          aangemaakt_door?: string | null
+          adres?: string | null
+          algoritme_score?: number | null
+          bag_pand_id?: string | null
+          bag_verblijfsobject_id?: string | null
+          brief_geadresseerde?: string | null
+          brief_kenmerk?: string | null
+          brief_status?: string
+          brief_verzendwijze?: string | null
+          brief_verzonden_op?: string | null
+          created_at?: string
+          eigenaar_bron?: string | null
+          eigenaar_laatst_gecontroleerd_op?: string | null
+          eigenaar_naam?: string | null
+          eigenaar_status?: string
+          herkomst?: string
+          herkomst_referentie?: string | null
+          id?: string
+          kadaster_laatst_gecontroleerd_op?: string | null
+          kadaster_status?: string
+          kadastrale_aanduiding?: string | null
+          kansnummer?: string | null
+          korte_omschrijving?: string | null
+          notities?: string | null
+          object_id?: string | null
+          onderzoeksnotities?: string | null
+          opvolgactie?: string | null
+          opvolgdatum?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          prioriteit?: number
+          provincie?: string | null
+          reactie_kanaal?: string | null
+          reactie_ontvangen_op?: string | null
+          reactie_samenvatting?: string | null
+          reactie_status?: string
+          reactie_uitkomst?: string | null
+          reden_interessant?: string | null
+          score_uitleg?: string | null
+          selectieprofiel_id?: string | null
+          selectierun_id?: string | null
+          status?: string
+          type_vastgoed?: string | null
+          updated_at?: string
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+        }
+        Update: {
+          aangemaakt_door?: string | null
+          adres?: string | null
+          algoritme_score?: number | null
+          bag_pand_id?: string | null
+          bag_verblijfsobject_id?: string | null
+          brief_geadresseerde?: string | null
+          brief_kenmerk?: string | null
+          brief_status?: string
+          brief_verzendwijze?: string | null
+          brief_verzonden_op?: string | null
+          created_at?: string
+          eigenaar_bron?: string | null
+          eigenaar_laatst_gecontroleerd_op?: string | null
+          eigenaar_naam?: string | null
+          eigenaar_status?: string
+          herkomst?: string
+          herkomst_referentie?: string | null
+          id?: string
+          kadaster_laatst_gecontroleerd_op?: string | null
+          kadaster_status?: string
+          kadastrale_aanduiding?: string | null
+          kansnummer?: string | null
+          korte_omschrijving?: string | null
+          notities?: string | null
+          object_id?: string | null
+          onderzoeksnotities?: string | null
+          opvolgactie?: string | null
+          opvolgdatum?: string | null
+          plaats?: string | null
+          postcode?: string | null
+          prioriteit?: number
+          provincie?: string | null
+          reactie_kanaal?: string | null
+          reactie_ontvangen_op?: string | null
+          reactie_samenvatting?: string | null
+          reactie_status?: string
+          reactie_uitkomst?: string | null
+          reden_interessant?: string | null
+          score_uitleg?: string | null
+          selectieprofiel_id?: string | null
+          selectierun_id?: string | null
+          status?: string
+          type_vastgoed?: string | null
+          updated_at?: string
+          volgende_actie_datum?: string | null
+          volgende_actie_omschrijving?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vastgoedkansen_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "object_huur_metrics"
+            referencedColumns: ["object_id"]
+          },
+          {
+            foreignKeyName: "vastgoedkansen_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "objecten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vastgoedrekenen_bronimport_mapping_profielen: {
         Row: {
           actief: boolean
@@ -6139,6 +6301,7 @@ export type Database = {
         Returns: boolean
       }
       is_intern_gebruiker: { Args: { _user_id: string }; Returns: boolean }
+      next_crm_objectnummer: { Args: never; Returns: string }
       off_market_bron_stats: {
         Args: never
         Returns: {
