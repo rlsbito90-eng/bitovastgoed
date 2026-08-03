@@ -22,6 +22,10 @@ describe('officiële Assen-shadowimport', () => {
     expect(sql).toContain('COMMIT;');
     expect(sql).toContain('bag_control.activeer_datasetversie');
     expect(sql).toContain('WITH SET FALSE, INHERIT FALSE');
+    expect(sql).toContain("FROM '__OBJECTEN_CSV__'");
+    expect(sql).not.toContain("FROM :'objecten_csv'");
+    expect(runner).toContain('import.generated.sql');
+    expect(runner).toContain("grep -q '__[A-Z_]*CSV__'");
   });
 
   it('houdt de database-URL uit workflowinputs en artifacts', () => {

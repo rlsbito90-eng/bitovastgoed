@@ -82,10 +82,10 @@ CREATE TEMP TABLE raw_geometrieen (
   wkt text NOT NULL
 ) ON COMMIT DROP;
 
-\copy raw_objecten FROM :'objecten_csv' WITH (FORMAT csv)
-\copy raw_voorkomens FROM :'voorkomens_csv' WITH (FORMAT csv)
-\copy raw_relaties FROM :'relaties_csv' WITH (FORMAT csv)
-\copy raw_geometrieen FROM :'geometrieen_csv' WITH (FORMAT csv)
+\copy raw_objecten FROM '__OBJECTEN_CSV__' WITH (FORMAT csv)
+\copy raw_voorkomens FROM '__VOORKOMENS_CSV__' WITH (FORMAT csv)
+\copy raw_relaties FROM '__RELATIES_CSV__' WITH (FORMAT csv)
+\copy raw_geometrieen FROM '__GEOMETRIEEN_CSV__' WITH (FORMAT csv)
 
 -- Elke mismatch veroorzaakt bewust division_by_zero en daarmee een rollback.
 SELECT 1 / (

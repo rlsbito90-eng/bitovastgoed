@@ -77,6 +77,20 @@ bron_checksum="${BAG_OFFICIAL_ASSEN_SOURCE_SHA256:?BAG_OFFICIAL_ASSEN_SOURCE_SHA
 [[ "$expected_relaties" == '160351' ]] || fail 'onverwacht aantal unieke relaties.'
 [[ "$expected_geometrieen" == '122388' ]] || fail 'onverwacht aantal geometrieën.'
 [[ "$bron_checksum" =~ ^[a-f0-9]{64}$ ]] || fail 'ongeldige SHA-256 van het officiële bronarchief.'
+[[ "$EXPORT_DIR" =~ ^[A-Za-z0-9_./-]+$ ]] \
+  || fail 'exportpad bevat tekens die niet veilig in het tijdelijke psql-script passen.'
+
+generated_import_sql="$OUTPUT_DIR/import.generated.sql"
+sed \
+  -e "s|__OBJECTEN_CSV__|$EXPORT_DIR/objecten.csv|g" \
+  -e "s|__VOORKOMENS_CSV__|$EXPORT_DIR/voorkomens.csv|g" \
+  -e "s|__RELATIES_CSV__|$EXPORT_DIR/relaties.csv|g" \
+  -e "s|__GEOMETRIEEN_CSV__|$EXPORT_DIR/geometrieen.csv|g" \
+  "$IMPORT_SQL" >"$generated_import_sql"
+
+if grep -q '__[A-Z_]*CSV__' "$generated_import_sql"; then
+  fail 'niet alle lokale CSV-paden zijn ingevuld.'
+fi
 
 psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -F $'\t' <<'SQL' >"$OUTPUT_DIR/preflight.tsv"
 SELECT current_database(), current_user;
@@ -94,17 +108,13 @@ mapfile -t preflight_lines <"$OUTPUT_DIR/preflight.tsv"
 [[ "${preflight_lines[2]}" == '4' ]] || fail 'vereiste vier BAG-rollen ontbreken.'
 
 psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
-  -v objecten_csv="$EXPORT_DIR/objecten.csv" \
-  -v voorkomens_csv="$EXPORT_DIR/voorkomens.csv" \
-  -v relaties_csv="$EXPORT_DIR/relaties.csv" \
-  -v geometrieen_csv="$EXPORT_DIR/geometrieen.csv" \
   -v expected_objecten="$expected_objecten" \
   -v expected_voorkomens="$expected_voorkomens" \
   -v expected_relaties="$expected_relaties" \
   -v expected_geometrieen="$expected_geometrieen" \
   -v bron_checksum="$bron_checksum" \
   -v manifest_checksum="$manifest_checksum" \
-  -f "$IMPORT_SQL" >"$OUTPUT_DIR/import.log" 2>&1
+  -f "$generated_import_sql" >"$OUTPUT_DIR/import.log" 2>&1
 
 grep -q 'OFFICIELE_ASSEN_SHADOW_IMPORT_OK' "$OUTPUT_DIR/import.log" \
   || fail 'database-import gaf geen expliciete succesmarker.'
