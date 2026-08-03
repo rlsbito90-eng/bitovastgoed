@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Database, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, Database, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,15 +13,37 @@ import {
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
 import { zoekPandenViaService } from '@/lib/bag/queryTransport';
+import {
+  beoordeelBagSelectie,
+  blokkadeVoorPand,
+  type BagSelectiePreflight,
+} from '@/lib/bag/selectiePreflight';
 
 const PAGE_SIZE = 100;
 const FUNCTIES = ['woonfunctie', 'kantoorfunctie', 'industriefunctie', 'winkelfunctie'];
 
-export default function BagServicePandenlijst({ scopeCode }: { scopeCode: string }) {
+interface Props {
+  scopeCode: string;
+  bestaandeBagIds: Set<string>;
+  bestaandeAdresSleutels: Set<string>;
+}
+
+const REDEN_LABEL = {
+  bestaand_bag_id: 'BAG-ID bestaat al in CRM',
+  bestaand_adres: 'Adres bestaat al in CRM',
+  onvolledig_adres: 'Bronadres is onvolledig',
+  selectielimiet: 'Selectielimiet overschreden',
+} as const;
+
+export default function BagServicePandenlijst({
+  scopeCode, bestaandeBagIds, bestaandeAdresSleutels,
+}: Props) {
   const [panden, setPanden] = useState<BagVerkennerPand[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [heeftVolgende, setHeeftVolgende] = useState(true);
   const [laden, setLaden] = useState(false);
+  const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
+  const [preflight, setPreflight] = useState<BagSelectiePreflight | null>(null);
   const [filters, setFilters] = useState<BagVerkennerFilters>({
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
   });
@@ -35,6 +57,8 @@ export default function BagServicePandenlijst({ scopeCode }: { scopeCode: string
       });
       const nieuw = resultaat.rows.map(normaliseerBagServicePand);
       setPanden(previous => opnieuw ? nieuw : [...previous, ...nieuw]);
+      if (opnieuw) setGeselecteerd(new Set());
+      setPreflight(null);
       setCursor(nieuw.at(-1)?.cursor ?? null);
       setHeeftVolgende(nieuw.length === PAGE_SIZE);
       if (!nieuw.length) toast.info('Geen verdere BAG-panden gevonden.');
@@ -51,6 +75,25 @@ export default function BagServicePandenlijst({ scopeCode }: { scopeCode: string
       ? previous.gebruiksdoelen.filter(value => value !== functie)
       : [...previous.gebruiksdoelen, functie],
   }));
+  const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
+  const togglePand = (pand: BagVerkennerPand) => {
+    if (blokkadeVoorPand(pand, context)) return;
+    setPreflight(null);
+    setGeselecteerd(previous => {
+      const next = new Set(previous);
+      if (next.has(pand.bagPandId)) next.delete(pand.bagPandId);
+      else if (next.size < 250) next.add(pand.bagPandId);
+      else toast.error('Selecteer maximaal 250 panden per preflight.');
+      return next;
+    });
+  };
+  const selecteerZichtbaar = () => {
+    const beschikbaar = zichtbaar.filter(pand => !blokkadeVoorPand(pand, context));
+    const next = new Set([...geselecteerd, ...beschikbaar.map(pand => pand.bagPandId)]);
+    if (next.size > 250) return toast.error('De zichtbare selectie zou de limiet van 250 overschrijden.');
+    setGeselecteerd(next);
+    setPreflight(null);
+  };
 
   return <section className="section-card overflow-hidden">
     <div className="border-b p-4">
@@ -71,12 +114,14 @@ export default function BagServicePandenlijst({ scopeCode }: { scopeCode: string
       <div className="mt-3 flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
     </div>
 
-    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Laad de eerste begrensde pagina uit de actieve BAG-dataset.</div> : <div className="divide-y">{zichtbaar.map(pand => <div key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`} className="p-4">
-      <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}</div>
+    {panden.length>0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd; selectie blijft lokaal tot de preflight.</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={selecteerZichtbaar}>Selecteer zichtbaar</Button><Button variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
+    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Laad de eerste begrensde pagina uit de actieve BAG-dataset.</div> : <div className="divide-y">{zichtbaar.map(pand => { const blokkade = blokkadeVoorPand(pand, context); return <div key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`} className="flex items-start gap-3 p-4">
+      <Checkbox className="mt-1" disabled={blokkade !== null} checked={geselecteerd.has(pand.bagPandId)} onCheckedChange={() => togglePand(pand)}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<Badge variant="secondary">{REDEN_LABEL[blokkade]}</Badge>}</div>
       <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m²`:null].filter(Boolean).join(' · ')}</p>
       <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
       <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
-    </div>)}</div>}
+    </div></div>; })}</div>}
+    {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
     {panden.length>0 && <div className="flex items-center justify-between gap-3 border-t p-4 text-xs text-muted-foreground"><span>{zichtbaar.length} zichtbaar van {panden.length} geladen</span><Button variant="outline" size="sm" disabled={laden || !heeftVolgende} onClick={() => laad(false)}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}{heeftVolgende?'Volgende 100 laden':'Einde bereikt'}</Button></div>}
   </section>;
 }

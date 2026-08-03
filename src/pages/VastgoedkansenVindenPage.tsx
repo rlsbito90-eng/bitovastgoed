@@ -47,7 +47,10 @@ export default function VastgoedkansenVindenPage() {
   const [zoeken, setZoeken] = useState(false);
   const [opslaan, setOpslaan] = useState(false);
 
-  const bestaandeBagIds = useMemo(() => new Set(kansen.map(k => k.bagPandId).filter(Boolean)), [kansen]);
+  const bestaandeBagIds = useMemo(() => new Set([
+    ...kansen.map(k => k.bagPandId),
+    ...objecten.map((o: any) => o.bagPandId),
+  ].filter(Boolean)), [kansen, objecten]);
   const bestaandeAdressen = useMemo(() => new Set([
     ...kansen.map(k => norm(`${k.adres}|${k.postcode}`)),
     ...objecten.map((o: any) => norm(`${o.adres ?? o.straatAdres ?? ''}|${o.postcode ?? ''}`)),
@@ -109,7 +112,7 @@ export default function VastgoedkansenVindenPage() {
     <Link to="/vastgoedkansen" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1.5 h-4 w-4"/>Vastgoedkansen</Link>
     <PageHeader title="Panden vinden" subtitle="Gecontroleerde selectie uit de officiële BAG via PDOK, begrensd op de gekozen gemeente." />
 
-    {BAG_SERVICE_ENABLED && <BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} />}
+    {BAG_SERVICE_ENABLED && <BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} bestaandeBagIds={bestaandeBagIds as Set<string>} bestaandeAdresSleutels={bestaandeAdressen} />}
 
     <section className="section-card p-4 sm:p-5">
       <div className="grid gap-4 md:grid-cols-4">

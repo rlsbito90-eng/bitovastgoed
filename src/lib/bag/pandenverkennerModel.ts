@@ -13,6 +13,7 @@ export interface BagVerkennerPand {
   voorkomenSleutel: string;
   status: string | null;
   adres: string;
+  adresCompleet: boolean;
   postcode: string | null;
   plaats: string | null;
   bouwjaar: number | null;
@@ -69,13 +70,15 @@ export function normaliseerBagServicePand(rij: BagServicePandRij): BagVerkennerP
     ? `${straat} ${huisnummer}${huisletter}${toevoeging ? `-${toevoeging}` : ''}`
     : null;
   const doelen = gebruiksdoelen(velden.gebruiksdoel ?? velden.gebruiksdoelen);
+  const bronAdres = eersteTekst(velden, ['adres', 'volledig_adres']) ?? samengesteldAdres;
 
   return {
     datasetversieId: String(rij.datasetversie_id),
     bagPandId: rij.identificatie,
     voorkomenSleutel: rij.voorkomen_sleutel,
     status: rij.status,
-    adres: eersteTekst(velden, ['adres', 'volledig_adres']) ?? samengesteldAdres ?? rij.identificatie,
+    adres: bronAdres ?? rij.identificatie,
+    adresCompleet: bronAdres !== null,
     postcode: eersteTekst(velden, ['postcode']),
     plaats: eersteTekst(velden, ['woonplaats_naam', 'woonplaatsnaam', 'woonplaats', 'plaats']),
     bouwjaar: getal(velden.oorspronkelijk_bouwjaar ?? velden.bouwjaar),
