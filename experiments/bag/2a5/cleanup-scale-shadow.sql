@@ -11,8 +11,11 @@ DELETE FROM bag_published.voorkomens WHERE datasetversie_id = :dataset_id;
 DELETE FROM bag_published.objecten WHERE datasetversie_id = :dataset_id;
 DELETE FROM bag_control.datasetversies WHERE id = :dataset_id;
 
-GRANT bag_loader, bag_publisher, bag_reader TO postgres
-  WITH SET FALSE, INHERIT FALSE;
+-- Verwijder uitsluitend de tijdelijke grants die deze sessie als postgres
+-- toevoegde. De oorspronkelijke Lovable/Supabase-memberships (grantor
+-- supabase_admin, SET FALSE) blijven exact behouden.
+REVOKE bag_loader, bag_publisher, bag_reader
+  FROM postgres GRANTED BY postgres;
 COMMIT;
 
 VACUUM (ANALYZE, TRUNCATE) bag_staging.geometrieen;
@@ -41,6 +44,8 @@ DO $cleanup_assertions$
 DECLARE
   bag_row_count bigint;
   set_memberships integer;
+  veilige_memberships integer;
+  postgres_grants integer;
 BEGIN
   SELECT
     (SELECT count(*) FROM bag_control.datasetversies)
@@ -63,10 +68,30 @@ BEGIN
     AND granted.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')
     AND m.set_option;
 
-  IF bag_row_count <> 0 OR set_memberships <> 0 THEN
+  SELECT count(*) INTO veilige_memberships
+  FROM pg_catalog.pg_auth_members AS m
+  JOIN pg_catalog.pg_roles AS granted ON granted.oid = m.roleid
+  JOIN pg_catalog.pg_roles AS member ON member.oid = m.member
+  JOIN pg_catalog.pg_roles AS grantor ON grantor.oid = m.grantor
+  WHERE member.rolname = 'postgres'
+    AND granted.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')
+    AND grantor.rolname = 'supabase_admin'
+    AND NOT m.set_option;
+
+  SELECT count(*) INTO postgres_grants
+  FROM pg_catalog.pg_auth_members AS m
+  JOIN pg_catalog.pg_roles AS granted ON granted.oid = m.roleid
+  JOIN pg_catalog.pg_roles AS member ON member.oid = m.member
+  JOIN pg_catalog.pg_roles AS grantor ON grantor.oid = m.grantor
+  WHERE member.rolname = 'postgres'
+    AND granted.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')
+    AND grantor.rolname = 'postgres';
+
+  IF bag_row_count <> 0 OR set_memberships <> 0
+     OR veilige_memberships <> 3 OR postgres_grants <> 0 THEN
     RAISE EXCEPTION
-      '2A.5 cleanup faalde: BAG-rijen=%, blijvende SET-memberships=%',
-      bag_row_count, set_memberships;
+      '2A.5 cleanup faalde: BAG-rijen=%, SET=%, veilig=%, postgres-grants=%',
+      bag_row_count, set_memberships, veilige_memberships, postgres_grants;
   END IF;
 END
 $cleanup_assertions$;
