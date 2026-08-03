@@ -95,8 +95,8 @@ async function authorize(req: Request): Promise<string> {
     { global: { headers: { Authorization: authorization } } },
   );
   const token = authorization.slice('Bearer '.length);
-  const { data: claims, error } = await client.auth.getClaims(token);
-  const userId = claims?.claims?.sub;
+  const { data: userData, error } = await client.auth.getUser(token);
+  const userId = userData.user?.id;
   if (error || typeof userId !== 'string') throw new TypeError('Unauthorized');
 
   const { data: roles, error: rolesError } = await client
