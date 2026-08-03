@@ -6,12 +6,13 @@ const dialog = readFileSync(resolve(process.cwd(), 'src/components/bag/BagHandma
 const page = readFileSync(resolve(process.cwd(), 'src/pages/VastgoedkansenVindenPage.tsx'), 'utf8');
 
 describe('BAG 2A.12 handmatige promotiegrens', () => {
-  it('vereist een extra actieve bevestiging met expliciete gevolgen', () => {
-    expect(dialog).toContain('checked={bevestigd}');
-    expect(dialog).toContain('disabled={!bevestigd || bezig}');
-    expect(dialog).toContain('Ja, handmatig toevoegen');
+  it('behoudt een afzonderlijke expliciete modal zonder dubbele checkbox', () => {
+    expect(dialog).toContain('AlertDialog');
+    expect(dialog).toContain('toevoegen aan Vastgoedkansen');
     expect(dialog).toContain('geen Objecten of Deals');
     expect(dialog).toContain('geen Kadaster-, eigenaar-, brief- of andere vervolgactie');
+    expect(dialog).not.toContain('checked={bevestigd}');
+    expect(dialog).not.toContain('disabled={!bevestigd || bezig}');
   });
 
   it('rapporteert per BAG-ID succes of mislukking zonder automatische retry', () => {
