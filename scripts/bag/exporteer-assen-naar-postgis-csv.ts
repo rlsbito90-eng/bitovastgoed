@@ -23,6 +23,24 @@ function datum(value: string | null): string | null {
   return match?.[0] ?? null;
 }
 
+function voorkomenSleutel(item: {
+  voorkomenidentificatie: number | null;
+  beginGeldigheid: string | null;
+  eindGeldigheid: string | null;
+  tijdstipRegistratie: string | null;
+  eindRegistratie: string | null;
+  tijdstipInactief: string | null;
+}): string {
+  return [
+    item.voorkomenidentificatie ?? '',
+    item.beginGeldigheid ?? '',
+    item.eindGeldigheid ?? '',
+    item.tijdstipRegistratie ?? '',
+    item.eindRegistratie ?? '',
+    item.tijdstipInactief ?? '',
+  ].join('|');
+}
+
 function geometrieWkt(
   coordinaten: number[],
   dimensie: 2 | 3,
@@ -61,6 +79,7 @@ export interface BagPostgisCsvExportSamenvatting {
   relatiesUniek: number;
   geometrieen: number;
   overgeslagenGeometrieen: number;
+  dubbeleVoorkomenidentificaties: number;
   outputDir: string;
 }
 
@@ -106,6 +125,8 @@ export async function exporteerAssenNaarPostgisCsv(
     'utf-8',
   );
 
+  const voorkomenSleutelsPerBron = new Map<string, string[]>();
+  const voorkomenBasisTellingen = new Map<string, number>();
   writeFileSync(
     resolve(outputDir, 'voorkomens.csv'),
     staging.voorkomens.map(item => {
@@ -115,9 +136,16 @@ export async function exporteerAssenNaarPostgisCsv(
         eindRegistratie: item.eindRegistratie,
         tijdstipInactief: item.tijdstipInactief,
       };
+      const sleutel = voorkomenSleutel(item);
+      const bronSleutel = `${item.objecttype}\u0000${item.identificatie}\u0000${item.voorkomenidentificatie ?? ''}`;
+      const sleutels = voorkomenSleutelsPerBron.get(bronSleutel) ?? [];
+      sleutels.push(sleutel);
+      voorkomenSleutelsPerBron.set(bronSleutel, sleutels);
+      voorkomenBasisTellingen.set(bronSleutel, (voorkomenBasisTellingen.get(bronSleutel) ?? 0) + 1);
       return [
         item.objecttype,
         item.identificatie,
+        sleutel,
         item.voorkomenidentificatie,
         item.isActueel,
         datum(item.beginGeldigheid),
@@ -144,6 +172,7 @@ export async function exporteerAssenNaarPostgisCsv(
 
   let overgeslagenGeometrieen = 0;
   const geometrieRegels: string[] = [];
+  const geometrieVolgnummers = new Map<string, number>();
   for (const item of staging.geometrieen) {
     if (item.voorkomenidentificatie == null) {
       overgeslagenGeometrieen += 1;
@@ -154,15 +183,27 @@ export async function exporteerAssenNaarPostgisCsv(
       overgeslagenGeometrieen += 1;
       continue;
     }
+    const bronSleutel = `${item.objecttype}\u0000${item.identificatie}\u0000${item.voorkomenidentificatie}`;
+    const mogelijkeVoorkomenSleutels = voorkomenSleutelsPerBron.get(bronSleutel);
+    const voorkomen_sleutel = mogelijkeVoorkomenSleutels?.[0];
+    if (!voorkomen_sleutel) {
+      overgeslagenGeometrieen += 1;
+      continue;
+    }
+    const geometrieVolgnummer = (geometrieVolgnummers.get(bronSleutel) ?? 0) + 1;
+    geometrieVolgnummers.set(bronSleutel, geometrieVolgnummer);
     geometrieRegels.push([
       item.objecttype,
       item.identificatie,
+      voorkomen_sleutel,
       item.voorkomenidentificatie,
+      geometrieVolgnummer,
       wkt,
     ].map(csv).join(','));
   }
   writeFileSync(resolve(outputDir, 'geometrieen.csv'), geometrieRegels.join('\n') + '\n', 'utf-8');
 
+  const dubbeleVoorkomenidentificaties = [...voorkomenBasisTellingen.values()].filter(aantal => aantal > 1).length;
   const samenvatting: BagPostgisCsvExportSamenvatting = {
     ontvangen,
     verwerkt: records.length,
@@ -174,6 +215,7 @@ export async function exporteerAssenNaarPostgisCsv(
     relatiesUniek: relaties.length,
     geometrieen: geometrieRegels.length,
     overgeslagenGeometrieen,
+    dubbeleVoorkomenidentificaties,
     outputDir,
   };
 
