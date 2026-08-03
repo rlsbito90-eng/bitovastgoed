@@ -47,6 +47,7 @@ INSERT INTO staging_voorkomens(
   datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
   is_actueel,
   begin_geldigheid,
@@ -58,6 +59,7 @@ SELECT
   :datasetversie_id,
   objecttype,
   identificatie,
+  'synthetisch-voorkomen-1',
   1,
   rn > 39302,
   DATE '2000-01-01' + ((rn % 8000)::integer),
@@ -70,6 +72,7 @@ INSERT INTO staging_voorkomens(
   datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
   is_actueel,
   begin_geldigheid,
@@ -81,6 +84,7 @@ SELECT
   :datasetversie_id,
   objecttype,
   identificatie,
+  'synthetisch-voorkomen-2',
   2,
   true,
   DATE '2020-01-01',
@@ -111,14 +115,18 @@ INSERT INTO staging_geometrieen(
   datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
+  geometrie_volgnummer,
   geometrie
 )
 SELECT
   :datasetversie_id,
   c.objecttype,
   c.identificatie,
+  CASE WHEN c.rn <= 39302 THEN 'synthetisch-voorkomen-2' ELSE 'synthetisch-voorkomen-1' END,
   CASE WHEN c.rn <= 39302 THEN 2 ELSE 1 END,
+  1,
   CASE
     WHEN c.objecttype = 'Pand' THEN ST_Force3D(
       ST_MakeEnvelope(
