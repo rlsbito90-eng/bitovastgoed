@@ -88,6 +88,15 @@ describe('BAG 2A.3B lokale Supabase-migratiekandidaat', () => {
     expect(sql).not.toMatch(/grant [^;]+ on [^;]*public\./);
   });
 
+  it('geeft uitsluitend de BAG-rollen toegang tot het private PostGIS-schema', () => {
+    expect(sql).toContain(
+      'grant usage on schema extensions to bag_loader, bag_publisher, bag_reader',
+    );
+    expect(sql).not.toMatch(
+      /grant usage on schema extensions to (?:anon|authenticated|service_role)/,
+    );
+  });
+
   it('forceert RLS op alle tien tabellen zonder policies voor app-rollen', () => {
     for (const tabel of tabellen) {
       expect(sql).toContain(`alter table ${tabel} enable row level security`);

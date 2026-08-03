@@ -37,6 +37,11 @@ BEGIN
 END
 $roles$;
 
+-- De afgescheiden BAG-rollen mogen PostGIS-typen en -functies gebruiken,
+-- zonder daardoor toegang tot CRM-, Auth- of Storage-schema's te krijgen.
+GRANT USAGE ON SCHEMA extensions
+  TO bag_loader, bag_publisher, bag_reader;
+
 CREATE TABLE bag_control.datasetversies (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   datasetversie text NOT NULL,
