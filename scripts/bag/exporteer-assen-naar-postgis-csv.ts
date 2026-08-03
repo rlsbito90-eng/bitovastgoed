@@ -234,7 +234,7 @@ export async function exporteerAssenNaarPostgisCsv(
   );
 
   const dubbeleVoorkomenidentificaties = [...voorkomenBasisTellingen.values()].filter(aantal => aantal > 1).length;
-  const ontbrekendeVoorkomenkoppelingen = geometrieKoppelafwijingen.filter(
+  const ontbrekendeVoorkomenkoppelingen = geometrieKoppelafwijkingen.filter(
     item => item.code === 'ontbrekende_voorkomenkoppeling',
    ).length;
   const ambigueVoorkomenkoppelingen = geometrieKoppelafwijkingen.filter(
