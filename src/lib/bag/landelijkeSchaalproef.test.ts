@@ -50,12 +50,14 @@ describe('BAG 2A.5 landelijke schaalproxy', () => {
     expect(publish).toContain('bag_table_and_index_bytes');
   });
 
-  it('verwijdert testdata en herstelt SET FALSE idempotent', () => {
+  it('verwijdert testdata en behoudt uitsluitend de oorspronkelijke grants', () => {
     expect(cleanup).toContain('delete from bag_published.geometrieen');
     expect(cleanup).toContain('delete from bag_control.datasetversies');
     expect(cleanup).toContain(
-      'grant bag_loader, bag_publisher, bag_reader to postgres with set false, inherit false',
+      'revoke bag_loader, bag_publisher, bag_reader from postgres granted by postgres',
     );
+    expect(cleanup).toContain("grantor.rolname = 'supabase_admin'");
+    expect(cleanup).toContain("grantor.rolname = 'postgres'");
     expect(cleanup).toContain('vacuum (analyze, truncate)');
     expect(cleanup).toContain('reindex table bag_published.geometrieen');
     expect(cleanup).toContain('2a.5_scale_cleanup_ok');
