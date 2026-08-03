@@ -10,6 +10,7 @@ CREATE UNLOGGED TABLE raw_objecten (
 CREATE UNLOGGED TABLE raw_voorkomens (
   objecttype text NOT NULL,
   identificatie text NOT NULL,
+  voorkomen_sleutel text NOT NULL,
   voorkomenidentificatie integer NOT NULL,
   is_actueel boolean NOT NULL,
   begin_geldigheid date,
@@ -26,7 +27,9 @@ CREATE UNLOGGED TABLE raw_relaties (
 CREATE UNLOGGED TABLE raw_geometrieen (
   objecttype text NOT NULL,
   identificatie text NOT NULL,
+  voorkomen_sleutel text NOT NULL,
   voorkomenidentificatie integer NOT NULL,
+  geometrie_volgnummer integer NOT NULL,
   wkt text NOT NULL
 );
 
@@ -46,6 +49,7 @@ INSERT INTO staging_voorkomens(
   datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
   is_actueel,
   begin_geldigheid,
@@ -57,6 +61,7 @@ SELECT
   :datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
   is_actueel,
   begin_geldigheid,
@@ -84,14 +89,18 @@ INSERT INTO staging_geometrieen(
   datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
+  geometrie_volgnummer,
   geometrie
 )
 SELECT
   :datasetversie_id,
   objecttype,
   identificatie,
+  voorkomen_sleutel,
   voorkomenidentificatie,
+  geometrie_volgnummer,
   ST_Force3D(ST_GeomFromText(wkt, 28992))
 FROM raw_geometrieen;
 
