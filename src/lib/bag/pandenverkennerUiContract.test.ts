@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/VastgoedkansenVindenPage.tsx'), 'utf8');
 const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagServicePandenlijst.tsx'), 'utf8');
+const dialog = readFileSync(resolve(process.cwd(), 'src/components/bag/BagHandmatigePromotieDialog.tsx'), 'utf8');
 
 describe('BAG 2A.10 lijst-/filterinterface', () => {
   it('is standaard uit en vereist een expliciete niet-geheime featureflag', () => {
@@ -43,5 +44,12 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
     expect(component).toContain('BagHandmatigePromotieDialog');
     expect(component).toContain('Handmatig toevoegen…');
     expect(page).toContain('onHandmatigPromoveren={promoveerPrivateBagPanden}');
+  });
+
+  it('gebruikt één expliciete bevestigingsactie zonder dubbele checkbox', () => {
+    expect(dialog).toContain('toevoegen aan Vastgoedkansen');
+    expect(dialog).toContain('Er worden geen Objecten of Deals gemaakt');
+    expect(dialog).not.toContain("from '@/components/ui/checkbox'");
+    expect(dialog).not.toContain('groene preflight gecontroleerd');
   });
 });
