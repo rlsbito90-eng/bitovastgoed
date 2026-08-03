@@ -9,26 +9,82 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
       - name: Installeer inspectiehulpmiddelen
-        run: sudo apt-get update && sudo apt-get install -y unzip file libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y unzip file libxml2-utils wget
 
       - name: Inspecteer officiële Kadaster-bronnen
         run: bash scripts/bag/inspect-officiele-bronnen.sh bag-broninspectie
 
-      - name: Valideer dat bronbestanden bruikbaar zijn
+      - name: Extraheer kleine officiële XML-fixtures
+        run: |
+          python3 scripts/bag/extract-officiele-fixtures.py \
+            bag-broninspectie/unpacked/proef \
+            bag-broninspectie/fixtures
+
+      - name: Valideer BAG-domeinlagen en database-importontwerp
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/officieleXmlRecordAdapter.test.ts \
+            src/lib/bag/relationeleNormalisatie.test.ts \
+            src/lib/bag/stagingModel.test.ts \
+            src/lib/bag/importBatch.test.ts \
+            src/lib/bag/integraleDryRun.test.ts \
+            src/lib/bag/releaseGates.test.ts \
+            src/lib/bag/databaseImportOntwerp.test.ts \
+            src/lib/bag/databaseCapaciteitsExperiment.test.ts
+
+      - name: Bewaak read-only scope
+        run: |
+          test ! -e supabase/migrations/20260803_bag_import.sql
+          test ! -e scripts/bag/importeer-naar-database.ts
+          test ! -e scripts/bag/importeer-naar-supabase.ts
+          grep -q "crmSchrijfactiesToegestaan: false" src/lib/bag/databaseImportOntwerp.ts
+
+      - name: Extraheer volledige records voor tijdelijke dry-run
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-broninspectie/unpacked/proef \
+            bag-broninspectie/records.ndjson
+
+      - name: Voer integrale Assen-dry-run uit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DRY_RUN_INPUT: bag-broninspectie/records.ndjson
+          BAG_DRY_RUN_OUTPUT: bag-broninspectie/dry-run
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/integraleAssenWorkflow.test.ts \
+            --reporter=verbose
+
+      - name: Valideer dat bronbestanden, fixtures en dry-run bruikbaar zijn
         run: |
           test -s bag-broninspectie/sha256.txt
           test -s bag-broninspectie/xsd-inhoud.txt
           test -s bag-broninspectie/proef-inhoud.txt
+          test -s bag-broninspectie/fixtures/manifest.json
+          test -s bag-broninspectie/fixtures/README.md
+          test -s bag-broninspectie/records.summary.json
+          test -s bag-broninspectie/dry-run/resultaat.json
+          test -s bag-broninspectie/dry-run/rapport.md
           test "$(find bag-broninspectie/unpacked/xsd -type f -iname '*.xsd' | wc -l)" -gt 0
           test "$(find bag-broninspectie/unpacked/proef -type f -iname '*.xml' | wc -l)" -gt 0
+          test "$(find bag-broninspectie/fixtures -type f -iname '*.xml' | wc -l)" -ge 10
 
-      - name: Publiceer alleen inspectierapport
+      - name: Publiceer alleen rapporten en kleine fixtures
         uses: actions/upload-artifact@v4
         with:
           name: bag-officiele-broninspectie
@@ -43,4 +99,120 @@ jobs:
             bag-broninspectie/bestanden-en-grootte.tsv
             bag-broninspectie/namespaces.txt
             bag-broninspectie/objectelementen.txt
+            bag-broninspectie/records.summary.json
+            bag-broninspectie/dry-run/resultaat.json
+            bag-broninspectie/dry-run/rapport.md
+            bag-broninspectie/fixtures/README.md
+            bag-broninspectie/fixtures/manifest.json
+            bag-broninspectie/fixtures/*.xml
+          retention-days: 14
+
+  capacity:
+    name: 2A.2 officiële Assen PostGIS-laadproef
+    needs: inspect
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: bag_experiment
+          POSTGRES_USER: bag_experiment
+          POSTGRES_PASSWORD: bag_experiment_local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bag_experiment -d bag_experiment"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://bag_experiment:bag_experiment_local_only@127.0.0.1:5432/bag_experiment
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
+      - name: Installeer PostgreSQL- en inspectiehulpmiddelen
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client unzip file libxml2-utils wget
+
+      - name: Valideer experimentcontracten
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/databaseImportOntwerp.test.ts \
+            src/lib/bag/databaseCapaciteitsExperiment.test.ts
+
+      - name: Bewaak geïsoleerde scope
+        run: |
+          test "${DATABASE_URL}" = "postgresql://bag_experiment:bag_experiment_local_only@127.0.0.1:5432/bag_experiment"
+          test ! -e supabase/migrations/20260803_bag_import.sql
+          test ! -e scripts/bag/importeer-naar-supabase.ts
+          ! grep -R "ljudxyrqoifhfikueric" experiments/bag/2a2 scripts/bag/run-2a2-officiele-assen-proef.sh
+          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role|supabase\.co" experiments/bag/2a2 scripts/bag/run-2a2-officiele-assen-proef.sh
+
+      - name: Download en inspecteer officiële Assen-bron opnieuw
+        run: bash scripts/bag/inspect-officiele-bronnen.sh bag-2a2-bron
+
+      - name: Extraheer officiële reguliere records
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-2a2-bron/unpacked/proef \
+            bag-2a2-bron/records.ndjson
+
+      - name: Exporteer bestaande staginglaag naar tijdelijke laadbestanden
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DB_EXPORT_INPUT: bag-2a2-bron/records.ndjson
+          BAG_DB_EXPORT_OUTPUT: bag-2a2-bron/postgis-export
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/integraleAssenDatabaseExportWorkflow.test.ts \
+            --reporter=verbose
+
+      - name: Voer officiële Assen PostGIS-laadproef uit
+        run: |
+          bash scripts/bag/run-2a2-officiele-assen-proef.sh \
+            bag-2a2-bron/postgis-export \
+            bag-2a2-officiele-assen-proef
+
+      - name: Valideer rapportage
+        run: |
+          test -s bag-2a2-officiele-assen-proef/resultaat.json
+          test -s bag-2a2-officiele-assen-proef/rapport.md
+          test -s bag-2a2-officiele-assen-proef/tellingen.tsv
+          test -s bag-2a2-officiele-assen-proef/opslag.tsv
+          test -s bag-2a2-officiele-assen-proef/queryplannen.txt
+          test -s bag-2a2-officiele-assen-proef/export-manifest.json
+          test -e bag-2a2-officiele-assen-proef/geometrie-afwijkingen.tsv
+          grep -q '"productiedatabaseGebruikt": false' bag-2a2-officiele-assen-proef/resultaat.json
+          grep -q '"rollbackBehouden": true' bag-2a2-officiele-assen-proef/resultaat.json
+          grep -q '"geometrieenQuarantaine"' bag-2a2-officiele-assen-proef/resultaat.json
+
+      - name: Publiceer uitsluitend officiële laadproefrapporten
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-2a2-officiele-assen-postgis-proef
+          path: |
+            bag-2a2-officiele-assen-proef/resultaat.json
+            bag-2a2-officiele-assen-proef/rapport.md
+            bag-2a2-officiele-assen-proef/tellingen.tsv
+            bag-2a2-officiele-assen-proef/geometrie-afwijkingen.tsv
+            bag-2a2-officiele-assen-proef/opslag.tsv
+            bag-2a2-officiele-assen-proef/queryplannen.txt
+            bag-2a2-officiele-assen-proef/export-manifest.json
+            bag-2a2-officiele-assen-proef/schema.log
+            bag-2a2-officiele-assen-proef/raw-schema.log
+            bag-2a2-officiele-assen-proef/copy.log
+            bag-2a2-officiele-assen-proef/load.log
+            bag-2a2-officiele-assen-proef/rollback.log
           retention-days: 14
