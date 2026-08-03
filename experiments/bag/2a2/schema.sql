@@ -33,18 +33,21 @@ CREATE TABLE staging_voorkomens (
   datasetversie_id bigint NOT NULL,
   objecttype text NOT NULL,
   identificatie text NOT NULL,
+  voorkomen_sleutel text NOT NULL,
   voorkomenidentificatie integer NOT NULL,
   is_actueel boolean NOT NULL,
   begin_geldigheid date,
   eind_geldigheid date,
   status text,
   velden jsonb NOT NULL DEFAULT '{}'::jsonb,
-  PRIMARY KEY (datasetversie_id, objecttype, identificatie, voorkomenidentificatie),
+  PRIMARY KEY (datasetversie_id, objecttype, identificatie, voorkomen_sleutel),
   FOREIGN KEY (datasetversie_id, objecttype, identificatie)
     REFERENCES staging_objecten(datasetversie_id, objecttype, identificatie)
     ON DELETE CASCADE
 );
 
+CREATE INDEX staging_voorkomens_bron_id_idx
+  ON staging_voorkomens (datasetversie_id, objecttype, identificatie, voorkomenidentificatie);
 CREATE INDEX staging_voorkomens_actueel_idx
   ON staging_voorkomens (datasetversie_id, objecttype, is_actueel);
 CREATE INDEX staging_voorkomens_geldigheid_idx
@@ -79,15 +82,17 @@ CREATE TABLE staging_geometrieen (
   datasetversie_id bigint NOT NULL,
   objecttype text NOT NULL,
   identificatie text NOT NULL,
+  voorkomen_sleutel text NOT NULL,
   voorkomenidentificatie integer NOT NULL,
+  geometrie_volgnummer integer NOT NULL,
   geometrie geometry(GeometryZ, 28992) NOT NULL,
-  PRIMARY KEY (datasetversie_id, objecttype, identificatie, voorkomenidentificatie),
-  FOREIGN KEY (datasetversie_id, objecttype, identificatie, voorkomenidentificatie)
+  PRIMARY KEY (datasetversie_id, objecttype, identificatie, voorkomen_sleutel, geometrie_volgnummer),
+  FOREIGN KEY (datasetversie_id, objecttype, identificatie, voorkomen_sleutel)
     REFERENCES staging_voorkomens(
       datasetversie_id,
       objecttype,
       identificatie,
-      voorkomenidentificatie
+      voorkomen_sleutel
     ) ON DELETE CASCADE,
   CHECK (ST_SRID(geometrie) = 28992),
   CHECK (ST_NDims(geometrie) = 3),
@@ -113,11 +118,12 @@ ALTER TABLE relaties
   ADD FOREIGN KEY (datasetversie_id, bron_objecttype, bron_identificatie)
   REFERENCES objecten(datasetversie_id, objecttype, identificatie) ON DELETE CASCADE;
 ALTER TABLE geometrieen
-  ADD FOREIGN KEY (datasetversie_id, objecttype, identificatie, voorkomenidentificatie)
-  REFERENCES voorkomens(datasetversie_id, objecttype, identificatie, voorkomenidentificatie)
+  ADD FOREIGN KEY (datasetversie_id, objecttype, identificatie, voorkomen_sleutel)
+  REFERENCES voorkomens(datasetversie_id, objecttype, identificatie, voorkomen_sleutel)
   ON DELETE CASCADE;
 
 CREATE INDEX objecten_lookup_idx ON objecten (objecttype, identificatie);
+CREATE INDEX voorkomens_bron_id_idx ON voorkomens (datasetversie_id, objecttype, identificatie, voorkomenidentificatie);
 CREATE INDEX voorkomens_actueel_idx ON voorkomens (datasetversie_id, objecttype, is_actueel);
 CREATE INDEX relaties_bron_idx ON relaties (bron_objecttype, bron_identificatie);
 CREATE INDEX relaties_doel_idx ON relaties (doel_identificatie);
