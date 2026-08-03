@@ -26,6 +26,7 @@ done
 
 expected_relations="$(node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.relatiesUniek))" "$EXPORT_DIR/manifest.json")"
 expected_geometries="$(node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.geometrieen))" "$EXPORT_DIR/manifest.json")"
+duplicate_occurrences="$(node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.dubbeleVoorkomenidentificaties || 0))" "$EXPORT_DIR/manifest.json")"
 bron_checksum="$(sha256sum "$EXPORT_DIR/manifest.json" | awk '{print $1}')"
 
 copy_sql="$OUTPUT_DIR/copy.sql"
@@ -33,9 +34,9 @@ cat >"$copy_sql" <<SQL
 \\set ON_ERROR_STOP on
 SET search_path TO bag_experiment, public;
 \\copy raw_objecten(objecttype, identificatie) FROM '$EXPORT_DIR/objecten.csv' WITH (FORMAT csv)
-\\copy raw_voorkomens(objecttype, identificatie, voorkomenidentificatie, is_actueel, begin_geldigheid, eind_geldigheid, status, velden) FROM '$EXPORT_DIR/voorkomens.csv' WITH (FORMAT csv)
+\\copy raw_voorkomens(objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie, is_actueel, begin_geldigheid, eind_geldigheid, status, velden) FROM '$EXPORT_DIR/voorkomens.csv' WITH (FORMAT csv)
 \\copy raw_relaties(bron_objecttype, bron_identificatie, relatietype, doel_identificatie) FROM '$EXPORT_DIR/relaties.csv' WITH (FORMAT csv)
-\\copy raw_geometrieen(objecttype, identificatie, voorkomenidentificatie, wkt) FROM '$EXPORT_DIR/geometrieen.csv' WITH (FORMAT csv)
+\\copy raw_geometrieen(objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie, geometrie_volgnummer, wkt) FROM '$EXPORT_DIR/geometrieen.csv' WITH (FORMAT csv)
 SQL
 
 start_epoch="$(date +%s)"
@@ -114,7 +115,8 @@ cat >"$OUTPUT_DIR/resultaat.json" <<JSON
     "objecten": 128745,
     "voorkomens": 168047,
     "relaties": $expected_relations,
-    "geometrieen": $expected_geometries
+    "geometrieen": $expected_geometries,
+    "dubbeleVoorkomenidentificaties": $duplicate_occurrences
   },
   "duurSeconden": {
     "schema": $schema_seconden,
@@ -137,6 +139,7 @@ cat >"$OUTPUT_DIR/rapport.md" <<MARKDOWN
 - Voorkomens: 168.047
 - Unieke relaties: ${expected_relations}
 - Geldige geëxporteerde geometrieën: ${expected_geometries}
+- Dubbele officiële voorkomen-ID-groepen: ${duplicate_occurrences}
 - Schemaduur: ${schema_seconden} seconden
 - Kopiëren, laden, valideren en publiceren: ${load_seconden} seconden
 - Totale databaseduur: ${totaal_seconden} seconden
@@ -158,7 +161,7 @@ $(awk -F '\t' '{printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4}' "$OUTPUT_DIR/
 
 ## Interpretatiegrens
 
-Deze proef gebruikt echte officiële Assen-records, maar uitsluitend in een tijdelijke lokale PostGIS-container. Zij bewijst nog geen veilige productie-import, landelijke schaal of Supabase-specifiek RLS- en lockgedrag.
+Deze proef gebruikt echte officiële Assen-records, maar uitsluitend in een tijdelijke lokale PostGIS-container. De technische voorkomensleutel bewaart officiële records ook wanneer dezelfde voorkomenidentificatie binnen één BAG-object meermaals voorkomt. De proef bewijst nog geen veilige productie-import, landelijke schaal of Supabase-specifiek RLS- en lockgedrag.
 MARKDOWN
 
 cp "$EXPORT_DIR/manifest.json" "$OUTPUT_DIR/export-manifest.json"
