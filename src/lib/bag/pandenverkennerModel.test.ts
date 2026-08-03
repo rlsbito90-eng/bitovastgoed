@@ -23,7 +23,7 @@ const kantoor = normaliseerBagServicePand({
 describe('BAG 2A.10 Pandenverkennermodel', () => {
   it('normaliseert generieke voorkomenvelden zonder brondata te muteren', () => {
     expect(gemengd).toMatchObject({
-      datasetversieId: '12', bagPandId: 'P2', adres: 'Markt 10A', plaats: 'Breda',
+      datasetversieId: '12', bagPandId: 'P2', adres: 'Markt 10A', adresCompleet: true, plaats: 'Breda',
       bouwjaar: 1920, oppervlakte: 350.5, gemengdGebruik: true,
       gebruiksdoelen: ['winkelfunctie', 'woonfunctie'],
     });

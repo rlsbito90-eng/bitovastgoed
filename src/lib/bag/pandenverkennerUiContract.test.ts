@@ -8,7 +8,7 @@ const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagSer
 describe('BAG 2A.10 lijst-/filterinterface', () => {
   it('is standaard uit en vereist een expliciete niet-geheime featureflag', () => {
     expect(page).toContain("VITE_BAG_QUERY_SERVICE_ENABLED === 'true'");
-    expect(page).toContain('<BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} />');
+    expect(page).toContain('<BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE}');
     expect(page).not.toContain('service_role');
   });
 
@@ -25,6 +25,14 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
     expect(component).toContain('Volgende 100 laden');
     expect(component).toContain('Geen kaart en geen automatische opslag.');
     expect(component).not.toMatch(/maplibre|react-map|google\.com\/maps/i);
+    expect(component).not.toContain('addKans');
+  });
+
+  it('houdt selectie lokaal en vereist een afzonderlijke preflight', () => {
+    expect(component).toContain('beoordeelBagSelectie');
+    expect(component).toContain('Controleer selectie');
+    expect(component).toContain('Er is niets opgeslagen.');
+    expect(component).toContain('maximaalAantal: 250');
     expect(component).not.toContain('addKans');
   });
 });
