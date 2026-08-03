@@ -10,6 +10,8 @@ SCHEMA_SQL="$ROOT_DIR/experiments/bag/2a2/schema.sql"
 LOAD_SQL="$ROOT_DIR/experiments/bag/2a2/load-officiele-assen.sql"
 
 mkdir -p "$OUTPUT_DIR"
+EXPORT_DIR="$(realpath "$EXPORT_DIR")"
+OUTPUT_DIR="$(realpath "$OUTPUT_DIR")"
 
 if [[ "$DATABASE_URL" != *"localhost"* && "$DATABASE_URL" != *"127.0.0.1"* ]]; then
   echo "Weigering: de officiële Assen-proef mag uitsluitend tegen een lokale tijdelijke database draaien." >&2
@@ -22,25 +24,24 @@ for bestand in "$SCHEMA_SQL" "$LOAD_SQL" \
   test -s "$bestand"
 done
 
-expected_relations="$(node -e "const m=require(process.argv[1]); process.stdout.write(String(m.relatiesUniek))" "$EXPORT_DIR/manifest.json")"
-expected_geometries="$(node -e "const m=require(process.argv[1]); process.stdout.write(String(m.geometrieen))" "$EXPORT_DIR/manifest.json")"
+expected_relations="$(node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.relatiesUniek))" "$EXPORT_DIR/manifest.json")"
+expected_geometries="$(node -e "const fs=require('node:fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.geometrieen))" "$EXPORT_DIR/manifest.json")"
 bron_checksum="$(sha256sum "$EXPORT_DIR/manifest.json" | awk '{print $1}')"
 
 copy_sql="$OUTPUT_DIR/copy.sql"
 cat >"$copy_sql" <<SQL
 \\set ON_ERROR_STOP on
 SET search_path TO bag_experiment, public;
-\\copy raw_objecten(objecttype, identificatie) FROM '$(realpath "$EXPORT_DIR/objecten.csv")' WITH (FORMAT csv)
-\\copy raw_voorkomens(objecttype, identificatie, voorkomenidentificatie, is_actueel, begin_geldigheid, eind_geldigheid, status, velden) FROM '$(realpath "$EXPORT_DIR/voorkomens.csv")' WITH (FORMAT csv)
-\\copy raw_relaties(bron_objecttype, bron_identificatie, relatietype, doel_identificatie) FROM '$(realpath "$EXPORT_DIR/relaties.csv")' WITH (FORMAT csv)
-\\copy raw_geometrieen(objecttype, identificatie, voorkomenidentificatie, wkt) FROM '$(realpath "$EXPORT_DIR/geometrieen.csv")' WITH (FORMAT csv)
+\\copy raw_objecten(objecttype, identificatie) FROM '$EXPORT_DIR/objecten.csv' WITH (FORMAT csv)
+\\copy raw_voorkomens(objecttype, identificatie, voorkomenidentificatie, is_actueel, begin_geldigheid, eind_geldigheid, status, velden) FROM '$EXPORT_DIR/voorkomens.csv' WITH (FORMAT csv)
+\\copy raw_relaties(bron_objecttype, bron_identificatie, relatietype, doel_identificatie) FROM '$EXPORT_DIR/relaties.csv' WITH (FORMAT csv)
+\\copy raw_geometrieen(objecttype, identificatie, voorkomenidentificatie, wkt) FROM '$EXPORT_DIR/geometrieen.csv' WITH (FORMAT csv)
 SQL
 
 start_epoch="$(date +%s)"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$SCHEMA_SQL" >"$OUTPUT_DIR/schema.log" 2>&1
 schema_epoch="$(date +%s)"
 
-# Maak alleen de rauwe laadtabellen aan, laad client-side CSV en voer daarna validatie/publicatie uit.
 awk '/^INSERT INTO datasetversies/{exit} {print}' "$LOAD_SQL" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >"$OUTPUT_DIR/raw-schema.log" 2>&1
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$copy_sql" >"$OUTPUT_DIR/copy.log" 2>&1
 awk 'BEGIN{start=0} /^INSERT INTO datasetversies/{start=1} start{print}' "$LOAD_SQL" | \
