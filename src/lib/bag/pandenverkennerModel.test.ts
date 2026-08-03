@@ -8,9 +8,10 @@ const gemengd = normaliseerBagServicePand({
   status: 'Pand in gebruik',
   volgende_cursor: 'P2',
   velden: {
-    straatnaam: 'Markt', huisnummer: 10, huisletter: 'A', postcode: '4811AA',
-    woonplaats: 'Breda', bouwjaar: '1920', gebruiksdoel: ['winkelfunctie', 'woonfunctie'],
-    oppervlakte: '350,5',
+    straat: 'Markt', huisnummer: 10, huisletter: 'A', postcode: '4811AA',
+    woonplaats: 'Breda', oorspronkelijkBouwjaar: '1920',
+    gebruiksdoelen: ['winkelfunctie', 'woonfunctie'], oppervlakte: '350,5',
+    aantalVerblijfsobjecten: 4,
   },
 });
 
@@ -25,7 +26,7 @@ describe('BAG 2A.10 Pandenverkennermodel', () => {
     expect(gemengd).toMatchObject({
       datasetversieId: '12', bagPandId: 'P2', adres: 'Markt 10A', adresCompleet: true, plaats: 'Breda',
       bouwjaar: 1920, oppervlakte: 350.5, gemengdGebruik: true,
-      gebruiksdoelen: ['winkelfunctie', 'woonfunctie'],
+      gebruiksdoelen: ['winkelfunctie', 'woonfunctie'], straat: 'Markt', aantalVerblijfsobjecten: 4,
     });
   });
 
