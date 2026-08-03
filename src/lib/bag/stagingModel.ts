@@ -1,4 +1,8 @@
 import type { BagVoorkomenKern } from './relationeleNormalisatie';
+import {
+  maakVoorkomenSleutel,
+  type BagVoorkomenKoppelMetadata,
+} from './geometrieVoorkomenKoppeling';
 
 export interface BagStagingObject {
   objecttype: string;
@@ -18,10 +22,7 @@ export interface BagStagingRelatie {
   doelIdentificatie: string;
 }
 
-export interface BagStagingGeometrie {
-  objecttype: string;
-  identificatie: string;
-  voorkomenidentificatie: number | null;
+export interface BagStagingGeometrie extends BagVoorkomenKoppelMetadata {
   crs: 'EPSG:28992';
   dimensie: 2 | 3;
   coordinaten: number[];
@@ -91,6 +92,11 @@ export function bouwBagStagingModel(
             objecttype: voorkomen.objecttype,
             identificatie: voorkomen.identificatie,
             voorkomenidentificatie: voorkomen.voorkomenidentificatie,
+            beginGeldigheid: voorkomen.beginGeldigheid,
+            eindGeldigheid: voorkomen.eindGeldigheid,
+            tijdstipRegistratie: voorkomen.tijdstipRegistratie,
+            eindRegistratie: voorkomen.eindRegistratie,
+            tijdstipInactief: voorkomen.tijdstipInactief,
             ...voorkomen.geometrie,
           });
         }
@@ -100,9 +106,13 @@ export function bouwBagStagingModel(
 
   const sleutel = (item: { objecttype: string; identificatie: string }) => `${item.objecttype}|${item.identificatie}`;
   objecten.sort((a, b) => sleutel(a).localeCompare(sleutel(b)));
-  stagingVoorkomens.sort((a, b) => `${sleutel(a)}|${a.voorkomenidentificatie ?? ''}`.localeCompare(`${sleutel(b)}|${b.voorkomenidentificatie ?? ''}`));
+  stagingVoorkomens.sort((a, b) => (
+    `${sleutel(a)}|${maakVoorkomenSleutel(a)}`.localeCompare(`${sleutel(b)}|${maakVoorkomenSleutel(b)}`)
+  ));
   relaties.sort((a, b) => `${a.bronObjecttype}|${a.bronIdentificatie}|${a.relatietype}|${a.doelIdentificatie}`.localeCompare(`${b.bronObjecttype}|${b.bronIdentificatie}|${b.relatietype}|${b.doelIdentificatie}`));
-  geometrieen.sort((a, b) => `${sleutel(a)}|${a.voorkomenidentificatie ?? ''}`.localeCompare(`${sleutel(b)}|${b.voorkomenidentificatie ?? ''}`));
+  geometrieen.sort((a, b) => (
+    `${sleutel(a)}|${maakVoorkomenSleutel(a)}`.localeCompare(`${sleutel(b)}|${maakVoorkomenSleutel(b)}`)
+  ));
   fouten.sort((a, b) => `${a.code}|${a.identificatie}`.localeCompare(`${b.code}|${b.identificatie}`));
 
   return { objecten, voorkomens: stagingVoorkomens, relaties, geometrieen, fouten };
