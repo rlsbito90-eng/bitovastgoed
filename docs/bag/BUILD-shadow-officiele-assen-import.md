@@ -13,7 +13,9 @@ CRM-tabellen en frontend-featureflags vallen expliciet buiten de workflow.
 - De BAG-tabellen moeten vooraf leeg zijn.
 - De vier CSV-tellingen moeten exact aansluiten op het gevalideerde manifest.
 - Laden, valideren, publiceren en databaseactivatie gebeuren in één transactie.
-- Tijdelijke `SET TRUE`-memberships worden vóór de commit teruggezet naar `SET FALSE`.
+- Tijdelijke, door `postgres` zelf verleende `SET TRUE`-memberships worden vóór de
+  commit verwijderd; de drie oorspronkelijke `supabase_admin`-memberships blijven
+  exact als `SET FALSE` bestaan.
 - `bag_gateway` houdt geen wachtwoord en de frontend blijft uitgeschakeld.
 
 ## Eenmalige inrichting

@@ -21,11 +21,13 @@ describe('officiële Assen-shadowimport', () => {
     expect(sql).toContain('BEGIN;');
     expect(sql).toContain('COMMIT;');
     expect(sql).toContain('bag_control.activeer_datasetversie');
-    expect(sql).toContain('WITH SET FALSE, INHERIT FALSE');
+    expect(sql).toContain('FROM postgres GRANTED BY postgres');
+    expect(sql).not.toContain('WITH SET FALSE, INHERIT FALSE');
     expect(sql).toContain("FROM '__OBJECTEN_CSV__'");
     expect(sql).not.toContain("FROM :'objecten_csv'");
     expect(runner).toContain('import.generated.sql');
     expect(runner).toContain("grep -q '__[A-Z_]*CSV__'");
+    expect(runner).toContain("postgres_bag_memberships\\t3");
   });
 
   it('houdt de database-URL uit workflowinputs en artifacts', () => {
