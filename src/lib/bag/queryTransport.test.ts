@@ -1,26 +1,50 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { functions: { invoke } },
+  supabase: { auth: { getSession } },
 }));
 
 import { haalPandenInViewport, zoekPandenViaService } from './queryTransport';
 
 describe('BAG 2A.9 querytransport', () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv(
+      'VITE_BAG_QUERY_FUNCTION_URL',
+      'https://xfygspvpeugxowxbcvnm.supabase.co/functions/v1/bag-query-service',
+    );
+    getSession.mockReset();
+    getSession.mockResolvedValue({
+      data: { session: { access_token: 'production-user-jwt' } },
+      error: null,
+    });
+    vi.stubGlobal('fetch', vi.fn());
+  });
 
   it('stuurt uitsluitend een gevalideerde viewport naar de Edge-grens', async () => {
-    invoke.mockResolvedValue({ data: { rows: [{ identificatie: 'P1' }] }, error: null });
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      rows: [{ identificatie: 'P1' }],
+    }), { status: 200 }));
     await expect(haalPandenInViewport({
       scopeCode: 'NL',
       viewport: { minX: 100_000, minY: 450_000, maxX: 101_000, maxY: 451_000 },
       limiet: 250,
     })).resolves.toEqual({ rows: [{ identificatie: 'P1' }] });
-    expect(invoke).toHaveBeenCalledWith('bag-query-service', { body: {
-      action: 'viewport', scopeCode: 'NL', minX: 100_000, minY: 450_000,
-      maxX: 101_000, maxY: 451_000, limit: 250,
-    } });
+    expect(fetch).toHaveBeenCalledWith(
+      'https://xfygspvpeugxowxbcvnm.supabase.co/functions/v1/bag-query-service',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer production-user-jwt',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'viewport', scopeCode: 'NL', minX: 100_000, minY: 450_000,
+          maxX: 101_000, maxY: 451_000, limit: 250,
+        }),
+      },
+    );
   });
 
   it('weigert lokaal ongeldige grenzen zonder netwerkverzoek', async () => {
@@ -29,19 +53,39 @@ describe('BAG 2A.9 querytransport', () => {
       viewport: { minX: 101_000, minY: 450_000, maxX: 100_000, maxY: 451_000 },
       limiet: 250,
     })).rejects.toThrow('RD New-zone');
-    expect(invoke).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('ondersteunt alleen begrensde keysetzoekvragen en maskeert transportfouten', async () => {
-    invoke.mockResolvedValueOnce({ data: { rows: [] }, error: null });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ rows: [] }), { status: 200 }));
     await zoekPandenViaService({ scopeCode: 'NL', naIdentificatie: 'P100', limiet: 100 });
-    expect(invoke).toHaveBeenCalledWith('bag-query-service', { body: {
-      action: 'search', scopeCode: 'NL', cursor: 'P100', limit: 100,
-    } });
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      body: JSON.stringify({ action: 'search', scopeCode: 'NL', cursor: 'P100', limit: 100 }),
+    }));
 
-    invoke.mockResolvedValueOnce({ data: null, error: new Error('sensitive detail') });
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('sensitive detail'));
     await expect(zoekPandenViaService({
       scopeCode: 'NL', naIdentificatie: null, limiet: 100,
     })).rejects.toThrow('De BAG-queryservice is niet beschikbaar.');
+  });
+
+  it('weigert een ontbrekende of verkeerde project-URL voor ieder netwerkverzoek', async () => {
+    vi.stubEnv(
+      'VITE_BAG_QUERY_FUNCTION_URL',
+      'https://ljudxyrqoifhfikueric.supabase.co/functions/v1/bag-query-service',
+    );
+    await expect(zoekPandenViaService({
+      scopeCode: 'NL', naIdentificatie: null, limiet: 100,
+    })).rejects.toThrow('niet veilig geconfigureerd');
+    expect(getSession).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('stuurt nooit een verzoek zonder een geldige CRM-sessie', async () => {
+    getSession.mockResolvedValue({ data: { session: null }, error: null });
+    await expect(zoekPandenViaService({
+      scopeCode: 'NL', naIdentificatie: null, limiet: 100,
+    })).rejects.toThrow('Log opnieuw in');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

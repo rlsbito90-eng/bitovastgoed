@@ -8,6 +8,9 @@ const migration = readFileSync(resolve(
 const edge = readFileSync(resolve(
   process.cwd(), 'supabase/functions/bag-query-service/index.ts',
 ), 'utf8');
+const browserTransport = readFileSync(resolve(
+  process.cwd(), 'src/lib/bag/queryTransport.ts',
+), 'utf8');
 
 describe('BAG 2A.9 servertransportcontract', () => {
   it('maakt een minimale login zonder wachtwoord of directe BAG-rechten', () => {
@@ -47,5 +50,14 @@ describe('BAG 2A.9 servertransportcontract', () => {
     expect(edge).toContain("integer(body.limit ?? 2500, 1, 2500");
     expect(edge).toContain("integer(body.limit ?? 100, 1, 250");
     expect(edge).toContain('minX < -10_000');
+  });
+
+  it('roept vanuit de browser uitsluitend de vaste shadowfunctie aan met de CRM-sessie', () => {
+    expect(browserTransport).toContain("const SHADOW_PROJECT_REF = 'xfygspvpeugxowxbcvnm'");
+    expect(browserTransport).toContain('configuredUrl !== SHADOW_FUNCTION_URL');
+    expect(browserTransport).toContain('supabase.auth.getSession()');
+    expect(browserTransport).toContain('Authorization: `Bearer ${accessToken}`');
+    expect(browserTransport).not.toContain('supabase.functions.invoke');
+    expect(browserTransport).not.toContain('VITE_SUPABASE_PUBLISHABLE_KEY');
   });
 });
