@@ -58,12 +58,20 @@ SET search_path TO bag_experiment, public;
 SELECT 'staging_objecten', count(*) FROM staging_objecten;
 SELECT 'staging_voorkomens', count(*) FROM staging_voorkomens;
 SELECT 'staging_relaties', count(*) FROM staging_relaties;
-SELECT 'staging_geometrieen', count(*) FROM staging_geometrieen;
+SELECT 'staging_geometrieen_geldig', count(*) FROM staging_geometrieen;
+SELECT 'geometrie_afwijkingen', count(*) FROM geometrie_afwijkingen;
 SELECT 'published_objecten', count(*) FROM objecten;
 SELECT 'published_voorkomens', count(*) FROM voorkomens;
 SELECT 'published_relaties', count(*) FROM relaties;
 SELECT 'published_geometrieen', count(*) FROM geometrieen;
 SELECT 'actieve_datasetversies', count(*) FROM datasetversies WHERE is_actief;
+SQL
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -F $'\t' <<'SQL' >"$OUTPUT_DIR/geometrie-afwijkingen.tsv"
+SET search_path TO bag_experiment, public;
+SELECT objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie, geometrie_volgnummer, reden
+FROM geometrie_afwijkingen
+ORDER BY objecttype, identificatie, voorkomen_sleutel, geometrie_volgnummer;
 SQL
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -F $'\t' <<'SQL' >"$OUTPUT_DIR/opslag.tsv"
@@ -100,6 +108,10 @@ SQL
 rollback_na="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT status || ':' || is_actief FROM bag_experiment.datasetversies WHERE datasetversie='v20200601-officiele-assen-proef'")"
 test "$rollback_voor" = "$rollback_na"
 
+valid_geometries="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM bag_experiment.staging_geometrieen")"
+invalid_geometries="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM bag_experiment.geometrie_afwijkingen")"
+test "$((valid_geometries + invalid_geometries))" -eq "$expected_geometries"
+
 schema_seconden=$((schema_epoch - start_epoch))
 load_seconden=$((load_epoch - schema_epoch))
 totaal_seconden=$((load_epoch - start_epoch))
@@ -115,7 +127,9 @@ cat >"$OUTPUT_DIR/resultaat.json" <<JSON
     "objecten": 128745,
     "voorkomens": 168047,
     "relaties": $expected_relations,
-    "geometrieen": $expected_geometries,
+    "geometrieenBron": $expected_geometries,
+    "geometrieenGeldigGepubliceerd": $valid_geometries,
+    "geometrieenQuarantaine": $invalid_geometries,
     "dubbeleVoorkomenidentificaties": $duplicate_occurrences
   },
   "duurSeconden": {
@@ -138,7 +152,9 @@ cat >"$OUTPUT_DIR/rapport.md" <<MARKDOWN
 - Objecten: 128.745
 - Voorkomens: 168.047
 - Unieke relaties: ${expected_relations}
-- Geldige geëxporteerde geometrieën: ${expected_geometries}
+- Geometrieën uit bronexport: ${expected_geometries}
+- Geldige geometrieën gepubliceerd: ${valid_geometries}
+- Ongeldige geometrieën in quarantaine: ${invalid_geometries}
 - Dubbele officiële voorkomen-ID-groepen: ${duplicate_occurrences}
 - Schemaduur: ${schema_seconden} seconden
 - Kopiëren, laden, valideren en publiceren: ${load_seconden} seconden
@@ -153,6 +169,10 @@ cat >"$OUTPUT_DIR/rapport.md" <<MARKDOWN
 |---|---:|
 $(awk -F '\t' '$1 != "SET" {printf "| %s | %s |\n", $1, $2}' "$OUTPUT_DIR/tellingen.tsv")
 
+## Geometrieafwijkingen
+
+Ongeldige officiële geometrieën zijn niet automatisch aangepast of verwijderd. Ze zijn apart bewaard met de PostGIS-validatiereden. Geldige geometrieën zijn ongewijzigd gepubliceerd.
+
 ## Opslag per tabel
 
 | Tabel | Tabelbytes | Indexbytes | Totaalbytes |
@@ -161,12 +181,13 @@ $(awk -F '\t' '{printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4}' "$OUTPUT_DIR/
 
 ## Interpretatiegrens
 
-Deze proef gebruikt echte officiële Assen-records, maar uitsluitend in een tijdelijke lokale PostGIS-container. De technische voorkomensleutel bewaart officiële records ook wanneer dezelfde voorkomenidentificatie binnen één BAG-object meermaals voorkomt. De proef bewijst nog geen veilige productie-import, landelijke schaal of Supabase-specifiek RLS- en lockgedrag.
+Deze proef gebruikt echte officiële Assen-records, maar uitsluitend in een tijdelijke lokale PostGIS-container. De technische voorkomensleutel bewaart officiële records ook wanneer dezelfde voorkomenidentificatie binnen één BAG-object meermaals voorkomt. Ongeldige geometrieën worden traceerbaar in quarantaine geplaatst. De proef bewijst nog geen veilige productie-import, landelijke schaal of Supabase-specifiek RLS- en lockgedrag.
 MARKDOWN
 
 cp "$EXPORT_DIR/manifest.json" "$OUTPUT_DIR/export-manifest.json"
 test -s "$OUTPUT_DIR/resultaat.json"
 test -s "$OUTPUT_DIR/rapport.md"
 test -s "$OUTPUT_DIR/queryplannen.txt"
+test -s "$OUTPUT_DIR/geometrie-afwijkingen.tsv" || test "$invalid_geometries" -eq 0
 
 echo "Officiële Assen PostGIS-laadproef afgerond. Rapport: $OUTPUT_DIR/rapport.md"
