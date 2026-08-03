@@ -1,0 +1,98 @@
+name: BAG shadow officiële Assen-import
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: APPLY_BAG_OFFICIAL_ASSEN_SHADOW'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-shadow-officiele-assen-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.event.inputs.approval == 'APPLY_BAG_OFFICIAL_ASSEN_SHADOW'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      BAG_OFFICIAL_ASSEN_APPROVAL: ${{ github.event.inputs.approval }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer afhankelijkheden
+        run: npm ci
+
+      - name: Controleer bulkclient en secret
+        run: |
+          command -v psql
+          test -n "$BAG_SHADOW_DATABASE_URL"
+
+      - name: Download en inspecteer officiële Kadaster-bronnen
+        run: bash scripts/bag/inspect-officiele-bronnen.sh bag-shadow-bron
+
+      - name: Extraheer officiële reguliere records
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-shadow-bron/unpacked/proef \
+            bag-shadow-bron/records.ndjson
+
+      - name: Voer integrale release-gated dry-run uit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DRY_RUN_INPUT: bag-shadow-bron/records.ndjson
+          BAG_DRY_RUN_OUTPUT: bag-shadow-bron/dry-run
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/integraleAssenWorkflow.test.ts \
+            --reporter=verbose
+
+      - name: Exporteer gevalideerde staginglaag
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          BAG_DB_EXPORT_INPUT: bag-shadow-bron/records.ndjson
+          BAG_DB_EXPORT_OUTPUT: bag-shadow-bron/postgis-export
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/integraleAssenDatabaseExportWorkflow.test.ts \
+            --reporter=verbose
+
+      - name: Laad en activeer uitsluitend op de bevestigde shadow
+        env:
+          BAG_OFFICIAL_ASSEN_SOURCE_SHA256: a821e6f63ca7767942f572315643174a07b175cd23e5d3abc7d95fb372bc33b6
+        run: |
+          bash scripts/bag/run-officiele-assen-shadow-import.sh \
+            bag-shadow-bron/postgis-export \
+            bag-shadow-import-resultaat
+
+      - name: Publiceer uitsluitend compacte bewijsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-shadow-officiele-assen-import
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            bag-shadow-bron/rapport.md
+            bag-shadow-bron/sha256.txt
+            bag-shadow-bron/records.summary.json
+            bag-shadow-bron/dry-run/resultaat.json
+            bag-shadow-bron/dry-run/rapport.md
+            bag-shadow-bron/postgis-export/manifest.json
+            bag-shadow-import-resultaat/preflight.tsv
+            bag-shadow-import-resultaat/validatie.tsv
+            bag-shadow-import-resultaat/rapport.md
