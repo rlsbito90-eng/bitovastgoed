@@ -11,6 +11,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { zoekBagKandidatenMetStatistiek, type BagKandidaat, type BagSelectieStatistiek } from '@/lib/pdokBagSelectie';
+import BagServicePandenlijst from '@/components/bag/BagServicePandenlijst';
+
+const BAG_SERVICE_ENABLED = import.meta.env.VITE_BAG_QUERY_SERVICE_ENABLED === 'true';
+const BAG_SERVICE_SCOPE = import.meta.env.VITE_BAG_QUERY_SCOPE_CODE || 'NL';
 
 const GEBRUIKSDOELEN = [
   ['kantoorfunctie', 'Kantoor'],
@@ -104,6 +108,8 @@ export default function VastgoedkansenVindenPage() {
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
     <Link to="/vastgoedkansen" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1.5 h-4 w-4"/>Vastgoedkansen</Link>
     <PageHeader title="Panden vinden" subtitle="Gecontroleerde selectie uit de officiële BAG via PDOK, begrensd op de gekozen gemeente." />
+
+    {BAG_SERVICE_ENABLED && <BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE} />}
 
     <section className="section-card p-4 sm:p-5">
       <div className="grid gap-4 md:grid-cols-4">
