@@ -193,8 +193,10 @@ jobs:
           test -s bag-2a2-officiele-assen-proef/opslag.tsv
           test -s bag-2a2-officiele-assen-proef/queryplannen.txt
           test -s bag-2a2-officiele-assen-proef/export-manifest.json
+          test -e bag-2a2-officiele-assen-proef/geometrie-afwijkingen.tsv
           grep -q '"productiedatabaseGebruikt": false' bag-2a2-officiele-assen-proef/resultaat.json
           grep -q '"rollbackBehouden": true' bag-2a2-officiele-assen-proef/resultaat.json
+          grep -q '"geometrieenQuarantaine"' bag-2a2-officiele-assen-proef/resultaat.json
 
       - name: Publiceer uitsluitend officiële laadproefrapporten
         uses: actions/upload-artifact@v4
@@ -204,6 +206,7 @@ jobs:
             bag-2a2-officiele-assen-proef/resultaat.json
             bag-2a2-officiele-assen-proef/rapport.md
             bag-2a2-officiele-assen-proef/tellingen.tsv
+            bag-2a2-officiele-assen-proef/geometrie-afwijkingen.tsv
             bag-2a2-officiele-assen-proef/opslag.tsv
             bag-2a2-officiele-assen-proef/queryplannen.txt
             bag-2a2-officiele-assen-proef/export-manifest.json
