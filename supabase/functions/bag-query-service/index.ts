@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
 const PRODUCTION_REF = 'ljudxyrqoifhfikueric';
+const PRODUCTION_AUTH_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const MAX_BODY_BYTES = 16_384;
 
 let database: ReturnType<typeof postgres> | null = null;
@@ -82,9 +83,15 @@ async function authorize(req: Request): Promise<string> {
   const authorization = req.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) throw new TypeError('Unauthorized');
 
+  const authUrl = requiredEnv('BAG_AUTH_SUPABASE_URL');
+  const authAnonKey = requiredEnv('BAG_AUTH_SUPABASE_ANON_KEY');
+  if (authUrl !== PRODUCTION_AUTH_URL) {
+    throw new Error('BAG-authenticatie is niet aan de bevestigde CRM-autoriteit gebonden');
+  }
+
   const client = createClient(
-    requiredEnv('SUPABASE_URL'),
-    requiredEnv('SUPABASE_ANON_KEY'),
+    authUrl,
+    authAnonKey,
     { global: { headers: { Authorization: authorization } } },
   );
   const token = authorization.slice('Bearer '.length);

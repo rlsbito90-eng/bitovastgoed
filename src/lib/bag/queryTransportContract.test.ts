@@ -28,6 +28,11 @@ describe('BAG 2A.9 servertransportcontract', () => {
   });
 
   it('vereist JWT plus interne CRM-rol en voert alleen vaste queryacties uit', () => {
+    expect(edge).toContain('BAG_AUTH_SUPABASE_URL');
+    expect(edge).toContain('BAG_AUTH_SUPABASE_ANON_KEY');
+    expect(edge).toContain('authUrl !== PRODUCTION_AUTH_URL');
+    expect(edge).not.toContain("requiredEnv('SUPABASE_URL')");
+    expect(edge).not.toContain("requiredEnv('SUPABASE_ANON_KEY')");
     expect(edge).toContain("client.auth.getClaims(token)");
     expect(edge).toContain("role === 'admin' || role === 'medewerker'");
     expect(edge).toContain("body.action === 'viewport'");
