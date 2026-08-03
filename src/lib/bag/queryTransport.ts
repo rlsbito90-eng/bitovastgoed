@@ -10,9 +10,37 @@ export interface BagTransportResultaat<T> {
   rows: T[];
 }
 
+const SHADOW_PROJECT_REF = 'xfygspvpeugxowxbcvnm';
+const SHADOW_FUNCTION_URL = `https://${SHADOW_PROJECT_REF}.supabase.co/functions/v1/bag-query-service`;
+
 async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportResultaat<T>> {
-  const { data, error } = await supabase.functions.invoke('bag-query-service', { body });
-  if (error) throw new Error('De BAG-queryservice is niet beschikbaar.');
+  const configuredUrl = import.meta.env.VITE_BAG_QUERY_FUNCTION_URL?.trim();
+  if (configuredUrl !== SHADOW_FUNCTION_URL) {
+    throw new Error('De BAG-queryservice is niet veilig geconfigureerd.');
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionError || !accessToken) {
+    throw new Error('Log opnieuw in om de BAG-queryservice te gebruiken.');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(configuredUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('De BAG-queryservice is niet beschikbaar.');
+  }
+
+  if (!response.ok) throw new Error('De BAG-queryservice is niet beschikbaar.');
+  const data: unknown = await response.json().catch(() => null);
   if (!data || !Array.isArray(data.rows)) throw new Error('Ongeldig antwoord van de BAG-queryservice.');
   return { rows: data.rows as T[] };
 }
