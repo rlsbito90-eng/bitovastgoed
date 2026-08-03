@@ -138,6 +138,12 @@ JOIN pg_catalog.pg_roles AS member ON member.oid = m.member
 WHERE member.rolname = 'postgres'
   AND granted.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader')
   AND m.set_option;
+SELECT 'postgres_bag_memberships', count(*)
+FROM pg_catalog.pg_auth_members AS m
+JOIN pg_catalog.pg_roles AS granted ON granted.oid = m.roleid
+JOIN pg_catalog.pg_roles AS member ON member.oid = m.member
+WHERE member.rolname = 'postgres'
+  AND granted.rolname IN ('bag_loader', 'bag_publisher', 'bag_reader');
 SELECT 'gateway_password_present', rolpassword IS NOT NULL
 FROM pg_catalog.pg_authid WHERE rolname = 'bag_gateway';
 SQL
@@ -146,6 +152,8 @@ grep -q $'^dataset\t[0-9]\+\tv20200601-officiele-assen-shadow\t0106\tactief\tt$'
   || fail 'dataset is niet exact actief voor scope 0106.'
 grep -q $'^postgres_set_true_memberships\t0$' "$OUTPUT_DIR/validatie.tsv" \
   || fail 'tijdelijke SET TRUE-membership is achtergebleven.'
+grep -q $'^postgres_bag_memberships\t3$' "$OUTPUT_DIR/validatie.tsv" \
+  || fail 'het aantal veilige postgres-BAG-memberships is niet exact drie.'
 grep -q $'^gateway_password_present\tf$' "$OUTPUT_DIR/validatie.tsv" \
   || fail 'gateway-wachtwoord is onverwacht ingesteld.'
 

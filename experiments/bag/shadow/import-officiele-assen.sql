@@ -215,8 +215,8 @@ WHERE id = :datasetversie_id;
 SELECT * FROM bag_control.activeer_datasetversie(:datasetversie_id);
 
 RESET ROLE;
-GRANT bag_loader, bag_publisher, bag_reader TO postgres
-  WITH SET FALSE, INHERIT FALSE;
+REVOKE bag_loader, bag_publisher, bag_reader
+  FROM postgres GRANTED BY postgres;
 
 ANALYZE bag_staging.objecten;
 ANALYZE bag_staging.voorkomens;
