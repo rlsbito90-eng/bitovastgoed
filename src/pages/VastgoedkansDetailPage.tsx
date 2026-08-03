@@ -26,7 +26,7 @@ export default function VastgoedkansDetailPage(){
     status:kans.status,
     eigenaarStatus:kans.eigenaarStatus,eigenaarNaam:kans.eigenaarNaam??'',eigenaarBron:kans.eigenaarBron??'',eigenaarLaatstGecontroleerdOp:kans.eigenaarLaatstGecontroleerdOp,
     kadasterStatus:kans.kadasterStatus,kadastraleAanduiding:kans.kadastraleAanduiding??'',kadasterLaatstGecontroleerdOp:kans.kadasterLaatstGecontroleerdOp,
-    bagPandId:kans.bagPandId??'',bagVerblijfsobjectId:kans.bagVerblijfsobjectId??'',onderzoeksnotities:kans.onderzoeksnotities??'',
+    onderzoeksnotities:kans.onderzoeksnotities??'',
     briefStatus:kans.briefStatus,briefGeadresseerde:kans.briefGeadresseerde??'',briefVerzendwijze:kans.briefVerzendwijze??'',briefVerzondenOp:kans.briefVerzondenOp,briefKenmerk:kans.briefKenmerk??'',
     opvolgdatum:kans.opvolgdatum,opvolgactie:kans.opvolgactie??'',reactieStatus:kans.reactieStatus,reactieOntvangenOp:kans.reactieOntvangenOp,reactieKanaal:kans.reactieKanaal??'',reactieSamenvatting:kans.reactieSamenvatting??'',reactieUitkomst:kans.reactieUitkomst??'',
   })},[kans]);
