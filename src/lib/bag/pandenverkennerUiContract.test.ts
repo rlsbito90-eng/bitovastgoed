@@ -53,3 +53,16 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
     expect(dialog).not.toContain('groene preflight gecontroleerd');
   });
 });
+
+describe('BAG preflightpositie', () => {
+  it('toont het preflightblok vóór de pandenlijst', () => {
+    const preflightIndex = component.indexOf('{preflight && <div');
+    const lijstIndex = component.indexOf('{!panden.length ?');
+    const actiesIndex = component.indexOf('Controleer selectie');
+    expect(preflightIndex).toBeGreaterThan(-1);
+    expect(lijstIndex).toBeGreaterThan(-1);
+    expect(actiesIndex).toBeLessThan(preflightIndex);
+    expect(preflightIndex).toBeLessThan(lijstIndex);
+    expect(component.split('Er is niets opgeslagen.')).toHaveLength(2);
+  });
+});
