@@ -5,6 +5,7 @@ import {
   type BagPandZoekAanvraag,
   type BagViewportAanvraag,
 } from './queryService';
+import { bepaalActieveBagScopes } from './scopeRegistry';
 
 export interface BagTransportResultaat<T> {
   rows: T[];
@@ -12,6 +13,17 @@ export interface BagTransportResultaat<T> {
 
 const SHADOW_PROJECT_REF = 'xfygspvpeugxowxbcvnm';
 const SHADOW_FUNCTION_URL = `https://${SHADOW_PROJECT_REF}.supabase.co/functions/v1/bag-query-service`;
+const ACTIEVE_SCOPES = bepaalActieveBagScopes(
+  import.meta.env.VITE_BAG_QUERY_ALLOWED_SCOPES,
+  import.meta.env.VITE_BAG_QUERY_SCOPE_CODE || '0106',
+);
+const ACTIEVE_SCOPE_CODES = new Set(ACTIEVE_SCOPES.map(scope => scope.code));
+
+function controleerScope(scopeCode: string): void {
+  if (!ACTIEVE_SCOPE_CODES.has(scopeCode)) {
+    throw new TypeError('Deze BAG-regio is nog niet geactiveerd.');
+  }
+}
 
 async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportResultaat<T>> {
   const configuredUrl = import.meta.env.VITE_BAG_QUERY_FUNCTION_URL?.trim();
@@ -50,6 +62,7 @@ export async function haalPandenInViewport<T>(
 ): Promise<BagTransportResultaat<T>> {
   const validatie = valideerViewportAanvraag(aanvraag);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
   return invoke<T>({
     action: 'viewport',
     scopeCode: aanvraag.scopeCode,
@@ -66,6 +79,7 @@ export async function zoekPandenViaService<T>(
 ): Promise<BagTransportResultaat<T>> {
   const validatie = valideerPandZoekAanvraag(aanvraag);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
   return invoke<T>({
     action: 'search',
     scopeCode: aanvraag.scopeCode,
