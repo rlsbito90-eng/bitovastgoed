@@ -19,9 +19,10 @@ jobs:
   extract-amsterdam:
     if: github.event.inputs.approval == 'EXTRACT_BAG_AMSTERDAM_0363_FROM_NL'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 330
     env:
       BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
+      PYTHONUNBUFFERED: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -46,12 +47,33 @@ jobs:
           stat --printf='%n\t%s\n' bag-amsterdam-bron/download/lvbag-extract-nl.zip \
             > bag-amsterdam-bron/resultaat/landelijke-bron.tsv
 
-      - name: Extraheer Amsterdam 0363 relatiebewust en streamend
+      - name: Extraheer Amsterdam 0363 via metadata-index
         run: |
-          python3 scripts/bag/extract-amsterdam-from-landelijk.py \
-            bag-amsterdam-bron/download/lvbag-extract-nl.zip \
-            bag-amsterdam-bron/amsterdam-0363.ndjson \
-            bag-amsterdam-bron/resultaat/amsterdam-extractie.json
+          set +e
+          timeout --signal=TERM --kill-after=2m 300m \
+            python3 scripts/bag/extract-amsterdam-from-landelijk.py \
+              bag-amsterdam-bron/download/lvbag-extract-nl.zip \
+              bag-amsterdam-bron/amsterdam-0363.ndjson \
+              bag-amsterdam-bron/resultaat/amsterdam-extractie.json
+          status=$?
+          set -e
+          if [ "$status" -eq 124 ] || [ "$status" -eq 137 ] || [ "$status" -eq 143 ]; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('bag-amsterdam-bron/resultaat/amsterdam-extractie-timeout.json')
+          path.write_text(json.dumps({
+              'status': 'extractie_timeout',
+              'grens_minuten': 300,
+              'database_write_uitgevoerd': False,
+              'supabase_benaderd': False,
+              'productie_benaderd': False,
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+            echo "Amsterdam-extractie overschreed de begrensde 300 minuten." >&2
+            exit 124
+          fi
+          exit "$status"
 
       - name: Valideer Amsterdam subset
         run: |
