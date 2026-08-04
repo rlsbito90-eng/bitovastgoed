@@ -1,4 +1,4 @@
--- Kadasterkosten: productcatalogus, configureerbare budgetten en auditbare kosten-events.
+-- App-brede Kadasterkosten: productcatalogus, configureerbare budgetten en auditbare kosten-events.
 -- Deze migratie voert geen Kadaster-aanvragen uit en bevat geen API-credentials.
 
 create table if not exists public.kadaster_producten (
@@ -17,7 +17,7 @@ create table if not exists public.kadaster_producten (
 
 create table if not exists public.kadaster_budgetten (
   id uuid primary key default gen_random_uuid(),
-  scope_type text not null check (scope_type in ('bedrijf','gebruiker','campagne')),
+  scope_type text not null check (scope_type in ('bedrijf','gebruiker','campagne','module')),
   scope_id text not null,
   daglimiet numeric(12,2),
   maandlimiet numeric(12,2),
@@ -36,6 +36,9 @@ create table if not exists public.kadaster_kosten_events (
   id uuid primary key default gen_random_uuid(),
   product_code text not null references public.kadaster_producten(code),
   status text not null check (status in ('geraamd','bevestigd','geleverd','gedeeltelijk_geleverd','mislukt','geannuleerd','hergebruikt')),
+  bron_module text not null check (bron_module in ('vastgoedkansen','off_market_radar','objecten','acquisitie','deals','pandenverkenner','snelle_pandcheck','referentieobjecten','vastgoedrekenen','overig')),
+  bron_record_type text,
+  bron_record_id text,
   aantal_eenheden integer not null default 1 check (aantal_eenheden > 0),
   geraamde_kosten numeric(12,2) not null default 0,
   werkelijke_kosten numeric(12,2),
@@ -56,6 +59,7 @@ create table if not exists public.kadaster_kosten_events (
 
 create index if not exists kadaster_kosten_events_periode_idx on public.kadaster_kosten_events(aangevraagd_op desc);
 create index if not exists kadaster_kosten_events_product_idx on public.kadaster_kosten_events(product_code, aangevraagd_op desc);
+create index if not exists kadaster_kosten_events_module_idx on public.kadaster_kosten_events(bron_module, aangevraagd_op desc);
 create index if not exists kadaster_kosten_events_gebruiker_idx on public.kadaster_kosten_events(gebruiker_id, aangevraagd_op desc);
 create index if not exists kadaster_kosten_events_object_idx on public.kadaster_kosten_events(crm_objectregistratie_id, aangevraagd_op desc);
 
@@ -75,7 +79,7 @@ for all to authenticated using (public.has_role(auth.uid(), 'admin')) with check
 create policy "admin beheert kadasterbudgetten" on public.kadaster_budgetten
 for all to authenticated using (public.has_role(auth.uid(), 'admin')) with check (public.has_role(auth.uid(), 'admin'));
 
--- Kosten-events worden later uitsluitend via een beveiligde servergateway geschreven.
+-- Kosten-events worden later uitsluitend via een beveiligde app-brede servergateway geschreven.
 -- Browserrollen krijgen bewust geen INSERT/UPDATE/DELETE-policy.
 
 insert into public.kadaster_producten(code, naam, categorie, actief, bevestiging_verplicht)
