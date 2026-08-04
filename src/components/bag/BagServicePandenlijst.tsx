@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Database, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, Database, Loader2, MapPin, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   type BagVerkennerFilters,
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
+import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
 import { zoekPandenViaService } from '@/lib/bag/queryTransport';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import {
@@ -159,7 +160,7 @@ export default function BagServicePandenlijst({
         <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m² totaal`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
         <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
         <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
-      </div></div>; })}</div>
+      </div><a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a></div>; })}</div>
     </div>)}</div>}
     {panden.length>0 && <div className="flex items-center justify-between gap-3 border-t p-4 text-xs text-muted-foreground"><span>{zichtbaar.length} zichtbaar van {panden.length} geladen</span><Button variant="outline" size="sm" disabled={laden || !heeftVolgende} onClick={() => laad(false)}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}{heeftVolgende?'Volgende 100 laden':'Einde bereikt'}</Button></div>}
     <BagHandmatigePromotieDialog open={promotieOpen} aantal={preflight?.kandidaten.length ?? 0} bezig={promotieBezig} onOpenChange={setPromotieOpen} onConfirm={promoveer}/>
