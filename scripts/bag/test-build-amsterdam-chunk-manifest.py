@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -13,10 +14,16 @@ SCRIPT = ROOT / "scripts/bag/build-amsterdam-chunk-manifest.py"
 
 
 def laad_module():
-    spec = importlib.util.spec_from_file_location("chunk_manifest", SCRIPT)
+    module_name = "chunk_manifest"
+    spec = importlib.util.spec_from_file_location(module_name, SCRIPT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
     return module
 
 
