@@ -10,6 +10,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useKadasterKostenbeheer, type KadasterPeriode } from '@/hooks/useKadasterKostenbeheer';
 
 const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
+const MODULE_LABELS: Record<string, string> = {
+  vastgoedkansen: 'Vastgoedkansen', off_market_radar: 'Off-Market Radar', objecten: 'Objecten / Aanbod',
+  acquisitie: 'Acquisitie', deals: 'Deals', pandenverkenner: 'Pandenverkenner', snelle_pandcheck: 'Snelle pandcheck',
+  referentieobjecten: 'Referentieobjecten', vastgoedrekenen: 'Vastgoedrekenen', overig: 'Overig',
+};
 
 export default function KadasterKostenPage() {
   const { isAdmin } = useAuth();
@@ -40,7 +45,7 @@ export default function KadasterKostenPage() {
         beheerder_override: true,
         waarschuwing_percentages: [70, 85, 100],
       });
-      toast.success('Kadasterbudget opgeslagen.');
+      toast.success('App-breed Kadasterbudget opgeslagen.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Budget opslaan mislukt.');
     } finally {
@@ -49,7 +54,7 @@ export default function KadasterKostenPage() {
   };
 
   return <div className="page-shell-wide">
-    <PageHeader title="Kadasterkosten" subtitle="Aantal aanvragen, geleverde producten, werkelijke kosten en beheerbare budgetten." />
+    <PageHeader title="Kadasterkosten" subtitle="App-breed overzicht van aanvragen, producten, modules, werkelijke kosten en beheerbare budgetten." />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex rounded-md border p-1">
@@ -63,10 +68,15 @@ export default function KadasterKostenPage() {
     {beheer.loading ? <div className="section-card flex items-center justify-center p-12 text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Kadasterkosten laden…</div> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Database} label="Aanvragen" waarde={String(beheer.samenvatting.aanvragen)} toelichting={`${beheer.samenvatting.geleverd} geleverd`} />
-        <Kpi icon={Euro} label="Werkelijke kosten" waarde={euro.format(beheer.samenvatting.werkelijk)} toelichting="Alleen geleverd/gedeeltelijk geleverd" />
-        <Kpi icon={Euro} label="Geraamde kosten" waarde={euro.format(beheer.samenvatting.geraamd)} toelichting="Vooraf geregistreerd" />
-        <Kpi icon={Settings2} label="Maandbudget" waarde={bedrijfsbudget?.maandlimiet != null ? euro.format(bedrijfsbudget.maandlimiet) : 'Niet ingesteld'} toelichting={bedrijfsbudget?.harde_blokkade ? 'Harde blokkade actief' : 'Waarschuwing / beheerderoverride'} />
+        <Kpi icon={Euro} label="Werkelijke kosten" waarde={euro.format(beheer.samenvatting.werkelijk)} toelichting="Alle modules, alleen geleverd" />
+        <Kpi icon={Euro} label="Geraamde kosten" waarde={euro.format(beheer.samenvatting.geraamd)} toelichting="Alle modules, vooraf geregistreerd" />
+        <Kpi icon={Settings2} label="App-breed maandbudget" waarde={bedrijfsbudget?.maandlimiet != null ? euro.format(bedrijfsbudget.maandlimiet) : 'Niet ingesteld'} toelichting={bedrijfsbudget?.harde_blokkade ? 'Harde blokkade actief' : 'Waarschuwing / beheerderoverride'} />
       </div>
+
+      <section className="section-card overflow-hidden">
+        <div className="border-b p-4"><h2 className="text-sm font-medium">Kosten per module</h2><p className="text-xs text-muted-foreground">Eén centrale kostenlaag, uitgesplitst naar de module die de aanvraag heeft gestart.</p></div>
+        {beheer.samenvatting.perModule.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nog geen modulegebonden kosten-events in deze periode.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/30 text-left text-xs text-muted-foreground"><tr><th className="p-3">Module</th><th className="p-3 text-right">Aanvragen</th><th className="p-3 text-right">Eenheden</th><th className="p-3 text-right">Geraamd</th><th className="p-3 text-right">Werkelijk</th></tr></thead><tbody className="divide-y">{beheer.samenvatting.perModule.map(item => <tr key={item.module}><td className="p-3 font-medium">{MODULE_LABELS[item.module] ?? item.module}</td><td className="p-3 text-right">{item.aanvragen}</td><td className="p-3 text-right">{item.eenheden}</td><td className="p-3 text-right">{euro.format(item.geraamd)}</td><td className="p-3 text-right font-medium">{euro.format(item.werkelijk)}</td></tr>)}</tbody></table></div>}
+      </section>
 
       <section className="section-card overflow-hidden">
         <div className="border-b p-4"><h2 className="text-sm font-medium">Producten in deze periode</h2><p className="text-xs text-muted-foreground">Aantal aanvragen, eenheden en daadwerkelijk geleverde kosten per Kadasterproduct.</p></div>
@@ -74,19 +84,19 @@ export default function KadasterKostenPage() {
       </section>
 
       <section className="section-card overflow-hidden">
-        <div className="border-b p-4"><h2 className="text-sm font-medium">Laatste aanvragen</h2><p className="text-xs text-muted-foreground">Auditoverzicht met product, adres, status, eenheden en kosten.</p></div>
-        {beheer.events.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nog geen aanvragen geregistreerd.</div> : <div className="divide-y">{beheer.events.slice(0, 50).map(event => <div key={event.id} className="grid gap-2 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><p className="text-sm font-medium">{event.adres_label ?? event.product_code}</p><p className="text-xs text-muted-foreground">{new Date(event.aangevraagd_op).toLocaleString('nl-NL')} · {event.aantal_eenheden} eenheid{event.aantal_eenheden === 1 ? '' : 'en'}</p></div><Badge variant="outline">{event.status.replaceAll('_',' ')}</Badge><div className="text-right"><p className="text-sm font-medium">{euro.format(event.werkelijke_kosten ?? event.geraamde_kosten)}</p><p className="text-[11px] text-muted-foreground">{event.werkelijke_kosten == null ? 'geraamd' : 'werkelijk'}</p></div></div>)}</div>}
+        <div className="border-b p-4"><h2 className="text-sm font-medium">Laatste aanvragen</h2><p className="text-xs text-muted-foreground">Auditoverzicht met module, product, adres, status, eenheden en kosten.</p></div>
+        {beheer.events.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nog geen aanvragen geregistreerd.</div> : <div className="divide-y">{beheer.events.slice(0, 50).map(event => <div key={event.id} className="grid gap-2 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><p className="text-sm font-medium">{event.adres_label ?? event.product_code}</p><p className="text-xs text-muted-foreground">{MODULE_LABELS[event.bron_module] ?? event.bron_module} · {new Date(event.aangevraagd_op).toLocaleString('nl-NL')} · {event.aantal_eenheden} eenheid{event.aantal_eenheden === 1 ? '' : 'en'}</p></div><Badge variant="outline">{event.status.replaceAll('_',' ')}</Badge><div className="text-right"><p className="text-sm font-medium">{euro.format(event.werkelijke_kosten ?? event.geraamde_kosten)}</p><p className="text-[11px] text-muted-foreground">{event.werkelijke_kosten == null ? 'geraamd' : 'werkelijk'}</p></div></div>)}</div>}
       </section>
 
       <section className="section-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-medium">Bedrijfsbudget</h2><p className="text-xs text-muted-foreground">Beheerder kan limieten altijd aanpassen. Betaalde aanvragen blijven afzonderlijk te bevestigen.</p></div>{isAdmin && <Button variant="outline" size="sm" onClick={vulBudget}>Huidige waarden laden</Button>}</div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-medium">App-breed bedrijfsbudget</h2><p className="text-xs text-muted-foreground">Geldt als centrale bovengrens. Beheerder kan limieten aanpassen; optionele modulebudgetten worden afzonderlijk ondersteund.</p></div>{isAdmin && <Button variant="outline" size="sm" onClick={vulBudget}>Huidige waarden laden</Button>}</div>
         <div className="mt-4 grid gap-3 md:grid-cols-3"><Input disabled={!isAdmin} type="number" min="0" step="0.01" value={daglimiet} onChange={e => setDaglimiet(e.target.value)} placeholder="Daglimiet (€)"/><Input disabled={!isAdmin} type="number" min="0" step="0.01" value={maandlimiet} onChange={e => setMaandlimiet(e.target.value)} placeholder="Maandlimiet (€)"/><Input disabled={!isAdmin} type="number" min="0" step="0.01" value={bevestigingVanaf} onChange={e => setBevestigingVanaf(e.target.value)} placeholder="Extra bevestiging vanaf (€)"/></div>
         <label className="mt-3 flex items-center gap-2 text-sm"><Checkbox disabled={!isAdmin} checked={hardeBlokkade} onCheckedChange={value => setHardeBlokkade(Boolean(value))}/>Harde budgetblokkade inschakelen</label>
         {isAdmin ? <Button className="mt-4" onClick={bewaarBudget} disabled={opslaan || !beheer.schemaBeschikbaar}>{opslaan && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Budget opslaan</Button> : <p className="mt-4 text-xs text-muted-foreground">Alleen een beheerder kan budgetten wijzigen.</p>}
       </section>
 
       <section className="section-card overflow-hidden">
-        <div className="border-b p-4"><h2 className="text-sm font-medium">Kadasterproducten en tarieven</h2><p className="text-xs text-muted-foreground">Geen product wordt automatisch geactiveerd. Tarieven moeten door een beheerder worden gecontroleerd vóór gebruik.</p></div>
+        <div className="border-b p-4"><h2 className="text-sm font-medium">Kadasterproducten en tarieven</h2><p className="text-xs text-muted-foreground">Centraal beschikbaar voor alle modules. Geen product wordt automatisch geactiveerd.</p></div>
         <div className="divide-y">{beheer.producten.map(product => <ProductRegel key={product.code} product={product} isAdmin={isAdmin} onSave={beheer.werkProductBij} />)}</div>
       </section>
     </>}
