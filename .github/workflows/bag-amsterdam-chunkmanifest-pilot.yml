@@ -1,0 +1,106 @@
+name: BAG Amsterdam chunkmanifest pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: BUILD_BAG_AMSTERDAM_CHUNK_MANIFEST'
+        required: true
+        type: string
+      chunk_count:
+        description: 'Aantal pilotchunks (1-8)'
+        required: true
+        default: '8'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-chunkmanifest-pilot
+  cancel-in-progress: false
+
+jobs:
+  bronmanifest:
+    if: github.event.inputs.approval == 'BUILD_BAG_AMSTERDAM_CHUNK_MANIFEST'
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    env:
+      BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valideer pilotinvoer en lokale test
+        run: |
+          case '${{ github.event.inputs.chunk_count }}' in
+            1|2|3|4|5|6|7|8) ;;
+            *) echo 'chunk_count moet 1 t/m 8 zijn' >&2; exit 2 ;;
+          esac
+          test "$BAG_NL_SOURCE_URL" = 'https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip'
+          python3 scripts/bag/test-build-amsterdam-chunk-manifest.py
+
+      - name: Download gratis officieel landelijk BAG Extract
+        run: |
+          mkdir -p bag-amsterdam-chunks/download bag-amsterdam-chunks/resultaat
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 10800 \
+            "$BAG_NL_SOURCE_URL" \
+            --output bag-amsterdam-chunks/download/lvbag-extract-nl.zip
+          unzip -t bag-amsterdam-chunks/download/lvbag-extract-nl.zip
+          sha256sum bag-amsterdam-chunks/download/lvbag-extract-nl.zip \
+            > bag-amsterdam-chunks/resultaat/landelijke-bron.sha256
+
+      - name: Bouw deterministisch bron- en chunkmanifest
+        run: |
+          python3 scripts/bag/build-amsterdam-chunk-manifest.py \
+            bag-amsterdam-chunks/download/lvbag-extract-nl.zip \
+            bag-amsterdam-chunks/resultaat/bron-en-chunkmanifest.json \
+            --chunks '${{ github.event.inputs.chunk_count }}'
+
+      - name: Schrijf pilotrapport
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('bag-amsterdam-chunks/resultaat')
+          manifest = json.loads((root / 'bron-en-chunkmanifest.json').read_text())
+          chunks = manifest['chunks']
+          rapport = {
+              'status': 'chunkmanifest_validated',
+              'aantal_brononderdelen': manifest['aantal_brononderdelen'],
+              'chunk_count': manifest['chunk_count'],
+              'grootste_chunk_bytes': max((item['uncompressed_bytes'] for item in chunks), default=0),
+              'kleinste_chunk_bytes': min((item['uncompressed_bytes'] for item in chunks), default=0),
+              'chunk_tellingen': [
+                  {
+                      'chunk_id': item['chunk_id'],
+                      'aantal_onderdelen': item['aantal_onderdelen'],
+                      'uncompressed_bytes': item['uncompressed_bytes'],
+                  }
+                  for item in chunks
+              ],
+              'database_write_uitgevoerd': False,
+              'supabase_benaderd': False,
+              'productie_benaderd': False,
+          }
+          (root / 'pilotrapport.json').write_text(
+              json.dumps(rapport, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Verwijder grote tijdelijke bron
+        if: always()
+        run: rm -f bag-amsterdam-chunks/download/lvbag-extract-nl.zip
+
+      - name: Publiceer uitsluitend compacte manifesten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-chunkmanifest-pilot
+          if-no-files-found: error
+          retention-days: 14
+          path: bag-amsterdam-chunks/resultaat/
