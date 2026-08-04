@@ -33,9 +33,17 @@ describe('Object-ID broninventarisatie', () => {
     const report = inventariseerObjectIdentityBronnen([record()]);
     expect(report.status).toBe('inventory_ready');
     expect(report.automaticWrites).toBe(0);
+    expect(report.matchVolgorde).toEqual([
+      'bag_verblijfsobject',
+      'bag_pand',
+      'adres',
+      'handmatig',
+    ]);
     expect(report.summaries.find(item => item.sourceType === 'vastgoedkans')).toMatchObject({
       totaal: 1,
       metBagPandId: 1,
+      viaBagKoppelbaar: 1,
+      viaAdresFallbackKoppelbaar: 0,
       koppelbaar: 1,
       handmatigBeoordelen: 0,
     });
@@ -56,7 +64,19 @@ describe('Object-ID broninventarisatie', () => {
     expect(report.status).toBe('inventory_ready');
     expect(report.summaries.find(item => item.sourceType === 'off_market_signaal')).toMatchObject({
       metVolledigAdres: 1,
+      viaAdresFallbackKoppelbaar: 1,
       koppelbaar: 1,
+    });
+  });
+
+  it('rapporteert Objecten/Aanbod zonder BAG-ID als BAG-verrijking nodig', () => {
+    const report = inventariseerObjectIdentityBronnen([
+      record({ sourceType: 'object', bagPandId: null, bagVerblijfsobjectId: null }),
+    ]);
+    expect(report.status).toBe('inventory_ready');
+    expect(report.summaries.find(item => item.sourceType === 'object')).toMatchObject({
+      viaAdresFallbackKoppelbaar: 1,
+      bagVerrijkingNodig: 1,
     });
   });
 
