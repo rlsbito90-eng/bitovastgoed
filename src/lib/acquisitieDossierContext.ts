@@ -64,6 +64,18 @@ export interface AcquisitieDossierCapabilities {
   brieven: BrievenWorkflowCapabilities;
 }
 
+export type AcquisitieWorkflowFase =
+  | 'onderzoek'
+  | 'eigenaar_bekend'
+  | 'benaderen'
+  | 'opvolgen'
+  | 'afgerond';
+
+export interface AcquisitieWorkflowStatus {
+  fase: AcquisitieWorkflowFase;
+  primaireActie: 'onderzoek_eigenaar' | 'koppel_relatie' | 'bereid_brief_voor' | 'registreer_respons' | 'geen';
+}
+
 export const VOLLEDIGE_INTERNE_ACQUISITIE_CAPABILITIES: AcquisitieDossierCapabilities = {
   eigenaar: {
     kanBewerken: true,
