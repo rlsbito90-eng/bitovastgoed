@@ -13,4 +13,13 @@
 const envWaarde = import.meta.env.VITE_AUTH_UI_ENABLED as string | undefined;
 
 export const AUTH_UI_ENABLED: boolean =
-  envWaarde === undefined ? false : envWaarde === 'true';
+  envWaarde === undefined ? true : envWaarde === 'true';
+
+/**
+ * Social login (Google/Apple) is momenteel uitgeschakeld in de backend.
+ * De knoppen blijven in de code aanwezig voor later hergebruik.
+ */
+export const AUTH_SOCIAL_ENABLED = false;
+
+/** Zelfregistratie ("Account aanvragen") is tijdelijk verborgen. */
+export const AUTH_SIGNUP_ENABLED = false;
