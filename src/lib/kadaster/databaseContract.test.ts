@@ -47,4 +47,18 @@ describe('Kadaster databasecontract', () => {
     expect(preflight).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate)\b/i);
     expect(preflight).toContain('unsafe_browser_write_policy');
   });
+
+  it('heeft geen externe has_role-afhankelijkheid en vertrouwt alleen serverbeheerste app_metadata', () => {
+    expect(objectMigration).toContain('create or replace function public.is_app_admin()');
+    expect(objectMigration).toContain("auth.jwt() -> 'app_metadata' ->> 'role'");
+    expect(objectMigration).not.toContain('user_metadata');
+    expect(kostenMigration).toContain('public.is_app_admin()');
+    expect(kostenMigration).not.toContain('public.has_role');
+  });
+
+  it('geeft niet langer alle authenticated gebruikers onbeperkte objectmutaties', () => {
+    expect(objectMigration).not.toMatch(/for all to authenticated\s+using \(true\) with check \(true\)/i);
+    expect(objectMigration).toContain('created_by = auth.uid() or public.is_app_admin()');
+    expect(objectMigration).toContain('crm_objectregistraties_beheerder_verwijderen');
+  });
 });
