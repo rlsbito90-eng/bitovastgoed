@@ -29,6 +29,7 @@ import PipelinePage from "@/pages/PipelinePage";
 import TakenPage from "@/pages/TakenPage";
 import TaakDetailPage from "@/pages/TaakDetailPage";
 import RapportagePage from "@/pages/RapportagePage";
+import KadasterKostenPage from "@/pages/KadasterKostenPage";
 import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
 import AdminPage from "@/pages/AdminPage";
 import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
@@ -112,6 +113,7 @@ const App = () => (
                           <Route path="/taken/:id" element={<TaakDetailPage />} />
                           <Route path="/vastgoedrekenen" element={<VastgoedrekenenPage />} />
                           <Route path="/rapportage" element={<RapportagePage />} />
+                          <Route path="/rapportage/kadasterkosten" element={<KadasterKostenPage />} />
                           <Route
                             path="/admin"
                             element={
