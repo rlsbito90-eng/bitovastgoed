@@ -106,7 +106,7 @@ export default function SnellePandcheckPage() {
         const Icoon = match.bronType === 'vastgoedkans' ? Lightbulb : match.bronType === 'object' ? Building2 : Radar;
         const label = match.bronType === 'vastgoedkans' ? 'Vastgoedkans' : match.bronType === 'object' ? 'Aanbod/Object' : 'Off-Market-signaal';
         return <Link key={`${match.bronType}:${match.bronId}`} to={bestemming} className="flex items-center justify-between gap-3 p-4 hover:bg-muted/40">
-          <div className="flex min-w-0 items-center gap-3"><Icoon className="h-4 w-4 shrink-0" /><div className="min-w-0"><p className="truncate text-sm font-medium">{match.titel || label}</p><p className="text-xs text-muted-foreground">{label} · match via {match.sterkte.replaceAll('_', ' ')}{match.status ? ` · ${match.status}` : ''}</p></div></div>
+          <div className="flex min-w-0 items-center gap-3"><Icoon className="h-4 w-4 shrink-0" /><div className="min-w-0"><p className="truncate text-sm font-medium">{match.titel || label}</p><p className="text-xs text-muted-foreground">{label} · match via {match.sterkte.replace(/_/g, ' ')}{match.status ? ` · ${match.status}` : ''}</p></div></div>
           <span className="text-xs text-muted-foreground">Open dossier</span>
         </Link>;
       })}</div>}
