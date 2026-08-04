@@ -9,6 +9,7 @@ export interface BagScopeDefinitie {
   volgorde: number;
 }
 
+// Amsterdam wordt automatisch de standaard zodra de commerciële scope expliciet is geactiveerd.
 export const BAG_COMMERCIËLE_VOORKEURSCODE = '0363';
 export const BAG_TECHNISCHE_REFERENTIECODE = '0106';
 
