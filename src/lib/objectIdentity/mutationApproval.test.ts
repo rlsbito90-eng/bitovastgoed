@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { beoordeelObjectIdentityMutatiepakket } from './mutationApproval';
+import { beoordeelObjectIdentityMutatiepakket, type ObjectIdentityMutationProposalType } from './mutationApproval';
 
 const basis = {
   packageId: 'pkg-001',
   packageHash: 'a'.repeat(64),
   proposalCount: 2,
-  proposalTypes: ['link_existing_object'] as const,
+  proposalTypes: ['link_existing_object'] as ObjectIdentityMutationProposalType[],
   sourceTypes: ['object'],
   environment: 'shadow' as const,
   reviewerId: 'admin-1',

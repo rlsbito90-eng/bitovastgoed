@@ -12,7 +12,7 @@ describe('vastgoedkansWorkspace', () => {
   });
 
   it('stuurt na eigenaaronderzoek naar brieven', () => {
-    expect(bepaalPrimaireWerkTab({ ...basis, kadasterStatus: 'afgerond', eigenaarStatus: 'bekend' })).toBe('brieven');
+    expect(bepaalPrimaireWerkTab({ ...basis, kadasterStatus: 'gegevens_bekend', eigenaarStatus: 'bekend' })).toBe('brieven');
   });
 
   it('bouwt een beperkte Google-zoekopdracht met naam en plaats', () => {
