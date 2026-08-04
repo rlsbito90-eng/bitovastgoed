@@ -20,6 +20,9 @@ function summary(sourceType: ObjectIdentitySourceType): SourceInventorySummary {
     metBestaandObjectId: 3,
     koppelbaar: 8,
     handmatigBeoordelen: 2,
+    viaBagKoppelbaar: 4,
+    viaAdresFallbackKoppelbaar: 4,
+    bagVerrijkingNodig: 2,
   };
 }
 

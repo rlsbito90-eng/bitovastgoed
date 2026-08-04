@@ -5,13 +5,13 @@ import type { GatewayPlan, GatewayRequest } from './contracts';
 
 const request: GatewayRequest = {
   requestId: 'req-1', environment: 'shadow', actor: { userId: 'admin-1', role: 'admin' },
-  module: 'pandenverkenner', product: 'bag_individuele_bevraging',
+  module: 'pandenverkenner', product: 'bag_individuele_bevraging' as const,
   object: { bagVerblijfsobjectId: '0363010000123456' }, purpose: 'objectcontrole',
 };
 
 const plan: GatewayPlan = {
   status: 'gateway_ready', decision: 'serve_free_source', reason: 'free_first_route',
-  requestId: 'req-1', product: 'bag_individuele_bevraging', estimatedCostCents: 0,
+  requestId: 'req-1', product: 'bag_individuele_bevraging' as const, estimatedCostCents: 0,
   cacheKey: 'bag_individuele_bevraging:0363010000123456', mayContactExternalProvider: true,
   mayExposeOwnerPii: false, requiresServerSecret: true, requiresExplicitPaidApproval: false,
   auditRequired: true, browserMayCallProviderDirectly: false, productionAllowed: false,
@@ -24,7 +24,7 @@ function deps(): GatewayExecutionDependencies<{ id: string }> {
     readCache: vi.fn(async () => null),
     writeCache: vi.fn(async () => undefined),
     callFreeProvider: vi.fn(async () => ({
-      provider: 'bag', product: 'bag_individuele_bevraging', fetchedAt: '2026-08-04T19:00:00.000Z',
+      provider: 'bag' as const, product: 'bag_individuele_bevraging' as const, fetchedAt: '2026-08-04T19:00:00.000Z',
       data: { id: '0363010000123456' }, actualCostCents: 0,
     })),
     appendAudit: vi.fn(async () => undefined),
@@ -52,7 +52,7 @@ describe('Tranche C gateway execution', () => {
   it('weigert providerresultaat met kosten', async () => {
     const d = deps();
     d.callFreeProvider = vi.fn(async () => ({
-      provider: 'bag', product: 'bag_individuele_bevraging', fetchedAt: '2026-08-04T19:00:00.000Z',
+      provider: 'bag' as const, product: 'bag_individuele_bevraging' as const, fetchedAt: '2026-08-04T19:00:00.000Z',
       data: { id: '0363010000123456' }, actualCostCents: 1,
     }));
     const result = await executeTrancheCGateway(request, plan, d);

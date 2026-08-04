@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { lovable } from '@/integrations/lovable';
+import { AUTH_UI_ENABLED } from '@/lib/authConfig';
 
 function sanitizeNext(raw: string | null): string {
   if (!raw) return '/';
@@ -140,11 +141,26 @@ export default function AuthPage() {
           </p>
         </div>
 
+        {!AUTH_UI_ENABLED ? (
+          <div
+            data-testid="auth-tijdelijke-statuspagina"
+            className="glass-card p-7 sm:p-8 rounded-2xl text-center space-y-3"
+          >
+            <h1 className="text-lg font-semibold text-foreground">Bito Vastgoed CRM</h1>
+            <p className="text-sm text-muted-foreground">
+              De applicatie is tijdelijk niet beschikbaar.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              De CRM wordt technisch bijgewerkt. Probeer het later opnieuw.
+            </p>
+          </div>
+        ) : (
         <div className="glass-card p-6 sm:p-7 space-y-4 rounded-2xl">
           <div className="grid grid-cols-1 gap-2.5">
             <GoogleButton next={next} />
             <AppleButton next={next} />
           </div>
+
           <div className="relative py-1">
             <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.18em]">
@@ -237,6 +253,8 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
         </div>
+        )}
+
       </div>
     </div>
   );

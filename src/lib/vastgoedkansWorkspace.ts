@@ -14,7 +14,7 @@ export interface VastgoedkansWerkcontext {
 const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
 
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
-  if (kans.kadasterStatus !== 'afgerond' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
+  if (kans.kadasterStatus !== 'gegevens_bekend' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
   if (kans.briefStatus !== 'verzonden' && kans.briefStatus !== 'reactie_ontvangen') return 'brieven';
   return kans.status === 'opvolgen' || kans.status === 'wachten' ? 'brieven' : 'overzicht';
 }
