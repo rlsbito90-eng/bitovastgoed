@@ -1,52 +1,79 @@
-# Amsterdam officiële BAG-bronacceptatie
+# Amsterdam uit het gratis landelijke BAG Extract
 
 ## Doel
 
-Deze run accepteert uitsluitend een officieel BAG-bronpakket voor Amsterdam, scope `0363`, voordat enige shadowimport wordt toegestaan.
+Gebruik uitsluitend de gratis officiële maanddownload van het landelijke BAG Extract als bron en produceer daaruit een controleerbare Amsterdam-subset voor scope `0363`.
 
-## Benodigde GitHub environment-secrets
+Officiële bron:
 
-In environment `bag-shadow`:
+`https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip`
 
-- `BAG_AMSTERDAM_SOURCE_URL`: tijdelijke officiële download-URL uit Mijn Kadaster of de leveringsmail;
-- `BAG_AMSTERDAM_SOURCE_SHA256`: vooraf onafhankelijk berekende SHA-256 van exact hetzelfde ZIP-bestand.
+## Kosten- en infrastructuurgrens
 
-De URL wordt bewust niet als workflow-input gebruikt, omdat workflow-inputs en runmetadata zichtbaar kunnen blijven.
+Deze fase:
+
+- bestelt geen betaald gemeentelijk Extract;
+- maakt geen nieuw Supabase-project of branch;
+- wijzigt geen Supabase-data;
+- activeert geen betaalde Vercel-functie;
+- gebruikt alleen een handmatig gestarte GitHub Actions-run;
+- publiceert uitsluitend kleine bewijsrapporten als artifact.
+
+De run verbruikt wel GitHub Actions-rekentijd en downloadverkeer. Er wordt geen betaalde upgrade gestart. Bij een overschreden GitHub-limiet stopt de run in plaats van automatisch kosten te maken.
+
+## Verwerkingsstrategie
+
+Het landelijke ZIP-bestand is circa meerdere gigabytes groot. Daarom wordt het niet volledig uitgepakt.
+
+1. Download de officiële landelijke ZIP.
+2. Controleer ZIP-integriteit en registreer SHA-256.
+3. Open XML en geneste ZIP-bestanden sequentieel.
+4. Selecteer alle records met een primaire BAG-identificatie die begint met `0363`.
+5. Breid de selectie in meerdere passes uit met records die via BAG-identificaties zijn gekoppeld.
+6. Schrijf uitsluitend de relatieclosure voor Amsterdam als tijdelijk NDJSON.
+7. Valideer scope, recordaantallen en parsefouten.
+8. Bereken een conservatieve capaciteitsraming.
+9. Verwijder het landelijke ZIP-bestand en de tijdelijke subset vóór artifact-upload.
 
 ## Handmatige start
 
-Workflow: **BAG Amsterdam officiële bronacceptatie**
+Workflow:
 
-Exacte bevestiging:
+`.github/workflows/bag-amsterdam-officiele-bronacceptatie.yml`
 
-`VALIDATE_BAG_AMSTERDAM_SOURCE_0363`
+Vereiste bevestiging:
 
-## Wat de run doet
+`EXTRACT_BAG_AMSTERDAM_0363_FROM_NL`
 
-1. controleert dat URL en checksum aanwezig zijn;
-2. downloadt het bronpakket;
-3. verifieert SHA-256 en ZIP-integriteit;
-4. pakt geneste ZIP-bestanden padveilig uit;
-5. extraheert officiële BAG-standrecords naar tijdelijk NDJSON;
-6. controleert dat identificatieprefix `0363` minimaal 90% van de geïdentificeerde records vormt;
-7. publiceert alleen compacte tellingen en validatierapporten.
+Er zijn geen bron-URL- of checksumsecrets nodig. De actuele checksum wordt tijdens de run berekend en als bewijs vastgelegd. Die checksum moet vóór de latere database-import expliciet worden vastgezet.
 
-## Wat de run niet doet
+## Resultaten
 
-- geen verbinding met Supabase;
-- geen insert, update, delete, truncate of DDL;
-- geen activering van Amsterdam;
-- geen wijziging aan de Edge Function of allowlists;
-- geen benadering van productieproject `ljudxyrqoifhfikueric`;
-- het bron-ZIP en `records.ndjson` worden niet als artifact bewaard.
+Het artifact bevat alleen:
 
-## Vervolgpoort
+- bronchecksum;
+- bronbestandsgrootte;
+- extractierapport per closure-pass;
+- objecttype- en prefixaantallen;
+- scopevalidatie;
+- capaciteitsraming;
+- Markdown-rapport.
 
-Pas na een groene bronacceptatie worden de werkelijke tellingen gebruikt voor:
+Het landelijke BAG Extract en het tijdelijke Amsterdam-NDJSON worden niet als artifact opgeslagen.
 
-- capaciteitsbesluit;
-- tranchegrootte;
-- import-runmanifest;
-- gecontroleerde shadowimport;
-- integriteitsvalidatie;
-- afzonderlijke publicatie en scope-activatie.
+## Go/no-go na de run
+
+**GO voor importvoorbereiding** wanneer:
+
+- ZIP-integriteit groen is;
+- geen XML- of ZIP-parsefouten bestaan;
+- Amsterdamse records aanwezig zijn;
+- relatieclosure convergeert;
+- scopevalidatie groen is;
+- de benodigde vrije shadowdatabasecapaciteit beschikbaar is.
+
+**NO-GO** bij onverwachte scopevervuiling, parsefouten, onvoldoende capaciteit of een niet-convergerende selectie.
+
+## Nog niet uitgevoerd
+
+Deze BUILD downloadt of importeert tijdens PR-validatie geen landelijke BAG-data. De grote bronrun begint pas na merge en een expliciete handmatige workflowstart. Amsterdam blijft tot na database-import, integriteitscontrole en afzonderlijke allowlist-activatie niet querybaar.
