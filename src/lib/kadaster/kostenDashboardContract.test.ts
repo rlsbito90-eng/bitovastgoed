@@ -16,6 +16,17 @@ describe('Kadaster kostenbeheer dashboard', () => {
     expect(hook).toContain("['geleverd', 'gedeeltelijk_geleverd']");
   });
 
+  it('is app-breed en rapporteert de herkomst per CRM-module', () => {
+    expect(migration).toContain('bron_module text not null');
+    expect(migration).toContain("'vastgoedkansen','off_market_radar','objecten','acquisitie','deals','pandenverkenner','snelle_pandcheck'");
+    expect(migration).toContain("scope_type in ('bedrijf','gebruiker','campagne','module')");
+    expect(hook).toContain('perModule');
+    expect(hook).toContain('slaModulebudgetOp');
+    expect(page).toContain('Kosten per module');
+    expect(page).toContain('Eén centrale kostenlaag');
+    expect(page).toContain('App-breed bedrijfsbudget');
+  });
+
   it('laat alleen beheerders budgetten en producten wijzigen', () => {
     expect(page).toContain('const { isAdmin } = useAuth()');
     expect(page).toContain('disabled={!isAdmin}');
