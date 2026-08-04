@@ -17,7 +17,7 @@ describe('bouwAcquisitieDossierContext', () => {
       bronType: 'vastgoedkans',
       bronId: 'kans-1',
       objectId: 'obj-1',
-      adres: 'Do evenkamp 3',
+      adres: 'Doevenkamp 3, 9401KN, Assen',
       plaats: 'Assen',
       eigenaarRelatieId: 'relatie-1',
     });
