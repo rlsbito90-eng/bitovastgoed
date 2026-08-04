@@ -12,6 +12,7 @@ const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
 const PRODUCTION_REF = 'ljudxyrqoifhfikueric';
 const PRODUCTION_AUTH_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const MAX_BODY_BYTES = 16_384;
+const GEREGISTREERDE_SCOPES = new Set(['0106', '0363', '0599', '0518']);
 
 let database: ReturnType<typeof postgres> | null = null;
 
@@ -25,9 +26,17 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+function allowedScopes(): Set<string> {
+  const raw = Deno.env.get('BAG_ALLOWED_SCOPE_CODES')?.trim() || '0106';
+  const scopes = new Set(raw.split(',').map(value => value.trim()).filter(Boolean));
+  if (!scopes.size || [...scopes].some(code => !GEREGISTREERDE_SCOPES.has(code))) {
+    throw new Error('BAG-scopeallowlist bevat een onbekende of lege scope');
+  }
+  return scopes;
+}
+
 function databaseClient(): ReturnType<typeof postgres> {
   if (database) return database;
-
   const environment = requiredEnv('BAG_ENVIRONMENT');
   const projectRef = requiredEnv('BAG_PROJECT_REF');
   const expectedRef = requiredEnv('BAG_EXPECTED_PROJECT_REF');
@@ -35,9 +44,7 @@ function databaseClient(): ReturnType<typeof postgres> {
   if (environment !== 'shadow' || projectRef !== expectedRef || projectRef === PRODUCTION_REF) {
     throw new Error('BAG-transport is niet aan de bevestigde shadow gebonden');
   }
-  if (!/^[a-z0-9]{20}$/.test(projectRef)) {
-    throw new Error('Ongeldige BAG-projectref');
-  }
+  if (!/^[a-z0-9]{20}$/.test(projectRef)) throw new Error('Ongeldige BAG-projectref');
 
   const parsed = new URL(databaseUrl);
   const username = decodeURIComponent(parsed.username);
@@ -62,6 +69,7 @@ function scopeCode(value: unknown): string {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(value)) {
     throw new TypeError('Ongeldige BAG-scopecode');
   }
+  if (!allowedScopes().has(value)) throw new RangeError('Scope niet toegestaan');
   return value;
 }
 
@@ -82,29 +90,18 @@ function coordinate(value: unknown): number {
 async function authorize(req: Request): Promise<string> {
   const authorization = req.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) throw new TypeError('Unauthorized');
-
   const authUrl = requiredEnv('BAG_AUTH_SUPABASE_URL');
   const authAnonKey = requiredEnv('BAG_AUTH_SUPABASE_ANON_KEY');
   if (authUrl !== PRODUCTION_AUTH_URL) {
     throw new Error('BAG-authenticatie is niet aan de bevestigde CRM-autoriteit gebonden');
   }
-
-  const client = createClient(
-    authUrl,
-    authAnonKey,
-    { global: { headers: { Authorization: authorization } } },
-  );
+  const client = createClient(authUrl, authAnonKey, { global: { headers: { Authorization: authorization } } });
   const token = authorization.slice('Bearer '.length);
   const { data: userData, error } = await client.auth.getUser(token);
   const userId = userData.user?.id;
   if (error || typeof userId !== 'string') throw new TypeError('Unauthorized');
-
-  const { data: roles, error: rolesError } = await client
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId);
-  const internal = !rolesError && (roles ?? [])
-    .some(({ role }) => role === 'admin' || role === 'medewerker');
+  const { data: roles, error: rolesError } = await client.from('user_roles').select('role').eq('user_id', userId);
+  const internal = !rolesError && (roles ?? []).some(({ role }) => role === 'admin' || role === 'medewerker');
   if (!internal) throw new RangeError('Forbidden');
   return userId;
 }
@@ -118,31 +115,24 @@ async function execute(body: Record<string, unknown>): Promise<unknown> {
     const maxX = coordinate(body.maxX);
     const maxY = coordinate(body.maxY);
     const limit = integer(body.limit ?? 2500, 1, 2500, 'Viewportlimiet');
-    if (minX < -10_000 || maxX > 300_000 || minY < 275_000 || maxY > 630_000
-      || minX >= maxX || minY >= maxY) {
+    if (minX < -10_000 || maxX > 300_000 || minY < 275_000 || maxY > 630_000 || minX >= maxX || minY >= maxY) {
       throw new TypeError('Viewport valt buiten de begrensde RD New-zone');
     }
     return sql.begin(async (tx) => {
       await tx.unsafe('SET LOCAL ROLE bag_reader');
-      return tx`SELECT * FROM bag_service.panden_in_viewport(
-        ${scope}, ${minX}, ${minY}, ${maxX}, ${maxY}, ${limit}
-      )`;
+      return tx`SELECT * FROM bag_service.panden_in_viewport(${scope}, ${minX}, ${minY}, ${maxX}, ${maxY}, ${limit})`;
     });
   }
-
   if (body.action === 'search') {
     const scope = scopeCode(body.scopeCode);
     const limit = integer(body.limit ?? 100, 1, 250, 'Zoeklimiet');
     const cursor = body.cursor == null ? null : String(body.cursor).trim();
-    if (cursor !== null && (!cursor || cursor.length > 128)) {
-      throw new TypeError('Ongeldige keysetcursor');
-    }
+    if (cursor !== null && (!cursor || cursor.length > 128)) throw new TypeError('Ongeldige keysetcursor');
     return sql.begin(async (tx) => {
       await tx.unsafe('SET LOCAL ROLE bag_reader');
       return tx`SELECT * FROM bag_service.zoek_panden(${scope}, ${cursor}, ${limit})`;
     });
   }
-
   throw new TypeError('Onbekende BAG-queryactie');
 }
 
@@ -151,13 +141,10 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   const contentLength = Number(req.headers.get('content-length') ?? 0);
   if (contentLength > MAX_BODY_BYTES) return json({ error: 'Request te groot' }, 413);
-
   try {
     await authorize(req);
     const raw = await req.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
-      return json({ error: 'Request te groot' }, 413);
-    }
+    if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) return json({ error: 'Request te groot' }, 413);
     const body = JSON.parse(raw) as Record<string, unknown>;
     const rows = await execute(body);
     return json({ rows });
