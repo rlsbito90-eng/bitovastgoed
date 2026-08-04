@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { lovable } from '@/integrations/lovable';
-import { AUTH_UI_ENABLED } from '@/lib/authConfig';
+import { AUTH_UI_ENABLED, AUTH_SOCIAL_ENABLED, AUTH_SIGNUP_ENABLED } from '@/lib/authConfig';
 
 function sanitizeNext(raw: string | null): string {
   if (!raw) return '/';
