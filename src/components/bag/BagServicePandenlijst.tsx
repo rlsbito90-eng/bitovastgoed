@@ -15,6 +15,7 @@ import {
 import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
 import { zoekPandenViaService } from '@/lib/bag/queryTransport';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
+import BagCrmMatchBadge from './BagCrmMatchBadge';
 import {
   beoordeelBagSelectie,
   blokkadeVoorPand,
@@ -67,6 +68,8 @@ export default function BagServicePandenlijst({
     return [...groepen.entries()];
   }, [zichtbaar]);
 
+  const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
+
   const laad = async (opnieuw = false) => {
     setLaden(true);
     try {
@@ -93,7 +96,7 @@ export default function BagServicePandenlijst({
       ? previous.gebruiksdoelen.filter(value => value !== functie)
       : [...previous.gebruiksdoelen, functie],
   }));
-  const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
+
   const togglePand = (pand: BagVerkennerPand) => {
     if (blokkadeVoorPand(pand, context)) return;
     setPreflight(null);
@@ -105,6 +108,7 @@ export default function BagServicePandenlijst({
       return next;
     });
   };
+
   const selecteerPanden = (selectie: BagVerkennerPand[]) => {
     const beschikbaar = selectie.filter(pand => !blokkadeVoorPand(pand, context));
     const next = new Set([...geselecteerd, ...beschikbaar.map(pand => pand.bagPandId)]);
@@ -112,7 +116,7 @@ export default function BagServicePandenlijst({
     setGeselecteerd(next);
     setPreflight(null);
   };
-  const selecteerZichtbaar = () => selecteerPanden(zichtbaar);
+
   const promoveer = async () => {
     if (!preflight?.toegestaan) return;
     setPromotieBezig(true);
@@ -151,17 +155,26 @@ export default function BagServicePandenlijst({
       <div className="mt-3 flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
     </div>
 
-    {panden.length>0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd; selectie blijft lokaal tot de preflight.</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={selecteerZichtbaar}>Selecteer zichtbaar</Button><Button variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
+    {panden.length>0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd; selectie blijft lokaal tot de preflight.</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbaar</Button><Button variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
     {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
+
     {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Laad de eerste begrensde pagina uit de actieve BAG-dataset.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => <div key={straat}>
       <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2"><div><p className="text-sm font-medium">{straat}</p><p className="text-xs text-muted-foreground">{straatPanden.length} pand{straatPanden.length === 1 ? '' : 'en'} in de geladen filterset</p></div><Button size="sm" variant="outline" onClick={() => selecteerPanden(straatPanden)}>Selecteer straat</Button></div>
-      <div className="divide-y">{straatPanden.map(pand => { const blokkade = blokkadeVoorPand(pand, context); return <div key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`} className="flex items-start gap-3 p-4">
-        <Checkbox className="mt-1" disabled={blokkade !== null} checked={geselecteerd.has(pand.bagPandId)} onCheckedChange={() => togglePand(pand)}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<Badge variant="secondary">{REDEN_LABEL[blokkade]}</Badge>}</div>
-        <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m² totaal`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
-        <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
-        <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
-      </div><a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a></div>; })}</div>
+      <div className="divide-y">{straatPanden.map(pand => {
+        const blokkade = blokkadeVoorPand(pand, context);
+        return <div key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`} className="flex items-start gap-3 p-4">
+          <Checkbox className="mt-1" disabled={blokkade !== null} checked={geselecteerd.has(pand.bagPandId)} onCheckedChange={() => togglePand(pand)}/>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<BagCrmMatchBadge pand={pand} fallbackLabel={REDEN_LABEL[blokkade]}/>}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m² totaal`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
+            <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
+            <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
+          </div>
+          <a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a>
+        </div>;
+      })}</div>
     </div>)}</div>}
+
     {panden.length>0 && <div className="flex items-center justify-between gap-3 border-t p-4 text-xs text-muted-foreground"><span>{zichtbaar.length} zichtbaar van {panden.length} geladen</span><Button variant="outline" size="sm" disabled={laden || !heeftVolgende} onClick={() => laad(false)}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}{heeftVolgende?'Volgende 100 laden':'Einde bereikt'}</Button></div>}
     <BagHandmatigePromotieDialog open={promotieOpen} aantal={preflight?.kandidaten.length ?? 0} bezig={promotieBezig} onOpenChange={setPromotieOpen} onConfirm={promoveer}/>
   </section>;
