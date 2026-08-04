@@ -41,6 +41,9 @@ export interface SourceInventorySummary {
   metBagPandId: number;
   metVolledigAdres: number;
   metBestaandObjectId: number;
+  viaBagKoppelbaar: number;
+  viaAdresFallbackKoppelbaar: number;
+  bagVerrijkingNodig: number;
   koppelbaar: number;
   handmatigBeoordelen: number;
 }
@@ -49,6 +52,7 @@ export interface SourceInventoryReport {
   status: 'inventory_ready' | 'inventory_blocked';
   readOnly: true;
   automaticWrites: 0;
+  matchVolgorde: readonly ['bag_verblijfsobject', 'bag_pand', 'adres', 'handmatig'];
   summaries: SourceInventorySummary[];
   issues: SourceInventoryIssue[];
 }
@@ -144,6 +148,14 @@ export function inventariseerObjectIdentityBronnen(
         .filter(issue => issue.sourceType === sourceType && issue.sourceId)
         .map(issue => issue.sourceId as string),
     );
+    const metGeldigeBag = (record: ObjectIdentitySourceRecord) => Boolean(
+      (record.bagVerblijfsobjectId && BAG_ID_PATTERN.test(record.bagVerblijfsobjectId))
+      || (record.bagPandId && BAG_ID_PATTERN.test(record.bagPandId)),
+    );
+    const metVolledigAdres = (record: ObjectIdentitySourceRecord) => Boolean(
+      record.adres && record.postcode && record.plaats,
+    );
+
     return {
       sourceType,
       totaal: sourceRecords.length,
@@ -153,10 +165,15 @@ export function inventariseerObjectIdentityBronnen(
       metBagPandId: sourceRecords.filter(record =>
         Boolean(record.bagPandId && BAG_ID_PATTERN.test(record.bagPandId)),
       ).length,
-      metVolledigAdres: sourceRecords.filter(record =>
-        Boolean(record.adres && record.postcode && record.plaats),
-      ).length,
+      metVolledigAdres: sourceRecords.filter(metVolledigAdres).length,
       metBestaandObjectId: sourceRecords.filter(record => Boolean(record.bestaandObjectId)).length,
+      viaBagKoppelbaar: sourceRecords.filter(record => metGeldigeBag(record) && !issueIds.has(record.sourceId)).length,
+      viaAdresFallbackKoppelbaar: sourceRecords.filter(record =>
+        !metGeldigeBag(record) && metVolledigAdres(record) && !issueIds.has(record.sourceId),
+      ).length,
+      bagVerrijkingNodig: sourceRecords.filter(record =>
+        sourceType === 'object' && !metGeldigeBag(record) && metVolledigAdres(record),
+      ).length,
       koppelbaar: sourceRecords.filter(record => record.sourceId && !issueIds.has(record.sourceId)).length,
       handmatigBeoordelen: sourceRecords.filter(record => !record.sourceId || issueIds.has(record.sourceId)).length,
     } satisfies SourceInventorySummary;
@@ -166,6 +183,7 @@ export function inventariseerObjectIdentityBronnen(
     status: issues.length === 0 ? 'inventory_ready' : 'inventory_blocked',
     readOnly: true,
     automaticWrites: 0,
+    matchVolgorde: ['bag_verblijfsobject', 'bag_pand', 'adres', 'handmatig'],
     summaries,
     issues,
   };
