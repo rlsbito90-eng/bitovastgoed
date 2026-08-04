@@ -1,5 +1,6 @@
 -- App-brede Kadasterkosten: productcatalogus, configureerbare budgetten en auditbare kosten-events.
 -- Deze migratie voert geen Kadaster-aanvragen uit en bevat geen API-credentials.
+-- Vereist public.is_app_admin() uit de objectidentiteitsmigratie.
 
 create table if not exists public.kadaster_producten (
   code text primary key,
@@ -75,9 +76,9 @@ create policy "authenticated leest kadasterkosten" on public.kadaster_kosten_eve
 for select to authenticated using (true);
 
 create policy "admin beheert kadasterproducten" on public.kadaster_producten
-for all to authenticated using (public.has_role(auth.uid(), 'admin')) with check (public.has_role(auth.uid(), 'admin'));
+for all to authenticated using (public.is_app_admin()) with check (public.is_app_admin());
 create policy "admin beheert kadasterbudgetten" on public.kadaster_budgetten
-for all to authenticated using (public.has_role(auth.uid(), 'admin')) with check (public.has_role(auth.uid(), 'admin'));
+for all to authenticated using (public.is_app_admin()) with check (public.is_app_admin());
 
 -- Kosten-events worden later uitsluitend via een beveiligde app-brede servergateway geschreven.
 -- Browserrollen krijgen bewust geen INSERT/UPDATE/DELETE-policy.
