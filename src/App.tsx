@@ -36,6 +36,7 @@ import OffMarketPage from "@/pages/OffMarketPage";
 import VastgoedkansenPage from "@/pages/VastgoedkansenPage";
 import VastgoedkansDetailPage from "@/pages/VastgoedkansDetailPage";
 import VastgoedkansenVindenPage from "@/pages/VastgoedkansenVindenPage";
+import SnellePandcheckPage from "@/pages/SnellePandcheckPage";
 import OffMarketSignaalDetailPage from "@/pages/OffMarketSignaalDetailPage";
 import OAuthConsentPage from "@/pages/OAuthConsentPage";
 import NotFound from "@/pages/NotFound";
@@ -102,6 +103,7 @@ const App = () => (
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
                           <Route path="/vastgoedkansen/vinden" element={<VastgoedkansenVindenPage />} />
+                          <Route path="/vastgoedkansen/pandcheck" element={<SnellePandcheckPage />} />
                           <Route path="/vastgoedkansen/:id" element={<VastgoedkansDetailPage />} />
                           <Route path="/off-market" element={<OffMarketPage />} />
                           <Route path="/off-market/:id" element={<OffMarketSignaalDetailPage />} />
