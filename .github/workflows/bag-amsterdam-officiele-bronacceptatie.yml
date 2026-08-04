@@ -1,0 +1,128 @@
+name: BAG landelijk naar Amsterdam bronacceptatie
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: EXTRACT_BAG_AMSTERDAM_0363_FROM_NL'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-landelijke-bronacceptatie
+  cancel-in-progress: false
+
+jobs:
+  extract-amsterdam:
+    if: github.event.inputs.approval == 'EXTRACT_BAG_AMSTERDAM_0363_FROM_NL'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controleer gratis uitvoergrens
+        run: |
+          test "$BAG_NL_SOURCE_URL" = 'https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip'
+          df -h
+          python3 scripts/bag/test-extract-amsterdam-from-landelijk.py
+
+      - name: Download gratis officieel landelijk BAG Extract
+        run: |
+          mkdir -p bag-amsterdam-bron/download bag-amsterdam-bron/resultaat
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 10800 \
+            "$BAG_NL_SOURCE_URL" \
+            --output bag-amsterdam-bron/download/lvbag-extract-nl.zip
+          file bag-amsterdam-bron/download/lvbag-extract-nl.zip
+          unzip -t bag-amsterdam-bron/download/lvbag-extract-nl.zip
+          sha256sum bag-amsterdam-bron/download/lvbag-extract-nl.zip \
+            > bag-amsterdam-bron/resultaat/landelijke-bron.sha256
+          stat --printf='%n\t%s\n' bag-amsterdam-bron/download/lvbag-extract-nl.zip \
+            > bag-amsterdam-bron/resultaat/landelijke-bron.tsv
+
+      - name: Extraheer Amsterdam 0363 relatiebewust en streamend
+        run: |
+          python3 scripts/bag/extract-amsterdam-from-landelijk.py \
+            bag-amsterdam-bron/download/lvbag-extract-nl.zip \
+            bag-amsterdam-bron/amsterdam-0363.ndjson \
+            bag-amsterdam-bron/resultaat/amsterdam-extractie.json
+
+      - name: Valideer Amsterdam subset
+        run: |
+          python3 scripts/bag/validate-amsterdam-source.py \
+            bag-amsterdam-bron/amsterdam-0363.ndjson \
+            bag-amsterdam-bron/resultaat/amsterdam-validatie.json
+
+      - name: Maak capaciteits- en bronrapport
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('bag-amsterdam-bron')
+          extractie = json.loads((root/'resultaat/amsterdam-extractie.json').read_text())
+          validatie = json.loads((root/'resultaat/amsterdam-validatie.json').read_text())
+          bron_bytes = (root/'download/lvbag-extract-nl.zip').stat().st_size
+          subset_bytes = (root/'amsterdam-0363.ndjson').stat().st_size
+          geraamde_db_bytes = max(subset_bytes * 3, 1)
+          aanbevolen_vrij = geraamde_db_bytes * 2
+          rapport = {
+              'scope_code': '0363',
+              'bron': 'gratis landelijk BAG Extract',
+              'bron_url': 'https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip',
+              'bron_bytes': bron_bytes,
+              'subset_ndjson_bytes': subset_bytes,
+              'geraamde_database_bytes': geraamde_db_bytes,
+              'aanbevolen_vrije_database_bytes': aanbevolen_vrij,
+              'database_write_uitgevoerd': False,
+              'supabase_benaderd': False,
+              'productie_benaderd': False,
+              'extractie': extractie,
+              'validatie': validatie,
+          }
+          (root/'resultaat/capaciteitsrapport.json').write_text(
+              json.dumps(rapport, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          {
+            echo '# Amsterdam uit gratis landelijk BAG Extract'
+            echo
+            echo "Gegenereerd: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo '- Scope: 0363'
+            echo '- Database-write: nee'
+            echo '- Supabase benaderd: nee'
+            echo '- Productie-CRM benaderd: nee'
+            echo
+            echo '## Landelijke bronchecksum'
+            cat bag-amsterdam-bron/resultaat/landelijke-bron.sha256
+            echo
+            echo '## Extractie'
+            cat bag-amsterdam-bron/resultaat/amsterdam-extractie.json
+            echo
+            echo '## Validatie'
+            cat bag-amsterdam-bron/resultaat/amsterdam-validatie.json
+            echo
+            echo '## Capaciteit'
+            cat bag-amsterdam-bron/resultaat/capaciteitsrapport.json
+          } > bag-amsterdam-bron/resultaat/rapport.md
+
+      - name: Verwijder grote tijdelijke bron en subset
+        if: always()
+        run: |
+          rm -f bag-amsterdam-bron/download/lvbag-extract-nl.zip
+          rm -f bag-amsterdam-bron/amsterdam-0363.ndjson
+
+      - name: Publiceer uitsluitend compacte bewijsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-landelijke-bronacceptatie
+          if-no-files-found: warn
+          retention-days: 14
+          path: bag-amsterdam-bron/resultaat/
