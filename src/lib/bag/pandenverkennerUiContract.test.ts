@@ -24,11 +24,30 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
 
   it('bouwt een begrensde lijst zonder kaart of automatische opslag', () => {
     expect(component).toContain('const PAGE_SIZE = 100');
-    expect(component).toContain('Volgende 100 laden');
+    expect(component).toContain('Pagina 1 laden');
     expect(component).toContain('Geen kaart en geen automatische opslag.');
     expect(component).toContain('Selecteer straat');
     expect(component).not.toMatch(/maplibre|react-map|google\.com\/maps/i);
     expect(component).not.toContain('addKans');
+  });
+
+  it('toont echte pagina-navigatie en geen steeds langer wordende lijst', () => {
+    expect(component).toContain('const [paginas, setPaginas]');
+    expect(component).toContain('const [paginaIndex, setPaginaIndex]');
+    expect(component).toContain('gaNaarPagina');
+    expect(component).toContain('gaNaarVolgende');
+    expect(component).toContain('Pagina {paginaIndex + 1}');
+    expect(component).toContain('Vorige');
+    expect(component).toContain('Volgende');
+    expect(component).not.toContain('Volgende 100 laden');
+    expect(component).not.toContain('[...previous, ...nieuw]');
+  });
+
+  it('nummert panden doorlopend en biedt een naar-bovenactie', () => {
+    expect(component).toContain('paginaIndex * PAGE_SIZE + index + 1');
+    expect(component).toContain('Volgnummer');
+    expect(component).toContain('aria-label="Naar boven"');
+    expect(component).toContain("window.scrollTo({ top: 0, behavior: 'smooth' })");
   });
 
   it('houdt selectie lokaal en vereist een afzonderlijke preflight', () => {
