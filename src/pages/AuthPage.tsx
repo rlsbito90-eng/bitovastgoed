@@ -156,23 +156,29 @@ export default function AuthPage() {
           </div>
         ) : (
         <div className="glass-card p-6 sm:p-7 space-y-4 rounded-2xl">
-          <div className="grid grid-cols-1 gap-2.5">
-            <GoogleButton next={next} />
-            <AppleButton next={next} />
-          </div>
+          {AUTH_SOCIAL_ENABLED && (
+            <>
+              <div className="grid grid-cols-1 gap-2.5">
+                <GoogleButton next={next} />
+                <AppleButton next={next} />
+              </div>
 
-          <div className="relative py-1">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-[0.18em]">
-              <span className="bg-card/80 backdrop-blur px-3 text-muted-foreground rounded-full">of</span>
-            </div>
-          </div>
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-[0.18em]">
+                  <span className="bg-card/80 backdrop-blur px-3 text-muted-foreground rounded-full">of</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 h-auto p-1 gap-1 glass-card rounded-full bg-transparent">
-              <TabsTrigger value="login" className="dossier-tab-pill data-[state=active]:shadow-none">Inloggen</TabsTrigger>
-              <TabsTrigger value="signup" className="dossier-tab-pill data-[state=active]:shadow-none">Account aanvragen</TabsTrigger>
-            </TabsList>
+            {AUTH_SIGNUP_ENABLED && (
+              <TabsList className="grid w-full grid-cols-2 mb-6 h-auto p-1 gap-1 glass-card rounded-full bg-transparent">
+                <TabsTrigger value="login" className="dossier-tab-pill data-[state=active]:shadow-none">Inloggen</TabsTrigger>
+                <TabsTrigger value="signup" className="dossier-tab-pill data-[state=active]:shadow-none">Account aanvragen</TabsTrigger>
+              </TabsList>
+            )}
 
             <TabsContent value="login">
               <form onSubmit={onLogin} className="space-y-4">
@@ -206,6 +212,7 @@ export default function AuthPage() {
               </form>
             </TabsContent>
 
+            {AUTH_SIGNUP_ENABLED && (
             <TabsContent value="signup">
               <form onSubmit={onSignup} className="space-y-4">
                 <div className="space-y-1.5">
@@ -251,8 +258,10 @@ export default function AuthPage() {
                 </p>
               </form>
             </TabsContent>
+            )}
           </Tabs>
         </div>
+
         )}
 
       </div>
