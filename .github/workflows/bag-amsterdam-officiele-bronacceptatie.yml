@@ -1,0 +1,127 @@
+name: BAG Amsterdam officiële bronacceptatie
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: VALIDATE_BAG_AMSTERDAM_SOURCE_0363'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-officiele-bronacceptatie
+  cancel-in-progress: false
+
+jobs:
+  validate-source:
+    if: github.event.inputs.approval == 'VALIDATE_BAG_AMSTERDAM_SOURCE_0363'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: bag-shadow
+    env:
+      BAG_AMSTERDAM_SOURCE_URL: ${{ secrets.BAG_AMSTERDAM_SOURCE_URL }}
+      BAG_AMSTERDAM_SOURCE_SHA256: ${{ secrets.BAG_AMSTERDAM_SOURCE_SHA256 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controleer vereiste bronsecrets
+        run: |
+          test -n "$BAG_AMSTERDAM_SOURCE_URL"
+          test -n "$BAG_AMSTERDAM_SOURCE_SHA256"
+          test "${#BAG_AMSTERDAM_SOURCE_SHA256}" -eq 64
+
+      - name: Download officieel Amsterdam BAG-bronpakket
+        run: |
+          mkdir -p bag-amsterdam-bron/download bag-amsterdam-bron/unpacked
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 3600 \
+            "$BAG_AMSTERDAM_SOURCE_URL" \
+            --output bag-amsterdam-bron/download/amsterdam-0363.zip
+          printf '%s  %s\n' "$BAG_AMSTERDAM_SOURCE_SHA256" \
+            bag-amsterdam-bron/download/amsterdam-0363.zip \
+            | sha256sum --check --strict
+          file bag-amsterdam-bron/download/amsterdam-0363.zip
+          unzip -t bag-amsterdam-bron/download/amsterdam-0363.zip
+
+      - name: Pak bronpakket recursief en veilig uit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          source = Path('bag-amsterdam-bron/download/amsterdam-0363.zip')
+          target = Path('bag-amsterdam-bron/unpacked')
+          target.mkdir(parents=True, exist_ok=True)
+
+          def safe_extract(archive: zipfile.ZipFile, destination: Path) -> None:
+              root = destination.resolve()
+              for member in archive.infolist():
+                  output = (destination / member.filename).resolve()
+                  if output != root and root not in output.parents:
+                      raise RuntimeError(f'Onveilig ZIP-pad geweigerd: {member.filename}')
+              archive.extractall(destination)
+
+          def unpack_recursive(zip_path: Path, destination: Path, seen: set[Path]) -> None:
+              resolved = zip_path.resolve()
+              if resolved in seen:
+                  return
+              seen.add(resolved)
+              with zipfile.ZipFile(zip_path) as archive:
+                  safe_extract(archive, destination)
+              for nested in sorted(destination.rglob('*.zip')):
+                  nested_destination = nested.parent / '__nested__' / nested.stem
+                  unpack_recursive(nested, nested_destination, seen)
+
+          unpack_recursive(source, target, set())
+          PY
+          find bag-amsterdam-bron/unpacked -type f -printf '%P\t%s\n' \
+            | sort > bag-amsterdam-bron/bestanden-en-grootte.tsv
+
+      - name: Extraheer officiële BAG-standrecords
+        run: |
+          python3 scripts/bag/extract-officiele-records.py \
+            bag-amsterdam-bron/unpacked \
+            bag-amsterdam-bron/records.ndjson
+
+      - name: Valideer Amsterdam scope 0363
+        run: |
+          python3 scripts/bag/validate-amsterdam-source.py \
+            bag-amsterdam-bron/records.ndjson \
+            bag-amsterdam-bron/amsterdam-validatie.json
+
+      - name: Maak compact bronacceptatierapport
+        run: |
+          {
+            echo '# Amsterdam BAG-bronacceptatie'
+            echo
+            echo "Gegenereerd: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo '- Verwachte scope: 0363'
+            echo '- Database-write: nee'
+            echo '- Productie-CRM benaderd: nee'
+            echo
+            echo '## SHA-256'
+            sha256sum bag-amsterdam-bron/download/amsterdam-0363.zip
+            echo
+            echo '## Recordextractie'
+            cat bag-amsterdam-bron/records.summary.json
+            echo
+            echo '## Scopevalidatie'
+            cat bag-amsterdam-bron/amsterdam-validatie.json
+          } > bag-amsterdam-bron/rapport.md
+
+      - name: Publiceer uitsluitend compacte bewijsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-officiele-bronacceptatie
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            bag-amsterdam-bron/rapport.md
+            bag-amsterdam-bron/bestanden-en-grootte.tsv
+            bag-amsterdam-bron/records.summary.json
+            bag-amsterdam-bron/amsterdam-validatie.json
