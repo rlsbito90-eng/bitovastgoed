@@ -49,3 +49,7 @@ De volgorde is verplicht omdat kosten-events naar `crm_objectregistraties` verwi
 - nul kosten-events;
 - nul objectregistraties en bronkoppelingen totdat een aparte backfill-BUILD is goedgekeurd;
 - rapportagepagina toont nulwaarden in plaats van fictieve kosten.
+
+## Previewvalidatie
+
+Na wijziging van de Vercel-accountcapaciteit moet een nieuwe commit een volledig nieuwe previewbuild starten; een oude rate-limitstatus geldt niet als inhoudelijke codevalidatie.
