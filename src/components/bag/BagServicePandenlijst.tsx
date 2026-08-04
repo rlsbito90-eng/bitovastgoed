@@ -17,6 +17,7 @@ import { zoekPandenViaService } from '@/lib/bag/queryTransport';
 import { bepaalStraatSelectieStatus, toggleStraatSelectie } from '@/lib/bag/straatSelectie';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
+import BagScopeStatus from './BagScopeStatus';
 import {
   beoordeelBagSelectie,
   blokkadeVoorPand,
@@ -158,6 +159,7 @@ export default function BagServicePandenlijst({
         </div>
         <Button onClick={() => laad(true)} disabled={laden}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}Eerste 100 laden</Button>
       </div>
+      <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_190px_auto]">
         <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina’s op adres, plaats, postcode, BAG-ID of functie" />
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))}>
