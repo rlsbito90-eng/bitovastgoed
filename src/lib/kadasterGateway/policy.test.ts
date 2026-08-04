@@ -48,41 +48,24 @@ describe('Kadaster gateway policy', () => {
     });
   });
 
-  it('vereist expliciete goedkeuring voor betaald product', () => {
-    const result = planKadasterGatewayRequest(
-      request({ product: 'objectinformatie_koopsom' }), budget, miss,
-    );
-    expect(result).toMatchObject({
-      decision: 'manual_approval_required', estimatedCostCents: 45,
-      requiresExplicitPaidApproval: true, mayContactExternalProvider: false,
-    });
-  });
-
-  it('laat betaalde call uitsluitend toe met admin, budget en approval-id', () => {
+  it('blokkeert alle betaalde producten tot Tranche D', () => {
     const result = planKadasterGatewayRequest(
       request({ product: 'objectinformatie_koopsom', explicitPaidApprovalId: 'approval-1' }), budget, miss,
     );
     expect(result).toMatchObject({
-      decision: 'allow_paid_call', estimatedCostCents: 45, mayContactExternalProvider: true,
+      status: 'gateway_blocked', decision: 'blocked', reason: 'product_niet_ingeschakeld_in_omgeving',
+      estimatedCostCents: 45, mayContactExternalProvider: false,
     });
   });
 
-  it('blokkeert betaalde call bij budgetstop', () => {
+  it('blokkeert eigenaarinformatie eveneens volledig', () => {
     const result = planKadasterGatewayRequest(
-      request({ product: 'objectinformatie_koopsom', explicitPaidApprovalId: 'approval-1' }),
-      { ...budget, hardBlock: true },
-      miss,
+      request({ product: 'objectinformatie_rechten' }), budget, miss,
     );
-    expect(result).toMatchObject({ status: 'gateway_blocked', reason: 'budget_blokkeert' });
-  });
-
-  it('blokkeert eigenaarinformatie voor niet-admin', () => {
-    const result = planKadasterGatewayRequest(
-      request({ product: 'objectinformatie_rechten', actor: { userId: 'user-2', role: 'user' } }),
-      budget,
-      miss,
-    );
-    expect(result).toMatchObject({ status: 'gateway_blocked', reason: 'product_niet_ingeschakeld_in_omgeving' });
+    expect(result).toMatchObject({
+      status: 'gateway_blocked', reason: 'product_niet_ingeschakeld_in_omgeving',
+      mayExposeOwnerPii: false, mayContactExternalProvider: false,
+    });
   });
 
   it('maakt deterministische cachekey met BAG-prioriteit', () => {
