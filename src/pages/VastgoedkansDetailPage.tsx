@@ -19,6 +19,7 @@ import {
   bewaarVastgoedkansWerkcontext, bepaalPrimaireWerkTab, bepaalWerkcontextNavigatie, bouwEigenaarGoogleUrl,
   type VastgoedkansWerkTab,
 } from '@/lib/vastgoedkansWorkspace';
+import { vastgoedkansNaarDossierContext } from '@/lib/acquisitieDossierAdapters';
 
 const selectClass = 'h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm';
 
@@ -46,6 +47,10 @@ export default function VastgoedkansDetailPage() {
 
   const ids = useMemo(() => kansen.map((item) => item.id), [kansen]);
   const nav = useMemo(() => bepaalWerkcontextNavigatie(ids, id), [ids, id]);
+  const dossierContext = useMemo(
+    () => kans ? vastgoedkansNaarDossierContext(kans as any) : null,
+    [kans],
+  );
 
   useEffect(() => {
     if (!kans) return;
@@ -88,9 +93,6 @@ export default function VastgoedkansDetailPage() {
         <Badge>{STATUS_LABEL[(form.status ?? kans.status) as VastgoedkansStatus]}</Badge>
         <Badge variant="outline">{PRIORITEIT_LABEL[kans.prioriteit]}</Badge>
         {adres && <Button asChild size="sm" variant="outline"><a href={mapsUrl} target="_blank" rel="noreferrer"><MapPin className="mr-1.5 h-4 w-4" />Kaart</a></Button>}
-        <Button size="sm" variant="outline" onClick={() => setTab('kadaster')}><Landmark className="mr-1.5 h-4 w-4" />Kadaster & eigenaar</Button>
-        <Button size="sm" variant="outline" onClick={() => setTab('brieven')}><Mail className="mr-1.5 h-4 w-4" />Brief & opvolging</Button>
-        {googleEigenaarUrl && <Button asChild size="sm" variant="outline"><a href={googleEigenaarUrl} target="_blank" rel="noreferrer"><Search className="mr-1.5 h-4 w-4" />Zoek eigenaar</a></Button>}
       </div>
     </section>
 
@@ -127,7 +129,7 @@ export default function VastgoedkansDetailPage() {
 
       <TabsContent value="dossier" className="space-y-4">
         <section className="section-card p-4 sm:p-5"><div className="flex items-center gap-2"><FileText className="h-4 w-4" /><h2 className="font-medium">Dossiernotities</h2></div><Textarea className="mt-4" rows={8} value={form.onderzoeksnotities ?? ''} onChange={(e) => setForm({ ...form, onderzoeksnotities: e.target.value })} /></section>
-        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">BAG-context</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">BAG-pand-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagPandId || 'Niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-verblijfsobject-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagVerblijfsobjectId || 'Niet gekoppeld'}</p></div></div></section>
+        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">CRM-dossiercontext</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Bron</p><p className="mt-1 text-sm">Vastgoedkans · {dossierContext?.bronId}</p></div><div><p className="text-xs text-muted-foreground">Centraal Object-ID</p><p className="mt-1 break-all font-mono-data text-sm">{dossierContext?.objectId || 'Nog niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-pand-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagPandId || 'Niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-verblijfsobject-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagVerblijfsobjectId || 'Niet gekoppeld'}</p></div></div></section>
       </TabsContent>
     </Tabs>
   </div>;
