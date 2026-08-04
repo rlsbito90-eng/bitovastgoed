@@ -1,0 +1,86 @@
+name: BAG Amsterdam metadata-chunkpilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: BUILD_BAG_AMSTERDAM_METADATA_CHUNK'
+        required: true
+        type: string
+      chunk_id:
+        description: 'Pilotchunk'
+        required: true
+        default: 'chunk-01'
+        type: choice
+        options:
+          - chunk-01
+          - chunk-02
+          - chunk-03
+          - chunk-04
+          - chunk-05
+          - chunk-06
+          - chunk-07
+          - chunk-08
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-metadata-${{ inputs.chunk_id }}
+  cancel-in-progress: false
+
+jobs:
+  metadata-chunk:
+    if: github.event.inputs.approval == 'BUILD_BAG_AMSTERDAM_METADATA_CHUNK'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valideer lokale chunkextractor
+        run: python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+
+      - name: Download officiële landelijke BAG-bron
+        run: |
+          mkdir -p bag-amsterdam-metadata/download bag-amsterdam-metadata/resultaat
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 10800 \
+            "$BAG_NL_SOURCE_URL" \
+            --output bag-amsterdam-metadata/download/lvbag-extract-nl.zip
+          unzip -t bag-amsterdam-metadata/download/lvbag-extract-nl.zip
+
+      - name: Bouw hetzelfde deterministische acht-chunkmanifest
+        run: |
+          python3 scripts/bag/build-amsterdam-chunk-manifest.py \
+            bag-amsterdam-metadata/download/lvbag-extract-nl.zip \
+            bag-amsterdam-metadata/resultaat/bron-en-chunkmanifest.json \
+            --chunks 8
+
+      - name: Extraheer metadata voor gekozen chunk
+        run: |
+          timeout --signal=TERM --kill-after=2m 260m \
+            python3 scripts/bag/extract-amsterdam-metadata-chunk.py \
+              bag-amsterdam-metadata/download/lvbag-extract-nl.zip \
+              bag-amsterdam-metadata/resultaat/bron-en-chunkmanifest.json \
+              '${{ inputs.chunk_id }}' \
+              bag-amsterdam-metadata/resultaat/${{ inputs.chunk_id }}-metadata.ndjson.gz \
+              bag-amsterdam-metadata/resultaat/${{ inputs.chunk_id }}-rapport.json
+
+      - name: Verwijder grote bron en volledig manifest
+        if: always()
+        run: |
+          rm -f bag-amsterdam-metadata/download/lvbag-extract-nl.zip
+          rm -f bag-amsterdam-metadata/resultaat/bron-en-chunkmanifest.json
+
+      - name: Publiceer compacte chunkmetadata en rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-metadata-${{ inputs.chunk_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: bag-amsterdam-metadata/resultaat/
