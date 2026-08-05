@@ -2,8 +2,8 @@
 """Bouw een deterministisch bron- en chunkmanifest voor landelijke BAG-extractie.
 
 De tool inspecteert XML-bestanden, ook in geneste ZIP-bestanden, en verdeelt ze
-reproduceerbaar over maximaal acht chunks. Er worden geen database- of
-netwerkaanroepen uitgevoerd.
+reproduceerbaar over maximaal acht chunks. De bronchecksum wordt streaming
+berekend; er worden geen database- of netwerkaanroepen uitgevoerd.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+BUFFER_SIZE = 8 * 1024 * 1024
+
 
 @dataclass(frozen=True)
 class BronOnderdeel:
@@ -26,6 +28,14 @@ class BronOnderdeel:
     uncompressed_bytes: int
     crc32: str
     fingerprint: str
+
+
+def streaming_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(BUFFER_SIZE):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _fingerprint(bronpad: str, compressed_bytes: int, uncompressed_bytes: int, crc: int) -> str:
@@ -47,18 +57,13 @@ def _inspect_archive(archive: zipfile.ZipFile, bronpad: str = "") -> list[BronOn
                     compressed_bytes=member.compress_size,
                     uncompressed_bytes=member.file_size,
                     crc32=f"{member.CRC:08x}",
-                    fingerprint=_fingerprint(
-                        pad,
-                        member.compress_size,
-                        member.file_size,
-                        member.CRC,
-                    ),
+                    fingerprint=_fingerprint(pad, member.compress_size, member.file_size, member.CRC),
                 )
             )
         elif lower.endswith(".zip"):
             with tempfile.NamedTemporaryFile(suffix=".zip") as tijdelijk:
                 with archive.open(member) as source:
-                    shutil.copyfileobj(source, tijdelijk, length=8 * 1024 * 1024)
+                    shutil.copyfileobj(source, tijdelijk, length=BUFFER_SIZE)
                 tijdelijk.flush()
                 with zipfile.ZipFile(tijdelijk.name) as nested:
                     onderdelen.extend(_inspect_archive(nested, pad))
@@ -78,10 +83,7 @@ def verdeel(onderdelen: Iterable[BronOnderdeel], chunk_count: int) -> list[dict]
         {"chunk_id": f"chunk-{index + 1:02d}", "uncompressed_bytes": 0, "onderdelen": []}
         for index in range(chunk_count)
     ]
-    gesorteerd = sorted(
-        onderdelen,
-        key=lambda item: (-item.uncompressed_bytes, item.bronpad),
-    )
+    gesorteerd = sorted(onderdelen, key=lambda item: (-item.uncompressed_bytes, item.bronpad))
     for onderdeel in gesorteerd:
         bucket = min(buckets, key=lambda item: (item["uncompressed_bytes"], item["chunk_id"]))
         bucket["onderdelen"].append(onderdeel.bronpad)
@@ -95,12 +97,11 @@ def verdeel(onderdelen: Iterable[BronOnderdeel], chunk_count: int) -> list[dict]
 
 def bouw_manifest(source: Path, chunk_count: int) -> dict:
     onderdelen = inventariseer(source)
-    bron_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     chunks = verdeel(onderdelen, chunk_count)
     return {
         "schema_version": 1,
         "bronbestand": source.name,
-        "bron_sha256": bron_sha256,
+        "bron_sha256": streaming_sha256(source),
         "bron_bytes": source.stat().st_size,
         "aantal_brononderdelen": len(onderdelen),
         "chunk_count": chunk_count,
