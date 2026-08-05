@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OptionalDateField } from '@/components/forms/OptionalDateField';
+import AcquisitieEigenaarWerkstroomKaart from '@/components/acquisitie/AcquisitieEigenaarWerkstroomKaart';
+import VastgoedkansOnderzoekWerkplek from '@/components/acquisitie/VastgoedkansOnderzoekWerkplek';
 import { useVastgoedkansen, type KansInput } from '@/hooks/useVastgoedkansen';
 import {
   BRIEF_LABEL, EIGENAAR_LABEL, KADASTER_LABEL, PRIORITEIT_LABEL, REACTIE_LABEL, STATUS_LABEL,
@@ -19,6 +21,9 @@ import {
   bewaarVastgoedkansWerkcontext, bepaalPrimaireWerkTab, bepaalWerkcontextNavigatie, bouwEigenaarGoogleUrl,
   type VastgoedkansWerkTab,
 } from '@/lib/vastgoedkansWorkspace';
+import { vastgoedkansNaarDossierContext } from '@/lib/acquisitieDossierAdapters';
+import { bouwAcquisitieEigenaarWerkstroomModel } from '@/lib/acquisitieEigenaarWerkstroom';
+import { bouwVastgoedkansOnderzoekModel } from '@/lib/vastgoedkansOnderzoek';
 
 const selectClass = 'h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm';
 
@@ -46,6 +51,19 @@ export default function VastgoedkansDetailPage() {
 
   const ids = useMemo(() => kansen.map((item) => item.id), [kansen]);
   const nav = useMemo(() => bepaalWerkcontextNavigatie(ids, id), [ids, id]);
+  const dossierContext = useMemo(() => kans ? vastgoedkansNaarDossierContext(kans as any) : null, [kans]);
+  const onderzoekModel = useMemo(() => kans ? bouwVastgoedkansOnderzoekModel(kans) : null, [kans]);
+  const eigenaarWerkstroom = useMemo(
+    () => dossierContext ? bouwAcquisitieEigenaarWerkstroomModel({
+      dossier: dossierContext,
+      status: form.eigenaarStatus ?? kans?.eigenaarStatus,
+      eigenaarNaam: form.eigenaarNaam ?? kans?.eigenaarNaam,
+      eigenaarBron: form.eigenaarBron ?? kans?.eigenaarBron,
+      kadastraleAanduiding: form.kadastraleAanduiding ?? kans?.kadastraleAanduiding,
+      laatstGecontroleerdOp: form.eigenaarLaatstGecontroleerdOp ?? form.kadasterLaatstGecontroleerdOp ?? kans?.eigenaarLaatstGecontroleerdOp,
+    }) : null,
+    [dossierContext, form, kans],
+  );
 
   useEffect(() => {
     if (!kans) return;
@@ -70,6 +88,17 @@ export default function VastgoedkansDetailPage() {
     const status: VastgoedkansStatus = value === 'interesse' ? 'positieve_reactie' : value === 'geen_interesse' ? 'afgevallen' : value === 'later_contact' ? 'wachten' : value === 'reactie_ontvangen' ? 'opvolgen' : form.status ?? kans.status;
     setForm({ ...form, reactieStatus: value, status, briefStatus: value === 'geen_reactie' ? form.briefStatus : 'reactie_ontvangen' });
   };
+  const scrollNaar = (targetId: string) => requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  const openOnderzoek = () => scrollNaar('vastgoedkans-kadasteronderzoek');
+  const openEigenaarZoeken = () => {
+    if (googleEigenaarUrl) window.open(googleEigenaarUrl, '_blank', 'noopener,noreferrer');
+    else scrollNaar('vastgoedkans-eigenaaronderzoek');
+  };
+  const openRelatieKoppelen = () => {
+    scrollNaar('vastgoedkans-eigenaaronderzoek');
+    toast.info('De gedeelde CRM-relatiekoppeling wordt in een volgende tranche aangesloten.');
+  };
+  const openBriefVoorbereiden = () => setTab('brieven');
 
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
     <div className="mb-3 flex items-center justify-between gap-2">
@@ -88,36 +117,31 @@ export default function VastgoedkansDetailPage() {
         <Badge>{STATUS_LABEL[(form.status ?? kans.status) as VastgoedkansStatus]}</Badge>
         <Badge variant="outline">{PRIORITEIT_LABEL[kans.prioriteit]}</Badge>
         {adres && <Button asChild size="sm" variant="outline"><a href={mapsUrl} target="_blank" rel="noreferrer"><MapPin className="mr-1.5 h-4 w-4" />Kaart</a></Button>}
-        <Button size="sm" variant="outline" onClick={() => setTab('kadaster')}><Landmark className="mr-1.5 h-4 w-4" />Kadaster & eigenaar</Button>
-        <Button size="sm" variant="outline" onClick={() => setTab('brieven')}><Mail className="mr-1.5 h-4 w-4" />Brief & opvolging</Button>
-        {googleEigenaarUrl && <Button asChild size="sm" variant="outline"><a href={googleEigenaarUrl} target="_blank" rel="noreferrer"><Search className="mr-1.5 h-4 w-4" />Zoek eigenaar</a></Button>}
       </div>
     </section>
 
     <Tabs value={tab} onValueChange={(value) => setTab(value as VastgoedkansWerkTab)}>
       <TabsList className="mb-4 h-auto max-w-full justify-start overflow-x-auto bg-muted/50 p-1">
         <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+        <TabsTrigger value="onderzoek">Onderzoek</TabsTrigger>
         <TabsTrigger value="kadaster">Kadaster & eigenaar</TabsTrigger>
         <TabsTrigger value="brieven">Brieven & opvolging</TabsTrigger>
         <TabsTrigger value="dossier">Dossier</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overzicht" className="space-y-4">
-        <section className="section-card p-4 sm:p-5">
-          <h2 className="font-medium">Volgende stap</h2>
-          <p className="mt-1 text-sm text-muted-foreground">De werkbank toont alleen wat nu nodig is. Verdieping staat in de andere tabs.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div>
-            <div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div>
-            <div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div>
-          </div>
-        </section>
+        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Volgende stap</h2><p className="mt-1 text-sm text-muted-foreground">De werkbank toont alleen wat nu nodig is. Verdieping staat in de andere tabs.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div></div></section>
         <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Pand</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Adres</p><p className="mt-1 text-sm">{adres || 'Niet ingevuld'}</p></div><div><p className="text-xs text-muted-foreground">Type</p><p className="mt-1 text-sm">{kans.typeVastgoed || 'Niet ingevuld'}</p></div></div>{kans.redenInteressant && <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{kans.redenInteressant}</p>}</section>
       </TabsContent>
 
+      <TabsContent value="onderzoek" className="space-y-4">
+        {onderzoekModel && <VastgoedkansOnderzoekWerkplek model={onderzoekModel} onOpenKadaster={() => setTab('kadaster')} />}
+      </TabsContent>
+
       <TabsContent value="kadaster" className="space-y-4">
-        <section className="section-card p-4 sm:p-5"><div className="flex items-center gap-2"><Landmark className="h-4 w-4" /><h2 className="font-medium">Kadasteronderzoek</h2></div><p className="mt-1 text-xs text-muted-foreground">Zelfde handmatige uitgangspunt als Off-Market Radar; geen automatische bestelling of eigenaarsovername.</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.kadasterStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, kadasterStatus: e.target.value as KadasterOnderzoekStatus })}>{Object.entries(KADASTER_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.kadasterLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, kadasterLaatstGecontroleerdOp: value })} /><div className="sm:col-span-2"><Label>Kadastrale aanduiding</Label><Input value={form.kadastraleAanduiding ?? ''} onChange={(e) => setForm({ ...form, kadastraleAanduiding: e.target.value })} /></div></div></section>
-        <section className="section-card p-4 sm:p-5"><div className="flex items-center gap-2"><UserSearch className="h-4 w-4" /><h2 className="font-medium">Eigenaar</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.eigenaarStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, eigenaarStatus: e.target.value as EigenaarOnderzoekStatus })}>{Object.entries(EIGENAAR_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.eigenaarLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, eigenaarLaatstGecontroleerdOp: value })} /><div><Label>Eigenaar / rechthebbende</Label><Input value={form.eigenaarNaam ?? ''} onChange={(e) => setForm({ ...form, eigenaarNaam: e.target.value })} /></div><div><Label>Bron</Label><Input value={form.eigenaarBron ?? ''} onChange={(e) => setForm({ ...form, eigenaarBron: e.target.value })} /></div></div>{googleEigenaarUrl && <Button asChild className="mt-4" variant="outline"><a href={googleEigenaarUrl} target="_blank" rel="noreferrer"><Search className="mr-1.5 h-4 w-4" />Zoek naam op Google<ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a></Button>}</section>
+        {eigenaarWerkstroom && <AcquisitieEigenaarWerkstroomKaart model={eigenaarWerkstroom} onOpenOnderzoek={openOnderzoek} onOpenEigenaarZoeken={openEigenaarZoeken} onOpenRelatieKoppelen={openRelatieKoppelen} onOpenBriefVoorbereiden={openBriefVoorbereiden} />}
+        <section id="vastgoedkans-kadasteronderzoek" className="section-card scroll-mt-24 p-4 sm:p-5"><div className="flex items-center gap-2"><Landmark className="h-4 w-4" /><h2 className="font-medium">Kadasteronderzoek</h2></div><p className="mt-1 text-xs text-muted-foreground">Handmatige registratie; er wordt geen product besteld en geen eigenaar automatisch overgenomen.</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.kadasterStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, kadasterStatus: e.target.value as KadasterOnderzoekStatus })}>{Object.entries(KADASTER_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.kadasterLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, kadasterLaatstGecontroleerdOp: value })} /><div className="sm:col-span-2"><Label>Kadastrale aanduiding</Label><Input value={form.kadastraleAanduiding ?? ''} onChange={(e) => setForm({ ...form, kadastraleAanduiding: e.target.value })} /></div></div></section>
+        <section id="vastgoedkans-eigenaaronderzoek" className="section-card scroll-mt-24 p-4 sm:p-5"><div className="flex items-center gap-2"><UserSearch className="h-4 w-4" /><h2 className="font-medium">Eigenaar</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.eigenaarStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, eigenaarStatus: e.target.value as EigenaarOnderzoekStatus })}>{Object.entries(EIGENAAR_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.eigenaarLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, eigenaarLaatstGecontroleerdOp: value })} /><div><Label>Eigenaar / rechthebbende</Label><Input value={form.eigenaarNaam ?? ''} onChange={(e) => setForm({ ...form, eigenaarNaam: e.target.value })} /></div><div><Label>Bron</Label><Input value={form.eigenaarBron ?? ''} onChange={(e) => setForm({ ...form, eigenaarBron: e.target.value })} /></div></div>{googleEigenaarUrl && <Button asChild className="mt-4" variant="outline"><a href={googleEigenaarUrl} target="_blank" rel="noreferrer"><Search className="mr-1.5 h-4 w-4" />Zoek naam op Google<ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a></Button>}</section>
       </TabsContent>
 
       <TabsContent value="brieven" className="space-y-4">
@@ -127,7 +151,7 @@ export default function VastgoedkansDetailPage() {
 
       <TabsContent value="dossier" className="space-y-4">
         <section className="section-card p-4 sm:p-5"><div className="flex items-center gap-2"><FileText className="h-4 w-4" /><h2 className="font-medium">Dossiernotities</h2></div><Textarea className="mt-4" rows={8} value={form.onderzoeksnotities ?? ''} onChange={(e) => setForm({ ...form, onderzoeksnotities: e.target.value })} /></section>
-        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">BAG-context</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">BAG-pand-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagPandId || 'Niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-verblijfsobject-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagVerblijfsobjectId || 'Niet gekoppeld'}</p></div></div></section>
+        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">CRM-dossiercontext</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Bron</p><p className="mt-1 text-sm">Vastgoedkans · {dossierContext?.bronId}</p></div><div><p className="text-xs text-muted-foreground">Centraal Object-ID</p><p className="mt-1 break-all font-mono-data text-sm">{dossierContext?.objectId || 'Nog niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-pand-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagPandId || 'Niet gekoppeld'}</p></div><div><p className="text-xs text-muted-foreground">BAG-verblijfsobject-ID</p><p className="mt-1 break-all font-mono-data text-sm">{kans.bagVerblijfsobjectId || 'Niet gekoppeld'}</p></div></div></section>
       </TabsContent>
     </Tabs>
   </div>;
