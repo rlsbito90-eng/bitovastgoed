@@ -1,6 +1,6 @@
 import type { Vastgoedkans } from '@/lib/vastgoedkansen';
 
-export type VastgoedkansWerkTab = 'overzicht' | 'onderzoek' | 'kadaster' | 'brieven' | 'dossier';
+export type VastgoedkansWerkTab = 'overzicht' | 'kadaster' | 'brieven' | 'dossier';
 
 export interface VastgoedkansWerkcontext {
   tab: VastgoedkansWerkTab;
@@ -14,7 +14,6 @@ export interface VastgoedkansWerkcontext {
 const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
 
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
-  if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
   if (kans.kadasterStatus !== 'gegevens_bekend' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
   if (kans.briefStatus !== 'verzonden' && kans.briefStatus !== 'reactie_ontvangen') return 'brieven';
   return kans.status === 'opvolgen' || kans.status === 'wachten' ? 'brieven' : 'overzicht';
@@ -38,7 +37,7 @@ export function leesVastgoedkansWerkcontext(): VastgoedkansWerkcontext | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as VastgoedkansWerkcontext;
-    if (!value?.kansId || !['overzicht', 'onderzoek', 'kadaster', 'brieven', 'dossier'].includes(value.tab)) return null;
+    if (!value?.kansId || !['overzicht', 'kadaster', 'brieven', 'dossier'].includes(value.tab)) return null;
     return value;
   } catch {
     return null;
