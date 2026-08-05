@@ -43,6 +43,14 @@ function waarde(value: unknown, suffix = ''): string {
   return value == null || value === '' ? '—' : `${String(value)}${suffix}`;
 }
 
+function formatPercentage(value: unknown): string {
+  if (value == null || value === '') return '—';
+  const numeriek = Number(value);
+  if (!Number.isFinite(numeriek)) return '—';
+  const percentage = Math.abs(numeriek) <= 1 ? numeriek * 100 : numeriek;
+  return `${new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 1 }).format(percentage)}%`;
+}
+
 function isInvulElement(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
@@ -124,7 +132,8 @@ export default function OffMarketSignaalReviewPage() {
                 patch: { status: vorigeStatus, prioriteit: vorigePrioriteit },
               });
               herstelLokaleWerkvoorraad(lokaleLijst.bestaand);
-              toast.success('Vorige status en prioriteit hersteld.');
+              gaNaar(signaalId);
+              toast.success('Beoordeling ongedaan gemaakt · signaal opnieuw geopend.');
             } catch (e: any) {
               toast.error(e?.message ?? 'Herstellen mislukt.');
             }
@@ -278,10 +287,17 @@ export default function OffMarketSignaalReviewPage() {
 
       {(s.ai_score != null || s.ai_samenvatting || s.ai_aanbevolen_actie) && (
         <details className="section-card p-4 sm:p-5 group">
-          <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2">
+          <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-semibold">AI-analyse</span>
-            <span className="text-xs text-muted-foreground">
-              Score {waarde(s.ai_score)} · Verkoopkans {waarde(s.ai_verkoopkans, '%')}
+            <span className="flex items-center gap-2 sm:gap-3">
+              <span className="rounded-md border border-border/70 bg-muted/30 px-3 py-1.5 text-center">
+                <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">Score</span>
+                <strong className="block text-base leading-none tabular-nums text-foreground">{waarde(s.ai_score)}</strong>
+              </span>
+              <span className="rounded-md border border-border/70 bg-muted/30 px-3 py-1.5 text-center">
+                <span className="block text-[9px] uppercase tracking-wider text-muted-foreground">Verkoopkans</span>
+                <strong className="block text-base leading-none tabular-nums text-foreground">{formatPercentage(s.ai_verkoopkans)}</strong>
+              </span>
             </span>
           </summary>
           <div className="mt-4"><SignaalAiAnalyse signaal={signaal} /></div>
