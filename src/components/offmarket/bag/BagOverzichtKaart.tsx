@@ -7,12 +7,11 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useBagVerrijken } from '@/hooks/useBagVerrijken';
 import { useEnrichSignaal } from '@/hooks/useEnrichSignaal';
+import { offMarketSignaalNaarBagContext } from '@/lib/acquisitieBagAdapters';
 import { berekenKadasteradvies } from '@/lib/offMarket/bag/kadasteradvies';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import { BAG_STATUS_LABEL } from '@/lib/offMarket/bag/types';
-import type {
-  BagStatus, BagVbo, BagMatchKandidaat, SignaalBagInput,
-} from '@/lib/offMarket/bag/types';
+import type { SignaalBagInput } from '@/lib/offMarket/bag/types';
 import KadasteradviesBadge from './KadasteradviesBadge';
 import BagVboLijst from './BagVboLijst';
 import BagMatchResolver from './BagMatchResolver';
@@ -30,37 +29,38 @@ function fmtNum(v: number | null | undefined, suffix = '') {
 
 export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const s = signaal as unknown as Record<string, unknown> & OffMarketSignaal;
-  const bagStatus = (s.bag_status as BagStatus | null | undefined) ?? 'niet_verrijkt';
-  const matchKw = (s.bag_match_kwaliteit as string | null | undefined) ?? null;
-  const totaalOpp = (s.bag_totaal_oppervlakte_m2 as number | null | undefined) ?? null;
-  const aantalVbo = (s.bag_aantal_vbo as number | null | undefined) ?? null;
-  const aantalPanden = (s.bag_aantal_panden as number | null | undefined) ?? null;
-  const gebruiksdoelen = (s.bag_gebruiksdoelen as string[] | null | undefined) ?? [];
-  const bouwjaar = (s.bag_bouwjaar as number | null | undefined) ?? null;
-  const pandStatus = (s.bag_pand_status as string | null | undefined) ?? null;
-  const vbos = (s.bag_vbos as unknown as BagVbo[] | null | undefined) ?? null;
-  const foutmelding = (s.bag_foutmelding as string | null | undefined) ?? null;
+  const context = offMarketSignaalNaarBagContext(signaal);
+  const {
+    status: bagStatus,
+    matchKwaliteit: matchKw,
+    totaalOppervlakteM2: totaalOpp,
+    aantalVbos: aantalVbo,
+    aantalPanden,
+    gebruiksdoelen,
+    bouwjaar,
+    pandStatus,
+    vbos,
+    foutmelding,
+    kandidaten,
+    doelVboId: gekozenVboId,
+    doelNummeraanduidingId: gekozenNaId,
+    doelAdres: gekozenAdres,
+    doelOppervlakteM2: gekozenOpp,
+    doelGebruiksdoelen: gekozenGebruik,
+    pandcontextIncompleet,
+    pandcontextBron,
+    vereistMatchkeuze,
+    heeftGeldigeMatch,
+  } = context;
+  const pandAantalVbo = context.aantalVbos;
+  const pandTotaalOpp = context.totaalOppervlakteM2;
 
-  // V2.4
-  const kandidaten = (s.bag_match_kandidaten as unknown as BagMatchKandidaat[] | null | undefined) ?? null;
-  const gekozenVboId = (s.bag_geselecteerd_vbo_id as string | null | undefined) ?? null;
-  const gekozenNaId = (s.bag_geselecteerd_nummeraanduiding_id as string | null | undefined) ?? null;
-  const gekozenAdres = (s.bag_geselecteerd_adres as string | null | undefined) ?? null;
-  const gekozenOpp = (s.bag_geselecteerd_opp_m2 as number | null | undefined) ?? null;
-  const gekozenGebruik = (s.bag_geselecteerd_gebruiksdoel as string[] | null | undefined) ?? null;
-  const pandAantalVbo = (s.bag_pandcontext_aantal_vbo as number | null | undefined) ?? aantalVbo;
-  const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
-  const pandcontextIncompleet = (s.bag_pandcontext_incompleet as boolean | null | undefined) === true;
-  const pandcontextBron = (s.bag_pandcontext_bron as string | null | undefined) ?? null;
-
-  const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
-  const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
+  const toonResolver = context.kandidaten.length > 0 || vereistMatchkeuze;
   const bagVerrijkt = bagStatus === 'verrijkt';
 
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
   // V2.5 — toon definitief advies pas wanneer BAG echt verrijkt is.
   const adviesToegestaan = bagVerrijkt;
-
 
   const bag = useBagVerrijken();
   const ai = useEnrichSignaal();
@@ -127,16 +127,15 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           </Button>
           <Button
             size="sm"
-            onClick={bagVerrijkt ? onOpenKadaster : undefined}
-            disabled={!bagVerrijkt}
-            aria-disabled={!bagVerrijkt}
-            title={!bagVerrijkt ? 'Kies eerst een geldige BAG-match.' : undefined}
+            onClick={heeftGeldigeMatch && !vereistMatchkeuze ? onOpenKadaster : undefined}
+            disabled={!heeftGeldigeMatch || vereistMatchkeuze}
+            aria-disabled={!heeftGeldigeMatch || vereistMatchkeuze}
+            title={!heeftGeldigeMatch || vereistMatchkeuze ? 'Kies eerst een geldige BAG-match.' : undefined}
             data-testid="kadaster-ophalen-knop"
           >
             <FileSearch className="h-3.5 w-3.5" />
             Kadaster ophalen
           </Button>
-
         </div>
       </div>
 
@@ -147,8 +146,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         </div>
       )}
 
-      {/* V2.4 — Multiple-match resolver bovenaan */}
-      {toonResolver && kandidaten && kandidaten.length > 0 && (
+      {toonResolver && kandidaten.length > 0 && (
         <BagMatchResolver
           signaalId={signaal.id}
           kandidaten={kandidaten}
@@ -156,55 +154,38 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         />
       )}
 
-      {toonResolver && (!kandidaten || kandidaten.length === 0) && (
+      {toonResolver && kandidaten.length === 0 && (
         <div
           data-testid="bag-resolver-leeg-waarschuwing"
-          data-variant={kandidaten == null ? 'oude_data' : 'geen_kandidaten'}
+          data-variant="geen_kandidaten"
           className="text-xs text-amber-900 bg-amber-50/70 border border-amber-300/60 rounded-md p-2.5"
         >
-          {kandidaten == null
-            ? 'Dit signaal heeft nog oude BAG-matchdata zonder kandidaten. Klik op BAG verrijken om kandidaten op te halen.'
-            : 'Er zijn geen bruikbare BAG-kandidaten opgeslagen. Controleer het signaaladres of probeer te zoeken op postcode + huisnummer.'}
+          Er zijn geen bruikbare BAG-kandidaten opgeslagen. Controleer het signaaladres of probeer te zoeken op postcode + huisnummer.
         </div>
       )}
 
-      {/* V2.4 — Doelobject */}
-      {gekozenAdres && (() => {
-        const doel = vbos?.find((v) =>
-          v.is_doelobject === true ||
-          (gekozenVboId && v.vbo_id === gekozenVboId) ||
-          (gekozenNaId && v.nummeraanduiding_id === gekozenNaId),
-        ) ?? null;
-        const gebruik = (gekozenGebruik?.length ? gekozenGebruik : doel?.gebruiksdoel) ?? [];
-        const opp = gekozenOpp ?? doel?.opp_m2 ?? null;
-        const vboId = gekozenVboId || doel?.vbo_id || null;
-        const pandId = doel?.pandid ?? null;
-        const bj = doel?.pand_bouwjaar ?? bouwjaar ?? null;
-        const ps = doel?.pand_status ?? pandStatus ?? null;
-        return (
-          <div data-testid="bag-doelobject-sectie" className="rounded-md border border-border bg-card/60 p-3 space-y-1.5">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Doelobject</p>
-            <p className="text-sm text-foreground" data-testid="bag-doelobject-adres">{gekozenAdres}</p>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
-              <div className="flex gap-1.5"><dt className="text-foreground/70">Gebruiksdoel:</dt><dd className="text-foreground" data-testid="bag-doelobject-gebruik">{gebruik.length ? gebruik.map((g) => g.charAt(0).toUpperCase() + g.slice(1)).join(', ') : '—'}</dd></div>
-              <div className="flex gap-1.5"><dt className="text-foreground/70">Oppervlakte:</dt><dd className="text-foreground" data-testid="bag-doelobject-opp">{opp != null ? `${opp} m²` : '—'}</dd></div>
-              <div className="flex gap-1.5 min-w-0 sm:col-span-2">
-                <dt className="text-foreground/70 shrink-0">Verblijfsobject-ID:</dt>
-                <dd className="min-w-0 flex-1"><BagIdCopy value={vboId} testId="bag-doelobject-vboid" ariaLabel="Kopieer VBO-ID" /></dd>
-              </div>
-              <div className="flex gap-1.5 min-w-0 sm:col-span-2">
-                <dt className="text-foreground/70 shrink-0">Pand-ID:</dt>
-                <dd className="min-w-0 flex-1"><BagIdCopy value={pandId} testId="bag-doelobject-pandid" ariaLabel="Kopieer Pand-ID" /></dd>
-              </div>
-              <div className="flex gap-1.5"><dt className="text-foreground/70">Oorspronkelijk bouwjaar:</dt><dd className="text-foreground" data-testid="bag-doelobject-bouwjaar">{bj ?? '—'}</dd></div>
-              <div className="flex gap-1.5"><dt className="text-foreground/70">Pandstatus:</dt><dd className="text-foreground" data-testid="bag-doelobject-pandstatus">{ps || '—'}</dd></div>
-              <div className="flex gap-1.5"><dt className="text-foreground/70">Matchkwaliteit:</dt><dd className="text-foreground">{matchKw ?? '—'}</dd></div>
-            </dl>
-          </div>
-        );
-      })()}
+      {gekozenAdres && (
+        <div data-testid="bag-doelobject-sectie" className="rounded-md border border-border bg-card/60 p-3 space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Doelobject</p>
+          <p className="text-sm text-foreground" data-testid="bag-doelobject-adres">{gekozenAdres}</p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
+            <div className="flex gap-1.5"><dt className="text-foreground/70">Gebruiksdoel:</dt><dd className="text-foreground" data-testid="bag-doelobject-gebruik">{gekozenGebruik.length ? gekozenGebruik.map((g) => g.charAt(0).toUpperCase() + g.slice(1)).join(', ') : '—'}</dd></div>
+            <div className="flex gap-1.5"><dt className="text-foreground/70">Oppervlakte:</dt><dd className="text-foreground" data-testid="bag-doelobject-opp">{gekozenOpp != null ? `${gekozenOpp} m²` : '—'}</dd></div>
+            <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+              <dt className="text-foreground/70 shrink-0">Verblijfsobject-ID:</dt>
+              <dd className="min-w-0 flex-1"><BagIdCopy value={gekozenVboId} testId="bag-doelobject-vboid" ariaLabel="Kopieer VBO-ID" /></dd>
+            </div>
+            <div className="flex gap-1.5 min-w-0 sm:col-span-2">
+              <dt className="text-foreground/70 shrink-0">Pand-ID:</dt>
+              <dd className="min-w-0 flex-1"><BagIdCopy value={context.doelPandId} testId="bag-doelobject-pandid" ariaLabel="Kopieer Pand-ID" /></dd>
+            </div>
+            <div className="flex gap-1.5"><dt className="text-foreground/70">Oorspronkelijk bouwjaar:</dt><dd className="text-foreground" data-testid="bag-doelobject-bouwjaar">{bouwjaar ?? '—'}</dd></div>
+            <div className="flex gap-1.5"><dt className="text-foreground/70">Pandstatus:</dt><dd className="text-foreground" data-testid="bag-doelobject-pandstatus">{pandStatus || '—'}</dd></div>
+            <div className="flex gap-1.5"><dt className="text-foreground/70">Matchkwaliteit:</dt><dd className="text-foreground">{matchKw ?? '—'}</dd></div>
+          </dl>
+        </div>
+      )}
 
-      {/* V2.4 — BAG-pandcontext */}
       <div data-testid="bag-pandcontext-sectie" className="space-y-3">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">BAG-pandcontext</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -222,9 +203,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
-              Matchkwaliteit / pandstatus
-            </p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Matchkwaliteit / pandstatus</p>
             <p className="text-foreground" data-testid="bag-matchkwaliteit">
               {matchKw ?? '—'}{pandStatus ? ` · ${pandStatus}` : ''}
             </p>
@@ -278,8 +257,6 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           Kies eerst de juiste BAG-match om het Kadasteradvies te berekenen.
         </div>
       )}
-
-
     </section>
   );
 }
