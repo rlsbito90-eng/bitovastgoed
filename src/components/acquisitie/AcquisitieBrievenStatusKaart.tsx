@@ -1,11 +1,16 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AcquisitieBriefHistorieKaart } from '@/components/acquisitie/AcquisitieBriefHistorieKaart';
+import { AcquisitieWerkstroomBediening } from '@/components/acquisitie/AcquisitieWerkstroomBediening';
 import type { AcquisitieBrievenMetHistorieReadModel } from '@/lib/acquisitieBrievenAdapters';
+import type { AcquisitieWerkstroomCommando } from '@/lib/acquisitieWerkstroomCommando';
 
 interface AcquisitieBrievenStatusKaartProps {
   model: AcquisitieBrievenMetHistorieReadModel;
   titel?: string;
+  commando?: AcquisitieWerkstroomCommando | null;
+  onCommando?: (commando: AcquisitieWerkstroomCommando) => void | Promise<void>;
+  commandoBezig?: boolean;
 }
 
 const jaNee = (waarde: boolean): string => (waarde ? 'Ja' : 'Nee');
@@ -13,6 +18,9 @@ const jaNee = (waarde: boolean): string => (waarde ? 'Ja' : 'Nee');
 export function AcquisitieBrievenStatusKaart({
   model,
   titel = 'Brieven & opvolging',
+  commando = null,
+  onCommando,
+  commandoBezig = false,
 }: AcquisitieBrievenStatusKaartProps) {
   return (
     <div className="space-y-4">
@@ -55,6 +63,14 @@ export function AcquisitieBrievenStatusKaart({
               <dd className="font-medium">{jaNee(model.reactieOntvangen)}</dd>
             </div>
           </dl>
+
+          {commando && onCommando && (
+            <AcquisitieWerkstroomBediening
+              commando={commando}
+              onUitvoeren={onCommando}
+              bezig={commandoBezig}
+            />
+          )}
 
           <p className="text-xs text-muted-foreground">{model.veiligheidsmelding}</p>
         </CardContent>
