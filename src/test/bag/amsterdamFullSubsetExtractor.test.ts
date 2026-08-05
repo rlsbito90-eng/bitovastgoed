@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 const SCRIPT = resolve(__dirname, '../../../scripts/bag/extract-amsterdam-full-subset.py');
@@ -22,29 +22,45 @@ function pandXml(identificatie: string): string {
 interface Opzet {
   identificaties: string[];
   selectie: string[];
+  verwachteRecords?: number;
   hashOverschrijven?: string;
   ongeldigeXml?: boolean;
 }
 
 function draai(opzet: Opzet) {
   const map = mkdtempSync(join(tmpdir(), 'amsterdam-subset-'));
-  const bronmap = join(map, 'unpacked');
-  mkdirSync(bronmap, { recursive: true });
+  const bronnen: string[] = [];
   opzet.identificaties.forEach((id, index) => {
-    writeFileSync(join(bronmap, `pand-${index}.xml`), pandXml(id), 'utf-8');
+    const path = join(map, `pand-${index}.xml`);
+    writeFileSync(path, pandXml(id), 'utf-8');
+    bronnen.push(path);
   });
-  if (opzet.ongeldigeXml) writeFileSync(join(bronmap, 'stuk.xml'), '<sl:stand><o:Pand>', 'utf-8');
+  if (opzet.ongeldigeXml) {
+    const path = join(map, 'stuk.xml');
+    writeFileSync(path, '<sl:stand><o:Pand>', 'utf-8');
+    bronnen.push(path);
+  }
 
   const bronbestand = join(map, 'bron.zip');
-  writeFileSync(bronbestand, 'officiele-landelijke-bron', 'utf-8');
-  const echteHash = createHash('sha256').update('officiele-landelijke-bron', 'utf-8').digest('hex');
+  execFileSync('python3', [
+    '-c',
+    'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],"w",zipfile.ZIP_DEFLATED); [z.write(p,p.rsplit("/",1)[-1]) for p in sys.argv[2:]]; z.close()',
+    bronbestand,
+    ...bronnen,
+  ]);
+  const echteHash = createHash('sha256').update(readFileSync(bronbestand)).digest('hex');
 
+  const selectie = [...opzet.selectie].sort();
+  const selectiePad = join(map, 'selectie.txt');
+  writeFileSync(selectiePad, `${selectie.join('\n')}\n`, 'utf-8');
+  const selectieChecksum = createHash('sha256').update(selectie.join('\n'), 'utf-8').digest('hex');
   const closure = join(map, 'closure.json');
   writeFileSync(
     closure,
     JSON.stringify({
       status: 'closure_validated',
-      rapport: { records: opzet.selectie.length, selectieChecksum: 'x'.repeat(64), geselecteerdeIds: opzet.selectie },
+      geselecteerdeRecords: opzet.verwachteRecords ?? selectie.length,
+      selectieChecksum,
     }),
     'utf-8',
   );
@@ -54,7 +70,7 @@ function draai(opzet: Opzet) {
   try {
     execFileSync(
       'python3',
-      [SCRIPT, bronbestand, bronmap, closure, output, '--verwachte-hash', opzet.hashOverschrijven ?? echteHash],
+      [SCRIPT, bronbestand, selectiePad, closure, output, '--verwachte-hash', opzet.hashOverschrijven ?? echteHash],
       { stdio: 'pipe' },
     );
   } catch (error) {
@@ -94,7 +110,11 @@ describe('Amsterdam full-subset extractor', () => {
   });
 
   it('stopt bij 0 Amsterdamrecords', () => {
-    const resultaat = draai({ identificaties: ['0106100000000001'], selectie: ['0363100000000001'] });
+    const resultaat = draai({
+      identificaties: ['0106100000000001'],
+      selectie: ['0363100000000001'],
+      verwachteRecords: 1,
+    });
     expect(resultaat.exitCode).toBe(1);
     expect(resultaat.bewijs.code).toBe('geen_amsterdamrecords');
   });
