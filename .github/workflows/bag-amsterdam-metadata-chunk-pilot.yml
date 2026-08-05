@@ -41,8 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Valideer lokale chunkextractor
-        run: python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+      - name: Valideer lokale extractie- en bewijslogica
+        run: |
+          python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+          python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
 
       - name: Download officiële landelijke BAG-bron
         run: |
@@ -53,14 +55,14 @@ jobs:
             --output bag-amsterdam-metadata/download/lvbag-extract-nl.zip
           unzip -t bag-amsterdam-metadata/download/lvbag-extract-nl.zip
 
-      - name: Bouw hetzelfde deterministische acht-chunkmanifest
+      - name: Bouw deterministisch acht-chunkmanifest
         run: |
           python3 scripts/bag/build-amsterdam-chunk-manifest.py \
             bag-amsterdam-metadata/download/lvbag-extract-nl.zip \
             bag-amsterdam-metadata/resultaat/bron-en-chunkmanifest.json \
             --chunks 8
 
-      - name: Extraheer metadata voor gekozen chunk
+      - name: Extraheer metadata en bewijs voor gekozen chunk
         run: |
           timeout --signal=TERM --kill-after=2m 260m \
             python3 scripts/bag/extract-amsterdam-metadata-chunk.py \
@@ -76,11 +78,11 @@ jobs:
           rm -f bag-amsterdam-metadata/download/lvbag-extract-nl.zip
           rm -f bag-amsterdam-metadata/resultaat/bron-en-chunkmanifest.json
 
-      - name: Publiceer compacte chunkmetadata en rapport
+      - name: Publiceer compacte chunkmetadata en controleerbaar bewijs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bag-amsterdam-metadata-${{ inputs.chunk_id }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
           path: bag-amsterdam-metadata/resultaat/
