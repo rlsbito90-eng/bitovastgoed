@@ -13,6 +13,7 @@ export interface AcquisitieBagBronInput {
   bag_match_kandidaten?: BagMatchKandidaat[] | null;
   bag_geselecteerd_vbo_id?: string | null;
   bag_geselecteerd_nummeraanduiding_id?: string | null;
+  bag_geselecteerd_pand_id?: string | null;
   bag_geselecteerd_adres?: string | null;
   bag_geselecteerd_opp_m2?: number | null;
   bag_geselecteerd_gebruiksdoel?: string[] | null;
@@ -30,6 +31,7 @@ export interface AcquisitieBagContext {
   doelAdres: string | null;
   doelVboId: string | null;
   doelNummeraanduidingId: string | null;
+  doelPandId: string | null;
   doelOppervlakteM2: number | null;
   doelGebruiksdoelen: string[];
   aantalVbos: number | null;
@@ -88,6 +90,7 @@ export function bouwAcquisitieBagContext(input: AcquisitieBagBronInput): Acquisi
     doelAdres,
     doelVboId: doelVboId ?? schoon(doelobject?.vbo_id),
     doelNummeraanduidingId: doelNummeraanduidingId ?? schoon(doelobject?.nummeraanduiding_id),
+    doelPandId: schoon(input.bag_geselecteerd_pand_id) ?? schoon(doelobject?.pandid),
     doelOppervlakteM2,
     doelGebruiksdoelen,
     aantalVbos: input.bag_pandcontext_aantal_vbo ?? input.bag_aantal_vbo ?? null,
