@@ -3,16 +3,32 @@ import { bepaalPrimaireWerkTab, bepaalWerkcontextNavigatie, bouwEigenaarGoogleUr
 import type { Vastgoedkans } from '@/lib/vastgoedkansen';
 
 const basis = {
-  id: '1', status: 'onderzoek', kadasterStatus: 'niet_gestart', eigenaarStatus: 'niet_gestart', briefStatus: 'niet_gestart', plaats: 'Amsterdam',
+  id: '1',
+  status: 'onderzoek',
+  bagPandId: null,
+  bagVerblijfsobjectId: null,
+  kadasterStatus: 'niet_gestart',
+  eigenaarStatus: 'niet_gestart',
+  briefStatus: 'niet_gestart',
+  plaats: 'Amsterdam',
 } as Vastgoedkans;
 
 describe('vastgoedkansWorkspace', () => {
-  it('stuurt eerst naar Kadaster en eigenaar', () => {
-    expect(bepaalPrimaireWerkTab(basis)).toBe('kadaster');
+  it('stuurt zonder BAG-koppeling eerst naar Onderzoek', () => {
+    expect(bepaalPrimaireWerkTab(basis)).toBe('onderzoek');
+  });
+
+  it('stuurt na BAG-koppeling naar Kadaster en eigenaar', () => {
+    expect(bepaalPrimaireWerkTab({ ...basis, bagPandId: '0363100012112079' })).toBe('kadaster');
   });
 
   it('stuurt na eigenaaronderzoek naar brieven', () => {
-    expect(bepaalPrimaireWerkTab({ ...basis, kadasterStatus: 'gegevens_bekend', eigenaarStatus: 'bekend' })).toBe('brieven');
+    expect(bepaalPrimaireWerkTab({
+      ...basis,
+      bagPandId: '0363100012112079',
+      kadasterStatus: 'gegevens_bekend',
+      eigenaarStatus: 'bekend',
+    })).toBe('brieven');
   });
 
   it('bouwt een beperkte Google-zoekopdracht met naam en plaats', () => {
