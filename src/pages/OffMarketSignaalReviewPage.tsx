@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ListChecks } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, Keyboard, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -21,15 +21,21 @@ import {
 } from '@/hooks/useOffMarketSignalen';
 import { useVoegToeAanAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 
-const statusActies: Array<{ status: OffMarketStatus; label: string; variant: 'outline' | 'default' }> = [
-  { status: 'niet_interessant', label: 'Niet interessant', variant: 'outline' },
-  { status: 'twijfel', label: 'Twijfel', variant: 'outline' },
-  { status: 'te_onderzoeken', label: 'Onderzoeken', variant: 'outline' },
-  { status: 'interessant', label: 'Interessant', variant: 'default' },
+const statusActies: Array<{ status: OffMarketStatus; label: string; toets: string; variant: 'outline' | 'default' }> = [
+  { status: 'niet_interessant', label: 'Niet interessant', toets: '1', variant: 'outline' },
+  { status: 'twijfel', label: 'Twijfel', toets: '2', variant: 'outline' },
+  { status: 'te_onderzoeken', label: 'Onderzoeken', toets: '3', variant: 'outline' },
+  { status: 'interessant', label: 'Interessant', toets: '4', variant: 'default' },
 ];
 
 function waarde(value: unknown, suffix = ''): string {
   return value == null || value === '' ? '—' : `${String(value)}${suffix}`;
+}
+
+function isInvulElement(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable;
 }
 
 export default function OffMarketSignaalReviewPage() {
@@ -46,6 +52,99 @@ export default function OffMarketSignaalReviewPage() {
     [signaal?.id, alleSignalen],
   );
 
+  const gaNaar = (targetId: string | null) => {
+    if (targetId) navigate(`/off-market/${targetId}?mode=review`);
+  };
+  const gaDoor = () => {
+    if (navInfo.nextId) gaNaar(navInfo.nextId);
+    else navigate('/off-market');
+  };
+
+  const wijzigStatus = async (status: OffMarketStatus) => {
+    if (!signaal || bezigMet) return;
+    const vorigeStatus = signaal.status;
+    const signaalId = signaal.id;
+    const label = statusActies.find((item) => item.status === status)?.label ?? status;
+    setBezigMet(status);
+    try {
+      await update.mutateAsync({ id: signaalId, patch: { status } });
+      toast.success(`Status gewijzigd naar ${label}.`, {
+        duration: 8000,
+        action: {
+          label: 'Ongedaan maken',
+          onClick: async () => {
+            try {
+              await update.mutateAsync({ id: signaalId, patch: { status: vorigeStatus } });
+              toast.success('Vorige status hersteld.');
+            } catch (e: any) {
+              toast.error(e?.message ?? 'Herstellen mislukt.');
+            }
+          },
+        },
+      });
+      gaDoor();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Status wijzigen mislukt.');
+    } finally {
+      setBezigMet(null);
+    }
+  };
+
+  const wijzigPrioriteit = async (prioriteit: OffMarketPrioriteit) => {
+    if (!signaal) return;
+    try {
+      await update.mutateAsync({ id: signaal.id, patch: { prioriteit } });
+      toast.success(`Prioriteit gewijzigd naar ${PRIORITEIT_LABEL[prioriteit]}.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Prioriteit wijzigen mislukt.');
+    }
+  };
+
+  const voegToeAanSelectie = async () => {
+    if (!signaal || bezigMet) return;
+    setBezigMet('selectie');
+    try {
+      await voegToe.mutateAsync(signaal.id);
+      if (signaal.status === 'nieuw_signaal') {
+        await update.mutateAsync({ id: signaal.id, patch: { status: 'interessant' } });
+      }
+      toast.success('Toegevoegd aan acquisitieselectie.');
+      gaDoor();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Toevoegen aan acquisitieselectie mislukt.');
+    } finally {
+      setBezigMet(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!signaal) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isInvulElement(event.target) || event.metaKey || event.ctrlKey || event.altKey || bezigMet) return;
+      const actie = statusActies.find((item) => item.toets === event.key);
+      if (actie) {
+        event.preventDefault();
+        void wijzigStatus(actie.status);
+        return;
+      }
+      if (event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        void voegToeAanSelectie();
+      } else if (event.key === 'ArrowLeft' && navInfo.prevId) {
+        event.preventDefault();
+        gaNaar(navInfo.prevId);
+      } else if (event.key === 'ArrowRight' && navInfo.nextId) {
+        event.preventDefault();
+        gaNaar(navInfo.nextId);
+      } else if (event.key.toLowerCase() === 'g') {
+        const adres = [signaal.adres, signaal.postcode, signaal.plaats].filter(Boolean).join(', ');
+        if (adres) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adres)}`, '_blank', 'noopener,noreferrer');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [signaal, bezigMet, navInfo.prevId, navInfo.nextId]);
+
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6 text-sm text-muted-foreground">Signaal laden…</div>;
   }
@@ -61,51 +160,6 @@ export default function OffMarketSignaalReviewPage() {
   updateListLastViewedId('off-market-signalen', signaal.id);
   const s = signaal as any;
   const adres = [signaal.adres, signaal.postcode, signaal.plaats].filter(Boolean).join(', ');
-  const gaNaar = (targetId: string | null) => {
-    if (targetId) navigate(`/off-market/${targetId}?mode=review`);
-  };
-  const gaDoor = () => {
-    if (navInfo.nextId) gaNaar(navInfo.nextId);
-    else navigate('/off-market');
-  };
-
-  const wijzigStatus = async (status: OffMarketStatus) => {
-    setBezigMet(status);
-    try {
-      await update.mutateAsync({ id: signaal.id, patch: { status } });
-      toast.success(`Status gewijzigd naar ${statusActies.find((item) => item.status === status)?.label ?? status}.`);
-      gaDoor();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Status wijzigen mislukt.');
-    } finally {
-      setBezigMet(null);
-    }
-  };
-
-  const wijzigPrioriteit = async (prioriteit: OffMarketPrioriteit) => {
-    try {
-      await update.mutateAsync({ id: signaal.id, patch: { prioriteit } });
-      toast.success(`Prioriteit gewijzigd naar ${PRIORITEIT_LABEL[prioriteit]}.`);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Prioriteit wijzigen mislukt.');
-    }
-  };
-
-  const voegToeAanSelectie = async () => {
-    setBezigMet('selectie');
-    try {
-      await voegToe.mutateAsync(signaal.id);
-      if (signaal.status === 'nieuw_signaal') {
-        await update.mutateAsync({ id: signaal.id, patch: { status: 'interessant' } });
-      }
-      toast.success('Toegevoegd aan acquisitieselectie.');
-      gaDoor();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Toevoegen aan acquisitieselectie mislukt.');
-    } finally {
-      setBezigMet(null);
-    }
-  };
 
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-6 pb-28 max-w-6xl space-y-4" data-testid="signaal-reviewmodus">
@@ -194,8 +248,9 @@ export default function OffMarketSignaalReviewPage() {
               variant={actie.variant}
               disabled={bezigMet !== null}
               onClick={() => wijzigStatus(actie.status)}
+              title={`Sneltoets ${actie.toets}`}
             >
-              {bezigMet === actie.status ? 'Opslaan…' : actie.label}
+              {bezigMet === actie.status ? 'Opslaan…' : `${actie.label} · ${actie.toets}`}
             </Button>
           ))}
           <select
@@ -209,9 +264,12 @@ export default function OffMarketSignaalReviewPage() {
               <option key={prioriteit} value={prioriteit}>{PRIORITEIT_LABEL[prioriteit]}</option>
             ))}
           </select>
-          <Button className="ml-auto" size="sm" disabled={bezigMet !== null} onClick={voegToeAanSelectie}>
+          <div className="hidden xl:flex items-center gap-1 text-[11px] text-muted-foreground" title="Sneltoetsen: 1–4 status, A selectie, G Google Maps, pijlen navigatie">
+            <Keyboard className="h-3.5 w-3.5" /> 1–4 · A · G · ← →
+          </div>
+          <Button className="ml-auto" size="sm" disabled={bezigMet !== null} onClick={voegToeAanSelectie} title="Sneltoets A">
             <ListChecks className="h-4 w-4" />
-            {bezigMet === 'selectie' ? 'Toevoegen…' : 'Naar acquisitieselectie'}
+            {bezigMet === 'selectie' ? 'Toevoegen…' : 'Naar acquisitieselectie · A'}
           </Button>
         </div>
       </div>
