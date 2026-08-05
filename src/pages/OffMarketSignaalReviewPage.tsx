@@ -7,7 +7,12 @@ import { Button } from '@/components/ui/button';
 import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksacties';
 import BagOverzichtKaart from '@/components/offmarket/bag/BagOverzichtKaart';
 import SignaalAiAnalyse from '@/components/offmarket/SignaalAiAnalyse';
-import { getListNavigation, updateListLastViewedId } from '@/lib/listNavigation';
+import {
+  getListNavigation,
+  loadListContext,
+  saveListContext,
+  updateListLastViewedId,
+} from '@/lib/listNavigation';
 import {
   PRIORITEIT_LABEL,
   PRIORITEIT_VOLGORDE,
@@ -15,11 +20,17 @@ import {
   type OffMarketStatus,
 } from '@/lib/offMarket/types';
 import {
+  acquisitieSelectiePrioriteit,
+  bepaalReviewPrioriteit,
+} from '@/lib/offMarket/signaalReviewBeslissing';
+import {
   useOffMarketSignaal,
   useOffMarketSignalen,
   useUpdateOffMarketSignaal,
 } from '@/hooks/useOffMarketSignalen';
 import { useVoegToeAanAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
+
+const LIJST_KEY = 'off-market-signalen';
 
 const statusActies: Array<{ status: OffMarketStatus; label: string; toets: string; variant: 'outline' | 'default' }> = [
   { status: 'niet_interessant', label: 'Niet interessant', toets: '1', variant: 'outline' },
@@ -46,43 +57,81 @@ export default function OffMarketSignaalReviewPage() {
   const update = useUpdateOffMarketSignaal();
   const voegToe = useVoegToeAanAcquisitieSelectie();
   const [bezigMet, setBezigMet] = useState<string | null>(null);
+  const [gekozenPrioriteit, setGekozenPrioriteit] = useState<OffMarketPrioriteit>('laag');
+  const [prioriteitHandmatig, setPrioriteitHandmatig] = useState(false);
+
+  useEffect(() => {
+    if (!signaal) return;
+    setGekozenPrioriteit(signaal.prioriteit);
+    setPrioriteitHandmatig(false);
+  }, [signaal?.id, signaal?.prioriteit]);
+
+  const fallbackWerkvoorraad = useMemo(
+    () => alleSignalen.filter((item) => item.status === 'nieuw_signaal').map((item) => item.id),
+    [alleSignalen],
+  );
 
   const navInfo = useMemo(
-    () => getListNavigation('off-market-signalen', signaal?.id ?? '', alleSignalen.map((item) => item.id)),
-    [signaal?.id, alleSignalen],
+    () => getListNavigation(LIJST_KEY, signaal?.id ?? '', fallbackWerkvoorraad),
+    [signaal?.id, fallbackWerkvoorraad],
   );
 
   const gaNaar = (targetId: string | null) => {
     if (targetId) navigate(`/off-market/${targetId}?mode=review`);
   };
-  const gaDoor = () => {
-    if (navInfo.nextId) gaNaar(navInfo.nextId);
+
+  const verwijderUitLokaleWerkvoorraad = (signaalId: string) => {
+    const bestaand = loadListContext(LIJST_KEY) ?? fallbackWerkvoorraad;
+    const index = bestaand.indexOf(signaalId);
+    const volgendeIds = bestaand.filter((item) => item !== signaalId);
+    saveListContext(LIJST_KEY, volgendeIds);
+    return { bestaand, index, volgendeIds };
+  };
+
+  const herstelLokaleWerkvoorraad = (ids: string[]) => {
+    saveListContext(LIJST_KEY, ids);
+  };
+
+  const gaDoorNaVerwijderen = (volgendeIds: string[], verwijderdeIndex: number) => {
+    const volgendId = volgendeIds[Math.max(0, verwijderdeIndex)] ?? volgendeIds.at(-1) ?? null;
+    if (volgendId) gaNaar(volgendId);
     else navigate('/off-market');
   };
 
   const wijzigStatus = async (status: OffMarketStatus) => {
     if (!signaal || bezigMet) return;
     const vorigeStatus = signaal.status;
+    const vorigePrioriteit = signaal.prioriteit;
     const signaalId = signaal.id;
     const label = statusActies.find((item) => item.status === status)?.label ?? status;
+    const nieuwePrioriteit = bepaalReviewPrioriteit({
+      status,
+      huidigePrioriteit: gekozenPrioriteit,
+      handmatigAangepast: prioriteitHandmatig,
+    });
     setBezigMet(status);
     try {
-      await update.mutateAsync({ id: signaalId, patch: { status } });
-      toast.success(`Status gewijzigd naar ${label}.`, {
+      await update.mutateAsync({ id: signaalId, patch: { status, prioriteit: nieuwePrioriteit } });
+      const lokaleLijst = verwijderUitLokaleWerkvoorraad(signaalId);
+      toast.success(`${label} · prioriteit ${PRIORITEIT_LABEL[nieuwePrioriteit]} · volgend signaal geopend.`, {
         duration: 8000,
         action: {
           label: 'Ongedaan maken',
           onClick: async () => {
             try {
-              await update.mutateAsync({ id: signaalId, patch: { status: vorigeStatus } });
-              toast.success('Vorige status hersteld.');
+              await update.mutateAsync({
+                id: signaalId,
+                patch: { status: vorigeStatus, prioriteit: vorigePrioriteit },
+              });
+              herstelLokaleWerkvoorraad(lokaleLijst.bestaand);
+              toast.success('Vorige status en prioriteit hersteld.');
             } catch (e: any) {
               toast.error(e?.message ?? 'Herstellen mislukt.');
             }
           },
         },
       });
-      gaDoor();
+      gaDoorNaVerwijderen(lokaleLijst.volgendeIds, lokaleLijst.index);
     } catch (e: any) {
       toast.error(e?.message ?? 'Status wijzigen mislukt.');
     } finally {
@@ -90,26 +139,31 @@ export default function OffMarketSignaalReviewPage() {
     }
   };
 
-  const wijzigPrioriteit = async (prioriteit: OffMarketPrioriteit) => {
-    if (!signaal) return;
-    try {
-      await update.mutateAsync({ id: signaal.id, patch: { prioriteit } });
-      toast.success(`Prioriteit gewijzigd naar ${PRIORITEIT_LABEL[prioriteit]}.`);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Prioriteit wijzigen mislukt.');
-    }
+  const wijzigPrioriteit = (prioriteit: OffMarketPrioriteit) => {
+    setGekozenPrioriteit(prioriteit);
+    setPrioriteitHandmatig(true);
   };
 
   const voegToeAanSelectie = async () => {
     if (!signaal || bezigMet) return;
+    const nieuwePrioriteit = acquisitieSelectiePrioriteit({
+      huidigePrioriteit: gekozenPrioriteit,
+      handmatigAangepast: prioriteitHandmatig,
+    });
     setBezigMet('selectie');
     try {
       await voegToe.mutateAsync(signaal.id);
       if (signaal.status === 'nieuw_signaal') {
-        await update.mutateAsync({ id: signaal.id, patch: { status: 'interessant' } });
+        await update.mutateAsync({
+          id: signaal.id,
+          patch: { status: 'interessant', prioriteit: nieuwePrioriteit },
+        });
+      } else if (signaal.prioriteit !== nieuwePrioriteit) {
+        await update.mutateAsync({ id: signaal.id, patch: { prioriteit: nieuwePrioriteit } });
       }
-      toast.success('Toegevoegd aan acquisitieselectie.');
-      gaDoor();
+      const lokaleLijst = verwijderUitLokaleWerkvoorraad(signaal.id);
+      toast.success(`Toegevoegd aan Acquisitieselectie · status Interessant · prioriteit ${PRIORITEIT_LABEL[nieuwePrioriteit]}.`);
+      gaDoorNaVerwijderen(lokaleLijst.volgendeIds, lokaleLijst.index);
     } catch (e: any) {
       toast.error(e?.message ?? 'Toevoegen aan acquisitieselectie mislukt.');
     } finally {
@@ -143,7 +197,7 @@ export default function OffMarketSignaalReviewPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [signaal, bezigMet, navInfo.prevId, navInfo.nextId]);
+  }, [signaal, bezigMet, navInfo.prevId, navInfo.nextId, gekozenPrioriteit, prioriteitHandmatig]);
 
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6 text-sm text-muted-foreground">Signaal laden…</div>;
@@ -157,12 +211,12 @@ export default function OffMarketSignaalReviewPage() {
     );
   }
 
-  updateListLastViewedId('off-market-signalen', signaal.id);
+  updateListLastViewedId(LIJST_KEY, signaal.id);
   const s = signaal as any;
   const adres = [signaal.adres, signaal.postcode, signaal.plaats].filter(Boolean).join(', ');
 
   return (
-    <div className="px-4 sm:px-6 py-4 sm:py-6 pb-28 max-w-6xl space-y-4" data-testid="signaal-reviewmodus">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 pb-44 md:pb-36 max-w-6xl space-y-4" data-testid="signaal-reviewmodus">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate('/off-market')}>
           <ArrowLeft className="h-4 w-4" /> Terug naar signalen
@@ -256,9 +310,10 @@ export default function OffMarketSignaalReviewPage() {
           <select
             aria-label="Prioriteit"
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            value={signaal.prioriteit}
+            value={gekozenPrioriteit}
             onChange={(event) => wijzigPrioriteit(event.target.value as OffMarketPrioriteit)}
-            disabled={update.isPending}
+            disabled={bezigMet !== null}
+            title={prioriteitHandmatig ? 'Handmatige prioriteit blijft leidend' : 'Wordt automatisch bepaald door de beoordeling'}
           >
             {PRIORITEIT_VOLGORDE.map((prioriteit) => (
               <option key={prioriteit} value={prioriteit}>{PRIORITEIT_LABEL[prioriteit]}</option>
