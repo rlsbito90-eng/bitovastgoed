@@ -23,6 +23,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Valideer BAG Amsterdam bewijslogica
+        run: |
+          python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+          python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
+
       - name: Apply BAG pand geometry patch
         if: github.head_ref == 'fix/pdok-pandgeometrie'
         shell: python
