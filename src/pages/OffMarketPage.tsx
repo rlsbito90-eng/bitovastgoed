@@ -34,12 +34,16 @@ import {
 
 type Tab = 'dashboard' | 'signalen' | 'kaart' | 'acquisitieselectie';
 
-
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
 export default function OffMarketPage() {
   const { data: signalen = [], isLoading } = useOffMarketSignalen();
   const selectieCount = useAcquisitieSelectieCount();
+  const nieuweSignalenCount = useMemo(
+    () => signalen.filter((signaal) => signaal.status === 'nieuw_signaal').length,
+    [signalen],
+  );
+
   const [tab, setTabState] = useState<Tab>(() => {
     try {
       const t = sessionStorage.getItem('off-market-filter:tab');
@@ -61,7 +65,6 @@ export default function OffMarketPage() {
     try { sessionStorage.setItem('off-market-filter:datumbucket', b); } catch {}
   };
   const [createOpen, setCreateOpen] = useState(false);
-
 
   const useStored = <T extends string>(key: string, init: T) => {
     const [v, setV] = useState<T>(() => {
@@ -95,34 +98,13 @@ export default function OffMarketPage() {
   };
 
   const sortOptions = useMemo<SortOption<OffMarketSignaal>[]>(() => [
-    {
-      value: 'nieuwste', label: 'Nieuwste eerst',
-      compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
-    },
-    {
-      value: 'oudste', label: 'Oudste eerst',
-      compare: byDate<OffMarketSignaal>(s => s.created_at, 'asc'),
-    },
-    {
-      value: 'bijgewerkt', label: 'Laatst bijgewerkt',
-      compare: byDate<OffMarketSignaal>(s => (s as any).updated_at ?? s.created_at, 'desc'),
-    },
-    {
-      value: 'brondatum_desc', label: 'Brondatum (nieuwste)',
-      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'desc'),
-    },
-    {
-      value: 'brondatum_asc', label: 'Brondatum (oudste)',
-      compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'asc'),
-    },
-    {
-      value: 'ai_score', label: 'AI-score hoog → laag',
-      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'desc'),
-    },
-    {
-      value: 'ai_score_asc', label: 'AI-score laag → hoog',
-      compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'asc'),
-    },
+    { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<OffMarketSignaal>(s => s.created_at, 'desc') },
+    { value: 'oudste', label: 'Oudste eerst', compare: byDate<OffMarketSignaal>(s => s.created_at, 'asc') },
+    { value: 'bijgewerkt', label: 'Laatst bijgewerkt', compare: byDate<OffMarketSignaal>(s => (s as any).updated_at ?? s.created_at, 'desc') },
+    { value: 'brondatum_desc', label: 'Brondatum (nieuwste)', compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'desc') },
+    { value: 'brondatum_asc', label: 'Brondatum (oudste)', compare: byDate<OffMarketSignaal>(s => s.bron_datum ?? s.created_at, 'asc') },
+    { value: 'ai_score', label: 'AI-score hoog → laag', compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'desc') },
+    { value: 'ai_score_asc', label: 'AI-score laag → hoog', compare: byNumber<OffMarketSignaal>(s => s.ai_score, 'asc') },
     {
       value: 'prioriteit', label: 'Prioriteit hoog → laag',
       compare: combine(
@@ -130,31 +112,16 @@ export default function OffMarketPage() {
         byDate<OffMarketSignaal>(s => s.created_at, 'desc'),
       ),
     },
-    {
-      value: 'volgende_actie', label: 'Volgende actie eerst',
-      compare: byDate<OffMarketSignaal>(s => s.volgende_actie_datum, 'asc'),
-    },
-    {
-      value: 'plaats', label: 'Plaats A-Z',
-      compare: byString<OffMarketSignaal>(s => s.plaats ?? ''),
-    },
-    {
-      value: 'provincie', label: 'Provincie A-Z',
-      compare: byString<OffMarketSignaal>(s => s.provincie ?? ''),
-    },
-    {
-      value: 'relevantie', label: 'Slimme volgorde (vastgoedrelevantie)',
-      compare: compareRelevantie,
-    },
+    { value: 'volgende_actie', label: 'Volgende actie eerst', compare: byDate<OffMarketSignaal>(s => s.volgende_actie_datum, 'asc') },
+    { value: 'plaats', label: 'Plaats A-Z', compare: byString<OffMarketSignaal>(s => s.plaats ?? '') },
+    { value: 'provincie', label: 'Provincie A-Z', compare: byString<OffMarketSignaal>(s => s.provincie ?? '') },
+    { value: 'relevantie', label: 'Slimme volgorde (vastgoedrelevantie)', compare: compareRelevantie },
   ], []);
-  // Bumped naar v2 zodat oude default 'relevantie' niet langer wordt opgepikt.
   const [sortValue, setSortValue] = useSortPreference(
     'off-market-signalen-v2', 'nieuwste', sortOptions.map(o => o.value),
   );
-
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
-  // Tellingen per vergunningtype (bucket) — vóór bucket-filter, ná overige filters.
   const preBucket = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     return signalen.filter(s => {
@@ -179,7 +146,11 @@ export default function OffMarketPage() {
     });
   }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, geoGemeenteFilter, geoWijkFilter, geoBuurtFilter]);
 
-  // Beschikbare geo-opties (cascade: wijken binnen gekozen gemeente, buurten binnen gekozen wijk/gemeente)
+  const nieuwePreBucket = useMemo(
+    () => preBucket.filter((signaal) => signaal.status === 'nieuw_signaal'),
+    [preBucket],
+  );
+
   const geoOpties = useMemo(() => {
     const gemeenten = new Set<string>();
     const wijken = new Set<string>();
@@ -203,7 +174,7 @@ export default function OffMarketPage() {
 
   const bucketTellingen = useMemo(() => {
     const tellingen = new Map<number, { label: string; aantal: number }>();
-    for (const s of preBucket) {
+    for (const s of nieuwePreBucket) {
       const b = relevantieBucket(s);
       const cur = tellingen.get(b.rang);
       if (cur) cur.aantal += 1;
@@ -212,7 +183,7 @@ export default function OffMarketPage() {
     return Array.from(tellingen.entries())
       .map(([rang, v]) => ({ rang, ...v }))
       .sort((a, b) => a.rang - b.rang);
-  }, [preBucket]);
+  }, [nieuwePreBucket]);
 
   const gefilterd = useMemo(() => {
     const list = bucketFilter === null
@@ -221,12 +192,10 @@ export default function OffMarketPage() {
     return [...list].sort(activeSort.compare);
   }, [preBucket, bucketFilter, activeSort]);
 
-  // Bewaar de huidige gefilterde+gesorteerde volgorde voor Vorige/Volgende op de detailpagina.
   useEffect(() => {
     saveListContext('off-market-signalen', gefilterd.map(s => s.id));
   }, [gefilterd]);
 
-  // ─── Laatst bekeken: scrollherstel + 6s highlight ──────────────────────────
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const restoredRef = useRef(false);
 
@@ -239,24 +208,15 @@ export default function OffMarketPage() {
     if (!lv) { restoredRef.current = true; return; }
     restoredRef.current = true;
     setHighlightedId(lv.id);
-
-    // Desktop en mobiel renderen beide een rij met hetzelfde data-row-id.
-    // Kies expliciet de zichtbare variant; anders kan de verborgen mobiele rij
-    // (height 0) worden geraakt en scrollt desktop terug naar boven.
     const targetId = lv.id;
     let cancelled = false;
-
     const attempt = () => {
       if (cancelled) return;
       const row = findVisibleListRow(targetId);
-      if (row) {
-        scrollElementIntoListView(row);
-        return;
-      }
-      restoreListScrollY(lv.scrollY);
+      if (row) scrollElementIntoListView(row);
+      else restoreListScrollY(lv.scrollY);
     };
     requestAnimationFrame(attempt);
-
     const t = window.setTimeout(() => setHighlightedId(null), 6000);
     return () => {
       cancelled = true;
@@ -264,7 +224,6 @@ export default function OffMarketPage() {
     };
   }, [tab, isLoading, gefilterd]);
 
-  // ─── Actieve filterchips ───────────────────────────────────────────────────
   const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
   if (zoek) activeFilters.push({ key: 'zoek', label: `Zoek: "${zoek}"`, clear: () => setZoek('') });
   if (statusFilter) activeFilters.push({ key: 'status', label: `Status: ${STATUS_LABEL[statusFilter]}`, clear: () => setStatusFilter('') });
@@ -286,7 +245,6 @@ export default function OffMarketPage() {
     setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter('');
   };
 
-
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
@@ -300,9 +258,12 @@ export default function OffMarketPage() {
       />
       <SignaalFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 
-
-      <OffMarketHoofdTabbar tab={tab} setTab={setTab} signalenCount={signalen.length} selectieCount={selectieCount} />
-
+      <OffMarketHoofdTabbar
+        tab={tab}
+        setTab={setTab}
+        signalenCount={nieuweSignalenCount}
+        selectieCount={selectieCount}
+      />
 
       {tab === 'dashboard' && (
         <section className="space-y-4">
@@ -334,9 +295,7 @@ export default function OffMarketPage() {
             </select>
             <select className={selectCls} value={assetFilter} onChange={e => setAssetFilter(e.target.value as OffMarketAssettype | '')}>
               <option value="">Alle assettypes</option>
-              {(Object.keys(ASSETTYPE_LABEL) as OffMarketAssettype[]).map(a => (
-                <option key={a} value={a}>{ASSETTYPE_LABEL[a]}</option>
-              ))}
+              {(Object.keys(ASSETTYPE_LABEL) as OffMarketAssettype[]).map(a => <option key={a} value={a}>{ASSETTYPE_LABEL[a]}</option>)}
             </select>
             <select className={selectCls} value={regioFilter} onChange={e => setRegioFilter(e.target.value)}>
               <option value="">Alle regio's</option>
@@ -344,9 +303,7 @@ export default function OffMarketPage() {
             </select>
             <select className={selectCls} value={bronFilter} onChange={e => setBronFilter(e.target.value as OffMarketBronType | '')}>
               <option value="">Alle bronnen</option>
-              {(Object.keys(BRON_TYPE_LABEL) as OffMarketBronType[]).map(b => (
-                <option key={b} value={b}>{BRON_TYPE_LABEL[b]}</option>
-              ))}
+              {(Object.keys(BRON_TYPE_LABEL) as OffMarketBronType[]).map(b => <option key={b} value={b}>{BRON_TYPE_LABEL[b]}</option>)}
             </select>
             <select className={selectCls} value={aiStatusFilter} onChange={e => setAiStatusFilter(e.target.value as OffMarketAiStatus | '')}>
               <option value="">Alle AI-statussen</option>
@@ -387,7 +344,7 @@ export default function OffMarketPage() {
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 }`}
               >
-                Alle ({preBucket.length})
+                Alle ({nieuwePreBucket.length})
               </button>
               {bucketTellingen.map(b => (
                 <button
@@ -435,7 +392,6 @@ export default function OffMarketPage() {
               <SignalenTable signalen={gefilterd} laden={isLoading} highlightedId={highlightedId} />
             </section>
           )}
-
         </>
       )}
 
@@ -459,7 +415,6 @@ export default function OffMarketPage() {
             <span className="ml-auto text-xs text-muted-foreground self-center" data-testid="kaart-filtertotaal">
               {gefilterd.filter(s => matchBucket(s, datumBucket)).length} signalen binnen filters
             </span>
-
           </div>
           <OffMarketKaart signalen={gefilterd.filter(s => matchBucket(s, datumBucket))} />
         </section>
@@ -470,8 +425,6 @@ export default function OffMarketPage() {
   );
 }
 
-// Horizontaal scrollbare hoofdtabbar met edge-fade en autoscroll naar actieve tab.
-// Desktop blijft visueel ongewijzigd (mask werkt alleen bij overflow).
 function OffMarketHoofdTabbar({
   tab, setTab, signalenCount, selectieCount,
 }: {
@@ -483,30 +436,21 @@ function OffMarketHoofdTabbar({
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // Scrolt uitsluitend de tabviewport (nooit window of parents) zodat de
-  // pagina niet horizontaal verschuift bij tabwisseling.
   useEffect(() => {
     const viewport = viewportRef.current;
     const track = trackRef.current;
     if (!viewport || !track) return;
-    const active = track.querySelector<HTMLElement>(`[data-state="active"]`);
+    const active = track.querySelector<HTMLElement>('[data-state="active"]');
     if (!active) return;
-
     const vRect = viewport.getBoundingClientRect();
     const aRect = active.getBoundingClientRect();
     const current = viewport.scrollLeft;
     const relLeft = aRect.left - vRect.left + current;
     const relRight = relLeft + aRect.width;
-
     let next = current;
-    if (relLeft < current) {
-      next = Math.max(0, relLeft - 8);
-    } else if (relRight > current + viewport.clientWidth) {
-      next = relRight - viewport.clientWidth + 8;
-    }
-    if (next !== current) {
-      viewport.scrollTo({ left: next, behavior: 'smooth' });
-    }
+    if (relLeft < current) next = Math.max(0, relLeft - 8);
+    else if (relRight > current + viewport.clientWidth) next = relRight - viewport.clientWidth + 8;
+    if (next !== current) viewport.scrollTo({ left: next, behavior: 'smooth' });
   }, [tab]);
 
   const tabs: Array<{ id: Tab; mobileLabel: string; desktopLabel: string; icon?: boolean }> = [
@@ -520,20 +464,16 @@ function OffMarketHoofdTabbar({
     <div
       className="relative w-full min-w-0 max-w-full"
       style={{
-        WebkitMaskImage:
-          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
-        maskImage:
-          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
+        maskImage: 'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
       }}
     >
-      {/* Buitenste scrollviewport: nooit breder dan parent. */}
       <div
         ref={viewportRef}
         data-testid="off-market-hoofd-tabbar"
         className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ overscrollBehaviorX: 'contain' }}
       >
-        {/* Binnenste tabtrack: mag breder zijn dan viewport. */}
         <div
           ref={trackRef}
           role="tablist"
@@ -565,11 +505,8 @@ function OffMarketHoofdTabbar({
           })}
         </div>
       </div>
-      {/* Fade-overlays mogen interactie nooit blokkeren. */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-3" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-3" aria-hidden="true" />
     </div>
   );
 }
-
-
