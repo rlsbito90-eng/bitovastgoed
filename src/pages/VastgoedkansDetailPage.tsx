@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OptionalDateField } from '@/components/forms/OptionalDateField';
 import AcquisitieEigenaarWerkstroomKaart from '@/components/acquisitie/AcquisitieEigenaarWerkstroomKaart';
+import VastgoedkansOnderzoekWerkplek from '@/components/acquisitie/VastgoedkansOnderzoekWerkplek';
 import { useVastgoedkansen, type KansInput } from '@/hooks/useVastgoedkansen';
 import {
   BRIEF_LABEL, EIGENAAR_LABEL, KADASTER_LABEL, PRIORITEIT_LABEL, REACTIE_LABEL, STATUS_LABEL,
@@ -22,6 +23,7 @@ import {
 } from '@/lib/vastgoedkansWorkspace';
 import { vastgoedkansNaarDossierContext } from '@/lib/acquisitieDossierAdapters';
 import { bouwAcquisitieEigenaarWerkstroomModel } from '@/lib/acquisitieEigenaarWerkstroom';
+import { bouwVastgoedkansOnderzoekModel } from '@/lib/vastgoedkansOnderzoek';
 
 const selectClass = 'h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm';
 
@@ -49,10 +51,8 @@ export default function VastgoedkansDetailPage() {
 
   const ids = useMemo(() => kansen.map((item) => item.id), [kansen]);
   const nav = useMemo(() => bepaalWerkcontextNavigatie(ids, id), [ids, id]);
-  const dossierContext = useMemo(
-    () => kans ? vastgoedkansNaarDossierContext(kans as any) : null,
-    [kans],
-  );
+  const dossierContext = useMemo(() => kans ? vastgoedkansNaarDossierContext(kans as any) : null, [kans]);
+  const onderzoekModel = useMemo(() => kans ? bouwVastgoedkansOnderzoekModel(kans) : null, [kans]);
   const eigenaarWerkstroom = useMemo(
     () => dossierContext ? bouwAcquisitieEigenaarWerkstroomModel({
       dossier: dossierContext,
@@ -88,7 +88,7 @@ export default function VastgoedkansDetailPage() {
     const status: VastgoedkansStatus = value === 'interesse' ? 'positieve_reactie' : value === 'geen_interesse' ? 'afgevallen' : value === 'later_contact' ? 'wachten' : value === 'reactie_ontvangen' ? 'opvolgen' : form.status ?? kans.status;
     setForm({ ...form, reactieStatus: value, status, briefStatus: value === 'geen_reactie' ? form.briefStatus : 'reactie_ontvangen' });
   };
-  const scrollNaar = (id: string) => requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  const scrollNaar = (targetId: string) => requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const openOnderzoek = () => scrollNaar('vastgoedkans-kadasteronderzoek');
   const openEigenaarZoeken = () => {
     if (googleEigenaarUrl) window.open(googleEigenaarUrl, '_blank', 'noopener,noreferrer');
@@ -96,7 +96,7 @@ export default function VastgoedkansDetailPage() {
   };
   const openRelatieKoppelen = () => {
     scrollNaar('vastgoedkans-eigenaaronderzoek');
-    toast.info('De gedeelde CRM-relatiekoppeling wordt in de volgende tranche aangesloten.');
+    toast.info('De gedeelde CRM-relatiekoppeling wordt in een volgende tranche aangesloten.');
   };
   const openBriefVoorbereiden = () => setTab('brieven');
 
@@ -123,22 +123,19 @@ export default function VastgoedkansDetailPage() {
     <Tabs value={tab} onValueChange={(value) => setTab(value as VastgoedkansWerkTab)}>
       <TabsList className="mb-4 h-auto max-w-full justify-start overflow-x-auto bg-muted/50 p-1">
         <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+        <TabsTrigger value="onderzoek">Onderzoek</TabsTrigger>
         <TabsTrigger value="kadaster">Kadaster & eigenaar</TabsTrigger>
         <TabsTrigger value="brieven">Brieven & opvolging</TabsTrigger>
         <TabsTrigger value="dossier">Dossier</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overzicht" className="space-y-4">
-        <section className="section-card p-4 sm:p-5">
-          <h2 className="font-medium">Volgende stap</h2>
-          <p className="mt-1 text-sm text-muted-foreground">De werkbank toont alleen wat nu nodig is. Verdieping staat in de andere tabs.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div>
-            <div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div>
-            <div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div>
-          </div>
-        </section>
+        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Volgende stap</h2><p className="mt-1 text-sm text-muted-foreground">De werkbank toont alleen wat nu nodig is. Verdieping staat in de andere tabs.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div></div></section>
         <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Pand</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Adres</p><p className="mt-1 text-sm">{adres || 'Niet ingevuld'}</p></div><div><p className="text-xs text-muted-foreground">Type</p><p className="mt-1 text-sm">{kans.typeVastgoed || 'Niet ingevuld'}</p></div></div>{kans.redenInteressant && <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{kans.redenInteressant}</p>}</section>
+      </TabsContent>
+
+      <TabsContent value="onderzoek" className="space-y-4">
+        {onderzoekModel && <VastgoedkansOnderzoekWerkplek model={onderzoekModel} onOpenKadaster={() => setTab('kadaster')} />}
       </TabsContent>
 
       <TabsContent value="kadaster" className="space-y-4">
