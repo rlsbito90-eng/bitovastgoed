@@ -1,0 +1,172 @@
+name: BAG Amsterdam full-subset generatie
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Typ exact GENERATE_AMSTERDAM_FULL_SUBSET om te starten'
+        required: true
+        default: ''
+      metadata_run_id:
+        description: 'Workflowrun met de acht gevalideerde metadatachunks'
+        required: true
+        default: '30999148684'
+      chunk_artifact:
+        description: 'Artifactnaam met chunk-01 t/m chunk-08 en het validatierapport'
+        required: true
+        default: 'bag-amsterdam-metadata-chunks'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  generate:
+    name: Genereer en valideer Amsterdam full-subset (geen databasewrite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      AMSTERDAM_BRON_SHA256: fe2c5b7d7a264dd74ca7bfee72e7edd07d43dd99a90a34c8317e21ab6d79335c
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - name: Dwing exacte approval af
+        run: |
+          test "${{ github.event.inputs.approval }}" = "GENERATE_AMSTERDAM_FULL_SUBSET"
+          test "${{ github.event.inputs.metadata_run_id }}" != ""
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
+      - name: Installeer hulpmiddelen
+        run: sudo apt-get update && sudo apt-get install -y unzip wget file
+
+      - name: Controleer diskruimte vooraf
+        run: |
+          df -h /
+          beschikbaar_gb=$(df -BG --output=avail / | tail -n1 | tr -dc '0-9')
+          echo "beschikbaar: ${beschikbaar_gb} GB"
+          test "${beschikbaar_gb}" -ge 25
+
+      - name: Bewaak dat geen Supabase-project wordt benaderd
+        run: |
+          ! grep -RE "ljudxyrqoifhfikueric|wzkhmjuasyuvzhhycnym|xfygspvpeugxowxbcvnm" \
+            scripts/bag/amsterdam-metadata-en-closure.ts \
+            scripts/bag/extract-amsterdam-full-subset.py \
+            scripts/bag/bereid-amsterdam-import-voor.ts
+          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role" \
+            scripts/bag/extract-amsterdam-full-subset.py \
+            scripts/bag/bereid-amsterdam-import-voor.ts
+
+      - name: Valideer Amsterdam-contracten met gerichte tests
+        run: |
+          npx --no-install vitest run \
+            src/lib/bag/amsterdamMetadataIndex.test.ts \
+            src/lib/bag/amsterdamClosure.test.ts \
+            src/lib/bag/amsterdamImportPakket.test.ts \
+            src/test/bag/amsterdamFullSubsetExtractor.test.ts \
+            --reporter=verbose
+
+      - name: Haal uitsluitend de gevalideerde metadata-artifacts op
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.inputs.chunk_artifact }}
+          run-id: ${{ github.event.inputs.metadata_run_id }}
+          github-token: ${{ github.token }}
+          path: bag-amsterdam/chunks
+
+      - name: Voeg chunks samen en bereken relationele closure
+        env:
+          BAG_AMSTERDAM_CHUNKS: bag-amsterdam/chunks/chunks
+          BAG_AMSTERDAM_RAPPORT: bag-amsterdam/chunks/validatierapport.json
+          BAG_AMSTERDAM_METADATA_OUTPUT: bag-amsterdam/metadata
+        run: |
+          ls -la bag-amsterdam/chunks
+          npx --no-install vitest run src/lib/bag/amsterdamWorkflow.test.ts --reporter=verbose
+
+      - name: Download officiële landelijke bron opnieuw en dwing bronhash af
+        run: |
+          bash scripts/bag/inspect-officiele-bronnen.sh bag-amsterdam/bron
+          bron=$(find bag-amsterdam/bron -maxdepth 2 -type f -name '*.zip' | sort | head -n1)
+          test -n "${bron}"
+          gemeten=$(sha256sum "${bron}" | cut -d' ' -f1)
+          echo "bron=${bron} sha256=${gemeten}"
+          test "${gemeten}" = "${AMSTERDAM_BRON_SHA256}"
+          echo "AMSTERDAM_BRON=${bron}" >> "$GITHUB_ENV"
+
+      - name: Extraheer Amsterdam full-subset
+        run: |
+          python3 scripts/bag/extract-amsterdam-full-subset.py \
+            "${AMSTERDAM_BRON}" \
+            bag-amsterdam/bron/unpacked \
+            bag-amsterdam/metadata/closure-bewijs.json \
+            bag-amsterdam/full-subset.ndjson \
+            --verwachte-hash "${AMSTERDAM_BRON_SHA256}"
+
+      - name: Bereid importpakket voor (zonder database-import)
+        env:
+          BAG_AMSTERDAM_METADATA_OUTPUT: bag-amsterdam/metadata
+          BAG_AMSTERDAM_SUBSET: bag-amsterdam/full-subset.ndjson
+          BAG_AMSTERDAM_IMPORT_OUTPUT: bag-amsterdam/importpakket
+        run: |
+          npx --no-install vitest run src/lib/bag/amsterdamWorkflow.test.ts --reporter=verbose
+
+      - name: Stel gezamenlijk GO/STOP-rapport samen
+        if: always()
+        run: |
+          mkdir -p bag-amsterdam/rapport
+          {
+            echo "# BAG Amsterdam full-subset — GO/STOP"
+            echo
+            echo "- metadata_run_id: ${{ github.event.inputs.metadata_run_id }}"
+            echo "- bron_sha256 afgedwongen: ${AMSTERDAM_BRON_SHA256}"
+            echo "- databasewrite uitgevoerd: nee"
+            echo
+            echo '## Metadata-bewijs'
+            echo '```json'
+            cat bag-amsterdam/metadata/metadata-bewijs.json 2>/dev/null || echo '{}'
+            echo '```'
+            echo '## Closure-bewijs (zonder ID-lijst)'
+            echo '```json'
+            python3 -c "import json,sys;d=json.load(open('bag-amsterdam/metadata/closure-bewijs.json'));r=d.get('rapport') or {};r.pop('geselecteerdeIds',None);d['rapport']=r;print(json.dumps(d,indent=2))" 2>/dev/null || echo '{}'
+            echo '```'
+            echo '## Full-subset-bewijs'
+            echo '```json'
+            cat bag-amsterdam/full-subset.bewijs.json 2>/dev/null || echo '{}'
+            echo '```'
+            echo '## Importpakket-manifest'
+            echo '```json'
+            cat bag-amsterdam/importpakket/importpakket-manifest.json 2>/dev/null || echo '{}'
+            echo '```'
+          } > bag-amsterdam/rapport/go-no-go.md
+          du -sh bag-amsterdam/full-subset.ndjson bag-amsterdam/importpakket || true
+          df -h /
+
+      - name: Publiceer full-subset, importpakket en rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-full-subset-en-importpakket
+          path: |
+            bag-amsterdam/rapport/go-no-go.md
+            bag-amsterdam/metadata/metadata-bewijs.json
+            bag-amsterdam/metadata/metadata-index.tsv
+            bag-amsterdam/metadata/closure-bewijs.json
+            bag-amsterdam/metadata/closure-selectie.txt
+            bag-amsterdam/metadata/closure-selectie.sha256
+            bag-amsterdam/full-subset.ndjson
+            bag-amsterdam/full-subset.bewijs.json
+            bag-amsterdam/importpakket/*.csv
+            bag-amsterdam/importpakket/*.jsonl
+            bag-amsterdam/importpakket/manifest.json
+            bag-amsterdam/importpakket/importpakket-manifest.json
+          retention-days: 30
+          compression-level: 9
