@@ -8,6 +8,18 @@ import {
   bouwAcquisitieBrievenReadModel,
   type AcquisitieBrievenReadModel,
 } from './acquisitieBrievenReadModel';
+import {
+  offMarketNaarBriefDossier,
+  vastgoedkansNaarBriefDossier,
+} from './acquisitieBriefHistorieAdapters';
+import type {
+  AcquisitieBriefDossierReadModel,
+  AcquisitieBriefGebeurtenisBron,
+} from './acquisitieBriefHistorie';
+
+export type AcquisitieBrievenMetHistorieReadModel = AcquisitieBrievenReadModel & {
+  briefDossier: AcquisitieBriefDossierReadModel;
+};
 
 export interface VastgoedkansBrievenBron extends VastgoedkansDossierBron {
   eigenaarNaam?: string | null;
@@ -20,6 +32,10 @@ export interface VastgoedkansBrievenBron extends VastgoedkansDossierBron {
   brief_verzonden_op?: string | null;
   briefKenmerk?: string | null;
   brief_kenmerk?: string | null;
+  briefVerzendwijze?: string | null;
+  brief_verzendwijze?: string | null;
+  briefGebeurtenissen?: AcquisitieBriefGebeurtenisBron[] | null;
+  brief_gebeurtenissen?: AcquisitieBriefGebeurtenisBron[] | null;
   opvolgdatum?: string | null;
   reactieStatus?: string | null;
   reactie_status?: string | null;
@@ -38,6 +54,10 @@ export interface OffMarketBrievenBron extends OffMarketDossierBron {
   brief_verzonden_op?: string | null;
   briefKenmerk?: string | null;
   brief_kenmerk?: string | null;
+  briefVerzendwijze?: string | null;
+  brief_verzendwijze?: string | null;
+  briefGebeurtenissen?: AcquisitieBriefGebeurtenisBron[] | null;
+  brief_gebeurtenissen?: AcquisitieBriefGebeurtenisBron[] | null;
   opvolgdatum?: string | null;
   reactieStatus?: string | null;
   reactie_status?: string | null;
@@ -67,18 +87,20 @@ const naarBrongegevens = (bron: VastgoedkansBrievenBron | OffMarketBrievenBron) 
 
 export function vastgoedkansNaarBrievenReadModel(
   kans: VastgoedkansBrievenBron,
-): AcquisitieBrievenReadModel {
-  return bouwAcquisitieBrievenReadModel(
-    vastgoedkansNaarDossierContext(kans),
-    naarBrongegevens(kans),
-  );
+): AcquisitieBrievenMetHistorieReadModel {
+  const dossier = vastgoedkansNaarDossierContext(kans);
+  return {
+    ...bouwAcquisitieBrievenReadModel(dossier, naarBrongegevens(kans)),
+    briefDossier: vastgoedkansNaarBriefDossier(dossier, kans),
+  };
 }
 
 export function offMarketSignaalNaarBrievenReadModel(
   signaal: OffMarketBrievenBron,
-): AcquisitieBrievenReadModel {
-  return bouwAcquisitieBrievenReadModel(
-    offMarketSignaalNaarDossierContext(signaal),
-    naarBrongegevens(signaal),
-  );
+): AcquisitieBrievenMetHistorieReadModel {
+  const dossier = offMarketSignaalNaarDossierContext(signaal);
+  return {
+    ...bouwAcquisitieBrievenReadModel(dossier, naarBrongegevens(signaal)),
+    briefDossier: offMarketNaarBriefDossier(dossier, signaal),
+  };
 }
