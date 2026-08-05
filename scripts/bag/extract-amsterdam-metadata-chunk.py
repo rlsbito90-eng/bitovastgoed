@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse, gzip, json, re, shutil, tempfile, time, zipfile
+import argparse, gzip, hashlib, json, re, shutil, tempfile, time, zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 ID = re.compile(r"(?<!\d)\d{16}(?!\d)")
 HEARTBEAT = 50000
+GEMEENTECODE = "0363"
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def local_name(tag: str) -> str:
@@ -82,11 +91,19 @@ def main() -> int:
     p.add_argument("report", type=Path)
     args = p.parse_args()
 
-    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    manifest_bytes = args.manifest.read_bytes()
+    manifest = json.loads(manifest_bytes)
     chunk = next((c for c in manifest["chunks"] if c["chunk_id"] == args.chunk_id), None)
     if not chunk:
         p.error(f"Onbekende chunk: {args.chunk_id}")
     selected = set(chunk["onderdelen"])
+    onderdelen_by_path = {item["bronpad"]: item for item in manifest.get("onderdelen", [])}
+    selected_evidence = [onderdelen_by_path[path] for path in sorted(selected) if path in onderdelen_by_path]
+
+    source_sha256 = sha256_file(args.source)
+    if manifest.get("bron_sha256") and manifest["bron_sha256"] != source_sha256:
+        p.error("Bronbestand wijkt af van bron_sha256 in manifest")
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.report.parent.mkdir(parents=True, exist_ok=True)
 
@@ -101,7 +118,7 @@ def main() -> int:
                         primary, identifiers = metadata(xml)
                         out.write(json.dumps([primary, identifiers], separators=(",", ":")) + "\n")
                         records += 1
-                        if primary and primary.startswith("0363"):
+                        if primary and primary.startswith(GEMEENTECODE):
                             seeds += 1
                         if records % HEARTBEAT == 0:
                             print(f"{args.chunk_id}: {records:,} metadatarecords", flush=True)
@@ -111,9 +128,17 @@ def main() -> int:
 
     report = {
         "status": "metadata_chunk_validated" if errors == 0 and parts == len(selected) else "metadata_chunk_blocked",
+        "schema_version": 2,
+        "gemeentecode": GEMEENTECODE,
         "chunk_id": args.chunk_id,
+        "chunk_count": manifest.get("chunk_count"),
+        "bronbestand": manifest.get("bronbestand", args.source.name),
+        "bron_sha256": source_sha256,
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "metadata_sha256": sha256_file(args.output),
         "verwachte_brononderdelen": len(selected),
         "gelezen_brononderdelen": parts,
+        "brononderdelen": selected_evidence,
         "metadatarecords": records,
         "amsterdam_seed_records": seeds,
         "parse_fouten": errors,
@@ -122,8 +147,8 @@ def main() -> int:
         "supabase_benaderd": False,
         "productie_benaderd": False,
     }
-    args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report), flush=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({key: value for key, value in report.items() if key != "brononderdelen"}), flush=True)
     return 0 if report["status"] == "metadata_chunk_validated" else 1
 
 

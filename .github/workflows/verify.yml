@@ -33,23 +33,23 @@ jobs:
           old = "const [longitude, latitude] = puntUitGeometry(vbo?.geometry ?? feature?.geometry);"
           new = "const [longitude, latitude] = puntUitGeometry(feature?.geometry ?? vbo?.geometry);"
           if old not in text:
-            raise SystemExit('verwachte geometriekeuze niet gevonden')
+              raise SystemExit('verwachte geometriekeuze niet gevonden')
           path.write_text(text.replace(old, new, 1))
 
           test = Path('src/test/vastgoedkansen/pdokBagSelectie.test.ts')
           t = test.read_text()
           marker = "describe('puntInGemeente', () => {"
-          insertion = """describe('pandgeometrie voor geografische selectie', () => {
-  it('houdt de geografische selectie gebaseerd op het BAG-pand en niet op een gekoppeld verblijfsobject', () => {
-    const pandPunt: [number, number] = [5.0913, 51.5555];
-    const gemeente: [number, number][][] = [[[5.0, 51.5], [5.2, 51.5], [5.2, 51.7], [5.0, 51.7], [5.0, 51.5]]];
-    expect(puntInGemeente(pandPunt, gemeente)).toBe(true);
-  });
-});
-
-"""
+          insertion = (
+              "describe('pandgeometrie voor geografische selectie', () => {\n"
+              "  it('houdt de geografische selectie gebaseerd op het BAG-pand en niet op een gekoppeld verblijfsobject', () => {\n"
+              "    const pandPunt: [number, number] = [5.0913, 51.5555];\n"
+              "    const gemeente: [number, number][][] = [[[5.0, 51.5], [5.2, 51.5], [5.2, 51.7], [5.0, 51.7], [5.0, 51.5]]];\n"
+              "    expect(puntInGemeente(pandPunt, gemeente)).toBe(true);\n"
+              "  });\n"
+              "});\n\n"
+          )
           if marker not in t:
-            raise SystemExit('testmarker niet gevonden')
+              raise SystemExit('testmarker niet gevonden')
           test.write_text(t.replace(marker, insertion + marker, 1))
 
       - name: Commit applied patch
@@ -62,6 +62,11 @@ jobs:
           git add src/lib/pdokBagSelectie.ts src/test/vastgoedkansen/pdokBagSelectie.test.ts .github/workflows/verify.yml
           git commit -m "fix: gebruik BAG-pandgeometrie voor gemeentecontrole"
           git push origin HEAD:fix/pdok-pandgeometrie
+
+      - name: Valideer BAG Amsterdam bewijslogica
+        run: |
+          python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+          python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
 
       - name: Node.js
         uses: actions/setup-node@v4
