@@ -76,10 +76,14 @@ export interface BagPostgisCsvExportSamenvatting {
 export async function exporteerAssenNaarPostgisCsv(
   inputPath = 'bag-broninspectie/records.ndjson',
   outputPath = 'bag-broninspectie/postgis-export',
+  opties: { datasetVersie?: string; scopeCode?: string } = {},
 ): Promise<BagPostgisCsvExportSamenvatting> {
+  const datasetVersie = opties.datasetVersie ?? 'v20200601';
+  const scopeCode = opties.scopeCode ?? '0106';
   const input = resolve(inputPath);
   const outputDir = resolve(outputPath);
   mkdirSync(outputDir, { recursive: true });
+
 
   const records: BagOfficieelAdapterRecord[] = [];
   const adapterFouten: string[] = [];
@@ -102,8 +106,8 @@ export async function exporteerAssenNaarPostgisCsv(
   }
 
   const dryRun = voerIntegraleBagDryRunUit({
-    datasetVersie: 'v20200601',
-    scopeCode: '0106',
+    datasetVersie: datasetVersie,
+    scopeCode: scopeCode,
     records,
     batchGrootte: 5_000,
   });
@@ -259,8 +263,8 @@ export async function exporteerAssenNaarPostgisCsv(
 
   writeFileSync(resolve(outputDir, 'manifest.json'), `${JSON.stringify({
     ...samenvatting,
-    datasetVersie: 'v20200601',
-    scopeCode: '0106',
+    datasetVersie: datasetVersie,
+    scopeCode: scopeCode,
     stagingFouten: staging.fouten,
     adapterFouten: adapterFouten.slice(0, 100),
   }, null, 2)}\n`, 'utf-8');
