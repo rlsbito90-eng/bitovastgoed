@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
 import { exporteerAssenNaarPostgisCsv } from './exporteer-assen-naar-postgis-csv';
 import {
@@ -15,20 +16,49 @@ const TABELPERBESTAND: Record<string, string> = {
   'geometrieen.csv': 'bag_staging.geometrieen',
 };
 
-function tellingen(outputDir: string): AmsterdamImportBestandsTelling[] {
-  return readdirSync(outputDir)
+async function telEnHashBestand(pad: string): Promise<{ regels: number; sha256: string; bytes: number }> {
+  const hash = createHash('sha256');
+  const hashStream = createReadStream(pad);
+  for await (const blok of hashStream) hash.update(blok);
+
+  let regels = 0;
+  const regelsStream = createInterface({
+    input: createReadStream(pad, { encoding: 'utf-8' }),
+    crlfDelay: Infinity,
+  });
+  for await (const regel of regelsStream) {
+    if (regel.trim().length > 0) regels += 1;
+  }
+
+  return {
+    regels,
+    sha256: hash.digest('hex'),
+    bytes: statSync(pad).size,
+  };
+}
+
+async function tellingen(outputDir: string): Promise<{
+  bestanden: AmsterdamImportBestandsTelling[];
+  outputBytes: number;
+}> {
+  const namen = readdirSync(outputDir)
     .filter(naam => naam.endsWith('.csv') || naam.endsWith('.jsonl'))
-    .sort()
-    .map(naam => {
-      const pad = resolve(outputDir, naam);
-      const inhoud = readFileSync(pad, 'utf-8');
-      return {
-        bestand: naam,
-        tabel: TABELPERBESTAND[naam] ?? 'quarantaine',
-        regels: inhoud.split('\n').filter(regel => regel.trim().length > 0).length,
-        sha256: createHash('sha256').update(inhoud, 'utf-8').digest('hex'),
-      };
+    .sort();
+
+  const bestanden: AmsterdamImportBestandsTelling[] = [];
+  let outputBytes = 0;
+  for (const naam of namen) {
+    const pad = resolve(outputDir, naam);
+    const telling = await telEnHashBestand(pad);
+    outputBytes += telling.bytes;
+    bestanden.push({
+      bestand: naam,
+      tabel: TABELPERBESTAND[naam] ?? 'quarantaine',
+      regels: telling.regels,
+      sha256: telling.sha256,
     });
+  }
+  return { bestanden, outputBytes };
 }
 
 /**
@@ -60,6 +90,7 @@ export async function bereidAmsterdamImportVoor(
     scopeCode: '0363',
   });
   const outputDir = resolve(outputPad);
+  const bestandsbewijs = await tellingen(outputDir);
 
   const manifest = evalueerAmsterdamImportPakket({
     datasetVersie,
@@ -67,7 +98,7 @@ export async function bereidAmsterdamImportVoor(
     geselecteerdAantal: closure.geselecteerdeRecords!,
     selectieChecksum: closure.selectieChecksum,
     bronSha256: AMSTERDAM_BRON_SHA256,
-    bestanden: tellingen(outputDir),
+    bestanden: bestandsbewijs.bestanden,
     samenvatting: {
       ontvangen: samenvatting.ontvangen,
       verwerkt: samenvatting.verwerkt,
@@ -87,7 +118,7 @@ export async function bereidAmsterdamImportVoor(
   const manifestPad = resolve(outputDir, 'importpakket-manifest.json');
   writeFileSync(
     manifestPad,
-    `${JSON.stringify({ ...manifest, outputBytes: statSync(outputDir).size }, null, 2)}\n`,
+    `${JSON.stringify({ ...manifest, outputBytes: bestandsbewijs.outputBytes }, null, 2)}\n`,
     'utf-8',
   );
   return { besluit: manifest.besluit, manifestPad };
