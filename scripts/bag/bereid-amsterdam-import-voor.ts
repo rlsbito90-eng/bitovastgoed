@@ -43,10 +43,16 @@ export async function bereidAmsterdamImportVoor(
 ): Promise<{ besluit: 'GO' | 'STOP'; manifestPad: string }> {
   const closure = JSON.parse(readFileSync(resolve(closurePad), 'utf-8')) as {
     status: string;
-    rapport: { records: number; selectieChecksum: string } | null;
+    geselecteerdeRecords?: number;
+    selectieChecksum?: string;
   };
-  if (closure.status !== 'closure_validated' || !closure.rapport) {
-    throw new Error(`Closure niet gevalideerd (status ${closure.status}); importvoorbereiding gestopt.`);
+  if (
+    closure.status !== 'closure_validated' ||
+    !Number.isInteger(closure.geselecteerdeRecords) ||
+    (closure.geselecteerdeRecords ?? 0) <= 0 ||
+    !closure.selectieChecksum
+  ) {
+    throw new Error(`Closure niet volledig gevalideerd (status ${closure.status}); importvoorbereiding gestopt.`);
   }
 
   const samenvatting = await exporteerAssenNaarPostgisCsv(ndjsonPad, outputPad, {
@@ -58,8 +64,8 @@ export async function bereidAmsterdamImportVoor(
   const manifest = evalueerAmsterdamImportPakket({
     datasetVersie,
     scopeCode: '0363',
-    geselecteerdAantal: closure.rapport.records,
-    selectieChecksum: closure.rapport.selectieChecksum,
+    geselecteerdAantal: closure.geselecteerdeRecords!,
+    selectieChecksum: closure.selectieChecksum,
     bronSha256: AMSTERDAM_BRON_SHA256,
     bestanden: tellingen(outputDir),
     samenvatting: {
