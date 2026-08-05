@@ -1,0 +1,199 @@
+name: BAG Amsterdam bewijsrijke acht-chunkbatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: BUILD_BAG_AMSTERDAM_EVIDENCE_BATCH'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-evidence-batch
+  cancel-in-progress: false
+
+env:
+  BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  preflight:
+    if: github.event.inputs.approval == 'BUILD_BAG_AMSTERDAM_EVIDENCE_BATCH'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      bron_sha256: ${{ steps.bewijs.outputs.bron_sha256 }}
+      manifest_sha256: ${{ steps.bewijs.outputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valideer lokale bewijslogica
+        run: |
+          python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
+          python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
+
+      - name: Download officiële landelijke BAG-bron voor preflight
+        run: |
+          mkdir -p bag-amsterdam-preflight
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 10800 \
+            "$BAG_NL_SOURCE_URL" \
+            --output bag-amsterdam-preflight/lvbag-extract-nl.zip
+          unzip -t bag-amsterdam-preflight/lvbag-extract-nl.zip
+
+      - name: Bouw canoniek acht-chunkmanifest
+        run: |
+          python3 scripts/bag/build-amsterdam-chunk-manifest.py \
+            bag-amsterdam-preflight/lvbag-extract-nl.zip \
+            bag-amsterdam-preflight/bron-en-chunkmanifest.json \
+            --chunks 8
+
+      - name: Leg bron- en manifesthash vast
+        id: bewijs
+        run: |
+          bron_sha256=$(sha256sum bag-amsterdam-preflight/lvbag-extract-nl.zip | awk '{print $1}')
+          manifest_sha256=$(sha256sum bag-amsterdam-preflight/bron-en-chunkmanifest.json | awk '{print $1}')
+          echo "bron_sha256=$bron_sha256" >> "$GITHUB_OUTPUT"
+          echo "manifest_sha256=$manifest_sha256" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('bag-amsterdam-preflight/bron-en-chunkmanifest.json').read_text())
+          bewijs = {
+              'status': 'amsterdam_bron_preflight_validated',
+              'bronbestand': manifest['bronbestand'],
+              'bron_sha256': manifest['bron_sha256'],
+              'bron_bytes': manifest['bron_bytes'],
+              'aantal_brononderdelen': manifest['aantal_brononderdelen'],
+              'chunk_count': manifest['chunk_count'],
+              'database_write_uitgevoerd': False,
+              'supabase_benaderd': False,
+              'productie_benaderd': False,
+          }
+          Path('bag-amsterdam-preflight/preflight-rapport.json').write_text(
+              json.dumps(bewijs, indent=2, sort_keys=True) + '\n'
+          )
+          PY
+
+      - name: Publiceer compact preflightbewijs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-evidence-preflight
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            bag-amsterdam-preflight/preflight-rapport.json
+            bag-amsterdam-preflight/bron-en-chunkmanifest.json
+
+  chunks:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        chunk_id:
+          - chunk-01
+          - chunk-02
+          - chunk-03
+          - chunk-04
+          - chunk-05
+          - chunk-06
+          - chunk-07
+          - chunk-08
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download officiële landelijke BAG-bron
+        run: |
+          mkdir -p bag-amsterdam-evidence/download bag-amsterdam-evidence/resultaat
+          curl --fail --location --retry 8 --retry-all-errors \
+            --connect-timeout 60 --max-time 10800 \
+            "$BAG_NL_SOURCE_URL" \
+            --output bag-amsterdam-evidence/download/lvbag-extract-nl.zip
+          unzip -t bag-amsterdam-evidence/download/lvbag-extract-nl.zip
+
+      - name: Verifieer bronhash tegen preflight
+        run: |
+          actual=$(sha256sum bag-amsterdam-evidence/download/lvbag-extract-nl.zip | awk '{print $1}')
+          test "$actual" = "${{ needs.preflight.outputs.bron_sha256 }}" || {
+            echo "Bronhash wijkt af van preflight" >&2
+            exit 1
+          }
+
+      - name: Bouw en verifieer hetzelfde acht-chunkmanifest
+        run: |
+          python3 scripts/bag/build-amsterdam-chunk-manifest.py \
+            bag-amsterdam-evidence/download/lvbag-extract-nl.zip \
+            bag-amsterdam-evidence/resultaat/bron-en-chunkmanifest.json \
+            --chunks 8
+          actual=$(sha256sum bag-amsterdam-evidence/resultaat/bron-en-chunkmanifest.json | awk '{print $1}')
+          test "$actual" = "${{ needs.preflight.outputs.manifest_sha256 }}" || {
+            echo "Manifesthash wijkt af van preflight" >&2
+            exit 1
+          }
+
+      - name: Extraheer metadata en controleerbaar bewijs
+        run: |
+          timeout --signal=TERM --kill-after=2m 260m \
+            python3 scripts/bag/extract-amsterdam-metadata-chunk.py \
+              bag-amsterdam-evidence/download/lvbag-extract-nl.zip \
+              bag-amsterdam-evidence/resultaat/bron-en-chunkmanifest.json \
+              '${{ matrix.chunk_id }}' \
+              bag-amsterdam-evidence/resultaat/${{ matrix.chunk_id }}-metadata.ndjson.gz \
+              bag-amsterdam-evidence/resultaat/${{ matrix.chunk_id }}-rapport.json
+
+      - name: Verwijder grote bron en volledig manifest
+        if: always()
+        run: |
+          rm -f bag-amsterdam-evidence/download/lvbag-extract-nl.zip
+          rm -f bag-amsterdam-evidence/resultaat/bron-en-chunkmanifest.json
+
+      - name: Publiceer bewijsrijk chunkartifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-evidence-${{ matrix.chunk_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: bag-amsterdam-evidence/resultaat/
+
+  gezamenlijke-validatie:
+    needs: chunks
+    if: always() && needs.chunks.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download alle acht chunkartifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bag-amsterdam-evidence-chunk-*
+          path: bag-amsterdam-evidence-gecombineerd
+          merge-multiple: true
+
+      - name: Valideer acht chunks gezamenlijk
+        run: |
+          python3 scripts/bag/validate-amsterdam-metadata-artifacts.py \
+            bag-amsterdam-evidence-gecombineerd/chunk-01-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-02-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-03-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-04-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-05-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-06-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-07-rapport.json \
+            bag-amsterdam-evidence-gecombineerd/chunk-08-rapport.json \
+            --output bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
+
+      - name: Publiceer gezamenlijk stop-go-rapport
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-evidence-gezamenlijke-validatie
+          if-no-files-found: error
+          retention-days: 30
+          path: bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
