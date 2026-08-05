@@ -26,7 +26,6 @@ def maak_fixture(root: Path, drift: bool = False) -> tuple[Path, Path, Path]:
     for number in range(1, 9):
         chunk_id = f"chunk-{number:02d}"
         metadata = chunks / f"{chunk_id}-metadata.ndjson.gz"
-        records = []
         if number == 1:
             records = [
                 ["0363100000000001", ["0363010000000001"]],
@@ -36,7 +35,7 @@ def maak_fixture(root: Path, drift: bool = False) -> tuple[Path, Path, Path]:
             records = [["0457010000000001", []]]
         else:
             records = [[f"01061000000000{number:02d}", []]]
-        with gzip.open(metadata, "wt", encoding="utf-8", compresslevel=6, mtime=0) as handle:
+        with gzip.open(metadata, "wt", encoding="utf-8", compresslevel=6) as handle:
             for record in records:
                 handle.write(json.dumps(record, separators=(",", ":")) + "\n")
         report = {
