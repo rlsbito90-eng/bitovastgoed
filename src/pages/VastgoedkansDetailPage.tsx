@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OptionalDateField } from '@/components/forms/OptionalDateField';
 import AcquisitieEigenaarWerkstroomKaart from '@/components/acquisitie/AcquisitieEigenaarWerkstroomKaart';
+import { AcquisitieBrievenStatusKaart } from '@/components/acquisitie/AcquisitieBrievenStatusKaart';
+import { AcquisitieKadasterStatusKaart } from '@/components/acquisitie/AcquisitieKadasterStatusKaart';
 import VastgoedkansOnderzoekWerkplek from '@/components/acquisitie/VastgoedkansOnderzoekWerkplek';
 import { useVastgoedkansen, type KansInput } from '@/hooks/useVastgoedkansen';
 import {
@@ -22,6 +24,8 @@ import {
   type VastgoedkansWerkTab,
 } from '@/lib/vastgoedkansWorkspace';
 import { vastgoedkansNaarDossierContext } from '@/lib/acquisitieDossierAdapters';
+import { vastgoedkansNaarBrievenReadModel } from '@/lib/acquisitieBrievenAdapters';
+import { vastgoedkansNaarKadasterReadModel } from '@/lib/acquisitieKadasterAdapters';
 import { bouwAcquisitieEigenaarWerkstroomModel } from '@/lib/acquisitieEigenaarWerkstroom';
 import { bouwVastgoedkansOnderzoekModel } from '@/lib/vastgoedkansOnderzoek';
 
@@ -53,6 +57,18 @@ export default function VastgoedkansDetailPage() {
   const nav = useMemo(() => bepaalWerkcontextNavigatie(ids, id), [ids, id]);
   const dossierContext = useMemo(() => kans ? vastgoedkansNaarDossierContext(kans as any) : null, [kans]);
   const onderzoekModel = useMemo(() => kans ? bouwVastgoedkansOnderzoekModel(kans) : null, [kans]);
+  const actueleBron = useMemo(
+    () => kans ? { ...kans, ...form, adresControleGeslaagd: Boolean(kans.adres?.trim()) } : null,
+    [kans, form],
+  );
+  const kadasterReadModel = useMemo(
+    () => actueleBron ? vastgoedkansNaarKadasterReadModel(actueleBron as any) : null,
+    [actueleBron],
+  );
+  const brievenReadModel = useMemo(
+    () => actueleBron ? vastgoedkansNaarBrievenReadModel(actueleBron as any) : null,
+    [actueleBron],
+  );
   const eigenaarWerkstroom = useMemo(
     () => dossierContext ? bouwAcquisitieEigenaarWerkstroomModel({
       dossier: dossierContext,
@@ -139,12 +155,14 @@ export default function VastgoedkansDetailPage() {
       </TabsContent>
 
       <TabsContent value="kadaster" className="space-y-4">
+        {kadasterReadModel && <AcquisitieKadasterStatusKaart model={kadasterReadModel} />}
         {eigenaarWerkstroom && <AcquisitieEigenaarWerkstroomKaart model={eigenaarWerkstroom} onOpenOnderzoek={openOnderzoek} onOpenEigenaarZoeken={openEigenaarZoeken} onOpenRelatieKoppelen={openRelatieKoppelen} onOpenBriefVoorbereiden={openBriefVoorbereiden} />}
         <section id="vastgoedkans-kadasteronderzoek" className="section-card scroll-mt-24 p-4 sm:p-5"><div className="flex items-center gap-2"><Landmark className="h-4 w-4" /><h2 className="font-medium">Kadasteronderzoek</h2></div><p className="mt-1 text-xs text-muted-foreground">Handmatige registratie; er wordt geen product besteld en geen eigenaar automatisch overgenomen.</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.kadasterStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, kadasterStatus: e.target.value as KadasterOnderzoekStatus })}>{Object.entries(KADASTER_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.kadasterLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, kadasterLaatstGecontroleerdOp: value })} /><div className="sm:col-span-2"><Label>Kadastrale aanduiding</Label><Input value={form.kadastraleAanduiding ?? ''} onChange={(e) => setForm({ ...form, kadastraleAanduiding: e.target.value })} /></div></div></section>
         <section id="vastgoedkans-eigenaaronderzoek" className="section-card scroll-mt-24 p-4 sm:p-5"><div className="flex items-center gap-2"><UserSearch className="h-4 w-4" /><h2 className="font-medium">Eigenaar</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Status</Label><select className={selectClass} value={form.eigenaarStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, eigenaarStatus: e.target.value as EigenaarOnderzoekStatus })}>{Object.entries(EIGENAAR_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OptionalDateField label="Laatst gecontroleerd" value={form.eigenaarLaatstGecontroleerdOp ?? ''} onChange={(value) => setForm({ ...form, eigenaarLaatstGecontroleerdOp: value })} /><div><Label>Eigenaar / rechthebbende</Label><Input value={form.eigenaarNaam ?? ''} onChange={(e) => setForm({ ...form, eigenaarNaam: e.target.value })} /></div><div><Label>Bron</Label><Input value={form.eigenaarBron ?? ''} onChange={(e) => setForm({ ...form, eigenaarBron: e.target.value })} /></div></div>{googleEigenaarUrl && <Button asChild className="mt-4" variant="outline"><a href={googleEigenaarUrl} target="_blank" rel="noreferrer"><Search className="mr-1.5 h-4 w-4" />Zoek naam op Google<ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a></Button>}</section>
       </TabsContent>
 
       <TabsContent value="brieven" className="space-y-4">
+        {brievenReadModel && <AcquisitieBrievenStatusKaart model={brievenReadModel} />}
         <section className="section-card p-4 sm:p-5"><div className="flex items-center gap-2"><Mail className="h-4 w-4" /><h2 className="font-medium">Brief en verzending</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><Label>Briefstatus</Label><select className={selectClass} value={form.briefStatus ?? 'niet_gestart'} onChange={(e) => setForm({ ...form, briefStatus: e.target.value as BriefStatus, status: e.target.value === 'verzonden' ? 'opvolgen' : form.status })}>{Object.entries(BRIEF_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div><Label>Geadresseerde</Label><Input value={form.briefGeadresseerde ?? ''} onChange={(e) => setForm({ ...form, briefGeadresseerde: e.target.value })} /></div><div><Label>Verzendwijze</Label><select className={selectClass} value={form.briefVerzendwijze ?? ''} onChange={(e) => setForm({ ...form, briefVerzendwijze: e.target.value })}><option value="">Niet gekozen</option><option value="post">Post</option><option value="handmatig_bezorgd">Handmatig bezorgd</option><option value="e-mail">E-mail</option><option value="anders">Anders</option></select></div><OptionalDateField label="Verzonden op" value={form.briefVerzondenOp ?? ''} onChange={(value) => setForm({ ...form, briefVerzondenOp: value, briefStatus: value ? 'verzonden' : form.briefStatus, status: value ? 'opvolgen' : form.status })} /><div className="sm:col-span-2"><Label>Briefkenmerk</Label><Input value={form.briefKenmerk ?? ''} onChange={(e) => setForm({ ...form, briefKenmerk: e.target.value })} /></div></div></section>
         <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Opvolging en reactie</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><OptionalDateField label="Opvolgdatum" value={form.opvolgdatum ?? ''} onChange={(value) => setForm({ ...form, opvolgdatum: value, status: value ? 'opvolgen' : form.status })} /><div><Label>Opvolgactie</Label><Input value={form.opvolgactie ?? ''} onChange={(e) => setForm({ ...form, opvolgactie: e.target.value })} /></div><div><Label>Reactiestatus</Label><select className={selectClass} value={form.reactieStatus ?? 'geen_reactie'} onChange={(e) => setReactie(e.target.value as ReactieStatus)}>{Object.entries(REACTIE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div><Label>Uitkomst</Label><Input value={form.reactieUitkomst ?? ''} onChange={(e) => setForm({ ...form, reactieUitkomst: e.target.value })} /></div></div></section>
       </TabsContent>
