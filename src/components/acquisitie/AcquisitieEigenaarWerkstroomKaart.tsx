@@ -1,6 +1,10 @@
-import { ArrowRight, Landmark, Link2, Mail, Search, UserCheck } from 'lucide-react';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, ExternalLink, Landmark, Link2, Mail, Search, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useDataStore } from '@/hooks/useDataStore';
+import { bouwAcquisitieRelatieMatchReadModel } from '@/lib/acquisitieRelatieMatching';
 import type { AcquisitieEigenaarWerkstroomModel } from '@/lib/acquisitieEigenaarWerkstroom';
 
 interface Props {
@@ -19,6 +23,12 @@ const STATUS_LABEL: Record<AcquisitieEigenaarWerkstroomModel['status'], string> 
   onbekend: 'Onbekend',
 };
 
+const MATCH_LABEL = {
+  exact: 'Exact',
+  waarschijnlijk: 'Waarschijnlijk',
+  mogelijk: 'Mogelijk',
+} as const;
+
 export default function AcquisitieEigenaarWerkstroomKaart({
   model,
   onOpenOnderzoek,
@@ -26,6 +36,21 @@ export default function AcquisitieEigenaarWerkstroomKaart({
   onOpenRelatieKoppelen,
   onOpenBriefVoorbereiden,
 }: Props) {
+  const { relaties } = useDataStore();
+  const relatieMatchModel = useMemo(
+    () => bouwAcquisitieRelatieMatchReadModel(
+      { eigenaarNaam: model.eigenaarNaam },
+      relaties.map((relatie) => ({
+        id: relatie.id,
+        bedrijfsnaam: relatie.bedrijfsnaam,
+        contactpersoon: relatie.contactpersoon,
+        vestigingsplaats: (relatie as any).vestigingsplaats ?? (relatie as any).plaats ?? null,
+        softDeletedAt: (relatie as any).softDeletedAt ?? (relatie as any).deletedAt ?? null,
+      })),
+    ),
+    [model.eigenaarNaam, relaties],
+  );
+
   const primaireActie = !model.heeftEigenaar
     ? {
         label: model.kanEigenaarZoeken ? 'Start eigenaarsonderzoek' : 'Vul eerst een adres in',
@@ -35,7 +60,7 @@ export default function AcquisitieEigenaarWerkstroomKaart({
       }
     : !model.heeftRelatiekoppeling
       ? {
-          label: 'Koppel eigenaar aan relatie',
+          label: 'Beoordeel CRM-relaties',
           onClick: onOpenRelatieKoppelen,
           disabled: !model.kanRelatieKoppelen || !onOpenRelatieKoppelen,
           Icon: Link2,
@@ -60,12 +85,7 @@ export default function AcquisitieEigenaarWerkstroomKaart({
             Werk stap voor stap van pandonderzoek naar een gekoppelde eigenaar en gerichte benadering.
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={primaireActie.onClick}
-          disabled={primaireActie.disabled}
-        >
+        <Button type="button" size="sm" onClick={primaireActie.onClick} disabled={primaireActie.disabled}>
           <primaireActie.Icon className="mr-1.5 h-4 w-4" />
           {primaireActie.label}
           {!primaireActie.disabled && <ArrowRight className="ml-1.5 h-4 w-4" />}
@@ -109,6 +129,45 @@ export default function AcquisitieEigenaarWerkstroomKaart({
         </div>
       </div>
 
+      {model.heeftEigenaar && !model.heeftRelatiekoppeling && (
+        <div className="mt-4 rounded-md border border-border bg-card/60 p-3" data-testid="acquisitie-relatiekiezer-readonly">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Mogelijke CRM-relaties</p>
+              <p className="mt-1 text-xs text-muted-foreground">{relatieMatchModel.primaireActie}</p>
+            </div>
+            <Badge variant="outline">Read-only</Badge>
+          </div>
+
+          {relatieMatchModel.matches.length === 0 ? (
+            <p className="mt-3 rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
+              Geen bestaande relatie gevonden voor “{model.eigenaarNaam}”. Er wordt niets automatisch aangemaakt of gekoppeld.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {relatieMatchModel.matches.slice(0, 5).map((match) => (
+                <div key={match.relatieId} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium">{match.label}</p>
+                      <Badge variant={match.niveau === 'exact' ? 'secondary' : 'outline'}>{MATCH_LABEL[match.niveau]}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{match.redenen.join(' · ')}</p>
+                  </div>
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <Link to={`/relaties/${match.relatieId}`} target="_blank" rel="noreferrer">
+                      Open relatie<ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="mt-3 text-xs text-muted-foreground">{relatieMatchModel.veiligheidsmelding}</p>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-2">
         {model.kanEigenaarZoeken && onOpenEigenaarZoeken && (
           <Button type="button" size="sm" variant="outline" onClick={onOpenEigenaarZoeken}>
@@ -117,7 +176,7 @@ export default function AcquisitieEigenaarWerkstroomKaart({
         )}
         {model.kanRelatieKoppelen && onOpenRelatieKoppelen && (
           <Button type="button" size="sm" variant="outline" onClick={onOpenRelatieKoppelen}>
-            <Link2 className="mr-1.5 h-4 w-4" />Relatie koppelen
+            <Link2 className="mr-1.5 h-4 w-4" />Relatie beoordelen
           </Button>
         )}
         {model.kanBriefVoorbereiden && onOpenBriefVoorbereiden && (
