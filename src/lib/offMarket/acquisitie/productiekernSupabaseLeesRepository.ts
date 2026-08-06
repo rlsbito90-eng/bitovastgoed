@@ -22,6 +22,7 @@ import {
   ProductiekernNietGeactiveerdError,
   type AcquisitieProductiekernRepository,
 } from './productiekernRepository';
+import { bewaakBriefversieSnapshotLimiet } from './productiekernSnapshotLeesLimiet';
 import {
   mapAcquisitiedossierRij,
   mapBriefRij,
@@ -68,7 +69,10 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
       { kolom: 'versienummer', oplopend: true },
     );
     const versies = bewaakBriefversieLeesIntegriteit(
-      rijen.map(mapBriefversieRij).map((versie) => bewaakBriefversieLeesTijd(versie)),
+      rijen
+        .map(mapBriefversieRij)
+        .map((versie) => bewaakBriefversieSnapshotLimiet(versie))
+        .map((versie) => bewaakBriefversieLeesTijd(versie)),
     );
     bewaakBriefversiesVoorGevraagdeBrief(briefId, versies.map((versie) => versie.briefId));
     return versies;
