@@ -53,7 +53,7 @@ describe('legacy briefcompatibiliteit', () => {
     expect(resultaat.waarschuwingen).toEqual([]);
   });
 
-  it('houdt printdatum en postdatum afzonderlijk en gebruikt postdatum als verzendbewijs', () => {
+  it('houdt printdatum en postdatum afzonderlijk en gebruikt alleen postdatum als verzendbewijs', () => {
     const resultaat = mapLegacyBriefNaarProductiekern({
       ...basis,
       status: 'verstuurd',
@@ -64,22 +64,28 @@ describe('legacy briefcompatibiliteit', () => {
     }, adres);
 
     expect(resultaat.brief.status).toBe('definitief');
+    expect(resultaat.brief.definitiefOp).toBe('2026-06-03T16:00:00Z');
     expect(resultaat.versie.status).toBe('verzonden');
     expect(resultaat.versie.verzondenOp).toBe('2026-06-03T16:00:00Z');
     expect(resultaat.legacy.printdatum).toBe('2026-06-02T09:00:00Z');
     expect(resultaat.legacy.postdatum).toBe('2026-06-03T16:00:00Z');
   });
 
-  it('waarschuwt wanneer verstuurd niet door een afzonderlijke postdatum wordt ondersteund', () => {
+  it('behandelt verstuurd zonder postdatum als onzeker en niet als bewezen verzending', () => {
     const resultaat = mapLegacyBriefNaarProductiekern({
       ...basis,
       status: 'verstuurd',
       printdatum: '2026-06-02T09:00:00Z',
       verzonden_op: '2026-06-02T09:00:00Z',
+      verzendstatus: 'verstuurd',
     }, adres);
 
+    expect(resultaat.brief.status).toBe('concept');
+    expect(resultaat.brief.definitiefOp).toBeNull();
+    expect(resultaat.versie.status).toBe('actief');
+    expect(resultaat.versie.verzondenOp).toBeNull();
     expect(resultaat.waarschuwingen).toContain(
-      'Legacy record meldt verstuurd zonder afzonderlijke postdatum.',
+      'Legacy record meldt verzending zonder afzonderlijke postdatum; posthandeling is niet hard bewezen.',
     );
   });
 
