@@ -1,13 +1,20 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import type { BagOfficieelAdapterRecord } from '../../src/lib/bag/officieleXmlRecordAdapter';
-import { normaliseerAmsterdamNdjsonStreamend, parseAmsterdamBronregel } from '../../src/lib/bag/amsterdamStreamingNormalisatie';
+import {
+  normaliseerAmsterdamNdjsonStreamend,
+  parseAmsterdamBronregel,
+  type AmsterdamBronregel,
+  type AmsterdamStreamingParserResultaat,
+} from '../../src/lib/bag/amsterdamStreamingNormalisatie';
 import { sorteerAmsterdamSpoolInChunks } from '../../src/lib/bag/amsterdamChunkedSpoolSort';
 import { exporteerAmsterdamSpoolNaarCsvStreamend } from '../../src/lib/bag/amsterdamStreamingCsvExport';
 import { maakVoorkomenSleutel } from '../../src/lib/bag/geometrieVoorkomenKoppeling';
 import { evalueerAmsterdamImportPakket, type AmsterdamImportBestandsTelling } from '../../src/lib/bag/amsterdamImportPakket';
 import { AMSTERDAM_BRON_SHA256 } from '../../src/lib/bag/amsterdamMetadataIndex';
+
+const IN_ONDERZOEK_BRONBESTAND = '9999InOnderzoek08072026.zip';
 
 const TABELPERBESTAND: Record<string, string> = {
   objecten: 'bag_staging.objecten',
@@ -34,6 +41,12 @@ function sorteersleutel(record: BagOfficieelAdapterRecord): string {
   ].join('\u0000');
 }
 
+export function isAmsterdamInOnderzoekNevenlevering(bronpad: string): boolean {
+  return bronpad
+    .split(/[\\/]/)
+    .some(deel => basename(deel) === IN_ONDERZOEK_BRONBESTAND);
+}
+
 export async function bereidAmsterdamImportStreamendVoor(
   ndjsonPad = 'bag-amsterdam/full-subset.ndjson',
   closurePad = 'bag-amsterdam/metadata/closure-bewijs.json',
@@ -51,18 +64,59 @@ export async function bereidAmsterdamImportStreamendVoor(
   }
 
   const werkmap = resolve(werkPad);
+  const outputDir = resolve(outputPad);
   const spoolPad = resolve(werkmap, 'genormaliseerd.ndjson');
-  const foutenPad = resolve(outputPad, 'adapter-fouten.jsonl');
+  const foutenPad = resolve(outputDir, 'adapter-fouten.jsonl');
   const gesorteerdPad = resolve(werkmap, 'gesorteerd.ndjson');
+  const nevenleveringBewijsPad = resolve(outputDir, 'in-onderzoek-nevenlevering-bewijs.json');
   await rm(werkmap, { recursive: true, force: true });
   await mkdir(werkmap, { recursive: true });
+  await mkdir(outputDir, { recursive: true });
+
+  let inOnderzoekRecords = 0;
+  const inOnderzoekBronpaden = new Set<string>();
+  const parser = (
+    bronregel: AmsterdamBronregel,
+  ): AmsterdamStreamingParserResultaat<BagOfficieelAdapterRecord> => {
+    if (isAmsterdamInOnderzoekNevenlevering(bronregel.bronpad)) {
+      inOnderzoekRecords += 1;
+      inOnderzoekBronpaden.add(bronregel.bronpad);
+      return { record: null, fouten: [] };
+    }
+    return parseAmsterdamBronregel(bronregel);
+  };
 
   const normalisatie = await normaliseerAmsterdamNdjsonStreamend(
     ndjsonPad,
     spoolPad,
     foutenPad,
-    parseAmsterdamBronregel,
+    parser,
   );
+
+  if (inOnderzoekRecords === 0) {
+    throw new Error(`Verwachte InOnderzoek-nevenlevering ${IN_ONDERZOEK_BRONBESTAND} niet aangetroffen; importvoorbereiding fail-closed gestopt.`);
+  }
+
+  const importeerbareSelectie = closure.geselecteerdeRecords! - inOnderzoekRecords;
+  if (importeerbareSelectie <= 0 || normalisatie.genormaliseerd + normalisatie.fouten !== importeerbareSelectie) {
+    throw new Error(
+      `Nevenleveringcorrectie is niet sluitend: closure=${closure.geselecteerdeRecords}, nevenlevering=${inOnderzoekRecords}, ` +
+      `genormaliseerd=${normalisatie.genormaliseerd}, fouten=${normalisatie.fouten}.`,
+    );
+  }
+
+  writeFileSync(nevenleveringBewijsPad, `${JSON.stringify({
+    status: 'nevenlevering_bewezen_en_uitgesloten_van_objectimport',
+    bronbestand: IN_ONDERZOEK_BRONBESTAND,
+    bronpaden: [...inOnderzoekBronpaden].sort(),
+    records: inOnderzoekRecords,
+    closureGeselecteerdeRecords: closure.geselecteerdeRecords,
+    importeerbareObjectrecords: importeerbareSelectie,
+    reden: 'InOnderzoek is een landelijke BAG-nevenlevering en geen zelfstandig BAG-objecttype voor de objectadapter.',
+    databaseImportUitgevoerd: false,
+    supabaseBenaderd: false,
+  }, null, 2)}\n`, 'utf-8');
+
   const sortering = await sorteerAmsterdamSpoolInChunks<BagOfficieelAdapterRecord>({
     invoerPad: spoolPad,
     uitvoerPad: gesorteerdPad,
@@ -70,7 +124,7 @@ export async function bereidAmsterdamImportStreamendVoor(
     sleutel: sorteersleutel,
     maxRecordsPerChunk: 25_000,
   });
-  const csvExport = await exporteerAmsterdamSpoolNaarCsvStreamend(gesorteerdPad, outputPad, {
+  const csvExport = await exporteerAmsterdamSpoolNaarCsvStreamend(gesorteerdPad, outputDir, {
     datasetVersie,
     scopeCode: '0363',
   });
@@ -91,12 +145,12 @@ export async function bereidAmsterdamImportStreamendVoor(
   const manifest = evalueerAmsterdamImportPakket({
     datasetVersie,
     scopeCode: '0363',
-    geselecteerdAantal: closure.geselecteerdeRecords!,
+    geselecteerdAantal: importeerbareSelectie,
     selectieChecksum: closure.selectieChecksum,
     bronSha256: AMSTERDAM_BRON_SHA256,
     bestanden,
     samenvatting: {
-      ontvangen: normalisatie.gelezen,
+      ontvangen: normalisatie.gelezen - inOnderzoekRecords,
       verwerkt: normalisatie.genormaliseerd,
       adapterFouten: normalisatie.fouten,
       stagingFouten: 0,
@@ -111,9 +165,18 @@ export async function bereidAmsterdamImportStreamendVoor(
     },
   });
 
-  const manifestPad = resolve(outputPad, 'importpakket-manifest.json');
+  const manifestPad = resolve(outputDir, 'importpakket-manifest.json');
   writeFileSync(manifestPad, `${JSON.stringify({
     ...manifest,
+    closureGeselecteerdeRecords: closure.geselecteerdeRecords,
+    nevenleveringen: {
+      inOnderzoek: {
+        status: 'bewezen_en_uitgesloten_van_objectimport',
+        bronbestand: IN_ONDERZOEK_BRONBESTAND,
+        records: inOnderzoekRecords,
+        bewijsbestand: nevenleveringBewijsPad,
+      },
+    },
     streaming: {
       normalisatie,
       sortering,
