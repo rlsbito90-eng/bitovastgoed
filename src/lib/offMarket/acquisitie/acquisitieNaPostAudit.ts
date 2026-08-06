@@ -37,19 +37,27 @@ function canoniekUtc(waarde: string): string {
 
 /**
  * Maakt één privacyveilig auditrecord van de volledige na-post-use-case.
- * Vrije foutmeldingen, adresgegevens en briefinhoud worden bewust niet opgenomen.
+ * De audit gebruikt bewust een eigen operation key en hergebruikt niet de
+ * dossier-operation key. Daardoor kunnen bedrijfswrite en auditwrite elk hun
+ * eigen idempotentiegrens afdwingen zonder sleutelbotsing.
+ * Vrije foutmeldingen, adresgegevens en briefinhoud worden niet opgenomen.
  */
 export function bouwAcquisitieNaPostAuditRecord(input: {
   selectieId: string;
   actorId: string;
+  operationKey: string;
   geregistreerdOp: string;
   resultaat: AcquisitieNaPostUseCaseResultaat;
 }): AcquisitieNaPostAuditRecord {
   const selectieId = verplichtVeld(input.selectieId, 'Selectie-ID');
   const actorId = verplichtVeld(input.actorId, 'Actor-ID');
+  const operationKey = verplichtVeld(input.operationKey, 'Audit-operation key');
   const geregistreerdOp = canoniekUtc(input.geregistreerdOp);
   const batchId = verplichtVeld(input.resultaat.orchestratie.postregistratie.batchId, 'Batch-ID');
-  const operationKey = verplichtVeld(input.resultaat.dossierCommando.operationKey, 'Operation key');
+
+  if (operationKey === input.resultaat.dossierCommando.operationKey) {
+    throw new Error('Audit-operation key moet verschillen van de dossier-operation key.');
+  }
 
   const postMislukt = input.resultaat.orchestratie.postregistratie.mislukteCommandos.length;
   const opvolgMislukt = input.resultaat.orchestratie.opvolgUitkomst?.misluktAantal ?? 0;
