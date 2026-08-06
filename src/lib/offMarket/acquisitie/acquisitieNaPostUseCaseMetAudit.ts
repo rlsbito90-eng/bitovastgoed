@@ -2,7 +2,10 @@ import {
   voerAcquisitieNaPostUseCaseUit,
   type AcquisitieNaPostUseCaseResultaat,
 } from './acquisitieNaPostUseCase';
-import { bouwAcquisitieNaPostAuditRecord } from './acquisitieNaPostAudit';
+import {
+  bouwAcquisitieNaPostAuditRecord,
+  type AcquisitieNaPostAuditRecord,
+} from './acquisitieNaPostAudit';
 import {
   registreerAcquisitieNaPostAudit,
   type AcquisitieNaPostAuditPoort,
@@ -11,6 +14,7 @@ import {
 
 export interface AcquisitieNaPostUseCaseMetAuditResultaat {
   resultaat: AcquisitieNaPostUseCaseResultaat;
+  auditRecord: AcquisitieNaPostAuditRecord;
   audit: AcquisitieNaPostAuditUitkomst;
 }
 
@@ -19,6 +23,10 @@ export interface AcquisitieNaPostUseCaseMetAuditResultaat {
  * auditrecord. De audit heeft een afzonderlijke operation key, zodat audit- en
  * dossierwrites niet dezelfde idempotentiesleutel delen. Een mislukte
  * auditregistratie maskeert of wijzigt de bedrijfsresultaten niet.
+ *
+ * Het exact aangeboden, immutable auditrecord wordt teruggegeven. Daardoor kan
+ * een begrensde auditretry hetzelfde record en dezelfde idempotentiesleutel
+ * hergebruiken zonder de bedrijfsuse-case opnieuw uit te voeren.
  */
 export async function voerAcquisitieNaPostUseCaseMetAuditUit(input: {
   useCase: Parameters<typeof voerAcquisitieNaPostUseCaseUit>[0];
@@ -27,7 +35,7 @@ export async function voerAcquisitieNaPostUseCaseMetAuditUit(input: {
   auditGeregistreerdOp: string;
 }): Promise<AcquisitieNaPostUseCaseMetAuditResultaat> {
   const resultaat = await voerAcquisitieNaPostUseCaseUit(input.useCase);
-  const record = bouwAcquisitieNaPostAuditRecord({
+  const auditRecord = bouwAcquisitieNaPostAuditRecord({
     selectieId: input.useCase.selectieId,
     actorId: input.useCase.actorId,
     operationKey: input.auditOperationKey,
@@ -35,9 +43,9 @@ export async function voerAcquisitieNaPostUseCaseMetAuditUit(input: {
     resultaat,
   });
   const audit = await registreerAcquisitieNaPostAudit({
-    record,
+    record: auditRecord,
     poort: input.auditPoort,
   });
 
-  return { resultaat, audit };
+  return { resultaat, auditRecord, audit };
 }
