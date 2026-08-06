@@ -16,18 +16,21 @@ export interface AcquisitieNaPostUseCaseMetAuditResultaat {
 
 /**
  * Voert de na-post-use-case uit en registreert daarna één privacyveilig
- * auditrecord. Een mislukte auditregistratie maskeert of wijzigt de reeds
- * uitgevoerde post-, opvolg- en dossierresultaten niet.
+ * auditrecord. De audit heeft een afzonderlijke operation key, zodat audit- en
+ * dossierwrites niet dezelfde idempotentiesleutel delen. Een mislukte
+ * auditregistratie maskeert of wijzigt de bedrijfsresultaten niet.
  */
 export async function voerAcquisitieNaPostUseCaseMetAuditUit(input: {
   useCase: Parameters<typeof voerAcquisitieNaPostUseCaseUit>[0];
   auditPoort: AcquisitieNaPostAuditPoort;
+  auditOperationKey: string;
   auditGeregistreerdOp: string;
 }): Promise<AcquisitieNaPostUseCaseMetAuditResultaat> {
   const resultaat = await voerAcquisitieNaPostUseCaseUit(input.useCase);
   const record = bouwAcquisitieNaPostAuditRecord({
     selectieId: input.useCase.selectieId,
     actorId: input.useCase.actorId,
+    operationKey: input.auditOperationKey,
     geregistreerdOp: input.auditGeregistreerdOp,
     resultaat,
   });
