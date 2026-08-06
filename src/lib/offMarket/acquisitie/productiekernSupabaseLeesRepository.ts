@@ -7,6 +7,7 @@ import type {
 import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
 import { bewaakBriefversieLeesIntegriteit } from './productiekernBriefversieLeesIntegriteit';
 import { bewaakDossierLeesIntegriteit } from './productiekernDossierLeesIntegriteit';
+import { bewaakPrintbatchLeesIntegriteit } from './productiekernPrintbatchLeesIntegriteit';
 import {
   ProductiekernNietGeactiveerdError,
   type AcquisitieProductiekernRepository,
@@ -67,7 +68,9 @@ implements AcquisitieProductiekernRepository {
 
   async haalPrintbatch(batchId: string): Promise<PrintbatchContract | null> {
     const rij = await this.transport.haalEen('off_market_printbatches', { id: batchId });
-    return rij ? mapPrintbatchRij(rij) : null;
+    return rij
+      ? bewaakPrintbatchLeesIntegriteit(mapPrintbatchRij(rij))
+      : null;
   }
 
   private schrijfpadGeblokkeerd<T>(handeling: string): Promise<T> {
