@@ -4,7 +4,9 @@ import type {
   BriefversieContract,
   PrintbatchContract,
 } from './productiekernContract';
+import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
 import { bewaakBriefversieLeesIntegriteit } from './productiekernBriefversieLeesIntegriteit';
+import { bewaakDossierLeesIntegriteit } from './productiekernDossierLeesIntegriteit';
 import {
   ProductiekernNietGeactiveerdError,
   type AcquisitieProductiekernRepository,
@@ -44,12 +46,14 @@ implements AcquisitieProductiekernRepository {
       'off_market_acquisitie_dossiers',
       { selectie_id: selectieId },
     );
-    return rij ? mapAcquisitiedossierRij(rij) : null;
+    return rij
+      ? bewaakDossierLeesIntegriteit(mapAcquisitiedossierRij(rij))
+      : null;
   }
 
   async haalBrief(briefId: string): Promise<BriefContract | null> {
     const rij = await this.transport.haalEen('off_market_brieven', { id: briefId });
-    return rij ? mapBriefRij(rij) : null;
+    return rij ? bewaakBriefLeesIntegriteit(mapBriefRij(rij)) : null;
   }
 
   async haalBriefversies(briefId: string): Promise<BriefversieContract[]> {
