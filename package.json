@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:acquisitie-productiekern": "vitest run src/lib/offMarket/acquisitie",
+    "test:acquisitie-productiekern": "vitest run src/lib/offMarket/acquisitie src/components/offMarketAcquisitie",
     "verify:acquisitie-productiekern": "tsc --noEmit && npm run test:acquisitie-productiekern && npm run build"
   },
   "dependencies": {
@@ -61,7 +61,7 @@
     "next-themes": "^0.3.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
-    "react-day-picker": "^8.10.0",
+    "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.61.1",
     "react-map-gl": "^8.1.1",
