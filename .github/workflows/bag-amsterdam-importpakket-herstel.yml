@@ -1,0 +1,142 @@
+name: BAG Amsterdam importpakket herstel
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Typ exact HERSTEL_AMSTERDAM_IMPORTPAKKET om te starten'
+        required: true
+        default: ''
+      source_run_id:
+        description: 'Full-subset workflowrun met het bestaande artifact'
+        required: true
+        default: '31026164539'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bag-amsterdam-importpakket-herstel
+  cancel-in-progress: false
+
+jobs:
+  herstel:
+    name: Herstel Amsterdam-importpakket uit bestaand artifact (geen databasewrite)
+    if: github.event.inputs.approval == 'HERSTEL_AMSTERDAM_IMPORTPAKKET'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      BAG_AMSTERDAM_METADATA_OUTPUT: bag-amsterdam/metadata
+      BAG_AMSTERDAM_SUBSET: bag-amsterdam/full-subset.ndjson
+      BAG_AMSTERDAM_IMPORT_OUTPUT: bag-amsterdam/importpakket
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stel Node.js in
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installeer projectafhankelijkheden
+        run: npm ci
+
+      - name: Bewaak dat geen Supabase-project of secret wordt benaderd
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RE "ljudxyrqoifhfikueric|wzkhmjuasyuvzhhycnym|xfygspvpeugxowxbcvnm" \
+            scripts/bag/bereid-amsterdam-import-voor.ts \
+            src/lib/bag/amsterdamWorkflow.test.ts
+          ! grep -RE "SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role" \
+            scripts/bag/bereid-amsterdam-import-voor.ts \
+            src/lib/bag/amsterdamWorkflow.test.ts
+
+      - name: Download bestaand full-subset-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bag-amsterdam-full-subset-en-importpakket
+          run-id: ${{ github.event.inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: bag-amsterdam
+
+      - name: Valideer verplichte bronbestanden
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s bag-amsterdam/full-subset.ndjson
+          test -s bag-amsterdam/full-subset.bewijs.json
+          test -s bag-amsterdam/metadata/closure-bewijs.json
+          test -s bag-amsterdam/metadata/closure-selectie.txt
+          mkdir -p bag-amsterdam/importpakket bag-amsterdam/rapport
+          printf 'source_run_id=%s\n' '${{ github.event.inputs.source_run_id }}'
+          wc -l bag-amsterdam/full-subset.ndjson
+          sha256sum bag-amsterdam/full-subset.ndjson > bag-amsterdam/rapport/full-subset.sha256
+
+      - name: Bereid importpakket opnieuw voor zonder database-import
+        run: npx --no-install vitest run src/lib/bag/amsterdamWorkflow.test.ts --reporter=verbose
+
+      - name: Valideer hersteld importpakket
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s bag-amsterdam/importpakket/importpakket-manifest.json
+          test -s bag-amsterdam/importpakket/manifest.json
+          find bag-amsterdam/importpakket -maxdepth 1 -type f -printf '%f\t%s\n' | sort > bag-amsterdam/rapport/importpakket-bestanden.tsv
+          node - <<'NODE' > bag-amsterdam/rapport/importbesluit.txt
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('bag-amsterdam/importpakket/importpakket-manifest.json', 'utf8'));
+          console.log(`besluit=${manifest.besluit ?? 'ONBEKEND'}`);
+          console.log(`geselecteerdAantal=${manifest.geselecteerdAantal ?? 'ONBEKEND'}`);
+          for (const [sleutel, waarde] of Object.entries(manifest.tellingen ?? {})) {
+            console.log(`${sleutel}=${waarde}`);
+          }
+          for (const conditie of manifest.stopCondities ?? []) {
+            console.log(`stop=${conditie.code}: ${conditie.reden}`);
+          }
+          NODE
+          cat bag-amsterdam/rapport/importbesluit.txt
+
+      - name: Stel herstelrapport samen
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p bag-amsterdam/rapport
+          {
+            echo '# BAG Amsterdam importpakket — herstelrapport'
+            echo
+            echo "- source_run_id: ${{ github.event.inputs.source_run_id }}"
+            echo '- nieuwe landelijke extractie uitgevoerd: nee'
+            echo '- databasewrite uitgevoerd: nee'
+            echo '- Supabase benaderd: nee'
+            echo
+            echo '## Importbesluit'
+            echo '```text'
+            cat bag-amsterdam/rapport/importbesluit.txt 2>/dev/null || echo 'besluit=NIET_BESCHIKBAAR'
+            echo '```'
+            echo '## Importpakket-manifest'
+            echo '```json'
+            cat bag-amsterdam/importpakket/importpakket-manifest.json 2>/dev/null || echo '{}'
+            echo '```'
+          } > bag-amsterdam/rapport/herstel-go-no-go.md
+
+      - name: Publiceer uitsluitend importpakket en bewijsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-hersteld-importpakket
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+          path: |
+            bag-amsterdam/rapport/herstel-go-no-go.md
+            bag-amsterdam/rapport/importbesluit.txt
+            bag-amsterdam/rapport/importpakket-bestanden.tsv
+            bag-amsterdam/rapport/full-subset.sha256
+            bag-amsterdam/importpakket/*.csv
+            bag-amsterdam/importpakket/*.jsonl
+            bag-amsterdam/importpakket/manifest.json
+            bag-amsterdam/importpakket/importpakket-manifest.json
