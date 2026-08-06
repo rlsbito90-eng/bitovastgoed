@@ -42,6 +42,7 @@ import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
+import AcquisitieDossierRij from './AcquisitieDossierRij';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   ACTIE_SUBFILTER_LABEL,
@@ -94,7 +95,6 @@ import {
   bepaalOnderzoekRedenen, onderzoekRedenTekst,
 } from '@/lib/offMarket/acquisitie/onderzoekRedenen';
 
-
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
@@ -103,7 +103,6 @@ const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
 const PRINTPOST_KEY = 'off-market-acq:printpost';
 const SORTEER_KEY = 'off-market-acq:sortering';
-
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
@@ -118,7 +117,6 @@ export default function AcquisitieSelectieTab() {
     return map;
   }, [signalen]);
 
-  // Stabiele volgorde: toegevoegd_op ASC zoals gevraagd voor focusmodus.
   const geselecteerdeSignalen = useMemo<OffMarketSignaal[]>(() => {
     const lijst = [...items].sort((a, b) =>
       (a.toegevoegd_op ?? '').localeCompare(b.toegevoegd_op ?? ''),
@@ -135,13 +133,9 @@ export default function AcquisitieSelectieTab() {
   }, [items]);
 
   const readiness = useAcquisitieReadiness(geselecteerdeSignalen);
-
-  // Bulk-brieven query — al bulk gefetcht door readiness, maar we hebben de
-  // brieven hier nodig voor plan/dedupe en gecombineerde PDF.
   const signaalIds = useMemo(() => geselecteerdeSignalen.map(s => s.id), [geselecteerdeSignalen]);
   const { data: brieven = [] } = useBrievenVoorSignalen(signaalIds);
 
-  // ---- Fase 1: view (werkbak + subfilter) --------------------------------
   const initieel = useMemo(leesInitieleView, []);
   const [werkbak, setWerkbakState] = useState<WerkbakView>(initieel.werkbak);
   const [subfilter, setSubfilterState] = useState<ActieSubfilter>(initieel.subfilter);
@@ -154,7 +148,6 @@ export default function AcquisitieSelectieTab() {
     try { sessionStorage.setItem(SUBFILTER_KEY, v); } catch { /* ignore */ }
   };
 
-  // ---- Printen & posten: tweede filterlaag -------------------------------
   const [printPost, setPrintPostState] = useState<PrintPostFilter>(() => {
     try {
       const v = sessionStorage.getItem(PRINTPOST_KEY);
@@ -166,8 +159,6 @@ export default function AcquisitieSelectieTab() {
     try { sessionStorage.setItem(PRINTPOST_KEY, v); } catch { /* ignore */ }
   };
 
-  // ---- Zichtbare sorteerkeuze -------------------------------------------
-  // `null` = volg de standaardsortering van de huidige view.
   const [sorteerKeuze, setSorteerKeuzeState] = useState<SorteerOptie | null>(() => {
     try {
       const v = sessionStorage.getItem(SORTEER_KEY);
@@ -182,8 +173,6 @@ export default function AcquisitieSelectieTab() {
     } catch { /* ignore */ }
   };
 
-
-  // Werkbak-context per signaal (fase → werkbak/actieCategorie/subfilter/procesdatum).
   const werkbakPerSignaal = useMemo(() => {
     const m = new Map<string, WerkbakContext>();
     const brievenPer = new Map<string, typeof brieven>();
@@ -204,7 +193,6 @@ export default function AcquisitieSelectieTab() {
     return m;
   }, [readiness.lijst, brieven, toegevoegdOpPerSignaal]);
 
-  // Tellingen per werkbak + per subfilter (dynamisch).
   const tellingen = useMemo(() => {
     const wb: Record<WerkbakView, number> = { actie: 0, wachten: 0, afgehandeld: 0, alles: 0 };
     const sf: Record<ActieSubfilter, number> = {
@@ -224,12 +212,6 @@ export default function AcquisitieSelectieTab() {
     return { werkbak: wb, subfilter: sf, printPost: pp };
   }, [werkbakPerSignaal]);
 
-
-  // ---- Verplaatsfeedback ------------------------------------------------
-  // Toont uitsluitend een toast wanneer een signaal door een expliciete
-  // gebruikersmutatie in deze sessie in een andere werkbak of Actie-subfilter
-  // terechtkomt. Initiële laadactie, achtergrondrefresh en wijzigingen door
-  // een andere gebruiker triggeren geen melding.
   const queryClient = useQueryClient();
   const recenteMutatiesRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
@@ -274,19 +256,15 @@ export default function AcquisitieSelectieTab() {
     vorigeCtxRef.current = huidig;
   }, [werkbakPerSignaal, navigate]);
 
-  // Actieve sortering: expliciete keuze of standaard voor deze view.
   const actieveSortering: SorteerOptie = sorteerKeuze
     ?? standaardSortering(werkbak, subfilter, printPost);
 
-  // Gefilterde + gesorteerde lijst voor de huidige view.
   const gefilterd = useMemo(() => {
-    // Verzamel rijen die in de huidige werkbak passen.
     const rijen: SorteerbareRij[] = [];
     for (const { signaal } of readiness.lijst) {
       const ctx = werkbakPerSignaal.get(signaal.id);
       if (!ctx) continue;
-      const inWerkbak =
-        werkbak === 'alles' ? true : ctx.werkbak === werkbak;
+      const inWerkbak = werkbak === 'alles' ? true : ctx.werkbak === werkbak;
       if (!inWerkbak) continue;
       if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
       if (
@@ -304,7 +282,6 @@ export default function AcquisitieSelectieTab() {
       });
     }
     const gesorteerd = sorteerRijen(actieveSortering, werkbak, rijen);
-    // Terug-map naar { signaal, readiness, ctx }.
     const byId = new Map(readiness.lijst.map(x => [x.signaal.id, x]));
     return gesorteerd
       .map(r => {
@@ -318,16 +295,12 @@ export default function AcquisitieSelectieTab() {
     actieveSortering, toegevoegdOpPerSignaal,
   ]);
 
-  // ---- Hervatbare werkronde ---------------------------------------------
-  // De scope is een momentopname bij starten; items verdwijnen niet meer
-  // uit de ronde wanneer hun processtatus tussentijds wijzigt.
   const [werkronde, setWerkrondeState] = useState<Werkronde | null>(() => leesWerkronde());
   const bewaarWerkronde = (w: Werkronde | null) => {
     setWerkrondeState(w);
     if (w) schrijfWerkronde(w); else wisWerkronde();
   };
 
-  /** Hoort dit signaal nog bij de oorspronkelijke groep van de werkronde? */
   const hoortNogBijBron = (bron: WerkrondeBron, ctx: WerkbakContext | undefined): boolean => {
     if (!ctx) return false;
     if (bron === 'brief_voorbereiden') {
@@ -339,8 +312,6 @@ export default function AcquisitieSelectieTab() {
     return true;
   };
 
-  // Voortgang bijwerken: alles wat de oorspronkelijke groep verlaten heeft,
-  // geldt als behandeld.
   useEffect(() => {
     if (!werkronde) return;
     if (werkronde.bron === 'handmatig') return;
@@ -358,7 +329,6 @@ export default function AcquisitieSelectieTab() {
 
   const werkrondeVoortgang = werkronde ? voortgang(werkronde) : null;
 
-  /** Scope van de werkronde in de huidige zichtbare volgorde. */
   const werkrondeItems = useMemo(() => {
     if (!werkronde) return [];
     const set = new Set(werkronde.scopeIds);
@@ -370,8 +340,6 @@ export default function AcquisitieSelectieTab() {
     return [...inVolgorde, ...rest];
   }, [werkronde, gefilterd, readiness.lijst]);
 
-
-  // ---- Bulk-selectie per signaal ---------------------------------------
   const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
   const toggleBulk = (id: string) => {
     setBulkSelectie(prev => {
@@ -391,7 +359,6 @@ export default function AcquisitieSelectieTab() {
     return m;
   }, [brieven]);
 
-  // Briefstatus + verzendtelling per signaal (read-only afgeleid).
   const { taken } = useDataStore();
   const briefInfoPerSignaal = useMemo(() => {
     const m = new Map<string, { status: BriefStatus; verzonden: number; aantalGeadresseerden: number }>();
@@ -405,7 +372,6 @@ export default function AcquisitieSelectieTab() {
     return m;
   }, [geselecteerdeSignalen, brievenPerSignaal, taken]);
 
-  // Tellingen voor de bulktoolbar: signalen, geadresseerden, voorgestelde brieven.
   const bulkTotalen = useMemo(() => {
     let geadresseerden = 0;
     let geschikt = 0;
@@ -432,7 +398,6 @@ export default function AcquisitieSelectieTab() {
     setBulkSelectie(next);
   }
 
-  /** Selecteer alle zichtbare/gefilterde rijen — exact zoals "Verwerk filter" gebruikt. */
   function selecteerZichtbareBulk() {
     setBulkSelectie(new Set(gefilterd.map((x) => x.signaal.id)));
   }
@@ -464,13 +429,11 @@ export default function AcquisitieSelectieTab() {
     }
   }
 
-
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [markeerModus, setMarkeerModus] = useState<MarkeerModus | null>(null);
 
-  // Focusmodus
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusIndex, setFocusIndexState] = useState<number>(() => {
     try {
@@ -482,20 +445,16 @@ export default function AcquisitieSelectieTab() {
     setFocusIndexState(i);
     try { sessionStorage.setItem(FOCUS_INDEX_KEY, String(i)); } catch {}
   };
-  // Scope-IDs voor de huidige Verwerk-sessie. `null` = volledige lijst.
   const [verwerkScopeIds, setVerwerkScopeIds] = useState<string[] | null>(null);
 
   const focusItems = useMemo(() => {
     if (!verwerkScopeIds || verwerkScopeIds.length === 0) return readiness.lijst;
     const byId = new Map(readiness.lijst.map((x) => [x.signaal.id, x]));
-    // Volgorde volgt de scope-ids (zichtbare volgorde), niet de ruwe lijst.
     return verwerkScopeIds
       .map((id) => byId.get(id))
       .filter((x): x is NonNullable<typeof x> => !!x);
   }, [readiness.lijst, verwerkScopeIds]);
 
-
-  // Restore scrollpositie bij terugkeer
   useEffect(() => {
     try {
       const v = sessionStorage.getItem(SCROLL_KEY);
@@ -510,7 +469,6 @@ export default function AcquisitieSelectieTab() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Hervat Verwerk selectie wanneer we terugkeren vanuit signaaldetail.
   useEffect(() => {
     const state = location.state as {
       resumeAcquisitieFocus?: boolean;
@@ -529,16 +487,11 @@ export default function AcquisitieSelectieTab() {
       }
       if (typeof state.focusIndex === 'number') setFocusIndex(state.focusIndex);
       setFocusOpen(true);
-      // Wis state zodat refresh niet opnieuw opent.
       window.history.replaceState({}, '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-
-
-  /** Huidige view als werkronde-bron. */
   function huidigeBron(): { bron: WerkrondeBron; naam: string } {
     if (bulkSelectie.size > 0) {
       return { bron: 'handmatig', naam: `Handmatige selectie (${bulkSelectie.size})` };
@@ -577,7 +530,6 @@ export default function AcquisitieSelectieTab() {
     setFocusOpen(true);
   };
 
-  /** Eén primaire bediening: hervat een open werkronde of start een nieuwe. */
   const primaireVerwerkActie = () => {
     if (werkronde) {
       hervatWerkronde();
@@ -609,14 +561,11 @@ export default function AcquisitieSelectieTab() {
     ? (werkrondeVoortgang?.resterend ?? 0) === 0
     : bulkSelectie.size === 0 && gefilterd.length === 0;
 
-
-
   const beeindigWerkronde = () => {
     bewaarWerkronde(null);
     setVerwerkScopeIds(null);
     toast.success('Werkronde beëindigd');
   };
-
 
   const openVerwerkVanSignaal = (signaalId: string) => {
     setVerwerkScopeIds(null);
@@ -628,7 +577,6 @@ export default function AcquisitieSelectieTab() {
   };
 
   const openSignaalMetContext = (signaalId: string) => {
-    // Bepaal scope conform openVerwerk: bulkselectie > actieve filter > volledige lijst.
     let scopeIds: string[] | null = null;
     if (bulkSelectie.size > 0) {
       scopeIds = readiness.lijst
@@ -650,8 +598,6 @@ export default function AcquisitieSelectieTab() {
       },
     });
   };
-
-
 
   if (isLoading) {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Selectie laden…</p>;
@@ -702,10 +648,8 @@ export default function AcquisitieSelectieTab() {
           <PlayCircle className="h-4 w-4" />
           {primaireVerwerkLabel()}
         </Button>
-
       </div>
 
-      {/* Tweede filterlaag: Printen & posten */}
       {werkbak === 'actie' && subfilter === 'printen_posten' && (
         <div
           className="flex flex-wrap items-center gap-1.5"
@@ -732,7 +676,6 @@ export default function AcquisitieSelectieTab() {
         </div>
       )}
 
-      {/* Sortering + werkronde */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <ArrowDownUp className="h-3.5 w-3.5" />
@@ -756,7 +699,6 @@ export default function AcquisitieSelectieTab() {
             </Button>
           )}
         </label>
-
       </div>
 
       {werkronde && werkrondeVoortgang && (
@@ -793,9 +735,6 @@ export default function AcquisitieSelectieTab() {
         </div>
       )}
 
-
-
-      {/* Bulktoolbar */}
       <div
         data-testid="acquisitie-bulk-toolbar"
         className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2"
@@ -827,7 +766,6 @@ export default function AcquisitieSelectieTab() {
             {bulkTotalen.signalen} signalen · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
             {bulkTotalen.geschikteBrieven} brieven
           </span>
-
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -908,16 +846,16 @@ export default function AcquisitieSelectieTab() {
             const bulkChecked = bulkSelectie.has(signaal.id);
             const toegevoegd = toegevoegdOpLabel(toegevoegdOpPerSignaal.get(signaal.id) ?? null);
             return (
-              <li
+              <AcquisitieDossierRij
                 key={signaal.id}
-                data-testid="acquisitie-selectie-rij"
-                data-signaal-id={signaal.id}
-                data-fase={r.fase}
-                data-werkbak={ctx.werkbak}
-                data-actie-categorie={ctx.actieCategorie ?? ''}
-                className="p-3 sm:p-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                geselecteerd={bulkChecked}
+                onToggle={() => toggleBulk(signaal.id)}
+                signaalId={signaal.id}
+                fase={r.fase}
+                werkbak={ctx.werkbak}
+                actieCategorie={ctx.actieCategorie}
+                geadresseerden={r.geadresseerden}
+                hoofdinhoud={(
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <Checkbox
                       checked={bulkChecked}
@@ -1013,38 +951,11 @@ export default function AcquisitieSelectieTab() {
                         );
                       })()}
                       <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
-
-
-                      {/* Geadresseerden onder het signaal — compact, niet-genest */}
-                      {r.geadresseerden.length > 0 && (
-                        <details className="mt-1.5" data-testid="acquisitie-rij-geadresseerden">
-                          <summary className="cursor-pointer text-[11px] text-muted-foreground">
-                            {r.geadresseerden.length} geadresseerde{r.geadresseerden.length === 1 ? '' : 'n'} tonen
-                          </summary>
-                          <ul className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
-                            {r.geadresseerden.map(g => (
-                              <li
-                                key={g.key}
-                                data-testid="acquisitie-rij-geadresseerde"
-                                className="break-words"
-                              >
-                                <span className="text-foreground">
-                                  {g.naam ?? g.bedrijfsnaam ?? '(zonder naam)'}
-                                </span>
-                                {g.verzendadres && (
-                                  <span> · {g.verzendadres.replace(/\s+/g, ' ')}</span>
-                                )}
-                                {!g.volledigPostadres && (
-                                  <span className="text-destructive"> · adres onvolledig</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0">
+                )}
+                acties={(
+                  <>
                     <Button
                       type="button"
                       size="sm"
@@ -1071,9 +982,9 @@ export default function AcquisitieSelectieTab() {
                       labelMode="remove"
                       isInSelectie
                     />
-                  </div>
-                </div>
-              </li>
+                  </>
+                )}
+              />
             );
           })}
         </ul>
@@ -1088,7 +999,6 @@ export default function AcquisitieSelectieTab() {
         focusScopeIds={verwerkScopeIds}
         selectedIds={Array.from(bulkSelectie)}
       />
-
 
       <BulkBriefVoorbereidenWizard
         open={wizardOpen}
