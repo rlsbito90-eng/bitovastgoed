@@ -26,7 +26,7 @@ const volledigBewijs = {
 };
 
 describe('stelSupabaseProductiekernLezenSamen', () => {
-  it('roept Supabase niet aan wanneer één bewijsvoorwaarde ontbreekt', async () => {
+  it('roept Supabase niet aan wanneer één bewijsvoorwaarde ontbreekt', () => {
     const t = transport();
     const samenstelling = stelSupabaseProductiekernLezenSamen(
       { ...volledigBewijs, explicietLeesakkoord: false },
@@ -34,8 +34,8 @@ describe('stelSupabaseProductiekernLezenSamen', () => {
     );
 
     expect(samenstelling.activatie.lezenActief).toBe(false);
-    await expect(samenstelling.repository.haalDossier('selectie-1'))
-      .rejects.toBeInstanceOf(ProductiekernNietGeactiveerdError);
+    expect(() => samenstelling.repository.haalDossier('selectie-1'))
+      .toThrow(ProductiekernNietGeactiveerdError);
     expect(t.haalEen).not.toHaveBeenCalled();
   });
 
@@ -49,13 +49,13 @@ describe('stelSupabaseProductiekernLezenSamen', () => {
     expect(t.haalEen).toHaveBeenCalledTimes(1);
   });
 
-  it('houdt writes ook met volledig leesbewijs geblokkeerd', async () => {
+  it('houdt writes ook met volledig leesbewijs geblokkeerd', () => {
     const t = transport();
     const samenstelling = stelSupabaseProductiekernLezenSamen(volledigBewijs, t);
 
-    await expect(samenstelling.repository.startVerwerking({
+    expect(() => samenstelling.repository.startVerwerking({
       selectieId: 'selectie-1', actorId: 'actor-1', operationKey: 'op-1',
-    })).rejects.toBeInstanceOf(ProductiekernNietGeactiveerdError);
+    })).toThrow(ProductiekernNietGeactiveerdError);
     expect(t.haalEen).not.toHaveBeenCalled();
   });
 });
