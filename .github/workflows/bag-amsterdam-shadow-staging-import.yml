@@ -1,4 +1,5 @@
 name: BAG Amsterdam shadow staging-import
+run-name: BAG Amsterdam ${{ github.event.inputs.phase }} — artifact 8973886061
 
 on:
   workflow_dispatch:
@@ -32,11 +33,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  import:
+  runner-smoke:
     if: >-
       github.event.inputs.approval == 'APPLY_BAG_AMSTERDAM_ARTIFACT_8973886061_TO_SHADOW' &&
       github.event.inputs.artifact_id == '8973886061'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Bevestig GitHub-hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_os=$RUNNER_OS"
+          echo "runner_arch=$RUNNER_ARCH"
+          echo "phase=${{ github.event.inputs.phase }}"
+
+  import:
+    needs: runner-smoke
+    if: needs.runner-smoke.result == 'success'
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment: bag-shadow
     env:
