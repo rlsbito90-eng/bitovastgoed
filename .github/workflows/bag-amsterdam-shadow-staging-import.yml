@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bag-amsterdam-shadow-staging-import
+  group: bag-amsterdam-shadow-staging-import-v2
   cancel-in-progress: false
 
 jobs:
