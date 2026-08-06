@@ -23,7 +23,8 @@ export interface BriefDefinitiefMakenInput extends TransactieContext {
   actie: 'brief_definitief_maken';
   brief: BriefContract;
   actieveVersie: BriefversieContract;
-  gereserveerdBriefnummer: string;
+  /** Jaar waarbinnen de database atomisch het volgende BR-nummer reserveert. */
+  jaar: number;
 }
 
 export interface BatchDocumentenRegistrerenInput extends TransactieContext {
@@ -93,8 +94,8 @@ export function valideerProductieTransactie(
       if (input.actieveVersie.briefId !== input.brief.id) {
         fouten.push('Briefversie hoort niet bij de opgegeven brief.');
       }
-      if (!/^BR\d{10}$/.test(input.gereserveerdBriefnummer)) {
-        fouten.push('Gereserveerd briefnummer heeft niet het vereiste formaat.');
+      if (!Number.isInteger(input.jaar) || input.jaar < 2000 || input.jaar > 9999) {
+        fouten.push('Briefjaar moet een viercijferig jaar vanaf 2000 zijn.');
       }
       break;
 
