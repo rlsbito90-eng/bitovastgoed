@@ -60,7 +60,7 @@ jobs:
       BAG_AMSTERDAM_APPROVAL: ${{ github.event.inputs.approval }}
       BAG_AMSTERDAM_ARTIFACT_ID: ${{ github.event.inputs.artifact_id }}
       BAG_AMSTERDAM_PHASE: ${{ github.event.inputs.phase }}
-      BAG_AMSTERDAM_CHUNK_SIZE: '50000'
+      BAG_AMSTERDAM_CHUNK_SIZE: ${{ github.event.inputs.phase == 'geometrieen' && '5000' || '50000' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -82,6 +82,11 @@ jobs:
             prepare|objecten|voorkomens|relaties|geometrieen|validate) ;;
             *) exit 2 ;;
           esac
+          if [ "$BAG_AMSTERDAM_PHASE" = 'geometrieen' ]; then
+            test "$BAG_AMSTERDAM_CHUNK_SIZE" = '5000'
+          else
+            test "$BAG_AMSTERDAM_CHUNK_SIZE" = '50000'
+          fi
           test -n "$BAG_SHADOW_DATABASE_URL"
           command -v psql
           command -v gh
