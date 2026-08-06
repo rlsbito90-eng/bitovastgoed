@@ -9,11 +9,11 @@ function oorspronkelijkResultaat(): AcquisitieNaPostUseCaseResultaat {
     orchestratie: {
       postregistratie: {
         batchId: 'batch-1',
-        uitkomsten: [],
         geslaagdeCommandos: [],
         mislukteCommandos: [],
         retryCommandos: [],
         volgendeBatchstatus: 'gepost',
+        volledigVerwerkt: true,
       },
       opvolgCommandos: [],
       opvolgUitkomst: null,
