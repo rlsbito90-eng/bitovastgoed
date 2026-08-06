@@ -11,6 +11,7 @@ export interface ProductiekernLeesQueryContract {
   selectKolommen: readonly string[];
   volgorde?: Readonly<{ kolom: string; oplopend: boolean }>;
   cardinaliteit: 'nul_of_een' | 'lijst';
+  maximaalAantalRecords: number;
 }
 
 export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
@@ -26,6 +27,7 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
       'volgende_actie_omschrijving',
     ],
     cardinaliteit: 'nul_of_een',
+    maximaalAantalRecords: 1,
   },
   haal_brief: {
     naam: 'haal_brief',
@@ -37,6 +39,7 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
       'definitief_op', 'vergrendeld_op', 'annuleringsreden',
     ],
     cardinaliteit: 'nul_of_een',
+    maximaalAantalRecords: 1,
   },
   haal_briefversies: {
     naam: 'haal_briefversies',
@@ -49,6 +52,7 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
     ],
     volgorde: { kolom: 'versienummer', oplopend: true },
     cardinaliteit: 'lijst',
+    maximaalAantalRecords: 100,
   },
   haal_printbatch: {
     naam: 'haal_printbatch',
@@ -60,6 +64,7 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
       'geannuleerd_op', 'annuleringsreden',
     ],
     cardinaliteit: 'nul_of_een',
+    maximaalAantalRecords: 1,
   },
 };
 
@@ -74,7 +79,7 @@ export function bouwProductiekernLeesQuery(
   if (genormaliseerd.length > 200) {
     throw new Error(`Filterwaarde voor ${naam} is te lang.`);
   }
-  if(/[\u0000-\u001f\u007f]/u.test(genormaliseerd)) {
+  if (/[\u0000-\u001f\u007f]/u.test(genormaliseerd)) {
     throw new Error(`Filterwaarde voor ${naam} bevat controletekens.`);
   }
   return {
