@@ -2,6 +2,7 @@ export const PRODUCTIEKERN_TOEGESTANE_PADPREFIXEN = [
   'src/lib/offMarket/acquisitie/',
   'supabase/migration-drafts/20260806_acquisitie_productiekern',
   'docs/off-market/ACQUISITIE-PRODUCTIEKERN',
+  'docs/off-market/BUILD-A-IMPLEMENTATIEGRENZEN.md',
 ] as const;
 
 export interface ProductiekernReviewScopeResultaat {
