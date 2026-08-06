@@ -16,9 +16,11 @@ export interface AcquisitieSelectieItem {
 
 const TABLE = 'off_market_acquisitie_selectie';
 const LIST_KEY = ['off-market-acquisitie-selectie'] as const;
+const VERZONDEN_BRIEVEN_KEY = ['off-market-acquisitie-selectie', 'verzonden-brieven'] as const;
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>, signaalId?: string) {
   qc.invalidateQueries({ queryKey: LIST_KEY });
+  qc.invalidateQueries({ queryKey: VERZONDEN_BRIEVEN_KEY });
   qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
   qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
   if (signaalId) qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });
@@ -46,18 +48,35 @@ export function useActieveSelectieIds(): Set<string> {
   return useMemo(() => new Set(data.map(r => r.signaal_id)), [data]);
 }
 
+function useSignaalIdsMetVerzondenBrief(): Set<string> {
+  const { data = [] } = useQuery({
+    queryKey: VERZONDEN_BRIEVEN_KEY,
+    queryFn: async (): Promise<Array<{ signaal_id: string }>> => {
+      const { data, error } = await (supabase as any)
+        .from('off_market_brieven')
+        .select('signaal_id')
+        .is('archived_at', null)
+        .eq('status', 'verstuurd');
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Array<{ signaal_id: string }>;
+    },
+  });
+  return useMemo(() => new Set(data.map((row) => row.signaal_id)), [data]);
+}
+
 /**
- * Totaaltelling voor het tablabel Acquisitieselectie.
- *
- * De teller vertegenwoordigt alle actieve dossiers in de selectie en sluit
- * daardoor aan op de KPI `Totaal dossiers` en op de werkbak `Alles`. Een
- * verstuurde brief haalt een dossier niet stilzwijgend uit deze telling; het
- * dossier blijft zichtbaar onder Wachten of Afgehandeld totdat de gebruiker
- * het expliciet uit de acquisitieselectie haalt.
+ * Werkvoorraadtelling voor het tablabel.
+ * Een selectie blijft meetellen tot minimaal één actieve brief expliciet als
+ * `verstuurd` is geregistreerd. Een concept, gegenereerde of geprinte brief
+ * blijft dus in de werkvoorraad staan.
  */
 export function useAcquisitieSelectieCount(): number {
   const { data = [] } = useAcquisitieSelectie();
-  return data.length;
+  const verzonden = useSignaalIdsMetVerzondenBrief();
+  return useMemo(
+    () => data.filter((item) => !verzonden.has(item.signaal_id)).length,
+    [data, verzonden],
+  );
 }
 
 /** Controleer of een specifiek signaal in de selectie zit. */
