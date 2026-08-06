@@ -41,6 +41,7 @@ export default function SelecteerbareDossierRij({
 
   const onKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
     if (!isRijselectieToets(event.key)) return;
+    if (!magRijselectieWisselen({ target: event.target })) return;
     event.preventDefault();
     onToggle();
   };
