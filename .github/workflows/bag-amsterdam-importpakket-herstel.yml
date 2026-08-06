@@ -30,7 +30,7 @@ jobs:
       BAG_AMSTERDAM_METADATA_OUTPUT: bag-amsterdam/metadata
       BAG_AMSTERDAM_SUBSET: bag-amsterdam/full-subset.ndjson
       BAG_AMSTERDAM_IMPORT_OUTPUT: bag-amsterdam/importpakket
-      NODE_OPTIONS: --max-old-space-size=10240
+      NODE_OPTIONS: --max-old-space-size=13312
     steps:
       - name: Checkout
         uses: actions/checkout@v4
