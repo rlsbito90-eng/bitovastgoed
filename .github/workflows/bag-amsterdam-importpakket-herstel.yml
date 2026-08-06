@@ -30,7 +30,7 @@ jobs:
       BAG_AMSTERDAM_METADATA_OUTPUT: bag-amsterdam/metadata
       BAG_AMSTERDAM_SUBSET: bag-amsterdam/full-subset.ndjson
       BAG_AMSTERDAM_IMPORT_OUTPUT: bag-amsterdam/importpakket
-      NODE_OPTIONS: --max-old-space-size=6144
+      NODE_OPTIONS: --max-old-space-size=10240
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,6 +43,16 @@ jobs:
 
       - name: Installeer projectafhankelijkheden
         run: npm ci
+
+      - name: Reserveer tijdelijke swapruimte voor grote lokale omzetting
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
 
       - name: Bewaak dat geen Supabase-project of secret wordt benaderd
         shell: bash
