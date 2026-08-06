@@ -1,6 +1,7 @@
 // Compacte KPI-strip bovenaan de Acquisitieselectie. Mobiel: wrap.
 import { ListChecks, Users, Printer, Lock, Clock } from 'lucide-react';
 import type { AcquisitieKpis } from '@/lib/offMarket/acquisitie/readiness';
+import AcquisitieSelectieRijInteractie from './AcquisitieSelectieRijInteractie';
 
 interface Props {
   kpis: AcquisitieKpis;
@@ -38,49 +39,52 @@ function Pil({
 
 export default function AcquisitieKpis({ kpis }: Props) {
   return (
-    <div
-      data-testid="acquisitie-kpis"
-      className="flex flex-wrap gap-2"
-      aria-label="Productiestatus acquisitiedossiers"
-    >
-      <Pil
-        icon={ListChecks}
-        label="Totaal dossiers"
-        value={kpis.signalen}
-        testid="kpi-signalen"
-        title="Alle actieve dossiers in de Acquisitieselectie."
-      />
-      <Pil
-        icon={Users}
-        label="Geadresseerden"
-        value={kpis.geadresseerden}
-        testid="kpi-geadresseerden"
-        title="Totaal aantal bekende geadresseerden binnen de actieve dossiers."
-      />
-      <Pil
-        icon={Printer}
-        label="Printklaar"
-        value={kpis.printklaar}
-        testid="kpi-printklaar"
-        tone={kpis.printklaar > 0 ? 'success' : 'default'}
-        title="Dossiers waarvan de brief gereed is om te printen."
-      />
-      <Pil
-        icon={Lock}
-        label="Geblokkeerd"
-        value={kpis.geblokkeerd}
-        testid="kpi-geblokkeerd"
-        tone={kpis.geblokkeerd > 0 ? 'danger' : 'default'}
-        title="Dossiers die niet verder kunnen door ontbrekende of onvolledige gegevens."
-      />
-      <Pil
-        icon={Clock}
-        label="Opvolging open"
-        value={kpis.opvolgingOpen}
-        testid="kpi-opvolging"
-        tone={kpis.opvolgingOpen > 0 ? 'warn' : 'default'}
-        title="Dossiers waarvoor een opvolgactie openstaat."
-      />
-    </div>
+    <>
+      <AcquisitieSelectieRijInteractie />
+      <div
+        data-testid="acquisitie-kpis"
+        className="flex flex-wrap gap-2"
+        aria-label="Productiestatus acquisitiedossiers"
+      >
+        <Pil
+          icon={ListChecks}
+          label="Totaal dossiers"
+          value={kpis.signalen}
+          testid="kpi-signalen"
+          title="Alle actieve dossiers in de Acquisitieselectie."
+        />
+        <Pil
+          icon={Users}
+          label="Geadresseerden"
+          value={kpis.geadresseerden}
+          testid="kpi-geadresseerden"
+          title="Totaal aantal bekende geadresseerden binnen de actieve dossiers."
+        />
+        <Pil
+          icon={Printer}
+          label="Printklaar"
+          value={kpis.printklaar}
+          testid="kpi-printklaar"
+          tone={kpis.printklaar > 0 ? 'success' : 'default'}
+          title="Dossiers waarvan de brief gereed is om te printen."
+        />
+        <Pil
+          icon={Lock}
+          label="Geblokkeerd"
+          value={kpis.geblokkeerd}
+          testid="kpi-geblokkeerd"
+          tone={kpis.geblokkeerd > 0 ? 'danger' : 'default'}
+          title="Dossiers die niet verder kunnen door ontbrekende of onvolledige gegevens."
+        />
+        <Pil
+          icon={Clock}
+          label="Opvolging open"
+          value={kpis.opvolgingOpen}
+          testid="kpi-opvolging"
+          tone={kpis.opvolgingOpen > 0 ? 'warn' : 'default'}
+          title="Dossiers waarvoor een opvolgactie openstaat."
+        />
+      </div>
+    </>
   );
 }
