@@ -77,11 +77,13 @@ describe('na-post auditprojectie', () => {
     const record = bouwAcquisitieNaPostAuditRecord({
       selectieId: 'selectie-1',
       actorId: 'actor-1',
+      operationKey: 'audit:na-post:1',
       geregistreerdOp: '2026-08-06T18:00:00.000Z',
       resultaat: resultaat(),
     });
 
     expect(record.type).toBe('na_post_verwerkt');
+    expect(record.operationKey).toBe('audit:na-post:1');
     expect(record.kenmerken).toMatchObject({
       succesvolGepost: 2,
       dossierBijgewerkt: true,
@@ -96,12 +98,23 @@ describe('na-post auditprojectie', () => {
     const record = bouwAcquisitieNaPostAuditRecord({
       selectieId: 'selectie-1',
       actorId: 'actor-1',
+      operationKey: 'audit:na-post:2',
       geregistreerdOp: '2026-08-06T18:00:00.000Z',
       resultaat: resultaat({ postMislukt: 1, opvolgMislukt: 1, dossierGeslaagd: false }),
     });
 
     expect(record.type).toBe('postregistratie_onvolledig');
     expect(record.kenmerken.postregistratieMislukt).toBe(1);
+  });
+
+  it('weigert dezelfde idempotentiesleutel voor dossier en audit', () => {
+    expect(() => bouwAcquisitieNaPostAuditRecord({
+      selectieId: 'selectie-1',
+      actorId: 'actor-1',
+      operationKey: 'dossier:1',
+      geregistreerdOp: '2026-08-06T18:00:00.000Z',
+      resultaat: resultaat(),
+    })).toThrow('moet verschillen');
   });
 
   it('registreert handmatige interventie zonder een write te suggereren', () => {
@@ -133,6 +146,7 @@ describe('na-post auditprojectie', () => {
     expect(() => bouwAcquisitieNaPostAuditRecord({
       selectieId: 'selectie-1',
       actorId: 'actor-1',
+      operationKey: 'audit:na-post:3',
       geregistreerdOp: '2026-08-06T18:00:00Z',
       resultaat: resultaat(),
     })).toThrow('canoniek UTC');
