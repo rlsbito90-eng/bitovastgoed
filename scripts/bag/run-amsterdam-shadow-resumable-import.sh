@@ -19,7 +19,9 @@ DATASET_VERSION="v20260805"
 SCOPE_CODE="0363"
 
 EXPECTED_OBJECTEN=1464429
-EXPECTED_VOORKOMENS=2664897
+EXPECTED_VOORKOMENS_RAW=2664897
+EXPECTED_VOORKOMENS=2664890
+EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN=7
 EXPECTED_RELATIES=2531300
 EXPECTED_GEOMETRIEEN=1831720
 
@@ -94,7 +96,9 @@ SELECT
     'artifact_id', :'artifact_id',
     'importmodus', 'resumable_chunked_staging_only',
     'objecten_expected', 1464429,
-    'voorkomens_expected', 2664897,
+    'voorkomens_bronregels_expected', 2664897,
+    'voorkomens_identieke_duplicaten_expected', 7,
+    'voorkomens_uniek_expected', 2664890,
     'relaties_expected', 2531300,
     'geometrieen_expected', 1831720
   )
@@ -110,7 +114,7 @@ SQL
 
 chunk_import() {
   local phase="$1" csv="$2" expected="$3"
-  local id current remaining tmpdir index chunk rows
+  local id current tmpdir index chunk rows inserted deduplicated
   id="$(dataset_id)"; [[ -n "$id" ]] || fail 'voer eerst prepare uit.'
   current="$(count_phase "$phase" "$id")"
   (( current <= expected )) || fail "$phase bevat meer rijen dan verwacht."
@@ -121,7 +125,9 @@ chunk_import() {
   for chunk in "$tmpdir"/chunk-*; do
     [[ -s "$chunk" ]] || continue
     rows="$(wc -l < "$chunk" | tr -d ' ')"
-    echo "Importeer $phase chunk $index: $rows rijen vanaf $current"
+    echo "Importeer $phase chunk $index: $rows bronrijen vanaf $current"
+    inserted="$rows"
+    deduplicated=0
     case "$phase" in
       objecten)
         psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
@@ -138,7 +144,7 @@ COMMIT;
 SQL
         ;;
       voorkomens)
-        psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
+        deduplicated="$(psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
 BEGIN;
 GRANT bag_loader TO postgres WITH SET TRUE, INHERIT FALSE;
 SET LOCAL ROLE bag_loader;
@@ -148,16 +154,49 @@ CREATE TEMP TABLE raw_chunk (
  begin_geldigheid date, eind_geldigheid date, status text, velden jsonb NOT NULL
 ) ON COMMIT DROP;
 \\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
+DO \$guard\$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM raw_chunk
+    GROUP BY objecttype, identificatie, voorkomen_sleutel
+    HAVING count(*) > 1
+       AND count(DISTINCT ROW(
+         voorkomenidentificatie, is_actueel, begin_geldigheid,
+         eind_geldigheid, status, velden
+       )) > 1
+  ) THEN
+    RAISE EXCEPTION 'Conflicterende dubbele voorkomen-sleutel binnen chunk.';
+  END IF;
+END
+\$guard\$;
+CREATE TEMP TABLE deduped_chunk ON COMMIT DROP AS
+SELECT DISTINCT ON (objecttype, identificatie, voorkomen_sleutel)
+ objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie,
+ is_actueel, begin_geldigheid, eind_geldigheid, status, velden
+FROM raw_chunk
+ORDER BY objecttype, identificatie, voorkomen_sleutel;
 INSERT INTO bag_staging.voorkomens (
  datasetversie_id, objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie,
  is_actueel, begin_geldigheid, eind_geldigheid, status, velden
 )
 SELECT :dataset_id, objecttype, identificatie, voorkomen_sleutel, voorkomenidentificatie,
- is_actueel, begin_geldigheid, eind_geldigheid, status, velden FROM raw_chunk;
+ is_actueel, begin_geldigheid, eind_geldigheid, status, velden
+FROM deduped_chunk;
+SELECT (SELECT count(*) FROM raw_chunk) - (SELECT count(*) FROM deduped_chunk);
 RESET ROLE;
 REVOKE bag_loader FROM postgres GRANTED BY postgres;
 COMMIT;
 SQL
+)"
+        [[ "$deduplicated" =~ ^[0-9]+$ ]] || fail "ongeldige deduplicatietelling: $deduplicated"
+        inserted=$((rows - deduplicated))
+        if (( deduplicated > 0 )); then
+          printf '%s\t%s\t%s\t%s\n' \
+            "$phase" "$index" "$deduplicated" "$(date -u +%FT%TZ)" \
+            >>"$OUTPUT_DIR/deduplicatie.tsv"
+          echo "Sla $deduplicated volledig identieke dubbele voorkomens over."
+        fi
         ;;
       relaties)
         psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
@@ -211,12 +250,18 @@ SQL
         ;;
       *) fail "onbekende fase: $phase";;
     esac
-    current=$((current + rows)); index=$((index + 1))
+    current=$((current + inserted)); index=$((index + 1))
     printf '%s\t%s\t%s\n' "$phase" "$current" "$(date -u +%FT%TZ)" >>"$OUTPUT_DIR/progress.tsv"
   done
   rm -rf "$tmpdir"
   current="$(count_phase "$phase" "$id")"
   [[ "$current" == "$expected" ]] || fail "$phase eindtelling $current wijkt af van $expected."
+  if [[ "$phase" == 'voorkomens' ]]; then
+    local totaal_deduplicated
+    totaal_deduplicated="$(awk -F '\t' '{s+=$3} END{print s+0}' "$OUTPUT_DIR/deduplicatie.tsv" 2>/dev/null || true)"
+    [[ "$totaal_deduplicated" == "$EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN" ]] || \
+      fail "verwacht $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN identieke voorkomenduplicaten, aangetroffen $totaal_deduplicated."
+  fi
 }
 
 validate() {
@@ -231,8 +276,11 @@ SELECT 'geometrie_afwijkingen', count(*) FROM bag_control.geometrie_afwijkingen 
 SELECT 'published_amsterdam', count(*) FROM bag_published.objecten WHERE datasetversie_id=:dataset_id;
 SELECT 'actief_amsterdam', count(*) FROM bag_control.datasetversies WHERE id=:dataset_id AND is_actief;
 SQL
+  printf 'voorkomens_bronregels\t%s\n' "$EXPECTED_VOORKOMENS_RAW" >>"$OUTPUT_DIR/validatie.tsv"
+  printf 'voorkomens_identieke_duplicaten\t%s\n' "$EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN" >>"$OUTPUT_DIR/validatie.tsv"
+  printf 'voorkomens_uniek_expected\t%s\n' "$EXPECTED_VOORKOMENS" >>"$OUTPUT_DIR/validatie.tsv"
   grep -q $'^objecten\t1464429$' "$OUTPUT_DIR/validatie.tsv" || fail 'objecttelling niet groen.'
-  grep -q $'^voorkomens\t2664897$' "$OUTPUT_DIR/validatie.tsv" || fail 'voorkomentelling niet groen.'
+  grep -q $'^voorkomens\t2664890$' "$OUTPUT_DIR/validatie.tsv" || fail 'voorkomentelling niet groen.'
   grep -q $'^relaties\t2531300$' "$OUTPUT_DIR/validatie.tsv" || fail 'relatietelling niet groen.'
   local geom valid invalid
   valid="$(awk -F '\t' '$1=="geometrieen"{print $2}' "$OUTPUT_DIR/validatie.tsv")"
@@ -241,7 +289,15 @@ SQL
   grep -q $'^published_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht gepubliceerd.'
   grep -q $'^actief_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht actief.'
   psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" -c \
-    "UPDATE bag_control.datasetversies SET status='gevalideerd', gevalideerd_op=clock_timestamp() WHERE id=:dataset_id AND status='staging' AND NOT is_actief;"
+    "UPDATE bag_control.datasetversies
+     SET status='gevalideerd',
+         gevalideerd_op=clock_timestamp(),
+         bron_metadata=bron_metadata || jsonb_build_object(
+           'voorkomens_bronregels', $EXPECTED_VOORKOMENS_RAW,
+           'voorkomens_identieke_duplicaten', $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN,
+           'voorkomens_uniek', $EXPECTED_VOORKOMENS
+         )
+     WHERE id=:dataset_id AND status='staging' AND NOT is_actief;"
   {
     echo '# Amsterdam resumable staging-import'
     echo
@@ -251,6 +307,9 @@ SQL
     echo '- Gepubliceerd: nee'
     echo '- Geactiveerd: nee'
     echo '- Status: gevalideerd'
+    echo "- Voorkomens bronregels: $EXPECTED_VOORKOMENS_RAW"
+    echo "- Identieke voorkomenduplicaten overgeslagen: $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN"
+    echo "- Unieke voorkomens: $EXPECTED_VOORKOMENS"
     echo
     echo '```text'; cat "$OUTPUT_DIR/validatie.tsv"; echo '```'
   } >"$OUTPUT_DIR/rapport.md"
