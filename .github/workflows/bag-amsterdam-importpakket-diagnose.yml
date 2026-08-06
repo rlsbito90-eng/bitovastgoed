@@ -1,0 +1,106 @@
+name: BAG Amsterdam importpakket diagnose
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Typ exact DIAGNOSE_AMSTERDAM_IMPORTPAKKET om te starten'
+        required: true
+        default: ''
+      source_run_id:
+        description: 'Full-subset workflowrun waarvan het artifact wordt onderzocht'
+        required: true
+        default: '31026164539'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bag-amsterdam-importpakket-diagnose
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnoseer bestaand Amsterdam-importpakket (geen databasewrite)
+    if: github.event.inputs.approval == 'DIAGNOSE_AMSTERDAM_IMPORTPAKKET'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download bestaand full-subset-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bag-amsterdam-full-subset-en-importpakket
+          run-id: ${{ github.event.inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: bag-amsterdam
+
+      - name: Bewijs artifactinhoud en importbesluit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p diagnose
+
+          find bag-amsterdam -type f -printf '%P\t%s\n' | sort > diagnose/bestanden.tsv
+
+          rapport='bag-amsterdam/rapport/go-no-go.md'
+          manifest='bag-amsterdam/importpakket/importpakket-manifest.json'
+          export_manifest='bag-amsterdam/importpakket/manifest.json'
+          subset_bewijs='bag-amsterdam/full-subset.bewijs.json'
+          closure_bewijs='bag-amsterdam/metadata/closure-bewijs.json'
+
+          {
+            echo '# BAG Amsterdam importpakket — diagnose'
+            echo
+            echo "- source_run_id: ${{ github.event.inputs.source_run_id }}"
+            echo '- databasewrite uitgevoerd: nee'
+            echo
+            for bestand in "$rapport" "$manifest" "$export_manifest" "$subset_bewijs" "$closure_bewijs"; do
+              if [[ -f "$bestand" ]]; then
+                echo "- aanwezig: \`$bestand\` ($(stat -c%s "$bestand") bytes)"
+              else
+                echo "- ontbreekt: \`$bestand\`"
+              fi
+            done
+          } > diagnose/diagnose.md
+
+          if [[ -f "$manifest" ]]; then
+            cp "$manifest" diagnose/importpakket-manifest.json
+            node - <<'NODE' > diagnose/importbesluit.txt
+          const fs = require('node:fs');
+          const pad = 'bag-amsterdam/importpakket/importpakket-manifest.json';
+          const manifest = JSON.parse(fs.readFileSync(pad, 'utf8'));
+          console.log(`besluit=${manifest.besluit ?? 'ONBEKEND'}`);
+          console.log(`geselecteerdAantal=${manifest.geselecteerdAantal ?? 'ONBEKEND'}`);
+          console.log(`ontvangen=${manifest.tellingen?.ontvangen ?? 'ONBEKEND'}`);
+          console.log(`verwerkt=${manifest.tellingen?.verwerkt ?? 'ONBEKEND'}`);
+          console.log(`objecten=${manifest.tellingen?.objecten ?? 'ONBEKEND'}`);
+          console.log(`voorkomens=${manifest.tellingen?.voorkomens ?? 'ONBEKEND'}`);
+          console.log(`relatiesBron=${manifest.tellingen?.relatiesBron ?? 'ONBEKEND'}`);
+          console.log(`relatiesUniek=${manifest.tellingen?.relatiesUniek ?? 'ONBEKEND'}`);
+          console.log(`adapterFouten=${manifest.tellingen?.adapterFouten ?? 'ONBEKEND'}`);
+          console.log(`stagingFouten=${manifest.tellingen?.stagingFouten ?? 'ONBEKEND'}`);
+          console.log(`overgeslagenGeometrieen=${manifest.tellingen?.overgeslagenGeometrieen ?? 'ONBEKEND'}`);
+          for (const conditie of manifest.stopCondities ?? []) {
+            console.log(`stop=${conditie.code}: ${conditie.reden}`);
+          }
+          NODE
+          else
+            echo 'besluit=NIET_BESCHIKBAAR' > diagnose/importbesluit.txt
+          fi
+
+          if [[ -f "$rapport" ]]; then
+            cp "$rapport" diagnose/go-no-go.md
+          fi
+
+          cat diagnose/diagnose.md
+          cat diagnose/importbesluit.txt
+
+      - name: Publiceer uitsluitend klein diagnose-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-importpakket-diagnose
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+          path: diagnose
