@@ -29,7 +29,7 @@ export function bouwAcquisitieNaPostDossierPlan(input: {
   if (!operationKey) throw new Error('Operation key is verplicht voor de dossierprojectie.');
   if (operationKey.length > 200) throw new Error('Operation key mag maximaal 200 tekens bevatten.');
 
-  const volgendeActieOp = input.projectie.volgendeOpvolgdatum;
+  const volgendeActieOp = input.projectie.opvolgenOp;
   if ((input.projectie.werkbak === 'wachten' || input.projectie.werkbak === 'opvolgen')
       && !volgendeActieOp) {
     throw new Error('Werkbak wachten of opvolgen vereist een opvolgdatum.');
