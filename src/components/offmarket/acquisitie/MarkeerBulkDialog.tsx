@@ -1,18 +1,5 @@
-// V3 — Bulk-actiedialog voor de Off-Market Acquisitieselectie:
-//   • "Markeer geselecteerde brieven als geprint"
-//   • "Markeer geselecteerde brieven als gepost"
-//
-// Hergebruikt uitsluitend bestaande domeinflow:
-//   - useUpdateVerzendstatus  → printdatum + verzendstatus + event 'printed'
-//   - useMarkBriefVerstuurd   → postdatum + verzendstatus + event 'posted'
-//                                + statuspromotie signaal naar 'benaderd'
-//   - useDataStore.addTaak    → bestaande opvolgtaaklogica
-//   - berekenFollowUpDeadline + defaultFollowupDagen
-//
-// Idempotent: reeds geprinte/geposte brieven worden overgeslagen.
-// Per brief/geadresseerde wordt één append-only event geregistreerd via
-// de bestaande hooks — geen dubbele logging.
-
+// Bulk-actiedialoog voor geprint/gepost met expliciete opvolgkeuze.
+// Geen automatische externe acties.
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -21,6 +8,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Printer, Send } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -29,6 +18,10 @@ import { useMarkBriefVerstuurd } from '@/hooks/useOffMarketBrieven';
 import { useDataStore } from '@/hooks/useDataStore';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 import { defaultFollowupDagen } from '@/lib/offMarket/email/emailProfielen';
+import {
+  useBriefOpvolgkeuze,
+  type Opvolgkeuze,
+} from '@/hooks/useBriefOpvolgkeuze';
 
 export type MarkeerModus = 'geprint' | 'gepost';
 
@@ -41,9 +34,7 @@ interface Props {
 }
 
 interface Plan {
-  /** Te verwerken brieven (post-kanaal, niet gearchiveerd, juiste status). */
   teVerwerken: OffMarketBrief[];
-  /** Overgeslagen brieven met reden. */
   overgeslagen: Array<{ brief: OffMarketBrief; reden: string }>;
 }
 
@@ -53,6 +44,7 @@ interface Resultaat {
   mislukt: number;
   opvolgtakenAangemaakt: number;
   opvolgtakenHergebruikt: number;
+  opvolgingBewustOvergeslagen: number;
   fouten: string[];
 }
 
@@ -66,7 +58,7 @@ function isGepost(b: OffMarketBrief): boolean {
   return v === 'gepost' || v === 'verzonden' || b.status === 'verstuurd';
 }
 
-function bouwPlan(brieven: OffMarketBrief[], modus: MarkeerModus): Plan {
+export function bouwMarkeerBulkPlan(brieven: OffMarketBrief[], modus: MarkeerModus): Plan {
   const teVerwerken: OffMarketBrief[] = [];
   const overgeslagen: Plan['overgeslagen'] = [];
   for (const b of brieven) {
@@ -81,18 +73,16 @@ function bouwPlan(brieven: OffMarketBrief[], modus: MarkeerModus): Plan {
     if (modus === 'geprint') {
       if (isGeprint(b)) {
         overgeslagen.push({ brief: b, reden: 'Brief is al geprint of verder.' });
-        continue;
+      } else {
+        teVerwerken.push(b);
       }
-      teVerwerken.push(b);
+      continue;
+    }
+    if (!isGeprint(b)) {
+      overgeslagen.push({ brief: b, reden: 'Brief is nog niet geprint.' });
+    } else if (isGepost(b)) {
+      overgeslagen.push({ brief: b, reden: 'Brief is al gepost.' });
     } else {
-      if (!isGeprint(b)) {
-        overgeslagen.push({ brief: b, reden: 'Brief is nog niet geprint.' });
-        continue;
-      }
-      if (isGepost(b)) {
-        overgeslagen.push({ brief: b, reden: 'Brief is al gepost.' });
-        continue;
-      }
       teVerwerken.push(b);
     }
   }
@@ -104,6 +94,7 @@ export default function MarkeerBulkDialog({
 }: Props) {
   const updateStatus = useUpdateVerzendstatus();
   const markeerVerstuurd = useMarkBriefVerstuurd();
+  const legOpvolgkeuzeVast = useBriefOpvolgkeuze();
   const { addTaak, taken } = useDataStore();
 
   const signaalIndex = useMemo(() => {
@@ -112,10 +103,11 @@ export default function MarkeerBulkDialog({
     return m;
   }, [signalen]);
 
-  const plan = useMemo(() => bouwPlan(brieven, modus), [brieven, modus]);
-
+  const plan = useMemo(() => bouwMarkeerBulkPlan(brieven, modus), [brieven, modus]);
   const vandaag = new Date().toISOString().slice(0, 10);
   const [postdatum, setPostdatum] = useState(vandaag);
+  const [opvolgkeuze, setOpvolgkeuze] = useState<Opvolgkeuze>('taak_plannen');
+  const [overslaReden, setOverslaReden] = useState('');
   const [bezig, setBezig] = useState(false);
   const [resultaat, setResultaat] = useState<Resultaat | null>(null);
 
@@ -124,18 +116,57 @@ export default function MarkeerBulkDialog({
       setResultaat(null);
       setBezig(false);
       setPostdatum(vandaag);
+      setOpvolgkeuze('taak_plannen');
+      setOverslaReden('');
     }
   }, [open, vandaag]);
+
+  const followUp = berekenFollowUpDeadline(postdatum, defaultFollowupDagen('post'));
+  const keuzeOngeldig = modus === 'gepost'
+    && opvolgkeuze === 'bewust_overslaan'
+    && !overslaReden.trim();
 
   const titel = modus === 'geprint'
     ? 'Markeer geselecteerde brieven als geprint'
     : 'Markeer geselecteerde brieven als gepost';
 
   const beschrijving = modus === 'geprint'
-    ? 'Registreert printdatum en zet verzendstatus naar "geprint". Maakt geen taak aan en wijzigt geen signaalstatus.'
-    : `Registreert postdatum, zet verzendstatus naar "gepost", promoveert signaal naar "benaderd" en plant opvolging volgens de bestaande regel (postdatum + ${defaultFollowupDagen('post')} dagen).`;
+    ? 'Registreert de printdatum. Er wordt geen taak aangemaakt en de signaalstatus wijzigt niet.'
+    : 'Registreert de postdatum en promoveert het signaal naar benaderd. Kies hieronder expliciet wat er met de opvolging moet gebeuren.';
+
+  async function planOfHergebruikTaak(b: OffMarketBrief): Promise<{ id: string; hergebruikt: boolean }> {
+    const geadresseerdeLabel = b.eigenaar_bedrijfsnaam || b.eigenaar_naam || 'eigenaar';
+    const stap = (b.campagne_stap ?? '') as string;
+    const stapNr = stap.endsWith('_2') ? 2 : stap.endsWith('_3') ? 3 : 1;
+    const taakRegex = /brief\s*2|brief opvolgen/i;
+    const eigenaarKey = (b.eigenaar_naam ?? b.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
+    const bestaande = (taken ?? []).find((t: any) =>
+      t?.offMarketSignaalId === b.signaal_id
+      && t?.status === 'open'
+      && typeof t?.titel === 'string'
+      && taakRegex.test(t.titel)
+      && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
+    );
+    if (bestaande?.id) return { id: bestaande.id, hergebruikt: true };
+
+    const nieuw = await addTaak({
+      titel: 'Brief 2 voorbereiden / opvolgen',
+      type: 'Follow-up',
+      deadline: followUp,
+      prioriteit: 'normaal',
+      status: 'open',
+      offMarketSignaalId: b.signaal_id,
+      notities: `Opvolging voor brief aan ${geadresseerdeLabel} (stap ${stapNr}) · post ${postdatum} · deadline ${followUp}.`,
+    } as any);
+    if (!nieuw?.id) throw new Error('De opvolgtaak kon niet worden aangemaakt.');
+    return { id: nieuw.id, hergebruikt: false };
+  }
 
   async function uitvoeren() {
+    if (keuzeOngeldig) {
+      toast.error('Leg vast waarom opvolging bewust wordt overgeslagen.');
+      return;
+    }
     setBezig(true);
     const res: Resultaat = {
       verwerkt: 0,
@@ -143,12 +174,13 @@ export default function MarkeerBulkDialog({
       mislukt: 0,
       opvolgtakenAangemaakt: 0,
       opvolgtakenHergebruikt: 0,
+      opvolgingBewustOvergeslagen: 0,
       fouten: [],
     };
     try {
-      if (modus === 'geprint') {
-        for (const b of plan.teVerwerken) {
-          try {
+      for (const b of plan.teVerwerken) {
+        try {
+          if (modus === 'geprint') {
             await updateStatus.mutateAsync({
               id: b.id,
               signaal_id: b.signaal_id,
@@ -159,65 +191,48 @@ export default function MarkeerBulkDialog({
               printdatum: postdatum,
               event: 'printed',
             });
-            res.verwerkt += 1;
-          } catch (e: any) {
-            res.mislukt += 1;
-            res.fouten.push(`${labelVoor(b)}: ${e?.message ?? 'mislukt'}`);
-          }
-        }
-      } else {
-        const followUp = berekenFollowUpDeadline(postdatum, defaultFollowupDagen('post'));
-        for (const b of plan.teVerwerken) {
-          try {
-            // Hergebruik/aanmaak van opvolgtaak — exact zelfde regels als
-            // bestaande MarkeerVerstuurdDialog, zodat we geen tweede
-            // takenregel introduceren.
-            const geadresseerdeLabel =
-              b.eigenaar_bedrijfsnaam || b.eigenaar_naam || 'eigenaar';
-            const stap = (b.campagne_stap ?? '') as string;
-            const stapNr = stap.endsWith('_2') ? 2 : stap.endsWith('_3') ? 3 : 1;
-            const taakTitel = 'Brief 2 voorbereiden / opvolgen';
-            const taakRegex = /brief\s*2|brief opvolgen/i;
-            const eigenaarKey =
-              (b.eigenaar_naam ?? b.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
-            const bestaande = (taken ?? []).find((t: any) =>
-              t?.offMarketSignaalId === b.signaal_id
-              && t?.status === 'open'
-              && typeof t?.titel === 'string'
-              && taakRegex.test(t.titel)
-              && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
-            );
-            let taakId: string | null = null;
-            if (bestaande) {
-              taakId = (bestaande as any).id ?? null;
-              res.opvolgtakenHergebruikt += 1;
-            } else {
-              try {
-                const nieuw = await addTaak({
-                  titel: taakTitel,
-                  type: 'Follow-up',
-                  deadline: followUp,
-                  prioriteit: 'normaal',
-                  status: 'open',
-                  offMarketSignaalId: b.signaal_id,
-                  notities: `Opvolging voor brief aan ${geadresseerdeLabel} (stap ${stapNr}) · post ${postdatum} · deadline ${followUp}.`,
-                } as any);
-                taakId = nieuw?.id ?? null;
-                if (taakId) res.opvolgtakenAangemaakt += 1;
-              } catch (e) {
-                console.warn('Opvolgtaak aanmaken mislukt', e);
-              }
-            }
+          } else if (opvolgkeuze === 'taak_plannen') {
+            const taak = await planOfHergebruikTaak(b);
+            if (taak.hergebruikt) res.opvolgtakenHergebruikt += 1;
+            else res.opvolgtakenAangemaakt += 1;
             await markeerVerstuurd.mutateAsync({
-              id: b.id, postdatum,
-              gekoppelde_taak_id: taakId,
+              id: b.id,
+              postdatum,
+              gekoppelde_taak_id: taak.id,
               kanaal: 'post',
             });
-            res.verwerkt += 1;
-          } catch (e: any) {
-            res.mislukt += 1;
-            res.fouten.push(`${labelVoor(b)}: ${e?.message ?? 'mislukt'}`);
+            await legOpvolgkeuzeVast.mutateAsync({
+              briefId: b.id,
+              signaalId: b.signaal_id,
+              geadresseerdeKey: b.geadresseerde_key ?? null,
+              campagneStap: b.campagne_stap ?? null,
+              kanaal: b.kanaal ?? 'post',
+              keuze: 'taak_plannen',
+              opvolgdatum: followUp,
+              gekoppeldeTaakId: taak.id,
+            });
+          } else {
+            await markeerVerstuurd.mutateAsync({
+              id: b.id,
+              postdatum,
+              gekoppelde_taak_id: null,
+              kanaal: 'post',
+            });
+            await legOpvolgkeuzeVast.mutateAsync({
+              briefId: b.id,
+              signaalId: b.signaal_id,
+              geadresseerdeKey: b.geadresseerde_key ?? null,
+              campagneStap: b.campagne_stap ?? null,
+              kanaal: b.kanaal ?? 'post',
+              keuze: 'bewust_overslaan',
+              overslaReden,
+            });
+            res.opvolgingBewustOvergeslagen += 1;
           }
+          res.verwerkt += 1;
+        } catch (e: any) {
+          res.mislukt += 1;
+          res.fouten.push(`${labelVoor(b)}: ${e?.message ?? 'mislukt'}`);
         }
       }
       setResultaat(res);
@@ -256,7 +271,7 @@ export default function MarkeerBulkDialog({
             <DialogDescription>{beschrijving}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-3">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4">
             {!resultaat ? (
               <>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -265,36 +280,50 @@ export default function MarkeerBulkDialog({
                     tone={plan.overgeslagen.length > 0 ? 'warn' : 'default'} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="bulk-datum">
-                    {modus === 'geprint' ? 'Printdatum' : 'Postdatum'}
-                  </Label>
-                  <Input
-                    id="bulk-datum"
-                    type="date"
-                    value={postdatum}
-                    onChange={(e) => setPostdatum(e.target.value)}
-                    data-testid="bulk-datum-input"
-                  />
+                  <Label htmlFor="bulk-datum">{modus === 'geprint' ? 'Printdatum' : 'Postdatum'}</Label>
+                  <Input id="bulk-datum" type="date" value={postdatum}
+                    onChange={(e) => setPostdatum(e.target.value)} data-testid="bulk-datum-input" />
                 </div>
+
                 {modus === 'gepost' && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Opvolging wordt ingepland op{' '}
-                    <span className="font-medium text-foreground">
-                      {berekenFollowUpDeadline(postdatum, defaultFollowupDagen('post'))}
-                    </span>.
-                  </p>
+                  <div className="space-y-3 rounded-lg border border-border p-3" data-testid="bulk-opvolgkeuze">
+                    <div>
+                      <p className="text-sm font-medium">Opvolging</p>
+                      <p className="text-xs text-muted-foreground">Maak een bewuste keuze voor alle brieven in deze batch.</p>
+                    </div>
+                    <RadioGroup value={opvolgkeuze} onValueChange={(v) => setOpvolgkeuze(v as Opvolgkeuze)}>
+                      <label className="flex items-start gap-2 rounded-md border p-3 cursor-pointer">
+                        <RadioGroupItem value="taak_plannen" id="opvolging-plannen" />
+                        <span className="text-sm">
+                          <span className="font-medium block">Opvolgtaak plannen</span>
+                          <span className="text-xs text-muted-foreground">Deadline: {followUp}. Een bestaande passende taak wordt hergebruikt.</span>
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-2 rounded-md border p-3 cursor-pointer">
+                        <RadioGroupItem value="bewust_overslaan" id="opvolging-overslaan" />
+                        <span className="text-sm">
+                          <span className="font-medium block">Bewust geen opvolging plannen</span>
+                          <span className="text-xs text-muted-foreground">De opvolgdatum wordt gewist en de reden komt in de audittrail.</span>
+                        </span>
+                      </label>
+                    </RadioGroup>
+                    {opvolgkeuze === 'bewust_overslaan' && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bulk-oversla-reden">Reden *</Label>
+                        <Textarea id="bulk-oversla-reden" value={overslaReden}
+                          onChange={(e) => setOverslaReden(e.target.value)}
+                          placeholder="Bijvoorbeeld: reeds telefonisch afgewezen of geen verdere acquisitie gewenst."
+                          data-testid="bulk-oversla-reden" />
+                      </div>
+                    )}
+                  </div>
                 )}
+
                 {plan.overgeslagen.length > 0 && (
                   <details className="text-[11px] text-muted-foreground">
-                    <summary className="cursor-pointer">
-                      Toon overgeslagen brieven ({plan.overgeslagen.length})
-                    </summary>
+                    <summary className="cursor-pointer">Toon overgeslagen brieven ({plan.overgeslagen.length})</summary>
                     <ul className="mt-1.5 space-y-0.5 list-disc pl-4">
-                      {plan.overgeslagen.map((o) => (
-                        <li key={o.brief.id}>
-                          {labelVoor(o.brief)} — {o.reden}
-                        </li>
-                      ))}
+                      {plan.overgeslagen.map((o) => <li key={o.brief.id}>{labelVoor(o.brief)} — {o.reden}</li>)}
                     </ul>
                   </details>
                 )}
@@ -304,14 +333,12 @@ export default function MarkeerBulkDialog({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                   <Stat label="Verwerkt" value={resultaat.verwerkt} tone="success" />
                   <Stat label="Overgeslagen" value={resultaat.overgeslagen} />
-                  <Stat label="Mislukt" value={resultaat.mislukt}
-                    tone={resultaat.mislukt > 0 ? 'danger' : 'default'} />
-                  {modus === 'gepost' && (
-                    <>
-                      <Stat label="Taken aangemaakt" value={resultaat.opvolgtakenAangemaakt} />
-                      <Stat label="Taken hergebruikt" value={resultaat.opvolgtakenHergebruikt} />
-                    </>
-                  )}
+                  <Stat label="Mislukt" value={resultaat.mislukt} tone={resultaat.mislukt > 0 ? 'danger' : 'default'} />
+                  {modus === 'gepost' && <>
+                    <Stat label="Taken aangemaakt" value={resultaat.opvolgtakenAangemaakt} />
+                    <Stat label="Taken hergebruikt" value={resultaat.opvolgtakenHergebruikt} />
+                    <Stat label="Bewust geen opvolging" value={resultaat.opvolgingBewustOvergeslagen} />
+                  </>}
                 </div>
                 {resultaat.fouten.length > 0 && (
                   <ul className="text-[11px] text-destructive list-disc pl-4">
@@ -322,28 +349,18 @@ export default function MarkeerBulkDialog({
             )}
           </div>
 
-          <div
-            className="border-t bg-background/95 backdrop-blur px-5 py-3 flex flex-wrap items-center justify-end gap-2"
-            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
-          >
-            {!resultaat ? (
-              <>
-                <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={bezig}>
-                  Annuleren
-                </Button>
-                <Button
-                  type="button" size="sm" onClick={uitvoeren}
-                  disabled={bezig || plan.teVerwerken.length === 0}
-                  data-testid="markeer-bulk-bevestig"
-                >
-                  {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
-                  {modus === 'geprint' ? 'Markeer geprint' : 'Markeer gepost'}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" size="sm" onClick={onClose} data-testid="markeer-bulk-sluit">
-                Sluiten
+          <div className="border-t bg-background/95 backdrop-blur px-5 py-3 flex flex-wrap items-center justify-end gap-2"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
+            {!resultaat ? <>
+              <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={bezig}>Annuleren</Button>
+              <Button type="button" size="sm" onClick={uitvoeren}
+                disabled={bezig || plan.teVerwerken.length === 0 || keuzeOngeldig}
+                data-testid="markeer-bulk-bevestig">
+                {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                {modus === 'geprint' ? 'Markeer geprint' : 'Markeer gepost'}
               </Button>
+            </> : (
+              <Button type="button" size="sm" onClick={onClose} data-testid="markeer-bulk-sluit">Sluiten</Button>
             )}
           </div>
         </div>
@@ -352,18 +369,17 @@ export default function MarkeerBulkDialog({
   );
 }
 
-function Stat({
-  label, value, tone = 'default',
-}: { label: string; value: number; tone?: 'default' | 'success' | 'warn' | 'danger' }) {
-  const cls =
-    tone === 'success' ? 'border-success/40 bg-success/10 text-success'
+function Stat({ label, value, tone = 'default' }: {
+  label: string;
+  value: number;
+  tone?: 'default' | 'success' | 'warn' | 'danger';
+}) {
+  const cls = tone === 'success' ? 'border-success/40 bg-success/10 text-success'
     : tone === 'warn' ? 'border-amber-500/30 bg-amber-500/10 text-amber-700'
     : tone === 'danger' ? 'border-destructive/40 bg-destructive/10 text-destructive'
     : 'border-border bg-card text-foreground';
-  return (
-    <div className={`rounded-md border px-3 py-2 ${cls}`}>
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold font-mono-data leading-none">{value}</p>
-    </div>
-  );
+  return <div className={`rounded-md border px-3 py-2 ${cls}`}>
+    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+    <p className="text-base font-semibold font-mono-data leading-none">{value}</p>
+  </div>;
 }

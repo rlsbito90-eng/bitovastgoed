@@ -13,6 +13,7 @@ export type BriefEventType =
   | 'response_received'
   | 'returned_mail'
   | 'follow_up_created'
+  | 'follow_up_skipped'
   | 'follow_up_completed'
   | 'archived';
 

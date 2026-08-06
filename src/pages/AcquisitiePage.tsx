@@ -14,6 +14,8 @@ import {
   type AcquisitieStatus, type AcquisitieTarget,
 } from '@/lib/acquisitie';
 import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge';
+import AcquisitieEigenarenOverzicht from '@/components/acquisitie/AcquisitieEigenarenOverzicht';
+import AcquisitieRapportageOverzicht from '@/components/acquisitie/AcquisitieRapportageOverzicht';
 import GeenActieBadge, { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
 import AcquisitieCampagneFormDialog from '@/components/forms/AcquisitieCampagneFormDialog';
@@ -24,7 +26,7 @@ import { byDate, byString, combine } from '@/lib/sorting/comparators';
 import { smartAcquisitieCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 
-type Tab = 'targets' | 'campagnes';
+type Tab = 'targets' | 'eigenaren' | 'campagnes' | 'rapportage';
 
 export default function AcquisitiePage() {
   const { targets, campagnes, laden } = useAcquisitie();
@@ -89,33 +91,43 @@ export default function AcquisitiePage() {
     return m;
   }, [campagnes, targets]);
 
-  const selectCls = "h-9 rounded-md border border-input bg-background px-2 text-sm";
+  const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
+  const tabLabel = (t: Tab): string => {
+    if (t === 'targets') return `Targets (${targets.length})`;
+    if (t === 'eigenaren') return `Eigenaren (${new Set(targets.map(x => x.relatieId).filter(Boolean)).size})`;
+    if (t === 'campagnes') return `Campagnes (${campagnes.length})`;
+    return 'Rapportage';
+  };
 
   return (
     <div className="page-shell-wide">
       <PageHeader
         title="Acquisitie"
-        subtitle="Off-market targets en campagnes — vóór een pand aanbod wordt."
+        subtitle="Targets, eigenaren, campagnes en conversie vóór een pand aanbod wordt."
         actions={
           tab === 'targets' ? (
             <Button onClick={() => setTargetForm({ open: true, target: null })}>
               <Plus className="h-4 w-4 mr-1.5" /> Nieuwe target
             </Button>
-          ) : (
+          ) : tab === 'campagnes' ? (
             <Button onClick={() => setCampagneForm({ open: true, campagne: null })}>
               <Plus className="h-4 w-4 mr-1.5" /> Nieuwe campagne
             </Button>
-          )
+          ) : null
         }
       />
 
-      <div className="flex gap-1 border-b border-border">
-        {(['targets', 'campagnes'] as Tab[]).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {(['targets', 'eigenaren', 'campagnes', 'rapportage'] as Tab[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            data-testid={`acquisitie-tab-${t}`}
+            className={`px-4 py-2 text-sm font-medium whitespace-nowrap -mb-px border-b-2 transition-colors ${
               tab === t ? 'border-accent text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}>
-            {t === 'targets' ? `Targets (${targets.length})` : `Campagnes (${campagnes.length})`}
+            }`}
+          >
+            {tabLabel(t)}
           </button>
         ))}
       </div>
@@ -191,6 +203,9 @@ export default function AcquisitiePage() {
           </section>
         </>
       )}
+
+      {tab === 'eigenaren' && <AcquisitieEigenarenOverzicht />}
+      {tab === 'rapportage' && <AcquisitieRapportageOverzicht />}
 
       {tab === 'campagnes' && (
         <section className="section-card overflow-hidden">
