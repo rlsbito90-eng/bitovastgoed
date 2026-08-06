@@ -1,6 +1,8 @@
 import type { ProductieLeesActivatieBewijs } from './productieLeesActivatiePoort';
 import type { ProductiekernLeesSamenstelling } from './productiekernLeesSamenstelling';
 import { stelSupabaseProductiekernLezenSamen } from './productiekernSupabaseLeesSamenstelling';
+import { metProductiekernLeesBudget } from './productiekernSupabaseLeesBudget';
+import { metSamengevoegdeProductiekernReads } from './productiekernSupabaseLeesSamenvoeging';
 import {
   maakProductiekernSupabaseLeesTransport,
   type ProductiekernLeesTransportOpties,
@@ -14,12 +16,19 @@ import {
 export interface ProductiekernSupabaseClientOpties {
   transport?: ProductiekernLeesTransportOpties;
   weerbaarheid?: ProductiekernLeesWeerbaarheidOpties;
+  maximaalAantalQueries?: number;
+  gelijktijdigeIdentiekeReadsSamenvoegen?: boolean;
 }
 
 /**
  * Volledige maar nog client-agnostische samenstelling:
- * begrensde timeout/retry -> allowlisted querycontract -> privacy-veilige
- * transportadapter -> bewijs- en leespoort -> read-only repository.
+ * querybudget -> timeout/retry -> optionele gelijktijdige samenvoeging ->
+ * allowlisted querycontract -> privacy-veilige transportadapter -> bewijs- en
+ * leespoort -> read-only repository.
+ *
+ * Het budget staat rond de ruwe uitvoerder zodat iedere echte poging, inclusief
+ * retries, meetelt. De samenvoeging staat buiten de retryketen zodat identieke
+ * gelijktijdige callers één volledige poging-/retryreeks delen.
  *
  * De concrete Supabase-client wordt bewust nog niet geïmporteerd. Daardoor kan
  * deze factory geen productieverbinding openen zonder een apart beoordeelde
@@ -30,12 +39,20 @@ export function stelProductiekernSupabaseClientSamen(
   uitvoerder: ProductiekernSupabaseQueryUitvoerder,
   opties: ProductiekernSupabaseClientOpties = {},
 ): ProductiekernLeesSamenstelling {
-  const weerbareUitvoerder = maakWeerbareProductiekernLeesUitvoerder(
+  const gebudgetteerdeUitvoerder = metProductiekernLeesBudget(
     uitvoerder,
+    opties.maximaalAantalQueries ?? 25,
+  );
+  const weerbareUitvoerder = maakWeerbareProductiekernLeesUitvoerder(
+    gebudgetteerdeUitvoerder,
     opties.weerbaarheid,
   );
+  const samengesteldeUitvoerder =
+    opties.gelijktijdigeIdentiekeReadsSamenvoegen === false
+      ? weerbareUitvoerder
+      : metSamengevoegdeProductiekernReads(weerbareUitvoerder);
   const transport = maakProductiekernSupabaseLeesTransport(
-    weerbareUitvoerder,
+    samengesteldeUitvoerder,
     opties.transport,
   );
   return stelSupabaseProductiekernLezenSamen(bewijs, transport);
