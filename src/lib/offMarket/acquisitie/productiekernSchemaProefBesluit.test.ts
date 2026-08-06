@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { beoordeelProductiekernSchemaProef } from './productiekernSchemaProefBesluit';
+import type { ProductiekernSchemaDekking } from './productiekernSchemaDekking';
+import {
+  beoordeelProductiekernSchemaProef,
+  type ProductiekernSchemaProefBewijs,
+} from './productiekernSchemaProefBesluit';
 
-const volledigeDekking = {
+const volledigeDekking: ProductiekernSchemaDekking = {
   aanwezig: [
     'acquisitiedossier',
     'briefkern',
@@ -12,12 +16,12 @@ const volledigeDekking = {
     'batchdocumenten',
     'productieaudit',
     'nummerreeksen',
-  ] as const,
+  ],
   ontbrekend: [],
   volledig: true,
 };
 
-const volledigBewijs = {
+const volledigBewijs: ProductiekernSchemaProefBewijs = {
   schemaDekking: volledigeDekking,
   actueleProductieDdlReadOnlyGeverifieerd: true,
   actueleProductieRlsReadOnlyGeverifieerd: true,
