@@ -56,25 +56,25 @@ const context = {
 };
 
 describe('bouwProductieRpcAanroep', () => {
-  it('bouwt een expliciete RPC-aanroep voor definitief maken', () => {
+  it('bouwt exact de SQL-aanroep voor definitief maken', () => {
     const aanroep = bouwProductieRpcAanroep({
       actie: 'brief_definitief_maken',
       ...context,
       brief,
       actieveVersie: versie,
-      gereserveerdBriefnummer: 'BR2026000001',
+      jaar: 2026,
     });
 
     expect(aanroep).toEqual({
-      rpc: 'maak_off_market_brief_definitief',
+      rpc: 'off_market_brief_definitief_maken',
       parameters: {
+        p_brief_id: 'brief-1',
+        p_brief_versie_id: 'versie-1',
         p_actor_id: 'actor-1',
         p_operation_key: context.operationKey,
         p_verwacht_versienummer: 1,
         p_uitgevoerd_op: context.uitgevoerdOp,
-        p_brief_id: 'brief-1',
-        p_brief_versie_id: 'versie-1',
-        p_gereserveerd_briefnummer: 'BR2026000001',
+        p_jaar: 2026,
       },
     });
   });
@@ -85,11 +85,11 @@ describe('bouwProductieRpcAanroep', () => {
       ...context,
       brief: { ...brief, status: 'definitief' },
       actieveVersie: versie,
-      gereserveerdBriefnummer: 'BR2026000001',
+      jaar: 2026,
     })).toThrow('Alleen een conceptbrief kan definitief worden gemaakt.');
   });
 
-  it('houdt printdatum en verzenddatum in verschillende RPC-contracten', () => {
+  it('gebruikt documentversie-parameter conform SQL bij printen', () => {
     const batch = {
       id: 'batch-1',
       batchnummer: 'BAT2026080601',
@@ -109,8 +109,18 @@ describe('bouwProductieRpcAanroep', () => {
       printdatum: '2026-08-06T09:00:00.000Z',
     });
 
-    expect(print.parameters).toHaveProperty('p_printdatum');
+    expect(print).toEqual({
+      rpc: 'off_market_batch_geprint_markeren',
+      parameters: {
+        p_batch_id: 'batch-1',
+        p_actor_id: 'actor-1',
+        p_operation_key: context.operationKey,
+        p_verwacht_documentversie: 1,
+        p_printdatum: '2026-08-06T09:00:00.000Z',
+      },
+    });
     expect(print.parameters).not.toHaveProperty('p_verzenddatum');
+    expect(print.parameters).not.toHaveProperty('p_uitgevoerd_op');
   });
 
   it('neemt geadresseerde-identiteit expliciet op bij posten', () => {
@@ -134,12 +144,15 @@ describe('bouwProductieRpcAanroep', () => {
       geadresseerdeKey: 'geadresseerde-1',
     });
 
-    expect(aanroep.rpc).toBe('markeer_off_market_brief_gepost');
-    expect(aanroep.parameters).toMatchObject({
+    expect(aanroep.rpc).toBe('off_market_brief_gepost_markeren');
+    expect(aanroep.parameters).toEqual({
       p_brief_id: 'brief-1',
       p_brief_versie_id: 'versie-1',
       p_batch_id: 'batch-1',
       p_geadresseerde_key: 'geadresseerde-1',
+      p_actor_id: 'actor-1',
+      p_operation_key: context.operationKey,
+      p_verwacht_versienummer: 1,
       p_verzenddatum: '2026-08-06T10:00:00.000Z',
     });
   });
