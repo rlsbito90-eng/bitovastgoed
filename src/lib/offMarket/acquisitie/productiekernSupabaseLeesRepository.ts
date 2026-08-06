@@ -4,6 +4,7 @@ import type {
   BriefversieContract,
   PrintbatchContract,
 } from './productiekernContract';
+import { bewaakBriefversieLeesIntegriteit } from './productiekernBriefversieLeesIntegriteit';
 import {
   ProductiekernNietGeactiveerdError,
   type AcquisitieProductiekernRepository,
@@ -57,7 +58,7 @@ implements AcquisitieProductiekernRepository {
       { brief_id: briefId },
       { kolom: 'versienummer', oplopend: true },
     );
-    return rijen.map(mapBriefversieRij);
+    return bewaakBriefversieLeesIntegriteit(rijen.map(mapBriefversieRij));
   }
 
   async haalPrintbatch(batchId: string): Promise<PrintbatchContract | null> {
