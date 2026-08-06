@@ -48,10 +48,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          SWAPFILE="/mnt/bag-amsterdam-importpakket-${GITHUB_RUN_ID}.swap"
+          sudo rm -f "$SWAPFILE"
+          sudo fallocate -l 8G "$SWAPFILE"
+          sudo chmod 600 "$SWAPFILE"
+          sudo mkswap "$SWAPFILE"
+          sudo swapon "$SWAPFILE"
           free -h
 
       - name: Bewaak dat geen Supabase-project of secret wordt benaderd
