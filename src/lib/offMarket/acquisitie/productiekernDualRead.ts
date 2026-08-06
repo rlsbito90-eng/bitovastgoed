@@ -18,6 +18,19 @@ export interface ProductiekernDualReadInput {
   productiekernLezenActief: boolean;
 }
 
+export class ProductiekernDossierMismatchError extends Error {
+  constructor(
+    readonly verwachtSelectieId: string,
+    readonly ontvangenSelectieId: string,
+  ) {
+    super(
+      `Productiekern-repository retourneerde selectie ${ontvangenSelectieId} `
+      + `terwijl ${verwachtSelectieId} was aangevraagd.`,
+    );
+    this.name = 'ProductiekernDossierMismatchError';
+  }
+}
+
 /**
  * Veilige overgangsstrategie voor BUILD A.
  *
@@ -27,6 +40,8 @@ export interface ProductiekernDualReadInput {
  *   blokkeren.
  * - Onverwachte repositoryfouten worden niet verstopt: alleen de bekende
  *   fail-closed activatiefout resulteert in een gecontroleerde legacy-fallback.
+ * - Een repositoryresultaat voor een andere selectie wordt hard geweigerd om
+ *   vermenging van dossiers en gegevenslekken tussen selecties te voorkomen.
  * - Deze helper voert uitsluitend reads uit en combineert geen velden uit twee
  *   concurrerende waarheden.
  */
@@ -56,6 +71,13 @@ export async function leesProductiedossierDualRead(
           'Productiekern-lezen is actief, maar er bestaat nog geen productiekern-dossier; legacy blijft leidend.',
         ],
       };
+    }
+
+    if (productiekernDossier.selectieId !== input.selectieId) {
+      throw new ProductiekernDossierMismatchError(
+        input.selectieId,
+        productiekernDossier.selectieId,
+      );
     }
 
     return {
