@@ -4,6 +4,7 @@ import type {
   GeadresseerdeSnapshot,
   InhoudSnapshot,
 } from './productiekernContract';
+import { bepaalLegacyProductiestatus } from './legacyProductiestatusPariteit';
 
 export interface LegacyOffMarketBriefRij {
   id: string;
@@ -46,16 +47,16 @@ export interface LegacyBriefCompatibiliteitsresultaat {
   waarschuwingen: string[];
 }
 
-function legacyBriefstatus(rij: LegacyOffMarketBriefRij): BriefContract['status'] {
+function legacyBriefstatus(
+  rij: LegacyOffMarketBriefRij,
+  postBevestigd: boolean,
+): BriefContract['status'] {
   if (rij.archived_at) return 'geannuleerd';
-  if (rij.status === 'verstuurd' || rij.verzonden_op || rij.postdatum) return 'definitief';
-  return 'concept';
+  return postBevestigd ? 'definitief' : 'concept';
 }
 
-function legacyVersiestatus(rij: LegacyOffMarketBriefRij): BriefversieContract['status'] {
-  return rij.status === 'verstuurd' || rij.verzonden_op || rij.postdatum
-    ? 'verzonden'
-    : 'actief';
+function legacyVersiestatus(postBevestigd: boolean): BriefversieContract['status'] {
+  return postBevestigd ? 'verzonden' : 'actief';
 }
 
 function bouwGeadresseerdeSnapshot(
@@ -92,23 +93,25 @@ function bouwInhoudSnapshot(rij: LegacyOffMarketBriefRij): InhoudSnapshot {
  *
  * Deze adapter reserveert geen BR-nummer, schrijft niets terug en beweert niet
  * dat legacy-inhoud al als onveranderlijke productieversie is opgeslagen.
+ * Alleen een afzonderlijke postdatum geldt als hard bewijs van verzending.
  */
 export function mapLegacyBriefNaarProductiekern(
   rij: LegacyOffMarketBriefRij,
   adres: LegacyAdresdelen,
 ): LegacyBriefCompatibiliteitsresultaat {
   const waarschuwingen: string[] = [];
-  const verzondenOp = rij.postdatum ?? rij.verzonden_op;
+  const productiestatus = bepaalLegacyProductiestatus(rij);
+  const verzondenOp = productiestatus.postBevestigd
+    ? productiestatus.verzendbewijsOp
+    : null;
 
   if (!rij.brieftekst?.trim()) waarschuwingen.push('Legacy brieftekst ontbreekt.');
   if (!adres.straatHuisnummer.trim() || !adres.postcode.trim() || !adres.plaats.trim()) {
     waarschuwingen.push('Legacy verzendadres is niet volledig gestructureerd.');
   }
-  if (rij.printdatum && !rij.postdatum && rij.status === 'verstuurd') {
-    waarschuwingen.push('Legacy record meldt verstuurd zonder afzonderlijke postdatum.');
-  }
+  waarschuwingen.push(...productiestatus.waarschuwingen);
 
-  const status = legacyBriefstatus(rij);
+  const status = legacyBriefstatus(rij, productiestatus.postBevestigd);
 
   return {
     brief: {
@@ -121,8 +124,8 @@ export function mapLegacyBriefNaarProductiekern(
       actieveVersie: 1,
       status,
       vervangingVanBriefId: null,
-      definitiefOp: status === 'definitief' ? (verzondenOp ?? rij.created_at) : null,
-      vergrendeldOp: status === 'definitief' ? (verzondenOp ?? rij.created_at) : null,
+      definitiefOp: status === 'definitief' ? verzondenOp : null,
+      vergrendeldOp: status === 'definitief' ? verzondenOp : null,
       annuleringsreden: status === 'geannuleerd'
         ? (rij.archived_reason?.trim() || 'Legacy brief gearchiveerd')
         : null,
@@ -131,7 +134,7 @@ export function mapLegacyBriefNaarProductiekern(
       id: `legacy:${rij.id}:v1`,
       briefId: rij.id,
       versienummer: 1,
-      status: legacyVersiestatus(rij),
+      status: legacyVersiestatus(productiestatus.postBevestigd),
       inhoud: bouwInhoudSnapshot(rij),
       geadresseerde: bouwGeadresseerdeSnapshot(rij, adres),
       bestandReferentie: null,
