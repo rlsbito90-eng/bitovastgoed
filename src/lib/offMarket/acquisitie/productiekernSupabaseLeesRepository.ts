@@ -11,6 +11,12 @@ import {
   bewaakBriefversiesVoorGevraagdeBrief,
   bewaakGevraagdeLeesIdentiteit,
 } from './productiekernLeesIdentiteit';
+import {
+  bewaakBriefLeesTijd,
+  bewaakBriefversieLeesTijd,
+  bewaakDossierLeesTijd,
+  bewaakPrintbatchLeesTijd,
+} from './productiekernLeesTijdSamenhang';
 import { bewaakPrintbatchLeesIntegriteit } from './productiekernPrintbatchLeesIntegriteit';
 import {
   ProductiekernNietGeactiveerdError,
@@ -38,7 +44,9 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
   async haalDossier(selectieId: string): Promise<AcquisitiedossierContract | null> {
     const rij = await this.transport.haalEen('off_market_acquisitie_dossiers', { selectie_id: selectieId });
     if (!rij) return null;
-    const dossier = bewaakDossierLeesIntegriteit(mapAcquisitiedossierRij(rij));
+    const dossier = bewaakDossierLeesTijd(
+      bewaakDossierLeesIntegriteit(mapAcquisitiedossierRij(rij)),
+    );
     bewaakGevraagdeLeesIdentiteit('Acquisitiedossier', selectieId, dossier.selectieId);
     return dossier;
   }
@@ -46,7 +54,9 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
   async haalBrief(briefId: string): Promise<BriefContract | null> {
     const rij = await this.transport.haalEen('off_market_brieven', { id: briefId });
     if (!rij) return null;
-    const brief = bewaakBriefLeesIntegriteit(mapBriefRij(rij));
+    const brief = bewaakBriefLeesTijd(
+      bewaakBriefLeesIntegriteit(mapBriefRij(rij)),
+    );
     bewaakGevraagdeLeesIdentiteit('Brief', briefId, brief.id);
     return brief;
   }
@@ -57,7 +67,9 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
       { brief_id: briefId },
       { kolom: 'versienummer', oplopend: true },
     );
-    const versies = bewaakBriefversieLeesIntegriteit(rijen.map(mapBriefversieRij));
+    const versies = bewaakBriefversieLeesIntegriteit(
+      rijen.map(mapBriefversieRij).map((versie) => bewaakBriefversieLeesTijd(versie)),
+    );
     bewaakBriefversiesVoorGevraagdeBrief(briefId, versies.map((versie) => versie.briefId));
     return versies;
   }
@@ -65,7 +77,9 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
   async haalPrintbatch(batchId: string): Promise<PrintbatchContract | null> {
     const rij = await this.transport.haalEen('off_market_printbatches', { id: batchId });
     if (!rij) return null;
-    const batch = bewaakPrintbatchLeesIntegriteit(mapPrintbatchRij(rij));
+    const batch = bewaakPrintbatchLeesTijd(
+      bewaakPrintbatchLeesIntegriteit(mapPrintbatchRij(rij)),
+    );
     bewaakGevraagdeLeesIdentiteit('Printbatch', batchId, batch.id);
     return batch;
   }
