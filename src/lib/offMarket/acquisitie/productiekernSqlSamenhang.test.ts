@@ -6,6 +6,19 @@ function leesDraft(bestand: string): string {
   return readFileSync(resolve(process.cwd(), 'supabase/migration-drafts', bestand), 'utf8');
 }
 
+function laatsteUitvoerbareStatement(sql: string): string {
+  const zonderRegelcommentaar = sql
+    .split('\n')
+    .map((regel) => regel.replace(/--.*$/, ''))
+    .join('\n')
+    .trim();
+  const statements = zonderRegelcommentaar
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  return statements.at(-1) ?? '';
+}
+
 const basis = leesDraft('20260806_acquisitie_productiekern_build_a.sql');
 const dossierBriefkern = leesDraft(
   '20260806_acquisitie_productiekern_dossier_briefkern.sql',
@@ -56,7 +69,7 @@ describe('samenhang productiekern SQL-concepten', () => {
   it('houdt alle drie concepten niet-toegepast en rollback-only', () => {
     for (const sql of [basis, dossierBriefkern, functies]) {
       expect(sql).toContain('NIET AUTOMATISCH TOEPASSEN');
-      expect(sql.trimEnd().endsWith('rollback;')).toBe(true);
+      expect(laatsteUitvoerbareStatement(sql).toLowerCase()).toBe('rollback');
     }
   });
 });
