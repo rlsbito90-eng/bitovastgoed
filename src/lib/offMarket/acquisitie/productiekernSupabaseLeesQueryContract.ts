@@ -67,11 +67,18 @@ export function bouwProductiekernLeesQuery(
   naam: ProductiekernLeesQueryNaam,
   filterWaarde: string,
 ): ProductiekernLeesQueryContract & { filterWaarde: string } {
-  if (!filterWaarde.trim()) {
+  const genormaliseerd = filterWaarde.trim();
+  if (!genormaliseerd) {
     throw new Error(`Filterwaarde voor ${naam} is verplicht.`);
+  }
+  if (genormaliseerd.length > 200) {
+    throw new Error(`Filterwaarde voor ${naam} is te lang.`);
+  }
+  if(/[\u0000-\u001f\u007f]/u.test(genormaliseerd)) {
+    throw new Error(`Filterwaarde voor ${naam} bevat controletekens.`);
   }
   return {
     ...PRODUCTIEKERN_LEES_QUERY_CONTRACTEN[naam],
-    filterWaarde,
+    filterWaarde: genormaliseerd,
   };
 }
