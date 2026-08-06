@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { LegacyProductiedossierReadmodel } from './legacyProductiedossierReadmodel';
 import {
   leesProductiedossierDualRead,
+  ProductiekernDossierMismatchError,
 } from './productiekernDualRead';
 import {
   UitgeschakeldeAcquisitieProductiekernRepository,
@@ -93,6 +94,26 @@ describe('leesProductiedossierDualRead', () => {
     expect(resultaat.bron).toBe('productiekern');
     expect(resultaat.dossier.dossier.primaireWerkbak).toBe('eigenaar_achterhalen');
     expect(resultaat.dossier.brieven).toBe(legacyDossier.brieven);
+  });
+
+  it('weigert een repositoryresultaat voor een andere selectie', async () => {
+    await expect(leesProductiedossierDualRead({
+      selectieId: 'selectie-1',
+      legacyDossier,
+      productiekernLezenActief: true,
+      productiekernRepository: {
+        async haalDossier() {
+          return {
+            ...legacyDossier.dossier,
+            selectieId: 'selectie-2',
+          };
+        },
+      },
+    })).rejects.toMatchObject({
+      name: 'ProductiekernDossierMismatchError',
+      verwachtSelectieId: 'selectie-1',
+      ontvangenSelectieId: 'selectie-2',
+    } satisfies Partial<ProductiekernDossierMismatchError>);
   });
 
   it('verbergt onverwachte repositoryfouten niet', async () => {
