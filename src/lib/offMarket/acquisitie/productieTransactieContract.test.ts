@@ -73,13 +73,13 @@ const context = {
 };
 
 describe('valideerProductieTransactie', () => {
-  it('accepteert het definitief maken van een geldige conceptbrief', () => {
+  it('accepteert definitief maken waarna de database atomisch nummert', () => {
     const resultaat = valideerProductieTransactie({
       ...context,
       actie: 'brief_definitief_maken',
       brief,
       actieveVersie: versie,
-      gereserveerdBriefnummer: 'BR2026000482',
+      jaar: 2026,
     });
 
     expect(resultaat).toEqual({ geldig: true, fouten: [] });
@@ -91,11 +91,26 @@ describe('valideerProductieTransactie', () => {
       actie: 'brief_definitief_maken',
       brief: { ...brief, briefnummer: 'BR2026000001' },
       actieveVersie: versie,
-      gereserveerdBriefnummer: 'BR2026000482',
+      jaar: 2026,
     });
 
     expect(resultaat.geldig).toBe(false);
     expect(resultaat.fouten).toContain('Brief heeft al een briefnummer.');
+  });
+
+  it('blokkeert een ongeldig briefjaar', () => {
+    const resultaat = valideerProductieTransactie({
+      ...context,
+      actie: 'brief_definitief_maken',
+      brief,
+      actieveVersie: versie,
+      jaar: 26,
+    });
+
+    expect(resultaat.geldig).toBe(false);
+    expect(resultaat.fouten).toContain(
+      'Briefjaar moet een viercijferig jaar vanaf 2000 zijn.',
+    );
   });
 
   it('accepteert printregistratie uitsluitend vanaf gegenereerde documenten', () => {
