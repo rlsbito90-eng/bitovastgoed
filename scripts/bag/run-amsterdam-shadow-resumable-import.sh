@@ -58,6 +58,18 @@ count_phase() {
     "SELECT count(*) FROM bag_staging.$table WHERE datasetversie_id=$id"
 }
 
+count_processed_phase() {
+  local phase="$1" id="$2"
+  if [[ "$phase" == 'geometrieen' ]]; then
+    psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atc \
+      "SELECT
+         (SELECT count(*) FROM bag_staging.geometrieen WHERE datasetversie_id=$id) +
+         (SELECT count(*) FROM bag_control.geometrie_afwijkingen WHERE datasetversie_id=$id)"
+  else
+    count_phase "$phase" "$id"
+  fi
+}
+
 write_preflight() {
   psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -F $'\t' <<'SQL' >"$OUTPUT_DIR/preflight.tsv"
 SELECT current_database(), current_user;
@@ -116,9 +128,9 @@ chunk_import() {
   local phase="$1" csv="$2" expected="$3"
   local id current tmpdir index chunk rows inserted deduplicated
   id="$(dataset_id)"; [[ -n "$id" ]] || fail 'voer eerst prepare uit.'
-  current="$(count_phase "$phase" "$id")"
-  (( current <= expected )) || fail "$phase bevat meer rijen dan verwacht."
-  if (( current == expected )); then echo "$phase reeds compleet ($current)."; return 0; fi
+  current="$(count_processed_phase "$phase" "$id")"
+  (( current <= expected )) || fail "$phase bevat meer verwerkte bronrijen dan verwacht."
+  if (( current == expected )); then echo "$phase reeds compleet ($current verwerkte bronrijen)."; return 0; fi
   tmpdir="$OUTPUT_DIR/chunks-$phase"; rm -rf "$tmpdir"; mkdir -p "$tmpdir"
   tail -n "+$((current + 1))" "$csv" | split -l "$CHUNK_SIZE" -d -a 5 - "$tmpdir/chunk-"
   index=0
@@ -254,8 +266,8 @@ SQL
     printf '%s\t%s\t%s\n' "$phase" "$current" "$(date -u +%FT%TZ)" >>"$OUTPUT_DIR/progress.tsv"
   done
   rm -rf "$tmpdir"
-  current="$(count_phase "$phase" "$id")"
-  [[ "$current" == "$expected" ]] || fail "$phase eindtelling $current wijkt af van $expected."
+  current="$(count_processed_phase "$phase" "$id")"
+  [[ "$current" == "$expected" ]] || fail "$phase eindtelling $current verwerkte bronrijen wijkt af van $expected."
   if [[ "$phase" == 'voorkomens' ]]; then
     local totaal_deduplicated
     totaal_deduplicated="$(awk -F '\t' '{s+=$3} END{print s+0}' "$OUTPUT_DIR/deduplicatie.tsv" 2>/dev/null || true)"
