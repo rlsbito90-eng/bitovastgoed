@@ -19,7 +19,7 @@ function maakAchterliggendeRepository(): AcquisitieProductieTransactieRepository
 const willekeurigeInput = {} as never;
 
 describe('GepoorteAcquisitieProductieTransactieRepository', () => {
-  it('blokkeert vóór delegatie zolang schrijven niet actief is', async () => {
+  it('blokkeert vóór delegatie zolang schrijven niet actief is', () => {
     const achterliggend = maakAchterliggendeRepository();
     const repository = maakGepoorteProductieTransactieRepository({
       lezenActief: false,
@@ -27,12 +27,12 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
       ontbrekendBewijs: ['Expliciet productieakkoord ontbreekt.'],
     }, achterliggend);
 
-    await expect(repository.maakBriefDefinitief(willekeurigeInput))
-      .rejects.toBeInstanceOf(ProductieTransactiesNietGeactiveerdError);
+    expect(() => repository.maakBriefDefinitief(willekeurigeInput))
+      .toThrow(ProductieTransactiesNietGeactiveerdError);
     expect(achterliggend.maakBriefDefinitief).not.toHaveBeenCalled();
   });
 
-  it('laat lezenActief zonder schrijftoegang nooit door', async () => {
+  it('laat lezenActief zonder schrijftoegang nooit door', () => {
     const achterliggend = maakAchterliggendeRepository();
     const repository = maakGepoorteProductieTransactieRepository({
       lezenActief: true,
@@ -40,8 +40,8 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
       ontbrekendBewijs: ['Schrijfpoort gesloten.'],
     }, achterliggend);
 
-    await expect(repository.markeerBatchGeprint(willekeurigeInput))
-      .rejects.toBeInstanceOf(ProductieTransactiesNietGeactiveerdError);
+    expect(() => repository.markeerBatchGeprint(willekeurigeInput))
+      .toThrow(ProductieTransactiesNietGeactiveerdError);
     expect(achterliggend.markeerBatchGeprint).not.toHaveBeenCalled();
   });
 
