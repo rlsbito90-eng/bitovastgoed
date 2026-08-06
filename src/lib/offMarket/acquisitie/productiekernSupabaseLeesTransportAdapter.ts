@@ -10,6 +10,7 @@ export interface ProductiekernSupabaseQueryUitvoerder {
     filterKolom: string;
     filterWaarde: string;
     cardinaliteit: 'nul_of_een' | 'lijst';
+    maximaalAantalRecords: number;
     volgorde?: Readonly<{ kolom: string; oplopend: boolean }>;
   }): Promise<Record<string, unknown> | Record<string, unknown>[] | null>;
 }
@@ -49,9 +50,13 @@ export function maakProductiekernSupabaseLeesTransport(
         filterKolom: query.filterKolom,
         filterWaarde: query.filterWaarde,
         cardinaliteit: query.cardinaliteit,
+        maximaalAantalRecords: query.maximaalAantalRecords,
         volgorde: query.volgorde,
       });
       const aantalRecords = Array.isArray(resultaat) ? resultaat.length : resultaat ? 1 : 0;
+      if (aantalRecords > query.maximaalAantalRecords) {
+        throw { code: '21000' };
+      }
       opties.audit?.(bouwProductiekernLeesAuditRecord({
         query: queryNaam,
         uitkomst: Array.isArray(resultaat)
