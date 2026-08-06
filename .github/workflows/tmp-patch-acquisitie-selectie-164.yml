@@ -1,0 +1,181 @@
+name: Temporary PR 164 React patch
+
+on:
+  push:
+    branches:
+      - feat/acquisitieselectie-productieworkflow
+    paths:
+      - .github/workflows/tmp-patch-acquisitie-selectie-164.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/acquisitieselectie-productieworkflow
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply direct React integration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx')
+          text = path.read_text()
+
+          import_anchor = "import {\n  bepaalOnderzoekRedenen, onderzoekRedenTekst,\n} from '@/lib/offMarket/acquisitie/onderzoekRedenen';\n"
+          import_replacement = import_anchor + "import {\n  isRijselectieToets, magRijselectieWisselen,\n} from '@/lib/offMarket/acquisitie/selecteerbareRij';\n"
+          if import_anchor not in text:
+              raise SystemExit('Import anchor ontbreekt')
+          text = text.replace(import_anchor, import_replacement, 1)
+
+          row_old = '''              <li
+                key={signaal.id}
+                data-testid="acquisitie-selectie-rij"
+                data-signaal-id={signaal.id}
+                data-fase={r.fase}
+                data-werkbak={ctx.werkbak}
+                data-actie-categorie={ctx.actieCategorie ?? ''}
+                className="p-3 sm:p-4"
+              >'''
+          row_new = '''              <li
+                key={signaal.id}
+                data-testid="acquisitie-selectie-rij"
+                data-signaal-id={signaal.id}
+                data-fase={r.fase}
+                data-werkbak={ctx.werkbak}
+                data-actie-categorie={ctx.actieCategorie ?? ''}
+                role="option"
+                tabIndex={0}
+                aria-selected={bulkChecked}
+                onClick={(event) => {
+                  if (!magRijselectieWisselen({
+                    target: event.target,
+                    huidigeTekstselectie: window.getSelection()?.toString() ?? '',
+                  })) return;
+                  toggleBulk(signaal.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || !isRijselectieToets(event.key)) return;
+                  event.preventDefault();
+                  toggleBulk(signaal.id);
+                }}
+                className={`cursor-pointer p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset sm:p-4 ${
+                  bulkChecked ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : 'hover:bg-muted/20'
+                }`}
+              >'''
+          if row_old not in text:
+              raise SystemExit('Row anchor ontbreekt')
+          text = text.replace(row_old, row_new, 1)
+
+          details_old = '''                      {/* Geadresseerden onder het signaal — compact, niet-genest */}
+                      {r.geadresseerden.length > 0 && (
+                        <details className="mt-1.5" data-testid="acquisitie-rij-geadresseerden">
+                          <summary className="cursor-pointer text-[11px] text-muted-foreground">
+                            {r.geadresseerden.length} geadresseerde{r.geadresseerden.length === 1 ? '' : 'n'} tonen
+                          </summary>
+                          <ul className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                            {r.geadresseerden.map(g => (
+                              <li
+                                key={g.key}
+                                data-testid="acquisitie-rij-geadresseerde"
+                                className="break-words"
+                              >
+                                <span className="text-foreground">
+                                  {g.naam ?? g.bedrijfsnaam ?? '(zonder naam)'}
+                                </span>
+                                {g.verzendadres && (
+                                  <span> · {g.verzendadres.replace(/\\s+/g, ' ')}</span>
+                                )}
+                                {!g.volledigPostadres && (
+                                  <span className="text-destructive"> · adres onvolledig</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}'''
+          details_new = '''                      {/* Geadresseerden zijn altijd zichtbaar om dubbel of onzeker productiewerk te voorkomen. */}
+                      {r.geadresseerden.length > 0 && (
+                        <section
+                          className="mt-2 rounded-md border border-border/70 bg-muted/20 p-2"
+                          data-testid="acquisitie-rij-geadresseerden"
+                          aria-label={`Geadresseerden (${r.geadresseerden.length})`}
+                        >
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Geadresseerden ({r.geadresseerden.length})
+                          </p>
+                          <ul className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                            {r.geadresseerden.map(g => (
+                              <li
+                                key={g.key}
+                                data-testid="acquisitie-rij-geadresseerde"
+                                className="break-words"
+                              >
+                                <span className="text-foreground">
+                                  {g.naam ?? g.bedrijfsnaam ?? '(zonder naam)'}
+                                </span>
+                                {g.verzendadres && (
+                                  <span> · {g.verzendadres.replace(/\\s+/g, ' ')}</span>
+                                )}
+                                {!g.volledigPostadres && (
+                                  <span className="text-destructive"> · adres onvolledig</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}'''
+          if details_old not in text:
+              raise SystemExit('Geadresseerden-anchor ontbreekt')
+          text = text.replace(details_old, details_new, 1)
+
+          path.write_text(text)
+
+      - name: Add focused component contract test
+        shell: bash
+        run: |
+          cat > src/lib/offMarket/acquisitie/acquisitieSelectieReactIntegratie.test.ts <<'EOF'
+          import { describe, expect, it } from 'vitest';
+          import fs from 'node:fs';
+
+          const component = fs.readFileSync(
+            'src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx',
+            'utf8',
+          );
+
+          describe('AcquisitieSelectieTab React-integratie', () => {
+            it('gebruikt uitsluitend React-events voor rijselectie', () => {
+              expect(component).toContain('magRijselectieWisselen');
+              expect(component).toContain('isRijselectieToets');
+              expect(component).toContain('aria-selected={bulkChecked}');
+              expect(component).not.toContain('MutationObserver');
+              expect(component).not.toContain('insertBefore');
+            });
+
+            it('houdt geadresseerden standaard zichtbaar', () => {
+              expect(component).toContain('Geadresseerden ({r.geadresseerden.length})');
+              expect(component).not.toContain('<details className="mt-1.5" data-testid="acquisitie-rij-geadresseerden">');
+            });
+          });
+          EOF
+      - name: Verify focused tests and build
+        run: |
+          npm install --no-package-lock
+          npx vitest run src/lib/offMarket/acquisitie/selecteerbareRij.test.ts src/lib/offMarket/acquisitie/acquisitieSelectieReactIntegratie.test.ts
+          npx tsc --noEmit
+          npm run build
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/tmp-patch-acquisitie-selectie-164.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx src/lib/offMarket/acquisitie/acquisitieSelectieReactIntegratie.test.ts .github/workflows/tmp-patch-acquisitie-selectie-164.yml
+          git commit -m "Integrate safe selectable rows and visible addressees"
+          git push origin HEAD:feat/acquisitieselectie-productieworkflow
