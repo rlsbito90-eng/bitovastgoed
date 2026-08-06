@@ -29,6 +29,7 @@ describe('maakProductiekernSupabaseLeesTransport', () => {
       filterKolom: 'selectie_id',
       filterWaarde: 'selectie-1',
       cardinaliteit: 'nul_of_een',
+      maximaalAantalRecords: 1,
       volgorde: undefined,
     });
     expect(audit).toHaveBeenCalledWith({
@@ -107,5 +108,26 @@ describe('maakProductiekernSupabaseLeesTransport', () => {
       { brief_id: 'brief-1' },
       { kolom: 'versienummer', oplopend: true },
     )).rejects.toThrow('Cardinaliteitscontract voor haal_briefversies wijkt af.');
+  });
+
+  it('weigert meer records dan het allowlisted querycontract toestaat', async () => {
+    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
+      voerUit: vi.fn(async () => Array.from({ length: 101 }, (_, index) => ({
+        id: `versie-${index + 1}`,
+      }))),
+    };
+    const transport = maakProductiekernSupabaseLeesTransport(uitvoerder);
+
+    await expect(transport.haalMeerdere(
+      'off_market_brief_versies',
+      { brief_id: 'brief-1' },
+      { kolom: 'versienummer', oplopend: true },
+    )).rejects.toMatchObject({
+      code: 'record_niet_uniek',
+      herstelbaar: false,
+    });
+    expect(uitvoerder.voerUit).toHaveBeenCalledWith(expect.objectContaining({
+      maximaalAantalRecords: 100,
+    }));
   });
 });
