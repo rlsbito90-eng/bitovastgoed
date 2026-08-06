@@ -3,17 +3,17 @@ import type { BatchPostregistratieResultaat } from './batchPostregistratieResult
 import { voerBatchPostregistratieUit } from './batchPostregistratieUitvoerder';
 import type { AcquisitieOpvolgCommando } from './acquisitieOpvolgPlan';
 import { bouwAcquisitieOpvolgPlan } from './acquisitieOpvolgPlan';
-import { voerAcquisitieOpvolgUit } from './acquisitieOpvolgUitvoerder';
+import { voerAcquisitieOpvolgPlanUit } from './acquisitieOpvolgUitvoerder';
 
 export interface NaPostOrchestratiePoorten {
   postRepository: Parameters<typeof voerBatchPostregistratieUit>[0]['repository'];
-  opvolgTaakpoort: Parameters<typeof voerAcquisitieOpvolgUit>[0]['taakpoort'];
+  opvolgTaakpoort: Parameters<typeof voerAcquisitieOpvolgPlanUit>[0]['poort'];
 }
 
 export interface NaPostOrchestratieResultaat {
   postregistratie: BatchPostregistratieResultaat;
   opvolgCommandos: AcquisitieOpvolgCommando[];
-  opvolgUitkomst: Awaited<ReturnType<typeof voerAcquisitieOpvolgUit>> | null;
+  opvolgUitkomst: Awaited<ReturnType<typeof voerAcquisitieOpvolgPlanUit>> | null;
 }
 
 /**
@@ -40,9 +40,9 @@ export async function voerNaPostOrchestratieUit(input: {
 
   const opvolgUitkomst = opvolgCommandos.length === 0
     ? null
-    : await voerAcquisitieOpvolgUit({
+    : await voerAcquisitieOpvolgPlanUit({
       commandos: opvolgCommandos,
-      taakpoort: input.poorten.opvolgTaakpoort,
+      poort: input.poorten.opvolgTaakpoort,
     });
 
   return { postregistratie, opvolgCommandos, opvolgUitkomst };
