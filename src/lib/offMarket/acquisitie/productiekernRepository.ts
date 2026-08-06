@@ -1,8 +1,8 @@
 import type {
-  AcquisitieProductieBrief,
-  AcquisitieProductieBriefVersie,
-  AcquisitieProductieDossier,
-  AcquisitieProductiePrintbatch,
+  AcquisitiedossierContract,
+  BriefContract,
+  BriefversieContract,
+  PrintbatchContract,
 } from './productiekernContract';
 
 /**
@@ -14,16 +14,16 @@ import type {
  * productieactivatie afzonderlijk zijn goedgekeurd.
  */
 export interface AcquisitieProductiekernRepository {
-  haalDossier(selectieId: string): Promise<AcquisitieProductieDossier | null>;
-  haalBrief(briefId: string): Promise<AcquisitieProductieBrief | null>;
-  haalBriefversies(briefId: string): Promise<AcquisitieProductieBriefVersie[]>;
-  haalPrintbatch(batchId: string): Promise<AcquisitieProductiePrintbatch | null>;
+  haalDossier(selectieId: string): Promise<AcquisitiedossierContract | null>;
+  haalBrief(briefId: string): Promise<BriefContract | null>;
+  haalBriefversies(briefId: string): Promise<BriefversieContract[]>;
+  haalPrintbatch(batchId: string): Promise<PrintbatchContract | null>;
 
   startVerwerking(input: {
     selectieId: string;
     actorId: string;
     operationKey: string;
-  }): Promise<AcquisitieProductieDossier>;
+  }): Promise<AcquisitiedossierContract>;
 
   reserveerBrief(input: {
     selectieId: string;
@@ -31,7 +31,7 @@ export interface AcquisitieProductiekernRepository {
     actorId: string;
     operationKey: string;
     jaar: number;
-  }): Promise<AcquisitieProductieBrief>;
+  }): Promise<BriefContract>;
 
   maakBriefversie(input: {
     briefId: string;
@@ -39,13 +39,13 @@ export interface AcquisitieProductiekernRepository {
     operationKey: string;
     inhoudSnapshot: Record<string, unknown>;
     geadresseerdeSnapshot: Record<string, unknown>;
-  }): Promise<AcquisitieProductieBriefVersie>;
+  }): Promise<BriefversieContract>;
 
   maakPrintbatch(input: {
     actorId: string;
     operationKey: string;
     datum: string;
-  }): Promise<AcquisitieProductiePrintbatch>;
+  }): Promise<PrintbatchContract>;
 
   voegBriefversieToeAanBatch(input: {
     batchId: string;
@@ -60,7 +60,7 @@ export interface AcquisitieProductiekernRepository {
     actorId: string;
     operationKey: string;
     printdatum: string;
-  }): Promise<AcquisitieProductiePrintbatch>;
+  }): Promise<PrintbatchContract>;
 
   markeerBriefGepost(input: {
     briefId: string;
@@ -94,35 +94,35 @@ implements AcquisitieProductiekernRepository {
     return Promise.reject(new ProductiekernNietGeactiveerdError(handeling));
   }
 
-  haalDossier(): Promise<AcquisitieProductieDossier | null> {
+  haalDossier(): Promise<AcquisitiedossierContract | null> {
     return this.geblokkeerd('haalDossier');
   }
 
-  haalBrief(): Promise<AcquisitieProductieBrief | null> {
+  haalBrief(): Promise<BriefContract | null> {
     return this.geblokkeerd('haalBrief');
   }
 
-  haalBriefversies(): Promise<AcquisitieProductieBriefVersie[]> {
+  haalBriefversies(): Promise<BriefversieContract[]> {
     return this.geblokkeerd('haalBriefversies');
   }
 
-  haalPrintbatch(): Promise<AcquisitieProductiePrintbatch | null> {
+  haalPrintbatch(): Promise<PrintbatchContract | null> {
     return this.geblokkeerd('haalPrintbatch');
   }
 
-  startVerwerking(): Promise<AcquisitieProductieDossier> {
+  startVerwerking(): Promise<AcquisitiedossierContract> {
     return this.geblokkeerd('startVerwerking');
   }
 
-  reserveerBrief(): Promise<AcquisitieProductieBrief> {
+  reserveerBrief(): Promise<BriefContract> {
     return this.geblokkeerd('reserveerBrief');
   }
 
-  maakBriefversie(): Promise<AcquisitieProductieBriefVersie> {
+  maakBriefversie(): Promise<BriefversieContract> {
     return this.geblokkeerd('maakBriefversie');
   }
 
-  maakPrintbatch(): Promise<AcquisitieProductiePrintbatch> {
+  maakPrintbatch(): Promise<PrintbatchContract> {
     return this.geblokkeerd('maakPrintbatch');
   }
 
@@ -130,7 +130,7 @@ implements AcquisitieProductiekernRepository {
     return this.geblokkeerd('voegBriefversieToeAanBatch');
   }
 
-  markeerBatchGeprint(): Promise<AcquisitieProductiePrintbatch> {
+  markeerBatchGeprint(): Promise<PrintbatchContract> {
     return this.geblokkeerd('markeerBatchGeprint');
   }
 
