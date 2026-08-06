@@ -7,6 +7,10 @@ import type {
 import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
 import { bewaakBriefversieLeesIntegriteit } from './productiekernBriefversieLeesIntegriteit';
 import { bewaakDossierLeesIntegriteit } from './productiekernDossierLeesIntegriteit';
+import {
+  bewaakBriefversiesVoorGevraagdeBrief,
+  bewaakGevraagdeLeesIdentiteit,
+} from './productiekernLeesIdentiteit';
 import { bewaakPrintbatchLeesIntegriteit } from './productiekernPrintbatchLeesIntegriteit';
 import {
   ProductiekernNietGeactiveerdError,
@@ -20,10 +24,7 @@ import {
 } from './productiekernSupabaseRijMapper';
 
 export interface ProductiekernSupabaseLeesTransport {
-  haalEen(
-    tabel: string,
-    filters: Readonly<Record<string, string>>,
-  ): Promise<Record<string, unknown> | null>;
+  haalEen(tabel: string, filters: Readonly<Record<string, string>>): Promise<Record<string, unknown> | null>;
   haalMeerdere(
     tabel: string,
     filters: Readonly<Record<string, string>>,
@@ -31,30 +32,23 @@ export interface ProductiekernSupabaseLeesTransport {
   ): Promise<Record<string, unknown>[]>;
 }
 
-/**
- * Concrete read-only repository boven een smal Supabase-transport.
- *
- * De adapter bevat bewust geen import van de globale Supabase-client en geen
- * writepad. De app moet deze repository via de bestaande bewijs- en leespoort
- * samenstellen; alle schrijfmethoden blijven ook daarna fail-closed.
- */
-export class SupabaseProductiekernLeesRepository
-implements AcquisitieProductiekernRepository {
+export class SupabaseProductiekernLeesRepository implements AcquisitieProductiekernRepository {
   constructor(private readonly transport: ProductiekernSupabaseLeesTransport) {}
 
   async haalDossier(selectieId: string): Promise<AcquisitiedossierContract | null> {
-    const rij = await this.transport.haalEen(
-      'off_market_acquisitie_dossiers',
-      { selectie_id: selectieId },
-    );
-    return rij
-      ? bewaakDossierLeesIntegriteit(mapAcquisitiedossierRij(rij))
-      : null;
+    const rij = await this.transport.haalEen('off_market_acquisitie_dossiers', { selectie_id: selectieId });
+    if (!rij) return null;
+    const dossier = bewaakDossierLeesIntegriteit(mapAcquisitiedossierRij(rij));
+    bewaakGevraagdeLeesIdentiteit('Acquisitiedossier', selectieId, dossier.selectieId);
+    return dossier;
   }
 
   async haalBrief(briefId: string): Promise<BriefContract | null> {
     const rij = await this.transport.haalEen('off_market_brieven', { id: briefId });
-    return rij ? bewaakBriefLeesIntegriteit(mapBriefRij(rij)) : null;
+    if (!rij) return null;
+    const brief = bewaakBriefLeesIntegriteit(mapBriefRij(rij));
+    bewaakGevraagdeLeesIdentiteit('Brief', briefId, brief.id);
+    return brief;
   }
 
   async haalBriefversies(briefId: string): Promise<BriefversieContract[]> {
@@ -63,39 +57,28 @@ implements AcquisitieProductiekernRepository {
       { brief_id: briefId },
       { kolom: 'versienummer', oplopend: true },
     );
-    return bewaakBriefversieLeesIntegriteit(rijen.map(mapBriefversieRij));
+    const versies = bewaakBriefversieLeesIntegriteit(rijen.map(mapBriefversieRij));
+    bewaakBriefversiesVoorGevraagdeBrief(briefId, versies.map((versie) => versie.briefId));
+    return versies;
   }
 
   async haalPrintbatch(batchId: string): Promise<PrintbatchContract | null> {
     const rij = await this.transport.haalEen('off_market_printbatches', { id: batchId });
-    return rij
-      ? bewaakPrintbatchLeesIntegriteit(mapPrintbatchRij(rij))
-      : null;
+    if (!rij) return null;
+    const batch = bewaakPrintbatchLeesIntegriteit(mapPrintbatchRij(rij));
+    bewaakGevraagdeLeesIdentiteit('Printbatch', batchId, batch.id);
+    return batch;
   }
 
   private schrijfpadGeblokkeerd<T>(handeling: string): Promise<T> {
     return Promise.reject(new ProductiekernNietGeactiveerdError(handeling));
   }
 
-  startVerwerking(): Promise<AcquisitiedossierContract> {
-    return this.schrijfpadGeblokkeerd('startVerwerking');
-  }
-  reserveerBrief(): Promise<BriefContract> {
-    return this.schrijfpadGeblokkeerd('reserveerBrief');
-  }
-  maakBriefversie(): Promise<BriefversieContract> {
-    return this.schrijfpadGeblokkeerd('maakBriefversie');
-  }
-  maakPrintbatch(): Promise<PrintbatchContract> {
-    return this.schrijfpadGeblokkeerd('maakPrintbatch');
-  }
-  voegBriefversieToeAanBatch(): Promise<void> {
-    return this.schrijfpadGeblokkeerd('voegBriefversieToeAanBatch');
-  }
-  markeerBatchGeprint(): Promise<PrintbatchContract> {
-    return this.schrijfpadGeblokkeerd('markeerBatchGeprint');
-  }
-  markeerBriefGepost(): Promise<void> {
-    return this.schrijfpadGeblokkeerd('markeerBriefGepost');
-  }
+  startVerwerking(): Promise<AcquisitiedossierContract> { return this.schrijfpadGeblokkeerd('startVerwerking'); }
+  reserveerBrief(): Promise<BriefContract> { return this.schrijfpadGeblokkeerd('reserveerBrief'); }
+  maakBriefversie(): Promise<BriefversieContract> { return this.schrijfpadGeblokkeerd('maakBriefversie'); }
+  maakPrintbatch(): Promise<PrintbatchContract> { return this.schrijfpadGeblokkeerd('maakPrintbatch'); }
+  voegBriefversieToeAanBatch(): Promise<void> { return this.schrijfpadGeblokkeerd('voegBriefversieToeAanBatch'); }
+  markeerBatchGeprint(): Promise<PrintbatchContract> { return this.schrijfpadGeblokkeerd('markeerBatchGeprint'); }
+  markeerBriefGepost(): Promise<void> { return this.schrijfpadGeblokkeerd('markeerBriefGepost'); }
 }
