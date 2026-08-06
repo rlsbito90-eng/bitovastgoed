@@ -55,8 +55,11 @@ export function beoordeelProductiekernConcurrencyProef(
     if (item.dubbeleNummers > 0) {
       blokkades.push(`Scenario ${scenario} produceerde dubbele nummers.`);
     }
-    if (item.unverwachteFouten.length > 0) {
-      blokkades.push(`Scenario ${scenario} rapporteerde fouten: ${item.unverwachteFouten.join(' | ')}`);
+    const onverwachteFouten = Array.isArray(item.onverwachteFouten)
+      ? item.onverwachteFouten
+      : ['Waarneming bevat geen geldige foutenlijst.'];
+    if (onverwachteFouten.length > 0) {
+      blokkades.push(`Scenario ${scenario} rapporteerde fouten: ${onverwachteFouten.join(' | ')}`);
     }
     if (scenario.includes('nummer_parallel_reserveren') && item.uniekeResultaten !== item.pogingen) {
       blokkades.push(`Scenario ${scenario} leverde geen uniek resultaat per poging.`);
