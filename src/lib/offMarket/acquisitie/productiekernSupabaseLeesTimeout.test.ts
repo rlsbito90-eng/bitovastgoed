@@ -11,6 +11,7 @@ const query = {
   filterKolom: 'id',
   filterWaarde: 'brief-1',
   cardinaliteit: 'nul_of_een' as const,
+  maximaalAantalRecords: 1,
 };
 
 describe('metProductiekernLeesTimeout', () => {
