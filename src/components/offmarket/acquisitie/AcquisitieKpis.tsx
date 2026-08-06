@@ -38,7 +38,7 @@ export default function AcquisitieKpis({ kpis }: Props) {
       data-testid="acquisitie-kpis"
       className="flex flex-wrap gap-2"
     >
-      <Pil icon={ListChecks} label="Signalen" value={kpis.signalen} testid="kpi-signalen" />
+      <Pil icon={ListChecks} label="Totaal dossiers" value={kpis.signalen} testid="kpi-signalen" />
       <Pil icon={Users} label="Geadresseerden" value={kpis.geadresseerden} testid="kpi-geadresseerden" />
       <Pil icon={Printer} label="Printklaar" value={kpis.printklaar} testid="kpi-printklaar" tone={kpis.printklaar > 0 ? 'success' : 'default'} />
       <Pil icon={Lock} label="Geblokkeerd" value={kpis.geblokkeerd} testid="kpi-geblokkeerd" tone={kpis.geblokkeerd > 0 ? 'danger' : 'default'} />
