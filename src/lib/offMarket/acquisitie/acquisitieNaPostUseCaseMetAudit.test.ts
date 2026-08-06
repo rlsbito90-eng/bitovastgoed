@@ -52,13 +52,16 @@ describe('voerAcquisitieNaPostUseCaseMetAuditUit', () => {
     expect(uitkomst.audit.geslaagd).toBe(true);
     expect(registreer).toHaveBeenCalledOnce();
     const record = registreer.mock.calls[0][0];
+    expect(record).toBe(uitkomst.auditRecord);
     expect(record.type).toBe('na_post_verwerkt');
     expect(record.operationKey).toBe('audit:na-post:1');
     expect(record.operationKey).not.toBe(uitkomst.resultaat.dossierCommando.operationKey);
+    expect(Object.isFrozen(uitkomst.auditRecord)).toBe(true);
+    expect(Object.isFrozen(uitkomst.auditRecord.kenmerken)).toBe(true);
     expect(JSON.stringify(record)).not.toContain('straat');
   });
 
-  it('behoudt de bedrijfsuitkomst wanneer alleen auditregistratie mislukt', async () => {
+  it('behoudt de bedrijfsuitkomst en het exacte auditrecord wanneer alleen auditregistratie mislukt', async () => {
     const uitkomst = await voerAcquisitieNaPostUseCaseMetAuditUit({
       useCase: useCaseInput(),
       auditPoort: {
@@ -70,6 +73,7 @@ describe('voerAcquisitieNaPostUseCaseMetAuditUit', () => {
 
     expect(uitkomst.resultaat.orchestratie.postregistratie.geslaagdeCommandos).toHaveLength(1);
     expect(uitkomst.resultaat.dossierUitkomst.geslaagd).toBe(true);
+    expect(uitkomst.auditRecord.operationKey).toBe('audit:na-post:1');
     expect(uitkomst.audit).toEqual({
       operationKey: 'audit:na-post:1',
       geslaagd: false,
