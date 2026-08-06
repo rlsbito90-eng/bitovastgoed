@@ -22,9 +22,12 @@ const PATRONEN: Record<ProductiekernSchemaOnderdeel, RegExp[]> = {
     /\bprimaire_werkbak\b/i,
   ],
   briefkern: [
-    /create\s+table\s+(?:if\s+not\s+exists\s+)?public\.off_market_productie_brieven\b/i,
-    /\bbriefnummer\b/i,
-    /\bactieve_versie\b/i,
+    /alter\s+table\s+(?:if\s+exists\s+)?public\.off_market_brieven\b/i,
+    /add\s+column\s+(?:if\s+not\s+exists\s+)?briefnummer\b/i,
+    /add\s+column\s+(?:if\s+not\s+exists\s+)?actieve_versie\b/i,
+    /add\s+column\s+(?:if\s+not\s+exists\s+)?selectie_id\b/i,
+    /add\s+column\s+(?:if\s+not\s+exists\s+)?definitief_op\b/i,
+    /add\s+column\s+(?:if\s+not\s+exists\s+)?vergrendeld_op\b/i,
   ],
   briefversies: [
     /create\s+table\s+(?:if\s+not\s+exists\s+)?public\.off_market_brief_versies\b/i,
@@ -47,8 +50,8 @@ const PATRONEN: Record<ProductiekernSchemaOnderdeel, RegExp[]> = {
 };
 
 /**
- * Controleert uitsluitend of het SQL-concept de minimale persistente
- * productiekernonderdelen expliciet bevat.
+ * Controleert uitsluitend of de gezamenlijke SQL-concepten de minimale
+ * persistente productiekernonderdelen expliciet bevatten.
  *
  * De audit bewijst geen correcte DDL, constraints, RLS of migratiegeschiktheid.
  * Een ontbrekend onderdeel houdt schema- en productieactivatie fail-closed.
