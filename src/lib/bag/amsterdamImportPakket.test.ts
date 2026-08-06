@@ -7,14 +7,14 @@ const BASIS: AmsterdamImportGateInvoer = {
   geselecteerdAantal: 100,
   selectieChecksum: 'e'.repeat(64),
   bronSha256: 'f'.repeat(64),
-  bestanden: [{ bestand: 'objecten.csv', tabel: 'bag_staging.objecten', regels: 100, sha256: '1'.repeat(64) }],
+  bestanden: [{ bestand: 'objecten.csv', tabel: 'bag_staging.objecten', regels: 80, sha256: '1'.repeat(64) }],
   samenvatting: {
     ontvangen: 100,
     verwerkt: 100,
     adapterFouten: 0,
     stagingFouten: 0,
-    objecten: 100,
-    voorkomens: 120,
+    objecten: 80,
+    voorkomens: 100,
     relatiesBron: 80,
     relatiesUniek: 75,
     geometrieen: 90,
@@ -29,7 +29,7 @@ function met(overrides: Partial<AmsterdamImportGateInvoer['samenvatting']>) {
 }
 
 describe('Amsterdam importpakket-poort', () => {
-  it('geeft GO bij een volledig consistent pakket', () => {
+  it('geeft GO wanneer meerdere voorkomens bij minder unieke objecten horen', () => {
     const manifest = evalueerAmsterdamImportPakket(BASIS);
     expect(manifest.besluit).toBe('GO');
     expect(manifest.stopCondities).toHaveLength(0);
@@ -37,9 +37,11 @@ describe('Amsterdam importpakket-poort', () => {
     expect(manifest.schemaversie).toBe('bag-2a3b-private-schema-kandidaat');
   });
 
-  it('stopt bij dataverlies', () => {
+  it('stopt bij dataverlies in ontvangen, verwerkt of voorkomens', () => {
     expect(met({ verwerkt: 99 }).stopCondities.map(s => s.code)).toContain('dataverlies');
-    expect(met({ objecten: 98 }).stopCondities.map(s => s.code)).toContain('dataverlies');
+    expect(met({ voorkomens: 99 }).stopCondities.map(s => s.code)).toContain('dataverlies');
+    expect(met({ objecten: 0 }).stopCondities.map(s => s.code)).toContain('dataverlies');
+    expect(met({ objecten: 101 }).stopCondities.map(s => s.code)).toContain('dataverlies');
   });
 
   it('stopt bij ontbrekende relaties', () => {
