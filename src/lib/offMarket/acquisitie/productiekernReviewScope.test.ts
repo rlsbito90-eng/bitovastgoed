@@ -8,6 +8,7 @@ describe('beoordeelProductiekernReviewScope', () => {
       'src/lib/offMarket/acquisitie/productiekernReviewScope.ts',
       'supabase/migration-drafts/20260806_acquisitie_productiekern_build_a.sql',
       'docs/off-market/ACQUISITIE-PRODUCTIEKERN-SCHEMAREVIEW.md',
+      'docs/off-market/BUILD-A-IMPLEMENTATIEGRENZEN.md',
     ]);
 
     expect(resultaat).toEqual({
