@@ -11,6 +11,17 @@ on:
         description: 'Exact GitHub Actions artifact-id: 8973886061'
         required: true
         type: string
+      phase:
+        description: 'Eén fase per run'
+        required: true
+        type: choice
+        options:
+          - prepare
+          - objecten
+          - voorkomens
+          - relaties
+          - geometrieen
+          - validate
 
 permissions:
   actions: read
@@ -26,13 +37,15 @@ jobs:
       github.event.inputs.approval == 'APPLY_BAG_AMSTERDAM_ARTIFACT_8973886061_TO_SHADOW' &&
       github.event.inputs.artifact_id == '8973886061'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     environment: bag-shadow
     env:
       BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
       BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
       BAG_AMSTERDAM_APPROVAL: ${{ github.event.inputs.approval }}
       BAG_AMSTERDAM_ARTIFACT_ID: ${{ github.event.inputs.artifact_id }}
+      BAG_AMSTERDAM_PHASE: ${{ github.event.inputs.phase }}
+      BAG_AMSTERDAM_CHUNK_SIZE: '50000'
 
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +55,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Controleer harde project- en artifactgrenzen
+      - name: Controleer harde project-, artifact- en fasegrenzen
         shell: bash
         run: |
           set -euo pipefail
@@ -50,9 +63,14 @@ jobs:
           test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
           test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
           test "$BAG_AMSTERDAM_ARTIFACT_ID" = '8973886061'
+          case "$BAG_AMSTERDAM_PHASE" in
+            prepare|objecten|voorkomens|relaties|geometrieen|validate) ;;
+            *) exit 2 ;;
+          esac
           test -n "$BAG_SHADOW_DATABASE_URL"
           command -v psql
           command -v gh
+          command -v split
 
       - name: Download uitsluitend gevalideerd Amsterdam-artifact
         env:
@@ -80,24 +98,25 @@ jobs:
           test -s bag-amsterdam-artifact/unpacked/importpakket/geometrieen.csv
           grep -qx 'besluit=GO' bag-amsterdam-artifact/unpacked/rapport/importbesluit.txt
 
-      - name: Importeer transactioneel naar uitsluitend BAG-shadow staging
+      - name: Voer exact één herstartbare importfase uit
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/bag/run-amsterdam-shadow-staging-import.sh \
+          bash scripts/bag/run-amsterdam-shadow-resumable-import.sh \
             bag-amsterdam-artifact/unpacked/importpakket \
+            "$BAG_AMSTERDAM_PHASE" \
             bag-amsterdam-shadow-import-resultaat
 
       - name: Publiceer compacte bewijsrapporten
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bag-amsterdam-shadow-staging-import-resultaat
+          name: bag-amsterdam-shadow-staging-import-${{ github.event.inputs.phase }}
           if-no-files-found: warn
           retention-days: 14
           path: |
             bag-amsterdam-shadow-import-resultaat/preflight.tsv
             bag-amsterdam-shadow-import-resultaat/rollback-marker.txt
+            bag-amsterdam-shadow-import-resultaat/progress.tsv
             bag-amsterdam-shadow-import-resultaat/validatie.tsv
             bag-amsterdam-shadow-import-resultaat/rapport.md
-            bag-amsterdam-shadow-import-resultaat/import.log
