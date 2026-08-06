@@ -48,10 +48,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo fallocate -l 8G /mnt/bag-amsterdam.swap
+          sudo chmod 600 /mnt/bag-amsterdam.swap
+          sudo mkswap /mnt/bag-amsterdam.swap
+          sudo swapon /mnt/bag-amsterdam.swap
           free -h
 
       - name: Bewaak dat geen Supabase-project of secret wordt benaderd
