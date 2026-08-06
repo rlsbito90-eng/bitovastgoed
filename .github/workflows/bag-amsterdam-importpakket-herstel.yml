@@ -77,7 +77,11 @@ jobs:
           sha256sum bag-amsterdam/full-subset.ndjson > bag-amsterdam/rapport/full-subset.sha256
 
       - name: Bereid importpakket opnieuw voor zonder database-import
-        run: npx --no-install vitest run src/lib/bag/amsterdamWorkflow.test.ts --reporter=verbose
+        run: |
+          npx --no-install tsx scripts/bag/bereid-amsterdam-import-voor.ts \
+            bag-amsterdam/full-subset.ndjson \
+            bag-amsterdam/metadata/closure-bewijs.json \
+            bag-amsterdam/importpakket
 
       - name: Valideer hersteld importpakket
         shell: bash
