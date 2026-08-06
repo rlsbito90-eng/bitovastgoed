@@ -93,12 +93,19 @@ jobs:
           set -euo pipefail
           test -s bag-amsterdam/importpakket/importpakket-manifest.json
           test -s bag-amsterdam/importpakket/manifest.json
+          test -s bag-amsterdam/importpakket/in-onderzoek-nevenlevering-bewijs.json
           find bag-amsterdam/importpakket -maxdepth 1 -type f -printf '%f\t%s\n' | sort > bag-amsterdam/rapport/importpakket-bestanden.tsv
           node - <<'NODE' > bag-amsterdam/rapport/importbesluit.txt
           const fs = require('node:fs');
           const manifest = JSON.parse(fs.readFileSync('bag-amsterdam/importpakket/importpakket-manifest.json', 'utf8'));
+          const bewijs = JSON.parse(fs.readFileSync('bag-amsterdam/importpakket/in-onderzoek-nevenlevering-bewijs.json', 'utf8'));
+          if (bewijs.status !== 'nevenlevering_bewezen_en_uitgesloten_van_objectimport' || !(bewijs.records > 0)) {
+            throw new Error('InOnderzoek-nevenlevering is niet sluitend bewezen.');
+          }
           console.log(`besluit=${manifest.besluit ?? 'ONBEKEND'}`);
+          console.log(`closureGeselecteerdeRecords=${manifest.closureGeselecteerdeRecords ?? 'ONBEKEND'}`);
           console.log(`geselecteerdAantal=${manifest.geselecteerdAantal ?? 'ONBEKEND'}`);
+          console.log(`inOnderzoekNevenlevering=${bewijs.records}`);
           for (const [sleutel, waarde] of Object.entries(manifest.tellingen ?? {})) console.log(`${sleutel}=${waarde}`);
           for (const conditie of manifest.stopCondities ?? []) console.log(`stop=${conditie.code}: ${conditie.reden}`);
           NODE
@@ -122,6 +129,10 @@ jobs:
             echo '```text'
             cat bag-amsterdam/rapport/importbesluit.txt 2>/dev/null || echo 'besluit=NIET_BESCHIKBAAR'
             echo '```'
+            echo '## InOnderzoek-nevenlevering'
+            echo '```json'
+            cat bag-amsterdam/importpakket/in-onderzoek-nevenlevering-bewijs.json 2>/dev/null || echo '{}'
+            echo '```'
             echo '## Importpakket-manifest'
             echo '```json'
             cat bag-amsterdam/importpakket/importpakket-manifest.json 2>/dev/null || echo '{}'
@@ -143,5 +154,4 @@ jobs:
             bag-amsterdam/rapport/full-subset.sha256
             bag-amsterdam/importpakket/*.csv
             bag-amsterdam/importpakket/*.jsonl
-            bag-amsterdam/importpakket/manifest.json
-            bag-amsterdam/importpakket/importpakket-manifest.json
+            bag-amsterdam/importpakket/*.json
