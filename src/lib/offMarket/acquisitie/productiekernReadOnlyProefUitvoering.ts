@@ -11,7 +11,7 @@ import {
 import {
   beoordeelProductiekernReadOnlyProef,
   type ProductiekernReadOnlyProefBesluit,
-  type ProductiekernReadOnlyProefCriteria,
+  type ProductiekernReadOnlyProefEisen,
 } from './productiekernReadOnlyProefBesluit';
 import type { AcquisitieProductiekernRepository } from './productiekernRepository';
 import type { LegacyProductiedossierReadmodel } from './legacyProductiedossierReadmodel';
@@ -25,7 +25,7 @@ export interface ProductiekernReadOnlyProefUitvoeringInput {
   dossiers: readonly ProductiekernReadOnlyProefDossier[];
   bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined;
   achterliggendeRepository: AcquisitieProductiekernRepository;
-  criteria: ProductiekernReadOnlyProefCriteria;
+  eisen: ProductiekernReadOnlyProefEisen;
 }
 
 export interface ProductiekernReadOnlyProefUitvoering {
@@ -76,7 +76,7 @@ export async function voerProductiekernReadOnlyProefUit(
   }
 
   const rapport = bouwProductiekernPariteitsrapport(regels);
-  const besluit = beoordeelProductiekernReadOnlyProef(rapport, input.criteria);
+  const besluit = beoordeelProductiekernReadOnlyProef(rapport, input.eisen);
 
   return { regels, rapport, besluit };
 }
