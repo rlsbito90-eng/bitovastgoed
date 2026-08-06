@@ -43,7 +43,7 @@ function sorteersleutel(record: BagOfficieelAdapterRecord): string {
 
 export function isAmsterdamInOnderzoekNevenlevering(bronpad: string): boolean {
   return bronpad
-    .split(/[\\/]/)
+    .split(/[\\/!]/)
     .some(deel => basename(deel) === IN_ONDERZOEK_BRONBESTAND);
 }
 
