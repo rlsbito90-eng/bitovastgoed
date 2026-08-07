@@ -86,10 +86,6 @@ export default function BagServicePandenlijst({
     () => filterEnSorteerBagPanden(actievePagina, filters),
     [actievePagina, filters],
   );
-  const nummerPerPand = useMemo(
-    () => new Map(zichtbaar.map((pand, index) => [pand.bagPandId, paginaIndex * PAGE_SIZE + index + 1])),
-    [paginaIndex, zichtbaar],
-  );
   const straatgroepen = useMemo(() => {
     const groepen = new Map<string, BagVerkennerPand[]>();
     zichtbaar.forEach((pand) => {
@@ -98,6 +94,12 @@ export default function BagServicePandenlijst({
     });
     return [...groepen.entries()];
   }, [zichtbaar]);
+  const nummerPerPand = useMemo(() => {
+    const inWeergaveVolgorde = straatgroepen.flatMap(([, straatPanden]) => straatPanden);
+    return new Map(
+      inWeergaveVolgorde.map((pand, index) => [pand.bagPandId, paginaIndex * PAGE_SIZE + index + 1]),
+    );
+  }, [paginaIndex, straatgroepen]);
 
   const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
   const isGeblokkeerd = (pand: BagVerkennerPand) => blokkadeVoorPand(pand, context) !== null;
@@ -213,13 +215,25 @@ export default function BagServicePandenlijst({
   const paginering = paginas.length > 0 && (
     <div className="flex flex-wrap items-center justify-between gap-3 border-y bg-muted/10 px-4 py-3 text-xs text-muted-foreground">
       <span>
-        Pagina {paginaIndex + 1} · nummers {paginaIndex * PAGE_SIZE + 1}–{paginaIndex * PAGE_SIZE + actievePagina.length}
+        Resultaten {paginaIndex * PAGE_SIZE + 1}–{paginaIndex * PAGE_SIZE + actievePagina.length} · pagina {paginaIndex + 1}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" disabled={laden || paginaIndex === 0} onClick={() => gaNaarPagina(paginaIndex - 1)}>
           <ChevronLeft className="mr-1 h-4 w-4" />Vorige
         </Button>
-        <Badge variant="outline">Pagina {paginaIndex + 1}</Badge>
+        {paginas.map((_, index) => (
+          <Button
+            key={index}
+            variant={index === paginaIndex ? 'default' : 'outline'}
+            size="sm"
+            className="min-w-9 px-2"
+            disabled={laden}
+            onClick={() => gaNaarPagina(index)}
+            aria-label={`Ga naar pagina ${index + 1}`}
+          >
+            {index + 1}
+          </Button>
+        ))}
         <Button variant="outline" size="sm" disabled={laden || (paginaIndex === paginas.length - 1 && !heeftVolgende)} onClick={gaNaarVolgende}>
           {laden ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
           Volgende<ChevronRight className="ml-1 h-4 w-4" />
