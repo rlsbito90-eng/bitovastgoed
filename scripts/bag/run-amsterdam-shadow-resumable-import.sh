@@ -300,16 +300,17 @@ SQL
   geom=$((valid + invalid)); [[ "$geom" == "$EXPECTED_GEOMETRIEEN" ]] || fail 'geometrietelling niet groen.'
   grep -q $'^published_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht gepubliceerd.'
   grep -q $'^actief_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht actief.'
-  psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" -c \
-    "UPDATE bag_control.datasetversies
-     SET status='gevalideerd',
-         gevalideerd_op=clock_timestamp(),
-         bron_metadata=bron_metadata || jsonb_build_object(
-           'voorkomens_bronregels', $EXPECTED_VOORKOMENS_RAW,
-           'voorkomens_identieke_duplicaten', $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN,
-           'voorkomens_uniek', $EXPECTED_VOORKOMENS
-         )
-     WHERE id=:dataset_id AND status='staging' AND NOT is_actief;"
+  psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
+UPDATE bag_control.datasetversies
+SET status='gevalideerd',
+    gevalideerd_op=clock_timestamp(),
+    bron_metadata=bron_metadata || jsonb_build_object(
+      'voorkomens_bronregels', $EXPECTED_VOORKOMENS_RAW,
+      'voorkomens_identieke_duplicaten', $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN,
+      'voorkomens_uniek', $EXPECTED_VOORKOMENS
+    )
+WHERE id=:dataset_id AND status='staging' AND NOT is_actief;
+SQL
   {
     echo '# Amsterdam resumable staging-import'
     echo
