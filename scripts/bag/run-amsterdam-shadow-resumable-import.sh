@@ -147,7 +147,7 @@ BEGIN;
 GRANT bag_loader TO postgres WITH SET TRUE, INHERIT FALSE;
 SET LOCAL ROLE bag_loader;
 CREATE TEMP TABLE raw_chunk (objecttype text NOT NULL, identificatie text NOT NULL) ON COMMIT DROP;
-\\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
+\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
 INSERT INTO bag_staging.objecten (datasetversie_id, objecttype, identificatie)
 SELECT :dataset_id, objecttype, identificatie FROM raw_chunk;
 RESET ROLE;
@@ -165,7 +165,7 @@ CREATE TEMP TABLE raw_chunk (
  voorkomenidentificatie integer NOT NULL, is_actueel boolean NOT NULL,
  begin_geldigheid date, eind_geldigheid date, status text, velden jsonb NOT NULL
 ) ON COMMIT DROP;
-\\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
+\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
 DO \$guard\$
 BEGIN
   IF EXISTS (
@@ -219,7 +219,7 @@ CREATE TEMP TABLE raw_chunk (
  bron_objecttype text NOT NULL, bron_identificatie text NOT NULL,
  relatietype text NOT NULL, doel_identificatie text NOT NULL
 ) ON COMMIT DROP;
-\\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
+\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
 INSERT INTO bag_staging.relaties (
  datasetversie_id, bron_objecttype, bron_identificatie, relatietype, doel_identificatie
 )
@@ -238,7 +238,7 @@ CREATE TEMP TABLE raw_chunk (
  objecttype text NOT NULL, identificatie text NOT NULL, voorkomen_sleutel text NOT NULL,
  voorkomenidentificatie integer NOT NULL, geometrie_volgnummer integer NOT NULL, wkt text NOT NULL
 ) ON COMMIT DROP;
-\\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
+\copy raw_chunk FROM '$chunk' WITH (FORMAT csv)
 CREATE TEMP TABLE assessed ON COMMIT DROP AS
 SELECT *, extensions.st_force3d(extensions.st_geomfromtext(wkt,28992)) AS geometrie FROM raw_chunk;
 INSERT INTO bag_control.geometrie_afwijkingen (
@@ -300,16 +300,17 @@ SQL
   geom=$((valid + invalid)); [[ "$geom" == "$EXPECTED_GEOMETRIEEN" ]] || fail 'geometrietelling niet groen.'
   grep -q $'^published_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht gepubliceerd.'
   grep -q $'^actief_amsterdam\t0$' "$OUTPUT_DIR/validatie.tsv" || fail 'Amsterdam is onverwacht actief.'
-  psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" -c \
-    "UPDATE bag_control.datasetversies
-     SET status='gevalideerd',
-         gevalideerd_op=clock_timestamp(),
-         bron_metadata=bron_metadata || jsonb_build_object(
-           'voorkomens_bronregels', $EXPECTED_VOORKOMENS_RAW,
-           'voorkomens_identieke_duplicaten', $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN,
-           'voorkomens_uniek', $EXPECTED_VOORKOMENS
-         )
-     WHERE id=:dataset_id AND status='staging' AND NOT is_actief;"
+  psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v dataset_id="$id" <<SQL
+UPDATE bag_control.datasetversies
+SET status='gevalideerd',
+    gevalideerd_op=clock_timestamp(),
+    bron_metadata=bron_metadata || jsonb_build_object(
+      'voorkomens_bronregels', $EXPECTED_VOORKOMENS_RAW,
+      'voorkomens_identieke_duplicaten', $EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN,
+      'voorkomens_uniek', $EXPECTED_VOORKOMENS
+    )
+WHERE id=:dataset_id AND status='staging' AND NOT is_actief;
+SQL
   {
     echo '# Amsterdam resumable staging-import'
     echo
