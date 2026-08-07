@@ -1,36 +1,45 @@
 #!/usr/bin/env python3
-"""Extraheer Amsterdam (0363) relatiebewust uit het landelijke BAG Extract.
+"""Extraheer de actuele Amsterdamse BAG-adresketen uit het landelijke BAG Extract.
 
-De landelijke bron wordt nog maar twee keer XML-inhoudelijk gescand:
-1. bouw een compacte metadata-index met primaire en gerelateerde BAG-identificaties;
-2. schrijf na de relatieclosure uitsluitend de geselecteerde records naar NDJSON.
+De selectie is richtinggevoelig en voorkomt transitieve scope-uitwaaiing:
+1. indexeer Woonplaats/OpenbareRuimte/Nummeraanduiding/VBO/Pand-relaties;
+2. selecteer woonplaatsen Amsterdam en Weesp;
+3. volg uitsluitend de adresketen naar buiten: Woonplaats -> OpenbareRuimte ->
+   Nummeraanduiding -> Verblijfsobject -> Pand;
+4. voeg daarnaast Panden met huidige/legacy Amsterdamse bronprefix 0363/0457 toe,
+   zodat ook Panden zonder adresseerbaar VBO niet stil verdwijnen;
+5. schrijf uitsluitend records waarvan de primaire identificatie expliciet is geselecteerd.
 
-De closurepasses lezen de lokale metadata-index en niet opnieuw het landelijke ZIP-bestand.
-Geneste ZIP-bestanden worden per bronscan sequentieel naar een tijdelijk bestand gekopieerd,
-zodat ze nooit volledig in het geheugen worden geladen.
+Hierdoor kan een VBO dat meerdere Panden raakt niet langer een volledige aangrenzende
+municipale relatieclosure starten.
 """
 
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import sys
 import tempfile
 import time
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
-from typing import BinaryIO, Iterator, TextIO
+from typing import BinaryIO, Iterator
 from xml.etree import ElementTree as ET
 
 SCOPE = "0363"
-MAX_CLOSURE_PASSES = 6
+TARGET_WOONPLAATSEN = {"amsterdam", "weesp"}
+PAND_SEED_PREFIXES = {"0363", "0457"}
 HEARTBEAT_INTERVAL = 50_000
-IDENTIFICATIE_PATTERN = re.compile(r"(?<!\d)\d{16}(?!\d)")
 OBJECTTYPEN = {
     "Pand", "Verblijfsobject", "Nummeraanduiding", "OpenbareRuimte",
     "Woonplaats", "Standplaats", "Ligplaats",
+}
+RELATIE_TAGS = {
+    "PandRef": "pand",
+    "NummeraanduidingRef": "nummeraanduiding",
+    "OpenbareRuimteRef": "openbare_ruimte",
+    "WoonplaatsRef": "woonplaats",
 }
 
 
@@ -40,6 +49,10 @@ def log(message: str) -> None:
 
 def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag.split(":")[-1]
+
+
+def norm(value: str | None) -> str:
+    return (value or "").strip().casefold()
 
 
 def iter_stand_xml(stream: BinaryIO) -> Iterator[str]:
@@ -84,124 +97,161 @@ def iter_zip_xml(archive: zipfile.ZipFile, bronpad: str = "") -> Iterator[tuple[
                     yield from iter_zip_xml(nested, pad)
 
 
-def record_metadata(xml: str) -> tuple[str | None, set[str], str]:
+def record_metadata(xml: str) -> dict[str, object]:
     root = ET.fromstring(xml)
     primaire_identificatie: str | None = None
-    alle_identificaties: set[str] = set()
     objecttype = "Onbekend"
+    refs: dict[str, set[str]] = defaultdict(set)
+    woonplaats_naam: str | None = None
+
     for element in root.iter():
         naam = local_name(element.tag)
+        tekst = (element.text or "").strip()
         if objecttype == "Onbekend" and naam in OBJECTTYPEN:
             objecttype = naam
-        tekst = (element.text or "").strip()
-        if not tekst:
-            continue
-        if naam.lower() == "identificatie" and primaire_identificatie is None:
-            match = IDENTIFICATIE_PATTERN.search(tekst)
-            if match:
-                primaire_identificatie = match.group(0)
-        alle_identificaties.update(IDENTIFICATIE_PATTERN.findall(tekst))
-    return primaire_identificatie, alle_identificaties, objecttype
+        if naam.lower() == "identificatie" and primaire_identificatie is None and tekst:
+            primaire_identificatie = tekst
+        relatie = RELATIE_TAGS.get(naam)
+        if relatie and tekst:
+            refs[relatie].add(tekst)
+        if objecttype == "Woonplaats" and naam.lower() == "naam" and tekst:
+            woonplaats_naam = tekst
+
+    return {
+        "identificatie": primaire_identificatie,
+        "objecttype": objecttype,
+        "refs": {key: sorted(values) for key, values in refs.items()},
+        "woonplaats_naam": woonplaats_naam,
+    }
 
 
-def scan_records(source: Path) -> Iterator[tuple[str, str, str | None, set[str], str]]:
+def scan_records(source: Path) -> Iterator[tuple[str, str, dict[str, object]]]:
     with zipfile.ZipFile(source) as archive:
         for bronpad, stream in iter_zip_xml(archive):
             log(f"Bronscan leest {bronpad}")
             for xml in iter_stand_xml(stream):
-                primair, identifiers, objecttype = record_metadata(xml)
-                yield bronpad, xml, primair, identifiers, objecttype
+                yield bronpad, xml, record_metadata(xml)
 
 
-def schrijf_metadata_index(source: Path, metadata_path: Path) -> tuple[int, set[str]]:
+def schrijf_metadata_index(source: Path, metadata_path: Path) -> int:
     bekeken = 0
-    geselecteerde_ids: set[str] = set()
     with metadata_path.open("w", encoding="utf-8") as handle:
-        for _, _, primair, identifiers, _ in scan_records(source):
+        for _, _, metadata in scan_records(source):
             bekeken += 1
-            if primair and primair.startswith(SCOPE):
-                geselecteerde_ids.add(primair)
-                geselecteerde_ids.update(identifiers)
-            handle.write(json.dumps([primair, sorted(identifiers)], separators=(",", ":")) + "\n")
+            handle.write(json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + "\n")
             if bekeken % HEARTBEAT_INTERVAL == 0:
-                log(
-                    f"Index: {bekeken:,} records; "
-                    f"{len(geselecteerde_ids):,} seed/gerelateerde identificaties"
-                )
+                log(f"Index: {bekeken:,} records")
     log(f"Metadata-index gereed: {bekeken:,} records")
-    return bekeken, geselecteerde_ids
+    return bekeken
 
 
-def lees_metadata_regel(line: str) -> tuple[str | None, set[str]]:
-    primair, identifiers = json.loads(line)
-    return primair, set(identifiers)
+def iter_metadata(metadata_path: Path) -> Iterator[dict[str, object]]:
+    with metadata_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            yield json.loads(line)
 
 
-def bereken_relatieclosure(
-    metadata_path: Path,
-    geselecteerde_ids: set[str],
-) -> list[dict[str, int]]:
-    passes: list[dict[str, int]] = []
-    for pass_nummer in range(1, MAX_CLOSURE_PASSES + 1):
-        toegevoegd: set[str] = set()
-        bekeken = 0
-        geraakt = 0
-        with metadata_path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                bekeken += 1
-                primair, identifiers = lees_metadata_regel(line)
-                verbonden = bool(identifiers & geselecteerde_ids)
-                primair_geselecteerd = bool(primair and primair in geselecteerde_ids)
-                if verbonden or primair_geselecteerd:
-                    geraakt += 1
-                    toegevoegd.update(identifiers)
-                    if primair:
-                        toegevoegd.add(primair)
-                if bekeken % (HEARTBEAT_INTERVAL * 4) == 0:
-                    log(f"Closurepass {pass_nummer}: {bekeken:,} metadatarecords bekeken")
+def refs(metadata: dict[str, object], sleutel: str) -> set[str]:
+    raw = metadata.get("refs")
+    if not isinstance(raw, dict):
+        return set()
+    values = raw.get(sleutel, [])
+    return {str(value) for value in values if str(value).strip()}
 
-        voor = len(geselecteerde_ids)
-        geselecteerde_ids.update(toegevoegd)
-        groei = len(geselecteerde_ids) - voor
-        resultaat = {
-            "pass": pass_nummer,
-            "bekeken_records": bekeken,
-            "geraakte_records": geraakt,
-            "nieuwe_identificaties": groei,
-            "totaal_geselecteerde_identificaties": len(geselecteerde_ids),
-        }
-        passes.append(resultaat)
-        log(
-            f"Closurepass {pass_nummer}: {geraakt:,} geraakt, "
-            f"{groei:,} nieuwe IDs, totaal {len(geselecteerde_ids):,}"
-        )
-        if groei == 0:
-            break
-    return passes
+
+def primaire_id(metadata: dict[str, object]) -> str | None:
+    value = metadata.get("identificatie")
+    return str(value) if isinstance(value, str) and value.strip() else None
+
+
+def bereken_directionele_selectie(metadata_path: Path) -> tuple[dict[str, set[str]], list[dict[str, int]]]:
+    geselecteerd: dict[str, set[str]] = defaultdict(set)
+    stappen: list[dict[str, int]] = []
+
+    for metadata in iter_metadata(metadata_path):
+        if metadata.get("objecttype") != "Woonplaats":
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie and norm(metadata.get("woonplaats_naam") if isinstance(metadata.get("woonplaats_naam"), str) else None) in TARGET_WOONPLAATSEN:
+            geselecteerd["Woonplaats"].add(identificatie)
+    stappen.append({"stap": 1, "woonplaatsen": len(geselecteerd["Woonplaats"])})
+
+    for metadata in iter_metadata(metadata_path):
+        if metadata.get("objecttype") != "OpenbareRuimte":
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie and refs(metadata, "woonplaats") & geselecteerd["Woonplaats"]:
+            geselecteerd["OpenbareRuimte"].add(identificatie)
+    stappen.append({"stap": 2, "openbare_ruimten": len(geselecteerd["OpenbareRuimte"])})
+
+    for metadata in iter_metadata(metadata_path):
+        if metadata.get("objecttype") != "Nummeraanduiding":
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie and refs(metadata, "openbare_ruimte") & geselecteerd["OpenbareRuimte"]:
+            geselecteerd["Nummeraanduiding"].add(identificatie)
+    stappen.append({"stap": 3, "nummeraanduidingen": len(geselecteerd["Nummeraanduiding"])})
+
+    for metadata in iter_metadata(metadata_path):
+        objecttype = metadata.get("objecttype")
+        if objecttype not in {"Verblijfsobject", "Standplaats", "Ligplaats"}:
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie and refs(metadata, "nummeraanduiding") & geselecteerd["Nummeraanduiding"]:
+            geselecteerd[str(objecttype)].add(identificatie)
+    stappen.append({
+        "stap": 4,
+        "verblijfsobjecten": len(geselecteerd["Verblijfsobject"]),
+        "standplaatsen": len(geselecteerd["Standplaats"]),
+        "ligplaatsen": len(geselecteerd["Ligplaats"]),
+    })
+
+    for metadata in iter_metadata(metadata_path):
+        if metadata.get("objecttype") != "Verblijfsobject":
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie not in geselecteerd["Verblijfsobject"]:
+            continue
+        geselecteerd["Pand"].update(refs(metadata, "pand"))
+
+    for metadata in iter_metadata(metadata_path):
+        if metadata.get("objecttype") != "Pand":
+            continue
+        identificatie = primaire_id(metadata)
+        if identificatie and any(identificatie.startswith(prefix) for prefix in PAND_SEED_PREFIXES):
+            geselecteerd["Pand"].add(identificatie)
+    stappen.append({"stap": 5, "panden": len(geselecteerd["Pand"])})
+
+    return geselecteerd, stappen
 
 
 def schrijf_subset(
     source: Path,
     output: Path,
-    geselecteerde_ids: set[str],
-) -> tuple[int, int, Counter[str], Counter[str]]:
+    geselecteerd: dict[str, set[str]],
+) -> tuple[int, int, Counter[str], Counter[str], Counter[str]]:
     objecttypen: Counter[str] = Counter()
     prefix_tellingen: Counter[str] = Counter()
+    pand_prefix_tellingen: Counter[str] = Counter()
     geschreven = 0
     bekeken = 0
     zonder_identificatie = 0
 
     with output.open("w", encoding="utf-8") as handle:
-        for bronpad, xml, primair, identifiers, objecttype in scan_records(source):
+        for bronpad, xml, metadata in scan_records(source):
             bekeken += 1
-            if not (identifiers & geselecteerde_ids or (primair in geselecteerde_ids if primair else False)):
+            objecttype = str(metadata.get("objecttype") or "Onbekend")
+            identificatie = primaire_id(metadata)
+            if not identificatie or identificatie not in geselecteerd.get(objecttype, set()):
+                if identificatie is None:
+                    zonder_identificatie += 1
                 if bekeken % HEARTBEAT_INTERVAL == 0:
                     log(f"Subset: {bekeken:,} records bekeken; {geschreven:,} geschreven")
                 continue
-            if primair:
-                prefix_tellingen[primair[:4]] += 1
-            else:
-                zonder_identificatie += 1
+
+            prefix_tellingen[identificatie[:4]] += 1
+            if objecttype == "Pand":
+                pand_prefix_tellingen[identificatie[:4]] += 1
             objecttypen[objecttype] += 1
             handle.write(json.dumps({"bronpad": bronpad, "xml": xml}, ensure_ascii=False) + "\n")
             geschreven += 1
@@ -209,7 +259,7 @@ def schrijf_subset(
                 log(f"Subset: {bekeken:,} records bekeken; {geschreven:,} geschreven")
 
     log(f"Subset gereed: {bekeken:,} bekeken; {geschreven:,} geschreven")
-    return geschreven, zonder_identificatie, objecttypen, prefix_tellingen
+    return geschreven, zonder_identificatie, objecttypen, prefix_tellingen, pand_prefix_tellingen
 
 
 def schrijf_rapport(report_path: Path, rapport: dict) -> None:
@@ -240,49 +290,60 @@ def main() -> int:
     parse_fouten: list[str] = []
     start = time.monotonic()
     bekeken_records = 0
-    geselecteerde_ids: set[str] = set()
-    passes: list[dict[str, int]] = []
+    geselecteerd: dict[str, set[str]] = defaultdict(set)
+    stappen: list[dict[str, int]] = []
     geschreven = 0
     zonder_identificatie = 0
     objecttypen: Counter[str] = Counter()
     prefix_tellingen: Counter[str] = Counter()
+    pand_prefix_tellingen: Counter[str] = Counter()
 
     try:
         with tempfile.TemporaryDirectory(prefix="bag-amsterdam-index-") as tmp:
             metadata_path = Path(tmp) / "metadata.ndjson"
-            log("Start bronscan 1/2: compacte metadata-index")
-            bekeken_records, geselecteerde_ids = schrijf_metadata_index(source, metadata_path)
-            if not geselecteerde_ids:
-                raise RuntimeError("Geen Amsterdamse seed-identificaties met prefix 0363 gevonden")
+            log("Start bronscan 1/2: relationele metadata-index")
+            bekeken_records = schrijf_metadata_index(source, metadata_path)
 
-            log("Start relatieclosure op lokale metadata-index")
-            passes = bereken_relatieclosure(metadata_path, geselecteerde_ids)
+            log("Bereken richtinggevoelige Amsterdam/Weesp-adresketen")
+            geselecteerd, stappen = bereken_directionele_selectie(metadata_path)
+            if not geselecteerd["Woonplaats"]:
+                raise RuntimeError("Geen woonplaats Amsterdam of Weesp gevonden")
+            if not geselecteerd["Pand"]:
+                raise RuntimeError("Geen Amsterdamse Panden geselecteerd")
 
-            log("Start bronscan 2/2: schrijf geselecteerde Amsterdam-subset")
-            geschreven, zonder_identificatie, objecttypen, prefix_tellingen = schrijf_subset(
-                source, output, geselecteerde_ids
+            log("Start bronscan 2/2: schrijf geografisch begrensde subset")
+            geschreven, zonder_identificatie, objecttypen, prefix_tellingen, pand_prefix_tellingen = schrijf_subset(
+                source, output, geselecteerd
             )
     except (ET.ParseError, zipfile.BadZipFile, OSError, RuntimeError, json.JSONDecodeError) as exc:
         parse_fouten.append(str(exc))
 
+    afwijkende_pand_prefixen = {
+        prefix: aantal
+        for prefix, aantal in sorted(pand_prefix_tellingen.items())
+        if prefix not in PAND_SEED_PREFIXES
+    }
     rapport = {
         "scope_code": SCOPE,
-        "strategie": "metadata_index_relatieclosure_twee_bronpasses",
+        "strategie": "directionele_adresketen_woonplaats_scope_twee_bronpasses",
         "bron_scans": 2,
-        "max_closure_passes": MAX_CLOSURE_PASSES,
+        "target_woonplaatsen": sorted(TARGET_WOONPLAATSEN),
+        "pand_seed_prefixes": sorted(PAND_SEED_PREFIXES),
         "geindexeerde_records": bekeken_records,
-        "passes": passes,
-        "geselecteerde_identificaties": len(geselecteerde_ids),
+        "selectiestappen": stappen,
+        "geselecteerde_objecten": {key: len(value) for key, value in sorted(geselecteerd.items())},
         "geschreven_records": geschreven,
         "records_zonder_primaire_identificatie": zonder_identificatie,
         "objecttype_tellingen": dict(sorted(objecttypen.items())),
         "prefix_tellingen": dict(sorted(prefix_tellingen.items())),
+        "pand_prefix_tellingen": dict(sorted(pand_prefix_tellingen.items())),
+        "afwijkende_pand_prefixen": afwijkende_pand_prefixen,
         "doorlooptijd_seconden": round(time.monotonic() - start, 1),
         "parse_fouten": parse_fouten,
     }
     schrijf_rapport(report_path, rapport)
 
-    if parse_fouten or geschreven == 0 or prefix_tellingen.get(SCOPE, 0) == 0:
+    if parse_fouten or geschreven == 0 or not pand_prefix_tellingen:
         return 1
     return 0
 
