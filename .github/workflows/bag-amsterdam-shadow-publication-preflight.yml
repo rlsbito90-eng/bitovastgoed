@@ -1,0 +1,86 @@
+name: BAG Amsterdam publication preflight
+run-name: BAG Amsterdam publication preflight — artifact 8973886061
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: CHECK_BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_8973886061'
+        required: true
+        type: string
+      disk_cap_gib:
+        description: 'Huidige provisioned BAG-shadow disk-cap in GiB'
+        required: true
+        type: choice
+        options:
+          - '8'
+          - '16'
+          - '32'
+          - '64'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-shadow-publication-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.event.inputs.approval == 'CHECK_BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_8973886061'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL: ${{ github.event.inputs.approval }}
+      BAG_AMSTERDAM_DISK_CAP_GIB: ${{ github.event.inputs.disk_cap_gib }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controleer harde grenzen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test "$BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL" = 'CHECK_BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_8973886061'
+          case "$BAG_AMSTERDAM_DISK_CAP_GIB" in
+            8|16|32|64) ;;
+            *) exit 2 ;;
+          esac
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+
+      - name: Voer read-only publication preflight uit
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          bash scripts/bag/run-amsterdam-shadow-publication-preflight.sh \
+            bag-amsterdam-publication-preflight-resultaat
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publiceer preflight-bewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-shadow-publication-preflight
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            bag-amsterdam-publication-preflight-resultaat/preflight.tsv
+            bag-amsterdam-publication-preflight-resultaat/capaciteit.env
+            bag-amsterdam-publication-preflight-resultaat/rapport.md
+
+      - name: Handhaaf GO/NO-GO exitcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ steps.preflight.outputs.exit_code }}" = '0'
