@@ -1,0 +1,60 @@
+export interface BagVerkenningsVoortgang {
+  scopeCode: string;
+  paginaNummer: number;
+  startCursor: string | null;
+  opgeslagenOp: string;
+}
+
+const OPSLAG_PREFIX = 'bito:bag-pandenverkenner:voortgang:';
+
+function opslagSleutel(scopeCode: string): string {
+  return `${OPSLAG_PREFIX}${scopeCode}`;
+}
+
+export function leesBagVerkenningsVoortgang(scopeCode: string): BagVerkenningsVoortgang | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(opslagSleutel(scopeCode));
+    if (!raw) return null;
+    const waarde = JSON.parse(raw) as Partial<BagVerkenningsVoortgang>;
+    if (
+      waarde.scopeCode !== scopeCode ||
+      !Number.isInteger(waarde.paginaNummer) ||
+      Number(waarde.paginaNummer) < 1 ||
+      !(waarde.startCursor === null || typeof waarde.startCursor === 'string') ||
+      typeof waarde.opgeslagenOp !== 'string'
+    ) return null;
+    return waarde as BagVerkenningsVoortgang;
+  } catch {
+    return null;
+  }
+}
+
+export function bewaarBagVerkenningsVoortgang(
+  scopeCode: string,
+  paginaNummer: number,
+  startCursor: string | null,
+): BagVerkenningsVoortgang | null {
+  if (typeof window === 'undefined' || !Number.isInteger(paginaNummer) || paginaNummer < 1) return null;
+  const waarde: BagVerkenningsVoortgang = {
+    scopeCode,
+    paginaNummer,
+    startCursor,
+    opgeslagenOp: new Date().toISOString(),
+  };
+  try {
+    window.localStorage.setItem(opslagSleutel(scopeCode), JSON.stringify(waarde));
+    return waarde;
+  } catch {
+    return null;
+  }
+}
+
+export function wisBagVerkenningsVoortgang(scopeCode: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(opslagSleutel(scopeCode));
+  } catch {
+    // Browseropslag is een UX-hulpmiddel; blokkades hierin mogen de BAG-verkenner niet blokkeren.
+  }
+}
