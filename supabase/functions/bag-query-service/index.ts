@@ -13,6 +13,7 @@ const PRODUCTION_REF = 'ljudxyrqoifhfikueric';
 const PRODUCTION_AUTH_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const MAX_BODY_BYTES = 16_384;
 const GEREGISTREERDE_SCOPES = new Set(['0106', '0363', '0599', '0518']);
+const STANDAARD_TOEGESTANE_SCOPES = '0363,0106';
 
 let database: ReturnType<typeof postgres> | null = null;
 
@@ -27,7 +28,7 @@ function requiredEnv(name: string): string {
 }
 
 function allowedScopes(): Set<string> {
-  const raw = Deno.env.get('BAG_ALLOWED_SCOPE_CODES')?.trim() || '0106';
+  const raw = Deno.env.get('BAG_ALLOWED_SCOPE_CODES')?.trim() || STANDAARD_TOEGESTANE_SCOPES;
   const scopes = new Set(raw.split(',').map(value => value.trim()).filter(Boolean));
   if (!scopes.size || [...scopes].some(code => !GEREGISTREERDE_SCOPES.has(code))) {
     throw new Error('BAG-scopeallowlist bevat een onbekende of lege scope');
