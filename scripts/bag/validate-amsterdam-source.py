@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Valideer dat een uitgepakt officieel BAG-bronpakket plausibel Amsterdam (0363) bevat.
+"""Valideer een richtinggevoelig Amsterdam/Weesp BAG-bronpakket.
 
-De validator schrijft uitsluitend een compact JSON-rapport. Hij wijzigt geen brondata en
-maakt geen verbinding met Supabase.
+De validator is conservatief: onverwachte Pand-prefixen of andere woonplaatsen maken de
+bronrun NO-GO. Zo vereist ieder historisch/grensgeval expliciete beoordeling voordat een
+nieuwe dataset kan worden geïmporteerd.
 """
 
 from __future__ import annotations
@@ -14,21 +15,33 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 AMSTERDAM_SCOPE = "0363"
-MIN_AMSTERDAM_AANDEEL = 0.90
+TOEGESTANE_PAND_PREFIXES = {"0363", "0457"}
+TOEGESTANE_WOONPLAATSEN = {"amsterdam", "weesp"}
+OBJECTTYPEN = {
+    "Pand", "Verblijfsobject", "Nummeraanduiding", "OpenbareRuimte",
+    "Woonplaats", "Standplaats", "Ligplaats",
+}
 
 
 def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag.split(":")[-1]
 
 
-def eerste_identificatie(xml: str) -> str | None:
+def record_info(xml: str) -> tuple[str, str | None, str | None]:
     root = ET.fromstring(xml)
+    objecttype = "Onbekend"
+    identificatie: str | None = None
+    woonplaats_naam: str | None = None
     for element in root.iter():
-        if local_name(element.tag).lower() == "identificatie" and element.text:
-            waarde = element.text.strip()
-            if waarde:
-                return waarde
-    return None
+        naam = local_name(element.tag)
+        tekst = (element.text or "").strip()
+        if objecttype == "Onbekend" and naam in OBJECTTYPEN:
+            objecttype = naam
+        if identificatie is None and naam.lower() == "identificatie" and tekst:
+            identificatie = tekst
+        if objecttype == "Woonplaats" and naam.lower() == "naam" and tekst:
+            woonplaats_naam = tekst
+    return objecttype, identificatie, woonplaats_naam
 
 
 def main() -> int:
@@ -39,6 +52,8 @@ def main() -> int:
     records_path = Path(sys.argv[1])
     report_path = Path(sys.argv[2])
     prefixes: Counter[str] = Counter()
+    pand_prefixes: Counter[str] = Counter()
+    woonplaatsen: Counter[str] = Counter()
     zonder_identificatie = 0
     parse_fouten: list[str] = []
     totaal = 0
@@ -50,22 +65,35 @@ def main() -> int:
             totaal += 1
             try:
                 record = json.loads(line)
-                identificatie = eerste_identificatie(record["xml"])
+                objecttype, identificatie, woonplaats_naam = record_info(record["xml"])
                 if identificatie is None:
                     zonder_identificatie += 1
                 else:
                     prefixes[identificatie[:4]] += 1
+                    if objecttype == "Pand":
+                        pand_prefixes[identificatie[:4]] += 1
+                if objecttype == "Woonplaats" and woonplaats_naam:
+                    woonplaatsen[woonplaats_naam.strip().casefold()] += 1
             except (KeyError, json.JSONDecodeError, ET.ParseError) as exc:
                 parse_fouten.append(f"regel {regelnummer}: {exc}")
 
-    met_identificatie = sum(prefixes.values())
-    amsterdam = prefixes.get(AMSTERDAM_SCOPE, 0)
-    aandeel = amsterdam / met_identificatie if met_identificatie else 0.0
+    onverwachte_pand_prefixes = {
+        prefix: aantal
+        for prefix, aantal in sorted(pand_prefixes.items())
+        if prefix not in TOEGESTANE_PAND_PREFIXES
+    }
+    onverwachte_woonplaatsen = {
+        naam: aantal
+        for naam, aantal in sorted(woonplaatsen.items())
+        if naam not in TOEGESTANE_WOONPLAATSEN
+    }
+
     geldig = (
         totaal > 0
-        and met_identificatie > 0
-        and amsterdam > 0
-        and aandeel >= MIN_AMSTERDAM_AANDEEL
+        and sum(pand_prefixes.values()) > 0
+        and bool(woonplaatsen)
+        and not onverwachte_pand_prefixes
+        and not onverwachte_woonplaatsen
         and not parse_fouten
     )
 
@@ -73,12 +101,14 @@ def main() -> int:
         "scope_code": AMSTERDAM_SCOPE,
         "geldig": geldig,
         "totaal_records": totaal,
-        "records_met_identificatie": met_identificatie,
         "records_zonder_identificatie": zonder_identificatie,
-        "amsterdam_records": amsterdam,
-        "amsterdam_aandeel": round(aandeel, 6),
-        "minimum_aandeel": MIN_AMSTERDAM_AANDEEL,
+        "toegestane_pand_prefixes": sorted(TOEGESTANE_PAND_PREFIXES),
+        "toegestane_woonplaatsen": sorted(TOEGESTANE_WOONPLAATSEN),
         "prefix_tellingen": dict(sorted(prefixes.items())),
+        "pand_prefix_tellingen": dict(sorted(pand_prefixes.items())),
+        "woonplaats_tellingen": dict(sorted(woonplaatsen.items())),
+        "onverwachte_pand_prefixes": onverwachte_pand_prefixes,
+        "onverwachte_woonplaatsen": onverwachte_woonplaatsen,
         "parse_fouten": parse_fouten,
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
