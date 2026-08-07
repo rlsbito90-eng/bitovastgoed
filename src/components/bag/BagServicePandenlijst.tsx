@@ -46,6 +46,9 @@ const FUNCTIES = [
   'bijeenkomstfunctie', 'gezondheidszorgfunctie', 'logiesfunctie',
   'onderwijsfunctie', 'sportfunctie', 'overige gebruiksfunctie',
 ];
+const STANDAARD_FILTERS: BagVerkennerFilters = {
+  zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
+};
 
 interface Props {
   scopeCode: string;
@@ -64,6 +67,7 @@ const REDEN_LABEL = {
 export default function BagServicePandenlijst({
   scopeCode, bestaandeBagIds, bestaandeAdresSleutels, onHandmatigPromoveren,
 }: Props) {
+  const initieelHervatpunt = useMemo(() => leesBagVerkenningsVoortgang(scopeCode), [scopeCode]);
   const [paginas, setPaginas] = useState<BagVerkennerPand[][]>([]);
   const [paginaStartCursors, setPaginaStartCursors] = useState<Array<string | null>>([]);
   const [eerstePaginaNummer, setEerstePaginaNummer] = useState(1);
@@ -76,13 +80,11 @@ export default function BagServicePandenlijst({
   const [promotieOpen, setPromotieOpen] = useState(false);
   const [promotieBezig, setPromotieBezig] = useState(false);
   const [toonNaarBoven, setToonNaarBoven] = useState(false);
-  const [hervatpunt, setHervatpunt] = useState<BagVerkenningsVoortgang | null>(
-    () => leesBagVerkenningsVoortgang(scopeCode),
-  );
+  const [hervatpunt, setHervatpunt] = useState<BagVerkenningsVoortgang | null>(initieelHervatpunt);
   const resultatenTopRef = useRef<HTMLDivElement | null>(null);
-  const [filters, setFilters] = useState<BagVerkennerFilters>({
-    zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
-  });
+  const [filters, setFilters] = useState<BagVerkennerFilters>(
+    () => initieelHervatpunt?.filters ?? STANDAARD_FILTERS,
+  );
 
   useEffect(() => {
     const controleerScroll = () => setToonNaarBoven(window.scrollY > 500);
@@ -92,6 +94,7 @@ export default function BagServicePandenlijst({
   }, []);
 
   useEffect(() => {
+    const opgeslagen = leesBagVerkenningsVoortgang(scopeCode);
     setPaginas([]);
     setPaginaStartCursors([]);
     setEerstePaginaNummer(1);
@@ -100,7 +103,8 @@ export default function BagServicePandenlijst({
     setHeeftVolgende(true);
     setGeselecteerd(new Set());
     setPreflight(null);
-    setHervatpunt(leesBagVerkenningsVoortgang(scopeCode));
+    setHervatpunt(opgeslagen);
+    setFilters(opgeslagen?.filters ?? STANDAARD_FILTERS);
   }, [scopeCode]);
 
   const panden = useMemo(() => paginas.flat(), [paginas]);
@@ -135,10 +139,27 @@ export default function BagServicePandenlijst({
     requestAnimationFrame(() => resultatenTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
-  const bewaarWerkpositie = (paginaNummer: number, startCursor: string | null) => {
-    const opgeslagen = bewaarBagVerkenningsVoortgang(scopeCode, paginaNummer, startCursor);
+  const bewaarWerkpositie = (
+    paginaNummer: number,
+    startCursor: string | null,
+    werkfilters: BagVerkennerFilters = filters,
+  ) => {
+    const opgeslagen = bewaarBagVerkenningsVoortgang(
+      scopeCode, paginaNummer, startCursor, werkfilters,
+    );
     if (opgeslagen) setHervatpunt(opgeslagen);
   };
+
+  useEffect(() => {
+    if (!paginas.length) return;
+    bewaarWerkpositie(
+      actuelePaginaNummer,
+      paginaStartCursors[paginaIndex] ?? null,
+      filters,
+    );
+    // Alleen lokale UX-voortgang bijwerken wanneer de actieve werkcontext verandert.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, actuelePaginaNummer, paginaIndex, paginaStartCursors, paginas.length, scopeCode]);
 
   const laad = async (opnieuw = false, hervattenVanaf: BagVerkenningsVoortgang | null = null) => {
     setLaden(true);
@@ -146,6 +167,7 @@ export default function BagServicePandenlijst({
       const startCursor = hervattenVanaf?.startCursor ?? (opnieuw ? null : cursor);
       const doelPaginaNummer = hervattenVanaf?.paginaNummer
         ?? (opnieuw ? 1 : eerstePaginaNummer + paginas.length);
+      const hervatteFilters = hervattenVanaf?.filters ?? filters;
       const resultaat = await zoekPandenViaService<BagServicePandRij>({
         scopeCode, naIdentificatie: startCursor, limiet: PAGE_SIZE,
       });
@@ -162,6 +184,7 @@ export default function BagServicePandenlijst({
         setEerstePaginaNummer(doelPaginaNummer);
         setPaginaIndex(0);
         setGeselecteerd(new Set());
+        if (hervattenVanaf?.filters) setFilters(hervattenVanaf.filters);
       } else {
         const nieuwePaginaIndex = paginas.length;
         setPaginas(previous => [...previous, nieuw]);
@@ -171,7 +194,7 @@ export default function BagServicePandenlijst({
       setPreflight(null);
       setCursor(nieuw.at(-1)?.cursor ?? null);
       setHeeftVolgende(nieuw.length === PAGE_SIZE);
-      bewaarWerkpositie(doelPaginaNummer, startCursor);
+      bewaarWerkpositie(doelPaginaNummer, startCursor, hervatteFilters);
       scrollNaarResultaten();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'BAG-lijst laden mislukt.');
@@ -202,6 +225,7 @@ export default function BagServicePandenlijst({
   const beginOpnieuw = () => {
     wisBagVerkenningsVoortgang(scopeCode);
     setHervatpunt(null);
+    setFilters(STANDAARD_FILTERS);
     void laad(true);
   };
 
@@ -311,6 +335,7 @@ export default function BagServicePandenlijst({
             <p className="mt-1 text-xs text-muted-foreground">
               Pagina {hervatpunt.paginaNummer} · resultaten {(hervatpunt.paginaNummer - 1) * PAGE_SIZE + 1}–{hervatpunt.paginaNummer * PAGE_SIZE}
               {' · '}opgeslagen {new Date(hervatpunt.opgeslagenOp).toLocaleString('nl-NL')}
+              {hervatpunt.filters ? ' · filters worden hersteld' : ''}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -337,7 +362,7 @@ export default function BagServicePandenlijst({
     {panden.length>0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
     {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
 
-    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">{hervatpunt?.paginaNummer && hervatpunt.paginaNummer > 1 ? 'Kies Verder verkennen om je laatste werkpositie te hervatten, of begin opnieuw bij pagina 1.' : 'Laad pagina 1 uit de actieve BAG-dataset.'}</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
+    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">{hervatpunt?.paginaNummer && hervatpunt.paginaNummer > 1 ? 'Kies Verder verkennen om je laatste werkpositie en filters te hervatten, of begin opnieuw bij pagina 1.' : 'Laad pagina 1 uit de actieve BAG-dataset.'}</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
       const status = bepaalStraatSelectieStatus(straatPanden, geselecteerd, isGeblokkeerd);
       return <div key={straat} className={status.geselecteerd > 0 ? 'bg-primary/[0.02]' : undefined}>
         <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2">
