@@ -23,15 +23,25 @@ describe('Amsterdam publication preflight', () => {
     expect(script).toContain('valid_geom + invalid_geom');
   });
 
-  it('vereist nul reeds gepubliceerde Amsterdam-rijen en exact een actieve Assen-dataset', () => {
-    expect(script).toContain("published_objecten\\t0");
-    expect(script).toContain("published_voorkomens\\t0");
-    expect(script).toContain("published_relaties\\t0");
-    expect(script).toContain("published_geometrieen\\t0");
+  it('accepteert resumable publication-voortgang maar bewaakt prefixvolgorde en Assen', () => {
+    expect(script).toContain('published_objecten <= EXPECTED_OBJECTEN');
+    expect(script).toContain('published_voorkomens <= EXPECTED_VOORKOMENS');
+    expect(script).toContain('published_relaties <= EXPECTED_RELATIES');
+    expect(script).toContain('published_geometrieen <= EXPECTED_GEOMETRIEEN_VALID');
+    expect(script).toContain('published_voorkomens > 0');
+    expect(script).toContain('published_objecten == EXPECTED_OBJECTEN');
+    expect(script).toContain('published_relaties > 0');
+    expect(script).toContain('published_voorkomens == EXPECTED_VOORKOMENS');
+    expect(script).toContain('published_geometrieen > 0');
+    expect(script).toContain('published_relaties == EXPECTED_RELATIES');
     expect(script).toContain("assen_actief\\t1");
   });
 
-  it('blokkeert capaciteit conservatief met veiligheidsfactor en vrije marge', () => {
+  it('berekent capaciteit alleen voor nog resterende publicatierijen', () => {
+    expect(script).toContain('remaining_objecten=$((EXPECTED_OBJECTEN - published_objecten))');
+    expect(script).toContain('remaining_voorkomens=$((EXPECTED_VOORKOMENS - published_voorkomens))');
+    expect(script).toContain('remaining_relaties=$((EXPECTED_RELATIES - published_relaties))');
+    expect(script).toContain('remaining_geometrieen=$((EXPECTED_GEOMETRIEEN_VALID - published_geometrieen))');
     expect(script).toContain('SAFETY_FACTOR_PERCENT=125');
     expect(script).toContain('MIN_HEADROOM_BYTES=$((1024 * 1024 * 1024))');
     expect(script).toContain('NO_GO_CAPACITY');
