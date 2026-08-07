@@ -277,16 +277,47 @@ export default function BagServicePandenlijst({
         <div className="divide-y">{straatPanden.map(pand => {
           const blokkade = blokkadeVoorPand(pand, context);
           const isGeselecteerd = geselecteerd.has(pand.bagPandId);
-          return <div key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`} className={`flex items-start gap-3 p-4 ${isGeselecteerd ? 'bg-primary/[0.04]' : ''}`}>
+          const rijSelecteerbaar = blokkade === null;
+          return <div
+            key={`${pand.datasetversieId}:${pand.bagPandId}:${pand.voorkomenSleutel}`}
+            className={`flex items-start gap-3 p-4 transition-colors ${isGeselecteerd ? 'bg-primary/[0.06]' : rijSelecteerbaar ? 'cursor-pointer hover:bg-muted/35' : ''}`}
+            role={rijSelecteerbaar ? 'button' : undefined}
+            tabIndex={rijSelecteerbaar ? 0 : undefined}
+            aria-pressed={rijSelecteerbaar ? isGeselecteerd : undefined}
+            onClick={rijSelecteerbaar ? () => togglePand(pand) : undefined}
+            onKeyDown={rijSelecteerbaar ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                togglePand(pand);
+              }
+            } : undefined}
+          >
             <div className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-full border bg-background px-1 text-[11px] font-medium text-muted-foreground" aria-label={`Volgnummer ${nummerPerPand.get(pand.bagPandId)}`}>{nummerPerPand.get(pand.bagPandId)}</div>
-            <Checkbox className="mt-1" disabled={blokkade !== null} checked={isGeselecteerd} onCheckedChange={() => togglePand(pand)}/>
+            <Checkbox
+              className="mt-1"
+              disabled={blokkade !== null}
+              checked={isGeselecteerd}
+              onClick={event => event.stopPropagation()}
+              onCheckedChange={() => togglePand(pand)}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<BagCrmMatchBadge pand={pand} fallbackLabel={REDEN_LABEL[blokkade]}/>}</div>
               <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m² totaal`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
               <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
               <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
             </div>
-            <a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a>
+            <a
+              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium text-foreground shadow-sm hover:bg-muted"
+              href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })}
+              target="_blank"
+              rel="noreferrer"
+              onClick={event => event.stopPropagation()}
+              aria-label={`Open ${pand.adres} in Google Maps`}
+              title="Open adres in Google Maps"
+            >
+              <MapPin className="h-4 w-4"/>
+              <span className="hidden sm:inline">Google Maps</span>
+            </a>
           </div>;
         })}</div>
       </div>;
