@@ -5,7 +5,10 @@ import {
   type BagPandZoekAanvraag,
   type BagViewportAanvraag,
 } from './queryService';
-import { bepaalActieveBagScopes } from './scopeRegistry';
+import {
+  BAG_STANDAARD_ACTIEVE_SCOPECODES,
+  bepaalActieveBagScopes,
+} from './scopeRegistry';
 
 export interface BagTransportResultaat<T> {
   rows: T[];
@@ -14,8 +17,7 @@ export interface BagTransportResultaat<T> {
 const SHADOW_PROJECT_REF = 'xfygspvpeugxowxbcvnm';
 const SHADOW_FUNCTION_URL = `https://${SHADOW_PROJECT_REF}.supabase.co/functions/v1/bag-query-service`;
 const ACTIEVE_SCOPES = bepaalActieveBagScopes(
-  import.meta.env.VITE_BAG_QUERY_ALLOWED_SCOPES,
-  import.meta.env.VITE_BAG_QUERY_SCOPE_CODE || '0106',
+  import.meta.env.VITE_BAG_QUERY_ALLOWED_SCOPES || BAG_STANDAARD_ACTIEVE_SCOPECODES,
 );
 const ACTIEVE_SCOPE_CODES = new Set(ACTIEVE_SCOPES.map(scope => scope.code));
 
