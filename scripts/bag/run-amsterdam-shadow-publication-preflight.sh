@@ -73,23 +73,43 @@ expect_line() {
   grep -q "$pattern" "$OUTPUT_DIR/preflight.tsv" || fail "$message"
 }
 
+value() { awk -F '\t' -v key="$1" '$1==key{print $2}' "$OUTPUT_DIR/preflight.tsv"; }
+
 expect_line $'^dataset\t2\tv20260805\t0363\tgevalideerd\tf$' 'Amsterdam-dataset is niet exact gevalideerd en inactief.'
 expect_line $'^objecten\t1464429$' 'objecttelling wijkt af.'
 expect_line $'^voorkomens\t2664890$' 'voorkomentelling wijkt af.'
 expect_line $'^relaties\t2531300$' 'relatietelling wijkt af.'
 expect_line $'^geometrieen\t1830704$' 'geldige geometrietelling wijkt af.'
 expect_line $'^geometrie_afwijkingen\t1016$' 'geometriequarantaine wijkt af.'
-expect_line $'^published_objecten\t0$' 'Amsterdam-objecten zijn al gepubliceerd.'
-expect_line $'^published_voorkomens\t0$' 'Amsterdam-voorkomens zijn al gepubliceerd.'
-expect_line $'^published_relaties\t0$' 'Amsterdam-relaties zijn al gepubliceerd.'
-expect_line $'^published_geometrieen\t0$' 'Amsterdam-geometrieën zijn al gepubliceerd.'
 expect_line $'^assen_actief\t1$' 'Assen is niet exact één keer actief.'
 
-valid_geom="$(awk -F '\t' '$1=="geometrieen"{print $2}' "$OUTPUT_DIR/preflight.tsv")"
-invalid_geom="$(awk -F '\t' '$1=="geometrie_afwijkingen"{print $2}' "$OUTPUT_DIR/preflight.tsv")"
+valid_geom="$(value geometrieen)"
+invalid_geom="$(value geometrie_afwijkingen)"
 [[ $((valid_geom + invalid_geom)) -eq "$EXPECTED_GEOMETRIEEN_BRON" ]] || fail 'geometriebronreconciliatie faalt.'
 
-value() { awk -F '\t' -v key="$1" '$1==key{print $2}' "$OUTPUT_DIR/preflight.tsv"; }
+published_objecten="$(value published_objecten)"
+published_voorkomens="$(value published_voorkomens)"
+published_relaties="$(value published_relaties)"
+published_geometrieen="$(value published_geometrieen)"
+
+for n in "$published_objecten" "$published_voorkomens" "$published_relaties" "$published_geometrieen"; do
+  [[ "$n" =~ ^[0-9]+$ ]] || fail 'Amsterdam-publicatievoortgang is niet numeriek.'
+done
+
+(( published_objecten <= EXPECTED_OBJECTEN )) || fail 'Amsterdam-objecten overschrijden de gevalideerde stagingtelling.'
+(( published_voorkomens <= EXPECTED_VOORKOMENS )) || fail 'Amsterdam-voorkomens overschrijden de gevalideerde stagingtelling.'
+(( published_relaties <= EXPECTED_RELATIES )) || fail 'Amsterdam-relaties overschrijden de gevalideerde stagingtelling.'
+(( published_geometrieen <= EXPECTED_GEOMETRIEEN_VALID )) || fail 'Amsterdam-geometrieën overschrijden de geldige stagingtelling.'
+
+if (( published_voorkomens > 0 )); then
+  (( published_objecten == EXPECTED_OBJECTEN )) || fail 'voorkomens bestaan terwijl objecten niet exact compleet zijn.'
+fi
+if (( published_relaties > 0 )); then
+  (( published_voorkomens == EXPECTED_VOORKOMENS )) || fail 'relaties bestaan terwijl voorkomens niet exact compleet zijn.'
+fi
+if (( published_geometrieen > 0 )); then
+  (( published_relaties == EXPECTED_RELATIES )) || fail 'geometrieën bestaan terwijl relaties niet exact compleet zijn.'
+fi
 
 current_database_bytes="$(value database_bytes)"
 pub_obj_count="$(value published_total_objecten)"
@@ -108,15 +128,24 @@ done
 (( pub_obj_count > 0 && pub_vkr_count > 0 && pub_rel_count > 0 && pub_geo_count > 0 )) || \
   fail 'bestaande published-benchmark ontbreekt; capaciteit kan niet betrouwbaar worden geschat.'
 
+remaining_objecten=$((EXPECTED_OBJECTEN - published_objecten))
+remaining_voorkomens=$((EXPECTED_VOORKOMENS - published_voorkomens))
+remaining_relaties=$((EXPECTED_RELATIES - published_relaties))
+remaining_geometrieen=$((EXPECTED_GEOMETRIEEN_VALID - published_geometrieen))
+
 estimate_table() {
-  local published_bytes="$1" published_rows="$2" target_rows="$3"
-  echo $(( (published_bytes * target_rows + published_rows - 1) / published_rows ))
+  local published_bytes="$1" published_rows="$2" remaining_rows="$3"
+  if (( remaining_rows == 0 )); then
+    echo 0
+  else
+    echo $(( (published_bytes * remaining_rows + published_rows - 1) / published_rows ))
+  fi
 }
 
-estimate_obj="$(estimate_table "$pub_obj_bytes" "$pub_obj_count" "$EXPECTED_OBJECTEN")"
-estimate_vkr="$(estimate_table "$pub_vkr_bytes" "$pub_vkr_count" "$EXPECTED_VOORKOMENS")"
-estimate_rel="$(estimate_table "$pub_rel_bytes" "$pub_rel_count" "$EXPECTED_RELATIES")"
-estimate_geo="$(estimate_table "$pub_geo_bytes" "$pub_geo_count" "$EXPECTED_GEOMETRIEEN_VALID")"
+estimate_obj="$(estimate_table "$pub_obj_bytes" "$pub_obj_count" "$remaining_objecten")"
+estimate_vkr="$(estimate_table "$pub_vkr_bytes" "$pub_vkr_count" "$remaining_voorkomens")"
+estimate_rel="$(estimate_table "$pub_rel_bytes" "$pub_rel_count" "$remaining_relaties")"
+estimate_geo="$(estimate_table "$pub_geo_bytes" "$pub_geo_count" "$remaining_geometrieen")"
 estimated_publish_bytes=$((estimate_obj + estimate_vkr + estimate_rel + estimate_geo))
 conservative_publish_bytes=$(( (estimated_publish_bytes * SAFETY_FACTOR_PERCENT + 99) / 100 ))
 projected_database_bytes=$((current_database_bytes + conservative_publish_bytes))
@@ -141,6 +170,14 @@ fi
   echo "disk_cap_gib=$BAG_AMSTERDAM_DISK_CAP_GIB"
   echo "disk_cap_bytes=$disk_cap_bytes"
   echo "current_database_bytes=$current_database_bytes"
+  echo "published_objecten=$published_objecten"
+  echo "published_voorkomens=$published_voorkomens"
+  echo "published_relaties=$published_relaties"
+  echo "published_geometrieen=$published_geometrieen"
+  echo "remaining_objecten=$remaining_objecten"
+  echo "remaining_voorkomens=$remaining_voorkomens"
+  echo "remaining_relaties=$remaining_relaties"
+  echo "remaining_geometrieen=$remaining_geometrieen"
   echo "estimated_publish_bytes=$estimated_publish_bytes"
   echo "safety_factor_percent=$SAFETY_FACTOR_PERCENT"
   echo "conservative_publish_bytes=$conservative_publish_bytes"
@@ -160,11 +197,12 @@ fi
   echo "- Besluit: **$decision**"
   echo "- Dataset: $DATASET_VERSION / $SCOPE_CODE / id $DATASET_ID"
   echo '- Alleen read-only controles uitgevoerd: ja'
-  echo '- Publicatie uitgevoerd: nee'
+  echo '- Publicatie uitgevoerd door deze preflight: nee'
   echo '- Activatie uitgevoerd: nee'
+  echo "- Amsterdam publication progress: objecten=$published_objecten, voorkomens=$published_voorkomens, relaties=$published_relaties, geometrieen=$published_geometrieen"
   echo "- Huidige databasebytes: $current_database_bytes"
-  echo "- Geschatte published-bytes: $estimated_publish_bytes"
-  echo "- Conservatieve published-bytes (x${SAFETY_FACTOR_PERCENT}%): $conservative_publish_bytes"
+  echo "- Geschatte resterende published-bytes: $estimated_publish_bytes"
+  echo "- Conservatieve resterende published-bytes (x${SAFETY_FACTOR_PERCENT}%): $conservative_publish_bytes"
   echo "- Vereiste capaciteit incl. 1 GiB vrije marge: $required_capacity_bytes"
   echo "- Opgegeven disk-cap: $disk_cap_bytes"
 } >"$OUTPUT_DIR/rapport.md"
