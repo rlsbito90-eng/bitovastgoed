@@ -36,6 +36,7 @@ jobs:
       BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
       BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL: ${{ github.event.inputs.approval }}
       BAG_AMSTERDAM_DISK_CAP_GIB: ${{ github.event.inputs.disk_cap_gib }}
+      PGOPTIONS: -c default_transaction_read_only=on
 
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +49,7 @@ jobs:
           test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
           test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
           test "$BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL" = 'CHECK_BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_8973886061'
+          test "$PGOPTIONS" = '-c default_transaction_read_only=on'
           case "$BAG_AMSTERDAM_DISK_CAP_GIB" in
             8|16|32|64) ;;
             *) exit 2 ;;
