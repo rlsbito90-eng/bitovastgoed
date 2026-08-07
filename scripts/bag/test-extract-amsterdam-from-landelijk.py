@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'scripts/bag/extract-amsterdam-from-landelijk.py'
+VALIDATOR = ROOT / 'scripts/bag/validate-amsterdam-source.py'
 
 
 def stand(objecttype: str, identificatie: str, body: str = '') -> str:
@@ -120,7 +121,45 @@ def main() -> int:
         assert 'Start bronscan 1/2' in completed.stdout
         assert 'Start bronscan 2/2' in completed.stdout
 
-    print('Amsterdam directionele scope-extractietest OK')
+        # Fail-closed keten: de extractor mag een direct grensgeval rapporteren, maar de
+        # validator moet zo'n subset weigeren voordat die als Amsterdam-bron kan worden gebruikt.
+        vervuild_validatierapport = tmp_path / 'vervuild-validatie.json'
+        vervuild = subprocess.run(
+            ['python3', str(VALIDATOR), str(output), str(vervuild_validatierapport)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert vervuild.returncode == 1
+        vervuild_resultaat = json.loads(vervuild_validatierapport.read_text(encoding='utf-8'))
+        assert vervuild_resultaat['geldig'] is False
+        assert vervuild_resultaat['onverwachte_pand_prefixes'] == {'0362': 1}
+        assert vervuild_resultaat['onverwachte_woonplaatsen'] == {}
+
+        # Zonder het expliciet gemarkeerde grenspand moet dezelfde Amsterdamketen wél groen zijn.
+        schoon_output = tmp_path / 'amsterdam-schoon.ndjson'
+        schone_records = [
+            record for record in records
+            if '0362100000009999' not in record['xml']
+        ]
+        schoon_output.write_text(
+            ''.join(json.dumps(record, ensure_ascii=False) + '\n' for record in schone_records),
+            encoding='utf-8',
+        )
+        schoon_validatierapport = tmp_path / 'schoon-validatie.json'
+        subprocess.run(
+            ['python3', str(VALIDATOR), str(schoon_output), str(schoon_validatierapport)],
+            check=True,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        schoon_resultaat = json.loads(schoon_validatierapport.read_text(encoding='utf-8'))
+        assert schoon_resultaat['geldig'] is True
+        assert schoon_resultaat['onverwachte_pand_prefixes'] == {}
+        assert schoon_resultaat['onverwachte_woonplaatsen'] == {}
+
+    print('Amsterdam directionele scope-extractie + fail-closed validatie OK')
     return 0
 
 
