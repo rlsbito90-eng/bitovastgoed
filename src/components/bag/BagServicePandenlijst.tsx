@@ -24,6 +24,12 @@ import {
 import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
 import { zoekPandenViaService } from '@/lib/bag/queryTransport';
 import { bepaalStraatSelectieStatus, toggleStraatSelectie } from '@/lib/bag/straatSelectie';
+import {
+  bewaarBagVerkenningsVoortgang,
+  leesBagVerkenningsVoortgang,
+  wisBagVerkenningsVoortgang,
+  type BagVerkenningsVoortgang,
+} from '@/lib/bag/verkenningsVoortgang';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
 import BagScopeStatus from './BagScopeStatus';
@@ -59,6 +65,8 @@ export default function BagServicePandenlijst({
   scopeCode, bestaandeBagIds, bestaandeAdresSleutels, onHandmatigPromoveren,
 }: Props) {
   const [paginas, setPaginas] = useState<BagVerkennerPand[][]>([]);
+  const [paginaStartCursors, setPaginaStartCursors] = useState<Array<string | null>>([]);
+  const [eerstePaginaNummer, setEerstePaginaNummer] = useState(1);
   const [paginaIndex, setPaginaIndex] = useState(0);
   const [cursor, setCursor] = useState<string | null>(null);
   const [heeftVolgende, setHeeftVolgende] = useState(true);
@@ -68,6 +76,9 @@ export default function BagServicePandenlijst({
   const [promotieOpen, setPromotieOpen] = useState(false);
   const [promotieBezig, setPromotieBezig] = useState(false);
   const [toonNaarBoven, setToonNaarBoven] = useState(false);
+  const [hervatpunt, setHervatpunt] = useState<BagVerkenningsVoortgang | null>(
+    () => leesBagVerkenningsVoortgang(scopeCode),
+  );
   const resultatenTopRef = useRef<HTMLDivElement | null>(null);
   const [filters, setFilters] = useState<BagVerkennerFilters>({
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
@@ -80,8 +91,21 @@ export default function BagServicePandenlijst({
     return () => window.removeEventListener('scroll', controleerScroll);
   }, []);
 
+  useEffect(() => {
+    setPaginas([]);
+    setPaginaStartCursors([]);
+    setEerstePaginaNummer(1);
+    setPaginaIndex(0);
+    setCursor(null);
+    setHeeftVolgende(true);
+    setGeselecteerd(new Set());
+    setPreflight(null);
+    setHervatpunt(leesBagVerkenningsVoortgang(scopeCode));
+  }, [scopeCode]);
+
   const panden = useMemo(() => paginas.flat(), [paginas]);
   const actievePagina = paginas[paginaIndex] ?? [];
+  const actuelePaginaNummer = eerstePaginaNummer + paginaIndex;
   const zichtbaar = useMemo(
     () => filterEnSorteerBagPanden(actievePagina, filters),
     [actievePagina, filters],
@@ -97,9 +121,12 @@ export default function BagServicePandenlijst({
   const nummerPerPand = useMemo(() => {
     const inWeergaveVolgorde = straatgroepen.flatMap(([, straatPanden]) => straatPanden);
     return new Map(
-      inWeergaveVolgorde.map((pand, index) => [pand.bagPandId, paginaIndex * PAGE_SIZE + index + 1]),
+      inWeergaveVolgorde.map((pand, index) => [
+        pand.bagPandId,
+        (actuelePaginaNummer - 1) * PAGE_SIZE + index + 1,
+      ]),
     );
-  }, [paginaIndex, straatgroepen]);
+  }, [actuelePaginaNummer, straatgroepen]);
 
   const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
   const isGeblokkeerd = (pand: BagVerkennerPand) => blokkadeVoorPand(pand, context) !== null;
@@ -108,11 +135,19 @@ export default function BagServicePandenlijst({
     requestAnimationFrame(() => resultatenTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
-  const laad = async (opnieuw = false) => {
+  const bewaarWerkpositie = (paginaNummer: number, startCursor: string | null) => {
+    const opgeslagen = bewaarBagVerkenningsVoortgang(scopeCode, paginaNummer, startCursor);
+    if (opgeslagen) setHervatpunt(opgeslagen);
+  };
+
+  const laad = async (opnieuw = false, hervattenVanaf: BagVerkenningsVoortgang | null = null) => {
     setLaden(true);
     try {
+      const startCursor = hervattenVanaf?.startCursor ?? (opnieuw ? null : cursor);
+      const doelPaginaNummer = hervattenVanaf?.paginaNummer
+        ?? (opnieuw ? 1 : eerstePaginaNummer + paginas.length);
       const resultaat = await zoekPandenViaService<BagServicePandRij>({
-        scopeCode, naIdentificatie: opnieuw ? null : cursor, limiet: PAGE_SIZE,
+        scopeCode, naIdentificatie: startCursor, limiet: PAGE_SIZE,
       });
       const nieuw = resultaat.rows.map(normaliseerBagServicePand);
       if (!nieuw.length) {
@@ -121,18 +156,22 @@ export default function BagServicePandenlijst({
         return;
       }
 
-      if (opnieuw) {
+      if (opnieuw || hervattenVanaf) {
         setPaginas([nieuw]);
+        setPaginaStartCursors([startCursor]);
+        setEerstePaginaNummer(doelPaginaNummer);
         setPaginaIndex(0);
         setGeselecteerd(new Set());
       } else {
         const nieuwePaginaIndex = paginas.length;
         setPaginas(previous => [...previous, nieuw]);
+        setPaginaStartCursors(previous => [...previous, startCursor]);
         setPaginaIndex(nieuwePaginaIndex);
       }
       setPreflight(null);
       setCursor(nieuw.at(-1)?.cursor ?? null);
       setHeeftVolgende(nieuw.length === PAGE_SIZE);
+      bewaarWerkpositie(doelPaginaNummer, startCursor);
       scrollNaarResultaten();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'BAG-lijst laden mislukt.');
@@ -145,6 +184,10 @@ export default function BagServicePandenlijst({
     if (volgendeIndex < 0 || volgendeIndex >= paginas.length) return;
     setPaginaIndex(volgendeIndex);
     setPreflight(null);
+    bewaarWerkpositie(
+      eerstePaginaNummer + volgendeIndex,
+      paginaStartCursors[volgendeIndex] ?? null,
+    );
     scrollNaarResultaten();
   };
 
@@ -154,6 +197,12 @@ export default function BagServicePandenlijst({
       return;
     }
     if (heeftVolgende) void laad(false);
+  };
+
+  const beginOpnieuw = () => {
+    wisBagVerkenningsVoortgang(scopeCode);
+    setHervatpunt(null);
+    void laad(true);
   };
 
   const toggleFunctie = (functie: string) => setFilters(previous => ({
@@ -215,25 +264,28 @@ export default function BagServicePandenlijst({
   const paginering = paginas.length > 0 && (
     <div className="flex flex-wrap items-center justify-between gap-3 border-y bg-muted/10 px-4 py-3 text-xs text-muted-foreground">
       <span>
-        Resultaten {paginaIndex * PAGE_SIZE + 1}–{paginaIndex * PAGE_SIZE + actievePagina.length} · pagina {paginaIndex + 1}
+        Resultaten {(actuelePaginaNummer - 1) * PAGE_SIZE + 1}–{(actuelePaginaNummer - 1) * PAGE_SIZE + actievePagina.length} · pagina {actuelePaginaNummer}
       </span>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" disabled={laden || paginaIndex === 0} onClick={() => gaNaarPagina(paginaIndex - 1)}>
           <ChevronLeft className="mr-1 h-4 w-4" />Vorige
         </Button>
-        {paginas.map((_, index) => (
-          <Button
-            key={index}
-            variant={index === paginaIndex ? 'default' : 'outline'}
-            size="sm"
-            className="min-w-9 px-2"
-            disabled={laden}
-            onClick={() => gaNaarPagina(index)}
-            aria-label={`Ga naar pagina ${index + 1}`}
-          >
-            {index + 1}
-          </Button>
-        ))}
+        {paginas.map((_, index) => {
+          const paginaNummer = eerstePaginaNummer + index;
+          return (
+            <Button
+              key={paginaNummer}
+              variant={index === paginaIndex ? 'default' : 'outline'}
+              size="sm"
+              className="min-w-9 px-2"
+              disabled={laden}
+              onClick={() => gaNaarPagina(index)}
+              aria-label={`Ga naar pagina ${paginaNummer}`}
+            >
+              {paginaNummer}
+            </Button>
+          );
+        })}
         <Button variant="outline" size="sm" disabled={laden || (paginaIndex === paginas.length - 1 && !heeftVolgende)} onClick={gaNaarVolgende}>
           {laden ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
           Volgende<ChevronRight className="ml-1 h-4 w-4" />
@@ -252,6 +304,24 @@ export default function BagServicePandenlijst({
         <Button onClick={() => laad(true)} disabled={laden}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}Pagina 1 laden</Button>
       </div>
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
+      {!panden.length && hervatpunt && hervatpunt.paginaNummer > 1 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-primary/[0.03] p-4">
+          <div>
+            <p className="text-sm font-medium">Verder waar je was gebleven</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pagina {hervatpunt.paginaNummer} · resultaten {(hervatpunt.paginaNummer - 1) * PAGE_SIZE + 1}–{hervatpunt.paginaNummer * PAGE_SIZE}
+              {' · '}opgeslagen {new Date(hervatpunt.opgeslagenOp).toLocaleString('nl-NL')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void laad(false, hervatpunt)} disabled={laden}>
+              {laden ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+              Verder verkennen
+            </Button>
+            <Button size="sm" variant="outline" onClick={beginOpnieuw} disabled={laden}>Begin opnieuw</Button>
+          </div>
+        </div>
+      )}
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_190px_auto]">
         <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter huidige pagina op adres, plaats, postcode, BAG-ID of functie" />
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))}>
@@ -267,7 +337,7 @@ export default function BagServicePandenlijst({
     {panden.length>0 && <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
     {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
 
-    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Laad pagina 1 uit de actieve BAG-dataset.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
+    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">{hervatpunt?.paginaNummer && hervatpunt.paginaNummer > 1 ? 'Kies Verder verkennen om je laatste werkpositie te hervatten, of begin opnieuw bij pagina 1.' : 'Laad pagina 1 uit de actieve BAG-dataset.'}</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
       const status = bepaalStraatSelectieStatus(straatPanden, geselecteerd, isGeblokkeerd);
       return <div key={straat} className={status.geselecteerd > 0 ? 'bg-primary/[0.02]' : undefined}>
         <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2">
