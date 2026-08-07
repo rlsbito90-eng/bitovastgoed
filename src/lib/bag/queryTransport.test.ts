@@ -27,7 +27,7 @@ describe('BAG 2A.9 querytransport', () => {
       rows: [{ identificatie: 'P1' }],
     }), { status: 200 }));
     await expect(haalPandenInViewport({
-      scopeCode: 'NL',
+      scopeCode: '0363',
       viewport: { minX: 100_000, minY: 450_000, maxX: 101_000, maxY: 451_000 },
       limiet: 250,
     })).resolves.toEqual({ rows: [{ identificatie: 'P1' }] });
@@ -40,7 +40,7 @@ describe('BAG 2A.9 querytransport', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'viewport', scopeCode: 'NL', minX: 100_000, minY: 450_000,
+          action: 'viewport', scopeCode: '0363', minX: 100_000, minY: 450_000,
           maxX: 101_000, maxY: 451_000, limit: 250,
         }),
       },
@@ -49,7 +49,7 @@ describe('BAG 2A.9 querytransport', () => {
 
   it('weigert lokaal ongeldige grenzen zonder netwerkverzoek', async () => {
     await expect(haalPandenInViewport({
-      scopeCode: 'NL',
+      scopeCode: '0363',
       viewport: { minX: 101_000, minY: 450_000, maxX: 100_000, maxY: 451_000 },
       limiet: 250,
     })).rejects.toThrow('RD New-zone');
@@ -58,14 +58,14 @@ describe('BAG 2A.9 querytransport', () => {
 
   it('ondersteunt alleen begrensde keysetzoekvragen en maskeert transportfouten', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ rows: [] }), { status: 200 }));
-    await zoekPandenViaService({ scopeCode: 'NL', naIdentificatie: 'P100', limiet: 100 });
+    await zoekPandenViaService({ scopeCode: '0363', naIdentificatie: 'P100', limiet: 100 });
     expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      body: JSON.stringify({ action: 'search', scopeCode: 'NL', cursor: 'P100', limit: 100 }),
+      body: JSON.stringify({ action: 'search', scopeCode: '0363', cursor: 'P100', limit: 100 }),
     }));
 
     vi.mocked(fetch).mockRejectedValueOnce(new Error('sensitive detail'));
     await expect(zoekPandenViaService({
-      scopeCode: 'NL', naIdentificatie: null, limiet: 100,
+      scopeCode: '0363', naIdentificatie: null, limiet: 100,
     })).rejects.toThrow('De BAG-queryservice is niet beschikbaar.');
   });
 
@@ -75,7 +75,7 @@ describe('BAG 2A.9 querytransport', () => {
       'https://ljudxyrqoifhfikueric.supabase.co/functions/v1/bag-query-service',
     );
     await expect(zoekPandenViaService({
-      scopeCode: 'NL', naIdentificatie: null, limiet: 100,
+      scopeCode: '0363', naIdentificatie: null, limiet: 100,
     })).rejects.toThrow('niet veilig geconfigureerd');
     expect(getSession).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('BAG 2A.9 querytransport', () => {
   it('stuurt nooit een verzoek zonder een geldige CRM-sessie', async () => {
     getSession.mockResolvedValue({ data: { session: null }, error: null });
     await expect(zoekPandenViaService({
-      scopeCode: 'NL', naIdentificatie: null, limiet: 100,
+      scopeCode: '0363', naIdentificatie: null, limiet: 100,
     })).rejects.toThrow('Log opnieuw in');
     expect(fetch).not.toHaveBeenCalled();
   });
