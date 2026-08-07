@@ -1,0 +1,29 @@
+name: BAG Amsterdam scope regression
+
+on:
+  push:
+    branches:
+      - preview/amsterdam-bag-reviewmodus
+    paths:
+      - 'scripts/bag/extract-amsterdam-from-landelijk.py'
+      - 'scripts/bag/test-extract-amsterdam-from-landelijk.py'
+      - 'scripts/bag/validate-amsterdam-source.py'
+      - '.github/workflows/bag-amsterdam-scope-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scope-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compileer aangepaste BAG-scripts
+        run: |
+          python3 -m py_compile \
+            scripts/bag/extract-amsterdam-from-landelijk.py \
+            scripts/bag/test-extract-amsterdam-from-landelijk.py \
+            scripts/bag/validate-amsterdam-source.py
+      - name: Draai synthetische Amsterdam-scope regressietest
+        run: python3 scripts/bag/test-extract-amsterdam-from-landelijk.py
