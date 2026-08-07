@@ -15,9 +15,18 @@ import { zoekBagKandidatenMetStatistiek, type BagKandidaat, type BagSelectieStat
 import BagServicePandenlijst from '@/components/bag/BagServicePandenlijst';
 import { maakHandmatigeBagKans, type BagPromotieResultaat } from '@/lib/bag/handmatigePromotie';
 import type { BagVerkennerPand } from '@/lib/bag/pandenverkennerModel';
+import {
+  BAG_STANDAARD_ACTIEVE_SCOPECODES,
+  bepaalActieveBagScopes,
+  bepaalVoorkeursBagScope,
+} from '@/lib/bag/scopeRegistry';
 
 const BAG_SERVICE_ENABLED = import.meta.env.VITE_BAG_QUERY_SERVICE_ENABLED === 'true';
-const BAG_SERVICE_SCOPE = import.meta.env.VITE_BAG_QUERY_SCOPE_CODE || 'NL';
+const BAG_SERVICE_SCOPE = bepaalVoorkeursBagScope(
+  bepaalActieveBagScopes(
+    import.meta.env.VITE_BAG_QUERY_ALLOWED_SCOPES || BAG_STANDAARD_ACTIEVE_SCOPECODES,
+  ),
+)?.code || '0363';
 
 const GEBRUIKSDOELEN = [
   ['kantoorfunctie', 'Kantoor'],
