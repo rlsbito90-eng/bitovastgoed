@@ -21,6 +21,13 @@ const briefRij = {
   definitief_op: null, vergrendeld_op: null, annuleringsreden: null,
 };
 
+const dossierRij = {
+  selectie_id: 'selectie-1', signaal_id: 'signaal-1', object_id: null,
+  verwerking_gestart_op: '2026-08-08T12:00:00Z', verwerking_gestart_door: 'actor-1',
+  primaire_werkbak: 'eigenaar_achterhalen', volgende_actie_op: null,
+  volgende_actie_omschrijving: null,
+};
+
 describe('stelProductiekernSupabaseClientSamen', () => {
   it('stopt single- én bulkreads vóór de uitvoerder zonder volledig bewijs', async () => {
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
@@ -32,6 +39,8 @@ describe('stelProductiekernSupabaseClientSamen', () => {
     expect(samenstelling.activatie.lezenActief).toBe(false);
     expect(() => samenstelling.repository.haalBrief('brief-1'))
       .toThrow(ProductiekernNietGeactiveerdError);
+    expect(() => samenstelling.bulkRepository.haalDossiersOpSelectieIds(['selectie-1']))
+      .toThrow(ProductiekernNietGeactiveerdError);
     expect(() => samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']))
       .toThrow(ProductiekernNietGeactiveerdError);
     expect(uitvoerder.voerUit).not.toHaveBeenCalled();
@@ -41,15 +50,17 @@ describe('stelProductiekernSupabaseClientSamen', () => {
   it('voert bij volledig bewijs allowlisted single- en bulkreads uit', async () => {
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
       voerUit: vi.fn(async () => briefRij),
-      voerBulkUit: vi.fn(async () => [briefRij]),
+      voerBulkUit: vi.fn(async (input) => input.tabel === 'off_market_acquisitie_dossiers' ? [dossierRij] : [briefRij]),
     };
     const samenstelling = stelProductiekernSupabaseClientSamen(volledigBewijs, uitvoerder);
 
     await expect(samenstelling.repository.haalBrief('brief-1')).resolves.toMatchObject({ id: 'brief-1' });
+    await expect(samenstelling.bulkRepository.haalDossiersOpSelectieIds(['selectie-1']))
+      .resolves.toEqual([expect.objectContaining({ selectieId: 'selectie-1' })]);
     await expect(samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']))
       .resolves.toEqual([expect.objectContaining({ id: 'brief-1' })]);
     expect(uitvoerder.voerUit).toHaveBeenCalledTimes(1);
-    expect(uitvoerder.voerBulkUit).toHaveBeenCalledTimes(1);
+    expect(uitvoerder.voerBulkUit).toHaveBeenCalledTimes(2);
   });
 
   it('voegt identieke gelijktijdige single reads standaard samen', async () => {
