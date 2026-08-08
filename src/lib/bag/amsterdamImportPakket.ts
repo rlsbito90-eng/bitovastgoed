@@ -65,10 +65,16 @@ export function evalueerAmsterdamImportPakket(invoer: AmsterdamImportGateInvoer)
       reden: `Closure selecteerde ${invoer.geselecteerdAantal} records; ontvangen ${s.ontvangen}, verwerkt ${s.verwerkt}.`,
     });
   }
-  if (s.objecten !== invoer.geselecteerdAantal) {
+  if (s.objecten <= 0) {
     stopCondities.push({
       code: 'dataverlies',
-      reden: `Staging bevat ${s.objecten} objecten tegenover ${invoer.geselecteerdAantal} geselecteerde records.`,
+      reden: 'Geen objecten in de staginglaag aangetroffen.',
+    });
+  }
+  if (s.voorkomens !== s.verwerkt) {
+    stopCondities.push({
+      code: 'dataverlies',
+      reden: `Staging bevat ${s.voorkomens} voorkomens tegenover ${s.verwerkt} verwerkte objectrecords.`,
     });
   }
   if (s.voorkomens < s.objecten) {
