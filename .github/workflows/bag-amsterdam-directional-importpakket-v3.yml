@@ -1,0 +1,163 @@
+name: BAG Amsterdam directioneel importpakket v3
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Typ exact BUILD_BAG_AMSTERDAM_DIRECTIONAL_IMPORTPAKKET_V3'
+        required: true
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bag-amsterdam-directional-importpakket-v3
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.inputs.approval == 'BUILD_BAG_AMSTERDAM_DIRECTIONAL_IMPORTPAKKET_V3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      SOURCE_RUN_ID: '31264952850'
+      SOURCE_ARTIFACT_ID: '9025191810'
+      EXPECTED_GZIP_SHA256: '98a845531ea049b0a22490f5a296ceeb89ce4152f70e7e0ba177c1a086c42658'
+      EXPECTED_FULL_SUBSET_SHA256: 'a7c2b9639e8120239eca0c3700a1b2a2afbedb7dcc3956cf2d838195a7b92cdf'
+      EXPECTED_BRON_SHA256: '8f03782321490b113389df0bf215445bfa5c670b8f811bb7798ea8621c5b1007'
+      EXPECTED_STANDRECORDS: '2719280'
+      EXPECTED_UNIQUE_KEYS: '1491131'
+      DATASET_VERSIE: 'v20260808-directional-v3'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bewaak dat builder geen Supabase of productie benadert
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            scripts/bag/bereid-amsterdam-directional-import-streamend-voor.ts
+            src/lib/bag/amsterdamDirectionalImportReadiness.ts
+            src/lib/bag/amsterdamStreamingNormalisatie.ts
+            src/lib/bag/amsterdamChunkedSpoolSort.ts
+            src/lib/bag/amsterdamStreamingCsvExport.ts
+          )
+          ! grep -RE 'ljudxyrqoifhfikueric|wzkhmjuasyuvzhhycnym|xfygspvpeugxowxbcvnm' "${files[@]}"
+          ! grep -RE 'SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)|service[_-]?role' "${files[@]}"
+
+      - name: Download exact gepind v3 full-subsetartifact
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ env.SOURCE_ARTIFACT_ID }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: bag-amsterdam-v3
+
+      - name: Valideer bewijs fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s bag-amsterdam-v3/output/full-subset-v3.ndjson.gz
+          test -s bag-amsterdam-v3/output/full-subset-v3.bewijs.json
+          test -s bag-amsterdam-v3/output/workflow-provenance.json
+          test "$(sha256sum bag-amsterdam-v3/output/full-subset-v3.ndjson.gz | awk '{print $1}')" = "$EXPECTED_GZIP_SHA256"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const b = JSON.parse(fs.readFileSync('bag-amsterdam-v3/output/full-subset-v3.bewijs.json', 'utf8'));
+          const p = JSON.parse(fs.readFileSync('bag-amsterdam-v3/output/workflow-provenance.json', 'utf8'));
+          const eq = (n,a,e) => { if (Number(a) !== Number(e)) throw new Error(`${n}: ${a} != ${e}`); };
+          if (b.contractversie !== 'bag-amsterdam-directional-full-subset/3') throw new Error('Verkeerde contractversie');
+          if (b.metadata_schema_version !== 3) throw new Error('Verkeerde metadata schema-versie');
+          if (b.bron_sha256 !== process.env.EXPECTED_BRON_SHA256) throw new Error('Bronhashdrift');
+          if (b.output_sha256 !== process.env.EXPECTED_FULL_SUBSET_SHA256) throw new Error('Full-subsethashdrift');
+          eq('standrecords', b.records_geschreven, process.env.EXPECTED_STANDRECORDS);
+          eq('unieke sleutels', b.geselecteerde_unieke_sleutels, process.env.EXPECTED_UNIQUE_KEYS);
+          eq('ontbrekende sleutels', b.ontbrekende_geselecteerde_sleutels, 0);
+          if ((b.parse_fouten ?? []).length) throw new Error('Parsefouten in bronbewijs');
+          if (b.database_write_uitgevoerd !== false || b.productie_benaderd !== false) throw new Error('Onveilige bronprovenance');
+          if (p.database_write_uitgevoerd !== false || p.supabase_benaderd !== false || p.productie_benaderd !== false) throw new Error('Onveilige workflowprovenance');
+          NODE
+
+      - name: Decomprimeer en verifieer full-subset
+        shell: bash
+        run: |
+          set -euo pipefail
+          gunzip -c bag-amsterdam-v3/output/full-subset-v3.ndjson.gz > bag-amsterdam-v3/full-subset-v3.ndjson
+          test "$(sha256sum bag-amsterdam-v3/full-subset-v3.ndjson | awk '{print $1}')" = "$EXPECTED_FULL_SUBSET_SHA256"
+          test "$(wc -l < bag-amsterdam-v3/full-subset-v3.ndjson | tr -d ' ')" = "$EXPECTED_STANDRECORDS"
+
+      - name: Bouw directioneel v3 importpakket streamend
+        run: |
+          npm exec --yes --package=tsx@4.23.9 -- tsx scripts/bag/bereid-amsterdam-directional-import-streamend-voor.ts \
+            bag-amsterdam-v3/full-subset-v3.ndjson \
+            bag-amsterdam-v3/output/full-subset-v3.bewijs.json \
+            bag-amsterdam-v3/importpakket \
+            bag-amsterdam-v3/streaming-werk \
+            "$DATASET_VERSIE"
+
+      - name: Valideer manifest en leg tellingen vast
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s bag-amsterdam-v3/importpakket/importpakket-manifest.json
+          mkdir -p bag-amsterdam-v3/rapport
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const m = JSON.parse(fs.readFileSync('bag-amsterdam-v3/importpakket/importpakket-manifest.json', 'utf8'));
+          if (m.besluit !== 'GO') throw new Error(`Importpakketbesluit is ${m.besluit}`);
+          if (m.databaseImportUitgevoerd !== false || m.supabaseBenaderd !== false || m.productieBenaderd !== false) throw new Error('Onveilige manifestprovenance');
+          if (m.directioneleScope?.naam !== 'Amsterdam+Weesp' || m.directioneleScope?.metadataSchemaVersion !== 3) throw new Error('Directionele scope wijkt af');
+          if (Number(m.directioneleScope.uniekeSleutels) !== Number(process.env.EXPECTED_UNIQUE_KEYS)) throw new Error('Unieke-sleuteltellingdrift');
+          if (Number(m.directioneleScope.standrecords) !== Number(process.env.EXPECTED_STANDRECORDS)) throw new Error('Standrecordtellingdrift');
+          fs.writeFileSync('bag-amsterdam-v3/rapport/importpakket-go-no-go.txt', [
+            `besluit=${m.besluit}`,
+            `datasetVersie=${m.datasetVersie}`,
+            `uniekeSleutels=${m.directioneleScope.uniekeSleutels}`,
+            `standrecords=${m.directioneleScope.standrecords}`,
+            `quarantaine=${m.quarantaine ?? 'ONBEKEND'}`,
+            'databaseImportUitgevoerd=false',
+            'supabaseBenaderd=false',
+            'productieBenaderd=false',
+          ].join('\n') + '\n');
+          NODE
+          find bag-amsterdam-v3/importpakket -maxdepth 1 -type f -printf '%f\t%s\n' | sort > bag-amsterdam-v3/rapport/importpakket-bestanden.tsv
+          cat bag-amsterdam-v3/rapport/importpakket-go-no-go.txt
+
+      - name: Verwijder bron en werkmap vóór artifactpublicatie
+        if: always()
+        shell: bash
+        run: |
+          rm -f bag-amsterdam-v3/full-subset-v3.ndjson
+          rm -rf bag-amsterdam-v3/streaming-werk
+
+      - name: Publiceer importpakket en bewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-directional-importpakket-v3
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+          path: |
+            bag-amsterdam-v3/rapport/importpakket-go-no-go.txt
+            bag-amsterdam-v3/rapport/importpakket-bestanden.tsv
+            bag-amsterdam-v3/importpakket/*.csv
+            bag-amsterdam-v3/importpakket/*.json
+            bag-amsterdam-v3/importpakket/*.jsonl
