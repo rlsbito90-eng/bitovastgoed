@@ -225,6 +225,7 @@ create table if not exists public.off_market_productie_events (
   constraint off_market_productie_events_type_chk
     check (event_type in (
       'verwerking_gestart',
+      'brief_aangemaakt',
       'briefnummer_uitgegeven',
       'briefversie_aangemaakt',
       'briefversie_vervallen',
