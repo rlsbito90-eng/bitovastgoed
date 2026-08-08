@@ -36,10 +36,19 @@ De toekomstige **structuur-/functiepromotie** moet deze volgorde behouden:
    - brief definitief maken;
    - batchdocumenten registreren;
    - batch geprint markeren;
-   - brief gepost markeren;
+   - basisimplementatie brief gepost markeren;
    - bron-blob SHA: `7f4294417589c0e8fb3da14c239ce65e370895fd`.
 
-5. `20260808_acquisitie_productiekern_security_wrappers.sql`
+5. `20260808_acquisitie_productiekern_post_opvolging_atomiciteit.sql`
+   - vervangt uitsluitend `off_market_brief_gepost_markeren` met dezelfde RPC-signatuur;
+   - zet geposte briefversie, batchstatus, productieaudit en het gekoppelde acquisitiedossier in één transactie;
+   - zet alleen het betreffende dossier op `opvolgen`;
+   - plant de standaard opvolging op 14 dagen na de bevestigde postdatum;
+   - voorkomt de eerdere crashruimte tussen postregistratie en losse dossierbijwerking;
+   - geen grant, activatie of backfill;
+   - bron-blob SHA: `2ad7448fb1c6a3e94b1a6346fb34a4174e2bb6f0`.
+
+6. `20260808_acquisitie_productiekern_security_wrappers.sql`
    - interne actor-assertie;
    - bewezen RPC-implementaties hernoemen naar `*_intern`;
    - publieke security-wrappers creëren;
