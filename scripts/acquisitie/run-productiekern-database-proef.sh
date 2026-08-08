@@ -21,6 +21,11 @@ scalar() {
   psql_cmd -Atqc "$1"
 }
 
+# Het reviewdraft bevat expliciete grants/revokes voor Supabase-rollen.
+# Een kale PostgreSQL-container kent die rollen niet, dus we bootsen alleen
+# de rolnamen na. Er worden geen Supabase-projecten of externe databases benaderd.
+psql_cmd -qc "do \$\$ begin if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if; if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if; end \$\$;"
+
 expected_relations=(
   off_market_productie_nummerreeksen
   off_market_brief_versies
