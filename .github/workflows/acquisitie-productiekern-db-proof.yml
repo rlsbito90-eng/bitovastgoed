@@ -15,6 +15,7 @@ on:
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_dossier_briefkern.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_vroege_transactionele_functies.sql'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_transactionele_functies.sql'
+      - 'supabase/migration-drafts/20260808_acquisitie_productiekern_post_opvolging_atomiciteit.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_security_wrappers.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_activatie_security.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_release_manifest.md'
