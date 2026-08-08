@@ -71,6 +71,44 @@ alter table if exists public.off_market_brieven
   add column if not exists vergrendeld_op timestamptz null,
   add column if not exists annuleringsreden text null;
 
+-- De repositoryhistorie bevat een legacy statusconstraint die uitsluitend
+-- 'concept' en 'verstuurd' toestaat. De nieuwe productiekern gebruikt daarnaast
+-- 'definitief' en 'geannuleerd'. Tijdens de transitiefase blijft 'verstuurd'
+-- bewust toegestaan zodat bestaande CRM-flows niet worden gebroken.
+--
+-- Als de benoemde legacy-constraint bestaat, controleren we eerst dat hij nog
+-- herkenbaar de twee bekende legacy-statussen bevat. Een onverwachte definitie
+-- blokkeert de draft in plaats van een onbekende productieconstraint stilzwijgend
+-- te vervangen. Ontbreekt de constraint (zoals in synthetische proefschema's),
+-- dan wordt alleen de compatibele NOT VALID-constraint toegevoegd.
+do $$
+declare
+  v_status_constraint text;
+begin
+  select pg_get_constraintdef(c.oid)
+    into v_status_constraint
+  from pg_constraint c
+  where c.conrelid = 'public.off_market_brieven'::regclass
+    and c.conname = 'off_market_brieven_status_check'
+    and c.contype = 'c';
+
+  if v_status_constraint is not null then
+    if position('concept' in lower(v_status_constraint)) = 0
+      or position('verstuurd' in lower(v_status_constraint)) = 0 then
+      raise exception 'onverwachte_off_market_brieven_status_constraint';
+    end if;
+
+    alter table public.off_market_brieven
+      drop constraint off_market_brieven_status_check;
+  end if;
+
+  alter table public.off_market_brieven
+    add constraint off_market_brieven_status_check
+      check (status in ('concept', 'verstuurd', 'definitief', 'geannuleerd'))
+      not valid;
+end;
+$$;
+
 alter table if exists public.off_market_brieven
   add constraint off_market_brieven_briefnummer_chk
     check (briefnummer is null or briefnummer ~ '^BR[0-9]{10}$') not valid,
