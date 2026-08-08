@@ -38,7 +38,7 @@ begin
     gen_random_uuid(), p_selectie_id, v_signaal_id, p_uitgevoerd_op, p_actor_id,
     'eigenaar_achterhalen', p_uitgevoerd_op, p_uitgevoerd_op
   )
-  on conflict (selectie_id) do update set
+  on conflict on constraint off_market_acquisitie_dossiers_selectie_uq do update set
     verwerking_gestart_op = coalesce(public.off_market_acquisitie_dossiers.verwerking_gestart_op, excluded.verwerking_gestart_op),
     verwerking_gestart_door = coalesce(public.off_market_acquisitie_dossiers.verwerking_gestart_door, excluded.verwerking_gestart_door),
     primaire_werkbak = case when public.off_market_acquisitie_dossiers.primaire_werkbak='nieuwe_selectie' then 'eigenaar_achterhalen' else public.off_market_acquisitie_dossiers.primaire_werkbak end,
