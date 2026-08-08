@@ -84,11 +84,13 @@ def flush(
     conn.commit()
 
 
-def build_index(metadata_paths: list[Path], index_path: Path) -> tuple[int, int, Counter[str]]:
+def build_index(
+    metadata_paths: list[Path], index_path: Path
+) -> tuple[int, int, int, Counter[str]]:
     conn = open_index(index_path)
     object_batch: list[tuple[str, str, str | None]] = []
     relation_batch: list[tuple[str, str, str, str]] = []
-    records = invalid = 0
+    records = invalid = skipped_unknown = 0
     objecttype_counts: Counter[str] = Counter()
     try:
         for path in metadata_paths:
@@ -103,13 +105,28 @@ def build_index(metadata_paths: list[Path], index_path: Path) -> tuple[int, int,
                         if not isinstance(row, list) or len(row) != 4:
                             raise ValueError("metadatarecord heeft niet vier velden")
                         objecttype, identificatie, woonplaats_naam, relaties = row
-                        if objecttype not in OBJECTTYPEN or not isinstance(identificatie, str) or not identificatie.strip():
-                            raise ValueError("objecttype/identificatie ongeldig")
+
+                        # Het landelijke Extract bevat ook <stand>-records buiten de zeven
+                        # relevante BAG-objecttypen. De chunkextractor markeert die bewust als
+                        # Onbekend en kan daar geen primaire identificatie voor leveren. Ze zijn
+                        # geen corrupte metadata en mogen de Amsterdam-selectie daarom niet blokkeren.
+                        if objecttype == "Onbekend" and (
+                            identificatie is None
+                            or (isinstance(identificatie, str) and not identificatie.strip())
+                        ):
+                            skipped_unknown += 1
+                            continue
+
+                        if objecttype not in OBJECTTYPEN:
+                            raise ValueError(f"onverwacht objecttype: {objecttype!r}")
+                        if not isinstance(identificatie, str) or not identificatie.strip():
+                            raise ValueError("identificatie ontbreekt voor relevant BAG-objecttype")
+                        if not isinstance(relaties, list):
+                            raise ValueError("relaties is geen lijst")
+
                         woonplaats = woonplaats_naam if isinstance(woonplaats_naam, str) and woonplaats_naam else None
                         object_batch.append((objecttype, identificatie.strip(), woonplaats))
                         objecttype_counts[objecttype] += 1
-                        if not isinstance(relaties, list):
-                            raise ValueError("relaties is geen lijst")
                         for relatie in relaties:
                             if not isinstance(relatie, list) or len(relatie) != 2:
                                 raise ValueError("relatie heeft niet twee velden")
@@ -125,7 +142,10 @@ def build_index(metadata_paths: list[Path], index_path: Path) -> tuple[int, int,
                     if len(object_batch) >= BATCH_SIZE or len(relation_batch) >= BATCH_SIZE * 3:
                         flush(conn, object_batch, relation_batch)
                     if records % HEARTBEAT == 0:
-                        log(f"Index-invoer: {records:,} metadatarecords; ongeldig={invalid:,}")
+                        log(
+                            f"Index-invoer: {records:,} metadatarecords; "
+                            f"overgeslagen_onbekend={skipped_unknown:,}; ongeldig={invalid:,}"
+                        )
 
         flush(conn, object_batch, relation_batch)
         log("Maak relationele indexen na bulk-load")
@@ -141,7 +161,7 @@ def build_index(metadata_paths: list[Path], index_path: Path) -> tuple[int, int,
         conn.commit()
     finally:
         conn.close()
-    return records, invalid, objecttype_counts
+    return records, invalid, skipped_unknown, objecttype_counts
 
 
 def count(conn: sqlite3.Connection, table: str) -> int:
@@ -262,7 +282,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="bag-amsterdam-metadata-v3-") as tmp:
         index_path = Path(tmp) / "metadata.sqlite3"
         phase = time.monotonic()
-        records, invalid, source_type_counts = build_index(args.metadata, index_path)
+        records, invalid, skipped_unknown, source_type_counts = build_index(args.metadata, index_path)
         timings["index_bouwen_seconden"] = round(time.monotonic() - phase, 1)
 
         phase = time.monotonic()
@@ -288,6 +308,7 @@ def main() -> int:
         "target_woonplaatsen": sorted(TARGET_WOONPLAATSEN),
         "pand_seed_prefixes": sorted(PAND_SEED_PREFIXES),
         "metadatarecords_gelezen": records,
+        "overgeslagen_onbekende_records": skipped_unknown,
         "ongeldige_metadatarecords": invalid,
         "bron_objecttype_tellingen": dict(sorted(source_type_counts.items())),
         "selectiestappen": steps,
