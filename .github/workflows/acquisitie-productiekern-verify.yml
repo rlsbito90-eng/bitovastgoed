@@ -6,7 +6,7 @@ on:
       - feat/acquisitie-productiekern-build-a
     paths:
       - 'src/lib/offMarket/acquisitie/**'
-      - 'src/components/offMarketAcquisitie/**'
+      - 'src/components/offmarket/acquisitie/**'
       - '.github/workflows/acquisitie-productiekern-verify.yml'
       - 'package.json'
       - 'package-lock.json'
