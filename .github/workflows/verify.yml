@@ -67,6 +67,8 @@ jobs:
         run: |
           python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
           python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
+          python3 scripts/bag/test-select-amsterdam-from-metadata-v3.py
+          python3 scripts/bag/test-extract-amsterdam-directional-full-subset-v3.py
           python3 scripts/bag/test-amsterdam-metadata-en-closure.py
 
       - name: Node.js
