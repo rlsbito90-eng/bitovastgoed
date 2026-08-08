@@ -39,17 +39,16 @@ export interface ProductiekernSupabaseLeesTransport {
     filters: Readonly<Record<string, string>>,
     volgorde?: Readonly<{ kolom: string; oplopend: boolean }>,
   ): Promise<Record<string, unknown>[]>;
+  haalMeerdereOpIds?(
+    tabel: 'off_market_brieven' | 'off_market_brief_versies',
+    ids: readonly string[],
+  ): Promise<Record<string, unknown>[]>;
 }
 
 /**
  * Transitieve compatibiliteitsgrens voor de bestaande brieventabel.
- *
- * Historische CRM-brieven hebben geen selectie_id uit de formele productiekern
- * en kunnen de legacy status `verstuurd` dragen. Die records blijven via de
- * bestaande CRM-flow beschikbaar, maar worden bewust niet als productiekern-
- * readmodel geïnterpreteerd. Er vindt hier geen mapping of backfill plaats.
  */
-function isFormeleProductiekernBriefRij(rij: Record<string, unknown>): boolean {
+export function isFormeleProductiekernBriefRij(rij: Record<string, unknown>): boolean {
   if (rij.status === 'verstuurd') return false;
   return typeof rij.selectie_id === 'string' && rij.selectie_id.trim().length > 0;
 }
