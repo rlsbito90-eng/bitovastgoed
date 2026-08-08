@@ -1,19 +1,7 @@
 import type { ProductieActivatieBesluit } from '@/lib/offMarket/acquisitie/productieActivatiePoort';
-import type { BatchAdreslabelRij } from '@/lib/offMarket/acquisitie/batchAdreslabelRijen';
-import type { BatchControlelijst } from '@/lib/offMarket/acquisitie/batchControlelijst';
-import type { BatchProductiepakketManifest } from '@/lib/offMarket/acquisitie/batchProductiepakket';
-import type { BatchVoorbladModel } from '@/lib/offMarket/acquisitie/batchVoorblad';
-import type { BriefRenderInvoer } from '@/lib/offMarket/acquisitie/briefRenderInvoer';
+import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 
 import ProductiekernProductiepakketDownload from './ProductiekernProductiepakketDownload';
-
-export interface ProductiekernProductiepakketPayload {
-  manifest: BatchProductiepakketManifest;
-  voorblad: BatchVoorbladModel;
-  controlelijst: BatchControlelijst;
-  labels: readonly BatchAdreslabelRij[];
-  brieven: readonly BriefRenderInvoer[];
-}
 
 interface Props {
   activatie: ProductieActivatieBesluit;
