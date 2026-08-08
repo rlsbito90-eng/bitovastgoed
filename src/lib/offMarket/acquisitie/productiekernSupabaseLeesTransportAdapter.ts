@@ -108,22 +108,27 @@ export function maakProductiekernSupabaseLeesTransport(
       return resultaat;
     },
     async haalMeerdere(tabel, filters, volgorde) {
-      if (tabel !== 'off_market_brief_versies') {
+      const mapping: Record<string, ProductiekernLeesQueryNaam> = {
+        off_market_brief_versies: 'haal_briefversies',
+        off_market_printbatch_brieven: 'haal_printbatch_brieven',
+      };
+      const queryNaam = mapping[tabel];
+      if (!queryNaam) {
         throw new Error(`Niet-toegestane productiekernleestabel: ${tabel}.`);
       }
       const query = bouwProductiekernLeesQuery(
-        'haal_briefversies',
+        queryNaam,
         Object.values(filters)[0] ?? '',
       );
       if (Object.keys(filters).length !== 1 || !(query.filterKolom in filters)) {
-        throw new Error('Filtercontract voor haal_briefversies wijkt af.');
+        throw new Error(`Filtercontract voor ${queryNaam} wijkt af.`);
       }
       if (JSON.stringify(volgorde) !== JSON.stringify(query.volgorde)) {
-        throw new Error('Volgordecontract voor haal_briefversies wijkt af.');
+        throw new Error(`Volgordecontract voor ${queryNaam} wijkt af.`);
       }
-      const resultaat = await voerQueryUit('haal_briefversies', query.filterWaarde);
+      const resultaat = await voerQueryUit(queryNaam, query.filterWaarde);
       if (!Array.isArray(resultaat)) {
-        throw new Error('Cardinaliteitscontract voor haal_briefversies wijkt af.');
+        throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`);
       }
       return resultaat;
     },
