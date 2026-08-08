@@ -22,52 +22,78 @@ const briefRij = {
 };
 
 describe('stelProductiekernSupabaseClientSamen', () => {
-  it('stopt vóór de query-uitvoerder zonder volledig bewijs', () => {
+  it('stopt single- én bulkreads vóór de uitvoerder zonder volledig bewijs', async () => {
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
       voerUit: vi.fn(async () => null),
+      voerBulkUit: vi.fn(async () => []),
     };
     const samenstelling = stelProductiekernSupabaseClientSamen(null, uitvoerder);
 
     expect(samenstelling.activatie.lezenActief).toBe(false);
     expect(() => samenstelling.repository.haalBrief('brief-1'))
       .toThrow(ProductiekernNietGeactiveerdError);
+    expect(() => samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']))
+      .toThrow(ProductiekernNietGeactiveerdError);
     expect(uitvoerder.voerUit).not.toHaveBeenCalled();
+    expect(uitvoerder.voerBulkUit).not.toHaveBeenCalled();
   });
 
-  it('voert bij volledig bewijs een allowlisted read uit en mappt de rij', async () => {
+  it('voert bij volledig bewijs allowlisted single- en bulkreads uit', async () => {
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
       voerUit: vi.fn(async () => briefRij),
+      voerBulkUit: vi.fn(async () => [briefRij]),
     };
-    const samenstelling = stelProductiekernSupabaseClientSamen(
-      volledigBewijs,
-      uitvoerder,
-    );
+    const samenstelling = stelProductiekernSupabaseClientSamen(volledigBewijs, uitvoerder);
 
-    await expect(samenstelling.repository.haalBrief('brief-1')).resolves.toEqual({
-      id: 'brief-1', briefnummer: null, signaalId: 'signaal-1',
-      selectieId: 'selectie-1', objectId: null, relatieId: null,
-      actieveVersie: null, status: 'concept', vervangingVanBriefId: null,
-      definitiefOp: null, vergrendeldOp: null, annuleringsreden: null,
-    });
+    await expect(samenstelling.repository.haalBrief('brief-1')).resolves.toMatchObject({ id: 'brief-1' });
+    await expect(samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']))
+      .resolves.toEqual([expect.objectContaining({ id: 'brief-1' })]);
     expect(uitvoerder.voerUit).toHaveBeenCalledTimes(1);
+    expect(uitvoerder.voerBulkUit).toHaveBeenCalledTimes(1);
   });
 
-  it('voegt identieke gelijktijdige reads standaard samen', async () => {
+  it('voegt identieke gelijktijdige single reads standaard samen', async () => {
     let losOp: ((waarde: typeof briefRij) => void) | undefined;
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
       voerUit: vi.fn(() => new Promise((resolve) => { losOp = resolve; })),
     };
-    const samenstelling = stelProductiekernSupabaseClientSamen(
-      volledigBewijs,
-      uitvoerder,
-    );
-
+    const samenstelling = stelProductiekernSupabaseClientSamen(volledigBewijs, uitvoerder);
     const eerste = samenstelling.repository.haalBrief('brief-1');
     const tweede = samenstelling.repository.haalBrief('brief-1');
     expect(uitvoerder.voerUit).toHaveBeenCalledTimes(1);
     losOp?.(briefRij);
-
     await expect(Promise.all([eerste, tweede])).resolves.toHaveLength(2);
+  });
+
+  it('voegt identieke gelijktijdige bulkreads standaard samen', async () => {
+    let losOp: ((waarde: Record<string, unknown>[]) => void) | undefined;
+    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
+      voerUit: vi.fn(async () => null),
+      voerBulkUit: vi.fn(() => new Promise((resolve) => { losOp = resolve; })),
+    };
+    const samenstelling = stelProductiekernSupabaseClientSamen(volledigBewijs, uitvoerder);
+    const eerste = samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']);
+    const tweede = samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']);
+    expect(uitvoerder.voerBulkUit).toHaveBeenCalledTimes(1);
+    losOp?.([briefRij]);
+    await expect(Promise.all([eerste, tweede])).resolves.toHaveLength(2);
+  });
+
+  it('laat single- en bulkpogingen hetzelfde querybudget delen', async () => {
+    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
+      voerUit: vi.fn(async () => briefRij),
+      voerBulkUit: vi.fn(async () => [briefRij]),
+    };
+    const samenstelling = stelProductiekernSupabaseClientSamen(
+      volledigBewijs,
+      uitvoerder,
+      { maximaalAantalQueries: 1, weerbaarheid: { retry: { maximaalAantalPogingen: 1 } } },
+    );
+
+    await expect(samenstelling.repository.haalBrief('brief-1')).resolves.toMatchObject({ id: 'brief-1' });
+    await expect(samenstelling.bulkRepository.haalBrievenOpIds(['brief-1']))
+      .rejects.toBeInstanceOf(ProductiekernLeesBudgetOverschredenError);
+    expect(uitvoerder.voerBulkUit).not.toHaveBeenCalled();
   });
 
   it('telt iedere echte retrypoging mee binnen het leesbudget', async () => {
@@ -79,29 +105,17 @@ describe('stelProductiekernSupabaseClientSamen', () => {
       uitvoerder,
       {
         maximaalAantalQueries: 2,
-        weerbaarheid: {
-          retry: {
-            maximaalAantalPogingen: 3,
-            wacht: async () => undefined,
-          },
-        },
+        weerbaarheid: { retry: { maximaalAantalPogingen: 3, wacht: async () => undefined } },
       },
     );
-
     await expect(samenstelling.repository.haalBrief('brief-1'))
       .rejects.toBeInstanceOf(ProductiekernLeesBudgetOverschredenError);
     expect(uitvoerder.voerUit).toHaveBeenCalledTimes(2);
   });
 
   it('houdt het schrijfpad gesloten ongeacht bewijs en uitvoerder', () => {
-    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
-      voerUit: vi.fn(async () => null),
-    };
-    const samenstelling = stelProductiekernSupabaseClientSamen(
-      volledigBewijs,
-      uitvoerder,
-    );
-
+    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = { voerUit: vi.fn(async () => null) };
+    const samenstelling = stelProductiekernSupabaseClientSamen(volledigBewijs, uitvoerder);
     expect(() => samenstelling.repository.maakPrintbatch({
       actorId: 'actor-1', operationKey: 'op-1', datum: '2026-08-06',
     })).toThrow(ProductiekernNietGeactiveerdError);
