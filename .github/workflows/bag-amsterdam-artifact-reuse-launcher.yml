@@ -1,0 +1,145 @@
+name: BAG Amsterdam artifact-reuse launcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: VALIDATE_BAG_AMSTERDAM_ARTIFACT_REUSE'
+        required: true
+        type: string
+      source_run_id:
+        description: 'Workflow-run met acht metadata-v3 chunkartifacts'
+        required: true
+        default: '31250980600'
+        type: string
+      code_ref:
+        description: 'Ref met de gecorrigeerde BAG validator/selector'
+        required: true
+        default: 'fix/bag-amsterdam-metadata-v3'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bag-amsterdam-artifact-reuse-launcher-${{ github.event.inputs.source_run_id }}
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  valideer-bestaande-artifacts:
+    if: github.event.inputs.approval == 'VALIDATE_BAG_AMSTERDAM_ARTIFACT_REUSE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Valideer invoer
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ '${{ github.event.inputs.source_run_id }}' =~ ^[0-9]+$ ]] || {
+            echo 'source_run_id moet numeriek zijn' >&2
+            exit 1
+          }
+          test '${{ github.event.inputs.code_ref }}' = 'fix/bag-amsterdam-metadata-v3' || {
+            echo 'code_ref is fail-closed beperkt tot fix/bag-amsterdam-metadata-v3' >&2
+            exit 1
+          }
+
+      - name: Checkout uitsluitend BAG-validatiecode van goedgekeurde ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.code_ref }}
+          persist-credentials: false
+
+      - name: Draai lokale regressietests
+        run: |
+          python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
+          python3 scripts/bag/test-select-amsterdam-from-metadata-v3.py
+
+      - name: Download acht bestaande metadata-v3 chunkartifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.inputs.source_run_id }}
+          pattern: bag-amsterdam-evidence-chunk-*
+          path: bag-amsterdam-artifact-reuse
+          merge-multiple: true
+
+      - name: Controleer exact acht rapporten en acht metadatafiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          reports=$(find bag-amsterdam-artifact-reuse -maxdepth 1 -type f -name 'chunk-??-rapport.json' | wc -l)
+          metadata=$(find bag-amsterdam-artifact-reuse -maxdepth 1 -type f -name 'chunk-??-metadata.ndjson.gz' | wc -l)
+          test "$reports" -eq 8 || { echo "Verwacht 8 rapporten, gevonden: $reports" >&2; exit 1; }
+          test "$metadata" -eq 8 || { echo "Verwacht 8 metadatafiles, gevonden: $metadata" >&2; exit 1; }
+
+      - name: Valideer acht chunks gezamenlijk
+        run: |
+          python3 scripts/bag/validate-amsterdam-metadata-artifacts.py \
+            bag-amsterdam-artifact-reuse/chunk-01-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-02-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-03-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-04-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-05-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-06-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-07-rapport.json \
+            bag-amsterdam-artifact-reuse/chunk-08-rapport.json \
+            --output bag-amsterdam-artifact-reuse/gezamenlijk-stop-go-rapport.json
+
+      - name: Selecteer Amsterdam en Weesp directioneel
+        run: |
+          python3 scripts/bag/select-amsterdam-from-metadata-v3.py \
+            bag-amsterdam-artifact-reuse/chunk-01-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-02-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-03-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-04-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-05-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-06-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-07-metadata.ndjson.gz \
+            bag-amsterdam-artifact-reuse/chunk-08-metadata.ndjson.gz \
+            --selection-output bag-amsterdam-artifact-reuse/amsterdam-directionele-selectie.ndjson.gz \
+            --report bag-amsterdam-artifact-reuse/amsterdam-directionele-selectie-rapport.json
+
+      - name: Leg herkomstbewijs vast
+        if: always()
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
+          CODE_REF: ${{ github.event.inputs.code_ref }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path('bag-amsterdam-artifact-reuse')
+          root.mkdir(parents=True, exist_ok=True)
+          payload = {
+              'status': 'amsterdam_artifact_reuse_provenance',
+              'source_run_id': os.environ['SOURCE_RUN_ID'],
+              'code_ref': os.environ['CODE_REF'],
+              'checked_out_commit': os.environ['GITHUB_SHA'],
+              'database_write_uitgevoerd': False,
+              'supabase_benaderd': False,
+              'productie_benaderd': False,
+          }
+          (root / 'artifact-reuse-provenance.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Publiceer compact artifact-reuse bewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-artifact-reuse-validatie
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            bag-amsterdam-artifact-reuse/gezamenlijk-stop-go-rapport.json
+            bag-amsterdam-artifact-reuse/amsterdam-directionele-selectie-rapport.json
+            bag-amsterdam-artifact-reuse/amsterdam-directionele-selectie.ndjson.gz
+            bag-amsterdam-artifact-reuse/artifact-reuse-provenance.json
