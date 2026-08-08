@@ -26,10 +26,16 @@ if grep -Eqi '^\s*(grant select|grant execute).*authenticated' "$CANDIDATE"; the
   exit 1
 fi
 
-# Synthetisch bestaand CRM-contract voor uitsluitend tijdelijke CI-PostgreSQL.
-# Dit benadert geen Supabase-project en is geen vervanging voor de reeds uitgevoerde
-# read-only productie-DDL/RLS-verificatie.
+# Iedere proof start vanuit een schone tijdelijke schemasituatie. Eerdere stappen
+# in dezelfde GitHub Actions-job mogen deze kandidaatproof niet beïnvloeden.
 psql_safe <<'SQL'
+DROP SCHEMA IF EXISTS public CASCADE;
+DROP SCHEMA IF EXISTS auth CASCADE;
+CREATE SCHEMA public;
+CREATE SCHEMA auth;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
@@ -37,7 +43,6 @@ BEGIN
 END
 $$;
 
-CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
 LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
 
