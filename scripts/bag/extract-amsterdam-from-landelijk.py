@@ -2,22 +2,23 @@
 """Extraheer de actuele Amsterdamse BAG-adresketen uit het landelijke BAG Extract.
 
 De selectie is richtinggevoelig en voorkomt transitieve scope-uitwaaiing:
-1. indexeer Woonplaats/OpenbareRuimte/Nummeraanduiding/VBO/Pand-relaties;
+1. scan het landelijke Extract één keer naar een disk-backed SQLite-relatie-index;
 2. selecteer woonplaatsen Amsterdam en Weesp;
-3. volg uitsluitend de adresketen naar buiten: Woonplaats -> OpenbareRuimte ->
-   Nummeraanduiding -> Verblijfsobject -> Pand;
+3. volg via geïndexeerde joins uitsluitend de adresketen naar buiten:
+   Woonplaats -> OpenbareRuimte -> Nummeraanduiding -> adresseerbaar object -> Pand;
 4. voeg daarnaast Panden met huidige/legacy Amsterdamse bronprefix 0363/0457 toe,
    zodat ook Panden zonder adresseerbaar VBO niet stil verdwijnen;
-5. schrijf uitsluitend records waarvan de primaire identificatie expliciet is geselecteerd.
+5. scan de landelijke bron een tweede keer en schrijf uitsluitend expliciet geselecteerde records.
 
-Hierdoor kan een VBO dat meerdere Panden raakt niet langer een volledige aangrenzende
-municipale relatieclosure starten.
+De SQLite-index vervangt meerdere volledige rescans van een enorm metadata-NDJSON-bestand.
+Hierdoor blijft het geheugen begrensd, terwijl de relationele selectie via indexen verloopt.
 """
 
 from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 import sys
 import tempfile
 import time
@@ -31,6 +32,7 @@ SCOPE = "0363"
 TARGET_WOONPLAATSEN = {"amsterdam", "weesp"}
 PAND_SEED_PREFIXES = {"0363", "0457"}
 HEARTBEAT_INTERVAL = 50_000
+SQL_BATCH_SIZE = 20_000
 OBJECTTYPEN = {
     "Pand", "Verblijfsobject", "Nummeraanduiding", "OpenbareRuimte",
     "Woonplaats", "Standplaats", "Ligplaats",
@@ -101,7 +103,7 @@ def record_metadata(xml: str) -> dict[str, object]:
     root = ET.fromstring(xml)
     primaire_identificatie: str | None = None
     objecttype = "Onbekend"
-    refs: dict[str, set[str]] = defaultdict(set)
+    relaties: list[tuple[str, str]] = []
     woonplaats_naam: str | None = None
 
     for element in root.iter():
@@ -113,16 +115,34 @@ def record_metadata(xml: str) -> dict[str, object]:
             primaire_identificatie = tekst
         relatie = RELATIE_TAGS.get(naam)
         if relatie and tekst:
-            refs[relatie].add(tekst)
+            relaties.append((relatie, tekst))
         if objecttype == "Woonplaats" and naam.lower() == "naam" and tekst:
             woonplaats_naam = tekst
 
     return {
         "identificatie": primaire_identificatie,
         "objecttype": objecttype,
-        "refs": {key: sorted(values) for key, values in refs.items()},
+        "relaties": relaties,
         "woonplaats_naam": woonplaats_naam,
     }
+
+
+def record_identity(xml: str) -> tuple[str, str | None]:
+    """Lees voor bronscan 2 alleen objecttype en primaire identificatie."""
+    root = ET.fromstring(xml)
+    objecttype = "Onbekend"
+    identificatie: str | None = None
+    for element in root.iter():
+        naam = local_name(element.tag)
+        if objecttype == "Onbekend" and naam in OBJECTTYPEN:
+            objecttype = naam
+        if identificatie is None and naam.lower() == "identificatie":
+            tekst = (element.text or "").strip()
+            if tekst:
+                identificatie = tekst
+        if objecttype != "Onbekend" and identificatie is not None:
+            break
+    return objecttype, identificatie
 
 
 def scan_records(source: Path) -> Iterator[tuple[str, str, dict[str, object]]]:
@@ -133,96 +153,211 @@ def scan_records(source: Path) -> Iterator[tuple[str, str, dict[str, object]]]:
                 yield bronpad, xml, record_metadata(xml)
 
 
-def schrijf_metadata_index(source: Path, metadata_path: Path) -> int:
+def scan_raw_records(source: Path) -> Iterator[tuple[str, str]]:
+    with zipfile.ZipFile(source) as archive:
+        for bronpad, stream in iter_zip_xml(archive):
+            log(f"Subsetscan leest {bronpad}")
+            for xml in iter_stand_xml(stream):
+                yield bronpad, xml
+
+
+def open_index(path: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA journal_mode=OFF")
+    conn.execute("PRAGMA synchronous=OFF")
+    conn.execute("PRAGMA temp_store=FILE")
+    conn.execute("PRAGMA cache_size=-131072")  # circa 128 MiB cache
+    conn.execute("PRAGMA locking_mode=EXCLUSIVE")
+    conn.executescript(
+        """
+        CREATE TABLE objecten (
+          objecttype TEXT NOT NULL,
+          identificatie TEXT NOT NULL,
+          woonplaats_naam TEXT,
+          PRIMARY KEY (objecttype, identificatie)
+        ) WITHOUT ROWID;
+
+        CREATE TABLE relaties (
+          bron_objecttype TEXT NOT NULL,
+          bron_identificatie TEXT NOT NULL,
+          relatietype TEXT NOT NULL,
+          doel_identificatie TEXT NOT NULL
+        );
+        """
+    )
+    return conn
+
+
+def flush_index_batches(
+    conn: sqlite3.Connection,
+    object_batch: list[tuple[str, str, str | None]],
+    relatie_batch: list[tuple[str, str, str, str]],
+) -> None:
+    if object_batch:
+        conn.executemany(
+            "INSERT OR IGNORE INTO objecten(objecttype, identificatie, woonplaats_naam) VALUES (?, ?, ?)",
+            object_batch,
+        )
+        object_batch.clear()
+    if relatie_batch:
+        conn.executemany(
+            "INSERT INTO relaties(bron_objecttype, bron_identificatie, relatietype, doel_identificatie) VALUES (?, ?, ?, ?)",
+            relatie_batch,
+        )
+        relatie_batch.clear()
+    conn.commit()
+
+
+def bouw_relationele_index(source: Path, index_path: Path) -> int:
     bekeken = 0
-    with metadata_path.open("w", encoding="utf-8") as handle:
+    conn = open_index(index_path)
+    object_batch: list[tuple[str, str, str | None]] = []
+    relatie_batch: list[tuple[str, str, str, str]] = []
+    try:
         for _, _, metadata in scan_records(source):
             bekeken += 1
-            handle.write(json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + "\n")
+            objecttype = str(metadata.get("objecttype") or "Onbekend")
+            identificatie_raw = metadata.get("identificatie")
+            identificatie = identificatie_raw if isinstance(identificatie_raw, str) and identificatie_raw.strip() else None
+            if identificatie and objecttype in OBJECTTYPEN:
+                woonplaats_naam_raw = metadata.get("woonplaats_naam")
+                woonplaats_naam = norm(woonplaats_naam_raw if isinstance(woonplaats_naam_raw, str) else None) or None
+                object_batch.append((objecttype, identificatie, woonplaats_naam))
+                raw_relaties = metadata.get("relaties")
+                if isinstance(raw_relaties, list):
+                    for item in raw_relaties:
+                        if not isinstance(item, (list, tuple)) or len(item) != 2:
+                            continue
+                        relatietype, doel = str(item[0]).strip(), str(item[1]).strip()
+                        if relatietype and doel:
+                            relatie_batch.append((objecttype, identificatie, relatietype, doel))
+
+            if len(object_batch) >= SQL_BATCH_SIZE or len(relatie_batch) >= SQL_BATCH_SIZE * 3:
+                flush_index_batches(conn, object_batch, relatie_batch)
             if bekeken % HEARTBEAT_INTERVAL == 0:
                 log(f"Index: {bekeken:,} records")
-    log(f"Metadata-index gereed: {bekeken:,} records")
+
+        flush_index_batches(conn, object_batch, relatie_batch)
+        log("Maak relationele SQLite-indexen")
+        conn.executescript(
+            """
+            CREATE INDEX relaties_doel_idx
+              ON relaties(relatietype, doel_identificatie, bron_objecttype, bron_identificatie);
+            CREATE INDEX relaties_bron_idx
+              ON relaties(bron_objecttype, bron_identificatie, relatietype, doel_identificatie);
+            ANALYZE;
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    log(f"Relationele index gereed: {bekeken:,} records")
     return bekeken
 
 
-def iter_metadata(metadata_path: Path) -> Iterator[dict[str, object]]:
-    with metadata_path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            yield json.loads(line)
+def count_table(conn: sqlite3.Connection, table: str) -> int:
+    return int(conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0])
 
 
-def refs(metadata: dict[str, object], sleutel: str) -> set[str]:
-    raw = metadata.get("refs")
-    if not isinstance(raw, dict):
-        return set()
-    values = raw.get(sleutel, [])
-    return {str(value) for value in values if str(value).strip()}
-
-
-def primaire_id(metadata: dict[str, object]) -> str | None:
-    value = metadata.get("identificatie")
-    return str(value) if isinstance(value, str) and value.strip() else None
-
-
-def bereken_directionele_selectie(metadata_path: Path) -> tuple[dict[str, set[str]], list[dict[str, int]]]:
-    geselecteerd: dict[str, set[str]] = defaultdict(set)
+def bereken_directionele_selectie(index_path: Path) -> tuple[dict[str, set[str]], list[dict[str, int]]]:
     stappen: list[dict[str, int]] = []
+    conn = sqlite3.connect(index_path)
+    conn.execute("PRAGMA temp_store=FILE")
+    conn.execute("PRAGMA cache_size=-131072")
+    try:
+        conn.executescript(
+            """
+            CREATE TEMP TABLE sel_woonplaats(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_openbare(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_nummer(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_vbo(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_standplaats(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_ligplaats(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            CREATE TEMP TABLE sel_pand(identificatie TEXT PRIMARY KEY) WITHOUT ROWID;
+            """
+        )
 
-    for metadata in iter_metadata(metadata_path):
-        if metadata.get("objecttype") != "Woonplaats":
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie and norm(metadata.get("woonplaats_naam") if isinstance(metadata.get("woonplaats_naam"), str) else None) in TARGET_WOONPLAATSEN:
-            geselecteerd["Woonplaats"].add(identificatie)
-    stappen.append({"stap": 1, "woonplaatsen": len(geselecteerd["Woonplaats"])})
+        placeholders = ",".join("?" for _ in TARGET_WOONPLAATSEN)
+        conn.execute(
+            f"INSERT OR IGNORE INTO sel_woonplaats SELECT identificatie FROM objecten WHERE objecttype='Woonplaats' AND woonplaats_naam IN ({placeholders})",
+            tuple(sorted(TARGET_WOONPLAATSEN)),
+        )
+        stappen.append({"stap": 1, "woonplaatsen": count_table(conn, "sel_woonplaats")})
 
-    for metadata in iter_metadata(metadata_path):
-        if metadata.get("objecttype") != "OpenbareRuimte":
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie and refs(metadata, "woonplaats") & geselecteerd["Woonplaats"]:
-            geselecteerd["OpenbareRuimte"].add(identificatie)
-    stappen.append({"stap": 2, "openbare_ruimten": len(geselecteerd["OpenbareRuimte"])})
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO sel_openbare
+            SELECT DISTINCT r.bron_identificatie
+            FROM relaties r
+            JOIN sel_woonplaats s ON s.identificatie = r.doel_identificatie
+            WHERE r.bron_objecttype='OpenbareRuimte' AND r.relatietype='woonplaats'
+            """
+        )
+        stappen.append({"stap": 2, "openbare_ruimten": count_table(conn, "sel_openbare")})
 
-    for metadata in iter_metadata(metadata_path):
-        if metadata.get("objecttype") != "Nummeraanduiding":
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie and refs(metadata, "openbare_ruimte") & geselecteerd["OpenbareRuimte"]:
-            geselecteerd["Nummeraanduiding"].add(identificatie)
-    stappen.append({"stap": 3, "nummeraanduidingen": len(geselecteerd["Nummeraanduiding"])})
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO sel_nummer
+            SELECT DISTINCT r.bron_identificatie
+            FROM relaties r
+            JOIN sel_openbare s ON s.identificatie = r.doel_identificatie
+            WHERE r.bron_objecttype='Nummeraanduiding' AND r.relatietype='openbare_ruimte'
+            """
+        )
+        stappen.append({"stap": 3, "nummeraanduidingen": count_table(conn, "sel_nummer")})
 
-    for metadata in iter_metadata(metadata_path):
-        objecttype = metadata.get("objecttype")
-        if objecttype not in {"Verblijfsobject", "Standplaats", "Ligplaats"}:
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie and refs(metadata, "nummeraanduiding") & geselecteerd["Nummeraanduiding"]:
-            geselecteerd[str(objecttype)].add(identificatie)
-    stappen.append({
-        "stap": 4,
-        "verblijfsobjecten": len(geselecteerd["Verblijfsobject"]),
-        "standplaatsen": len(geselecteerd["Standplaats"]),
-        "ligplaatsen": len(geselecteerd["Ligplaats"]),
-    })
+        for objecttype, table in (
+            ("Verblijfsobject", "sel_vbo"),
+            ("Standplaats", "sel_standplaats"),
+            ("Ligplaats", "sel_ligplaats"),
+        ):
+            conn.execute(
+                f"""
+                INSERT OR IGNORE INTO {table}
+                SELECT DISTINCT r.bron_identificatie
+                FROM relaties r
+                JOIN sel_nummer s ON s.identificatie = r.doel_identificatie
+                WHERE r.bron_objecttype=? AND r.relatietype='nummeraanduiding'
+                """,
+                (objecttype,),
+            )
+        stappen.append({
+            "stap": 4,
+            "verblijfsobjecten": count_table(conn, "sel_vbo"),
+            "standplaatsen": count_table(conn, "sel_standplaats"),
+            "ligplaatsen": count_table(conn, "sel_ligplaats"),
+        })
 
-    for metadata in iter_metadata(metadata_path):
-        if metadata.get("objecttype") != "Verblijfsobject":
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie not in geselecteerd["Verblijfsobject"]:
-            continue
-        geselecteerd["Pand"].update(refs(metadata, "pand"))
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO sel_pand
+            SELECT DISTINCT r.doel_identificatie
+            FROM relaties r
+            JOIN sel_vbo v ON v.identificatie = r.bron_identificatie
+            WHERE r.bron_objecttype='Verblijfsobject' AND r.relatietype='pand'
+            """
+        )
+        prefix_clause = " OR ".join("identificatie LIKE ?" for _ in PAND_SEED_PREFIXES)
+        conn.execute(
+            f"INSERT OR IGNORE INTO sel_pand SELECT identificatie FROM objecten WHERE objecttype='Pand' AND ({prefix_clause})",
+            tuple(f"{prefix}%" for prefix in sorted(PAND_SEED_PREFIXES)),
+        )
+        stappen.append({"stap": 5, "panden": count_table(conn, "sel_pand")})
 
-    for metadata in iter_metadata(metadata_path):
-        if metadata.get("objecttype") != "Pand":
-            continue
-        identificatie = primaire_id(metadata)
-        if identificatie and any(identificatie.startswith(prefix) for prefix in PAND_SEED_PREFIXES):
-            geselecteerd["Pand"].add(identificatie)
-    stappen.append({"stap": 5, "panden": len(geselecteerd["Pand"])})
-
-    return geselecteerd, stappen
+        geselecteerd: dict[str, set[str]] = defaultdict(set)
+        for objecttype, table in (
+            ("Woonplaats", "sel_woonplaats"),
+            ("OpenbareRuimte", "sel_openbare"),
+            ("Nummeraanduiding", "sel_nummer"),
+            ("Verblijfsobject", "sel_vbo"),
+            ("Standplaats", "sel_standplaats"),
+            ("Ligplaats", "sel_ligplaats"),
+            ("Pand", "sel_pand"),
+        ):
+            geselecteerd[objecttype].update(row[0] for row in conn.execute(f"SELECT identificatie FROM {table}"))
+        return geselecteerd, stappen
+    finally:
+        conn.close()
 
 
 def schrijf_subset(
@@ -238,10 +373,9 @@ def schrijf_subset(
     zonder_identificatie = 0
 
     with output.open("w", encoding="utf-8") as handle:
-        for bronpad, xml, metadata in scan_records(source):
+        for bronpad, xml in scan_raw_records(source):
             bekeken += 1
-            objecttype = str(metadata.get("objecttype") or "Onbekend")
-            identificatie = primaire_id(metadata)
+            objecttype, identificatie = record_identity(xml)
             if not identificatie or identificatie not in geselecteerd.get(objecttype, set()):
                 if identificatie is None:
                     zonder_identificatie += 1
@@ -300,12 +434,12 @@ def main() -> int:
 
     try:
         with tempfile.TemporaryDirectory(prefix="bag-amsterdam-index-") as tmp:
-            metadata_path = Path(tmp) / "metadata.ndjson"
-            log("Start bronscan 1/2: relationele metadata-index")
-            bekeken_records = schrijf_metadata_index(source, metadata_path)
+            index_path = Path(tmp) / "relaties.sqlite3"
+            log("Start bronscan 1/2: bouw disk-backed relationele SQLite-index")
+            bekeken_records = bouw_relationele_index(source, index_path)
 
-            log("Bereken richtinggevoelige Amsterdam/Weesp-adresketen")
-            geselecteerd, stappen = bereken_directionele_selectie(metadata_path)
+            log("Bereken richtinggevoelige Amsterdam/Weesp-adresketen via geïndexeerde joins")
+            geselecteerd, stappen = bereken_directionele_selectie(index_path)
             if not geselecteerd["Woonplaats"]:
                 raise RuntimeError("Geen woonplaats Amsterdam of Weesp gevonden")
             if not geselecteerd["Pand"]:
@@ -315,7 +449,7 @@ def main() -> int:
             geschreven, zonder_identificatie, objecttypen, prefix_tellingen, pand_prefix_tellingen = schrijf_subset(
                 source, output, geselecteerd
             )
-    except (ET.ParseError, zipfile.BadZipFile, OSError, RuntimeError, json.JSONDecodeError) as exc:
+    except (ET.ParseError, zipfile.BadZipFile, OSError, RuntimeError, sqlite3.Error) as exc:
         parse_fouten.append(str(exc))
 
     afwijkende_pand_prefixen = {
@@ -325,7 +459,7 @@ def main() -> int:
     }
     rapport = {
         "scope_code": SCOPE,
-        "strategie": "directionele_adresketen_woonplaats_scope_twee_bronpasses",
+        "strategie": "directionele_adresketen_sqlite_index_twee_bronpasses",
         "bron_scans": 2,
         "target_woonplaatsen": sorted(TARGET_WOONPLAATSEN),
         "pand_seed_prefixes": sorted(PAND_SEED_PREFIXES),
