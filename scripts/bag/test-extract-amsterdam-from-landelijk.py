@@ -21,8 +21,6 @@ def main() -> int:
         tmp_path = Path(tmp)
         nested = tmp_path / 'nested.zip'
         with zipfile.ZipFile(nested, 'w') as archive:
-            # De records staan bewust niet in relationele volgorde. De lokale metadata-index
-            # moet de richtinggevoelige selectie onafhankelijk van archive-volgorde berekenen.
             archive.writestr(
                 '01-amsterdam-woonplaats.xml',
                 stand('Woonplaats', '1000', '<naam>Amsterdam</naam>'),
@@ -46,11 +44,6 @@ def main() -> int:
                 ),
             )
             archive.writestr('05-amsterdam-pand.xml', stand('Pand', '0363100000000001'))
-
-            # Deze Amstelveense PandRef hangt aan hetzelfde Amsterdamse VBO. De oude generieke
-            # closure trok daardoor vervolgens de hele Amstelveense relatiecluster binnen.
-            # De nieuwe richtinggevoelige selectie mag alleen deze direct gerefereerde Pand zien;
-            # een tweede Amstelveens VBO/nummer/straat mag niet door transitieve uitbreiding volgen.
             archive.writestr('06-grens-pand.xml', stand('Pand', '0362100000009999'))
             archive.writestr(
                 '07-amstelveen-woonplaats.xml',
@@ -96,9 +89,6 @@ def main() -> int:
         assert '0363200000000001' in payload
         assert '0363010000000001' in payload
         assert '0363100000000001' in payload
-
-        # Het direct aan een Amsterdam-VBO gekoppelde grenspand wordt expliciet gerapporteerd,
-        # maar de rest van het Amstelveense cluster mag niet meekomen.
         assert '0362100000009999' in payload
         assert '0362010000000002' not in payload
         assert '0362200000000002' not in payload
@@ -107,7 +97,7 @@ def main() -> int:
         assert '0106100000000001' not in payload
 
         result = json.loads(report.read_text(encoding='utf-8'))
-        assert result['strategie'] == 'directionele_adresketen_woonplaats_scope_twee_bronpasses'
+        assert result['strategie'] == 'directionele_adresketen_sqlite_index_twee_bronpasses'
         assert result['bron_scans'] == 2
         assert result['geindexeerde_records'] == 11
         assert result['target_woonplaatsen'] == ['amsterdam', 'weesp']
@@ -121,8 +111,6 @@ def main() -> int:
         assert 'Start bronscan 1/2' in completed.stdout
         assert 'Start bronscan 2/2' in completed.stdout
 
-        # Fail-closed keten: de extractor mag een direct grensgeval rapporteren, maar de
-        # validator moet zo'n subset weigeren voordat die als Amsterdam-bron kan worden gebruikt.
         vervuild_validatierapport = tmp_path / 'vervuild-validatie.json'
         vervuild = subprocess.run(
             ['python3', str(VALIDATOR), str(output), str(vervuild_validatierapport)],
@@ -136,12 +124,8 @@ def main() -> int:
         assert vervuild_resultaat['onverwachte_pand_prefixes'] == {'0362': 1}
         assert vervuild_resultaat['onverwachte_woonplaatsen'] == {}
 
-        # Zonder het expliciet gemarkeerde grenspand moet dezelfde Amsterdamketen wél groen zijn.
         schoon_output = tmp_path / 'amsterdam-schoon.ndjson'
-        schone_records = [
-            record for record in records
-            if '0362100000009999' not in record['xml']
-        ]
+        schone_records = [record for record in records if '0362100000009999' not in record['xml']]
         schoon_output.write_text(
             ''.join(json.dumps(record, ensure_ascii=False) + '\n' for record in schone_records),
             encoding='utf-8',
