@@ -9,12 +9,15 @@ on:
       - 'scripts/acquisitie/run-productiekern-e2e-acceptatie.sh'
       - 'scripts/acquisitie/run-productiekern-security-proof.sh'
       - 'scripts/acquisitie/run-productiekern-activation-security-proof.sh'
+      - 'scripts/acquisitie/run-productiekern-release-candidate-proof.sh'
+      - 'scripts/acquisitie/genereer-productiekern-release-candidate.mjs'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_build_a.sql'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_dossier_briefkern.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_vroege_transactionele_functies.sql'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_transactionele_functies.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_security_wrappers.sql'
       - 'supabase/migration-drafts/20260808_acquisitie_productiekern_activatie_security.sql'
+      - 'supabase/migration-drafts/20260808_acquisitie_productiekern_release_manifest.md'
       - '.github/workflows/acquisitie-productiekern-db-proof.yml'
   workflow_dispatch:
 
@@ -68,3 +71,14 @@ jobs:
 
       - name: Geïsoleerd least-privilege activatiebewijs
         run: bash scripts/acquisitie/run-productiekern-activation-security-proof.sh
+
+      - name: Gegenereerde releasekandidaat zonder activatie bewijzen
+        run: bash scripts/acquisitie/run-productiekern-release-candidate-proof.sh
+
+      - name: Archiveer review-only releasekandidaat
+        uses: actions/upload-artifact@v4
+        with:
+          name: acquisitie-productiekern-release-candidate
+          path: dist/acquisitie-productiekern/20260808_acquisitie_productiekern_release_candidate.sql
+          if-no-files-found: error
+          retention-days: 14
