@@ -13,14 +13,17 @@ begin;
 revoke all on table public.off_market_acquisitie_dossiers from anon, authenticated;
 revoke all on table public.off_market_brief_versies from anon, authenticated;
 revoke all on table public.off_market_printbatches from anon, authenticated;
+revoke all on table public.off_market_printbatch_brieven from anon, authenticated;
 
 grant select on table public.off_market_acquisitie_dossiers to authenticated;
 grant select on table public.off_market_brief_versies to authenticated;
 grant select on table public.off_market_printbatches to authenticated;
+grant select on table public.off_market_printbatch_brieven to authenticated;
 
 alter table public.off_market_acquisitie_dossiers enable row level security;
 alter table public.off_market_brief_versies enable row level security;
 alter table public.off_market_printbatches enable row level security;
+alter table public.off_market_printbatch_brieven enable row level security;
 
 drop policy if exists acquisitie_productiekern_dossiers_intern_lezen
   on public.off_market_acquisitie_dossiers;
@@ -46,6 +49,14 @@ create policy acquisitie_productiekern_printbatches_intern_lezen
   to authenticated
   using (public.is_intern_gebruiker(auth.uid()));
 
+drop policy if exists acquisitie_productiekern_printbatch_brieven_intern_lezen
+  on public.off_market_printbatch_brieven;
+create policy acquisitie_productiekern_printbatch_brieven_intern_lezen
+  on public.off_market_printbatch_brieven
+  for select
+  to authenticated
+  using (public.is_intern_gebruiker(auth.uid()));
+
 -- Directe writes blijven verboden. Alle mutaties lopen uitsluitend via de
 -- security-wrappers, die auth.uid(), interne rol en p_actor_id controleren.
 revoke insert, update, delete, truncate, references, trigger
@@ -54,6 +65,8 @@ revoke insert, update, delete, truncate, references, trigger
   on table public.off_market_brief_versies from authenticated;
 revoke insert, update, delete, truncate, references, trigger
   on table public.off_market_printbatches from authenticated;
+revoke insert, update, delete, truncate, references, trigger
+  on table public.off_market_printbatch_brieven from authenticated;
 
 -- Alleen de negen publieke wrappers worden toekomstig callable.
 grant execute on function public.off_market_verwerking_starten(uuid,uuid,text,timestamptz) to authenticated;
@@ -80,7 +93,7 @@ revoke all on function public.off_market_brief_gepost_markeren_intern(uuid,uuid,
 
 -- Bestaande off_market_brieven-policies/grants worden bewust niet gewijzigd;
 -- die zijn live read-only geverifieerd en blijven legacy + productiekern delen.
--- Tabellen zonder huidig direct readcontract (nummerreeksen, batchkoppelingen,
--- batchdocumenten, productie_events) krijgen in deze activatie geen clientgrant.
+-- Tabellen zonder huidig direct readcontract (nummerreeksen, batchdocumenten,
+-- productie_events) krijgen in deze activatie geen clientgrant.
 
 rollback;
