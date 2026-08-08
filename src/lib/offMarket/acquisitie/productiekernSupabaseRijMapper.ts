@@ -4,6 +4,7 @@ import type {
   BriefversieContract,
   GeadresseerdeSnapshot,
   InhoudSnapshot,
+  PrintbatchBriefContract,
   PrintbatchContract,
 } from './productiekernContract';
 import type { OperationeleWerkbak } from './operationeleWerkbak';
@@ -132,5 +133,17 @@ export function mapPrintbatchRij(rij: Rij): PrintbatchContract {
     verzenddatum: nullableTekst(rij, 'verzenddatum', 'Printbatch'),
     geannuleerdOp: nullableTekst(rij, 'geannuleerd_op', 'Printbatch'),
     annuleringsreden: nullableTekst(rij, 'annuleringsreden', 'Printbatch'),
+  };
+}
+
+export function mapPrintbatchBriefRij(rij: Rij): PrintbatchBriefContract {
+  return {
+    id: tekst(rij, 'id', 'Printbatchbrief'),
+    batchId: tekst(rij, 'batch_id', 'Printbatchbrief'),
+    briefId: tekst(rij, 'brief_id', 'Printbatchbrief'),
+    briefVersieId: tekst(rij, 'brief_versie_id', 'Printbatchbrief'),
+    verwijderdOp: nullableTekst(rij, 'verwijderd_op', 'Printbatchbrief'),
+    afwijkingsstatus: nullableTekst(rij, 'afwijkingsstatus', 'Printbatchbrief'),
+    afwijkingsreden: nullableTekst(rij, 'afwijkingsreden', 'Printbatchbrief'),
   };
 }
