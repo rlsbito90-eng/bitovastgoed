@@ -39,13 +39,13 @@ function maakBuilder(resultaat: { data: unknown; error: unknown }) {
 }
 
 describe('stelProductiekernBrowserLezenSamen', () => {
-  it('raakt de geïnjecteerde Supabase-client niet zolang leesbewijs ontbreekt', async () => {
+  it('raakt de geïnjecteerde Supabase-client niet zolang leesbewijs ontbreekt', () => {
     const client: ProductiekernSupabaseClientLike = { from: vi.fn() as never };
     const samenstelling = stelProductiekernBrowserLezenSamen(client, undefined);
 
     expect(samenstelling.activatie.lezenActief).toBe(false);
-    await expect(samenstelling.repository.haalDossier('selectie-1'))
-      .rejects.toBeInstanceOf(ProductiekernNietGeactiveerdError);
+    expect(() => samenstelling.repository.haalDossier('selectie-1'))
+      .toThrow(ProductiekernNietGeactiveerdError);
     expect(client.from).not.toHaveBeenCalled();
   });
 
