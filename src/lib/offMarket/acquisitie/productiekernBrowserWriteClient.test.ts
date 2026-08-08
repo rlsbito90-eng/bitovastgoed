@@ -17,13 +17,15 @@ function groeneOmgeving() {
 }
 
 describe('productiekernBrowserWriteClient', () => {
-  it('blokkeert vroege en late writes bij ontbrekend werk-CRM-bewijs vóór een RPC', async () => {
+  it('blokkeert alle write-adapters bij ontbrekend werk-CRM-bewijs vóór een RPC', async () => {
     const vroegeRpc = vi.fn();
+    const bridgeRpc = vi.fn();
     const lateRpc = vi.fn();
     const samenstelling = stelProductiekernBrowserWritesSamen(
       { ...groeneOmgeving(), VITE_ACQUISITIE_PRODUCTIEKERN_DUURZAME_DATA: 'false' },
       {
         vroege: { rpc: vroegeRpc },
+        bestaandConceptBridge: { rpc: bridgeRpc },
         transacties: { voerRpcUit: lateRpc },
       },
     );
@@ -32,6 +34,15 @@ describe('productiekernBrowserWriteClient', () => {
     await expect(samenstelling.vroegeRepository.startVerwerking({
       selectieId: 'selectie-1', actorId: 'actor-1', operationKey: 'op-1',
     })).rejects.toThrow(/niet geactiveerd/i);
+    await expect(samenstelling.bestaandConceptBridgeRepository.koppelBestaandConcept({
+      selectieId: 'selectie-1',
+      signaalId: 'signaal-1',
+      briefId: 'brief-1',
+      actorId: 'actor-1',
+      operationKey: 'op-bridge',
+      inhoudSnapshot: { brieftekst: 'Tekst' },
+      geadresseerdeSnapshot: { naam: 'Eigenaar' },
+    })).rejects.toThrow(/niet geactiveerd/i);
     expect(() => samenstelling.transactieRepository.markeerBatchGeprint({
       soort: 'batch_geprint_markeren',
       batchId: 'batch-1', actorId: 'actor-1', operationKey: 'op-2',
@@ -39,12 +50,14 @@ describe('productiekernBrowserWriteClient', () => {
     })).toThrow(/niet geactiveerd/i);
 
     expect(vroegeRpc).not.toHaveBeenCalled();
+    expect(bridgeRpc).not.toHaveBeenCalled();
     expect(lateRpc).not.toHaveBeenCalled();
   });
 
-  it('gebruikt exact hetzelfde groene werk-CRM-besluit voor beide write-adapters', () => {
+  it('gebruikt exact hetzelfde groene werk-CRM-besluit voor alle write-adapters', () => {
     const samenstelling = stelProductiekernBrowserWritesSamen(groeneOmgeving(), {
       vroege: { rpc: vi.fn() },
+      bestaandConceptBridge: { rpc: vi.fn() },
       transacties: { voerRpcUit: vi.fn() },
     });
 
@@ -53,11 +66,12 @@ describe('productiekernBrowserWriteClient', () => {
     expect(samenstelling.activatie.ontbrekendBewijs).toEqual([]);
   });
 
-  it('blijft dicht wanneer de actuele Supabase-projectref niet overeenkomt', () => {
+  it('blijft volledig dicht wanneer de actuele Supabase-projectref niet overeenkomt', () => {
     const samenstelling = stelProductiekernBrowserWritesSamen(
       { ...groeneOmgeving(), VITE_SUPABASE_URL: 'https://anderproject.supabase.co' },
       {
         vroege: { rpc: vi.fn() },
+        bestaandConceptBridge: { rpc: vi.fn() },
         transacties: { voerRpcUit: vi.fn() },
       },
     );
