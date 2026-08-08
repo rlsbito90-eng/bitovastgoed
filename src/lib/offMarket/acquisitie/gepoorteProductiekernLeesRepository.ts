@@ -7,7 +7,7 @@ import {
 /**
  * Repositorydecorator voor de toekomstige read-only overgangsfase.
  *
- * Alleen de vier leeshandelingen kunnen worden gedelegeerd en uitsluitend
+ * Alleen de expliciete leeshandelingen kunnen worden gedelegeerd en uitsluitend
  * wanneer de afzonderlijke leespoort expliciet actief is. Alle schrijfacties
  * blijven hard geblokkeerd, ook wanneer lezen is toegestaan.
  */
@@ -46,6 +46,11 @@ implements AcquisitieProductiekernRepository {
   haalPrintbatch(batchId: string) {
     this.eisLeestoegang('haalPrintbatch');
     return this.achterliggend.haalPrintbatch(batchId);
+  }
+
+  haalPrintbatchBrieven(batchId: string) {
+    this.eisLeestoegang('haalPrintbatchBrieven');
+    return this.achterliggend.haalPrintbatchBrieven(batchId);
   }
 
   startVerwerking(): never {
