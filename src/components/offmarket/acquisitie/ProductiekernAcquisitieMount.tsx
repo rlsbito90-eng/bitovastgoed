@@ -75,12 +75,14 @@ function ActieveProductiekernDossierProjectie({
 
   const dossiers = dossierQuery.data ?? [];
   const pariteit = useMemo(
-    () => meetProductiekernWorkflowPariteit({
-      selectieIds,
-      productiekernDossiers: dossiers,
-      legacyContextPerSelectieId,
-    }),
-    [selectieIds, dossiers, legacyContextPerSelectieId],
+    () => dossierQuery.isError
+      ? null
+      : meetProductiekernWorkflowPariteit({
+        selectieIds,
+        productiekernDossiers: dossiers,
+        legacyContextPerSelectieId,
+      }),
+    [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
   return (
@@ -89,6 +91,7 @@ function ActieveProductiekernDossierProjectie({
       totaalSelecties={selectieIds.length}
       pariteit={pariteit}
       laden={selectieLaden || brievenLaden || dossierQuery.isLoading}
+      fout={dossierQuery.isError}
     />
   );
 }
@@ -103,9 +106,10 @@ function ActieveProductiekernDossierProjectie({
  *
  * Wanneer later uitsluitend lezen expliciet wordt vrijgegeven, verschijnt een
  * observerende dossierstatusprojectie die één productiekern-bulkread gebruikt.
- * De bestaande legacy-readmodellen worden alleen gebruikt voor workflowpariteit;
- * zij blijven operationeel leidend. De productie-/writepoort blijft zelfstandig
- * dicht.
+ * Een fout in die bulkread wordt expliciet als niet-beschikbaar weergegeven en
+ * nooit als een leeg/paritair readmodel geïnterpreteerd. De bestaande
+ * legacy-readmodellen worden alleen gebruikt voor workflowpariteit; zij blijven
+ * operationeel leidend. De productie-/writepoort blijft zelfstandig dicht.
  */
 export default function ProductiekernAcquisitieMount() {
   const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
