@@ -36,7 +36,7 @@ describe('bouwBatchProductiepakketManifest', () => {
       .toMatchObject({ gereedVoorRender: true, blokkades: [], briefVersieIds: ['v1', 'v2'] });
   });
 
-  it('blokkeert afwijkende batch-, versie- en aantalkoppelingen', () => {
+  it('blokkeert afwijkende batch-, versie- en aantalkoppelingen volledig', () => {
     const resultaat = bouwBatchProductiepakketManifest({
       plan,
       controlelijst: { ...controlelijst, batchId: 'anders', documentversie: 2, totaal: 1 },
@@ -44,7 +44,15 @@ describe('bouwBatchProductiepakketManifest', () => {
       labels: labels.slice(0, 1),
     });
     expect(resultaat.gereedVoorRender).toBe(false);
-    expect(resultaat.blokkades).toHaveLength(5);
+    expect(resultaat.blokkades).toEqual(expect.arrayContaining([
+      'Controlelijst hoort bij een andere batch.',
+      'Controlelijst heeft een afwijkende documentversie.',
+      'Briefaantal van controlelijst wijkt af van het documentplan.',
+      'Aantal adreslabels wijkt af van het documentplan.',
+      'Voorblad markeert de batch niet als printgereed.',
+      'Volgorde of inhoud van adreslabels wijkt af van het documentplan.',
+    ]));
+    expect(resultaat.blokkades).toHaveLength(6);
   });
 
   it('blokkeert afwijkende volgorde en dubbele bestandsnamen', () => {
