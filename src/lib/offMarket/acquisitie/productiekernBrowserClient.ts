@@ -25,8 +25,10 @@ export const productiekernBrowserSupabaseClient: ProductiekernSupabaseClientLike
   },
 };
 
-function viteOmgeving() {
-  return import.meta.env as Record<string, string | boolean | undefined>;
+export type ProductiekernBrowserOmgeving = Record<string, string | boolean | undefined>;
+
+function viteOmgeving(): ProductiekernBrowserOmgeving {
+  return import.meta.env as ProductiekernBrowserOmgeving;
 }
 
 /**
@@ -35,8 +37,9 @@ function viteOmgeving() {
  * niets automatisch. De daadwerkelijke VITE_SUPABASE_URL moet exact bij de
  * apart ingestelde verwachte projectref horen.
  */
-export function bepaalBrowserWerkCrmActivatie() {
-  const env = viteOmgeving();
+export function bepaalBrowserWerkCrmActivatieUitOmgeving(
+  env: ProductiekernBrowserOmgeving,
+) {
   const bewijs = bouwWerkCrmActivatieBewijs({
     modus: env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS as string | undefined,
     actueleSupabaseUrl: env.VITE_SUPABASE_URL as string | undefined,
@@ -59,6 +62,10 @@ export function bepaalBrowserWerkCrmActivatie() {
   return bepaalWerkCrmActivatie(bewijs);
 }
 
+export function bepaalBrowserWerkCrmActivatie() {
+  return bepaalBrowserWerkCrmActivatieUitOmgeving(viteOmgeving());
+}
+
 /**
  * Huidige applicatiesamenstelling.
  *
@@ -71,7 +78,7 @@ export function maakStandaardProductiekernBrowserLeesSamenstelling() {
   if (env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'werkcrm') {
     return stelProductiekernBrowserLezenSamenMetBesluit(
       productiekernBrowserSupabaseClient,
-      bepaalBrowserWerkCrmActivatie(),
+      bepaalBrowserWerkCrmActivatieUitOmgeving(env),
     );
   }
 
