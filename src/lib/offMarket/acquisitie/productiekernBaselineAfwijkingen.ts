@@ -11,10 +11,15 @@ export interface ProductiekernBaselineBeoordeling {
   blokkades: string[];
 }
 
+/**
+ * Bekende regressiebaseline na synchronisatie met main op 2026-08-08.
+ * BAG queryTransport is bewust verwijderd: die vier eerdere failures zijn op
+ * de gesynchroniseerde branch groen geworden en mogen daarom niet opnieuw als
+ * geaccepteerde baseline-afwijking worden beschouwd.
+ */
 export const BEKENDE_NIET_PRODUCTIEKERN_BASELINEBESTANDEN = [
   'src/lib/acquisitieRelatieMatching.test.ts',
   'src/lib/kadaster/databaseContract.test.ts',
-  'src/lib/bag/queryTransport.test.ts',
   'src/lib/objectIdentity/backfillDryRun.test.ts',
   'src/test/vastgoedkansen/bagIdentifiersReadOnly.test.ts',
 ] as const;
