@@ -30,6 +30,7 @@ declare
   v_bestaand_nummer text;
   v_versienummer integer;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then
     raise exception 'operation_key_verplicht';
   end if;
@@ -113,6 +114,7 @@ declare
   v_document jsonb;
   v_typen text[] := array[]::text[];
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if jsonb_typeof(p_documenten) <> 'array' or jsonb_array_length(p_documenten) <> 4 then
     raise exception 'exact_vier_batchdocumenten_verplicht';
   end if;
@@ -195,6 +197,7 @@ declare
   v_documentversie integer;
   v_printdatum timestamptz;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key, 0));
   if exists (select 1 from public.off_market_productie_events where operation_key = p_operation_key) then
     return;
@@ -247,6 +250,7 @@ declare
   v_printdatum timestamptz;
   v_openstaand integer;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_geadresseerde_key), '') is null then
     raise exception 'geadresseerde_key_verplicht';
   end if;
