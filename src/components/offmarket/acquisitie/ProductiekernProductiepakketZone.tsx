@@ -1,10 +1,10 @@
-import type { ProductieActivatieBesluit } from '@/lib/offMarket/acquisitie/productieActivatiePoort';
+import type { ProductiekernActivatieBesluit } from '@/lib/offMarket/acquisitie/productiekernActivatieBesluit';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 
 import ProductiekernProductiepakketDownload from './ProductiekernProductiepakketDownload';
 
 interface Props {
-  activatie: ProductieActivatieBesluit;
+  activatie: ProductiekernActivatieBesluit;
   pakket: ProductiekernProductiepakketPayload | null;
 }
 
