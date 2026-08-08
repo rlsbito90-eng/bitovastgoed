@@ -2,6 +2,7 @@ import type {
   AcquisitiedossierContract,
   BriefContract,
   BriefversieContract,
+  PrintbatchBriefContract,
   PrintbatchContract,
 } from './productiekernContract';
 
@@ -18,6 +19,7 @@ export interface AcquisitieProductiekernRepository {
   haalBrief(briefId: string): Promise<BriefContract | null>;
   haalBriefversies(briefId: string): Promise<BriefversieContract[]>;
   haalPrintbatch(batchId: string): Promise<PrintbatchContract | null>;
+  haalPrintbatchBrieven(batchId: string): Promise<PrintbatchBriefContract[]>;
 
   startVerwerking(input: {
     selectieId: string;
@@ -108,6 +110,10 @@ implements AcquisitieProductiekernRepository {
 
   haalPrintbatch(): Promise<PrintbatchContract | null> {
     return this.geblokkeerd('haalPrintbatch');
+  }
+
+  haalPrintbatchBrieven(): Promise<PrintbatchBriefContract[]> {
+    return this.geblokkeerd('haalPrintbatchBrieven');
   }
 
   startVerwerking(): Promise<AcquisitiedossierContract> {
