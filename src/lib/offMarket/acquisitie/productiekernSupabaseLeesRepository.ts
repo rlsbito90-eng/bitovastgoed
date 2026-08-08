@@ -2,6 +2,7 @@ import type {
   AcquisitiedossierContract,
   BriefContract,
   BriefversieContract,
+  PrintbatchBriefContract,
   PrintbatchContract,
 } from './productiekernContract';
 import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
@@ -27,6 +28,7 @@ import {
   mapAcquisitiedossierRij,
   mapBriefRij,
   mapBriefversieRij,
+  mapPrintbatchBriefRij,
   mapPrintbatchRij,
 } from './productiekernSupabaseRijMapper';
 
@@ -99,6 +101,19 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
     );
     bewaakGevraagdeLeesIdentiteit('Printbatch', batchId, batch.id);
     return batch;
+  }
+
+  async haalPrintbatchBrieven(batchId: string): Promise<PrintbatchBriefContract[]> {
+    const rijen = await this.transport.haalMeerdere(
+      'off_market_printbatch_brieven',
+      { batch_id: batchId },
+      { kolom: 'created_at', oplopend: true },
+    );
+    const koppelingen = rijen.map(mapPrintbatchBriefRij);
+    for (const koppeling of koppelingen) {
+      bewaakGevraagdeLeesIdentiteit('Printbatchbrief', batchId, koppeling.batchId);
+    }
+    return koppelingen.filter((koppeling) => koppeling.verwijderdOp === null);
   }
 
   private schrijfpadGeblokkeerd<T>(handeling: string): Promise<T> {
