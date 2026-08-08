@@ -207,10 +207,11 @@ jobs:
             --report bag-amsterdam-evidence-gecombineerd/amsterdam-directionele-selectie-rapport.json
 
       - name: Publiceer gezamenlijk stop-go- en selectiebewijs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bag-amsterdam-evidence-gezamenlijke-validatie
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
           path: |
             bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
