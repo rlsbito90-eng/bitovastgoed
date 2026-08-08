@@ -34,17 +34,35 @@ function transport(): ProductiekernSupabaseLeesTransport {
       }
       return null;
     }),
-    haalMeerdere: vi.fn(async () => [{
-      id: 'versie-1', brief_id: 'brief-1', versienummer: 1, status: 'actief',
-      inhoud_snapshot: { brieftekst: 'Tekst' },
-      geadresseerde_snapshot: { naam: 'Eigenaar' }, bestand_referentie: null,
-      created_at: '2026-08-06T12:00:00Z', vervallen_op: null, verzonden_op: null,
-    }]),
+    haalMeerdere: vi.fn(async (tabel) => {
+      if (tabel === 'off_market_printbatch_brieven') {
+        return [
+          {
+            id: 'koppeling-1', batch_id: 'batch-1', brief_id: 'brief-1',
+            brief_versie_id: 'versie-1', verwijderd_op: null,
+            afwijkingsstatus: null, afwijkingsreden: null,
+            created_at: '2026-08-06T12:05:00Z',
+          },
+          {
+            id: 'koppeling-verwijderd', batch_id: 'batch-1', brief_id: 'brief-oud',
+            brief_versie_id: 'versie-oud', verwijderd_op: '2026-08-06T12:06:00Z',
+            afwijkingsstatus: null, afwijkingsreden: null,
+            created_at: '2026-08-06T12:04:00Z',
+          },
+        ];
+      }
+      return [{
+        id: 'versie-1', brief_id: 'brief-1', versienummer: 1, status: 'actief',
+        inhoud_snapshot: { brieftekst: 'Tekst' },
+        geadresseerde_snapshot: { naam: 'Eigenaar' }, bestand_referentie: null,
+        created_at: '2026-08-06T12:00:00Z', vervallen_op: null, verzonden_op: null,
+      }];
+    }),
   };
 }
 
 describe('SupabaseProductiekernLeesRepository', () => {
-  it('leest de vier productiekern-readmodels via vaste tabel- en filtercontracten', async () => {
+  it('leest de vijf productiekern-readmodels via vaste tabel- en filtercontracten', async () => {
     const t = transport();
     const repository = new SupabaseProductiekernLeesRepository(t);
 
@@ -52,6 +70,9 @@ describe('SupabaseProductiekernLeesRepository', () => {
     await expect(repository.haalBrief('brief-1')).resolves.toMatchObject({ id: 'brief-1' });
     await expect(repository.haalBriefversies('brief-1')).resolves.toHaveLength(1);
     await expect(repository.haalPrintbatch('batch-1')).resolves.toMatchObject({ id: 'batch-1' });
+    await expect(repository.haalPrintbatchBrieven('batch-1')).resolves.toEqual([
+      expect.objectContaining({ id: 'koppeling-1', batchId: 'batch-1', briefVersieId: 'versie-1' }),
+    ]);
 
     expect(t.haalEen).toHaveBeenNthCalledWith(
       1, 'off_market_acquisitie_dossiers', { selectie_id: 'selectie-1' },
@@ -61,9 +82,14 @@ describe('SupabaseProductiekernLeesRepository', () => {
       { brief_id: 'brief-1' },
       { kolom: 'versienummer', oplopend: true },
     );
+    expect(t.haalMeerdere).toHaveBeenCalledWith(
+      'off_market_printbatch_brieven',
+      { batch_id: 'batch-1' },
+      { kolom: 'created_at', oplopend: true },
+    );
   });
 
-  it('geeft null door wanneer een enkel record niet bestaat', async () => {
+  it('geeft null of een lege lijst door wanneer een record niet bestaat', async () => {
     const t: ProductiekernSupabaseLeesTransport = {
       haalEen: vi.fn(async () => null),
       haalMeerdere: vi.fn(async () => []),
@@ -72,6 +98,22 @@ describe('SupabaseProductiekernLeesRepository', () => {
 
     await expect(repository.haalDossier('ontbreekt')).resolves.toBeNull();
     await expect(repository.haalBriefversies('ontbreekt')).resolves.toEqual([]);
+    await expect(repository.haalPrintbatchBrieven('ontbreekt')).resolves.toEqual([]);
+  });
+
+  it('weigert een batchbriefkoppeling die bij een andere batch hoort', async () => {
+    const t: ProductiekernSupabaseLeesTransport = {
+      haalEen: vi.fn(async () => null),
+      haalMeerdere: vi.fn(async () => [{
+        id: 'koppeling-1', batch_id: 'batch-anders', brief_id: 'brief-1',
+        brief_versie_id: 'versie-1', verwijderd_op: null,
+        afwijkingsstatus: null, afwijkingsreden: null,
+        created_at: '2026-08-06T12:05:00Z',
+      }]),
+    };
+    const repository = new SupabaseProductiekernLeesRepository(t);
+
+    await expect(repository.haalPrintbatchBrieven('batch-1')).rejects.toThrow();
   });
 
   it('houdt historische verstuurde brieven buiten de formele productiekern', async () => {
