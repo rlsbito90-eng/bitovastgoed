@@ -39,6 +39,19 @@ export interface ProductiekernSupabaseLeesTransport {
   ): Promise<Record<string, unknown>[]>;
 }
 
+/**
+ * Transitieve compatibiliteitsgrens voor de bestaande brieventabel.
+ *
+ * Historische CRM-brieven hebben geen selectie_id uit de formele productiekern
+ * en kunnen de legacy status `verstuurd` dragen. Die records blijven via de
+ * bestaande CRM-flow beschikbaar, maar worden bewust niet als productiekern-
+ * readmodel geïnterpreteerd. Er vindt hier geen mapping of backfill plaats.
+ */
+function isFormeleProductiekernBriefRij(rij: Record<string, unknown>): boolean {
+  if (rij.status === 'verstuurd') return false;
+  return typeof rij.selectie_id === 'string' && rij.selectie_id.trim().length > 0;
+}
+
 export class SupabaseProductiekernLeesRepository implements AcquisitieProductiekernRepository {
   constructor(private readonly transport: ProductiekernSupabaseLeesTransport) {}
 
@@ -54,7 +67,7 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
 
   async haalBrief(briefId: string): Promise<BriefContract | null> {
     const rij = await this.transport.haalEen('off_market_brieven', { id: briefId });
-    if (!rij) return null;
+    if (!rij || !isFormeleProductiekernBriefRij(rij)) return null;
     const brief = bewaakBriefLeesTijd(
       bewaakBriefLeesIntegriteit(mapBriefRij(rij)),
     );
