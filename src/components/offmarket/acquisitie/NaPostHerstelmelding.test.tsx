@@ -103,7 +103,7 @@ describe('NaPostHerstelmelding', () => {
       />,
     );
 
-    expect(screen.getByText('Auditregistratie herstellen')).toBeInTheDocument();
+    expect(screen.getByText('De bedrijfsverwerking is afgerond; alleen de auditregistratie moet opnieuw.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Auditregistratie herstellen' })).toBeEnabled();
     expect(screen.queryByText('audit:na-post:1')).not.toBeInTheDocument();
   });
