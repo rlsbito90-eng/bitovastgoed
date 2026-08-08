@@ -61,7 +61,7 @@ function resultaat(input: {
 }
 
 describe('projecteerAcquisitieNaPostResultaat', () => {
-  it('houdt een gedeeltelijk geposte batch in geprint/posten en toont retrybehoefte', () => {
+  it('houdt een gedeeltelijk geposte batch in geprint/posten zonder dossier-opvolgdatum', () => {
     const projectie = projecteerAcquisitieNaPostResultaat({
       resultaat: resultaat({ geslaagd: 1, mislukt: 1 }),
       totaalBriefversies: 2,
@@ -71,6 +71,7 @@ describe('projecteerAcquisitieNaPostResultaat', () => {
     expect(projectie.werkbak).toBe('geprint_posten');
     expect(projectie.retryPostNodig).toBe(true);
     expect(projectie.succesvolGepost).toBe(1);
+    expect(projectie.opvolgenOp).toBeNull();
   });
 
   it('plaatst volledig geposte dossiers met toekomstige opvolging in wachten', () => {
