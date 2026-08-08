@@ -33,10 +33,10 @@ write_status=$?
 set -e
 [[ "$write_status" != "0" && "$write_output" == *"permission denied"* ]] || { echo "Directe dossierwrite was niet privilege-geblokkeerd: $write_output" >&2; exit 1; }
 
-# ACL-matrix: drie readtabellen alleen SELECT; wrappers execute; intern/helper dicht.
-read_acl="$(psql "$DB_URL" -Atqc "select count(*) from (values ('off_market_acquisitie_dossiers'),('off_market_brief_versies'),('off_market_printbatches')) v(t) where has_table_privilege('authenticated','public.'||t,'SELECT') and not has_table_privilege('authenticated','public.'||t,'INSERT') and not has_table_privilege('authenticated','public.'||t,'UPDATE') and not has_table_privilege('authenticated','public.'||t,'DELETE');")"
+# ACL-matrix: vier readtabellen alleen SELECT; wrappers execute; intern/helper dicht.
+read_acl="$(psql "$DB_URL" -Atqc "select count(*) from (values ('off_market_acquisitie_dossiers'),('off_market_brief_versies'),('off_market_printbatches'),('off_market_printbatch_brieven')) v(t) where has_table_privilege('authenticated','public.'||t,'SELECT') and not has_table_privilege('authenticated','public.'||t,'INSERT') and not has_table_privilege('authenticated','public.'||t,'UPDATE') and not has_table_privilege('authenticated','public.'||t,'DELETE');")"
 wrapper_acl="$(psql "$DB_URL" -Atqc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('off_market_verwerking_starten','off_market_brief_reserveren','off_market_briefversie_aanmaken','off_market_printbatch_aanmaken','off_market_briefversie_aan_batch_toevoegen','off_market_brief_definitief_maken','off_market_batch_documenten_registreren','off_market_batch_geprint_markeren','off_market_brief_gepost_markeren') and has_function_privilege('authenticated',p.oid,'EXECUTE') and not has_function_privilege('anon',p.oid,'EXECUTE');")"
 inner_acl="$(psql "$DB_URL" -Atqc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and (p.proname like 'off_market_%_intern' or p.proname='off_market_productiekern_assert_interne_actor') and has_function_privilege('authenticated',p.oid,'EXECUTE');")"
-[[ "$read_acl" == "3" && "$wrapper_acl" == "9" && "$inner_acl" == "0" ]] || { echo "Activatie ACL-matrix faalde: reads=$read_acl wrappers=$wrapper_acl intern=$inner_acl" >&2; exit 1; }
+[[ "$read_acl" == "4" && "$wrapper_acl" == "9" && "$inner_acl" == "0" ]] || { echo "Activatie ACL-matrix faalde: reads=$read_acl wrappers=$wrapper_acl intern=$inner_acl" >&2; exit 1; }
 
 echo "PRODUCTIEKERN_ACTIVATION_SECURITY_PROOF_OK"
