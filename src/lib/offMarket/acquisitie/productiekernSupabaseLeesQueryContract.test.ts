@@ -6,12 +6,13 @@ import {
 } from './productiekernSupabaseLeesQueryContract';
 
 describe('productiekern Supabase leesquerycontracten', () => {
-  it('beperkt reads tot vier expliciete querycontracten', () => {
+  it('beperkt reads tot vijf expliciete querycontracten', () => {
     expect(Object.keys(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN)).toEqual([
       'haal_dossier',
       'haal_brief',
       'haal_briefversies',
       'haal_printbatch',
+      'haal_printbatch_brieven',
     ]);
   });
 
@@ -23,12 +24,19 @@ describe('productiekern Supabase leesquerycontracten', () => {
     }
   });
 
-  it('legt cardinaliteit en deterministische versievolgorde vast', () => {
+  it('legt cardinaliteit en deterministische lijstvolgorde vast', () => {
     expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_dossier.cardinaliteit)
       .toBe('nul_of_een');
     expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_briefversies).toMatchObject({
       cardinaliteit: 'lijst',
       volgorde: { kolom: 'versienummer', oplopend: true },
+    });
+    expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_printbatch_brieven).toMatchObject({
+      cardinaliteit: 'lijst',
+      tabel: 'off_market_printbatch_brieven',
+      filterKolom: 'batch_id',
+      volgorde: { kolom: 'created_at', oplopend: true },
+      maximaalAantalRecords: 1000,
     });
   });
 
