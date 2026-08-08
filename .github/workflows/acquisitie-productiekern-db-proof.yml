@@ -1,0 +1,53 @@
+name: Acquisitieproductiekern DB Proof
+
+on:
+  push:
+    branches:
+      - feat/acquisitie-productiekern-build-a
+    paths:
+      - 'scripts/acquisitie/run-productiekern-isolated-db-proof.sh'
+      - 'supabase/migration-drafts/20260806_acquisitie_productiekern_build_a.sql'
+      - '.github/workflows/acquisitie-productiekern-db-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acquisitie-productiekern-db-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installeer PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Schema rollback + concurrency + idempotentie
+        run: bash scripts/acquisitie/run-productiekern-isolated-db-proof.sh
