@@ -38,11 +38,12 @@ export function maakVroegeProductieSupabaseRepository(input: {
   return {
     async startVerwerking(command) {
       bewaak('startVerwerking');
+      const uitgevoerdOp = klok();
       const result = await input.uitvoerder.rpc('off_market_verwerking_starten', {
         p_selectie_id: command.selectieId,
         p_actor_id: command.actorId,
         p_operation_key: command.operationKey,
-        p_uitgevoerd_op: klok(),
+        p_uitgevoerd_op: uitgevoerdOp,
       });
       rpcFout(result.error);
       const record = rij(result.data, 'Acquisitiedossier');
@@ -50,7 +51,7 @@ export function maakVroegeProductieSupabaseRepository(input: {
         selectieId: tekst(record, 'selectie_id', 'Acquisitiedossier'),
         signaalId: tekst(record, 'signaal_id', 'Acquisitiedossier'),
         objectId: null,
-        verwerkingGestartOp: null,
+        verwerkingGestartOp: uitgevoerdOp,
         verwerkingGestartDoor: command.actorId,
         primaireWerkbak: 'eigenaar_achterhalen',
         volgendeActieOp: null,
