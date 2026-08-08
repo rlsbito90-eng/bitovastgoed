@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import ProductiekernDossierProjectie from './ProductiekernDossierProjectie';
 import type { AcquisitiedossierContract } from '@/lib/offMarket/acquisitie/productiekernContract';
@@ -21,7 +21,8 @@ function dossier(
 }
 
 describe('ProductiekernDossierProjectie', () => {
-  it('toont uitsluitend observerende formele dossierstatus', () => {
+  it('toont de formele 8-bakkenbediening met aantallen uit dossiers', () => {
+    const onWerkbakChange = vi.fn();
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={4}
@@ -30,21 +31,37 @@ describe('ProductiekernDossierProjectie', () => {
           dossier('selectie-2', 'eigenaar_achterhalen'),
           dossier('selectie-3', 'brief_opstellen'),
         ]}
+        actieveWerkbak="eigenaar_achterhalen"
+        onWerkbakChange={onWerkbakChange}
       />,
     );
 
-    expect(screen.getByText('Productiekern — read-only')).toBeInTheDocument();
+    expect(screen.getByText('Acquisitieproductiekern')).toBeInTheDocument();
     expect(screen.getByText('3/4 formele dossiers')).toBeInTheDocument();
-    expect(screen.getByText('Eigenaar achterhalen: 2')).toBeInTheDocument();
-    expect(screen.getByText('Brief opstellen: 1')).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('productiekern-werkbak-eigenaar_achterhalen')).toHaveTextContent(
+      'Eigenaar achterhalen2',
+    );
+    expect(screen.getByTestId('productiekern-werkbak-brief_opstellen')).toHaveTextContent(
+      'Brief opstellen1',
+    );
+    expect(screen.getByTestId('productiekern-werkbak-nieuwe_selectie')).toHaveTextContent(
+      'Nieuwe selectie0',
+    );
+    expect(screen.getByTestId('productiekern-actieve-werkbak-telling')).toHaveTextContent(
+      '2 dossiers in deze weergave',
+    );
+
+    fireEvent.click(screen.getByTestId('productiekern-werkbak-brief_opstellen'));
+    expect(onWerkbakChange).toHaveBeenCalledWith('brief_opstellen');
   });
 
-  it('toont workflowpariteit compact zonder bedieningsmogelijkheid', () => {
+  it('toont workflowpariteit als observatie naast de formele bediening', () => {
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={5}
         dossiers={[dossier('selectie-1', 'opvolgen'), dossier('selectie-2', 'wachten')]}
+        actieveWerkbak="alles"
+        onWerkbakChange={() => undefined}
         pariteit={{
           totaalSelecties: 5,
           vergelijkbaar: 2,
@@ -57,16 +74,20 @@ describe('ProductiekernDossierProjectie', () => {
     );
 
     expect(screen.getByTestId('productiekern-workflowpariteit')).toHaveTextContent(
-      'Workflowpariteit: 1/2 gelijk · 1 afwijkend · 2 kern ontbreekt · 1 legacy ontbreekt',
+      'Pariteit: 1/2 · 1 afwijkend · 2 kern ontbreekt',
     );
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('productiekern-actieve-werkbak-telling')).toHaveTextContent(
+      '2 dossiers in deze weergave',
+    );
   });
 
-  it('toont tijdens laden geen afgeleide werkbaktellingen of pariteit', () => {
+  it('toont tijdens laden geen actieve telling of pariteit', () => {
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={2}
         dossiers={[dossier('selectie-1', 'opvolgen')]}
+        actieveWerkbak="opvolgen"
+        onWerkbakChange={() => undefined}
         pariteit={{
           totaalSelecties: 2,
           vergelijkbaar: 1,
@@ -80,15 +101,17 @@ describe('ProductiekernDossierProjectie', () => {
     );
 
     expect(screen.getByText('Laden…')).toBeInTheDocument();
-    expect(screen.queryByText('Opvolgen: 1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('productiekern-actieve-werkbak-telling')).not.toBeInTheDocument();
   });
 
-  it('presenteert een readfout fail-closed en toont geen lege of afgeleide pariteit', () => {
+  it('presenteert een readfout fail-closed en toont geen werkbakbediening', () => {
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={2}
         dossiers={[]}
+        actieveWerkbak="nieuwe_selectie"
+        onWerkbakChange={() => undefined}
         pariteit={{
           totaalSelecties: 2,
           vergelijkbaar: 0,
@@ -103,8 +126,7 @@ describe('ProductiekernDossierProjectie', () => {
 
     expect(screen.getByText('Readmodel niet beschikbaar')).toBeInTheDocument();
     expect(screen.queryByText('0/2 formele dossiers')).not.toBeInTheDocument();
-    expect(screen.queryByText(/kern ontbreekt/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('productiekern-werkbakken')).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,8 @@
 import type { ProductieLeesActivatieBewijs } from './productieLeesActivatiePoort';
+import type { ProductiekernLeesActivatieBesluit } from './productiekernLeesActivatieBesluit';
 import {
   stelProductiekernSupabaseClientSamen,
+  stelProductiekernSupabaseClientSamenMetBesluit,
   type ProductiekernSupabaseClientOpties,
   type ProductiekernSupabaseClientSamenstelling,
 } from './productiekernSupabaseClientSamenstelling';
@@ -10,12 +12,23 @@ import {
 } from './productiekernSupabaseQueryUitvoerder';
 
 /**
- * Enige browser-composition seam voor read-only productiekernreads.
- *
- * De bestaande applicatie-Supabase-client wordt geïnjecteerd; deze module kent
- * zelf geen URL, key of projectref. De centrale leesactivatiepoort blijft
- * onderdeel van dezelfde samenstelling. Zonder volledig bewijs kan een caller
- * dus wel een client aanleveren, maar geen query uitvoeren.
+ * Omgevingsneutrale browser-composition seam nadat een afzonderlijke poort
+ * zijn activatiebesluit al heeft beoordeeld.
+ */
+export function stelProductiekernBrowserLezenSamenMetBesluit(
+  client: ProductiekernSupabaseClientLike,
+  activatie: ProductiekernLeesActivatieBesluit,
+  opties: ProductiekernSupabaseClientOpties = {},
+): ProductiekernSupabaseClientSamenstelling {
+  return stelProductiekernSupabaseClientSamenMetBesluit(
+    activatie,
+    maakProductiekernSupabaseQueryUitvoerder(client),
+    opties,
+  );
+}
+
+/**
+ * Productiespecifieke browser-composition seam voor read-only dual-read.
  */
 export function stelProductiekernBrowserLezenSamen(
   client: ProductiekernSupabaseClientLike,

@@ -4,7 +4,12 @@ import type {
   ProductiekernSupabaseClientLike,
   ProductiekernSupabaseQueryBuilder,
 } from './productiekernSupabaseQueryUitvoerder';
-import { stelProductiekernBrowserLezenSamen } from './productiekernBrowserLeesSamenstelling';
+import {
+  stelProductiekernBrowserLezenSamen,
+  stelProductiekernBrowserLezenSamenMetBesluit,
+} from './productiekernBrowserLeesSamenstelling';
+import { bepaalWerkCrmActivatie } from './werkCrmActivatiePoort';
+import { bouwWerkCrmActivatieBewijs } from './werkCrmOmgevingsBewijs';
 
 /**
  * Smalle adapter rond de reeds bestaande CRM-Supabase-client.
@@ -20,12 +25,63 @@ export const productiekernBrowserSupabaseClient: ProductiekernSupabaseClientLike
   },
 };
 
+export type ProductiekernBrowserOmgeving = Record<string, string | boolean | undefined>;
+
+function viteOmgeving(): ProductiekernBrowserOmgeving {
+  return import.meta.env as ProductiekernBrowserOmgeving;
+}
+
 /**
- * Huidige applicatiesamenstelling: fysiek gekoppeld aan de bestaande client,
- * maar bewijs bewust undefined. De centrale leespoort blijft dus dicht en geen
- * enkele repository-read bereikt client.from().
+ * Bouwt uitsluitend uit expliciete Vite/Vercel-configuratie een werk-CRM-
+ * activatiebesluit. Een previewhostname, branchnaam of Vercel-context opent
+ * niets automatisch. De daadwerkelijke VITE_SUPABASE_URL moet exact bij de
+ * apart ingestelde verwachte projectref horen.
+ */
+export function bepaalBrowserWerkCrmActivatieUitOmgeving(
+  env: ProductiekernBrowserOmgeving,
+) {
+  const bewijs = bouwWerkCrmActivatieBewijs({
+    modus: env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS as string | undefined,
+    actueleSupabaseUrl: env.VITE_SUPABASE_URL as string | undefined,
+    verwachteSupabaseProjectref:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_WERKCRM_PROJECTREF as string | undefined,
+    schemaGeinstalleerd:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_SCHEMA_GEINSTALLEERD as string | undefined,
+    rlsEnRechtenGeverifieerd:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_RLS_GEVERIFIEERD as string | undefined,
+    gerichteWorkflowtestsGroen:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_WORKFLOWTESTS_GROEN as string | undefined,
+    applicatiebuildGroen:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_BUILD_GROEN as string | undefined,
+    duurzameDatabewaringBevestigd:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_DUURZAME_DATA as string | undefined,
+    explicietWerkakkoord:
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_WERKAKKOORD as string | undefined,
+  });
+
+  return bepaalWerkCrmActivatie(bewijs);
+}
+
+export function bepaalBrowserWerkCrmActivatie() {
+  return bepaalBrowserWerkCrmActivatieUitOmgeving(viteOmgeving());
+}
+
+/**
+ * Huidige applicatiesamenstelling.
+ *
+ * Alleen de expliciete werk-CRM-modus kan via de afzonderlijke werk-CRM-poort
+ * lezen vrijgeven. Iedere andere modus valt bewust terug op de bestaande
+ * productie-readroute met undefined bewijs en blijft dus volledig gesloten.
  */
 export function maakStandaardProductiekernBrowserLeesSamenstelling() {
+  const env = viteOmgeving();
+  if (env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'werkcrm') {
+    return stelProductiekernBrowserLezenSamenMetBesluit(
+      productiekernBrowserSupabaseClient,
+      bepaalBrowserWerkCrmActivatieUitOmgeving(env),
+    );
+  }
+
   return stelProductiekernBrowserLezenSamen(
     productiekernBrowserSupabaseClient,
     undefined,

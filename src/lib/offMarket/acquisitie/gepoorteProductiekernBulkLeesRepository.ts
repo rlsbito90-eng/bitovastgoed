@@ -1,10 +1,10 @@
-import type { ProductieLeesActivatieBesluit } from './productieLeesActivatiePoort';
+import type { ProductiekernLeesActivatieBesluit } from './productiekernLeesActivatieBesluit';
 import { ProductiekernNietGeactiveerdError } from './productiekernRepository';
 import type { ProductiekernBulkLeesRepository } from './productiekernSupabaseBulkLeesRepository';
 
 export class GepoorteProductiekernBulkLeesRepository implements ProductiekernBulkLeesRepository {
   constructor(
-    private readonly activatie: ProductieLeesActivatieBesluit,
+    private readonly activatie: ProductiekernLeesActivatieBesluit,
     private readonly achterliggend: ProductiekernBulkLeesRepository,
   ) {}
 
@@ -29,7 +29,7 @@ export class GepoorteProductiekernBulkLeesRepository implements ProductiekernBul
 }
 
 export function maakGepoorteProductiekernBulkLeesRepository(
-  activatie: ProductieLeesActivatieBesluit,
+  activatie: ProductiekernLeesActivatieBesluit,
   achterliggend: ProductiekernBulkLeesRepository,
 ): ProductiekernBulkLeesRepository {
   return new GepoorteProductiekernBulkLeesRepository(activatie, achterliggend);

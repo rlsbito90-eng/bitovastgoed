@@ -1,20 +1,20 @@
-import type { ProductieLeesActivatieBesluit } from './productieLeesActivatiePoort';
+import type { ProductiekernLeesActivatieBesluit } from './productiekernLeesActivatieBesluit';
 import {
   ProductiekernNietGeactiveerdError,
   type AcquisitieProductiekernRepository,
 } from './productiekernRepository';
 
 /**
- * Repositorydecorator voor de toekomstige read-only overgangsfase.
+ * Repositorydecorator voor een expliciet vrijgegeven read-only overgangsfase.
  *
  * Alleen de expliciete leeshandelingen kunnen worden gedelegeerd en uitsluitend
- * wanneer de afzonderlijke leespoort expliciet actief is. Alle schrijfacties
- * blijven hard geblokkeerd, ook wanneer lezen is toegestaan.
+ * wanneer de aangeleverde omgevingspoort lezen heeft vrijgegeven. Alle
+ * schrijfacties blijven hard geblokkeerd, ook wanneer lezen is toegestaan.
  */
 export class GepoorteProductiekernLeesRepository
 implements AcquisitieProductiekernRepository {
   constructor(
-    private readonly activatie: ProductieLeesActivatieBesluit,
+    private readonly activatie: ProductiekernLeesActivatieBesluit,
     private readonly achterliggend: AcquisitieProductiekernRepository,
   ) {}
 
@@ -83,7 +83,7 @@ implements AcquisitieProductiekernRepository {
 }
 
 export function maakGepoorteProductiekernLeesRepository(
-  activatie: ProductieLeesActivatieBesluit,
+  activatie: ProductiekernLeesActivatieBesluit,
   achterliggend: AcquisitieProductiekernRepository,
 ): AcquisitieProductiekernRepository {
   return new GepoorteProductiekernLeesRepository(activatie, achterliggend);
