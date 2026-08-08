@@ -111,7 +111,11 @@ jobs:
         env:
           SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
           CODE_REF: ${{ github.event.inputs.code_ref }}
+          LAUNCHER_RUN_COMMIT: ${{ github.sha }}
         run: |
+          set -euo pipefail
+          CHECKED_OUT_CODE_COMMIT=$(git rev-parse HEAD)
+          export CHECKED_OUT_CODE_COMMIT
           python3 - <<'PY'
           import json, os
           from pathlib import Path
@@ -121,7 +125,8 @@ jobs:
               'status': 'amsterdam_artifact_reuse_provenance',
               'source_run_id': os.environ['SOURCE_RUN_ID'],
               'code_ref': os.environ['CODE_REF'],
-              'checked_out_commit': os.environ['GITHUB_SHA'],
+              'checked_out_code_commit': os.environ['CHECKED_OUT_CODE_COMMIT'],
+              'launcher_run_commit': os.environ['LAUNCHER_RUN_COMMIT'],
               'database_write_uitgevoerd': False,
               'supabase_benaderd': False,
               'productie_benaderd': False,
