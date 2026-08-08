@@ -13,6 +13,7 @@ const migratieVolgorde = [
   '20260806_acquisitie_productiekern_dossier_briefkern.sql',
   '20260808_acquisitie_productiekern_vroege_transactionele_functies.sql',
   '20260806_acquisitie_productiekern_transactionele_functies.sql',
+  '20260808_acquisitie_productiekern_post_opvolging_atomiciteit.sql',
   '20260808_acquisitie_productiekern_security_wrappers.sql',
 ] as const;
 
@@ -23,6 +24,14 @@ describe('Acquisitieproductiekern releasemanifest', () => {
     const posities = migratieVolgorde.map((bestand) => manifest.indexOf(`\`${bestand}\``));
     expect(posities.every((positie) => positie >= 0)).toBe(true);
     expect(posities).toEqual([...posities].sort((a, b) => a - b));
+  });
+
+  it('plaatst de atomische post-opvolging vóór de security-wrappers', () => {
+    const atomiciteit = manifest.indexOf('`20260808_acquisitie_productiekern_post_opvolging_atomiciteit.sql`');
+    const wrappers = manifest.indexOf('`20260808_acquisitie_productiekern_security_wrappers.sql`');
+    expect(atomiciteit).toBeGreaterThanOrEqual(0);
+    expect(wrappers).toBeGreaterThan(atomiciteit);
+    expect(manifest).toContain('14 dagen na de bevestigde postdatum');
   });
 
   it('houdt activatie-security expliciet buiten hetzelfde migratiepakket', () => {
