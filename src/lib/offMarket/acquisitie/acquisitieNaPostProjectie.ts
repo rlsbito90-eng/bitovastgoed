@@ -21,6 +21,11 @@ export interface AcquisitieNaPostProjectie {
 /**
  * Maakt een UI-geschikte, read-only projectie van de na-postketen. De projectie
  * schrijft niets weg en verbergt geen gedeeltelijke of mislukte verwerking.
+ *
+ * Opvolgtaken mogen al per aantoonbaar geposte brief bestaan, maar de
+ * dossierbrede volgende actie wordt pas een opvolgdatum nadat álle briefversies
+ * aantoonbaar zijn gepost. Bij gedeeltelijke posting blijft het dossier daarom
+ * in `geprint_posten` met `opvolgenOp: null`.
  */
 export function projecteerAcquisitieNaPostResultaat(input: {
   resultaat: NaPostOrchestratieResultaat;
@@ -43,11 +48,13 @@ export function projecteerAcquisitieNaPostResultaat(input: {
     throw new Error('Opvolguitkomsten sluiten niet aan op de geplande opvolgcommando’s.');
   }
 
-  const opvolgenOp = resultaat.opvolgCommandos.length > 0
+  const vroegsteOpvolgenOp = resultaat.opvolgCommandos.length > 0
     ? resultaat.opvolgCommandos.reduce((vroegste, commando) =>
       commando.opvolgenOp < vroegste ? commando.opvolgenOp : vroegste,
     resultaat.opvolgCommandos[0].opvolgenOp)
     : null;
+  const volledigGepost = succesvolGepost === input.totaalBriefversies;
+  const opvolgenOp = volledigGepost ? vroegsteOpvolgenOp : null;
 
   const werkbak = bepaalAcquisitieWerkbakNaPost({
     totaalBriefversies: input.totaalBriefversies,
