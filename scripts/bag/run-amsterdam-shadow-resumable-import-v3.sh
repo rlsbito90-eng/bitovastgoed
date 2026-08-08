@@ -53,14 +53,60 @@ replacements = {
     "'^voorkomens\\t2664890$'": "'^voorkomens\\t2719273$'",
     "'^relaties\\t2531300$'": "'^relaties\\t2564885$'",
     'Kadaster landelijke BAG-selectie Amsterdam': 'Kadaster landelijke BAG-selectie Amsterdam+Weesp directioneel v3',
+    'local id current tmpdir index chunk rows inserted deduplicated': 'local id current source_offset tmpdir index chunk rows inserted deduplicated',
 }
 
+resume_old = '''  if (( current == expected )); then echo "$phase reeds compleet ($current verwerkte bronrijen)."; return 0; fi
+  tmpdir="$OUTPUT_DIR/chunks-$phase"; rm -rf "$tmpdir"; mkdir -p "$tmpdir"
+  tail -n "+$((current + 1))" "$csv" | split -l "$CHUNK_SIZE" -d -a 5 - "$tmpdir/chunk-"
+'''
+resume_new = '''  if (( current == expected )); then echo "$phase reeds compleet ($current verwerkte bronrijen)."; return 0; fi
+  source_offset="$current"
+  if [[ "$phase" == 'voorkomens' && "$current" -gt 0 ]]; then
+    source_offset="$(python - "$csv" "$current" <<'PYRESUME'
+import csv
+import sys
+
+pad = sys.argv[1]
+target_uniek = int(sys.argv[2])
+raw = 0
+uniek = 0
+vorige = None
+
+with open(pad, 'r', encoding='utf-8', newline='') as handle:
+    for regel in csv.reader(handle):
+        raw += 1
+        sleutel = tuple(regel[:3])
+        if sleutel != vorige:
+            uniek += 1
+            if uniek > target_uniek:
+                print(raw - 1)
+                break
+        vorige = sleutel
+    else:
+        if uniek == target_uniek:
+            print(raw)
+        else:
+            raise SystemExit(f'Kan raw resume-offset niet bepalen: uniek={uniek}, target={target_uniek}')
+PYRESUME
+)"
+    [[ "$source_offset" =~ ^[0-9]+$ ]] || fail 'ongeldige raw resume-offset voor voorkomens.'
+    (( source_offset >= current )) || fail 'raw resume-offset ligt vóór unieke DB-telling.'
+    echo "Hervat voorkomens: unieke DB-rijen=$current, raw CSV-offset=$source_offset"
+  fi
+  tmpdir="$OUTPUT_DIR/chunks-$phase"; rm -rf "$tmpdir"; mkdir -p "$tmpdir"
+  tail -n "+$((source_offset + 1))" "$csv" | split -l "$CHUNK_SIZE" -d -a 5 - "$tmpdir/chunk-"
+'''
+
 missing = [old for old in replacements if old not in text]
+if resume_old not in text:
+    missing.append('resume-offset-basissegment')
 if missing:
     raise SystemExit('Basisscriptcontract is onverwacht gewijzigd; ontbrekende tokens: ' + repr(missing))
 
 for old, new in replacements.items():
     text = text.replace(old, new)
+text = text.replace(resume_old, resume_new)
 
 for forbidden in [
     '8973886061',
@@ -84,6 +130,8 @@ required = [
     'EXPECTED_VOORKOMENS_IDENTIEKE_DUPLICATEN=7',
     'EXPECTED_RELATIES=2564885',
     'EXPECTED_GEOMETRIEEN=1873252',
+    'source_offset="$current"',
+    'raw CSV-offset=$source_offset',
 ]
 for token in required:
     if token not in text:
