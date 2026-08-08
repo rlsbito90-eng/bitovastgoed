@@ -1,3 +1,5 @@
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
+
 export interface ProductieActivatieBewijs {
   actueleDdlGeverifieerd: boolean;
   actueleRlsGeverifieerd: boolean;
@@ -8,11 +10,7 @@ export interface ProductieActivatieBewijs {
   explicietProductieakkoord: boolean;
 }
 
-export interface ProductieActivatieBesluit {
-  lezenActief: boolean;
-  schrijvenActief: boolean;
-  ontbrekendBewijs: string[];
-}
+export type ProductieActivatieBesluit = ProductiekernActivatieBesluit;
 
 const BEWIJS_LABELS: Array<[keyof ProductieActivatieBewijs, string]> = [
   ['actueleDdlGeverifieerd', 'Actuele productie-DDL is niet geverifieerd.'],

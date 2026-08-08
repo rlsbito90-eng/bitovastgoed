@@ -1,5 +1,5 @@
 import type { AcquisitieProductiekernRepository } from './productiekernRepository';
-import type { ProductieActivatieBesluit } from './productieActivatiePoort';
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
 import { ProductieTransactiesNietGeactiveerdError } from './productieTransactieRepository';
 
 export type VroegeProductieWriteRepository = Pick<
@@ -26,7 +26,7 @@ function rpcFout(error: { message?: string; code?: string } | null): void {
 }
 
 export function maakVroegeProductieSupabaseRepository(input: {
-  activatie: ProductieActivatieBesluit;
+  activatie: ProductiekernActivatieBesluit;
   uitvoerder: VroegeRpcUitvoerder;
   klok?: () => string;
 }): VroegeProductieWriteRepository {

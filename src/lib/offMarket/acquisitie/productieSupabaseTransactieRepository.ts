@@ -1,5 +1,5 @@
 import { maakGepoorteProductieTransactieRepository } from './gepoorteProductieTransactieRepository';
-import type { ProductieActivatieBesluit } from './productieActivatiePoort';
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
 import { bouwProductieRpcAanroep, type ProductieRpcNaam } from './productieRpcContract';
 import {
   bevestigLeegRpcResultaat,
@@ -114,7 +114,7 @@ implements AcquisitieProductieTransactieRepository {
  * niet volledig groen is.
  */
 export function maakGepoorteSupabaseProductieTransactieRepository(
-  activatie: ProductieActivatieBesluit,
+  activatie: ProductiekernActivatieBesluit,
   uitvoerder: ProductieSupabaseRpcUitvoerder,
 ): AcquisitieProductieTransactieRepository {
   return maakGepoorteProductieTransactieRepository(
