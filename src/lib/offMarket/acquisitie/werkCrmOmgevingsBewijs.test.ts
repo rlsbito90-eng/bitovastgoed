@@ -55,6 +55,6 @@ describe('werkCrmOmgevingsBewijs', () => {
     expect(bewijs.doelomgevingIsWerkdatabase).toBe(true);
     expect(bewijs.supabaseDoelKomtOvereen).toBe(true);
     expect(bewijs.schemaGeinstalleerd).toBe(false);
-    expect(bewijs.explicitietWerkakkoord).toBeUndefined();
+    expect(bewijs.explicietWerkakkoord).toBe(false);
   });
 });
