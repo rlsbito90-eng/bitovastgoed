@@ -46,8 +46,10 @@ describe('transactioneel SQL-concept acquisitieproductiekern', () => {
     expect(sql).toContain('verzenddatum = p_verzenddatum');
   });
 
-  it('verplicht expliciete batchkoppeling voor posten', () => {
-    expect(sql).toContain('briefversie_niet_actief_in_batch');
+  it('verplicht expliciete batchkoppeling en geadresseerde voor posten', () => {
+    expect(sql).toContain('geadresseerde_key_verplicht');
+    expect(sql).toContain('batch_niet_geprint');
+    expect(sql).toContain('briefversie_niet_in_batch');
     expect(sql).toContain('brief_versie_id = p_brief_versie_id');
     expect(sql).toContain('verwijderd_op is null');
   });
