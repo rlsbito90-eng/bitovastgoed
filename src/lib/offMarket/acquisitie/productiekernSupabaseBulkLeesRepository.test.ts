@@ -7,7 +7,7 @@ const briefRij = (id: string) => ({
   id, briefnummer: id === 'brief-1' ? 'BR2026000001' : 'BR2026000002',
   signaal_id: `signaal-${id}`, selectie_id: `selectie-${id}`, object_id: null, relatie_id: null,
   actieve_versie: 1, status: 'definitief', vervanging_van_brief_id: null,
-  definitief_op: '2026-08-08T12:00:00Z', vergrendeld_op: null, annuleringsreden: null,
+  definitief_op: '2026-08-08T12:00:00Z', vergrendeld_op: '2026-08-08T12:00:00Z', annuleringsreden: null,
 });
 
 const versieRij = (id: string, briefId: string) => ({
@@ -45,7 +45,7 @@ describe('SupabaseProductiekernBulkLeesRepository', () => {
     expect(t.haalMeerdereOpIds).toHaveBeenCalledWith('off_market_brieven', ['brief-1', 'brief-2']);
   });
 
-  it('leest exact gekoppelde briefversies in één transportcall', async () => {
+  it('leest exact gekoppelde briefversies in één transportcall, ook wanneer meerdere brieven versie 1 hebben', async () => {
     const t = transport();
     const repository = new SupabaseProductiekernBulkLeesRepository(t);
     await expect(repository.haalBriefversiesOpIds(['versie-1', 'versie-2'])).resolves.toHaveLength(2);
