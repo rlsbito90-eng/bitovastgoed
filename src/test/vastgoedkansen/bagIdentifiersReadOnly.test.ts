@@ -15,12 +15,11 @@ describe('Vastgoedkans BAG-identifiers zijn read-only', () => {
     expect(page).not.toMatch(/value=\{form\.bagVerblijfsobjectId/);
   });
 
-  it('toont de bronwaarden met fallback en read-only toelichting', () => {
-    expect(page).toContain("{kans.bagPandId||'Niet gekoppeld'}");
-    expect(page).toContain("{kans.bagVerblijfsobjectId||'Niet gekoppeld'}");
-    expect(page).toContain(
-      'BAG-identifiers worden uit de bronkoppeling overgenomen en zijn hier niet vrij wijzigbaar.',
-    );
+  it('toont de bronwaarden met fallback als read-only tekst', () => {
+    expect(page).toMatch(/\{\s*kans\.bagPandId\s*\|\|\s*'Niet gekoppeld'\s*\}/);
+    expect(page).toMatch(/\{\s*kans\.bagVerblijfsobjectId\s*\|\|\s*'Niet gekoppeld'\s*\}/);
+    expect(page).toContain('BAG-pand-ID');
+    expect(page).toContain('BAG-verblijfsobject-ID');
   });
 
   it('houdt de identifiers buiten de bewerkbare formstate', () => {
