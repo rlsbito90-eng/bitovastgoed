@@ -1,6 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 import {
+  maakBestaandConceptBridgeSupabaseRepository,
+  type BestaandConceptBridgeRepository,
+  type BestaandConceptBridgeRpcUitvoerder,
+} from './bestaandConceptBridgeSupabaseRepository';
+import {
   bepaalBrowserWerkCrmActivatieUitOmgeving,
   type ProductiekernBrowserOmgeving,
 } from './productiekernBrowserClient';
@@ -19,19 +24,25 @@ import {
 export interface ProductiekernBrowserWriteSamenstelling {
   activatie: ProductiekernActivatieBesluit;
   vroegeRepository: VroegeProductieWriteRepository;
+  bestaandConceptBridgeRepository: BestaandConceptBridgeRepository;
   transactieRepository: AcquisitieProductieTransactieRepository;
 }
 
 export interface ProductiekernBrowserWriteUitvoerders {
   vroege: VroegeRpcUitvoerder;
+  bestaandConceptBridge: BestaandConceptBridgeRpcUitvoerder;
   transacties: ProductieSupabaseRpcUitvoerder;
 }
 
 /**
- * Bouwt de browser-writekant uitsluitend bovenop een reeds fail-closed
- * werk-CRM-activatiebesluit. Beide bestaande repository-adapters blijven hun
- * eigen `schrijvenActief`-controle uitvoeren; deze compositie voegt dus geen
- * alternatieve featureflag of bypass toe.
+ * Bouwt de browser-writekant uitsluitend bovenop één reeds fail-closed
+ * werk-CRM-activatiebesluit. Alle repository-adapters behouden hun eigen
+ * `schrijvenActief`-controle; deze compositie voegt geen alternatieve
+ * featureflag of bypass toe.
+ *
+ * De bestaand-concept-bridge is hier alleen technisch samengesteld. Zolang
+ * geen UI die repository aanroept, en zolang de databasefunctie niet apart is
+ * geïnstalleerd/gegrant, ontstaat er geen operationeel bridgepad.
  */
 export function stelProductiekernBrowserWritesSamen(
   env: ProductiekernBrowserOmgeving,
@@ -44,6 +55,10 @@ export function stelProductiekernBrowserWritesSamen(
     vroegeRepository: maakVroegeProductieSupabaseRepository({
       activatie,
       uitvoerder: uitvoerders.vroege,
+    }),
+    bestaandConceptBridgeRepository: maakBestaandConceptBridgeSupabaseRepository({
+      activatie,
+      uitvoerder: uitvoerders.bestaandConceptBridge,
     }),
     transactieRepository: maakGepoorteSupabaseProductieTransactieRepository(
       activatie,
@@ -61,17 +76,22 @@ type SupabaseRpcClient = {
 
 const rpcClient = supabase as unknown as SupabaseRpcClient;
 
+async function voerBrowserRpcUit(naam: string, parameters: Record<string, unknown>) {
+  const respons = await rpcClient.rpc(naam, parameters);
+  return {
+    data: respons.data,
+    error: respons.error
+      ? { message: respons.error.message ?? undefined, code: respons.error.code ?? undefined }
+      : null,
+  };
+}
+
 const browserUitvoerders: ProductiekernBrowserWriteUitvoerders = {
   vroege: {
-    async rpc(naam, parameters) {
-      const respons = await rpcClient.rpc(naam, parameters);
-      return {
-        data: respons.data,
-        error: respons.error
-          ? { message: respons.error.message ?? undefined, code: respons.error.code ?? undefined }
-          : null,
-      };
-    },
+    rpc: voerBrowserRpcUit,
+  },
+  bestaandConceptBridge: {
+    rpc: voerBrowserRpcUit,
   },
   transacties: {
     async voerRpcUit(rpc, parameters) {
@@ -92,7 +112,7 @@ const browserUitvoerders: ProductiekernBrowserWriteUitvoerders = {
 
 /**
  * Standaard browsercompositie. Er wordt niets automatisch geactiveerd: zonder
- * alle expliciete werk-CRM-envbewijzen leveren beide repositories uitsluitend
+ * alle expliciete werk-CRM-envbewijzen leveren alle repositories uitsluitend
  * fail-closed schrijfgedrag op.
  */
 export function maakStandaardProductiekernBrowserWriteSamenstelling(): ProductiekernBrowserWriteSamenstelling {
