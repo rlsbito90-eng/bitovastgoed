@@ -108,9 +108,49 @@ for old, new in replacements.items():
     text = text.replace(old, new)
 text = text.replace(resume_old, resume_new)
 
+prepare_guard_old = '''DO $guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM bag_control.datasetversies
+    WHERE scope_code = '0363' AND datasetversie <> 'v20260808-directional-v3'
+  ) THEN
+    RAISE EXCEPTION 'Andere Amsterdam-datasetversie bestaat al.';
+  END IF;
+END
+$guard$;
+'''
+prepare_guard_new = '''DO $guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM bag_control.datasetversies
+    WHERE scope_code = '0363'
+      AND datasetversie NOT IN ('v20260805', 'v20260808-directional-v3')
+  ) THEN
+    RAISE EXCEPTION 'Onverwachte derde Amsterdam-datasetversie bestaat al.';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM bag_control.datasetversies
+    WHERE scope_code = '0363' AND datasetversie = 'v20260805'
+      AND NOT (status = 'actief' AND is_actief)
+  ) THEN
+    RAISE EXCEPTION 'Bekende Amsterdam-voorganger v20260805 is niet actief; handmatige diagnose vereist.';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM bag_control.datasetversies
+    WHERE scope_code = '0363' AND datasetversie = 'v20260808-directional-v3'
+      AND (is_actief OR status NOT IN ('staging','gevalideerd'))
+  ) THEN
+    RAISE EXCEPTION 'Bestaande v3-dataset heeft onverwachte status of is actief.';
+  END IF;
+END
+$guard$;
+'''
+if prepare_guard_old not in text:
+    raise SystemExit('Getransformeerde prepare-guard wijkt onverwacht af.')
+text = text.replace(prepare_guard_old, prepare_guard_new)
+
 for forbidden in [
     '8973886061',
-    'v20260805',
     '1464429',
     '2664897',
     '2664890',
@@ -132,6 +172,9 @@ required = [
     'EXPECTED_GEOMETRIEEN=1873252',
     'source_offset="$current"',
     'raw CSV-offset=$source_offset',
+    "datasetversie NOT IN ('v20260805', 'v20260808-directional-v3')",
+    "datasetversie = 'v20260805'",
+    "NOT (status = 'actief' AND is_actief)",
 ]
 for token in required:
     if token not in text:
