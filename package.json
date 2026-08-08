@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:acquisitie-productiekern": "vitest run src/lib/offMarket/acquisitie src/components/offMarketAcquisitie",
+    "test:acquisitie-productiekern": "vitest run src/lib/offMarket/acquisitie src/components/offmarket/acquisitie",
     "verify:acquisitie-productiekern": "tsc --noEmit && npm run test:acquisitie-productiekern && npm run build"
   },
   "dependencies": {
