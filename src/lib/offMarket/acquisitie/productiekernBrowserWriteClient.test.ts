@@ -32,11 +32,11 @@ describe('productiekernBrowserWriteClient', () => {
     await expect(samenstelling.vroegeRepository.startVerwerking({
       selectieId: 'selectie-1', actorId: 'actor-1', operationKey: 'op-1',
     })).rejects.toThrow(/niet geactiveerd/i);
-    await expect(samenstelling.transactieRepository.markeerBatchGeprint({
+    expect(() => samenstelling.transactieRepository.markeerBatchGeprint({
       soort: 'batch_geprint_markeren',
       batchId: 'batch-1', actorId: 'actor-1', operationKey: 'op-2',
       verwachtDocumentversie: 1, printdatum: '2026-08-08',
-    })).rejects.toThrow(/niet geactiveerd/i);
+    })).toThrow(/niet geactiveerd/i);
 
     expect(vroegeRpc).not.toHaveBeenCalled();
     expect(lateRpc).not.toHaveBeenCalled();
