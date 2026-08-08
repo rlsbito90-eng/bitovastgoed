@@ -83,4 +83,28 @@ describe('ProductiekernDossierProjectie', () => {
     expect(screen.queryByText('Opvolgen: 1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
   });
+
+  it('presenteert een readfout fail-closed en toont geen lege of afgeleide pariteit', () => {
+    render(
+      <ProductiekernDossierProjectie
+        totaalSelecties={2}
+        dossiers={[]}
+        pariteit={{
+          totaalSelecties: 2,
+          vergelijkbaar: 0,
+          gelijk: 0,
+          afwijkend: 0,
+          legacyOntbreekt: 0,
+          productiekernOntbreekt: 2,
+        }}
+        fout
+      />,
+    );
+
+    expect(screen.getByText('Readmodel niet beschikbaar')).toBeInTheDocument();
+    expect(screen.queryByText('0/2 formele dossiers')).not.toBeInTheDocument();
+    expect(screen.queryByText(/kern ontbreekt/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });
