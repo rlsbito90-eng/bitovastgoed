@@ -1,138 +1,142 @@
-# PLAN A — Go/no-go-checklist voor BUILD A
+# BUILD A — Go/no-go-checklist Acquisitieproductiekern
 
-Deze checklist voorkomt dat de productiekern wordt gebouwd op onbewezen aannames. BUILD A start pas wanneer alle blokkerende punten aantoonbaar zijn beantwoord.
+Dit document is het actuele review- en releasecontract voor de Acquisitieproductiekern. Groen bewijs uit CI of geïsoleerde databaseproeven verleent **nooit automatisch productieakkoord**.
 
-## Actuele releasebasis — 8 augustus 2026
+## Actuele status — 8 augustus 2026
 
-De voorbereidende BUILD-A-kern heeft inmiddels aantoonbaar de volgende bewijzen:
+### Bewezen
 
-- actuele CRM-productie-DDL is via de bestaande Lovable-databasebinding uitsluitend read-only gecontroleerd;
-- actuele RLS, policies, grants en `is_intern_gebruiker` zijn read-only gecontroleerd;
-- live `off_market_brieven_status_check` staat nog op `concept | verstuurd`;
-- live briefverdeling tijdens de probe: 27 `concept`, 69 `verstuurd`;
-- geen van de nieuwe BUILD-A-tabellen of transactionele functies bestaat momenteel in productie;
-- de migratiedraft houdt daarom legacy `verstuurd` transitief geldig en voert geen automatische backfill uit;
-- de volledige vroege write-keten is transactioneel uitgewerkt: verwerking starten, briefidentiteit reserveren, immutable briefversie maken, printbatch maken en briefversie koppelen;
-- de complete dagflow wordt in tijdelijke PostgreSQL 17 end-to-end opgebouwd via de canonieke RPC-keten, zonder synthetische inserts van dossier/brief/versie/batch in de hoofdflow;
-- nummeruitgifte is onder concurrency getest;
-- operation-key-idempotentie en postregistratie-idempotentie zijn geïsoleerd getest;
-- de volledige database- en securityproof is groen in `Acquisitieproductiekern DB Proof` run `31263471996` op head `7caa8a97a66244857dd4ab8053a34b8cc4829c9a`;
-- die run bewijst afzonderlijk: kern-SQL/rollback/concurrency, volledige dagflow-E2E, JWT/interne-actor/actor-spoofingbeveiliging en least-privilege activatie-RLS/ACL;
-- het securitymodel gebruikt één canonieke architectuur: niet-client-callable `*_intern` implementaties achter publieke security-wrappers;
-- publieke wrappers controleren `auth.uid()`, interne CRM-rol via `is_intern_gebruiker` en gelijkheid met `p_actor_id` vóór de interne write wordt uitgevoerd;
-- authenticated niet-interne gebruikers worden geweigerd, actor-spoofing wordt geweigerd en beide foutpaden laten geen productieaudit achter;
-- bij het toekomstige activatiemodel krijgen uitsluitend vier readmodellen directe `SELECT` voor `authenticated`, met RLS op interne gebruikers; directe INSERT/UPDATE/DELETE blijft geblokkeerd;
-- uitsluitend de negen publieke wrappers krijgen in het review-activatiemodel EXECUTE; `anon`, de helper en alle `*_intern` functies blijven dicht;
-- legacy `verstuurd`-brieven en oude conceptbrieven zonder formele `selectie_id` worden niet kunstmatig als productiekernbrief geïnterpreteerd;
-- productieactivatie, migratie, backfill, RLS-wijzigingen en grants zijn niet uitgevoerd.
+- actuele CRM-productie-DDL, RLS, policies, grants en `is_intern_gebruiker` zijn uitsluitend read-only gecontroleerd via de bestaande CRM-databasebinding;
+- live `off_market_brieven_status_check` ondersteunt nog `concept | verstuurd`; de migratiedrafts behouden legacy `verstuurd` transitief en voeren geen automatische backfill uit;
+- nieuwe BUILD-A-tabellen en transactionele functies bestaan niet in productie;
+- vijf vroege en vier latere transactionele RPC's zijn uitgewerkt en geïsoleerd bewezen;
+- de canonieke securityarchitectuur gebruikt publieke security-wrappers vóór niet-client-callable `*_intern` implementaties;
+- no-JWT, niet-interne gebruiker en actor-spoofing worden fail-closed geweigerd; de geldige interne actorroute schrijft wel en produceert precies de bedoelde audit;
+- least-privilege activatie is geïsoleerd bewezen: alleen vier readmodellen krijgen toekomstige `SELECT`, alleen negen publieke wrappers toekomstige `EXECUTE`; directe writes, helper en `_intern` blijven gesloten;
+- `Acquisitieproductiekern DB Proof` run `31263471996` is groen voor kern-SQL/rollback/concurrency, volledige dagflow-E2E, auth/actor-spoofing en activatie-RLS/ACL;
+- documentproductie voor batchvoorblad, controlelijst, brieven-PDF en adreslabels is geïmplementeerd zonder dat downloads zelf database- of statusmutaties uitvoeren;
+- de bestaande CRM-Supabase-browserclient is via een smalle adapter aan de formele readketen gekoppeld;
+- de readketen blijft centraal bewijs-gepoord en standaard gesloten; zonder expliciet leesbewijs wordt `client.from(...)` niet bereikt;
+- productiekern-dossiers kunnen in één allowlisted bulkread op `selectie_id` worden geladen, met querybudget, retry/timeout, limieten en integriteitsbewaking;
+- de Acquisitieselectie bevat een afzonderlijke read-only Productiekernstatusprojectie; deze heeft geen knoppen en beïnvloedt geen legacyfilters, sortering, werkbakken of writes;
+- dezelfde bulkset ondersteunt observerende workflowpariteit legacy ↔ formele Productiekern zonder N+1-reads;
+- gerichte Verify run `31264614402` op head `47680feb18bf483c150e9df0a94d3f5cd1e974e7` is volledig groen: typecheck, alle gerichte Acquisitieproductiekern-tests en production build;
+- de algemene regressiesuite blijft bekend rood door dezelfde vijf reeds geaccepteerde baselinefails buiten de Productiekernscope; de laatste bekende algemene run had 542 geslaagde testbestanden, 4 rode, 2 skipped en 3100 geslaagde tests, 5 rode, 4 skipped;
+- productieactivatie, productie-migratie, backfill, RLS/grantswijzigingen en Productiekernwrites zijn niet uitgevoerd.
 
-### Nog blokkerend voor productiegebruik
+## Nog open vóór technische review / merge
 
-De groene database- en securityproof is **geen productieakkoord**. Voor productiegebruik blijven minimaal open:
+1. definitieve release-/migratiebestanden samenstellen uit de bewezen review-drafts, **zonder ze toe te passen**;
+2. handmatige preview-acceptatie van de dagelijkse hoofdflow uitvoeren, inclusief PDF-/downloadgedrag en de observerende Productiekernprojectie;
+3. op de finale PR-head opnieuw de gerichte Verify en de algemene regressie-/typecheck-/buildstatus vastleggen;
+4. PR-reviewdossier en reviewcommentaar synchroniseren met de actuele implementatiestatus;
+5. technische review uitvoeren en merge als afzonderlijke poort behandelen.
 
-1. definitieve productie-migratiebestanden opstellen uit de bewezen review-drafts, zonder de huidige `ROLLBACK`-veiligheid stilzwijgend te verwijderen;
-2. frontend werkelijk koppelen aan formele productiekernrecords zonder de bestaande legacy-flow te breken;
-3. preview/handmatige gebruikersacceptatie van de dagelijkse hoofdflow;
-4. volledige regressie-/typecheck-/production-buildstatus opnieuw op de finale PR-head beoordelen;
-5. technische review en merge als afzonderlijke poort uitvoeren;
-6. afzonderlijk expliciet productieakkoord vóór enige migratie, grant, RLS-wijziging of activatie.
+## Hard geblokkeerd zonder afzonderlijk expliciet productieakkoord
+
+- productie-migraties toepassen;
+- tabellen, constraints of functies in productie aanmaken/wijzigen;
+- RLS-policies of grants wijzigen;
+- backfill uitvoeren;
+- read-only Productiekernactivatie voor echte gebruikers inschakelen;
+- Productiekernwrites activeren;
+- automatische Kadasterhandelingen toevoegen.
 
 ## 1. Bestaande CRM-contracten
 
-- [ ] Bestaande tabellen en velden voor selectie, brieven, geadresseerden, printen, posten en opvolging zijn geïnventariseerd.
-- [ ] Bestaande hooks, RPC's, Edge Functions en Storage-paden zijn geïnventariseerd.
-- [ ] Bestaande RLS-policies en rollen zijn geïnventariseerd.
-- [ ] Vastgesteld welke bestaande velden tijdens de overgang leesbaar en schrijfbaar blijven.
-- [ ] Vastgesteld welke velden canoniek worden en welke alleen compatibiliteit bieden.
+- [x] Productie-DDL van de relevante legacy-acquisitieobjecten read-only gecontroleerd.
+- [x] Actuele RLS/policies/grants en interne gebruikershelper read-only gecontroleerd.
+- [x] Legacy briefstatus `verstuurd` als compatibiliteitsgrens vastgelegd.
+- [x] Vastgelegd dat nieuwe BUILD-A-objecten nog niet in productie bestaan.
+- [x] Geen automatische historische backfill ontworpen of uitgevoerd.
 
 ## 2. Acquisitiedossier en werkbakken
 
-- [ ] Het canonieke dossierobject is vastgesteld.
-- [ ] `verwerking_gestart_op` wordt uitsluitend via een expliciete gebruikershandeling gezet.
-- [ ] `Acquisitieselectie (x)` is gelijk aan de werkbak `Nieuwe selectie`.
-- [ ] Iedere actieve dossierstatus valt in precies één primaire werkbak.
-- [ ] KPI's zoals `Geblokkeerd`, `Geadresseerden` en `Opvolging verlopen` zijn geen primaire werkbakken.
-- [ ] Bestaande dossiers kunnen zonder dataverlies worden geclassificeerd.
+- [x] Canoniek dossiercontract vastgesteld.
+- [x] Acht onderling uitsluitende operationele werkbakken vastgesteld.
+- [x] `verwerking_gestart_op` is een expliciete procesmarkering en geen datumheuristiek.
+- [x] KPI-kenmerken blijven buiten de primaire werkbakindeling.
+- [x] Observerende legacy ↔ Productiekern-workflowpariteit is geïmplementeerd.
+- [ ] Bestaande productiepopulatie handmatig beoordelen op concrete pariteitsafwijkingen zodra read-only activatie afzonderlijk is goedgekeurd.
 
 ## 3. Briefnummering en versies
 
-- [ ] Formaat `BRYYYYNNNNNN` is definitief.
-- [ ] Nummeruitgifte is atomair en concurrency-safe.
-- [ ] Geannuleerde nummers worden niet hergebruikt.
-- [ ] Eén brief hoort bij precies één geadresseerde.
-- [ ] Briefversies zijn immutabel na generatie.
-- [ ] Een verzonden versie wordt vergrendeld.
-- [ ] Correctie na verzending leidt tot een nieuw briefnummer.
-- [ ] Geadresseerde-snapshots blijven historisch onveranderd.
+- [x] Formaat `BRYYYYNNNNNN` vastgelegd.
+- [x] Nummeruitgifte atomair/concurrency-safe bewezen.
+- [x] Eén formele brief hoort bij één geadresseerde.
+- [x] Briefversies en geadresseerde-snapshots zijn immutable volgens het Productiekerncontract.
+- [x] Definitieve/verzonden toestand wordt vergrendeld volgens de transactionele keten.
 
 ## 4. Batchnummering en batchbeheer
 
-- [ ] Formaat `BATYYYYMMDDNN` is definitief.
-- [ ] Dagreeks wordt atomair uitgegeven.
-- [ ] Eén briefversie kan niet in twee actieve batches zitten.
-- [ ] Conceptbatch is wijzigbaar.
-- [ ] Wijziging na documentgeneratie vereist heropenen en regenereren.
-- [ ] Wijziging na printen leidt tot een aanvullende batch.
-- [ ] Geposte batchinhoud is vergrendeld.
-- [ ] Gedeeltelijk geprinte en gedeeltelijk geposte batches hebben expliciete statussen.
+- [x] Formaat `BATYYYYMMDDNN` vastgelegd.
+- [x] Dagreeks concurrency-safe bewezen.
+- [x] Batchstatussen onderscheiden concept, documenten, geprint, gedeeltelijk gepost, gepost en geannuleerd.
+- [x] Geprint impliceert niet gepost.
+- [x] Gedeeltelijk geposte batches blijven semantisch correct.
 
 ## 5. Documentproductie
 
-- [ ] Gecombineerde brieven-PDF is versieerbaar.
-- [ ] Labelbestand is versieerbaar.
-- [ ] Controlelijst bevat het batchnummer in de kop.
-- [ ] Controlelijst bevat het batchnummer en paginanummer in iedere voettekst.
-- [ ] Batchvoorblad toont aantallen dossiers, brieven, labels, pagina's en afwijkingen.
-- [ ] Oude documentversies blijven beschikbaar als `vervallen`.
-- [ ] Bestandsnamen bevatten brief- of batchnummer en documentversie.
+- [x] Batchvoorblad geïmplementeerd.
+- [x] Controlelijst geïmplementeerd.
+- [x] Gecombineerde brieven-PDF geïmplementeerd.
+- [x] Adreslabels-export geïmplementeerd.
+- [x] Documentdownload verandert geen database- of productiestatus.
+- [ ] Handmatig previewen van browserdownloadgedrag en documentuitvoer.
 
-## 6. Printen en posten
+## 6. Printen, posten en opvolging
 
-- [ ] Printdatum en verzenddatum zijn afzonderlijke gebeurtenissen.
-- [ ] `Geprint` impliceert nooit automatisch `Gepost`.
-- [ ] Opvolging ontstaat alleen na bevestigde verzending.
-- [ ] Herdrukken worden afzonderlijk gelogd.
-- [ ] Niet-verzonden brieven binnen een geprinte batch krijgen een expliciete afwijking.
-- [ ] Dubbel printen en dubbel posten geven een blokkade of expliciete waarschuwing.
+- [x] Printdatum en post/verzenddatum zijn afzonderlijke gebeurtenissen.
+- [x] Post-before-print wordt geblokkeerd in de geïsoleerde dagflow.
+- [x] Dubbele postregistratie is idempotent bewezen.
+- [x] Partiële postregistratie blijft correct.
+- [x] Opvolging ontstaat uitsluitend na bevestigde verzending in het bewezen procesmodel.
+- [ ] Finale semantische review bevestigen dat postregistratie en dossier-/opvolgprojectie in de definitieve releaseketen volledig atomair gekoppeld zijn.
 
-## 7. Zoeken en koppelingen
+## 7. Readmodel, zoeken en frontend
 
-- [ ] Volledig en gedeeltelijk briefnummer is zoekbaar.
-- [ ] Volledig en gedeeltelijk batchnummer is zoekbaar.
-- [ ] Zoekinvoer wordt alfanumeriek en hoofdletterongevoelig genormaliseerd.
-- [ ] Brief is herleidbaar naar signaal, dossier, object en relatie.
-- [ ] Batch is via batchbrieven herleidbaar naar dezelfde context.
-- [ ] Afleidbare koppelingen worden niet dubbel opgeslagen zonder noodzaak.
+- [x] Single reads zijn expliciet allowlisted.
+- [x] Bulkreads zijn expliciet allowlisted en hard begrensd.
+- [x] Bulk dossier-read filtert uitsluitend op `selectie_id`.
+- [x] Onverwachte en dubbele dossierresultaten worden geweigerd.
+- [x] Browserclient gebruikt de bestaande CRM-Supabase-client; geen tweede URL/key-configuratie toegevoegd.
+- [x] Read-only frontendmount is fysiek aanwezig maar standaard gesloten.
+- [x] Read-only Productiekernstatus en workflowpariteit hebben geen writebediening.
+- [ ] Read-only productieactivatie alleen na afzonderlijk expliciet leesakkoord.
 
-## 8. Audittrail en verwijderregels
+## 8. Audittrail en veiligheid
 
-- [ ] Alle nummeruitgiftes worden gelogd.
-- [ ] Toevoegen en verwijderen uit een conceptbatch wordt gelogd.
-- [ ] Genereren, heropenen, printen, posten, annuleren en herdrukken worden gelogd.
-- [ ] Uitgegeven nummers worden nooit hard verwijderd.
-- [ ] Verzonden snapshots worden nooit hard verwijderd.
-- [ ] Auditrecords zijn append-only vanuit de applicatie.
+- [x] Operation-key-idempotentie bewezen.
+- [x] Actor-spoofing geblokkeerd.
+- [x] Niet-interne authenticated gebruiker geblokkeerd.
+- [x] No-JWT-route geblokkeerd.
+- [x] Verboden securityroutes produceren geen auditwrite.
+- [x] Least-privilege RLS/ACL-activatiemodel geïsoleerd groen.
+- [x] Geen automatische Kadasterhandeling toegevoegd.
 
 ## 9. Migratie en backwards compatibility
 
-- [ ] Bestaande brieven zijn geclassificeerd als automatisch migreerbaar, handmatig beoordelen of alleen historisch bewaren.
-- [ ] Geen fictieve historische nummers worden zonder controle toegekend.
-- [ ] Rollbackstrategie is vastgelegd.
-- [ ] Bestaande schermen blijven tijdens de overgang functioneren.
-- [ ] Pariteitstests bewijzen dat bestaande tellingen niet onverwacht wijzigen.
-- [ ] Geen productieactivatie voordat migratie- en integriteitscontroles groen zijn.
+- [x] Legacy `verstuurd` blijft transitief geldig.
+- [x] Oude legacybrieven zonder formele `selectie_id` worden niet kunstmatig als Productiekernrecord geïnterpreteerd.
+- [x] Review-SQL staat buiten `supabase/migrations` en is niet op productie toegepast.
+- [x] Rollback-/isolatieproeven zijn groen.
+- [x] Bestaande legacy-Acquisitieselectie blijft operationeel leidend tijdens de overgang.
+- [ ] Definitieve release-migratiebestanden afleiden uit bewezen drafts, reviewen en **niet toepassen** vóór afzonderlijk productieakkoord.
 
-## 10. Veiligheid en release
+## 10. Release
 
-- [ ] Geen automatische Kadasterhandeling toegevoegd.
-- [ ] Geen Lovable-afhankelijkheid toegevoegd.
-- [ ] RLS-tests zijn groen voor lezen, aanmaken, wijzigen en blokkeren van verboden acties.
-- [ ] Typecheck is groen.
-- [ ] Production build is groen.
-- [ ] Regressietests zijn groen, afgezien van expliciet vastgelegde bestaande baselinefouten.
-- [ ] Preview is handmatig gecontroleerd op de dagelijkse hoofdflow.
-- [ ] Productieactivatie vereist een afzonderlijk expliciet besluit.
+- [x] Gerichte Productiekern typecheck groen op head `47680feb...`.
+- [x] Gerichte Productiekern-tests groen op head `47680feb...`.
+- [x] Production build groen op head `47680feb...`.
+- [x] Bekende algemene regressiebaseline afzonderlijk vastgelegd; geen nieuwe Productiekernfail aangetoond.
+- [ ] Handmatige preview-acceptatie dagelijkse hoofdflow.
+- [ ] Finale regressie/typecheck/build op finale reviewhead.
+- [ ] Technische review.
+- [ ] Merge.
+- [ ] Afzonderlijk expliciet productieakkoord vóór migratie/RLS/grants/activatie.
 
 ## Go/no-go-regel
 
-BUILD A mag worden geopend als draft voor voorbereidende code, maar database-activatie, backfill en productiegebruik blijven geblokkeerd zolang een blokkerend checklistpunt niet aantoonbaar groen is.
+**Status nu: GO voor verdere technische reviewvoorbereiding; NO-GO voor productie.**
+
+De code mag als draft verder worden beoordeeld en releasebestanden mogen review-only worden voorbereid. Productiemigratie, backfill, RLS/grantswijzigingen, read-activatie en writes blijven geblokkeerd totdat de resterende reviewpunten groen zijn én voor de betreffende productiestap afzonderlijk expliciet akkoord is gegeven.
