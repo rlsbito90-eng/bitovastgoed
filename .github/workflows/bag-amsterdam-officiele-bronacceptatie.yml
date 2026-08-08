@@ -19,7 +19,10 @@ jobs:
   extract-amsterdam:
     if: github.event.inputs.approval == 'EXTRACT_BAG_AMSTERDAM_0363_FROM_NL'
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    # De landelijke download kost in de praktijk circa een uur. De extractiestap heeft
+    # bewust een eigen harde grens van 300 minuten; geef die stap dus zijn volledige
+    # budget plus marge voor download, validatie, cleanup en bewijsrapportage.
+    timeout-minutes: 390
     env:
       BAG_NL_SOURCE_URL: https://service.pdok.nl/kadaster/adressen/atom/v1_0/downloads/lvbag-extract-nl.zip
       PYTHONUNBUFFERED: '1'
