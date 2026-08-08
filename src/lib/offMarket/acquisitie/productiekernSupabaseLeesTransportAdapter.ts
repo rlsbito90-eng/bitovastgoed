@@ -1,8 +1,15 @@
 import { bouwProductiekernLeesAuditRecord, type ProductiekernLeesAuditRecord } from './productiekernSupabaseLeesAudit';
 import { ProductiekernLeesBudgetOverschredenError } from './productiekernSupabaseLeesBudget';
 import { normaliseerProductiekernLeesFout } from './productiekernSupabaseLeesFout';
-import { bouwProductiekernLeesQuery, type ProductiekernLeesQueryNaam } from './productiekernSupabaseLeesQueryContract';
+import {
+  bouwProductiekernBulkLeesQuery,
+  bouwProductiekernLeesQuery,
+  type ProductiekernLeesQueryNaam,
+} from './productiekernSupabaseLeesQueryContract';
 import type { ProductiekernSupabaseLeesTransport } from './productiekernSupabaseLeesRepository';
+
+type SingleQueryNaam = Exclude<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>;
+type BulkQueryNaam = Extract<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>;
 
 export interface ProductiekernSupabaseQueryUitvoerder {
   voerUit(input: {
@@ -14,6 +21,13 @@ export interface ProductiekernSupabaseQueryUitvoerder {
     maximaalAantalRecords: number;
     volgorde?: Readonly<{ kolom: string; oplopend: boolean }>;
   }): Promise<Record<string, unknown> | Record<string, unknown>[] | null>;
+  voerBulkUit?(input: {
+    tabel: string;
+    selectKolommen: readonly string[];
+    filterKolom: string;
+    filterWaarden: readonly string[];
+    maximaalAantalRecords: number;
+  }): Promise<Record<string, unknown>[]>;
 }
 
 export interface ProductiekernLeesTransportOpties {
@@ -38,8 +52,24 @@ export function maakProductiekernSupabaseLeesTransport(
 ): ProductiekernSupabaseLeesTransport {
   const klok = opties.klok ?? (() => Date.now());
 
+  function auditFout(query: ProductiekernLeesQueryNaam, gestart: number, error: unknown): never {
+    const genormaliseerd = normaliseerProductiekernLeesFout(error);
+    opties.audit?.(bouwProductiekernLeesAuditRecord({
+      query,
+      uitkomst: 'fout',
+      duurMs: Math.max(0, klok() - gestart),
+      foutcode: genormaliseerd.code,
+    }));
+    if (error instanceof ProductiekernLeesBudgetOverschredenError) throw error;
+    throw new ProductiekernLeesTransportError(
+      genormaliseerd.code,
+      genormaliseerd.herstelbaar,
+      genormaliseerd.publiekeMelding,
+    );
+  }
+
   async function voerQueryUit(
-    queryNaam: ProductiekernLeesQueryNaam,
+    queryNaam: SingleQueryNaam,
     filterWaarde: string,
   ): Promise<Record<string, unknown> | Record<string, unknown>[] | null> {
     const query = bouwProductiekernLeesQuery(queryNaam, filterWaarde);
@@ -55,42 +85,54 @@ export function maakProductiekernSupabaseLeesTransport(
         volgorde: query.volgorde,
       });
       const aantalRecords = Array.isArray(resultaat) ? resultaat.length : resultaat ? 1 : 0;
-      if (aantalRecords > query.maximaalAantalRecords) {
-        throw { code: '21000' };
-      }
+      if (aantalRecords > query.maximaalAantalRecords) throw { code: '21000' };
       opties.audit?.(bouwProductiekernLeesAuditRecord({
         query: queryNaam,
-        uitkomst: Array.isArray(resultaat)
-          ? 'lijst'
-          : resultaat
-            ? 'gevonden'
-            : 'niet_gevonden',
+        uitkomst: Array.isArray(resultaat) ? 'lijst' : resultaat ? 'gevonden' : 'niet_gevonden',
         duurMs: Math.max(0, klok() - gestart),
         aantalRecords,
       }));
       return resultaat;
     } catch (error) {
-      const genormaliseerd = normaliseerProductiekernLeesFout(error);
+      return auditFout(queryNaam, gestart, error);
+    }
+  }
+
+  async function voerBulkQueryUit(
+    queryNaam: BulkQueryNaam,
+    filterWaarden: readonly string[],
+  ): Promise<Record<string, unknown>[]> {
+    const query = bouwProductiekernBulkLeesQuery(queryNaam, filterWaarden);
+    if (!uitvoerder.voerBulkUit) {
+      throw new Error(`Bulk-uitvoerder voor ${queryNaam} is niet aangesloten.`);
+    }
+    const gestart = klok();
+    try {
+      const resultaat = await uitvoerder.voerBulkUit({
+        tabel: query.tabel,
+        selectKolommen: query.selectKolommen,
+        filterKolom: query.filterKolom,
+        filterWaarden: query.filterWaarden,
+        maximaalAantalRecords: query.maximaalAantalRecords,
+      });
+      if (!Array.isArray(resultaat) || resultaat.length > query.maximaalAantalRecords) {
+        throw { code: '21000' };
+      }
       opties.audit?.(bouwProductiekernLeesAuditRecord({
         query: queryNaam,
-        uitkomst: 'fout',
+        uitkomst: 'lijst',
         duurMs: Math.max(0, klok() - gestart),
-        foutcode: genormaliseerd.code,
+        aantalRecords: resultaat.length,
       }));
-      if (error instanceof ProductiekernLeesBudgetOverschredenError) {
-        throw error;
-      }
-      throw new ProductiekernLeesTransportError(
-        genormaliseerd.code,
-        genormaliseerd.herstelbaar,
-        genormaliseerd.publiekeMelding,
-      );
+      return resultaat;
+    } catch (error) {
+      return auditFout(queryNaam, gestart, error);
     }
   }
 
   return {
     async haalEen(tabel, filters) {
-      const mapping: Record<string, ProductiekernLeesQueryNaam> = {
+      const mapping: Record<string, SingleQueryNaam> = {
         off_market_acquisitie_dossiers: 'haal_dossier',
         off_market_brieven: 'haal_brief',
         off_market_printbatches: 'haal_printbatch',
@@ -102,24 +144,17 @@ export function maakProductiekernSupabaseLeesTransport(
         throw new Error(`Filtercontract voor ${queryNaam} wijkt af.`);
       }
       const resultaat = await voerQueryUit(queryNaam, query.filterWaarde);
-      if (Array.isArray(resultaat)) {
-        throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`);
-      }
+      if (Array.isArray(resultaat)) throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`);
       return resultaat;
     },
     async haalMeerdere(tabel, filters, volgorde) {
-      const mapping: Record<string, ProductiekernLeesQueryNaam> = {
+      const mapping: Record<string, SingleQueryNaam> = {
         off_market_brief_versies: 'haal_briefversies',
         off_market_printbatch_brieven: 'haal_printbatch_brieven',
       };
       const queryNaam = mapping[tabel];
-      if (!queryNaam) {
-        throw new Error(`Niet-toegestane productiekernleestabel: ${tabel}.`);
-      }
-      const query = bouwProductiekernLeesQuery(
-        queryNaam,
-        Object.values(filters)[0] ?? '',
-      );
+      if (!queryNaam) throw new Error(`Niet-toegestane productiekernleestabel: ${tabel}.`);
+      const query = bouwProductiekernLeesQuery(queryNaam, Object.values(filters)[0] ?? '');
       if (Object.keys(filters).length !== 1 || !(query.filterKolom in filters)) {
         throw new Error(`Filtercontract voor ${queryNaam} wijkt af.`);
       }
@@ -127,10 +162,17 @@ export function maakProductiekernSupabaseLeesTransport(
         throw new Error(`Volgordecontract voor ${queryNaam} wijkt af.`);
       }
       const resultaat = await voerQueryUit(queryNaam, query.filterWaarde);
-      if (!Array.isArray(resultaat)) {
-        throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`);
-      }
+      if (!Array.isArray(resultaat)) throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`);
       return resultaat;
+    },
+    async haalMeerdereOpIds(tabel, ids) {
+      const mapping: Record<string, BulkQueryNaam> = {
+        off_market_brieven: 'haal_brieven_op_ids',
+        off_market_brief_versies: 'haal_briefversies_op_ids',
+      };
+      const queryNaam = mapping[tabel];
+      if (!queryNaam) throw new Error(`Niet-toegestane productiekern-bulkleestabel: ${tabel}.`);
+      return voerBulkQueryUit(queryNaam, ids);
     },
   };
 }
