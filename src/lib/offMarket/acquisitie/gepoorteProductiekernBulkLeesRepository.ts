@@ -12,6 +12,11 @@ export class GepoorteProductiekernBulkLeesRepository implements ProductiekernBul
     if (!this.activatie.lezenActief) throw new ProductiekernNietGeactiveerdError(handeling);
   }
 
+  haalDossiersOpSelectieIds(selectieIds: readonly string[]) {
+    this.eisLeestoegang('haalDossiersOpSelectieIds');
+    return this.achterliggend.haalDossiersOpSelectieIds(selectieIds);
+  }
+
   haalBrievenOpIds(ids: readonly string[]) {
     this.eisLeestoegang('haalBrievenOpIds');
     return this.achterliggend.haalBrievenOpIds(ids);
