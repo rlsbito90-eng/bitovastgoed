@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  bouwProductiekernBulkLeesQuery,
   bouwProductiekernLeesQuery,
+  PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN,
   PRODUCTIEKERN_LEES_QUERY_CONTRACTEN,
 } from './productiekernSupabaseLeesQueryContract';
 
 describe('productiekern Supabase leesquerycontracten', () => {
-  it('beperkt reads tot vijf expliciete querycontracten', () => {
+  it('beperkt single reads tot vijf expliciete querycontracten', () => {
     expect(Object.keys(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN)).toEqual([
       'haal_dossier',
       'haal_brief',
@@ -16,8 +18,23 @@ describe('productiekern Supabase leesquerycontracten', () => {
     ]);
   });
 
+  it('beperkt bulk reads tot twee vaste ID-setcontracten', () => {
+    expect(Object.keys(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN)).toEqual([
+      'haal_brieven_op_ids',
+      'haal_briefversies_op_ids',
+    ]);
+    expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_brieven_op_ids).toMatchObject({
+      tabel: 'off_market_brieven', filterKolom: 'id', cardinaliteit: 'lijst',
+      maximaalAantalRecords: 1000, maximaalAantalFilterwaarden: 1000,
+    });
+  });
+
   it('selecteert uitsluitend benodigde kolommen en nooit een wildcard', () => {
-    for (const contract of Object.values(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN)) {
+    const contracten = [
+      ...Object.values(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN),
+      ...Object.values(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN),
+    ];
+    for (const contract of contracten) {
       expect(contract.selectKolommen.length).toBeGreaterThan(0);
       expect(contract.selectKolommen).not.toContain('*');
       expect(new Set(contract.selectKolommen).size).toBe(contract.selectKolommen.length);
@@ -40,9 +57,21 @@ describe('productiekern Supabase leesquerycontracten', () => {
     });
   });
 
-  it('weigert een lege filterwaarde vóór transport', () => {
+  it('weigert lege waarden en normaliseert/dedupliceert bulk-ID sets', () => {
     expect(() => bouwProductiekernLeesQuery('haal_brief', '   '))
       .toThrow('Filterwaarde voor haal_brief is verplicht.');
+    expect(() => bouwProductiekernBulkLeesQuery('haal_brieven_op_ids', []))
+      .toThrow('Filterwaarden voor haal_brieven_op_ids zijn verplicht.');
+
+    expect(bouwProductiekernBulkLeesQuery('haal_brieven_op_ids', [' brief-2 ', 'brief-1', 'brief-2']).filterWaarden)
+      .toEqual(['brief-2', 'brief-1']);
+  });
+
+  it('weigert bulksets boven de harde bovengrens', () => {
+    expect(() => bouwProductiekernBulkLeesQuery(
+      'haal_briefversies_op_ids',
+      Array.from({ length: 1001 }, (_, index) => `versie-${index}`),
+    )).toThrow('Te veel filterwaarden voor haal_briefversies_op_ids.');
   });
 
   it('bouwt een query zonder dynamische tabel- of kolomnamen', () => {
