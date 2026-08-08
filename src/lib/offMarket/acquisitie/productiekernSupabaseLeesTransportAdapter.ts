@@ -1,4 +1,5 @@
 import { bouwProductiekernLeesAuditRecord, type ProductiekernLeesAuditRecord } from './productiekernSupabaseLeesAudit';
+import { ProductiekernLeesBudgetOverschredenError } from './productiekernSupabaseLeesBudget';
 import { normaliseerProductiekernLeesFout } from './productiekernSupabaseLeesFout';
 import { bouwProductiekernLeesQuery, type ProductiekernLeesQueryNaam } from './productiekernSupabaseLeesQueryContract';
 import type { ProductiekernSupabaseLeesTransport } from './productiekernSupabaseLeesRepository';
@@ -76,6 +77,9 @@ export function maakProductiekernSupabaseLeesTransport(
         duurMs: Math.max(0, klok() - gestart),
         foutcode: genormaliseerd.code,
       }));
+      if (error instanceof ProductiekernLeesBudgetOverschredenError) {
+        throw error;
+      }
       throw new ProductiekernLeesTransportError(
         genormaliseerd.code,
         genormaliseerd.herstelbaar,
