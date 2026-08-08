@@ -1,4 +1,5 @@
 import type { AcquisitiedossierContract } from '@/lib/offMarket/acquisitie/productiekernContract';
+import type { ProductiekernWorkflowPariteit } from '@/lib/offMarket/acquisitie/productiekernDossierProjectiePariteit';
 import {
   OPERATIONELE_WERKBAK_LABEL,
   type OperationeleWerkbak,
@@ -7,6 +8,7 @@ import {
 interface ProductiekernDossierProjectieProps {
   dossiers: readonly AcquisitiedossierContract[];
   totaalSelecties: number;
+  pariteit?: ProductiekernWorkflowPariteit | null;
   laden?: boolean;
 }
 
@@ -32,6 +34,7 @@ const VOLGORDE: readonly OperationeleWerkbak[] = [
 export default function ProductiekernDossierProjectie({
   dossiers,
   totaalSelecties,
+  pariteit = null,
   laden = false,
 }: ProductiekernDossierProjectieProps) {
   const tellingen = new Map<OperationeleWerkbak, number>();
@@ -53,6 +56,21 @@ export default function ProductiekernDossierProjectie({
         <span className="text-muted-foreground">
           {laden ? 'Laden…' : `${dossiers.length}/${totaalSelecties} formele dossiers`}
         </span>
+        {!laden && pariteit && (
+          <span
+            className="rounded-full border bg-background px-2 py-0.5 text-xs"
+            data-testid="productiekern-workflowpariteit"
+          >
+            Workflowpariteit: {pariteit.gelijk}/{pariteit.vergelijkbaar} gelijk
+            {pariteit.afwijkend > 0 ? ` · ${pariteit.afwijkend} afwijkend` : ''}
+            {pariteit.productiekernOntbreekt > 0
+              ? ` · ${pariteit.productiekernOntbreekt} kern ontbreekt`
+              : ''}
+            {pariteit.legacyOntbreekt > 0
+              ? ` · ${pariteit.legacyOntbreekt} legacy ontbreekt`
+              : ''}
+          </span>
+        )}
         {!laden && VOLGORDE.map((werkbak) => {
           const aantal = tellingen.get(werkbak) ?? 0;
           if (aantal === 0) return null;
