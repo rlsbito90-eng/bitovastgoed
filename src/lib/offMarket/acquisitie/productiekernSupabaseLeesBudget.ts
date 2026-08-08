@@ -9,11 +9,6 @@ export class ProductiekernLeesBudgetOverschredenError extends Error {
   }
 }
 
-/**
- * Maakt een uitvoerder voor één begrensde leescontext, bijvoorbeeld één
- * dossiervergelijking. Iedere daadwerkelijke onderliggende query telt mee;
- * de decorator reset nooit stilzwijgend en voert geen writes uit.
- */
 export function metProductiekernLeesBudget(
   uitvoerder: ProductiekernSupabaseQueryUitvoerder,
   maximaalAantalQueries = 25,
@@ -24,16 +19,23 @@ export function metProductiekernLeesBudget(
     throw new Error('Productiekern-leesbudget moet tussen 1 en 100 queries liggen.');
   }
   let gebruikt = 0;
+  const reserveer = () => {
+    if (gebruikt >= maximaalAantalQueries) {
+      throw new ProductiekernLeesBudgetOverschredenError(maximaalAantalQueries);
+    }
+    gebruikt += 1;
+  };
 
   return {
     voerUit(input) {
-      if (gebruikt >= maximaalAantalQueries) {
-        return Promise.reject(
-          new ProductiekernLeesBudgetOverschredenError(maximaalAantalQueries),
-        );
-      }
-      gebruikt += 1;
+      try { reserveer(); } catch (error) { return Promise.reject(error); }
       return uitvoerder.voerUit(input);
     },
+    voerBulkUit: uitvoerder.voerBulkUit
+      ? (input) => {
+        try { reserveer(); } catch (error) { return Promise.reject(error); }
+        return uitvoerder.voerBulkUit!(input);
+      }
+      : undefined,
   };
 }
