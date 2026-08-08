@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProductiekernNogNietGestart from './ProductiekernNogNietGestart';
 import type { ProductiekernBrowserWriteSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 
-const getUser = vi.fn();
+const { getUser } = vi.hoisted(() => ({
+  getUser: vi.fn(),
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -13,7 +16,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-function renderMetQueryClient(ui: React.ReactNode) {
+function renderMetQueryClient(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
