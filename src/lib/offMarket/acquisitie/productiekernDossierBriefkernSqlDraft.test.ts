@@ -53,6 +53,18 @@ describe('acquisitiedossier en briefkern SQL-concept', () => {
     }
   });
 
+  it('maakt de legacy briefstatusconstraint transitief compatibel zonder verstuurd te verbieden', () => {
+    expect(sql).toContain("c.conname = 'off_market_brieven_status_check'");
+    expect(sql).toContain("position('concept' in lower(v_status_constraint))");
+    expect(sql).toContain("position('verstuurd' in lower(v_status_constraint))");
+    expect(sql).toContain("raise exception 'onverwachte_off_market_brieven_status_constraint'");
+    expect(sql).toContain('drop constraint off_market_brieven_status_check');
+    expect(sql).toContain(
+      "check (status in ('concept', 'verstuurd', 'definitief', 'geannuleerd'))",
+    );
+    expect(sql).toMatch(/off_market_brieven_status_check[\s\S]*not valid;/i);
+  });
+
   it('maakt briefnummering uniek maar voert geen backfill uit', () => {
     expect(sql).toContain('off_market_brieven_briefnummer_uq');
     expect(sql).toContain("briefnummer ~ '^BR[0-9]{10}$'");
