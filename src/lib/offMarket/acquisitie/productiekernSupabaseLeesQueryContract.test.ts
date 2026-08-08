@@ -18,11 +18,16 @@ describe('productiekern Supabase leesquerycontracten', () => {
     ]);
   });
 
-  it('beperkt bulk reads tot twee vaste ID-setcontracten', () => {
+  it('beperkt bulk reads tot drie vaste ID-setcontracten', () => {
     expect(Object.keys(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN)).toEqual([
+      'haal_dossiers_op_selectie_ids',
       'haal_brieven_op_ids',
       'haal_briefversies_op_ids',
     ]);
+    expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_dossiers_op_selectie_ids).toMatchObject({
+      tabel: 'off_market_acquisitie_dossiers', filterKolom: 'selectie_id', cardinaliteit: 'lijst',
+      maximaalAantalRecords: 1000, maximaalAantalFilterwaarden: 1000,
+    });
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_brieven_op_ids).toMatchObject({
       tabel: 'off_market_brieven', filterKolom: 'id', cardinaliteit: 'lijst',
       maximaalAantalRecords: 1000, maximaalAantalFilterwaarden: 1000,
@@ -60,11 +65,13 @@ describe('productiekern Supabase leesquerycontracten', () => {
   it('weigert lege waarden en normaliseert/dedupliceert bulk-ID sets', () => {
     expect(() => bouwProductiekernLeesQuery('haal_brief', '   '))
       .toThrow('Filterwaarde voor haal_brief is verplicht.');
-    expect(() => bouwProductiekernBulkLeesQuery('haal_brieven_op_ids', []))
-      .toThrow('Filterwaarden voor haal_brieven_op_ids zijn verplicht.');
+    expect(() => bouwProductiekernBulkLeesQuery('haal_dossiers_op_selectie_ids', []))
+      .toThrow('Filterwaarden voor haal_dossiers_op_selectie_ids zijn verplicht.');
 
-    expect(bouwProductiekernBulkLeesQuery('haal_brieven_op_ids', [' brief-2 ', 'brief-1', 'brief-2']).filterWaarden)
-      .toEqual(['brief-2', 'brief-1']);
+    expect(bouwProductiekernBulkLeesQuery(
+      'haal_dossiers_op_selectie_ids',
+      [' selectie-2 ', 'selectie-1', 'selectie-2'],
+    ).filterWaarden).toEqual(['selectie-2', 'selectie-1']);
   });
 
   it('weigert bulksets boven de harde bovengrens', () => {
