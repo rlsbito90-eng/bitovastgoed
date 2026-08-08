@@ -1,30 +1,24 @@
 import {
   bepaalProductieLeesActivatie,
   type ProductieLeesActivatieBewijs,
-  type ProductieLeesActivatieBesluit,
 } from './productieLeesActivatiePoort';
+import type { ProductiekernLeesActivatieBesluit } from './productiekernLeesActivatieBesluit';
 import { maakGepoorteProductiekernLeesRepository } from './gepoorteProductiekernLeesRepository';
 import type { AcquisitieProductiekernRepository } from './productiekernRepository';
 
 export interface ProductiekernLeesSamenstelling {
-  activatie: ProductieLeesActivatieBesluit;
+  activatie: ProductiekernLeesActivatieBesluit;
   repository: AcquisitieProductiekernRepository;
 }
 
 /**
- * Centrale samenstelling voor de toekomstige read-only productiekernfase.
- *
- * De applicatie levert uitsluitend bewijs aan. De activatiebeslissing en de
- * repositorydecorator worden hier gezamenlijk opgebouwd, zodat een losse
- * boolean of verkeerd bedrade featureflag de leespoort niet kan omzeilen.
- * Schrijven blijft door de decorator altijd geblokkeerd.
+ * Omgevingsneutrale composition seam nadat een afzonderlijke poort zijn bewijs
+ * al heeft beoordeeld. De repositorydecorator blijft de runtimehandhaving doen.
  */
-export function stelProductiekernLezenSamen(
-  bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined,
+export function stelProductiekernLezenSamenMetBesluit(
+  activatie: ProductiekernLeesActivatieBesluit,
   achterliggend: AcquisitieProductiekernRepository,
 ): ProductiekernLeesSamenstelling {
-  const activatie = bepaalProductieLeesActivatie(bewijs);
-
   return {
     activatie,
     repository: maakGepoorteProductiekernLeesRepository(
@@ -32,4 +26,20 @@ export function stelProductiekernLezenSamen(
       achterliggend,
     ),
   };
+}
+
+/**
+ * Productiespecifieke convenience-route voor de read-only dual-readfase.
+ *
+ * Productiebewijs wordt hier eerst door de productie-readpoort beoordeeld en
+ * daarna via dezelfde omgevingsneutrale runtimegrens samengesteld.
+ */
+export function stelProductiekernLezenSamen(
+  bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined,
+  achterliggend: AcquisitieProductiekernRepository,
+): ProductiekernLeesSamenstelling {
+  return stelProductiekernLezenSamenMetBesluit(
+    bepaalProductieLeesActivatie(bewijs),
+    achterliggend,
+  );
 }
