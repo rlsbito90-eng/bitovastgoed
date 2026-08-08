@@ -2,7 +2,8 @@ export type ProductiekernLeesQueryNaam =
   | 'haal_dossier'
   | 'haal_brief'
   | 'haal_briefversies'
-  | 'haal_printbatch';
+  | 'haal_printbatch'
+  | 'haal_printbatch_brieven';
 
 export interface ProductiekernLeesQueryContract {
   naam: ProductiekernLeesQueryNaam;
@@ -65,6 +66,18 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
     ],
     cardinaliteit: 'nul_of_een',
     maximaalAantalRecords: 1,
+  },
+  haal_printbatch_brieven: {
+    naam: 'haal_printbatch_brieven',
+    tabel: 'off_market_printbatch_brieven',
+    filterKolom: 'batch_id',
+    selectKolommen: [
+      'id', 'batch_id', 'brief_id', 'brief_versie_id', 'verwijderd_op',
+      'afwijkingsstatus', 'afwijkingsreden', 'created_at',
+    ],
+    volgorde: { kolom: 'created_at', oplopend: true },
+    cardinaliteit: 'lijst',
+    maximaalAantalRecords: 1000,
   },
 };
 
