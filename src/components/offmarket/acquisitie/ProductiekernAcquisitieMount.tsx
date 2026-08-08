@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
@@ -12,6 +12,29 @@ import { bepaalWerkbakContext, type WerkbakContext } from '@/lib/offMarket/acqui
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import ProductiekernDossierProjectie from './ProductiekernDossierProjectie';
 import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone';
+import type { ProductiekernWerkbakView } from './ProductiekernWerkbakChips';
+
+const PRODUCTIEKERN_WERKBAK_KEY = 'off-market-acq:productiekern-werkbak';
+
+function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
+  try {
+    const waarde = sessionStorage.getItem(PRODUCTIEKERN_WERKBAK_KEY);
+    if (
+      waarde === 'nieuwe_selectie'
+      || waarde === 'eigenaar_achterhalen'
+      || waarde === 'brief_opstellen'
+      || waarde === 'printklaar'
+      || waarde === 'geprint_posten'
+      || waarde === 'opvolgen'
+      || waarde === 'wachten'
+      || waarde === 'afgehandeld'
+      || waarde === 'alles'
+    ) return waarde;
+  } catch {
+    // Geen browserstorage beschikbaar: veilige standaard hieronder.
+  }
+  return 'nieuwe_selectie';
+}
 
 function ActieveProductiekernDossierProjectie({
   samenstelling,
@@ -21,6 +44,14 @@ function ActieveProductiekernDossierProjectie({
   const { data: selectie = [], isLoading: selectieLaden } = useAcquisitieSelectie();
   const { data: signalen = [] } = useOffMarketSignalen();
   const selectieIds = useMemo(() => selectie.map((item) => item.id), [selectie]);
+  const [actieveWerkbak, setActieveWerkbakState] = useState<ProductiekernWerkbakView>(
+    leesInitieleProductiekernWerkbak,
+  );
+
+  const setActieveWerkbak = (werkbak: ProductiekernWerkbakView) => {
+    setActieveWerkbakState(werkbak);
+    try { sessionStorage.setItem(PRODUCTIEKERN_WERKBAK_KEY, werkbak); } catch { /* ignore */ }
+  };
 
   const signaalIndex = useMemo(() => {
     const map = new Map<string, OffMarketSignaal>();
@@ -89,6 +120,8 @@ function ActieveProductiekernDossierProjectie({
     <ProductiekernDossierProjectie
       dossiers={dossiers}
       totaalSelecties={selectieIds.length}
+      actieveWerkbak={actieveWerkbak}
+      onWerkbakChange={setActieveWerkbak}
       pariteit={pariteit}
       laden={selectieLaden || brievenLaden || dossierQuery.isLoading}
       fout={dossierQuery.isError}
@@ -100,16 +133,14 @@ function ActieveProductiekernDossierProjectie({
  * Fysieke frontendmount voor de nieuwe acquisitieproductiekern.
  *
  * De mount is aan de bestaande CRM-Supabase-client gekoppeld via de aparte
- * read-only browsercompositie. Zonder volledig leesbewijs retourneert deze
- * component vóór de actieve child wordt gemount; daardoor worden ook de
- * selectie- en productiekernreads voor deze projectie niet gestart.
+ * browsercompositie. Zonder volledig leesbewijs retourneert deze component vóór
+ * de actieve child wordt gemount; daardoor worden ook selectie- en
+ * productiekernreads voor deze projectie niet gestart.
  *
- * Wanneer later uitsluitend lezen expliciet wordt vrijgegeven, verschijnt een
- * observerende dossierstatusprojectie die één productiekern-bulkread gebruikt.
- * Een fout in die bulkread wordt expliciet als niet-beschikbaar weergegeven en
- * nooit als een leeg/paritair readmodel geïnterpreteerd. De bestaande
- * legacy-readmodellen worden alleen gebruikt voor workflowpariteit; zij blijven
- * operationeel leidend. De productie-/writepoort blijft zelfstandig dicht.
+ * In een expliciet vrijgegeven werk-CRM toont de mount de formele acht
+ * operationele werkbakken op basis van de Productiekern-dossiers. Legacydata
+ * wordt alleen nog voor pariteitsobservatie gebruikt; `nieuwe_selectie` wordt
+ * nooit uit legacyvelden afgeleid. De writepoort blijft zelfstandig dicht.
  */
 export default function ProductiekernAcquisitieMount() {
   const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
