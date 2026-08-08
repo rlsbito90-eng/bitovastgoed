@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/lib/offMarket/acquisitie/**'
       - 'src/components/offmarket/acquisitie/**'
+      - 'src/pages/OffMarketPage.tsx'
       - '.github/workflows/acquisitie-productiekern-verify.yml'
       - 'package.json'
       - 'package-lock.json'
