@@ -34,6 +34,7 @@ jobs:
         run: |
           python3 scripts/bag/test-extract-amsterdam-metadata-chunk.py
           python3 scripts/bag/test-validate-amsterdam-metadata-artifacts.py
+          python3 scripts/bag/test-select-amsterdam-from-metadata-v3.py
 
       - name: Download officiële landelijke BAG-bron voor preflight
         run: |
@@ -69,6 +70,7 @@ jobs:
               'bron_bytes': manifest['bron_bytes'],
               'aantal_brononderdelen': manifest['aantal_brononderdelen'],
               'chunk_count': manifest['chunk_count'],
+              'metadata_schema_version': 3,
               'database_write_uitgevoerd': False,
               'supabase_benaderd': False,
               'productie_benaderd': False,
@@ -137,7 +139,7 @@ jobs:
             exit 1
           }
 
-      - name: Extraheer metadata en controleerbaar bewijs
+      - name: Extraheer relationele metadata v3 en controleerbaar bewijs
         run: |
           timeout --signal=TERM --kill-after=2m 260m \
             python3 scripts/bag/extract-amsterdam-metadata-chunk.py \
@@ -166,7 +168,7 @@ jobs:
     needs: chunks
     if: always() && needs.chunks.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
 
@@ -190,10 +192,28 @@ jobs:
             bag-amsterdam-evidence-gecombineerd/chunk-08-rapport.json \
             --output bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
 
-      - name: Publiceer gezamenlijk stop-go-rapport
+      - name: Selecteer Amsterdam en Weesp directioneel uit metadata v3
+        run: |
+          python3 scripts/bag/select-amsterdam-from-metadata-v3.py \
+            bag-amsterdam-evidence-gecombineerd/chunk-01-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-02-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-03-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-04-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-05-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-06-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-07-metadata.ndjson.gz \
+            bag-amsterdam-evidence-gecombineerd/chunk-08-metadata.ndjson.gz \
+            --selection-output bag-amsterdam-evidence-gecombineerd/amsterdam-directionele-selectie.ndjson.gz \
+            --report bag-amsterdam-evidence-gecombineerd/amsterdam-directionele-selectie-rapport.json
+
+      - name: Publiceer gezamenlijk stop-go- en selectiebewijs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bag-amsterdam-evidence-gezamenlijke-validatie
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
-          path: bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
+          path: |
+            bag-amsterdam-evidence-gecombineerd/gezamenlijk-stop-go-rapport.json
+            bag-amsterdam-evidence-gecombineerd/amsterdam-directionele-selectie-rapport.json
+            bag-amsterdam-evidence-gecombineerd/amsterdam-directionele-selectie.ndjson.gz
