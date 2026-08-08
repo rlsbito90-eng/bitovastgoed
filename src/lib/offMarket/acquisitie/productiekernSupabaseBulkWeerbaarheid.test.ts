@@ -63,8 +63,8 @@ describe('productiekern bulkread weerbaarheid', () => {
   });
 
   it('voegt identieke gelijktijdige bulkreads samen en bewaart verschillende ID-volgordes apart', async () => {
-    let losOp: ((waarde: Record<string, unknown>[]) => void) | undefined;
-    const voerBulkUit = vi.fn(() => new Promise<Record<string, unknown>[]>((resolve) => { losOp = resolve; }));
+    const resolvers: Array<(waarde: Record<string, unknown>[]) => void> = [];
+    const voerBulkUit = vi.fn(() => new Promise<Record<string, unknown>[]>((resolve) => { resolvers.push(resolve); }));
     const uitvoerder = metSamengevoegdeProductiekernReads({
       voerUit: vi.fn(async () => null),
       voerBulkUit,
@@ -73,10 +73,12 @@ describe('productiekern bulkread weerbaarheid', () => {
     const eerste = uitvoerder.voerBulkUit!(bulkInput);
     const tweede = uitvoerder.voerBulkUit!(bulkInput);
     expect(voerBulkUit).toHaveBeenCalledTimes(1);
-    losOp?.([{ id: 'brief-1' }, { id: 'brief-2' }]);
+    resolvers[0]?.([{ id: 'brief-1' }, { id: 'brief-2' }]);
     await expect(Promise.all([eerste, tweede])).resolves.toHaveLength(2);
 
-    await uitvoerder.voerBulkUit!({ ...bulkInput, filterWaarden: ['brief-2', 'brief-1'] });
+    const derde = uitvoerder.voerBulkUit!({ ...bulkInput, filterWaarden: ['brief-2', 'brief-1'] });
     expect(voerBulkUit).toHaveBeenCalledTimes(2);
+    resolvers[1]?.([{ id: 'brief-2' }, { id: 'brief-1' }]);
+    await expect(derde).resolves.toHaveLength(2);
   });
 });
