@@ -74,6 +74,36 @@ describe('SupabaseProductiekernLeesRepository', () => {
     await expect(repository.haalBriefversies('ontbreekt')).resolves.toEqual([]);
   });
 
+  it('houdt historische verstuurde brieven buiten de formele productiekern', async () => {
+    const t: ProductiekernSupabaseLeesTransport = {
+      haalEen: vi.fn(async () => ({
+        id: 'legacy-verstuurd', briefnummer: null, signaal_id: 'signaal-1',
+        selectie_id: null, object_id: null, relatie_id: null,
+        actieve_versie: null, status: 'verstuurd', vervanging_van_brief_id: null,
+        definitief_op: null, vergrendeld_op: null, annuleringsreden: null,
+      })),
+      haalMeerdere: vi.fn(async () => []),
+    };
+    const repository = new SupabaseProductiekernLeesRepository(t);
+
+    await expect(repository.haalBrief('legacy-verstuurd')).resolves.toBeNull();
+  });
+
+  it('houdt legacy conceptbrieven zonder selectie_id buiten de formele productiekern', async () => {
+    const t: ProductiekernSupabaseLeesTransport = {
+      haalEen: vi.fn(async () => ({
+        id: 'legacy-concept', briefnummer: null, signaal_id: 'signaal-1',
+        selectie_id: null, object_id: null, relatie_id: null,
+        actieve_versie: null, status: 'concept', vervanging_van_brief_id: null,
+        definitief_op: null, vergrendeld_op: null, annuleringsreden: null,
+      })),
+      haalMeerdere: vi.fn(async () => []),
+    };
+    const repository = new SupabaseProductiekernLeesRepository(t);
+
+    await expect(repository.haalBrief('legacy-concept')).resolves.toBeNull();
+  });
+
   it('blokkeert alle zeven schrijfmethoden zonder het transport te benaderen', async () => {
     const t = transport();
     const repository = new SupabaseProductiekernLeesRepository(t);
