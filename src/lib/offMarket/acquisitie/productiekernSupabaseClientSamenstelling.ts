@@ -1,11 +1,15 @@
 import type { ProductieLeesActivatieBewijs } from './productieLeesActivatiePoort';
+import type { ProductiekernLeesActivatieBesluit } from './productiekernLeesActivatieBesluit';
 import { maakGepoorteProductiekernBulkLeesRepository } from './gepoorteProductiekernBulkLeesRepository';
 import type { ProductiekernLeesSamenstelling } from './productiekernLeesSamenstelling';
 import {
   SupabaseProductiekernBulkLeesRepository,
   type ProductiekernBulkLeesRepository,
 } from './productiekernSupabaseBulkLeesRepository';
-import { stelSupabaseProductiekernLezenSamen } from './productiekernSupabaseLeesSamenstelling';
+import {
+  stelSupabaseProductiekernLezenSamen,
+  stelSupabaseProductiekernLezenSamenMetBesluit,
+} from './productiekernSupabaseLeesSamenstelling';
 import { metProductiekernLeesBudget } from './productiekernSupabaseLeesBudget';
 import { metSamengevoegdeProductiekernReads } from './productiekernSupabaseLeesSamenvoeging';
 import {
@@ -29,21 +33,10 @@ export interface ProductiekernSupabaseClientSamenstelling extends ProductiekernL
   bulkRepository: ProductiekernBulkLeesRepository;
 }
 
-/**
- * Volledige maar nog client-agnostische samenstelling:
- * querybudget -> timeout/retry -> optionele gelijktijdige samenvoeging ->
- * allowlisted querycontract -> privacy-veilige transportadapter -> bewijs- en
- * leespoort -> read-only repositories.
- *
- * Single- en bulkreads delen exact dezelfde budget-/weerbaarheidsketen en
- * hetzelfde centrale activatiebesluit. De concrete Supabase-client wordt hier
- * bewust niet geïmporteerd of automatisch verbonden.
- */
-export function stelProductiekernSupabaseClientSamen(
-  bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined,
+function bouwLeesKeten(
   uitvoerder: ProductiekernSupabaseQueryUitvoerder,
-  opties: ProductiekernSupabaseClientOpties = {},
-): ProductiekernSupabaseClientSamenstelling {
+  opties: ProductiekernSupabaseClientOpties,
+) {
   const gebudgetteerdeUitvoerder = metProductiekernLeesBudget(
     uitvoerder,
     opties.maximaalAantalQueries ?? 25,
@@ -56,10 +49,46 @@ export function stelProductiekernSupabaseClientSamen(
     opties.gelijktijdigeIdentiekeReadsSamenvoegen === false
       ? weerbareUitvoerder
       : metSamengevoegdeProductiekernReads(weerbareUitvoerder);
-  const transport = maakProductiekernSupabaseLeesTransport(
+
+  return maakProductiekernSupabaseLeesTransport(
     samengesteldeUitvoerder,
     opties.transport,
   );
+}
+
+/**
+ * Omgevingsneutrale samenstelling nadat een productie- of werk-CRM-poort zijn
+ * bewijs al fail-closed heeft beoordeeld.
+ */
+export function stelProductiekernSupabaseClientSamenMetBesluit(
+  activatie: ProductiekernLeesActivatieBesluit,
+  uitvoerder: ProductiekernSupabaseQueryUitvoerder,
+  opties: ProductiekernSupabaseClientOpties = {},
+): ProductiekernSupabaseClientSamenstelling {
+  const transport = bouwLeesKeten(uitvoerder, opties);
+  const basis = stelSupabaseProductiekernLezenSamenMetBesluit(activatie, transport);
+  const bulkAchterliggend = new SupabaseProductiekernBulkLeesRepository(transport);
+
+  return {
+    ...basis,
+    bulkRepository: maakGepoorteProductiekernBulkLeesRepository(
+      basis.activatie,
+      bulkAchterliggend,
+    ),
+  };
+}
+
+/**
+ * Productiespecifieke convenience-route. Querybudget -> timeout/retry ->
+ * optionele gelijktijdige samenvoeging -> allowlisted querycontract ->
+ * privacy-veilige transportadapter -> productie-readpoort.
+ */
+export function stelProductiekernSupabaseClientSamen(
+  bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined,
+  uitvoerder: ProductiekernSupabaseQueryUitvoerder,
+  opties: ProductiekernSupabaseClientOpties = {},
+): ProductiekernSupabaseClientSamenstelling {
+  const transport = bouwLeesKeten(uitvoerder, opties);
   const basis = stelSupabaseProductiekernLezenSamen(bewijs, transport);
   const bulkAchterliggend = new SupabaseProductiekernBulkLeesRepository(transport);
 
