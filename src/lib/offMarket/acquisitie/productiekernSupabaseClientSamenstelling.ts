@@ -1,5 +1,10 @@
 import type { ProductieLeesActivatieBewijs } from './productieLeesActivatiePoort';
+import { maakGepoorteProductiekernBulkLeesRepository } from './gepoorteProductiekernBulkLeesRepository';
 import type { ProductiekernLeesSamenstelling } from './productiekernLeesSamenstelling';
+import {
+  SupabaseProductiekernBulkLeesRepository,
+  type ProductiekernBulkLeesRepository,
+} from './productiekernSupabaseBulkLeesRepository';
 import { stelSupabaseProductiekernLezenSamen } from './productiekernSupabaseLeesSamenstelling';
 import { metProductiekernLeesBudget } from './productiekernSupabaseLeesBudget';
 import { metSamengevoegdeProductiekernReads } from './productiekernSupabaseLeesSamenvoeging';
@@ -20,25 +25,25 @@ export interface ProductiekernSupabaseClientOpties {
   gelijktijdigeIdentiekeReadsSamenvoegen?: boolean;
 }
 
+export interface ProductiekernSupabaseClientSamenstelling extends ProductiekernLeesSamenstelling {
+  bulkRepository: ProductiekernBulkLeesRepository;
+}
+
 /**
  * Volledige maar nog client-agnostische samenstelling:
  * querybudget -> timeout/retry -> optionele gelijktijdige samenvoeging ->
  * allowlisted querycontract -> privacy-veilige transportadapter -> bewijs- en
- * leespoort -> read-only repository.
+ * leespoort -> read-only repositories.
  *
- * Het budget staat rond de ruwe uitvoerder zodat iedere echte poging, inclusief
- * retries, meetelt. De samenvoeging staat buiten de retryketen zodat identieke
- * gelijktijdige callers één volledige poging-/retryreeks delen.
- *
- * De concrete Supabase-client wordt bewust nog niet geïmporteerd. Daardoor kan
- * deze factory geen productieverbinding openen zonder een apart beoordeelde
- * uitvoerder en volledig leesbewijs.
+ * Single- en bulkreads delen exact dezelfde budget-/weerbaarheidsketen en
+ * hetzelfde centrale activatiebesluit. De concrete Supabase-client wordt hier
+ * bewust niet geïmporteerd of automatisch verbonden.
  */
 export function stelProductiekernSupabaseClientSamen(
   bewijs: Partial<ProductieLeesActivatieBewijs> | null | undefined,
   uitvoerder: ProductiekernSupabaseQueryUitvoerder,
   opties: ProductiekernSupabaseClientOpties = {},
-): ProductiekernLeesSamenstelling {
+): ProductiekernSupabaseClientSamenstelling {
   const gebudgetteerdeUitvoerder = metProductiekernLeesBudget(
     uitvoerder,
     opties.maximaalAantalQueries ?? 25,
@@ -55,5 +60,14 @@ export function stelProductiekernSupabaseClientSamen(
     samengesteldeUitvoerder,
     opties.transport,
   );
-  return stelSupabaseProductiekernLezenSamen(bewijs, transport);
+  const basis = stelSupabaseProductiekernLezenSamen(bewijs, transport);
+  const bulkAchterliggend = new SupabaseProductiekernBulkLeesRepository(transport);
+
+  return {
+    ...basis,
+    bulkRepository: maakGepoorteProductiekernBulkLeesRepository(
+      basis.activatie,
+      bulkAchterliggend,
+    ),
+  };
 }
