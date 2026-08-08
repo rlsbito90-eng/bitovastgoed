@@ -1,15 +1,23 @@
 import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone';
 import { productiekernStandaardUitgeschakeld } from '@/lib/offMarket/acquisitie/productieActivatiePoort';
+import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 
 /**
  * Fysieke frontendmount voor de nieuwe acquisitieproductiekern.
  *
- * Deze eerste integratiestap is bewust fail-closed: zolang er geen expliciete
- * releasecompositie bestaat, blijft de centrale activatiepoort dicht en is er
- * geen formeel productiepakket beschikbaar. Daardoor rendert de productiekern
- * niets en kan de bestaande legacy-acquisitieworkflow ongewijzigd doorwerken.
+ * De mount is nu aan de bestaande CRM-Supabase-client gekoppeld via de aparte
+ * read-only browsercompositie. Die compositie blijft standaard fail-closed:
+ * zonder volledig leesbewijs bereikt geen enkele read client.from(). Pas na een
+ * afzonderlijk leesakkoord kan hier formele productiekerndata worden geladen.
+ *
+ * De productie-/writepoort blijft daarnaast zelfstandig dicht. De bestaande
+ * legacy-acquisitieworkflow blijft hierdoor ongewijzigd functioneren.
  */
 export default function ProductiekernAcquisitieMount() {
+  const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
+
+  if (!leesSamenstelling.activatie.lezenActief) return null;
+
   return (
     <ProductiekernProductiepakketZone
       activatie={productiekernStandaardUitgeschakeld}
