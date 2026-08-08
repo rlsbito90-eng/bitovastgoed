@@ -44,6 +44,28 @@ describe('maakProductiekernSupabaseLeesTransport', () => {
     expect(JSON.stringify(audit.mock.calls)).not.toContain('selectie-1');
   });
 
+  it('voert de allowlisted batchbrief-lijst deterministisch uit', async () => {
+    const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
+      voerUit: vi.fn(async () => [{ id: 'koppeling-1', batch_id: 'batch-1' }]),
+    };
+    const transport = maakProductiekernSupabaseLeesTransport(uitvoerder);
+
+    await expect(transport.haalMeerdere(
+      'off_market_printbatch_brieven',
+      { batch_id: 'batch-1' },
+      { kolom: 'created_at', oplopend: true },
+    )).resolves.toEqual([{ id: 'koppeling-1', batch_id: 'batch-1' }]);
+
+    expect(uitvoerder.voerUit).toHaveBeenCalledWith(expect.objectContaining({
+      tabel: 'off_market_printbatch_brieven',
+      filterKolom: 'batch_id',
+      filterWaarde: 'batch-1',
+      cardinaliteit: 'lijst',
+      maximaalAantalRecords: 1000,
+      volgorde: { kolom: 'created_at', oplopend: true },
+    }));
+  });
+
   it('weigert onbekende tabellen, afwijkende filters en sortering vóór uitvoering', async () => {
     const uitvoerder: ProductiekernSupabaseQueryUitvoerder = {
       voerUit: vi.fn(async () => []),
@@ -59,6 +81,11 @@ describe('maakProductiekernSupabaseLeesTransport', () => {
       { brief_id: '1' },
       { kolom: 'created_at', oplopend: false },
     )).rejects.toThrow('Volgordecontract voor haal_briefversies wijkt af.');
+    await expect(transport.haalMeerdere(
+      'off_market_printbatch_brieven',
+      { brief_id: '1' },
+      { kolom: 'created_at', oplopend: true },
+    )).rejects.toThrow('Filtercontract voor haal_printbatch_brieven wijkt af.');
     expect(uitvoerder.voerUit).not.toHaveBeenCalled();
   });
 
