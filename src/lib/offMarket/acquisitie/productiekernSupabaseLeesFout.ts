@@ -2,6 +2,7 @@ export type ProductiekernLeesFoutcode =
   | 'niet_geautoriseerd'
   | 'record_niet_uniek'
   | 'schema_niet_beschikbaar'
+  | 'leesbudget_overschreden'
   | 'transport_tijdelijk_onbeschikbaar'
   | 'onbekende_leesfout';
 
@@ -46,6 +47,13 @@ export function normaliseerProductiekernLeesFout(error: unknown): ProductiekernL
       code: 'schema_niet_beschikbaar',
       herstelbaar: false,
       publiekeMelding: 'Het geverifieerde productiekernschema is niet beschikbaar.',
+    };
+  }
+  if (code === 'ACQUISITIE_PRODUCTIEKERN_LEESBUDGET_OVERSCHREDEN') {
+    return {
+      code: 'leesbudget_overschreden',
+      herstelbaar: false,
+      publiekeMelding: 'Het begrensde productiekern-leesbudget is overschreden.',
     };
   }
   if (status === 408 || status === 429 || (status !== null && status >= 500)) {
