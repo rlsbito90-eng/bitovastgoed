@@ -12,26 +12,30 @@ De voorbereidende BUILD-A-kern heeft inmiddels aantoonbaar de volgende bewijzen:
 - live briefverdeling tijdens de probe: 27 `concept`, 69 `verstuurd`;
 - geen van de nieuwe BUILD-A-tabellen of transactionele functies bestaat momenteel in productie;
 - de migratiedraft houdt daarom legacy `verstuurd` transitief geldig en voert geen automatische backfill uit;
-- drie SQL-drafts zijn in tijdelijke PostgreSQL 17 aantoonbaar rollbackbaar;
+- de volledige vroege write-keten is transactioneel uitgewerkt: verwerking starten, briefidentiteit reserveren, immutable briefversie maken, printbatch maken en briefversie koppelen;
+- de complete dagflow wordt in tijdelijke PostgreSQL 17 end-to-end opgebouwd via de canonieke RPC-keten, zonder synthetische inserts van dossier/brief/versie/batch in de hoofdflow;
 - nummeruitgifte is onder concurrency getest;
 - operation-key-idempotentie en postregistratie-idempotentie zijn geïsoleerd getest;
-- de aaneengesloten dagelijkse databaseflow is groen in `Acquisitieproductiekern DB Proof` run `31259895456`;
-- de E2E-flow bewijst twee geadresseerden in één batch, `geprint != gepost`, correcte `gedeeltelijk_gepost`-status, opvolging uitsluitend na `brief_gepost`, idempotente postretry en atomische rollback bij optimistic-lock-conflict;
+- de volledige database- en securityproof is groen in `Acquisitieproductiekern DB Proof` run `31263471996` op head `7caa8a97a66244857dd4ab8053a34b8cc4829c9a`;
+- die run bewijst afzonderlijk: kern-SQL/rollback/concurrency, volledige dagflow-E2E, JWT/interne-actor/actor-spoofingbeveiliging en least-privilege activatie-RLS/ACL;
+- het securitymodel gebruikt één canonieke architectuur: niet-client-callable `*_intern` implementaties achter publieke security-wrappers;
+- publieke wrappers controleren `auth.uid()`, interne CRM-rol via `is_intern_gebruiker` en gelijkheid met `p_actor_id` vóór de interne write wordt uitgevoerd;
+- authenticated niet-interne gebruikers worden geweigerd, actor-spoofing wordt geweigerd en beide foutpaden laten geen productieaudit achter;
+- bij het toekomstige activatiemodel krijgen uitsluitend vier readmodellen directe `SELECT` voor `authenticated`, met RLS op interne gebruikers; directe INSERT/UPDATE/DELETE blijft geblokkeerd;
+- uitsluitend de negen publieke wrappers krijgen in het review-activatiemodel EXECUTE; `anon`, de helper en alle `*_intern` functies blijven dicht;
 - legacy `verstuurd`-brieven en oude conceptbrieven zonder formele `selectie_id` worden niet kunstmatig als productiekernbrief geïnterpreteerd;
-- clientrollen houden geen directe EXECUTE-rechten op de nieuwe transactionele RPC-functies;
-- productieactivatie, migratie, backfill en grants zijn niet uitgevoerd.
+- productieactivatie, migratie, backfill, RLS-wijzigingen en grants zijn niet uitgevoerd.
 
 ### Nog blokkerend voor productiegebruik
 
-De groene E2E-proef is **geen productieakkoord**. Voor productiegebruik blijven minimaal open:
+De groene database- en securityproof is **geen productieakkoord**. Voor productiegebruik blijven minimaal open:
 
-1. definitief release-/migratiebestand opstellen uit de review-drafts;
-2. expliciet bepalen welke gerichte RLS-policies en RPC execute-grants de productiekern krijgt;
-3. resterende write-repositories voor de vroege dagflow (`startVerwerking`, briefversie/batch-aanmaak en batchkoppeling) definitief invullen of expliciet buiten BUILD A houden;
-4. frontend werkelijk koppelen aan formele productiekernrecords zonder de bestaande legacy-flow te breken;
-5. preview/handmatige gebruikersacceptatie van de dagelijkse hoofdflow;
-6. volledige regressie-/typecheck-/production-buildstatus opnieuw op de finale PR-head beoordelen;
-7. afzonderlijk expliciet productieakkoord vóór enige migratie of activatie.
+1. definitieve productie-migratiebestanden opstellen uit de bewezen review-drafts, zonder de huidige `ROLLBACK`-veiligheid stilzwijgend te verwijderen;
+2. frontend werkelijk koppelen aan formele productiekernrecords zonder de bestaande legacy-flow te breken;
+3. preview/handmatige gebruikersacceptatie van de dagelijkse hoofdflow;
+4. volledige regressie-/typecheck-/production-buildstatus opnieuw op de finale PR-head beoordelen;
+5. technische review en merge als afzonderlijke poort uitvoeren;
+6. afzonderlijk expliciet productieakkoord vóór enige migratie, grant, RLS-wijziging of activatie.
 
 ## 1. Bestaande CRM-contracten
 
