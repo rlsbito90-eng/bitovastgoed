@@ -64,19 +64,30 @@ export interface ObjectBackfillDryRunResultaat {
   automatischeSamenvoegingUitgevoerd: false;
 }
 
+const normaliseerAdresdeel = (waarde?: string | null): string =>
+  (waarde ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normaliseerPostcode = (waarde?: string | null): string =>
+  (waarde ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+
 export function normaliseerAdresSleutel(
   adres: string,
   postcode?: string | null,
   plaats?: string | null,
 ): string {
-  return [adres, postcode ?? '', plaats ?? '']
-    .join('|')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9|]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return [
+    normaliseerAdresdeel(adres),
+    normaliseerPostcode(postcode),
+    normaliseerAdresdeel(plaats),
+  ].join('|');
 }
 
 function uniekeActieveMatches(
