@@ -4,12 +4,13 @@ import { normaliseerProductiekernLeesFout } from './productiekernSupabaseLeesFou
 import {
   bouwProductiekernBulkLeesQuery,
   bouwProductiekernLeesQuery,
+  type ProductiekernBulkLeesQueryNaam,
   type ProductiekernLeesQueryNaam,
 } from './productiekernSupabaseLeesQueryContract';
 import type { ProductiekernSupabaseLeesTransport } from './productiekernSupabaseLeesRepository';
 
-type SingleQueryNaam = Exclude<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>;
-type BulkQueryNaam = Extract<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>;
+type SingleQueryNaam = Exclude<ProductiekernLeesQueryNaam, ProductiekernBulkLeesQueryNaam>;
+type BulkQueryNaam = ProductiekernBulkLeesQueryNaam;
 
 export interface ProductiekernSupabaseQueryUitvoerder {
   voerUit(input: {
@@ -167,6 +168,7 @@ export function maakProductiekernSupabaseLeesTransport(
     },
     async haalMeerdereOpIds(tabel, ids) {
       const mapping: Record<string, BulkQueryNaam> = {
+        off_market_acquisitie_dossiers: 'haal_dossiers_op_selectie_ids',
         off_market_brieven: 'haal_brieven_op_ids',
         off_market_brief_versies: 'haal_briefversies_op_ids',
       };
