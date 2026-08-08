@@ -4,8 +4,14 @@ export type ProductiekernLeesQueryNaam =
   | 'haal_briefversies'
   | 'haal_printbatch'
   | 'haal_printbatch_brieven'
+  | 'haal_dossiers_op_selectie_ids'
   | 'haal_brieven_op_ids'
   | 'haal_briefversies_op_ids';
+
+export type ProductiekernBulkLeesQueryNaam = Extract<
+  ProductiekernLeesQueryNaam,
+  'haal_dossiers_op_selectie_ids' | 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'
+>;
 
 export interface ProductiekernLeesQueryContract {
   naam: ProductiekernLeesQueryNaam;
@@ -22,6 +28,12 @@ export interface ProductiekernBulkLeesQueryContract extends ProductiekernLeesQue
   maximaalAantalFilterwaarden: number;
 }
 
+const DOSSIER_KOLOMMEN = [
+  'selectie_id', 'signaal_id', 'object_id', 'verwerking_gestart_op',
+  'verwerking_gestart_door', 'primaire_werkbak', 'volgende_actie_op',
+  'volgende_actie_omschrijving',
+] as const;
+
 const BRIEF_KOLOMMEN = [
   'id', 'briefnummer', 'signaal_id', 'selectie_id', 'object_id',
   'relatie_id', 'actieve_versie', 'status', 'vervanging_van_brief_id',
@@ -35,17 +47,13 @@ const BRIEFVERSIE_KOLOMMEN = [
 ] as const;
 
 export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
-  Record<Exclude<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>, ProductiekernLeesQueryContract>
+  Record<Exclude<ProductiekernLeesQueryNaam, ProductiekernBulkLeesQueryNaam>, ProductiekernLeesQueryContract>
 > = {
   haal_dossier: {
     naam: 'haal_dossier',
     tabel: 'off_market_acquisitie_dossiers',
     filterKolom: 'selectie_id',
-    selectKolommen: [
-      'selectie_id', 'signaal_id', 'object_id', 'verwerking_gestart_op',
-      'verwerking_gestart_door', 'primaire_werkbak', 'volgende_actie_op',
-      'volgende_actie_omschrijving',
-    ],
+    selectKolommen: DOSSIER_KOLOMMEN,
     cardinaliteit: 'nul_of_een',
     maximaalAantalRecords: 1,
   },
@@ -93,8 +101,17 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
 };
 
 export const PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN: Readonly<
-  Record<'haal_brieven_op_ids' | 'haal_briefversies_op_ids', ProductiekernBulkLeesQueryContract>
+  Record<ProductiekernBulkLeesQueryNaam, ProductiekernBulkLeesQueryContract>
 > = {
+  haal_dossiers_op_selectie_ids: {
+    naam: 'haal_dossiers_op_selectie_ids',
+    tabel: 'off_market_acquisitie_dossiers',
+    filterKolom: 'selectie_id',
+    selectKolommen: DOSSIER_KOLOMMEN,
+    cardinaliteit: 'lijst',
+    maximaalAantalRecords: 1000,
+    maximaalAantalFilterwaarden: 1000,
+  },
   haal_brieven_op_ids: {
     naam: 'haal_brieven_op_ids',
     tabel: 'off_market_brieven',
@@ -126,7 +143,7 @@ function normaliseerFilterwaarde(naam: ProductiekernLeesQueryNaam, waarde: strin
 }
 
 export function bouwProductiekernLeesQuery(
-  naam: Exclude<ProductiekernLeesQueryNaam, 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'>,
+  naam: Exclude<ProductiekernLeesQueryNaam, ProductiekernBulkLeesQueryNaam>,
   filterWaarde: string,
 ): ProductiekernLeesQueryContract & { filterWaarde: string } {
   const genormaliseerd = normaliseerFilterwaarde(naam, filterWaarde);
@@ -137,7 +154,7 @@ export function bouwProductiekernLeesQuery(
 }
 
 export function bouwProductiekernBulkLeesQuery(
-  naam: 'haal_brieven_op_ids' | 'haal_briefversies_op_ids',
+  naam: ProductiekernBulkLeesQueryNaam,
   filterWaarden: readonly string[],
 ): ProductiekernBulkLeesQueryContract & { filterWaarden: readonly string[] } {
   const contract = PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN[naam];
