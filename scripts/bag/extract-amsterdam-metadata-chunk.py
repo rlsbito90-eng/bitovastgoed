@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse, gzip, hashlib, json, re, shutil, tempfile, time, zipfile
+import argparse, gzip, hashlib, json, shutil, tempfile, time, zipfile
+from collections import Counter
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-ID = re.compile(r"(?<!\d)\d{16}(?!\d)")
 HEARTBEAT = 50000
 GEMEENTECODE = "0363"
+OBJECTTYPEN = {
+    "Pand", "Verblijfsobject", "Nummeraanduiding", "OpenbareRuimte",
+    "Woonplaats", "Standplaats", "Ligplaats",
+}
+RELATIE_TAGS = {
+    "PandRef": "pand",
+    "NummeraanduidingRef": "nummeraanduiding",
+    "OpenbareRuimteRef": "openbare_ruimte",
+    "WoonplaatsRef": "woonplaats",
+}
 
 
 def sha256_file(path: Path) -> str:
@@ -22,7 +32,12 @@ def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag.split(":")[-1]
 
 
-def iter_stand_xml(stream):
+def norm(value: str | None) -> str:
+    return (value or "").strip().casefold()
+
+
+def iter_stand_elements(stream):
+    """Yield complete <stand>-elementen zonder serialiseer/herparse-ronde."""
     in_stand = False
     depth = 0
     for event, element in ET.iterparse(stream, events=("start", "end")):
@@ -37,27 +52,33 @@ def iter_stand_xml(stream):
         if in_stand:
             depth -= 1
             if depth == 0:
-                yield ET.tostring(element, encoding="unicode")
+                yield element
                 in_stand = False
                 element.clear()
         else:
             element.clear()
 
 
-def metadata(xml: str):
-    root = ET.fromstring(xml)
-    primary = None
-    identifiers = set()
+def metadata(root: ET.Element) -> tuple[str, str | None, str | None, list[list[str]]]:
+    objecttype = "Onbekend"
+    primary: str | None = None
+    woonplaats_naam: str | None = None
+    relaties: list[list[str]] = []
+
     for element in root.iter():
-        text = (element.text or "").strip()
-        if not text:
-            continue
-        if primary is None and local_name(element.tag).lower() == "identificatie":
-            match = ID.search(text)
-            if match:
-                primary = match.group(0)
-        identifiers.update(ID.findall(text))
-    return primary, sorted(identifiers)
+        naam = local_name(element.tag)
+        tekst = (element.text or "").strip()
+        if objecttype == "Onbekend" and naam in OBJECTTYPEN:
+            objecttype = naam
+        if primary is None and naam.lower() == "identificatie" and tekst:
+            primary = tekst
+        relatietype = RELATIE_TAGS.get(naam)
+        if relatietype and tekst:
+            relaties.append([relatietype, tekst])
+        if objecttype == "Woonplaats" and naam.lower() == "naam" and tekst:
+            woonplaats_naam = norm(tekst)
+
+    return objecttype, primary, woonplaats_naam, relaties
 
 
 def walk_selected(archive: zipfile.ZipFile, selected: set[str], prefix: str = ""):
@@ -109,17 +130,30 @@ def main() -> int:
 
     started = time.monotonic()
     records = seeds = errors = parts = 0
+    objecttypen: Counter[str] = Counter()
+    relatie_typen: Counter[str] = Counter()
+    woonplaatsen: Counter[str] = Counter()
+    records_zonder_identificatie = 0
+
     with gzip.open(args.output, "wt", encoding="utf-8", compresslevel=6) as out:
         with zipfile.ZipFile(args.source) as archive:
             for _, stream in walk_selected(archive, selected):
                 parts += 1
                 try:
-                    for xml in iter_stand_xml(stream):
-                        primary, identifiers = metadata(xml)
-                        out.write(json.dumps([primary, identifiers], separators=(",", ":")) + "\n")
+                    for stand in iter_stand_elements(stream):
+                        objecttype, primary, woonplaats_naam, relaties = metadata(stand)
+                        # Compact schema v3: [objecttype, identificatie, woonplaats_naam, [[relatietype, doel], ...]]
+                        out.write(json.dumps([objecttype, primary, woonplaats_naam, relaties], separators=(",", ":"), ensure_ascii=False) + "\n")
                         records += 1
-                        if primary and primary.startswith(GEMEENTECODE):
+                        objecttypen[objecttype] += 1
+                        if primary is None:
+                            records_zonder_identificatie += 1
+                        elif primary.startswith(GEMEENTECODE):
                             seeds += 1
+                        if woonplaats_naam:
+                            woonplaatsen[woonplaats_naam] += 1
+                        for relatietype, _ in relaties:
+                            relatie_typen[relatietype] += 1
                         if records % HEARTBEAT == 0:
                             print(f"{args.chunk_id}: {records:,} metadatarecords", flush=True)
                 except (ET.ParseError, OSError, zipfile.BadZipFile) as exc:
@@ -128,7 +162,8 @@ def main() -> int:
 
     report = {
         "status": "metadata_chunk_validated" if errors == 0 and parts == len(selected) else "metadata_chunk_blocked",
-        "schema_version": 2,
+        "schema_version": 3,
+        "metadata_record_schema": ["objecttype", "identificatie", "woonplaats_naam", "relaties"],
         "gemeentecode": GEMEENTECODE,
         "chunk_id": args.chunk_id,
         "chunk_count": manifest.get("chunk_count"),
@@ -140,15 +175,19 @@ def main() -> int:
         "gelezen_brononderdelen": parts,
         "brononderdelen": selected_evidence,
         "metadatarecords": records,
+        "records_zonder_identificatie": records_zonder_identificatie,
         "amsterdam_seed_records": seeds,
+        "objecttype_tellingen": dict(sorted(objecttypen.items())),
+        "relatietype_tellingen": dict(sorted(relatie_typen.items())),
+        "woonplaats_tellingen": dict(sorted(woonplaatsen.items())),
         "parse_fouten": errors,
         "doorlooptijd_seconden": round(time.monotonic() - started, 1),
         "database_write_uitgevoerd": False,
         "supabase_benaderd": False,
         "productie_benaderd": False,
     }
-    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({key: value for key, value in report.items() if key != "brononderdelen"}), flush=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps({key: value for key, value in report.items() if key != "brononderdelen"}, ensure_ascii=False), flush=True)
     return 0 if report["status"] == "metadata_chunk_validated" else 1
 
 

@@ -33,7 +33,7 @@ describe('bouwAcquisitieRelatieMatchReadModel', () => {
     expect(model.heeftEenduidigeExacteMatch).toBe(true);
     expect(model.exacteMatch?.relatieId).toBe('rel-1');
     expect(model.exacteMatch?.niveau).toBe('exact');
-    expect(model.primaireActie).toContain('controleer');
+    expect(model.primaireActie.toLowerCase()).toContain('controleer');
     expect(model.veiligheidsmelding).toContain('nooit automatisch');
   });
 

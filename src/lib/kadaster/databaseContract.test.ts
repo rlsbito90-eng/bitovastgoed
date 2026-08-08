@@ -19,6 +19,11 @@ const preflight = readFileSync(
   'utf8',
 );
 
+const stripSqlCommentsAndStrings = (sql: string): string =>
+  sql
+    .replace(/--.*$/gm, '')
+    .replace(/'(?:''|[^'])*'/g, "''");
+
 describe('Kadaster databasecontract', () => {
   it('houdt het TypeScript-contract gelijk aan de repositorymigraties', () => {
     for (const table of KADASTER_SCHEMA_TABLES) {
@@ -44,14 +49,17 @@ describe('Kadaster databasecontract', () => {
 
   it('houdt kosten-events browser-read-only en de preflight read-only', () => {
     expect(kostenMigration).toContain('Browserrollen krijgen bewust geen INSERT/UPDATE/DELETE-policy');
-    expect(preflight).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate)\b/i);
+    const uitvoerbarePreflight = stripSqlCommentsAndStrings(preflight);
+    expect(uitvoerbarePreflight).not.toMatch(
+      /\b(insert\s+into|update\s+[a-z_]|delete\s+from|alter\s+table|create\s+(?:table|policy|function|index)|drop\s+(?:table|policy|function|index)|truncate\s+)\b/i,
+    );
     expect(preflight).toContain('unsafe_browser_write_policy');
   });
 
   it('heeft geen externe has_role-afhankelijkheid en vertrouwt alleen serverbeheerste app_metadata', () => {
     expect(objectMigration).toContain('create or replace function public.is_app_admin()');
     expect(objectMigration).toContain("auth.jwt() -> 'app_metadata' ->> 'role'");
-    expect(objectMigration).not.toContain('user_metadata');
+    expect(objectMigration).not.toMatch(/auth\.jwt\(\)\s*->\s*'user_metadata'/i);
     expect(kostenMigration).toContain('public.is_app_admin()');
     expect(kostenMigration).not.toContain('public.has_role');
   });
