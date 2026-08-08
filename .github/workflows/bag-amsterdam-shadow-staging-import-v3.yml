@@ -1,0 +1,243 @@
+name: BAG Amsterdam v3 shadow staging-import
+run-name: BAG Amsterdam v3 ${{ github.event.inputs.phase }} — artifact 9027302674
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: APPLY_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+        required: true
+        type: string
+      phase:
+        description: 'Eén fase per run'
+        required: true
+        type: choice
+        options:
+          - prepare
+          - objecten
+          - voorkomens
+          - relaties
+          - geometrieen
+          - validate
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-shadow-staging-import-v3
+  cancel-in-progress: false
+
+jobs:
+  runner-smoke:
+    if: github.event.inputs.approval == 'APPLY_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Bevestig GitHub-hosted runner en fase
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_os=$RUNNER_OS"
+          echo "runner_arch=$RUNNER_ARCH"
+          echo "phase=${{ github.event.inputs.phase }}"
+
+  import:
+    needs: runner-smoke
+    if: needs.runner-smoke.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      BAG_AMSTERDAM_APPROVAL: ${{ github.event.inputs.approval }}
+      BAG_AMSTERDAM_ARTIFACT_ID: '9027302674'
+      BAG_AMSTERDAM_PHASE: ${{ github.event.inputs.phase }}
+      BAG_AMSTERDAM_CHUNK_SIZE: ${{ github.event.inputs.phase == 'geometrieen' && '5000' || '50000' }}
+      EXPECTED_ARTIFACT_DIGEST: 'sha256:0276a7961f7b034a01492ecbfdc8c72e2544119d48b13204ddf0c475d33fc54e'
+      EXPECTED_DATASET_VERSION: 'v20260808-directional-v3'
+      EXPECTED_SOURCE_SHA256: '8f03782321490b113389df0bf215445bfa5c670b8f811bb7798ea8621c5b1007'
+      EXPECTED_SELECTION_SHA256: '0387acb90a306bda92bc1259fa00b937c8c85e78ccf98d044d62106937cff465'
+      EXPECTED_OBJECTEN: '1491131'
+      EXPECTED_VOORKOMENS_RAW: '2719280'
+      EXPECTED_VOORKOMENS_UNIQUE: '2719273'
+      EXPECTED_VOORKOMENS_DUPLICATES: '7'
+      EXPECTED_RELATIES: '2564885'
+      EXPECTED_GEOMETRIEEN: '1873252'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Controleer harde project-, artifact- en fasegrenzen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test "$BAG_AMSTERDAM_ARTIFACT_ID" = '9027302674'
+          test "$BAG_AMSTERDAM_APPROVAL" = 'APPLY_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+          case "$BAG_AMSTERDAM_PHASE" in
+            prepare|objecten|voorkomens|relaties|geometrieen|validate) ;;
+            *) exit 2 ;;
+          esac
+          if [ "$BAG_AMSTERDAM_PHASE" = 'geometrieen' ]; then
+            test "$BAG_AMSTERDAM_CHUNK_SIZE" = '5000'
+          else
+            test "$BAG_AMSTERDAM_CHUNK_SIZE" = '50000'
+          fi
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          case "$BAG_SHADOW_DATABASE_URL" in
+            *ljudxyrqoifhfikueric*|*wzkhmjuasyuvzhhycnym*) exit 3 ;;
+          esac
+          test "${BAG_SHADOW_DATABASE_URL#*sslmode=require}" != "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+          command -v gh
+          command -v split
+          command -v sha256sum
+          command -v python
+
+      - name: Download uitsluitend exact v3 importpakketartifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bag-amsterdam-artifact
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${BAG_AMSTERDAM_ARTIFACT_ID}" > bag-amsterdam-artifact/meta.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const m = JSON.parse(fs.readFileSync('bag-amsterdam-artifact/meta.json', 'utf8'));
+          if (String(m.id) !== process.env.BAG_AMSTERDAM_ARTIFACT_ID) throw new Error('Artifact-id drift');
+          if (m.name !== 'bag-amsterdam-directional-importpakket-v3') throw new Error('Artifactnaam drift');
+          if (m.expired !== false) throw new Error('Artifact is verlopen');
+          if (m.digest !== process.env.EXPECTED_ARTIFACT_DIGEST) throw new Error(`Artifactdigest drift: ${m.digest}`);
+          NODE
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${BAG_AMSTERDAM_ARTIFACT_ID}/zip" \
+            > bag-amsterdam-artifact/artifact.zip
+          test -s bag-amsterdam-artifact/artifact.zip
+          unzip -q bag-amsterdam-artifact/artifact.zip -d bag-amsterdam-artifact/unpacked
+
+      - name: Valideer v3 importpakket, hashes en tellingen fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='bag-amsterdam-artifact/unpacked'
+          for f in importpakket-manifest.json objecten.csv voorkomens.csv relaties.csv geometrieen.csv adapter-fouten.jsonl geometrie-koppelafwijkingen.jsonl; do
+            test -e "$root/importpakket/$f"
+          done
+          test -s "$root/rapport/importpakket-go-no-go.txt"
+          grep -qx 'besluit=GO' "$root/rapport/importpakket-go-no-go.txt"
+          grep -qx 'databaseImportUitgevoerd=false' "$root/rapport/importpakket-go-no-go.txt"
+          grep -qx 'supabaseBenaderd=false' "$root/rapport/importpakket-go-no-go.txt"
+          grep -qx 'productieBenaderd=false' "$root/rapport/importpakket-go-no-go.txt"
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const root = 'bag-amsterdam-artifact/unpacked/importpakket';
+          const m = JSON.parse(fs.readFileSync(path.join(root, 'importpakket-manifest.json'), 'utf8'));
+          const eq = (label, actual, expected) => {
+            if (Number(actual) !== Number(expected)) throw new Error(`${label}: ${actual} != ${expected}`);
+          };
+          if (m.besluit !== 'GO') throw new Error('Manifest is geen GO');
+          if (m.contractversie !== 'bag-amsterdam-importpakket/1') throw new Error('Contractversiedrift');
+          if (m.datasetVersie !== process.env.EXPECTED_DATASET_VERSION) throw new Error('Datasetversiedrift');
+          if (m.scopeCode !== '0363') throw new Error('Scopecodedrift');
+          if (m.bronSha256 !== process.env.EXPECTED_SOURCE_SHA256) throw new Error('Bronhashdrift');
+          if (m.selectieChecksum !== process.env.EXPECTED_SELECTION_SHA256) throw new Error('Selectiechecksumdrift');
+          if (m.quarantaine !== 0 || m.tellingen?.adapterFouten !== 0 || m.tellingen?.stagingFouten !== 0) throw new Error('Quarantaine/fouten niet nul');
+          if (m.directioneleScope?.naam !== 'Amsterdam+Weesp' || m.directioneleScope?.metadataSchemaVersion !== 3) throw new Error('Directionele scope drift');
+          eq('objecten', m.tellingen.objecten, process.env.EXPECTED_OBJECTEN);
+          eq('voorkomens raw', m.tellingen.voorkomens, process.env.EXPECTED_VOORKOMENS_RAW);
+          eq('relaties', m.tellingen.relatiesUniek, process.env.EXPECTED_RELATIES);
+          eq('geometrieen', m.tellingen.geometrieen, process.env.EXPECTED_GEOMETRIEEN);
+          if (m.databaseImportUitgevoerd !== false || m.supabaseBenaderd !== false || m.productieBenaderd !== false) throw new Error('Onveilige pakketprovenance');
+          for (const bestand of m.bestanden) {
+            const p = path.join(root, bestand.bestand);
+            const data = fs.readFileSync(p);
+            const digest = crypto.createHash('sha256').update(data).digest('hex');
+            if (digest !== bestand.sha256) throw new Error(`Bestandhashdrift: ${bestand.bestand}`);
+          }
+          NODE
+
+          test "$(wc -l < "$root/importpakket/objecten.csv" | tr -d ' ')" = "$EXPECTED_OBJECTEN"
+          test "$(wc -l < "$root/importpakket/voorkomens.csv" | tr -d ' ')" = "$EXPECTED_VOORKOMENS_RAW"
+          test "$(wc -l < "$root/importpakket/relaties.csv" | tr -d ' ')" = "$EXPECTED_RELATIES"
+          test "$(wc -l < "$root/importpakket/geometrieen.csv" | tr -d ' ')" = "$EXPECTED_GEOMETRIEEN"
+          test ! -s "$root/importpakket/adapter-fouten.jsonl"
+          test ! -s "$root/importpakket/geometrie-koppelafwijkingen.jsonl"
+
+      - name: Bewijs 7 volledig identieke voorkomenduplicaten
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          pad = Path('bag-amsterdam-artifact/unpacked/importpakket/voorkomens.csv')
+          vorige_sleutel = None
+          vorige_regel = None
+          duplicaten = 0
+          conflicten = 0
+          regels = 0
+          with pad.open('r', encoding='utf-8', newline='') as handle:
+              for regel in csv.reader(handle):
+                  regels += 1
+                  sleutel = tuple(regel[:3])
+                  if sleutel == vorige_sleutel:
+                      duplicaten += 1
+                      if regel != vorige_regel:
+                          conflicten += 1
+                  vorige_sleutel = sleutel
+                  vorige_regel = regel
+          verwacht_regels = int(__import__('os').environ['EXPECTED_VOORKOMENS_RAW'])
+          verwacht_dup = int(__import__('os').environ['EXPECTED_VOORKOMENS_DUPLICATES'])
+          verwacht_uniek = int(__import__('os').environ['EXPECTED_VOORKOMENS_UNIQUE'])
+          if regels != verwacht_regels:
+              raise SystemExit(f'Voorkomenregels {regels} != {verwacht_regels}')
+          if duplicaten != verwacht_dup or conflicten != 0:
+              raise SystemExit(f'Duplicaten={duplicaten}, conflicten={conflicten}')
+          if regels - duplicaten != verwacht_uniek:
+              raise SystemExit(f'Unieke voorkomens {regels-duplicaten} != {verwacht_uniek}')
+          print(f'voorkomens_raw={regels} identieke_duplicaten={duplicaten} unieke_voorkomens={regels-duplicaten}')
+          PY
+
+      - name: Voer exact één v3 herstartbare importfase uit
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/bag/run-amsterdam-shadow-resumable-import-v3.sh \
+            bag-amsterdam-artifact/unpacked/importpakket \
+            "$BAG_AMSTERDAM_PHASE" \
+            bag-amsterdam-shadow-import-resultaat
+
+      - name: Publiceer compacte bewijsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-v3-shadow-staging-import-${{ github.event.inputs.phase }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            bag-amsterdam-shadow-import-resultaat/preflight.tsv
+            bag-amsterdam-shadow-import-resultaat/rollback-marker.txt
+            bag-amsterdam-shadow-import-resultaat/progress.tsv
+            bag-amsterdam-shadow-import-resultaat/deduplicatie.tsv
+            bag-amsterdam-shadow-import-resultaat/validatie.tsv
+            bag-amsterdam-shadow-import-resultaat/rapport.md
