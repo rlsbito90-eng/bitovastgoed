@@ -105,6 +105,71 @@ if [[ "$policy_count" != "0" ]]; then
   exit 1
 fi
 
+# Exact releasepakket: postregistratie en opvolging moeten één transactie vormen.
+psql_safe <<'SQL'
+INSERT INTO public.off_market_acquisitie_selectie (id, signaal_id)
+VALUES ('10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001');
+
+INSERT INTO public.off_market_acquisitie_dossiers (
+  id, selectie_id, signaal_id, verwerking_gestart_op, primaire_werkbak
+) VALUES (
+  '30000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000001',
+  '2026-08-08T08:00:00Z',
+  'geprint_posten'
+);
+
+INSERT INTO public.off_market_brieven (
+  id, signaal_id, status, briefnummer, selectie_id, actieve_versie, definitief_op, vergrendeld_op
+) VALUES (
+  '40000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000001',
+  'definitief','BR2026999999',
+  '10000000-0000-0000-0000-000000000001',1,
+  '2026-08-08T08:30:00Z','2026-08-08T08:30:00Z'
+);
+
+INSERT INTO public.off_market_brief_versies (
+  id, brief_id, versienummer, status, inhoud_snapshot, geadresseerde_snapshot
+) VALUES (
+  '50000000-0000-0000-0000-000000000001',
+  '40000000-0000-0000-0000-000000000001',1,'actief','{}'::jsonb,'{}'::jsonb
+);
+
+INSERT INTO public.off_market_printbatches (
+  id, batchnummer, status, documentversie, printdatum
+) VALUES (
+  '60000000-0000-0000-0000-000000000001','BAT2026080899','geprint',1,'2026-08-08T09:00:00Z'
+);
+
+INSERT INTO public.off_market_printbatch_brieven (
+  id, batch_id, brief_id, brief_versie_id
+) VALUES (
+  '70000000-0000-0000-0000-000000000001',
+  '60000000-0000-0000-0000-000000000001',
+  '40000000-0000-0000-0000-000000000001',
+  '50000000-0000-0000-0000-000000000001'
+);
+
+SELECT public.off_market_brief_gepost_markeren_intern(
+  '40000000-0000-0000-0000-000000000001',
+  '50000000-0000-0000-0000-000000000001',
+  '60000000-0000-0000-0000-000000000001',
+  'release-proof:adres-1',
+  '80000000-0000-0000-0000-000000000001',
+  'release-proof:post-1',1,
+  '2026-08-08T09:30:00Z'
+);
+SQL
+
+atomic_count="$(psql_safe -Atqc "select count(*) from public.off_market_acquisitie_dossiers d join public.off_market_brief_versies v on v.id='50000000-0000-0000-0000-000000000001' join public.off_market_printbatches b on b.id='60000000-0000-0000-0000-000000000001' where d.selectie_id='10000000-0000-0000-0000-000000000001' and d.primaire_werkbak='opvolgen' and d.volgende_actie_op='2026-08-22T09:30:00Z'::timestamptz and d.volgende_actie_omschrijving='Opvolgen na geposte brief' and v.status='verzonden' and b.status='gepost';")"
+post_event_count="$(psql_safe -Atqc "select count(*) from public.off_market_productie_events where operation_key='release-proof:post-1' and event_type='brief_gepost' and selectie_id='10000000-0000-0000-0000-000000000001';")"
+if [[ "$atomic_count" != "1" || "$post_event_count" != "1" ]]; then
+  echo "Atomische post-opvolging faalde: state=$atomic_count event=$post_event_count" >&2
+  exit 1
+fi
+
 # Geen backfill: bestaande legacybrief blijft legacy en krijgt geen fictief nummer/selectie.
 psql_safe <<'SQL'
 INSERT INTO public.off_market_brieven (id, signaal_id, status)
