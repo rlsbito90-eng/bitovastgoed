@@ -12,6 +12,17 @@ describe('normaliseerProductiekernLeesFout', () => {
       .toMatchObject({ code: 'schema_niet_beschikbaar', herstelbaar: false });
   });
 
+  it('classificeert het lokale leesbudget afzonderlijk en niet-herstelbaar', () => {
+    expect(normaliseerProductiekernLeesFout({
+      code: 'ACQUISITIE_PRODUCTIEKERN_LEESBUDGET_OVERSCHREDEN',
+      message: 'interne details',
+    })).toEqual({
+      code: 'leesbudget_overschreden',
+      herstelbaar: false,
+      publiekeMelding: 'Het begrensde productiekern-leesbudget is overschreden.',
+    });
+  });
+
   it('markeert alleen tijdelijke transportfouten als herstelbaar', () => {
     expect(normaliseerProductiekernLeesFout({ status: 503 })).toEqual({
       code: 'transport_tijdelijk_onbeschikbaar',
