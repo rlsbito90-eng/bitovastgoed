@@ -69,6 +69,7 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           path: bag-amsterdam-v3
+          merge-multiple: true
 
       - name: Valideer bewijs fail-closed
         shell: bash
