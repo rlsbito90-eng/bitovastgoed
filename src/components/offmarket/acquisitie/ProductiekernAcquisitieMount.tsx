@@ -6,11 +6,16 @@ import { useAcquisitieReadiness, useBrievenVoorSignalen } from '@/hooks/useAcqui
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { productiekernStandaardUitgeschakeld } from '@/lib/offMarket/acquisitie/productieActivatiePoort';
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
+import {
+  maakStandaardProductiekernBrowserWriteSamenstelling,
+  type ProductiekernBrowserWriteSamenstelling,
+} from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { meetProductiekernWorkflowPariteit } from '@/lib/offMarket/acquisitie/productiekernDossierProjectiePariteit';
 import type { ProductiekernSupabaseClientSamenstelling } from '@/lib/offMarket/acquisitie/productiekernSupabaseClientSamenstelling';
 import { bepaalWerkbakContext, type WerkbakContext } from '@/lib/offMarket/acquisitie/werkbak';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import ProductiekernDossierProjectie from './ProductiekernDossierProjectie';
+import ProductiekernNogNietGestart from './ProductiekernNogNietGestart';
 import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone';
 import type { ProductiekernWerkbakView } from './ProductiekernWerkbakChips';
 
@@ -38,8 +43,10 @@ function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
 
 function ActieveProductiekernDossierProjectie({
   samenstelling,
+  writeSamenstelling,
 }: {
   samenstelling: ProductiekernSupabaseClientSamenstelling;
+  writeSamenstelling: ProductiekernBrowserWriteSamenstelling;
 }) {
   const { data: selectie = [], isLoading: selectieLaden } = useAcquisitieSelectie();
   const { data: signalen = [] } = useOffMarketSignalen();
@@ -105,6 +112,26 @@ function ActieveProductiekernDossierProjectie({
   });
 
   const dossiers = dossierQuery.data ?? [];
+  const dossierSelectieIds = useMemo(
+    () => new Set(dossiers.map((dossier) => dossier.selectieId)),
+    [dossiers],
+  );
+  const nogNietGestart = useMemo(
+    () => selectie
+      .filter((item) => !dossierSelectieIds.has(item.id))
+      .map((item) => {
+        const signaal = signaalIndex.get(item.signaal_id);
+        const adres = signaal?.adres?.trim() ?? '';
+        const plaats = signaal?.plaats?.trim() ?? '';
+        const label = [adres, plaats].filter(Boolean).join(', ') || `Selectie ${item.id}`;
+        return {
+          selectieId: item.id,
+          signaalId: item.signaal_id,
+          label,
+        };
+      }),
+    [selectie, dossierSelectieIds, signaalIndex],
+  );
   const pariteit = useMemo(
     () => dossierQuery.isError
       ? null
@@ -116,16 +143,29 @@ function ActieveProductiekernDossierProjectie({
     [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
+  const laden = selectieLaden || brievenLaden || dossierQuery.isLoading;
+  const toonNogNietGestart = !laden
+    && !dossierQuery.isError
+    && (actieveWerkbak === 'nieuwe_selectie' || actieveWerkbak === 'alles');
+
   return (
-    <ProductiekernDossierProjectie
-      dossiers={dossiers}
-      totaalSelecties={selectieIds.length}
-      actieveWerkbak={actieveWerkbak}
-      onWerkbakChange={setActieveWerkbak}
-      pariteit={pariteit}
-      laden={selectieLaden || brievenLaden || dossierQuery.isLoading}
-      fout={dossierQuery.isError}
-    />
+    <div className="space-y-3">
+      <ProductiekernDossierProjectie
+        dossiers={dossiers}
+        totaalSelecties={selectieIds.length}
+        actieveWerkbak={actieveWerkbak}
+        onWerkbakChange={setActieveWerkbak}
+        pariteit={pariteit}
+        laden={laden}
+        fout={dossierQuery.isError}
+      />
+      {toonNogNietGestart && (
+        <ProductiekernNogNietGestart
+          items={nogNietGestart}
+          writeSamenstelling={writeSamenstelling}
+        />
+      )}
+    </div>
   );
 }
 
@@ -138,20 +178,26 @@ function ActieveProductiekernDossierProjectie({
  * productiekernreads voor deze projectie niet gestart.
  *
  * In een expliciet vrijgegeven werk-CRM toont de mount de formele acht
- * operationele werkbakken op basis van de Productiekern-dossiers. Legacydata
- * wordt alleen nog voor pariteitsobservatie gebruikt; `nieuwe_selectie` wordt
- * nooit uit legacyvelden afgeleid. De writepoort blijft zelfstandig dicht.
+ * operationele werkbakken op basis van de Productiekern-dossiers. Selecties
+ * zonder dossier worden apart als `Nog niet gestart` getoond en kunnen via de
+ * fail-closed werk-CRM-writecompositie expliciet worden gestart. Legacydata
+ * wordt alleen voor pariteitsobservatie gebruikt.
  */
 export default function ProductiekernAcquisitieMount() {
   const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
 
   if (!leesSamenstelling.activatie.lezenActief) return null;
 
+  const writeSamenstelling = maakStandaardProductiekernBrowserWriteSamenstelling();
+
   return (
     <div className="space-y-3">
-      <ActieveProductiekernDossierProjectie samenstelling={leesSamenstelling} />
+      <ActieveProductiekernDossierProjectie
+        samenstelling={leesSamenstelling}
+        writeSamenstelling={writeSamenstelling}
+      />
       <ProductiekernProductiepakketZone
-        activatie={productiekernStandaardUitgeschakeld}
+        activatie={writeSamenstelling.activatie}
         pakket={null}
       />
     </div>
