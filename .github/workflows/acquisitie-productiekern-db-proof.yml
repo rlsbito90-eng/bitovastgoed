@@ -9,6 +9,7 @@ on:
       - 'scripts/acquisitie/run-productiekern-e2e-acceptatie.sh'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_build_a.sql'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_dossier_briefkern.sql'
+      - 'supabase/migration-drafts/20260808_acquisitie_productiekern_vroege_transactionele_functies.sql'
       - 'supabase/migration-drafts/20260806_acquisitie_productiekern_transactionele_functies.sql'
       - '.github/workflows/acquisitie-productiekern-db-proof.yml'
   workflow_dispatch:
@@ -52,8 +53,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Drie SQL-drafts + rollback + concurrency + idempotentie
+      - name: Kern-SQL-drafts + rollback + concurrency + idempotentie
         run: bash scripts/acquisitie/run-productiekern-isolated-db-proof.sh
 
-      - name: Geïsoleerde dagelijkse E2E-acceptatie
+      - name: Volledige geïsoleerde dagelijkse E2E-acceptatie
         run: bash scripts/acquisitie/run-productiekern-e2e-acceptatie.sh
