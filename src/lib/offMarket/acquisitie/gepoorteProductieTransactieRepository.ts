@@ -1,4 +1,4 @@
-import type { ProductieActivatieBesluit } from './productieActivatiePoort';
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
 import type {
   AcquisitieProductieTransactieRepository,
   BriefDefinitiefResultaat,
@@ -18,7 +18,7 @@ import type {
 export class GepoorteAcquisitieProductieTransactieRepository
 implements AcquisitieProductieTransactieRepository {
   constructor(
-    private readonly activatie: ProductieActivatieBesluit,
+    private readonly activatie: ProductiekernActivatieBesluit,
     private readonly achterliggendeRepository: AcquisitieProductieTransactieRepository,
   ) {}
 
@@ -54,7 +54,7 @@ implements AcquisitieProductieTransactieRepository {
 }
 
 export function maakGepoorteProductieTransactieRepository(
-  activatie: ProductieActivatieBesluit,
+  activatie: ProductiekernActivatieBesluit,
   achterliggendeRepository: AcquisitieProductieTransactieRepository,
 ): AcquisitieProductieTransactieRepository {
   return new GepoorteAcquisitieProductieTransactieRepository(
