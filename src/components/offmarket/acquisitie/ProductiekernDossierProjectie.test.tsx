@@ -40,16 +40,47 @@ describe('ProductiekernDossierProjectie', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('toont tijdens laden geen afgeleide werkbaktellingen', () => {
+  it('toont workflowpariteit compact zonder bedieningsmogelijkheid', () => {
+    render(
+      <ProductiekernDossierProjectie
+        totaalSelecties={5}
+        dossiers={[dossier('selectie-1', 'opvolgen'), dossier('selectie-2', 'wachten')]}
+        pariteit={{
+          totaalSelecties: 5,
+          vergelijkbaar: 2,
+          gelijk: 1,
+          afwijkend: 1,
+          legacyOntbreekt: 1,
+          productiekernOntbreekt: 2,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('productiekern-workflowpariteit')).toHaveTextContent(
+      'Workflowpariteit: 1/2 gelijk · 1 afwijkend · 2 kern ontbreekt · 1 legacy ontbreekt',
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('toont tijdens laden geen afgeleide werkbaktellingen of pariteit', () => {
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={2}
         dossiers={[dossier('selectie-1', 'opvolgen')]}
+        pariteit={{
+          totaalSelecties: 2,
+          vergelijkbaar: 1,
+          gelijk: 1,
+          afwijkend: 0,
+          legacyOntbreekt: 0,
+          productiekernOntbreekt: 1,
+        }}
         laden
       />,
     );
 
     expect(screen.getByText('Laden…')).toBeInTheDocument();
     expect(screen.queryByText('Opvolgen: 1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
   });
 });
