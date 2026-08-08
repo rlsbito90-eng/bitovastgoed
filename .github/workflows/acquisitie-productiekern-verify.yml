@@ -1,0 +1,44 @@
+name: Acquisitieproductiekern Verify
+
+on:
+  push:
+    branches:
+      - feat/acquisitie-productiekern-build-a
+    paths:
+      - 'src/lib/offMarket/acquisitie/**'
+      - 'src/components/offmarket/acquisitie/**'
+      - 'src/pages/OffMarketPage.tsx'
+      - '.github/workflows/acquisitie-productiekern-verify.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'vite.config.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acquisitie-productiekern-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Verify acquisitieproductiekern
+        run: npm run verify:acquisitie-productiekern
