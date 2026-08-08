@@ -18,6 +18,7 @@ as $$
 declare
   v_signaal_id uuid;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then raise exception 'operation_key_verplicht'; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key, 0));
 
@@ -69,6 +70,7 @@ declare
   v_signaal_id uuid;
   v_brief_id uuid;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then raise exception 'operation_key_verplicht'; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key, 0));
   if exists (select 1 from public.off_market_productie_events where operation_key=p_operation_key) then
@@ -118,6 +120,7 @@ declare
   v_volgend integer;
   v_versie_id uuid;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then raise exception 'operation_key_verplicht'; end if;
   if jsonb_typeof(p_inhoud_snapshot) <> 'object' then raise exception 'inhoud_snapshot_verplicht'; end if;
   if nullif(trim(p_inhoud_snapshot->>'brieftekst'), '') is null then raise exception 'brieftekst_verplicht'; end if;
@@ -185,6 +188,7 @@ declare
   v_batch_id uuid;
   v_batchnummer text;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then raise exception 'operation_key_verplicht'; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key, 0));
   if exists (select 1 from public.off_market_productie_events where operation_key=p_operation_key) then
@@ -221,6 +225,7 @@ set search_path = public, pg_temp
 as $$
 declare v_batchstatus text;
 begin
+  perform public.assert_off_market_productiekern_actor(p_actor_id);
   if nullif(trim(p_operation_key), '') is null then raise exception 'operation_key_verplicht'; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key,0));
   if exists (select 1 from public.off_market_productie_events where operation_key=p_operation_key) then return; end if;
