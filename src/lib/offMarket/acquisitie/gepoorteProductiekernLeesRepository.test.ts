@@ -10,6 +10,7 @@ function maakAchterliggendeRepository(): AcquisitieProductiekernRepository {
     haalBrief: vi.fn().mockResolvedValue(null),
     haalBriefversies: vi.fn().mockResolvedValue([]),
     haalPrintbatch: vi.fn().mockResolvedValue(null),
+    haalPrintbatchBrieven: vi.fn().mockResolvedValue([]),
     startVerwerking: vi.fn(),
     reserveerBrief: vi.fn(),
     maakBriefversie: vi.fn(),
@@ -32,7 +33,10 @@ describe('GepoorteProductiekernLeesRepository', () => {
 
     expect(() => repository.haalDossier('selectie-1'))
       .toThrow(ProductiekernNietGeactiveerdError);
+    expect(() => repository.haalPrintbatchBrieven('batch-1'))
+      .toThrow(ProductiekernNietGeactiveerdError);
     expect(achterliggend.haalDossier).not.toHaveBeenCalled();
+    expect(achterliggend.haalPrintbatchBrieven).not.toHaveBeenCalled();
   });
 
   it('delegeert uitsluitend reads wanneer de leespoort expliciet open is', async () => {
@@ -46,11 +50,13 @@ describe('GepoorteProductiekernLeesRepository', () => {
     await expect(repository.haalBrief('brief-1')).resolves.toBeNull();
     await expect(repository.haalBriefversies('brief-1')).resolves.toEqual([]);
     await expect(repository.haalPrintbatch('batch-1')).resolves.toBeNull();
+    await expect(repository.haalPrintbatchBrieven('batch-1')).resolves.toEqual([]);
 
     expect(achterliggend.haalDossier).toHaveBeenCalledWith('selectie-1');
     expect(achterliggend.haalBrief).toHaveBeenCalledWith('brief-1');
     expect(achterliggend.haalBriefversies).toHaveBeenCalledWith('brief-1');
     expect(achterliggend.haalPrintbatch).toHaveBeenCalledWith('batch-1');
+    expect(achterliggend.haalPrintbatchBrieven).toHaveBeenCalledWith('batch-1');
   });
 
   it('blokkeert iedere write ook wanneer lezen actief is', () => {
