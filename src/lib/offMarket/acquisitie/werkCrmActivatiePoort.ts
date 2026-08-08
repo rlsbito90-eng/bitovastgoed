@@ -1,3 +1,5 @@
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
+
 export interface WerkCrmActivatieBewijs {
   doelomgevingIsWerkdatabase: boolean;
   supabaseDoelKomtOvereen: boolean;
@@ -9,11 +11,7 @@ export interface WerkCrmActivatieBewijs {
   explicietWerkakkoord: boolean;
 }
 
-export interface WerkCrmActivatieBesluit {
-  lezenActief: boolean;
-  schrijvenActief: boolean;
-  ontbrekendBewijs: string[];
-}
+export type WerkCrmActivatieBesluit = ProductiekernActivatieBesluit;
 
 const WERKCRM_BEWIJS_LABELS: Array<[keyof WerkCrmActivatieBewijs, string]> = [
   ['doelomgevingIsWerkdatabase', 'De doelomgeving is niet expliciet als werk-CRM gemarkeerd.'],
