@@ -19,6 +19,7 @@ def write_chunk(path: Path, rows: list[list[object]]) -> None:
 
 def main() -> int:
     rows = [
+        ["Onbekend", None, None, []],
         ["Woonplaats", "1000", "amsterdam", []],
         ["OpenbareRuimte", "0363300000000001", None, [["woonplaats", "1000"]]],
         ["Nummeraanduiding", "0363200000000001", None, [["openbare_ruimte", "0363300000000001"]]],
@@ -54,6 +55,9 @@ def main() -> int:
         payload = json.loads(report.read_text(encoding="utf-8"))
         assert payload["status"] == "amsterdam_directionele_metadata_selectie_validated"
         assert payload["metadata_schema_version"] == 3
+        assert payload["metadatarecords_gelezen"] == len(rows)
+        assert payload["overgeslagen_onbekende_records"] == 1
+        assert payload["ongeldige_metadatarecords"] == 0
         assert payload["geselecteerd_per_objecttype"]["Woonplaats"] == 1
         assert payload["geselecteerd_per_objecttype"]["OpenbareRuimte"] == 1
         assert payload["geselecteerd_per_objecttype"]["Nummeraanduiding"] == 1
