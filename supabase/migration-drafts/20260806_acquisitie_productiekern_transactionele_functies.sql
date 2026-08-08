@@ -247,6 +247,10 @@ declare
   v_printdatum timestamptz;
   v_openstaand integer;
 begin
+  if nullif(trim(p_geadresseerde_key), '') is null then
+    raise exception 'geadresseerde_key_verplicht';
+  end if;
+
   perform pg_advisory_xact_lock(hashtextextended(p_operation_key, 0));
   if exists (select 1 from public.off_market_productie_events where operation_key = p_operation_key) then
     return;
@@ -268,7 +272,7 @@ begin
   from public.off_market_printbatches where id = p_batch_id for update;
   if not found then raise exception 'batch_niet_gevonden'; end if;
   if v_batchstatus not in ('geprint', 'gedeeltelijk_gepost') or v_printdatum is null then
-    raise exception 'batch_niet_explicit_geprint';
+    raise exception 'batch_niet_geprint';
   end if;
 
   if not exists (
@@ -278,7 +282,7 @@ begin
       and brief_versie_id = p_brief_versie_id
       and verwijderd_op is null
   ) then
-    raise exception 'briefversie_niet_actief_in_batch';
+    raise exception 'briefversie_niet_in_batch';
   end if;
 
   update public.off_market_brief_versies
