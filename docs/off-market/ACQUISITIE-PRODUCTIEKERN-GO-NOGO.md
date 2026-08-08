@@ -13,24 +13,27 @@ Dit document is het actuele review- en releasecontract voor de Acquisitieproduct
 - de canonieke securityarchitectuur gebruikt publieke security-wrappers vóór niet-client-callable `*_intern` implementaties;
 - no-JWT, niet-interne gebruiker en actor-spoofing worden fail-closed geweigerd; de geldige interne actorroute schrijft wel en produceert precies de bedoelde audit;
 - least-privilege activatie is geïsoleerd bewezen: alleen vier readmodellen krijgen toekomstige `SELECT`, alleen negen publieke wrappers toekomstige `EXECUTE`; directe writes, helper en `_intern` blijven gesloten;
-- `Acquisitieproductiekern DB Proof` run `31263471996` is groen voor kern-SQL/rollback/concurrency, volledige dagflow-E2E, auth/actor-spoofing en activatie-RLS/ACL;
+- `Acquisitieproductiekern DB Proof` run `31265403378` op head `d5a038c2cf547632460adaf14e85300321c02b28` is volledig groen voor kern-SQL/rollback/concurrency, volledige dagflow-E2E, auth/actor-spoofing, activatie-RLS/ACL én de exacte gegenereerde releasekandidaat;
+- de gegenereerde review-only releasekandidaat is als CI-artifact `acquisitie-productiekern-release-candidate` opgeslagen (artifact `9023993083`, SHA-256 `12985cfeb41cdc5610b150ab152241b5bee4b58b180b2d99d73670790f82148f`);
+- de releasekandidaat bevat zes gecontroleerde structuur-/functiebronnen in vaste volgorde en sluit `20260808_acquisitie_productiekern_activatie_security.sql` expliciet uit;
+- exact op de gegenereerde releasekandidaat is bewezen dat geen client-SELECT/EXECUTE-grants, geen activatiepolicies en geen historische backfill ontstaan;
+- postregistratie en opvolging zijn in de definitieve releaseketen atomisch gekoppeld: één transactie zet de betreffende briefversie op verzonden, de batch correct op gedeeltelijk/gepost, schrijft één audit-event én zet uitsluitend het gekoppelde dossier op `opvolgen` met opvolgdatum +14 dagen;
 - documentproductie voor batchvoorblad, controlelijst, brieven-PDF en adreslabels is geïmplementeerd zonder dat downloads zelf database- of statusmutaties uitvoeren;
 - de bestaande CRM-Supabase-browserclient is via een smalle adapter aan de formele readketen gekoppeld;
 - de readketen blijft centraal bewijs-gepoord en standaard gesloten; zonder expliciet leesbewijs wordt `client.from(...)` niet bereikt;
 - productiekern-dossiers kunnen in één allowlisted bulkread op `selectie_id` worden geladen, met querybudget, retry/timeout, limieten en integriteitsbewaking;
 - de Acquisitieselectie bevat een afzonderlijke read-only Productiekernstatusprojectie; deze heeft geen knoppen en beïnvloedt geen legacyfilters, sortering, werkbakken of writes;
 - dezelfde bulkset ondersteunt observerende workflowpariteit legacy ↔ formele Productiekern zonder N+1-reads;
-- gerichte Verify run `31264614402` op head `47680feb18bf483c150e9df0a94d3f5cd1e974e7` is volledig groen: typecheck, alle gerichte Acquisitieproductiekern-tests en production build;
+- gerichte Verify run `31265358297` is volledig groen: typecheck, alle gerichte Acquisitieproductiekern-tests en production build;
 - de algemene regressiesuite blijft bekend rood door dezelfde vijf reeds geaccepteerde baselinefails buiten de Productiekernscope; de laatste bekende algemene run had 542 geslaagde testbestanden, 4 rode, 2 skipped en 3100 geslaagde tests, 5 rode, 4 skipped;
 - productieactivatie, productie-migratie, backfill, RLS/grantswijzigingen en Productiekernwrites zijn niet uitgevoerd.
 
 ## Nog open vóór technische review / merge
 
-1. definitieve release-/migratiebestanden samenstellen uit de bewezen review-drafts, **zonder ze toe te passen**;
-2. handmatige preview-acceptatie van de dagelijkse hoofdflow uitvoeren, inclusief PDF-/downloadgedrag en de observerende Productiekernprojectie;
-3. op de finale PR-head opnieuw de gerichte Verify en de algemene regressie-/typecheck-/buildstatus vastleggen;
-4. PR-reviewdossier en reviewcommentaar synchroniseren met de actuele implementatiestatus;
-5. technische review uitvoeren en merge als afzonderlijke poort behandelen.
+1. handmatige preview-acceptatie van de dagelijkse hoofdflow uitvoeren, inclusief PDF-/downloadgedrag; de formele Productiekern-readprojectie blijft zonder apart leesakkoord gesloten;
+2. op de finale PR-head de algemene regressie-/typecheck-/buildstatus opnieuw vastleggen en bevestigen dat uitsluitend de bekende baselinefails resteren;
+3. open PR-reviewthreads beoordelen en eventuele concrete blockers afhandelen;
+4. technische review uitvoeren en merge als afzonderlijke poort behandelen.
 
 ## Hard geblokkeerd zonder afzonderlijk expliciet productieakkoord
 
@@ -90,8 +93,9 @@ Dit document is het actuele review- en releasecontract voor de Acquisitieproduct
 - [x] Post-before-print wordt geblokkeerd in de geïsoleerde dagflow.
 - [x] Dubbele postregistratie is idempotent bewezen.
 - [x] Partiële postregistratie blijft correct.
-- [x] Opvolging ontstaat uitsluitend na bevestigde verzending in het bewezen procesmodel.
-- [ ] Finale semantische review bevestigen dat postregistratie en dossier-/opvolgprojectie in de definitieve releaseketen volledig atomair gekoppeld zijn.
+- [x] Opvolging ontstaat uitsluitend na bevestigde verzending.
+- [x] Postregistratie, batchstatus, audit en dossier-/opvolgprojectie zijn atomisch gekoppeld in de exacte releasekandidaat.
+- [x] Alleen het dossier van de daadwerkelijk geposte brief verschuift naar `opvolgen`; standaard opvolging wordt op +14 dagen gepland.
 
 ## 7. Readmodel, zoeken en frontend
 
@@ -121,22 +125,24 @@ Dit document is het actuele review- en releasecontract voor de Acquisitieproduct
 - [x] Review-SQL staat buiten `supabase/migrations` en is niet op productie toegepast.
 - [x] Rollback-/isolatieproeven zijn groen.
 - [x] Bestaande legacy-Acquisitieselectie blijft operationeel leidend tijdens de overgang.
-- [ ] Definitieve release-migratiebestanden afleiden uit bewezen drafts, reviewen en **niet toepassen** vóór afzonderlijk productieakkoord.
+- [x] Deterministische releasekandidaat is afgeleid uit zes gecontroleerde review-drafts en als CI-artifact opgeslagen.
+- [x] De exacte releasekandidaat is in tijdelijke PostgreSQL 17 succesvol uitgevoerd en laat activatie, grants en backfill achterwege.
 
 ## 10. Release
 
-- [x] Gerichte Productiekern typecheck groen op head `47680feb...`.
-- [x] Gerichte Productiekern-tests groen op head `47680feb...`.
-- [x] Production build groen op head `47680feb...`.
+- [x] Gerichte Productiekern typecheck groen op actuele releasecode.
+- [x] Gerichte Productiekern-tests groen op actuele releasecode.
+- [x] Production build groen op actuele releasecode.
+- [x] Exact release-SQL-pakket en securityhouding groen in DB Proof run `31265403378`.
 - [x] Bekende algemene regressiebaseline afzonderlijk vastgelegd; geen nieuwe Productiekernfail aangetoond.
 - [ ] Handmatige preview-acceptatie dagelijkse hoofdflow.
-- [ ] Finale regressie/typecheck/build op finale reviewhead.
+- [ ] Finale algemene regressie/typecheck/build op finale reviewhead.
 - [ ] Technische review.
 - [ ] Merge.
 - [ ] Afzonderlijk expliciet productieakkoord vóór migratie/RLS/grants/activatie.
 
 ## Go/no-go-regel
 
-**Status nu: GO voor verdere technische reviewvoorbereiding; NO-GO voor productie.**
+**Status nu: technisch releasepakket groen en GO voor afrondende reviewvoorbereiding; NO-GO voor productie.**
 
-De code mag als draft verder worden beoordeeld en releasebestanden mogen review-only worden voorbereid. Productiemigratie, backfill, RLS/grantswijzigingen, read-activatie en writes blijven geblokkeerd totdat de resterende reviewpunten groen zijn én voor de betreffende productiestap afzonderlijk expliciet akkoord is gegeven.
+De code en het gegenereerde releasepakket mogen verder technisch worden beoordeeld. Productiemigratie, backfill, RLS/grantswijzigingen, read-activatie en writes blijven geblokkeerd totdat de resterende reviewpunten groen zijn én voor de betreffende productiestap afzonderlijk expliciet akkoord is gegeven.
