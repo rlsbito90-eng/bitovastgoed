@@ -2,6 +2,37 @@
 
 Deze checklist voorkomt dat de productiekern wordt gebouwd op onbewezen aannames. BUILD A start pas wanneer alle blokkerende punten aantoonbaar zijn beantwoord.
 
+## Actuele releasebasis — 8 augustus 2026
+
+De voorbereidende BUILD-A-kern heeft inmiddels aantoonbaar de volgende bewijzen:
+
+- actuele CRM-productie-DDL is via de bestaande Lovable-databasebinding uitsluitend read-only gecontroleerd;
+- actuele RLS, policies, grants en `is_intern_gebruiker` zijn read-only gecontroleerd;
+- live `off_market_brieven_status_check` staat nog op `concept | verstuurd`;
+- live briefverdeling tijdens de probe: 27 `concept`, 69 `verstuurd`;
+- geen van de nieuwe BUILD-A-tabellen of transactionele functies bestaat momenteel in productie;
+- de migratiedraft houdt daarom legacy `verstuurd` transitief geldig en voert geen automatische backfill uit;
+- drie SQL-drafts zijn in tijdelijke PostgreSQL 17 aantoonbaar rollbackbaar;
+- nummeruitgifte is onder concurrency getest;
+- operation-key-idempotentie en postregistratie-idempotentie zijn geïsoleerd getest;
+- de aaneengesloten dagelijkse databaseflow is groen in `Acquisitieproductiekern DB Proof` run `31259895456`;
+- de E2E-flow bewijst twee geadresseerden in één batch, `geprint != gepost`, correcte `gedeeltelijk_gepost`-status, opvolging uitsluitend na `brief_gepost`, idempotente postretry en atomische rollback bij optimistic-lock-conflict;
+- legacy `verstuurd`-brieven en oude conceptbrieven zonder formele `selectie_id` worden niet kunstmatig als productiekernbrief geïnterpreteerd;
+- clientrollen houden geen directe EXECUTE-rechten op de nieuwe transactionele RPC-functies;
+- productieactivatie, migratie, backfill en grants zijn niet uitgevoerd.
+
+### Nog blokkerend voor productiegebruik
+
+De groene E2E-proef is **geen productieakkoord**. Voor productiegebruik blijven minimaal open:
+
+1. definitief release-/migratiebestand opstellen uit de review-drafts;
+2. expliciet bepalen welke gerichte RLS-policies en RPC execute-grants de productiekern krijgt;
+3. resterende write-repositories voor de vroege dagflow (`startVerwerking`, briefversie/batch-aanmaak en batchkoppeling) definitief invullen of expliciet buiten BUILD A houden;
+4. frontend werkelijk koppelen aan formele productiekernrecords zonder de bestaande legacy-flow te breken;
+5. preview/handmatige gebruikersacceptatie van de dagelijkse hoofdflow;
+6. volledige regressie-/typecheck-/production-buildstatus opnieuw op de finale PR-head beoordelen;
+7. afzonderlijk expliciet productieakkoord vóór enige migratie of activatie.
+
 ## 1. Bestaande CRM-contracten
 
 - [ ] Bestaande tabellen en velden voor selectie, brieven, geadresseerden, printen, posten en opvolging zijn geïnventariseerd.
