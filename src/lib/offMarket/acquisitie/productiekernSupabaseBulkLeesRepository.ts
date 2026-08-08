@@ -1,14 +1,16 @@
-import type { BriefContract, BriefversieContract } from './productiekernContract';
+import type { AcquisitiedossierContract, BriefContract, BriefversieContract } from './productiekernContract';
 import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
+import { bewaakDossierLeesIntegriteit } from './productiekernDossierLeesIntegriteit';
 import { bewaakBriefLeesTijd, bewaakBriefversieLeesTijd } from './productiekernLeesTijdSamenhang';
 import { bewaakBriefversieSnapshotLimiet } from './productiekernSnapshotLeesLimiet';
 import {
   isFormeleProductiekernBriefRij,
   type ProductiekernSupabaseLeesTransport,
 } from './productiekernSupabaseLeesRepository';
-import { mapBriefRij, mapBriefversieRij } from './productiekernSupabaseRijMapper';
+import { mapAcquisitiedossierRij, mapBriefRij, mapBriefversieRij } from './productiekernSupabaseRijMapper';
 
 export interface ProductiekernBulkLeesRepository {
+  haalDossiersOpSelectieIds(selectieIds: readonly string[]): Promise<AcquisitiedossierContract[]>;
   haalBrievenOpIds(ids: readonly string[]): Promise<BriefContract[]>;
   haalBriefversiesOpIds(ids: readonly string[]): Promise<BriefversieContract[]>;
 }
@@ -30,6 +32,16 @@ export class SupabaseProductiekernBulkLeesRepository implements ProductiekernBul
       throw new Error('Productiekern-bulktransport is niet aangesloten.');
     }
     return this.transport.haalMeerdereOpIds.bind(this.transport);
+  }
+
+  async haalDossiersOpSelectieIds(selectieIds: readonly string[]): Promise<AcquisitiedossierContract[]> {
+    if (selectieIds.length === 0) return [];
+    const rijen = await this.eisBulktransport()('off_market_acquisitie_dossiers', selectieIds);
+    const dossiers = rijen
+      .map(mapAcquisitiedossierRij)
+      .map(bewaakDossierLeesIntegriteit);
+    bewaakExacteIds('Acquisitiedossier', selectieIds, dossiers.map((dossier) => dossier.selectieId));
+    return dossiers;
   }
 
   async haalBrievenOpIds(ids: readonly string[]): Promise<BriefContract[]> {
