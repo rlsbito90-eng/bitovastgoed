@@ -1,5 +1,5 @@
 name: BAG Amsterdam v3 resumable publication
-run-name: BAG Amsterdam v3 publication — ${{ github.event.inputs.batch }} — artifact 9027302674
+run-name: BAG Amsterdam v3 publication — ${{ github.event.inputs.phase }} — artifact 9027302674
 
 on:
   workflow_dispatch:
@@ -8,13 +8,15 @@ on:
         description: 'Exact: PUBLISH_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
         required: true
         type: string
-      batch:
-        description: 'Voer één veilige sequentiële publicationbatch uit'
+      phase:
+        description: 'Voer exact één publicationfase uit'
         required: true
         type: choice
         options:
-          - objecten_voorkomens
-          - relaties_geometrieen
+          - objecten
+          - voorkomens
+          - relaties
+          - geometrieen
           - validate
       disk_cap_gib:
         description: 'Actuele provisioned BAG-shadow disk-cap in GiB'
@@ -59,8 +61,8 @@ jobs:
           test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
           test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
           test "$BAG_AMSTERDAM_PUBLICATION_APPROVAL" = 'PUBLISH_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
-          case "${{ github.event.inputs.batch }}" in
-            objecten_voorkomens|relaties_geometrieen|validate) ;;
+          case "${{ github.event.inputs.phase }}" in
+            objecten|voorkomens|relaties|geometrieen|validate) ;;
             *) exit 2 ;;
           esac
           case "$BAG_AMSTERDAM_DISK_CAP_GIB" in
@@ -76,56 +78,42 @@ jobs:
           command -v git
           command -v python3
 
-      - name: Voer v3 publicationbatch strikt sequentieel uit
+      - name: Voer exact één v3 publicationfase uit
         shell: bash
         run: |
           set -euo pipefail
-
-          case "${{ github.event.inputs.batch }}" in
-            objecten_voorkomens)
-              phases=(objecten voorkomens)
-              ;;
-            relaties_geometrieen)
-              phases=(relaties geometrieen)
-              ;;
-            validate)
-              phases=(validate)
-              ;;
-          esac
-
+          phase="${{ github.event.inputs.phase }}"
           mkdir -p bag-amsterdam-v3-publication-resultaat
 
-          for phase in "${phases[@]}"; do
-            echo "=== Start gecontroleerde fase: $phase ==="
+          echo "=== Start gecontroleerde fase: $phase ==="
 
-            # Vóór iedere muterende fase opnieuw read-only dataset-, provenance- en capaciteitscontrole.
-            preflight_dir="bag-amsterdam-v3-publication-resultaat/${phase}-preflight"
-            env \
-              BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL=CHECK_BAG_AMSTERDAM_DIRECTIONAL_V3_PUBLICATION_PREFLIGHT \
-              PGOPTIONS='-c default_transaction_read_only=on' \
-              bash scripts/bag/run-amsterdam-v3-publication-preflight.sh "$preflight_dir"
+          # Vóór de muterende fase opnieuw read-only dataset-, provenance- en capaciteitscontrole.
+          preflight_dir="bag-amsterdam-v3-publication-resultaat/${phase}-preflight"
+          env \
+            BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL=CHECK_BAG_AMSTERDAM_DIRECTIONAL_V3_PUBLICATION_PREFLIGHT \
+            PGOPTIONS='-c default_transaction_read_only=on' \
+            bash scripts/bag/run-amsterdam-v3-publication-preflight.sh "$preflight_dir"
 
-            # De geometriefase gebruikt bewust kleinere chunks; alle andere fasen 50k.
-            if [ "$phase" = 'geometrieen' ]; then
-              chunk_size=5000
-            else
-              chunk_size=50000
-            fi
+          # De geometriefase gebruikt bewust kleinere chunks; alle andere fasen 50k.
+          if [ "$phase" = 'geometrieen' ]; then
+            chunk_size=5000
+          else
+            chunk_size=50000
+          fi
 
-            phase_dir="bag-amsterdam-v3-publication-resultaat/${phase}-publication"
-            env \
-              -u PGOPTIONS \
-              BAG_AMSTERDAM_PUBLICATION_CHUNK_SIZE="$chunk_size" \
-              bash scripts/bag/run-amsterdam-v3-resumable-publication.sh "$phase" "$phase_dir"
+          phase_dir="bag-amsterdam-v3-publication-resultaat/${phase}-publication"
+          env \
+            -u PGOPTIONS \
+            BAG_AMSTERDAM_PUBLICATION_CHUNK_SIZE="$chunk_size" \
+            bash scripts/bag/run-amsterdam-v3-resumable-publication.sh "$phase" "$phase_dir"
 
-            echo "=== Fase volledig groen: $phase ==="
-          done
+          echo "=== Fase volledig groen: $phase ==="
 
       - name: Upload v3 publication-bewijs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bag-amsterdam-v3-shadow-publication-${{ github.event.inputs.batch }}
+          name: bag-amsterdam-v3-shadow-publication-${{ github.event.inputs.phase }}
           retention-days: 14
           if-no-files-found: warn
           path: bag-amsterdam-v3-publication-resultaat/
