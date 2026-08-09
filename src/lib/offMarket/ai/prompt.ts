@@ -3,7 +3,7 @@
 import type { OffMarketSignaal, OffMarketAssettype } from '@/lib/offMarket/types';
 
 export const PROMPT_VERSIE = 'v1.0';
-export const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
+export const DEFAULT_MODEL = 'gemini-3.6-flash';
 
 // Default gewichten — som = 100
 export const SCORE_GEWICHTEN = {
