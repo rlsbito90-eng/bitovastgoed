@@ -112,7 +112,7 @@ jobs:
       - name: Export Fase 1.1 patch
         if: success()
         run: |
-          git fetch origin main --depth=1
+          git fetch origin main
           git diff --binary origin/main...HEAD > Bito-Vastgoed-Vastgoedrekenen-Fase-1.1.patch
 
       - name: Upload Fase 1.1 patch
