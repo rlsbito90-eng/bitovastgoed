@@ -1,0 +1,24 @@
+@media (max-width: 640px) {
+  /* Focusmodus is bewust full-screen: de generieke modalmarge geldt hier niet. */
+  [role="dialog"][data-testid="focus-modus"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-x: hidden !important;
+    padding-bottom: 0 !important;
+  }
+
+  [data-testid="focus-modus"] > div:first-of-type {
+    padding: 0.6rem 0.9rem !important;
+  }
+
+  [data-testid="focus-modus"] [data-testid="focus-body"] {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  [data-testid="focus-modus"] [data-testid="focus-footer"] {
+    flex: 0 0 auto;
+  }
+}
