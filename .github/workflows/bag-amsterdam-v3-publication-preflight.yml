@@ -1,0 +1,159 @@
+name: BAG Amsterdam v3 publication preflight
+run-name: BAG Amsterdam v3 publication preflight — read-only
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: RUN_BAG_AMSTERDAM_V3_PUBLICATION_PREFLIGHT_READ_ONLY'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-v3-publication-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.event.inputs.approval == 'RUN_BAG_AMSTERDAM_V3_PUBLICATION_PREFLIGHT_READ_ONLY'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      V3_DATASET_VERSION: v20260808-directional-v3
+      OLD_DATASET_VERSION: v20260805
+      SCOPE_CODE: '0363'
+      EXPECTED_OBJECTEN: '1491131'
+      EXPECTED_VOORKOMENS: '2719273'
+      EXPECTED_RELATIES: '2564885'
+      EXPECTED_GEOMETRIEEN_TOTAAL: '1873252'
+      EXPECTED_OLD_PUBLISHED_OBJECTEN: '1464429'
+
+    steps:
+      - name: Controleer harde read-only grenzen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test "${{ github.event.inputs.approval }}" = 'RUN_BAG_AMSTERDAM_V3_PUBLICATION_PREFLIGHT_READ_ONLY'
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          case "$BAG_SHADOW_DATABASE_URL" in
+            *ljudxyrqoifhfikueric*|*wzkhmjuasyuvzhhycnym*) exit 3 ;;
+          esac
+          test "${BAG_SHADOW_DATABASE_URL#*sslmode=require}" != "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+
+      - name: Voer publication preflight uitsluitend read-only uit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bag-amsterdam-v3-publication-preflight
+
+          psql "$BAG_SHADOW_DATABASE_URL" \
+            -X -v ON_ERROR_STOP=1 -At -F $'\t' \
+            -v v3="$V3_DATASET_VERSION" \
+            -v old="$OLD_DATASET_VERSION" \
+            -v scope="$SCOPE_CODE" <<'SQL' > bag-amsterdam-v3-publication-preflight/preflight.tsv
+          BEGIN READ ONLY;
+          SET LOCAL TRANSACTION READ ONLY;
+
+          SELECT 'database', current_database(), current_user;
+          SELECT 'scope_dataset_count', count(*)
+            FROM bag_control.datasetversies
+           WHERE scope_code=:'scope';
+
+          SELECT 'dataset', id, datasetversie, scope_code, status, is_actief
+            FROM bag_control.datasetversies
+           WHERE scope_code=:'scope'
+           ORDER BY id;
+
+          SELECT 'v3_objecten', count(*)
+            FROM bag_staging.objecten
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'v3_voorkomens', count(*)
+            FROM bag_staging.voorkomens
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'v3_relaties', count(*)
+            FROM bag_staging.relaties
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'v3_geometrieen_geldig', count(*)
+            FROM bag_staging.geometrieen
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'v3_geometrie_afwijkingen', count(*)
+            FROM bag_control.geometrie_afwijkingen
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'v3_published_objecten', count(*)
+            FROM bag_published.objecten
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'v3' AND scope_code=:'scope');
+          SELECT 'old_published_objecten', count(*)
+            FROM bag_published.objecten
+           WHERE datasetversie_id=(SELECT id FROM bag_control.datasetversies WHERE datasetversie=:'old' AND scope_code=:'scope');
+          SELECT 'active_scope_versions', count(*)
+            FROM bag_control.datasetversies
+           WHERE scope_code=:'scope' AND is_actief;
+          SELECT 'unexpected_scope_versions', count(*)
+            FROM bag_control.datasetversies
+           WHERE scope_code=:'scope' AND datasetversie NOT IN (:'old', :'v3');
+
+          ROLLBACK;
+          SQL
+
+      - name: Valideer publication preflight fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='bag-amsterdam-v3-publication-preflight/preflight.tsv'
+          test -s "$f"
+
+          grep -q $'^scope_dataset_count\t2$' "$f"
+          grep -q $'^v3_objecten\t1491131$' "$f"
+          grep -q $'^v3_voorkomens\t2719273$' "$f"
+          grep -q $'^v3_relaties\t2564885$' "$f"
+          grep -q $'^v3_published_objecten\t0$' "$f"
+          grep -q $'^old_published_objecten\t1464429$' "$f"
+          grep -q $'^active_scope_versions\t1$' "$f"
+          grep -q $'^unexpected_scope_versions\t0$' "$f"
+
+          grep -Eq $'^dataset\t[0-9]+\tv20260805\t0363\tactief\t(t|true)$' "$f"
+          grep -Eq $'^dataset\t[0-9]+\tv20260808-directional-v3\t0363\tgevalideerd\t(f|false)$' "$f"
+
+          valid="$(awk -F '\t' '$1=="v3_geometrieen_geldig"{print $2}' "$f")"
+          afwijk="$(awk -F '\t' '$1=="v3_geometrie_afwijkingen"{print $2}' "$f")"
+          test "$valid" =~ ^[0-9]+$
+          test "$afwijk" =~ ^[0-9]+$
+          totaal=$((valid + afwijk))
+          test "$totaal" = "$EXPECTED_GEOMETRIEEN_TOTAAL"
+
+          {
+            echo '# Amsterdam v3 publication preflight'
+            echo
+            echo '- Uitvoering: read-only transaction'
+            echo '- Projectref: xfygspvpeugxowxbcvnm'
+            echo '- Productie gebruikt: nee'
+            echo '- CRM-shadow gebruikt: nee'
+            echo '- Databasewijzigingen: nee'
+            echo '- Publicatie uitgevoerd: nee'
+            echo '- Activatie uitgevoerd: nee'
+            echo '- Besluit: GO voor afzonderlijke publicatiebeoordeling'
+            echo
+            echo '```text'
+            cat "$f"
+            echo '```'
+          } > bag-amsterdam-v3-publication-preflight/rapport.md
+
+      - name: Publiceer read-only bewijsartifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-v3-publication-preflight-read-only
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            bag-amsterdam-v3-publication-preflight/preflight.tsv
+            bag-amsterdam-v3-publication-preflight/rapport.md
