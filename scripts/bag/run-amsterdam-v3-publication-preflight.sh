@@ -17,15 +17,9 @@ fail() { echo "Weigering: $*" >&2; exit 1; }
 [[ "$(git hash-object "$BASE")" == "$EXPECTED_BASE_BLOB" ]] || fail 'legacy publication-preflight is gewijzigd; v3-wrapper weigert drift.'
 
 # Coexistence-guard: de gevalideerde v3-versie blijft inactief en alleen de bekende oude versie is actief.
-psql "$BAG_SHADOW_DATABASE_URL" -X -v ON_ERROR_STOP=1 -qAt <<'SQL' | grep -qx $'2\tv20260805\tactief\tt\n3\tv20260808-directional-v3\tgevalideerd\tf'
-BEGIN READ ONLY;
-SET LOCAL TRANSACTION READ ONLY;
-SELECT id, datasetversie, status, is_actief
-FROM bag_control.datasetversies
-WHERE scope_code='0363'
-ORDER BY id;
-ROLLBACK;
-SQL
+# De workflow zet PGOPTIONS=default_transaction_read_only=on; deze SELECT levert daardoor uitsluitend de twee datarijen op.
+coexistence_rows="$(psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -v ON_ERROR_STOP=1 -F $'\t' -c "SELECT id, datasetversie, status, is_actief FROM bag_control.datasetversies WHERE scope_code='0363' ORDER BY id")"
+[[ "$coexistence_rows" == $'2\tv20260805\tactief\tt\n3\tv20260808-directional-v3\tgevalideerd\tf' ]] || fail "Amsterdam coexistence-guard faalde: $coexistence_rows"
 
 artifact_ok="$(psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM bag_control.datasetversies WHERE id=3 AND datasetversie='v20260808-directional-v3' AND scope_code='0363' AND bron_metadata->>'artifact_id'='9027302674'")"
 [[ "$artifact_ok" == '1' ]] || fail 'v3 dataset-provenance wijst niet exact naar artifact 9027302674.'
