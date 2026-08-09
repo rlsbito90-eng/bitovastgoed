@@ -138,21 +138,16 @@ export default function SignaalEigenaarsonderzoekSectie({
     return maakKadasterEigenaarVoorstel(blokken);
   }, [kadasterRecords]);
 
-  // Buiten Focusmodus blijft de bestaande read/edit-flow intact.
   useEffect(() => {
     if (!focusMode && !editMode) setForm(snapshot(signaal));
   }, [signaal, editMode, focusMode]);
 
-  // Bij wisselen naar een ander dossier in Focusmodus start het formulier vanaf
-  // de daadwerkelijk opgeslagen waarden. Er wordt nog niets opgeslagen.
   useEffect(() => {
     if (!focusMode) return;
     setEditMode(true);
     setForm(snapshot(signaal));
   }, [focusMode, signaal.id]);
 
-  // Reeds opgeslagen Kadasterrechten mogen in Focusmodus alleen lege velden
-  // aanvullen. Handmatige waarden winnen altijd; ambiguïteit vult niets in.
   useEffect(() => {
     if (!focusMode || kadasterVoorstel.status !== 'eenduidig') return;
     setForm((prev) => pasKadasterVoorstelToe(prev, kadasterVoorstel));
@@ -583,13 +578,15 @@ export default function SignaalEigenaarsonderzoekSectie({
         Laatste Kadaster check: <span className="font-mono-data">{formatDateTimeNL(kadasterCheckOp)}</span>
       </p>
 
-      <RelatieFormDialog
-        open={nieuwRelatieOpen}
-        onOpenChange={setNieuwRelatieOpen}
-        initialValues={prefill.relatie as any}
-        initialPrimaireContactpersoon={prefill.contactpersoon as any}
-        onCreated={(relatieId) => { handleRelatieAangemaakt(relatieId); }}
-      />
+      {nieuwRelatieOpen && (
+        <RelatieFormDialog
+          open
+          onOpenChange={setNieuwRelatieOpen}
+          initialValues={prefill.relatie as any}
+          initialPrimaireContactpersoon={prefill.contactpersoon as any}
+          onCreated={(relatieId) => { handleRelatieAangemaakt(relatieId); }}
+        />
+      )}
 
       <TaakFormDialog
         open={taakOpen}
