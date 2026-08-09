@@ -1,0 +1,120 @@
+name: BAG Amsterdam v3 resumable publication
+run-name: BAG Amsterdam v3 publication — ${{ github.event.inputs.phase }} — artifact 9027302674
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: PUBLISH_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+        required: true
+        type: string
+      phase:
+        description: 'Voer exact één publicationfase uit'
+        required: true
+        type: choice
+        options:
+          - objecten
+          - voorkomens
+          - relaties
+          - geometrieen
+          - validate
+      disk_cap_gib:
+        description: 'Actuele provisioned BAG-shadow disk-cap in GiB'
+        required: true
+        default: '16'
+        type: choice
+        options:
+          - '16'
+          - '32'
+          - '64'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-v3-shadow-resumable-publication
+  cancel-in-progress: false
+
+jobs:
+  publication:
+    if: github.event.inputs.approval == 'PUBLISH_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      BAG_AMSTERDAM_PUBLICATION_APPROVAL: ${{ github.event.inputs.approval }}
+      BAG_AMSTERDAM_DISK_CAP_GIB: ${{ github.event.inputs.disk_cap_gib }}
+      BAG_AMSTERDAM_PUBLICATION_CHUNK_SIZE: ${{ github.event.inputs.phase == 'geometrieen' && '5000' || '50000' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Controleer harde v3 publication-grenzen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test "$BAG_AMSTERDAM_PUBLICATION_APPROVAL" = 'PUBLISH_BAG_AMSTERDAM_DIRECTIONAL_ARTIFACT_9027302674_TO_SHADOW'
+          case "${{ github.event.inputs.phase }}" in
+            objecten|voorkomens|relaties|geometrieen|validate) ;;
+            *) exit 2 ;;
+          esac
+          case "$BAG_AMSTERDAM_DISK_CAP_GIB" in
+            16|32|64) ;;
+            *) exit 2 ;;
+          esac
+          if [ "${{ github.event.inputs.phase }}" = 'geometrieen' ]; then
+            test "$BAG_AMSTERDAM_PUBLICATION_CHUNK_SIZE" = '5000'
+          else
+            test "$BAG_AMSTERDAM_PUBLICATION_CHUNK_SIZE" = '50000'
+          fi
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          case "$BAG_SHADOW_DATABASE_URL" in
+            *ljudxyrqoifhfikueric*|*wzkhmjuasyuvzhhycnym*) exit 3 ;;
+          esac
+          test "${BAG_SHADOW_DATABASE_URL#*sslmode=require}" != "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+          command -v git
+          command -v python3
+
+      - name: Herhaal v3 publication-preflight read-only
+        shell: bash
+        env:
+          BAG_AMSTERDAM_PUBLICATION_PREFLIGHT_APPROVAL: CHECK_BAG_AMSTERDAM_DIRECTIONAL_V3_PUBLICATION_PREFLIGHT
+          PGOPTIONS: -c default_transaction_read_only=on
+        run: |
+          set -euo pipefail
+          bash scripts/bag/run-amsterdam-v3-publication-preflight.sh \
+            bag-amsterdam-v3-publication-preflight-resultaat
+
+      - name: Voer exact één v3 resumable publicationfase uit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${PGOPTIONS:-}"
+          bash scripts/bag/run-amsterdam-v3-resumable-publication.sh \
+            "${{ github.event.inputs.phase }}" \
+            bag-amsterdam-v3-publication-resultaat
+
+      - name: Upload v3 publication-bewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-v3-shadow-publication-${{ github.event.inputs.phase }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            bag-amsterdam-v3-publication-preflight-resultaat/preflight.tsv
+            bag-amsterdam-v3-publication-preflight-resultaat/capaciteit.env
+            bag-amsterdam-v3-publication-preflight-resultaat/rapport.md
+            bag-amsterdam-v3-publication-resultaat/preflight.tsv
+            bag-amsterdam-v3-publication-resultaat/progress.tsv
+            bag-amsterdam-v3-publication-resultaat/validatie.tsv
+            bag-amsterdam-v3-publication-resultaat/rapport.md
