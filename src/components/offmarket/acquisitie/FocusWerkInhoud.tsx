@@ -1,0 +1,103 @@
+import { Landmark, Mail, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksacties';
+import SignaalGebiedsindeling from '@/components/offmarket/SignaalGebiedsindeling';
+import BagOverzichtKaart from '@/components/offmarket/bag/BagOverzichtKaart';
+import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
+import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
+import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
+import {
+  VERGUNNINGTYPE_LABEL,
+  type OffMarketSignaal,
+  type OffMarketVergunningtype,
+} from '@/lib/offMarket/types';
+import type { FocusContextInfo } from '@/lib/offMarket/acquisitie/focusContext';
+
+interface Props {
+  signaal: OffMarketSignaal;
+  focusContext: FocusContextInfo;
+}
+
+function scrollNaar(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function Kernwaarde({ label, waarde }: { label: string; waarde: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2 min-w-0">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-foreground break-words">{waarde || '—'}</p>
+    </div>
+  );
+}
+
+export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
+  if (focusContext.context !== 'onderzoeken') {
+    return (
+      <section data-testid="focus-brieven-inhoud" className="space-y-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Mail className="h-3.5 w-3.5" />
+          Brieven &amp; opvolging is de primaire werkcontext voor deze stap.
+        </div>
+        <SignaalBrievenSectie signaal={signaal} />
+      </section>
+    );
+  }
+
+  const vergunningtype = signaal.vergunningtype
+    ? VERGUNNINGTYPE_LABEL[signaal.vergunningtype as OffMarketVergunningtype]
+    : '—';
+  const aiScore = typeof signaal.ai_score === 'number' ? String(signaal.ai_score) : '—';
+  const verkoopkans = typeof signaal.ai_verkoopkans === 'number'
+    ? `${Math.round(Number(signaal.ai_verkoopkans) * 100)}%`
+    : '—';
+  const omschrijving = signaal.omschrijving?.trim() || 'Nog geen omschrijving vastgelegd.';
+
+  return (
+    <div data-testid="focus-onderzoeken-inhoud" className="space-y-4">
+      <nav className="flex flex-wrap gap-2" aria-label="Onderzoekssecties">
+        <Button type="button" variant="outline" size="sm" onClick={() => scrollNaar('focus-onderzoek')}>
+          <Search className="h-3.5 w-3.5" /> Onderzoek
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => scrollNaar('focus-bag')}>
+          BAG
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => scrollNaar('focus-kadaster')}>
+          <Landmark className="h-3.5 w-3.5" /> Kadaster &amp; eigenaar
+        </Button>
+      </nav>
+
+      <section className="space-y-2" aria-label="Onderzoekskern">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Kernwaarde label="Vergunningtype" waarde={vergunningtype} />
+          <Kernwaarde label="AI-score" waarde={aiScore} />
+          <Kernwaarde label="Verkoopkans" waarde={verkoopkans} />
+        </div>
+        <div className="rounded-md border border-border bg-card px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Omschrijving uit classificatie</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{omschrijving}</p>
+        </div>
+      </section>
+
+      <div id="focus-onderzoek" className="scroll-mt-4 space-y-4">
+        <SignaalOnderzoeksacties signaal={signaal} />
+        <SignaalGebiedsindeling signaal={signaal} />
+      </div>
+
+      <details id="focus-bag" className="scroll-mt-4 rounded-lg border border-border bg-card/40">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
+          BAG-overzicht
+          <span className="ml-2 text-xs font-normal text-muted-foreground">standaard ingeklapt</span>
+        </summary>
+        <div className="px-2 pb-2">
+          <BagOverzichtKaart signaal={signaal} onOpenKadaster={() => scrollNaar('focus-kadaster')} />
+        </div>
+      </details>
+
+      <div id="focus-kadaster" className="scroll-mt-4 space-y-4">
+        <SignaalKadasterKaart signaal={signaal} />
+        <SignaalEigenaarsonderzoekSectie signaal={signaal} focusMode />
+      </div>
+    </div>
+  );
+}

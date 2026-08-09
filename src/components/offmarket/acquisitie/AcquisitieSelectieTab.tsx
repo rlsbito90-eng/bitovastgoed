@@ -94,6 +94,11 @@ import {
 import {
   bepaalOnderzoekRedenen, onderzoekRedenTekst,
 } from '@/lib/offMarket/acquisitie/onderzoekRedenen';
+import {
+  focusTabVoorWerkbakContext,
+  hoortWerkbakContextBijBron,
+  werkrondeBronVoorView,
+} from '@/lib/offMarket/acquisitie/werkrondeContext';
 
 function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
@@ -301,17 +306,6 @@ export default function AcquisitieSelectieTab() {
     if (w) schrijfWerkronde(w); else wisWerkronde();
   };
 
-  const hoortNogBijBron = (bron: WerkrondeBron, ctx: WerkbakContext | undefined): boolean => {
-    if (!ctx) return false;
-    if (bron === 'brief_voorbereiden') {
-      return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'brief_voorbereiden';
-    }
-    if (bron === 'te_printen') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_printen';
-    if (bron === 'te_posten') return bepaalPrintPostGroep(ctx.actieCategorie) === 'te_posten';
-    if (bron === 'werkbak') return ctx.werkbak === 'actie';
-    return true;
-  };
-
   useEffect(() => {
     if (!werkronde) return;
     if (werkronde.bron === 'handmatig') return;
@@ -319,7 +313,7 @@ export default function AcquisitieSelectieTab() {
     for (const id of werkronde.scopeIds) {
       const ctx = werkbakPerSignaal.get(id);
       if (!ctx) continue;
-      if (!hoortNogBijBron(werkronde.bron, ctx) && !next.behandeldeIds.includes(id)) {
+      if (!hoortWerkbakContextBijBron(werkronde.bron, ctx) && !next.behandeldeIds.includes(id)) {
         next = markeerBehandeld(next, id);
       }
     }
@@ -475,6 +469,7 @@ export default function AcquisitieSelectieTab() {
       focusIndex?: number;
       focusScopeIds?: string[] | null;
       selectedIds?: string[] | null;
+      focusTab?: string | null;
     } | null;
     if (state?.resumeAcquisitieFocus) {
       if (Array.isArray(state.focusScopeIds) && state.focusScopeIds.length > 0) {
@@ -493,17 +488,21 @@ export default function AcquisitieSelectieTab() {
   }, []);
 
   function huidigeBron(): { bron: WerkrondeBron; naam: string } {
+    const bron = werkrondeBronVoorView({
+      heeftHandmatigeSelectie: bulkSelectie.size > 0,
+      werkbak,
+      subfilter,
+      printPost,
+    });
     if (bulkSelectie.size > 0) {
-      return { bron: 'handmatig', naam: `Handmatige selectie (${bulkSelectie.size})` };
+      return { bron, naam: `Handmatige selectie (${bulkSelectie.size})` };
     }
-    if (werkbak === 'actie' && subfilter === 'brief_voorbereiden') {
-      return { bron: 'brief_voorbereiden', naam: 'Brief voorbereiden' };
-    }
-    if (werkbak === 'actie' && subfilter === 'printen_posten' && printPost !== 'alles') {
-      return { bron: printPost, naam: PRINT_POST_LABEL[printPost] };
-    }
-    if (werkbak === 'actie') return { bron: 'werkbak', naam: 'Actie' };
-    return { bron: 'handmatig', naam: WERKBAK_LABEL[werkbak] };
+    if (bron === 'onderzoeken') return { bron, naam: ACTIE_SUBFILTER_LABEL.onderzoeken };
+    if (bron === 'brief_voorbereiden') return { bron, naam: ACTIE_SUBFILTER_LABEL.brief_voorbereiden };
+    if (bron === 'opvolgen') return { bron, naam: ACTIE_SUBFILTER_LABEL.opvolgen };
+    if (bron === 'te_printen' || bron === 'te_posten') return { bron, naam: PRINT_POST_LABEL[bron] };
+    if (bron === 'werkbak') return { bron, naam: 'Actie' };
+    return { bron, naam: WERKBAK_LABEL[werkbak] };
   }
 
   const startNieuweWerkronde = () => {
@@ -589,12 +588,14 @@ export default function AcquisitieSelectieTab() {
       ? readiness.lijst.filter((x) => scopeIds!.includes(x.signaal.id))
       : readiness.lijst;
     const idx = scopeList.findIndex((x) => x.signaal.id === signaalId);
-    navigate(`/off-market/${signaalId}?tab=brieven`, {
+    const focusTab = focusTabVoorWerkbakContext(werkbakPerSignaal.get(signaalId));
+    navigate(`/off-market/${signaalId}?mode=normaal&tab=${focusTab}`, {
       state: {
         fromAcquisitieFocus: true,
         focusIndex: idx >= 0 ? idx : 0,
         focusScopeIds: scopeIds,
         selectedIds: Array.from(bulkSelectie),
+        focusTab,
       },
     });
   };

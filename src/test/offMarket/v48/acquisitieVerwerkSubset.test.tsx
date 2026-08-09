@@ -70,7 +70,19 @@ vi.mock('@/hooks/useOffMarketSignalen', () => ({
 }));
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({
-    addTaak: vi.fn(), taken: [], relaties: [], getRelatieById: () => null,
+    addTaak: vi.fn(),
+    updateTaak: vi.fn(),
+    deleteTaak: vi.fn(),
+    taken: [],
+    relaties: [],
+    contactpersonen: [],
+    objecten: [],
+    deals: [],
+    acquisitieTargets: [],
+    addContactMoment: vi.fn(),
+    updateContactMoment: vi.fn(),
+    getRelatieById: () => null,
+    getObjectById: () => null,
   }),
 }));
 

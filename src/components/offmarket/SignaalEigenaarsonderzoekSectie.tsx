@@ -1,14 +1,7 @@
 // Handmatige eigenaarsonderzoek-sectie. Geen autosave: bekijken-modus +
 // expliciete Bewerken/Opslaan/Annuleren met dirty-guard.
-//
-// Bevat de complete eigenaar-opvolgflow (D.2.3 t/m D.2.5):
-//  - Eigenaargegevens (read/edit)
-//  - Snelle status-acties (Kadaster check, gevonden, benaderen)
-//  - Relatie aanmaken (prefilled vanuit eigenaargegevens)
-//  - Relatie koppelen (bestaande relatie kiezen)
-//  - Gekoppelde relatie tonen + ontkoppelen/wisselen
-//  - Taak aanmaken vanuit templates
-//  - Contactmoment loggen
+// In Acquisitie Focusmodus is het formulier direct bewerkbaar en kan reeds
+// opgeslagen Kadasterrechten uitsluitend als voorstel lege velden aanvullen.
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -29,6 +22,7 @@ import {
 import { OffMarketEigenaarstatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { useUpdateOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import { useLinkRelatieToSignaal } from '@/hooks/useOffMarketLinks';
+import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
@@ -38,6 +32,11 @@ import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import KadasterCheckDialog from '@/components/offmarket/kadaster/KadasterCheckDialog';
 import BriefVoorbereidenKnop from '@/components/offmarket/BriefVoorbereidenKnop';
+import { mapRechtenBlokken, blokUitOpgeslagenRecord } from '@/lib/kadaster/rechtenBlokken';
+import {
+  maakKadasterEigenaarVoorstel,
+  pasKadasterVoorstelToe,
+} from '@/lib/offMarket/acquisitie/kadasterEigenaarVoorstel';
 import {
   signaalNaarRelatiePrefill,
   EIGENAAR_TAAK_TEMPLATES,
@@ -52,12 +51,12 @@ import {
   type OffMarketEigenaartype, type OffMarketEigenaarbron,
 } from '@/lib/offMarket/types';
 
-
 interface Props {
   signaal: OffMarketSignaal;
   mobileCompact?: boolean;
+  /** Alleen vanuit Acquisitie Focusmodus: direct bewerkbaar, nog steeds expliciet opslaan. */
+  focusMode?: boolean;
 }
-
 
 interface EigenaarForm {
   eigenaarstatus: OffMarketEigenaarstatus;
@@ -104,12 +103,17 @@ function formatDateTimeNL(iso: string | null | undefined): string {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact = false }: Props) {
+export default function SignaalEigenaarsonderzoekSectie({
+  signaal,
+  mobileCompact = false,
+  focusMode = false,
+}: Props) {
   const update = useUpdateOffMarketSignaal();
   const linkRelatie = useLinkRelatieToSignaal();
   const { relaties, contactpersonen, getRelatieById } = useDataStore();
+  const { data: kadasterRecords = [] } = useKadasterDataRecordsForSignaal(signaal.id);
 
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(focusMode);
   const initial = useMemo(() => snapshot(signaal), [signaal]);
   const [form, setForm] = useState<EigenaarForm>(initial);
 
@@ -120,18 +124,52 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
   const [contactOpen, setContactOpen] = useState(false);
   const [kadasterOpen, setKadasterOpen] = useState(false);
 
-  // Sync wanneer signaal verandert en we niet aan het bewerken zijn.
+  const kadasterVoorstel = useMemo(() => {
+    const record = kadasterRecords.find((r) =>
+      r.product_code === 'rechten' && (r.status === 'geleverd' || r.status === 'gedeeltelijk'),
+    );
+    if (!record) return maakKadasterEigenaarVoorstel([]);
+    const rawRechten = (record.raw_limited as Record<string, unknown> | null | undefined)?.rechten;
+    let blokken = mapRechtenBlokken(rawRechten);
+    if (blokken.length === 0) {
+      const fallback = blokUitOpgeslagenRecord(record);
+      if (fallback) blokken = [fallback];
+    }
+    return maakKadasterEigenaarVoorstel(blokken);
+  }, [kadasterRecords]);
+
   useEffect(() => {
-    if (!editMode) setForm(snapshot(signaal));
-  }, [signaal, editMode]);
+    if (!focusMode && !editMode) setForm(snapshot(signaal));
+  }, [signaal, editMode, focusMode]);
+
+  useEffect(() => {
+    if (!focusMode) return;
+    setEditMode(true);
+    setForm(snapshot(signaal));
+  }, [focusMode, signaal.id]);
+
+  useEffect(() => {
+    if (!focusMode || kadasterVoorstel.status !== 'eenduidig') return;
+    setForm((prev) => pasKadasterVoorstelToe(prev, kadasterVoorstel));
+  }, [focusMode, kadasterVoorstel]);
 
   const { guardedOnOpenChange } = useFormDirtyGuard(editMode, form, (v) => setEditMode(v));
 
-  const setF = <K extends keyof EigenaarForm>(k: K, v: EigenaarForm[K]) =>
-    setForm(prev => ({ ...prev, [k]: v }));
+  const setF = <K extends keyof EigenaarForm>(k: K, v: EigenaarForm[K]) => {
+    setForm((prev) => {
+      const next = { ...prev, [k]: v } as EigenaarForm;
+      if (
+        (k === 'eigenaar_naam' || k === 'eigenaar_bedrijfsnaam')
+        && (next.eigenaar_naam.trim() || next.eigenaar_bedrijfsnaam.trim())
+      ) {
+        next.eigenaarstatus = 'gevonden';
+      }
+      return next;
+    });
+  };
 
   const huidig = snapshot(signaal);
-  const eigenaarstatusNu = huidig.eigenaarstatus;
+  const eigenaarstatusNu = focusMode ? form.eigenaarstatus : huidig.eigenaarstatus;
   const kadasterCheckOp = (signaal as any).kadaster_check_op as string | null | undefined;
   const eigenaarRelatieId = (signaal as any).eigenaar_relatie_id as string | null | undefined;
   const gekoppeldeRelatie = eigenaarRelatieId ? getRelatieById(eigenaarRelatieId) : null;
@@ -139,7 +177,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
     ? getRelatieNamen(gekoppeldeRelatie, contactpersonen)
     : null;
 
-  // EntityPicker items voor "Koppel bestaande relatie"
   const relatieItems = useMemo<EntityPickerItem[]>(
     () =>
       relaties.map((r) => {
@@ -175,13 +212,17 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
       };
       await update.mutateAsync({ id: signaal.id, patch });
       toast.success('Eigenaargegevens opgeslagen');
-      setEditMode(false);
+      setEditMode(focusMode);
     } catch (e: any) {
       toast.error(e?.message ?? 'Opslaan mislukt');
     }
   };
 
   const handleAnnuleren = () => {
+    if (focusMode) {
+      setForm(snapshot(signaal));
+      return;
+    }
     guardedOnOpenChange(false);
     setForm(snapshot(signaal));
   };
@@ -226,7 +267,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
     }
   };
 
-  // === Relatie aanmaken / koppelen ================================
   const handleRelatieAangemaakt = async (relatieId: string) => {
     try {
       await linkRelatie.mutateAsync({ signaalId: signaal.id, relatieId });
@@ -271,7 +311,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
     }
   };
 
-  // === Taakflow ===================================================
   const openTaakMetTemplate = (tpl: EigenaarTaakTemplate) => {
     setTaakTemplate(tpl);
     setTaakOpen(true);
@@ -294,8 +333,26 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         )}
       </div>
 
-      {/* Gekoppelde relatie — compacte kaart, knoppen onder de naam zodat
-          niets overlapt op mobiel. */}
+      {focusMode && kadasterVoorstel.status === 'eenduidig' && (
+        <div
+          data-testid="kadaster-eigenaar-voorstel"
+          className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-foreground"
+        >
+          <span className="font-medium">Kadastervoorstel.</span>{' '}
+          Lege velden zijn voorgesteld op basis van reeds opgeslagen Rechten-informatie.
+          Controleer de gegevens en bevestig ze expliciet met <span className="font-medium">Opslaan</span>.
+        </div>
+      )}
+      {focusMode && kadasterVoorstel.status === 'ambigu' && (
+        <div
+          data-testid="kadaster-eigenaar-ambigu"
+          className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-950"
+        >
+          Meerdere verschillende rechthebbenden gevonden in de opgeslagen Kadasterinformatie.
+          Er is daarom niets automatisch voorgesteld; kies en controleer de juiste eigenaar handmatig.
+        </div>
+      )}
+
       {gekoppeldeRelatie && gekoppeldeRelatieNamen && (
         <div className="rounded-md border border-border bg-card px-3 py-2.5 space-y-2">
           <div className="min-w-0">
@@ -330,7 +387,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         </div>
       )}
 
-      {/* Externe zoekopties op bedrijfsnaam (indien beschikbaar). */}
       {(() => {
         const a = signaal as any;
         const bedrijf: string | null =
@@ -355,10 +411,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         );
       })()}
 
-
-
-
-      {/* Snelle acties */}
       <div className="flex gap-1.5 flex-wrap">
         <ActieKnop onClick={() => setKadasterOpen(true)} icon={<FileSearch className="h-3.5 w-3.5" />}>
           Kadaster check uitvoeren
@@ -419,7 +471,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         <BriefVoorbereidenKnop signaal={signaal} />
       </div>
 
-      {/* Inline-koppelpicker (collapsed onder de knop) */}
       {koppelOpen && (
         <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
           <EntityPicker
@@ -445,7 +496,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
       {!editMode ? (
         <ReadView signaal={signaal} kadasterCheckOp={kadasterCheckOp ?? null} mobileCompact={mobileCompact} />
       ) : (
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field label="Eigenaarstatus">
             <Select value={form.eigenaarstatus} onValueChange={(v) => setF('eigenaarstatus', v as OffMarketEigenaarstatus)}>
@@ -515,7 +565,7 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
 
           <div className="md:col-span-2 flex items-center justify-end gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={handleAnnuleren} disabled={update.isPending}>
-              Annuleren
+              {focusMode ? 'Herstel opgeslagen' : 'Annuleren'}
             </Button>
             <Button size="sm" onClick={handleOpslaan} disabled={update.isPending}>
               {update.isPending ? 'Opslaan…' : 'Opslaan'}
@@ -528,14 +578,15 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         Laatste Kadaster check: <span className="font-mono-data">{formatDateTimeNL(kadasterCheckOp)}</span>
       </p>
 
-      {/* Dialogs */}
-      <RelatieFormDialog
-        open={nieuwRelatieOpen}
-        onOpenChange={setNieuwRelatieOpen}
-        initialValues={prefill.relatie as any}
-        initialPrimaireContactpersoon={prefill.contactpersoon as any}
-        onCreated={(relatieId) => { handleRelatieAangemaakt(relatieId); }}
-      />
+      {nieuwRelatieOpen && (
+        <RelatieFormDialog
+          open
+          onOpenChange={setNieuwRelatieOpen}
+          initialValues={prefill.relatie as any}
+          initialPrimaireContactpersoon={prefill.contactpersoon as any}
+          onCreated={(relatieId) => { handleRelatieAangemaakt(relatieId); }}
+        />
+      )}
 
       <TaakFormDialog
         open={taakOpen}
@@ -548,7 +599,6 @@ export default function SignaalEigenaarsonderzoekSectie({ signaal, mobileCompact
         defaultRelatieId={eigenaarRelatieId ?? undefined}
         defaultNotities={bouwSignaalTaakContext(signaal, taakTemplate?.label)}
       />
-
 
       <ContactMomentFormDialog
         open={contactOpen}
@@ -663,4 +713,3 @@ function ReadView({ signaal, kadasterCheckOp, mobileCompact = false }: { signaal
     </div>
   );
 }
-
