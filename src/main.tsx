@@ -6,6 +6,7 @@ import { installGlobalAppRecovery, markAppBootSuccessful } from "./lib/appRecove
 import { installNotificationStateSync } from "./lib/notificationStateSync";
 import "./index.css";
 import "./mobile-foundation.css";
+import "./mobile-polish.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
