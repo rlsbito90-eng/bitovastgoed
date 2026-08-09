@@ -70,6 +70,21 @@ body,
     max-width: calc(100vw - 1rem) !important;
   }
 
+  /* Match- en notificatiepanelen blijven volledig binnen het telefoonscherm. */
+  header.lg\:hidden .relative > .absolute.right-0.top-full {
+    position: fixed !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    top: calc(var(--mobile-header-height, 3.5rem) + 0.25rem) !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - var(--mobile-header-height, 3.5rem) - 1rem) !important;
+  }
+
+  header.lg\:hidden .relative > .absolute.right-0.top-full > div[class*="max-h-"] {
+    max-height: calc(100dvh - var(--mobile-header-height, 3.5rem) - 8.5rem) !important;
+  }
+
   /* Mobile menu/drawer: safe-area en eigen scrollcontainer. */
   .glass-overlay > .glass-dark {
     max-height: 100dvh;
@@ -164,6 +179,57 @@ body,
   [data-mobile-kanban] .w-72.shrink-0 {
     width: min(82vw, 18rem) !important;
     scroll-snap-align: start;
+  }
+
+  /* Focusmodus: mobiele footer als voorspelbare 2-koloms actiezone. */
+  [data-testid="focus-body"] {
+    padding-bottom: 1rem !important;
+  }
+
+  [data-testid="focus-footer"] > div {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  [data-testid="focus-footer"] button,
+  [data-testid="focus-footer"] a {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+
+  [data-testid="focus-sluiten"] {
+    grid-column: 1 / -1;
+  }
+
+  /* Kadaster-kostenmodal: alleen de beslisinformatie tonen op mobiel. */
+  [role="dialog"]:has(.bg-amber-50\/60) {
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem)) !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) .space-y-3 {
+    row-gap: 0.625rem !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) label {
+    padding: 0.625rem !important;
+  }
+
+  /* Verberg op mobiel de redundante toelichtingen; prijs, product en privacy-waarschuwing blijven zichtbaar. */
+  [role="dialog"]:has(.bg-amber-50\/60) label .text-\[10px\].text-muted-foreground,
+  [role="dialog"]:has(.bg-amber-50\/60) p.text-\[11px\].pt-1 {
+    display: none !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) footer,
+  [role="dialog"]:has(.bg-amber-50\/60) [class*="flex-col-reverse"] {
+    gap: 0.5rem !important;
   }
 
   /* Cards op touchscreens niet laten 'springen' door desktop hover-transforms. */
