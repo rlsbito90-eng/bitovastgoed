@@ -113,6 +113,32 @@ describe('werkronde', () => {
     expect(storage.getItem(WERKRONDE_KEY)).toBeNull();
   });
 
+  it('accepteert nieuwe contextbronnen zonder bestaande v1-opslag te breken', () => {
+    const onderzoeken = startWerkronde({
+      bron: 'onderzoeken',
+      naam: 'Onderzoeken',
+      scopeIds: ['a'],
+      nu: '2026-08-09T00:00:00.000Z',
+    });
+    const opvolgen = startWerkronde({
+      bron: 'opvolgen',
+      naam: 'Opvolgen',
+      scopeIds: ['b'],
+      nu: '2026-08-09T00:00:00.000Z',
+    });
+
+    expect(parseWerkronde(JSON.stringify(onderzoeken))?.bron).toBe('onderzoeken');
+    expect(parseWerkronde(JSON.stringify(opvolgen))?.bron).toBe('opvolgen');
+
+    const bestaand = startWerkronde({
+      bron: 'werkbak',
+      naam: 'Actie',
+      scopeIds: ['c'],
+      nu: '2026-08-01T00:00:00.000Z',
+    });
+    expect(parseWerkronde(JSON.stringify(bestaand))).toEqual(bestaand);
+  });
+
   it('weigert ongeldige of verouderde opslagdata defensief', () => {
     expect(parseWerkronde(null)).toBeNull();
     expect(parseWerkronde('{ongeldig')).toBeNull();
