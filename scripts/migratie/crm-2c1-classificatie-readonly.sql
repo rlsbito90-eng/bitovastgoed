@@ -31,7 +31,8 @@ from (values
   ('zoekprofielen','property_subtype_ids_v2'),
   ('zoekprofielen','deal_type_ids'),
   ('relaties','property_type_ids'),
-  ('relaties','property_subtype_ids')
+  ('relaties','property_subtype_ids'),
+  ('relaties','deal_type_ids')
 ) as expected(table_name,column_name)
 left join information_schema.columns c
   on c.table_schema='public'
