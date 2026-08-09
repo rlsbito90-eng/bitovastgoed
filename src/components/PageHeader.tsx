@@ -14,17 +14,25 @@ interface PageHeaderProps {
  */
 export default function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-1">
+    <div
+      data-bito-page-header
+      className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4"
+    >
       <div className="min-w-0">
-        <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight">
+        <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl lg:text-[28px]">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1.5 break-words sm:truncate">{subtitle}</p>
+          <p className="mt-1.5 break-words text-sm leading-relaxed text-muted-foreground sm:truncate sm:leading-normal">
+            {subtitle}
+          </p>
         )}
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div
+          data-bito-page-actions
+          className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0"
+        >
           {actions}
         </div>
       )}
