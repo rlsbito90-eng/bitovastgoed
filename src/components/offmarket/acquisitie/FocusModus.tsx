@@ -216,7 +216,6 @@ export default function FocusModus({
 
   if (!open || items.length === 0) return null;
 
-
   const huidig = items[veiligIndex];
   const { signaal, readiness } = huidig;
   const focusContext = bepaalFocusContext(readiness.fase);
@@ -233,7 +232,6 @@ export default function FocusModus({
 
   return (
     <>
-      
       <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
         <DialogContent
           data-testid="focus-modus"
@@ -345,13 +343,14 @@ export default function FocusModus({
                 variant="secondary"
                 size="sm"
                 onClick={() => navigate(
-                  `/off-market/${signaal.id}?tab=brieven`,
+                  `/off-market/${signaal.id}?mode=normaal&tab=${focusContext.tab}`,
                   {
                     state: {
                       fromAcquisitieFocus: true,
                       focusIndex: veiligIndex,
                       focusScopeIds: werkronde?.scopeIds ?? focusScopeIds ?? null,
                       selectedIds: selectedIds ?? [],
+                      focusTab: focusContext.tab,
                     },
                   },
                 )}
