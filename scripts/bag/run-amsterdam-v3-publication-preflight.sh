@@ -27,6 +27,9 @@ ORDER BY id;
 ROLLBACK;
 SQL
 
+artifact_ok="$(psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM bag_control.datasetversies WHERE id=3 AND datasetversie='v20260808-directional-v3' AND scope_code='0363' AND bron_metadata->>'artifact_id'='9027302674'")"
+[[ "$artifact_ok" == '1' ]] || fail 'v3 dataset-provenance wijst niet exact naar artifact 9027302674.'
+
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 python3 - "$BASE" "$TMP" <<'PY'
