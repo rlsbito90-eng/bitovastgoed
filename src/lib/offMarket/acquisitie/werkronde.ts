@@ -5,9 +5,11 @@
 // proceswijzigingen tijdens de ronde geen items laten verdwijnen.
 
 export type WerkrondeBron =
+  | 'onderzoeken'
   | 'brief_voorbereiden'
   | 'te_printen'
   | 'te_posten'
+  | 'opvolgen'
   | 'werkbak'
   | 'handmatig';
 
@@ -60,7 +62,7 @@ export function parseWerkronde(raw: string | null): Werkronde | null {
   if (typeof r.naam !== 'string' || typeof r.gestartOp !== 'string') return null;
   const bron = r.bron;
   const geldigeBron: WerkrondeBron[] = [
-    'brief_voorbereiden', 'te_printen', 'te_posten', 'werkbak', 'handmatig',
+    'onderzoeken', 'brief_voorbereiden', 'te_printen', 'te_posten', 'opvolgen', 'werkbak', 'handmatig',
   ];
   if (typeof bron !== 'string' || !(geldigeBron as string[]).includes(bron)) return null;
   return {
