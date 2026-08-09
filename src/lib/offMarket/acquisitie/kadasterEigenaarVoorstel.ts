@@ -34,9 +34,9 @@ function normaliseerNaam(waarde: string): string {
 
 function herkenRechtspersoonType(naam: string): OffMarketEigenaartype {
   const n = naam.toLowerCase();
-  if (/\b(b\.?v\.?)\b|besloten vennootschap/i.test(n)) return 'bv';
+  if (/(^|[^a-z])b\.?\s*v\.?($|[^a-z])|besloten vennootschap/i.test(n)) return 'bv';
   if (/\bstichting\b/i.test(n)) return 'stichting';
-  if (/\bv\.?v\.?e\.?\b|vereniging van (?:eigenaars|eigenaren)/i.test(n)) return 'vve';
+  if (/(^|[^a-z])v\.?\s*v\.?\s*e\.?($|[^a-z])|vereniging van (?:eigenaars|eigenaren)/i.test(n)) return 'vve';
   if (/\b(gemeente|provincie|rijksoverheid|staat der nederlanden|ministerie|waterschap)\b/i.test(n)) return 'overheid';
   return 'onbekend';
 }
