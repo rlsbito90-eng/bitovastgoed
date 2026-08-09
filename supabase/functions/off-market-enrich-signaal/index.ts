@@ -2,6 +2,7 @@
 // JWT verplicht, alleen interne gebruikers. Cache op input_hash.
 // Schrijft AI-velden in off_market_signalen en logt run in off_market_ai_runs.
 // Overschrijft NOOIT business-velden (indicatieve_waarde, mogelijke_fee, prioriteit, etc.).
+// AI-provider: directe Google Gemini API; geen Lovable-gatewayafhankelijkheid.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { magBagAutoVerrijken } from '../_shared/offMarketAutoTrigger.ts';
@@ -13,7 +14,8 @@ const corsHeaders = {
 };
 
 const PROMPT_VERSIE = 'v1.0';
-const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
+const DEFAULT_MODEL = Deno.env.get('AI_DEFAULT_MODEL') ?? 'gemini-3.6-flash';
+const GEMINI_OPENAI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
 const SCORE_GEWICHTEN = {
   locatie: 25, asset_match: 20, eigenaar_signaal: 25, timing: 15, fee_potentieel: 15,
@@ -167,6 +169,10 @@ function mapOutput(out: Record<string, unknown>, model: string, promptVersie: st
   };
 }
 
+function normaliseerDirectGeminiModel(model: string): string {
+  return model.startsWith('google/') ? model.slice('google/'.length) : model;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') {
@@ -209,11 +215,10 @@ Deno.serve(async (req) => {
       }
     }
 
-
     const body = await req.json().catch(() => ({}));
     const signaalId = body.signaal_id as string | undefined;
     const force = !!body.force;
-    const model = (body.model as string | undefined) ?? DEFAULT_MODEL;
+    const model = normaliseerDirectGeminiModel((body.model as string | undefined) ?? DEFAULT_MODEL);
     // BAG-cascade staat default aan. AI-backlog stuurt expliciet cascade_bag:false.
     const cascadeBag = body.cascade_bag !== false;
     if (!signaalId) {
@@ -268,7 +273,6 @@ Deno.serve(async (req) => {
       }
     }
 
-
     const { data: signaal, error: sErr } = await admin
       .from('off_market_signalen').select('*').eq('id', signaalId).maybeSingle();
     if (sErr || !signaal) {
@@ -302,11 +306,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) throw new Error('LOVABLE_API_KEY ontbreekt');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) throw new Error('GEMINI_API_KEY ontbreekt');
 
     const userMsg = 'Beoordeel het volgende signaal:\n\n' + JSON.stringify(payload, null, 2);
-    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResp = await fetch(GEMINI_OPENAI_ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -330,8 +334,8 @@ Deno.serve(async (req) => {
       });
       const status = aiResp.status === 429 ? 429 : aiResp.status === 402 ? 402 : 502;
       const msg = aiResp.status === 429 ? 'AI rate-limit bereikt, probeer later opnieuw.'
-                : aiResp.status === 402 ? 'AI-credits zijn op. Voeg credits toe in je workspace.'
-                : 'AI-gateway fout.';
+                : aiResp.status === 402 ? 'AI-providerbudget is niet beschikbaar.'
+                : 'AI-providerfout.';
       return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
