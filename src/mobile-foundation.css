@@ -23,6 +23,7 @@ body,
   body {
     -webkit-text-size-adjust: 100%;
     overscroll-behavior-x: none;
+    background-attachment: scroll !important;
   }
 
   main {
@@ -30,6 +31,19 @@ body,
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     scroll-padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Minder zware glass-effecten op telefoon: rustiger en beter leesbaar. */
+  .section-card {
+    background-color: hsl(var(--card) / 0.96) !important;
+    backdrop-filter: blur(6px) saturate(115%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(115%) !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+
+  .glass-card {
+    backdrop-filter: blur(10px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(120%) !important;
   }
 
   /* Dialogs en alert-dialogs blijven volledig bereikbaar in iOS Safari. */
