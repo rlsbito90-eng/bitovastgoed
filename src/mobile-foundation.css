@@ -68,7 +68,8 @@ body,
 
   /* Consequente mobiele gutters voor alle hoofdmodules. */
   .page-shell,
-  .page-shell-wide {
+  .page-shell-wide,
+  .page-shell-full {
     width: 100%;
     max-width: 100%;
     padding-left: 0.875rem !important;
@@ -126,6 +127,17 @@ body,
   main .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+  }
+
+  /* Pipeline/Kanban: één kolom bijna schermbreed en snap-scroll i.p.v. mini-kolommen. */
+  [data-mobile-kanban] .overflow-x-auto {
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.25rem;
+  }
+
+  [data-mobile-kanban] .w-72.shrink-0 {
+    width: min(82vw, 18rem) !important;
+    scroll-snap-align: start;
   }
 
   /* Cards op touchscreens niet laten 'springen' door desktop hover-transforms. */
