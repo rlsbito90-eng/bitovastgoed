@@ -47,6 +47,13 @@ describe('werkronde', () => {
     expect(ronde.overgeslagenIds).toEqual([]);
   });
 
+  it('accepteert expliciete bronnen voor onderzoeken en opvolgen', () => {
+    expect(startWerkronde({ bron: 'onderzoeken', naam: 'Onderzoeken', scopeIds: ['a'] }).bron)
+      .toBe('onderzoeken');
+    expect(startWerkronde({ bron: 'opvolgen', naam: 'Opvolgen', scopeIds: ['a'] }).bron)
+      .toBe('opvolgen');
+  });
+
   it('registreert behandelen en verwijdert dezelfde id uit overgeslagen', () => {
     const gestart = startWerkronde({
       bron: 'werkbak',
@@ -111,6 +118,22 @@ describe('werkronde', () => {
 
     wisWerkronde(storage);
     expect(storage.getItem(WERKRONDE_KEY)).toBeNull();
+  });
+
+  it('blijft bestaande versie-1 rondes met legacy bron werkbak parsen', () => {
+    const legacy = JSON.stringify({
+      versie: 1,
+      bron: 'werkbak',
+      naam: 'Actie',
+      scopeIds: ['a', 'b'],
+      behandeldeIds: [],
+      overgeslagenIds: [],
+      huidigeId: 'a',
+      gestartOp: '2026-08-01T00:00:00.000Z',
+      laatstBijgewerktOp: '2026-08-01T00:00:00.000Z',
+    });
+
+    expect(parseWerkronde(legacy)?.bron).toBe('werkbak');
   });
 
   it('weigert ongeldige of verouderde opslagdata defensief', () => {
