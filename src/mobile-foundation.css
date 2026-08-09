@@ -1,0 +1,108 @@
+/*
+ * Bito Vastgoed — mobiele UX fundering
+ * Alleen mobiele/responsive presentatielaag; geen businesslogica.
+ */
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+#root {
+  width: 100%;
+}
+
+/* iOS/Safari: gebruik de dynamische viewport i.p.v. de statische 100vh. */
+@supports (height: 100dvh) {
+  .h-screen {
+    height: 100dvh !important;
+  }
+}
+
+/* Algemene veilige ondermarge voor vaste/scrollende app-inhoud. */
+@media (max-width: 1023px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+  }
+
+  main {
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Radix dialogs: nooit meer buiten de praktische mobiele viewport vallen. */
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  }
+
+  /* Dropdowns/popovers mogen op mobiel niet breder zijn dan het scherm. */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  /* Mobile menu/drawer: safe-area en echte interne scroll. */
+  .glass-overlay > .glass-dark {
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Pagina's krijgen op mobiel een consequente, compacte horizontale gutter. */
+  .page-shell,
+  .page-shell-wide {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+  }
+
+  /* Operationele tekst niet kleiner dan praktisch leesbaar op telefoon. */
+  main .text-\[10px\],
+  main .text-\[11px\] {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+  }
+
+  /* Kleine muted tekst iets steviger zonder de visuele hiërarchie te verliezen. */
+  main .text-muted-foreground {
+    text-wrap: pretty;
+  }
+
+  /* Form controls: minimaal 44px touch target waar mogelijk. */
+  main button,
+  main [role="button"],
+  main input,
+  main select,
+  main textarea {
+    touch-action: manipulation;
+  }
+
+  main button:not([class*="h-"]):not([class*="min-h-"]),
+  main [role="button"]:not([class*="h-"]):not([class*="min-h-"]) {
+    min-height: 2.75rem;
+  }
+
+  /* Horizontaal scrollende tab-/chiprijen voelen native en blokkeren pagina niet. */
+  [data-mobile-scroll-row] {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  [data-mobile-scroll-row]::-webkit-scrollbar {
+    display: none;
+  }
+}
