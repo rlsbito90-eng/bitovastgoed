@@ -94,9 +94,9 @@ jobs:
             PGOPTIONS='-c default_transaction_read_only=on' \
             bash scripts/bag/run-amsterdam-v3-publication-preflight.sh "$preflight_dir"
 
-          # De geometriefase gebruikt bewust kleinere chunks; alle andere fasen 50k.
+          # De geometriefase gebruikt bewust extra kleine chunks om statement-timeouts te voorkomen; alle andere fasen 50k.
           if [ "$phase" = 'geometrieen' ]; then
-            chunk_size=5000
+            chunk_size=1000
           else
             chunk_size=50000
           fi
