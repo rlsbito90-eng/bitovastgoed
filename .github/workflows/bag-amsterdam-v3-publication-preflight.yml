@@ -126,8 +126,8 @@ jobs:
 
           valid="$(awk -F '\t' '$1=="v3_geometrieen_geldig"{print $2}' "$f")"
           afwijk="$(awk -F '\t' '$1=="v3_geometrie_afwijkingen"{print $2}' "$f")"
-          test "$valid" =~ ^[0-9]+$
-          test "$afwijk" =~ ^[0-9]+$
+          [[ "$valid" =~ ^[0-9]+$ ]]
+          [[ "$afwijk" =~ ^[0-9]+$ ]]
           totaal=$((valid + afwijk))
           test "$totaal" = "$EXPECTED_GEOMETRIEEN_TOTAAL"
 
