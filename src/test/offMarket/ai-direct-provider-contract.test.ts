@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const bron = readFileSync(
-  new URL('../../../supabase/functions/off-market-enrich-signaal/index.ts', import.meta.url),
+  resolve(process.cwd(), 'supabase/functions/off-market-enrich-signaal/index.ts'),
   'utf8',
 );
 
