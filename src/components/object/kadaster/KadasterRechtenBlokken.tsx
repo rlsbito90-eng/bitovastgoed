@@ -25,10 +25,10 @@ function Veld({ label, value }: { label: string; value: string | null | undefine
 
 function PdfBronBalk({ pdf }: { pdf: KadasterDocument }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
-      <span className="text-[11px] text-foreground inline-flex items-center gap-1.5">
-        <FileText className="h-3.5 w-3.5 text-primary" />
-        Kadasterbericht opgeslagen — officiële bron
+    <div className="flex flex-col items-stretch gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-[11px] text-foreground inline-flex items-start gap-1.5 min-w-0">
+        <FileText className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+        <span>Kadasterbericht opgeslagen — officiële bron</span>
       </span>
       <KadasterPdfKnop document={pdf} label="Kadasterbericht openen" />
     </div>
