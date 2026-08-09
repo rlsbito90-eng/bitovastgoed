@@ -37,7 +37,6 @@ import SignaalMobileBronregel from '@/components/offmarket/mobile/SignaalMobileB
 import ClassificatieReadonlyCard from '@/components/offmarket/mobile/ClassificatieReadonlyCard';
 import MobileTabbarScroller from '@/components/offmarket/mobile/MobileTabbarScroller';
 
-
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ListNavigator from '@/components/ListNavigator';
 import { Button } from '@/components/ui/button';
@@ -87,8 +86,8 @@ export default function OffMarketSignaalDetailPage() {
   const { taken } = useDataStore();
   const archive = useArchiveOffMarketSignaal();
 
-  // Initial tab uit query (?tab=brieven) — bv. vanuit Verwerk selectie /
-  // Focusmodus die direct naar Brieven & opvolging willen springen.
+  // Initial tab uit query. Acquisitie Focusmodus forceert daarnaast mode=normaal,
+  // zodat een persoonlijke algemene Reviewmodus-voorkeur deze context niet kaapt.
   const initialTab = (() => {
     const t = searchParams.get('tab');
     return t && VALID_TABS.has(t) ? t : 'overzicht';
@@ -98,11 +97,15 @@ export default function OffMarketSignaalDetailPage() {
     focusIndex?: number;
     focusScopeIds?: string[] | null;
     selectedIds?: string[] | null;
+    focusTab?: string | null;
   } | null) ?? null;
   const fromAcquisitieFocus = !!focusReturn?.fromAcquisitieFocus;
   const focusIndex = typeof focusReturn?.focusIndex === 'number' ? focusReturn.focusIndex : null;
   const focusScopeIds = Array.isArray(focusReturn?.focusScopeIds) ? focusReturn!.focusScopeIds : null;
   const selectedIds = Array.isArray(focusReturn?.selectedIds) ? focusReturn!.selectedIds : null;
+  const focusTab = focusReturn?.focusTab && VALID_TABS.has(focusReturn.focusTab)
+    ? focusReturn.focusTab
+    : initialTab;
 
   const handleBackToList = () => {
     if (fromAcquisitieFocus) {
@@ -112,13 +115,13 @@ export default function OffMarketSignaalDetailPage() {
           focusIndex,
           focusScopeIds,
           selectedIds,
+          focusTab,
         },
       });
     } else {
       navigate('/off-market');
     }
   };
-
 
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -152,6 +155,7 @@ export default function OffMarketSignaalDetailPage() {
   }, [fromAcquisitieFocus, focusScopeIds, currentId, alleSignalen]);
 
   const inFocusContext = fromAcquisitieFocus && !!focusScopeIds && focusScopeIds.length > 0;
+  const eigenaarFocusMode = fromAcquisitieFocus && focusTab === 'kadaster';
 
   if (isLoading) {
     return <div className="px-4 sm:px-6 py-6"><p className="text-sm text-muted-foreground">Signaal laden…</p></div>;
@@ -175,16 +179,16 @@ export default function OffMarketSignaalDetailPage() {
     }
   };
 
-
   const navigateInContext = (targetId: string) => {
     if (inFocusContext) {
       const nextIdx = focusScopeIds!.indexOf(targetId);
-      navigate(`/off-market/${targetId}?tab=brieven`, {
+      navigate(`/off-market/${targetId}?mode=normaal&tab=${focusTab}`, {
         state: {
           fromAcquisitieFocus: true,
           focusScopeIds,
           selectedIds,
           focusIndex: nextIdx >= 0 ? nextIdx : 0,
+          focusTab,
         },
       });
     } else {
@@ -251,8 +255,7 @@ export default function OffMarketSignaalDetailPage() {
         )}
       </div>
 
-
-      {/* === Desktop: ongewijzigd === */}
+      {/* === Desktop: ongewijzigd buiten Acquisitiecontext === */}
       <div className="hidden lg:block space-y-5">
         <SignaalDetailHeader
           signaal={signaal}
@@ -282,7 +285,6 @@ export default function OffMarketSignaalDetailPage() {
                   ))}
                 </TabsList>
               </div>
-
 
               <TabsContent value="overzicht" className="space-y-5 mt-4">
                 <div className="flex flex-wrap items-center gap-3 justify-between">
@@ -315,7 +317,7 @@ export default function OffMarketSignaalDetailPage() {
 
               <TabsContent value="kadaster" className="space-y-5 mt-4">
                 <SignaalKadasterKaart signaal={signaal} />
-                <SignaalEigenaarsonderzoekSectie signaal={signaal} />
+                <SignaalEigenaarsonderzoekSectie signaal={signaal} focusMode={eigenaarFocusMode} />
                 <SignaalKoppelingenSectie signaal={signaal} />
               </TabsContent>
 
@@ -408,7 +410,7 @@ export default function OffMarketSignaalDetailPage() {
 
           <TabsContent value="kadaster" className="space-y-3 mt-3">
             <SignaalKadasterKaart signaal={signaal} />
-            <SignaalEigenaarsonderzoekSectie signaal={signaal} />
+            <SignaalEigenaarsonderzoekSectie signaal={signaal} focusMode={eigenaarFocusMode} />
             <SignaalKoppelingenSectie signaal={signaal} />
           </TabsContent>
 
@@ -426,7 +428,6 @@ export default function OffMarketSignaalDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
-
 
       <SignaalFormDialog open={editOpen} onOpenChange={setEditOpen} signaal={signaal} />
       <OffMarketArchiveDialog open={archiveOpen} onOpenChange={setArchiveOpen} onConfirm={handleArchive} />
