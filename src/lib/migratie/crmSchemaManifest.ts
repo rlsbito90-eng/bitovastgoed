@@ -22,7 +22,10 @@ export const CRM_SCHEMA_BUNDELS: readonly SchemaBundel[] = [
     naam: 'property-en-deal-classificatie',
     doel: 'Canonieke property/deal-taxonomie en koppelingen voorbereiden.',
     tabellen: ['property_types', 'property_subtypes', 'deal_types', 'property_type_aliases'],
-    bronMigraties: ['20260427140858_fd240c17-724e-4d95-b671-6e1ce3c6656c.sql'],
+    bronMigraties: [
+      '20260427140858_fd240c17-724e-4d95-b671-6e1ce3c6656c.sql',
+      '20260427141800_9a9277fb-d354-4449-b307-117dc1f2ffa5.sql',
+    ],
     afhankelijkVan: [],
     schrijftDatabase: false,
   },
