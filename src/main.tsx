@@ -7,6 +7,7 @@ import { installNotificationStateSync } from "./lib/notificationStateSync";
 import "./index.css";
 import "./mobile-foundation.css";
 import "./mobile-polish.css";
+import "./mobile-acquisitie-fixes.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
