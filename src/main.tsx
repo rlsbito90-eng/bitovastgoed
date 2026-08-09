@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { installGlobalAppRecovery, markAppBootSuccessful } from "./lib/appRecovery";
 import "./index.css";
+import "./mobile-foundation.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
