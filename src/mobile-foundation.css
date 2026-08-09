@@ -13,14 +13,12 @@ body,
   width: 100%;
 }
 
-/* iOS/Safari: gebruik de dynamische viewport i.p.v. de statische 100vh. */
 @supports (height: 100dvh) {
   .h-screen {
     height: 100dvh !important;
   }
 }
 
-/* Algemene veilige ondermarge voor vaste/scrollende app-inhoud. */
 @media (max-width: 1023px) {
   body {
     -webkit-text-size-adjust: 100%;
@@ -34,7 +32,7 @@ body,
     scroll-padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 
-  /* Radix dialogs: nooit meer buiten de praktische mobiele viewport vallen. */
+  /* Dialogs en alert-dialogs blijven volledig bereikbaar in iOS Safari. */
   [role="dialog"] {
     max-width: calc(100vw - 1rem) !important;
     max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))) !important;
@@ -44,12 +42,21 @@ body,
     padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
   }
 
-  /* Dropdowns/popovers mogen op mobiel niet breder zijn dan het scherm. */
+  [role="dialog"] .text-\[10px\],
+  [role="dialog"] .text-\[11px\] {
+    font-size: 0.75rem !important;
+    line-height: 1.15rem !important;
+  }
+
+  [role="dialog"] .text-xs {
+    line-height: 1.2rem;
+  }
+
   [data-radix-popper-content-wrapper] {
     max-width: calc(100vw - 1rem) !important;
   }
 
-  /* Mobile menu/drawer: safe-area en echte interne scroll. */
+  /* Mobile menu/drawer: safe-area en eigen scrollcontainer. */
   .glass-overlay > .glass-dark {
     max-height: 100dvh;
     overflow-y: auto;
@@ -59,13 +66,25 @@ body,
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 
-  /* Pagina's krijgen op mobiel een consequente, compacte horizontale gutter. */
+  /* Consequente mobiele gutters voor alle hoofdmodules. */
   .page-shell,
   .page-shell-wide {
     width: 100%;
     max-width: 100%;
     padding-left: 0.875rem !important;
     padding-right: 0.875rem !important;
+  }
+
+  [data-bito-page-header] {
+    margin-bottom: 0.25rem;
+  }
+
+  [data-bito-page-actions] {
+    min-width: 0;
+  }
+
+  [data-bito-page-actions] > * {
+    max-width: 100%;
   }
 
   /* Operationele tekst niet kleiner dan praktisch leesbaar op telefoon. */
@@ -75,12 +94,11 @@ body,
     line-height: 1rem !important;
   }
 
-  /* Kleine muted tekst iets steviger zonder de visuele hiërarchie te verliezen. */
   main .text-muted-foreground {
     text-wrap: pretty;
   }
 
-  /* Form controls: minimaal 44px touch target waar mogelijk. */
+  /* Form controls: 44px touch target en 16px inputtekst voorkomt Safari-zoom. */
   main button,
   main [role="button"],
   main input,
@@ -89,12 +107,34 @@ body,
     touch-action: manipulation;
   }
 
+  main input:not([type="checkbox"]):not([type="radio"]),
+  main select,
+  main textarea,
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]),
+  [role="dialog"] select,
+  [role="dialog"] textarea {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
   main button:not([class*="h-"]):not([class*="min-h-"]),
   main [role="button"]:not([class*="h-"]):not([class*="min-h-"]) {
     min-height: 2.75rem;
   }
 
-  /* Horizontaal scrollende tab-/chiprijen voelen native en blokkeren pagina niet. */
+  /* Tabellen die op mobiel toch zichtbaar zijn mogen horizontaal scrollen. */
+  main .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Cards op touchscreens niet laten 'springen' door desktop hover-transforms. */
+  .kpi-card:hover,
+  .card-hover:hover {
+    transform: none;
+  }
+
+  /* Horizontaal scrollende tab-/chiprijen voelen native. */
   [data-mobile-scroll-row] {
     overflow-x: auto;
     overscroll-behavior-x: contain;
@@ -104,5 +144,34 @@ body,
 
   [data-mobile-scroll-row]::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Compacte CTA-groepen in page headers: één primaire actie kan volle breedte. */
+  [data-bito-page-actions] > button:only-child,
+  [data-bito-page-actions] > a:only-child {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Lange formulieren krijgen lucht rond de browser-/home-indicator. */
+  form {
+    scroll-margin-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-color-scheme: dark) and (max-width: 1023px) {
+  /* Amber privacy-/waarschuwingskaarten waren in dark mode te licht/oranje. */
+  [role="dialog"] .bg-amber-50\/60 {
+    background-color: hsl(var(--accent) / 0.12) !important;
+  }
+
+  [role="dialog"] .border-amber-300 {
+    border-color: hsl(var(--accent) / 0.55) !important;
+  }
+
+  [role="dialog"] .text-amber-900\/80 {
+    color: hsl(var(--foreground) / 0.9) !important;
   }
 }
