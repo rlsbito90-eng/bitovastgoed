@@ -5,6 +5,8 @@ const SCROLL_RESTORE_PAIRS: Array<[RegExp, RegExp]> = [
   [/^\/off-market$/, /^\/off-market\/[^/]+$/],
 ];
 
+const KADASTER_PAGING_KEY = 'bito:offmarket:kadaster-paging';
+
 function isOptOut(prev: string | null, next: string): boolean {
   if (!prev) return false;
   for (const [a, b] of SCROLL_RESTORE_PAIRS) {
@@ -24,6 +26,10 @@ export default function ScrollToTop() {
     // Tab- en quickscanselectie binnen dezelfde objectroute behouden hun positie.
     if (prior && prior.pathname === pathname) return;
     if (isOptOut(prior?.pathname ?? null, pathname)) return;
+
+    // Vorige/volgende binnen de mobiele Kadaster-tab beheert bewust zijn eigen
+    // scrollpositie. De globale route-reset mag die positie niet overschrijven.
+    if (sessionStorage.getItem(KADASTER_PAGING_KEY) === '1') return;
 
     // Een deep link regelt zijn eigen gerichte scroll nadat de inhoud is gemount.
     if (hash) return;
