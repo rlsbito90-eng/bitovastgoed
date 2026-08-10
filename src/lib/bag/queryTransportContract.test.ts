@@ -23,17 +23,19 @@ describe('BAG 2A.9 servertransportcontract', () => {
 
   it('bindt de Edge-functie fail-closed aan shadow en de gatewaylogin', () => {
     expect(edge).toContain("environment !== 'shadow'");
-    expect(edge).toContain("projectRef === PRODUCTION_REF");
+    expect(edge).toContain("projectRef === LEGACY_PRODUCTION_REF");
+    expect(edge).toContain("projectRef === CRM_AUTH_REF");
     expect(edge).toContain("username !== 'bag_gateway'");
     expect(edge).toContain("sslmode !== 'require'");
     expect(edge).toContain("requiredEnv('BAG_READER_DATABASE_URL')");
     expect(edge).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });
 
-  it('valideert de productie-JWT server-side en vereist een interne CRM-rol', () => {
+  it('valideert de JWT van het eigen CRM-project server-side en vereist een interne CRM-rol', () => {
+    expect(edge).toContain("const CRM_AUTH_REF = 'vyjocdlwfxrblusfngfq'");
     expect(edge).toContain('BAG_AUTH_SUPABASE_URL');
     expect(edge).toContain('BAG_AUTH_SUPABASE_ANON_KEY');
-    expect(edge).toContain('authUrl !== PRODUCTION_AUTH_URL');
+    expect(edge).toContain('authUrl !== CRM_AUTH_URL');
     expect(edge).not.toContain("requiredEnv('SUPABASE_URL')");
     expect(edge).not.toContain("requiredEnv('SUPABASE_ANON_KEY')");
     expect(edge).toContain('client.auth.getUser(token)');

@@ -9,8 +9,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
-const PRODUCTION_REF = 'ljudxyrqoifhfikueric';
-const PRODUCTION_AUTH_URL = `https://${PRODUCTION_REF}.supabase.co`;
+const LEGACY_PRODUCTION_REF = 'ljudxyrqoifhfikueric';
+const CRM_AUTH_REF = 'vyjocdlwfxrblusfngfq';
+const CRM_AUTH_URL = `https://${CRM_AUTH_REF}.supabase.co`;
 const MAX_BODY_BYTES = 16_384;
 const GEREGISTREERDE_SCOPES = new Set(['0106', '0363', '0599', '0518']);
 const STANDAARD_TOEGESTANE_SCOPES = '0363,0106';
@@ -42,7 +43,12 @@ function databaseClient(): ReturnType<typeof postgres> {
   const projectRef = requiredEnv('BAG_PROJECT_REF');
   const expectedRef = requiredEnv('BAG_EXPECTED_PROJECT_REF');
   const databaseUrl = requiredEnv('BAG_READER_DATABASE_URL');
-  if (environment !== 'shadow' || projectRef !== expectedRef || projectRef === PRODUCTION_REF) {
+  if (
+    environment !== 'shadow'
+    || projectRef !== expectedRef
+    || projectRef === LEGACY_PRODUCTION_REF
+    || projectRef === CRM_AUTH_REF
+  ) {
     throw new Error('BAG-transport is niet aan de bevestigde shadow gebonden');
   }
   if (!/^[a-z0-9]{20}$/.test(projectRef)) throw new Error('Ongeldige BAG-projectref');
@@ -93,7 +99,7 @@ async function authorize(req: Request): Promise<string> {
   if (!authorization?.startsWith('Bearer ')) throw new TypeError('Unauthorized');
   const authUrl = requiredEnv('BAG_AUTH_SUPABASE_URL');
   const authAnonKey = requiredEnv('BAG_AUTH_SUPABASE_ANON_KEY');
-  if (authUrl !== PRODUCTION_AUTH_URL) {
+  if (authUrl !== CRM_AUTH_URL) {
     throw new Error('BAG-authenticatie is niet aan de bevestigde CRM-autoriteit gebonden');
   }
   const client = createClient(authUrl, authAnonKey, { global: { headers: { Authorization: authorization } } });
