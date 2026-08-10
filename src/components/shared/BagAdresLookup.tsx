@@ -14,7 +14,6 @@ interface Props {
   initieelHuisnummer?: string | null;
   initielePlaats?: string | null;
   initielePostcode?: string | null;
-  /** Alleen een ECHTE toevoeging uit het signaal, bv. 174-2. */
   voorkeursHuisnummerLabel?: string | null;
   onKies: (r: BagAdresResultaat) => void;
 }
@@ -33,10 +32,12 @@ function formatHuisnummerLabel(r: BagAdresResultaat): string {
   if (toev) return `${base}-${toev}`;
   return base;
 }
+
 function formatPostcodeWeergave(pc: string | null): string {
   if (!pc) return '';
   return pc.length === 6 ? `${pc.slice(0, 4)} ${pc.slice(4)}` : pc;
 }
+
 function formatAanvraag(r: BagAdresResultaat): string {
   return [r.postcode ?? '', formatHuisnummerLabel(r)].filter(Boolean).join(' ');
 }
@@ -46,25 +47,19 @@ function normaliseerHuisnummerLabel(v: string | null | undefined): string {
 }
 
 function kernMatch(r: BagAdresResultaat, straat: string, huisnummer: string, plaats: string): boolean {
-  return (!straat || norm(r.straat) === norm(straat))
-    && (!huisnummer || String(r.huisnummer ?? '') === huisnummer.trim())
-    && (!plaats || norm(r.woonplaats) === norm(plaats));
+  return norm(r.straat) === norm(straat)
+    && String(r.huisnummer ?? '') === huisnummer.trim()
+    && norm(r.woonplaats) === norm(plaats);
 }
 
 /**
- * Voorkeursregel bij meerdere ECHTE BAG-subadressen van hetzelfde adres:
- * 1. expliciete toevoeging uit het signaal (bv. 174-2)
- * 2. H
- * 3. 1
- * 4. A
- * 5. overige toevoegingen
- * 6. kaal huisnummer
+ * Voorkeursvolgorde binnen de exacte BAG-resultset:
+ * expliciete toevoeging uit signaal → H → 1 → A → overige → kaal nummer.
  */
 export function voorkeurScore(r: BagAdresResultaat, explicietLabel: string | null | undefined): number {
   const label = normaliseerHuisnummerLabel(formatHuisnummerLabel(r));
   const exact = normaliseerHuisnummerLabel(explicietLabel);
   if (exact && label === exact) return 0;
-
   const suffix = label.includes('-') ? label.slice(label.indexOf('-') + 1) : '';
   if (suffix === 'H') return 10;
   if (suffix === '1') return 20;
@@ -75,19 +70,28 @@ export function voorkeurScore(r: BagAdresResultaat, explicietLabel: string | nul
 
 function sorteerResultaten(
   resultaten: BagAdresResultaat[],
-  input: { straat: string; huisnummer: string; plaats: string; postcode: string; explicietLabel?: string | null },
+  input: { postcode: string; explicietLabel?: string | null },
 ): BagAdresResultaat[] {
   return [...resultaten].sort((a, b) => {
     const pref = voorkeurScore(a, input.explicietLabel) - voorkeurScore(b, input.explicietLabel);
     if (pref !== 0) return pref;
-
-    // Opgeslagen postcode is uitsluitend een tie-breaker; PDOK is leidend.
     const pc = pcCompact(input.postcode);
     const aPc = pc && pcCompact(a.postcode) === pc ? 0 : 1;
     const bPc = pc && pcCompact(b.postcode) === pc ? 0 : 1;
     if (aPc !== bPc) return aPc - bPc;
     return formatHuisnummerLabel(a).localeCompare(formatHuisnummerLabel(b), 'nl', { numeric: true });
   });
+}
+
+function scrollNaarKadasterActie() {
+  window.setTimeout(() => {
+    const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
+    if (!kaart) return;
+    const knop = Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      (b.textContent ?? '').includes('Kadastergegevens ophalen'),
+    );
+    (knop ?? kaart).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 140);
 }
 
 export default function BagAdresLookup({
@@ -110,28 +114,19 @@ export default function BagAdresLookup({
 
   const kanZoeken = !!straat.trim() && !!huisnummer.trim() && !!plaats.trim();
   const gesorteerd = useMemo(
-    () => resultaten ? sorteerResultaten(resultaten, {
-      straat, huisnummer, plaats, postcode, explicietLabel: effectieveVoorkeur,
-    }) : null,
-    [resultaten, straat, huisnummer, plaats, postcode, effectieveVoorkeur],
+    () => resultaten ? sorteerResultaten(resultaten, { postcode, explicietLabel: effectieveVoorkeur }) : null,
+    [resultaten, postcode, effectieveVoorkeur],
   );
 
   function kies(r: BagAdresResultaat, auto = false) {
-    // Veiligheidsgrens: alleen een object dat daadwerkelijk door de huidige
-    // PDOK-resultset is teruggegeven mag gekozen worden.
-    if (resultaten && !resultaten.some((x) => x.id === r.id)) return;
-
+    // Nooit een synthetisch/afgeleid adres kiezen: het record moet letterlijk in
+    // de actuele, exact gefilterde PDOK-resultset staan.
+    if (!resultaten?.some((x) => x.id === r.id)) return;
     setGekozen(r);
     setAutomatisch(auto);
     if (r.postcode) setPostcode(formatPostcodeWeergave(r.postcode));
     onKies(r);
-
-    // Handmatige correctie: meteen door naar de echte Kadasteractie.
-    if (!auto) {
-      window.setTimeout(() => {
-        document.getElementById('kadaster-ophalen')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 120);
-    }
+    if (!auto) scrollNaarKadasterActie();
   }
 
   async function resolveAdres(input: {
@@ -144,8 +139,9 @@ export default function BagAdresLookup({
     setResultaten(null);
     setGekozen(null);
     setAutomatisch(false);
+
     try {
-      const r = await zoekBagAdressen({
+      const raw = await zoekBagAdressen({
         straat: input.straat.trim(),
         huisnummer: input.huisnummer.trim(),
         plaats: input.plaats.trim(),
@@ -153,13 +149,10 @@ export default function BagAdresLookup({
       });
       if (seq !== resolutieSeq.current) return;
 
-      // PDOK free-search kan ook gelijknamige straten/plaatsen elders teruggeven.
-      // Voor Kadaster tonen en kiezen we UITSLUITEND exacte straat+nummer+plaats-matches.
-      const exacteKern = r.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
-      const sorted = sorteerResultaten(exacteKern, {
-        straat: input.straat,
-        huisnummer: input.huisnummer,
-        plaats: input.plaats,
+      // PDOK free search kan gelijknamige straten elders teruggeven. Die worden
+      // volledig weggefilterd vóór sorteren, tonen of automatisch kiezen.
+      const exact = raw.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
+      const sorted = sorteerResultaten(exact, {
         postcode: input.postcode,
         explicietLabel: effectieveVoorkeur,
       });
@@ -169,11 +162,12 @@ export default function BagAdresLookup({
         setFout('Geen exact officieel BAG-adres gevonden voor deze straat, dit huisnummer en deze plaats.');
         return;
       }
-      // De automatische keuze is altijd letterlijk één van de getoonde PDOK-resultaten.
-      setGekozen(sorted[0]);
+
+      const beste = sorted[0];
+      setGekozen(beste);
       setAutomatisch(input.auto);
-      if (sorted[0].postcode) setPostcode(formatPostcodeWeergave(sorted[0].postcode));
-      onKies(sorted[0]);
+      if (beste.postcode) setPostcode(formatPostcodeWeergave(beste.postcode));
+      onKies(beste);
     } catch (e) {
       if (seq !== resolutieSeq.current) return;
       setFout(e instanceof Error ? e.message : 'BAG-lookup mislukt');
@@ -226,19 +220,19 @@ export default function BagAdresLookup({
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 min-w-0">
         <div className="space-y-1 sm:col-span-2 min-w-0">
           <Label className="text-[11px] text-muted-foreground">Straatnaam</Label>
-          <Input value={straat} onChange={e => setStraat(e.target.value)} />
+          <Input value={straat} onChange={(e) => setStraat(e.target.value)} />
         </div>
         <div className="space-y-1 min-w-0">
           <Label className="text-[11px] text-muted-foreground">Huisnummer</Label>
-          <Input value={huisnummer} onChange={e => setHuisnummer(e.target.value.replace(/[^0-9]/g, ''))} className="font-mono-data" />
+          <Input value={huisnummer} onChange={(e) => setHuisnummer(e.target.value.replace(/[^0-9]/g, ''))} className="font-mono-data" />
         </div>
         <div className="space-y-1 min-w-0">
           <Label className="text-[11px] text-muted-foreground">Plaats</Label>
-          <Input value={plaats} onChange={e => setPlaats(e.target.value)} />
+          <Input value={plaats} onChange={(e) => setPlaats(e.target.value)} />
         </div>
         <div className="space-y-1 sm:col-span-4 min-w-0">
           <Label className="text-[11px] text-muted-foreground">Officiële postcode</Label>
-          <Input value={postcode} onChange={e => setPostcode(e.target.value)} placeholder={bezig ? 'Wordt via PDOK gecontroleerd…' : 'Nog niet vastgesteld'} className="font-mono-data" />
+          <Input value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder={bezig ? 'Wordt via PDOK gecontroleerd…' : 'Nog niet vastgesteld'} className="font-mono-data" />
         </div>
       </div>
 
@@ -249,15 +243,22 @@ export default function BagAdresLookup({
         </Button>
       </div>
 
-      {fout && <div className="flex gap-2 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5 shrink-0" /><p>{fout}</p></div>}
+      {fout && (
+        <div className="flex gap-2 text-xs text-destructive">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" /><p>{fout}</p>
+        </div>
+      )}
 
       {gekozen && (
         <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1 min-w-0">
           <div className="flex items-start gap-2 text-xs">
-            {automatisch ? <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" /> : <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />}
+            {automatisch
+              ? <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+              : <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />}
             <div className="min-w-0">
               <p className="font-medium break-words">
-                {automatisch ? 'Automatisch gekozen: ' : 'Gekozen: '}{gekozen.straat} {formatHuisnummerLabel(gekozen)}, {formatPostcodeWeergave(gekozen.postcode)} {gekozen.woonplaats}
+                {automatisch ? 'Automatisch gekozen: ' : 'Gekozen: '}
+                {gekozen.straat} {formatHuisnummerLabel(gekozen)}, {formatPostcodeWeergave(gekozen.postcode)} {gekozen.woonplaats}
               </p>
               <p className="text-muted-foreground font-mono-data break-words">Kadasteradres: {formatAanvraag(gekozen)}</p>
             </div>
@@ -267,14 +268,20 @@ export default function BagAdresLookup({
 
       {gesorteerd && gesorteerd.length > 1 && (
         <div className="space-y-2 min-w-0">
-          <p className="text-xs text-muted-foreground">Andere exacte BAG-adressen ({gesorteerd.length - 1}) — alleen wijzigen als de automatische keuze niet klopt.</p>
+          <p className="text-xs text-muted-foreground">
+            Andere exacte BAG-adressen ({gesorteerd.length - 1}) — alleen wijzigen als de automatische keuze niet klopt.
+          </p>
           <CollapsibleList
-            items={gesorteerd.filter(r => r.id !== gekozen?.id)}
-            renderItem={r => (
+            items={gesorteerd.filter((r) => r.id !== gekozen?.id)}
+            renderItem={(r) => (
               <div className="rounded-md border border-border bg-card p-3 min-w-0">
                 <p className="text-sm font-medium break-words">{r.straat} {formatHuisnummerLabel(r)}</p>
-                <p className="text-xs text-muted-foreground font-mono-data break-words">{formatPostcodeWeergave(r.postcode)} {r.woonplaats}</p>
-                <Button type="button" size="sm" variant="outline" onClick={() => kies(r)} className="mt-2 w-full sm:w-auto">Gebruik dit adres</Button>
+                <p className="text-xs text-muted-foreground font-mono-data break-words">
+                  {formatPostcodeWeergave(r.postcode)} {r.woonplaats}
+                </p>
+                <Button type="button" size="sm" variant="outline" onClick={() => kies(r)} className="mt-2 w-full sm:w-auto">
+                  Gebruik dit adres
+                </Button>
               </div>
             )}
             listClassName="space-y-2"
