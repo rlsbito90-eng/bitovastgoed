@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CollapsibleList } from '@/components/ui/collapsible-list';
 import { zoekBagAdressen, type BagAdresResultaat } from '@/lib/bag/pdokLookup';
+import { useKadasterAdresPreference } from '@/components/offmarket/kadaster/KadasterAdresPreferenceContext';
 
 interface Props {
   initieleStraat?: string | null;
@@ -97,6 +98,9 @@ export default function BagAdresLookup({
   initieleStraat, initieelHuisnummer, initielePlaats, initielePostcode,
   voorkeursHuisnummerLabel, onKies,
 }: Props) {
+  const contextVoorkeur = useKadasterAdresPreference();
+  const effectieveVoorkeur = voorkeursHuisnummerLabel ?? contextVoorkeur;
+
   const [straat, setStraat] = useState(initieleStraat ?? '');
   const [huisnummer, setHuisnummer] = useState(initieelHuisnummer ?? '');
   const [plaats, setPlaats] = useState(initielePlaats ?? '');
@@ -111,9 +115,9 @@ export default function BagAdresLookup({
   const kanZoeken = !!straat.trim() && !!huisnummer.trim() && !!plaats.trim();
   const gesorteerd = useMemo(
     () => resultaten ? sorteerResultaten(resultaten, {
-      straat, huisnummer, plaats, postcode, explicietLabel: voorkeursHuisnummerLabel,
+      straat, huisnummer, plaats, postcode, explicietLabel: effectieveVoorkeur,
     }) : null,
-    [resultaten, straat, huisnummer, plaats, postcode, voorkeursHuisnummerLabel],
+    [resultaten, straat, huisnummer, plaats, postcode, effectieveVoorkeur],
   );
 
   function kies(r: BagAdresResultaat, auto = false) {
@@ -148,7 +152,7 @@ export default function BagAdresLookup({
         huisnummer: input.huisnummer,
         plaats: input.plaats,
         postcode: input.postcode,
-        explicietLabel: voorkeursHuisnummerLabel,
+        explicietLabel: effectieveVoorkeur,
       });
       setResultaten(sorted);
       if (sorted.length === 0) {
@@ -193,7 +197,7 @@ export default function BagAdresLookup({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initieleStraat, initieelHuisnummer, initielePlaats, initielePostcode, voorkeursHuisnummerLabel]);
+  }, [initieleStraat, initieelHuisnummer, initielePlaats, initielePostcode, effectieveVoorkeur]);
 
   async function zoeken() {
     if (!kanZoeken || bezig) return;
