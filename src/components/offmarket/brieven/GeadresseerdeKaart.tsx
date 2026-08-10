@@ -1,11 +1,12 @@
 // Kaart per geadresseerde binnen Brieven & opvolging.
-// Toont Brief 1 / 2 / 3 als rijen met statusbadge, datum, verzendstatus,
-// postdatum, opvolgdatum en responsstatus. De hele rij is klikbaar; action-
-// knoppen gebruiken stopPropagation zodat ze geen rij-click triggeren.
+// De primaire acties zijn expliciet gelabeld; minder frequente en correctie-
+// acties staan onder "Meer" zodat de mobiele bediening begrijpelijk blijft.
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   Mail, MailCheck, FileEdit, ChevronDown, ChevronRight,
-  Copy, FileDown, Send, Plus, Inbox, MessageSquare, Undo2, X,
+  Copy, FileDown, Send, Plus, Inbox, MessageSquare, MoreHorizontal,
+  Trash2, Pencil,
 } from 'lucide-react';
 import {
   STAP_VOLGORDE, CAMPAGNE_STAP_LABEL,
@@ -22,6 +23,10 @@ import {
   RESPONS_LABEL, badgeClassVoorRespons, type Responsstatus,
 } from '@/lib/offMarket/brieven/respons';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
+import {
+  useVerwijderBriefRespons,
+  useVerwijderBriefUitWorkflow,
+} from '@/hooks/useBriefCorrecties';
 
 function formatDateNL(d: string | null | undefined): string {
   if (!d) return '—';
@@ -34,12 +39,9 @@ type Status = 'niet_gestart' | 'concept' | 'verstuurd';
 
 function badgeClass(status: Status): string {
   switch (status) {
-    case 'verstuurd':
-      return 'bg-success/10 text-success border-success/25';
-    case 'concept':
-      return 'bg-secondary/15 text-foreground border-secondary/30';
-    default:
-      return 'bg-muted/40 text-muted-foreground border-border';
+    case 'verstuurd': return 'bg-success/10 text-success border-success/25';
+    case 'concept': return 'bg-secondary/15 text-foreground border-secondary/30';
+    default: return 'bg-muted/40 text-muted-foreground border-border';
   }
 }
 
@@ -69,14 +71,50 @@ export interface GeadresseerdeKaartProps {
 }
 
 export default function GeadresseerdeKaart({
-  groep, emails = [],
-  onOpenBrief, onNieuweBrief, onDownloadPdf, onKopieer, onMarkeerVerstuurd,
+  groep,
+  emails = [],
+  onOpenBrief,
+  onNieuweBrief,
+  onDownloadPdf,
+  onKopieer,
+  onMarkeerVerstuurd,
   onRegistreerRespons,
 }: GeadresseerdeKaartProps) {
+  const verwijderBrief = useVerwijderBriefUitWorkflow();
+  const verwijderRespons = useVerwijderBriefRespons();
+
   const heeftEmailBrieven = EMAIL_STAP_VOLGORDE.some((s) => {
     const stap = groep.emailStappen?.[s];
     return !!(stap?.verstuurd || stap?.actiefConcept || stap?.oudereConcepten.length);
   });
+
+  const handleVerwijderBrief = async (brief: OffMarketBrief) => {
+    const isVerstuurd = brief.status === 'verstuurd';
+    const tekst = isVerstuurd
+      ? 'Deze verzonden brief wordt uit de actieve workflow verwijderd. De auditgeschiedenis blijft bewaard. Doorgaan?'
+      : 'Dit concept uit de actieve briefworkflow verwijderen?';
+    if (!window.confirm(tekst)) return;
+    try {
+      await verwijderBrief.mutateAsync(brief);
+      toast.success(isVerstuurd ? 'Brief uit actieve workflow verwijderd' : 'Concept verwijderd');
+      if (brief.gekoppelde_taak_id) {
+        toast.info('Let op: de gekoppelde opvolgtaak is niet automatisch verwijderd.');
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Brief verwijderen mislukt');
+    }
+  };
+
+  const handleVerwijderRespons = async (brief: OffMarketBrief) => {
+    if (!window.confirm('De geregistreerde reactie van deze brief verwijderen? De correctie blijft zichtbaar in de auditgeschiedenis.')) return;
+    try {
+      await verwijderRespons.mutateAsync(brief);
+      toast.success('Reactie verwijderd');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Reactie verwijderen mislukt');
+    }
+  };
+
   return (
     <article
       data-testid="geadresseerde-kaart"
@@ -85,7 +123,7 @@ export default function GeadresseerdeKaart({
     >
       <header className="flex items-start justify-between gap-2 flex-wrap">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground break-words">{groep.naam}</p>
+          <p className="text-sm font-semibold text-foreground break-words">{groep.naam}</p>
           {groep.verzendadres && (
             <p className="text-[11px] text-muted-foreground whitespace-pre-line break-words mt-0.5">
               {groep.verzendadres}
@@ -130,6 +168,8 @@ export default function GeadresseerdeKaart({
               onKopieer={onKopieer}
               onMarkeerVerstuurd={onMarkeerVerstuurd}
               onRegistreerRespons={onRegistreerRespons}
+              onVerwijderBrief={handleVerwijderBrief}
+              onVerwijderRespons={handleVerwijderRespons}
             />
           );
         })}
@@ -154,11 +194,13 @@ export default function GeadresseerdeKaart({
                 actief={actief}
                 oudereConcepten={s.oudereConcepten}
                 onOpen={onOpenBrief}
-                onNieuw={() => onNieuweBrief(groep, stap as any)}
+                onNieuw={() => onNieuweBrief(groep, stap as EmailStap)}
                 onDownloadPdf={onDownloadPdf}
                 onKopieer={onKopieer}
                 onMarkeerVerstuurd={onMarkeerVerstuurd}
                 onRegistreerRespons={onRegistreerRespons}
+                onVerwijderBrief={handleVerwijderBrief}
+                onVerwijderRespons={handleVerwijderRespons}
               />
             );
           })}
@@ -184,8 +226,6 @@ export default function GeadresseerdeKaart({
   );
 }
 
-// ---------- Stap-rij ----------
-
 interface StapRijProps {
   stap: string;
   label: string;
@@ -199,208 +239,192 @@ interface StapRijProps {
   onKopieer: (b: OffMarketBrief) => void;
   onMarkeerVerstuurd: (b: OffMarketBrief) => void;
   onRegistreerRespons?: (b: OffMarketBrief, initialStatus?: Responsstatus) => void;
+  onVerwijderBrief: (b: OffMarketBrief) => void;
+  onVerwijderRespons: (b: OffMarketBrief) => void;
 }
 
 function StapRij({
-  stap, label, isEmail = false, status, actief, oudereConcepten,
-  onOpen, onNieuw, onDownloadPdf, onKopieer, onMarkeerVerstuurd, onRegistreerRespons,
+  stap,
+  label,
+  isEmail = false,
+  status,
+  actief,
+  oudereConcepten,
+  onOpen,
+  onNieuw,
+  onDownloadPdf,
+  onKopieer,
+  onMarkeerVerstuurd,
+  onRegistreerRespons,
+  onVerwijderBrief,
+  onVerwijderRespons,
 }: StapRijProps) {
-  const [open, setOpen] = useState(false);
+  const [oudeConceptenOpen, setOudeConceptenOpen] = useState(false);
+  const [meerOpen, setMeerOpen] = useState(false);
 
-  const rijOpen = (e: React.MouseEvent | React.KeyboardEvent) => {
-    if (!actief) return;
-    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    onOpen(actief);
-  };
-
-  const stop = (fn: () => void) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    fn();
-  };
-
-  const datum =
-    status === 'verstuurd' && actief?.verzonden_op
-      ? `Verzonden ${formatDateNL(actief.verzonden_op)}`
-      : actief
-        ? `Aangemaakt ${formatDateNL(actief.created_at)}`
-        : '';
+  const datum = status === 'verstuurd' && actief?.verzonden_op
+    ? `Verzonden ${formatDateNL(actief.verzonden_op)}`
+    : actief
+      ? `Aangemaakt ${formatDateNL(actief.created_at)}`
+      : '';
 
   const verzendstatus = (actief?.verzendstatus ?? null) as Verzendstatus | null;
   const responsstatus = (actief?.responsstatus ?? null) as Responsstatus | null;
 
   return (
-    <li>
-      <div
-        role={actief ? 'button' : undefined}
-        tabIndex={actief ? 0 : -1}
-        data-testid={`stap-rij-${stap}`}
-        data-status={status}
-        onClick={actief ? rijOpen : undefined}
-        onKeyDown={actief ? rijOpen : undefined}
-        className={[
-          'flex items-center justify-between gap-2 px-3 py-2.5',
-          actief
-            ? 'cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/60'
-            : 'cursor-default',
-        ].join(' ')}
-      >
-        <div className="min-w-0 flex items-center gap-2 flex-wrap">
-          {status === 'verstuurd'
-            ? <MailCheck className="h-3.5 w-3.5 text-success shrink-0" />
-            : status === 'concept'
-              ? <FileEdit className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              : <Mail className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />}
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          {isEmail && (
-            <span
-              data-testid={`stap-rij-kanaal-${stap}`}
-              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 bg-accent/15 text-accent-foreground"
-            >
-              <Inbox className="h-3 w-3" /> E-mail
+    <li data-testid={`stap-rij-${stap}`} data-status={status} className="px-3 py-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            {status === 'verstuurd'
+              ? <MailCheck className="h-4 w-4 text-success shrink-0" />
+              : status === 'concept'
+                ? <FileEdit className="h-4 w-4 text-muted-foreground shrink-0" />
+                : <Mail className="h-4 w-4 text-muted-foreground/70 shrink-0" />}
+            <span className="text-sm font-semibold text-foreground">{label}</span>
+            {isEmail && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 bg-accent/15 text-accent-foreground">
+                <Inbox className="h-3 w-3" /> E-mail
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClass(status)}`}>
+              {badgeLabel(status)}
             </span>
-          )}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClass(status)}`}>
-            {badgeLabel(status)}
-          </span>
-          {verzendstatus && verzendstatus !== 'concept' && (
-            <span
-              data-testid={`verzendstatus-${stap}`}
-              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorVerzendstatus(verzendstatus)}`}
-            >
-              {VERZENDSTATUS_LABEL[verzendstatus]}
-            </span>
-          )}
-          {responsstatus && (
-            <span
-              data-testid={`responsstatus-${stap}`}
-              className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorRespons(responsstatus)}`}
-            >
-              {RESPONS_LABEL[responsstatus]}
-            </span>
-          )}
-          {datum && <span className="text-[11px] text-muted-foreground tabular-nums hidden sm:inline">{datum}</span>}
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          {actief && status === 'concept' && (
-            <>
-              <ActieKnop
-                title={isEmail ? 'Markeer verzonden' : 'Markeer als verstuurd'}
-                onClick={stop(() => onMarkeerVerstuurd(actief))}
+            {verzendstatus && verzendstatus !== 'concept' && (
+              <span
+                data-testid={`verzendstatus-${stap}`}
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorVerzendstatus(verzendstatus)}`}
               >
-                <Send className="h-3.5 w-3.5" />
-              </ActieKnop>
-              {!isEmail && (
-                <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
-                  <FileDown className="h-3.5 w-3.5" />
-                </ActieKnop>
-              )}
-              <ActieKnop
-                title={isEmail ? 'Kopieer e-mailtekst' : 'Kopieer brief'}
-                onClick={stop(() => onKopieer(actief))}
+                {VERZENDSTATUS_LABEL[verzendstatus]}
+              </span>
+            )}
+            {responsstatus && (
+              <span
+                data-testid={`responsstatus-${stap}`}
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorRespons(responsstatus)}`}
               >
-                <Copy className="h-3.5 w-3.5" />
-              </ActieKnop>
-            </>
-          )}
-          {actief && status === 'verstuurd' && (
-            <>
-              {onRegistreerRespons && (
-                <>
-                  <ActieKnop
-                    title="Reactie registreren"
-                    onClick={stop(() => onRegistreerRespons(actief, 'reactie_ontvangen'))}
-                    data-testid={`respons-knop-${stap}`}
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                  </ActieKnop>
-                  {!isEmail && (
-                    <ActieKnop
-                      title="Retour post"
-                      onClick={stop(() => onRegistreerRespons(actief, 'retour_post'))}
-                      data-testid={`retour-knop-${stap}`}
-                    >
-                      <Undo2 className="h-3.5 w-3.5" />
-                    </ActieKnop>
-                  )}
-                  <ActieKnop
-                    title="Geen reactie"
-                    onClick={stop(() => onRegistreerRespons(actief, 'geen_reactie'))}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </ActieKnop>
-                  <ActieKnop
-                    title="Later opnieuw benaderen"
-                    onClick={stop(() => onRegistreerRespons(actief, 'later_opnieuw_benaderen'))}
-                    data-testid={`later-knop-${stap}`}
-                  >
-                    <Undo2 className="h-3.5 w-3.5 rotate-180" />
-                  </ActieKnop>
-                </>
-              )}
-              {!isEmail && (
-                <ActieKnop title="Download PDF" onClick={stop(() => onDownloadPdf(actief))}>
-                  <FileDown className="h-3.5 w-3.5" />
-                </ActieKnop>
-              )}
-              <ActieKnop
-                title={isEmail ? 'Kopieer e-mailtekst' : 'Kopieer brief'}
-                onClick={stop(() => onKopieer(actief))}
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </ActieKnop>
-            </>
-          )}
-          {!actief && (
-            <ActieKnop title={`${label} voorbereiden`} onClick={stop(onNieuw)}>
-              <Plus className="h-3.5 w-3.5" />
-            </ActieKnop>
-          )}
-          {status === 'verstuurd' && (
-            <ActieKnop title="Nieuwe opvolgbrief voor deze geadresseerde" onClick={stop(onNieuw)}>
-              <Plus className="h-3.5 w-3.5" />
-            </ActieKnop>
-          )}
+                {RESPONS_LABEL[responsstatus]}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {actief && (actief.postdatum || actief.opvolgdatum) && (
-        <div className="px-3 pb-2 -mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
-          {actief.postdatum && <span>Postdatum {formatDateNL(actief.postdatum)}</span>}
-          {actief.opvolgdatum && <span>Opvolging {formatDateNL(actief.opvolgdatum)}</span>}
-          {actief.gekoppelde_taak_id && (
-            <span className="text-[10px] italic opacity-70">taak gekoppeld</span>
+      {actief && (datum || actief.postdatum || actief.opvolgdatum) && (
+        <div className="text-[11px] leading-5 text-muted-foreground tabular-nums">
+          {datum && <div>{datum}</div>}
+          {actief.postdatum && <div>Postdatum {formatDateNL(actief.postdatum)}</div>}
+          {actief.opvolgdatum && (
+            <div>
+              Opvolging {formatDateNL(actief.opvolgdatum)}
+              {actief.gekoppelde_taak_id && <span className="ml-2 italic opacity-70">taak gekoppeld</span>}
+            </div>
           )}
         </div>
       )}
 
-      {actief && datum && (
-        <div className="sm:hidden px-3 pb-2 -mt-1 text-[11px] text-muted-foreground tabular-nums">
-          {datum}
+      <div className="flex items-center gap-2 flex-wrap">
+        {!actief && (
+          <DuidelijkeActie onClick={onNieuw} icon={<Plus className="h-3.5 w-3.5" />}>
+            Start {label.toLowerCase()}
+          </DuidelijkeActie>
+        )}
+
+        {actief && status === 'concept' && (
+          <>
+            <DuidelijkeActie onClick={() => onOpen(actief)} icon={<Pencil className="h-3.5 w-3.5" />}>
+              Openen
+            </DuidelijkeActie>
+            <DuidelijkeActie onClick={() => onMarkeerVerstuurd(actief)} icon={<Send className="h-3.5 w-3.5" />} accent>
+              Versturen
+            </DuidelijkeActie>
+            <DuidelijkeActie onClick={() => setMeerOpen((v) => !v)} icon={<MoreHorizontal className="h-3.5 w-3.5" />}>
+              Meer
+            </DuidelijkeActie>
+          </>
+        )}
+
+        {actief && status === 'verstuurd' && (
+          <>
+            {onRegistreerRespons && (
+              <DuidelijkeActie
+                onClick={() => onRegistreerRespons(actief, responsstatus ?? 'reactie_ontvangen')}
+                icon={<MessageSquare className="h-3.5 w-3.5" />}
+                accent={!responsstatus}
+                data-testid={`respons-knop-${stap}`}
+              >
+                {responsstatus ? 'Reactie aanpassen' : 'Reactie registreren'}
+              </DuidelijkeActie>
+            )}
+            <DuidelijkeActie onClick={() => setMeerOpen((v) => !v)} icon={<MoreHorizontal className="h-3.5 w-3.5" />}>
+              Meer
+            </DuidelijkeActie>
+          </>
+        )}
+      </div>
+
+      {actief && meerOpen && (
+        <div className="rounded-md border border-border/70 bg-muted/20 p-2.5 flex flex-wrap gap-2" data-testid={`brief-meer-acties-${stap}`}>
+          <DuidelijkeActie onClick={() => onOpen(actief)} icon={<Pencil className="h-3.5 w-3.5" />} compact>
+            Brief openen
+          </DuidelijkeActie>
+          {!isEmail && (
+            <DuidelijkeActie onClick={() => onDownloadPdf(actief)} icon={<FileDown className="h-3.5 w-3.5" />} compact>
+              PDF
+            </DuidelijkeActie>
+          )}
+          <DuidelijkeActie onClick={() => onKopieer(actief)} icon={<Copy className="h-3.5 w-3.5" />} compact>
+            Kopiëren
+          </DuidelijkeActie>
+          {status === 'verstuurd' && (
+            <DuidelijkeActie onClick={onNieuw} icon={<Plus className="h-3.5 w-3.5" />} compact>
+              Nieuwe opvolgbrief
+            </DuidelijkeActie>
+          )}
+          {responsstatus && (
+            <DuidelijkeActie
+              onClick={() => onVerwijderRespons(actief)}
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+              compact
+              destructive
+              data-testid={`respons-verwijderen-${stap}`}
+            >
+              Reactie verwijderen
+            </DuidelijkeActie>
+          )}
+          <DuidelijkeActie
+            onClick={() => onVerwijderBrief(actief)}
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            compact
+            destructive
+            data-testid={`brief-verwijderen-${stap}`}
+          >
+            {status === 'verstuurd' ? 'Brief verwijderen' : 'Concept verwijderen'}
+          </DuidelijkeActie>
         </div>
       )}
 
       {oudereConcepten.length > 0 && (
-        <div className="px-3 pb-2">
+        <div>
           <button
             type="button"
             data-testid={`oudere-concepten-toggle-${stap}`}
-            onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+            onClick={() => setOudeConceptenOpen((v) => !v)}
             className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
           >
-            {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {oudeConceptenOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             {oudereConcepten.length} {oudereConcepten.length === 1 ? 'ouder concept' : 'oudere concepten'}
           </button>
-          {open && (
+          {oudeConceptenOpen && (
             <ul className="mt-1 ml-4 space-y-1">
               {oudereConcepten.map((c) => (
                 <li key={c.id}>
                   <button
                     type="button"
                     data-testid={`ouder-concept-${c.id}`}
-                    onClick={(e) => { e.stopPropagation(); onOpen(c); }}
+                    onClick={() => onOpen(c)}
                     className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                   >
                     Conceptversie van {formatDateNL(c.created_at)}
@@ -415,24 +439,37 @@ function StapRij({
   );
 }
 
-function ActieKnop({
-  title, onClick, children, ...rest
+function DuidelijkeActie({
+  onClick,
+  icon,
+  children,
+  accent = false,
+  compact = false,
+  destructive = false,
+  ...rest
 }: {
-  title: string;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
+  icon?: React.ReactNode;
   children: React.ReactNode;
+  accent?: boolean;
+  compact?: boolean;
+  destructive?: boolean;
   [k: string]: any;
 }) {
+  const kleur = destructive
+    ? 'border-destructive/35 text-destructive hover:bg-destructive/10'
+    : accent
+      ? 'border-accent/45 bg-accent/15 text-foreground hover:bg-accent/20'
+      : 'border-border bg-card/70 text-foreground hover:bg-muted/50';
   return (
     <button
       type="button"
-      title={title}
-      aria-label={title}
       onClick={onClick}
-      className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-border bg-card/80 text-muted-foreground hover:text-foreground hover:border-accent/40"
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md border font-medium transition-colors ${kleur} ${compact ? 'min-h-8 px-2.5 text-[11px]' : 'min-h-9 px-3 text-xs'}`}
       {...rest}
     >
-      {children}
+      {icon}
+      <span>{children}</span>
     </button>
   );
 }
