@@ -142,11 +142,17 @@ export default function DynamicSectionNavigator() {
   useEffect(() => {
     armedSectionTop.current = null;
     let frame = 0;
-    const container = getScrollContainer();
+    const main = document.querySelector('main');
+
     const update = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         prepareScenarioTabs();
+
+        // Resolve the active scroll owner on every update. AppLayout scrolls in <main>,
+        // but during initial async rendering <main> can temporarily appear non-scrollable.
+        // Locking the listener to window at mount made the navigator invisible afterwards.
+        const container = getScrollContainer();
         const scrollTop = getScrollTop(container);
         setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
 
@@ -201,7 +207,9 @@ export default function DynamicSectionNavigator() {
     };
 
     update();
-    container.addEventListener('scroll', update, { passive: true });
+    // Listen to both potential scroll owners. The active one is chosen dynamically in update().
+    window.addEventListener('scroll', update, { passive: true });
+    if (main instanceof HTMLElement) main.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
     document.addEventListener('focusin', update);
     document.addEventListener('focusout', update);
@@ -215,7 +223,8 @@ export default function DynamicSectionNavigator() {
 
     return () => {
       window.cancelAnimationFrame(frame);
-      container.removeEventListener('scroll', update);
+      window.removeEventListener('scroll', update);
+      if (main instanceof HTMLElement) main.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
       document.removeEventListener('focusin', update);
       document.removeEventListener('focusout', update);
