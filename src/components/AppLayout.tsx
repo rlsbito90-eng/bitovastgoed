@@ -287,7 +287,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <button
                   onClick={() => setMobileOpen(!mobileOpen)}
                   className="-mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 text-foreground hover:bg-muted"
-                  aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
+                  aria-label={mobileOpen ? "Navigatie sluiten" : "Menu openen"}
                   aria-expanded={mobileOpen}
                 >
                   {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
