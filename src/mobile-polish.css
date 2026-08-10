@@ -57,4 +57,26 @@
     flex: 0 0 auto;
     box-sizing: border-box !important;
   }
+
+  /* Dossiertabs: op mobiel altijd 3 x 2 binnen het scherm. Geen actieve
+     Kadaster-pill die rechts uit de glass-tabbar kan steken. */
+  [data-testid="signaal-mobile-tabs"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 0.25rem !important;
+  }
+
+  [data-testid="signaal-mobile-tabs"] > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0.45rem !important;
+    padding-right: 0.45rem !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
 }
