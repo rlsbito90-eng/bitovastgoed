@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { SubcategorieProvider } from "@/hooks/useSubcategorieen";
 import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
 import { AcquisitieProvider } from "@/hooks/useAcquisitie";
 import { VastgoedkansenProvider } from "@/hooks/useVastgoedkansen";
+import { queryClient } from "@/lib/queryClient";
 import AcquisitiePage from "@/pages/AcquisitiePage";
 import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
 import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
@@ -41,8 +42,6 @@ import SnellePandcheckPage from "@/pages/SnellePandcheckPage";
 import OffMarketSignaalRoutePage from "@/pages/OffMarketSignaalRoutePage";
 import OAuthConsentPage from "@/pages/OAuthConsentPage";
 import NotFound from "@/pages/NotFound";
-
-const queryClient = new QueryClient();
 
 function SafeObjectDetailRoute() {
   const { id } = useParams<{ id: string }>();
