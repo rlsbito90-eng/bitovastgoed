@@ -1,6 +1,6 @@
 // Herbruikbare BAG/PDOK adresresolver voor Kadaster-zoekadres.
 // Gratis PDOK lookup; doet NOOIT zelf een Kadasteraanvraag.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin, Search, AlertCircle, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,10 @@ function formatAanvraag(r: BagAdresResultaat): string {
   return [r.postcode ?? '', formatHuisnummerLabel(r)].filter(Boolean).join(' ');
 }
 
+function normaliseerHuisnummerLabel(v: string | null | undefined): string {
+  return (v ?? '').toUpperCase().replace(/[\s_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
 function kernMatch(r: BagAdresResultaat, straat: string, huisnummer: string, plaats: string): boolean {
   return (!straat || norm(r.straat) === norm(straat))
     && (!huisnummer || String(r.huisnummer ?? '') === huisnummer.trim())
@@ -55,9 +59,9 @@ function kernMatch(r: BagAdresResultaat, straat: string, huisnummer: string, pla
  * 5. overige toevoegingen
  * 6. kaal huisnummer
  */
-function voorkeurScore(r: BagAdresResultaat, explicietLabel: string | null | undefined): number {
-  const label = formatHuisnummerLabel(r).toUpperCase();
-  const exact = (explicietLabel ?? '').trim().toUpperCase();
+export function voorkeurScore(r: BagAdresResultaat, explicietLabel: string | null | undefined): number {
+  const label = normaliseerHuisnummerLabel(formatHuisnummerLabel(r));
+  const exact = normaliseerHuisnummerLabel(explicietLabel);
   if (exact && label === exact) return 0;
 
   const suffix = label.includes('-') ? label.slice(label.indexOf('-') + 1) : '';
@@ -102,18 +106,7 @@ export default function BagAdresLookup({
   const [resultaten, setResultaten] = useState<BagAdresResultaat[] | null>(null);
   const [gekozen, setGekozen] = useState<BagAdresResultaat | null>(null);
   const [automatisch, setAutomatisch] = useState(false);
-
-  // Cruciaal in Focusmodus: wisselen van signaal moet ALLE lokale PDOK-state resetten.
-  useEffect(() => {
-    setStraat(initieleStraat ?? '');
-    setHuisnummer(initieelHuisnummer ?? '');
-    setPlaats(initielePlaats ?? '');
-    setPostcode(initielePostcode ?? '');
-    setResultaten(null);
-    setGekozen(null);
-    setFout(null);
-    setAutomatisch(false);
-  }, [initieleStraat, initieelHuisnummer, initielePlaats, initielePostcode, voorkeursHuisnummerLabel]);
+  const resolutieSeq = useRef(0);
 
   const kanZoeken = !!straat.trim() && !!huisnummer.trim() && !!plaats.trim();
   const gesorteerd = useMemo(
@@ -130,40 +123,90 @@ export default function BagAdresLookup({
     onKies(r);
   }
 
-  async function zoeken() {
-    if (!kanZoeken || bezig) return;
-    setBezig(true); setFout(null); setResultaten(null); setGekozen(null); setAutomatisch(false);
+  async function resolveAdres(input: {
+    straat: string; huisnummer: string; plaats: string; postcode: string; auto: boolean;
+  }) {
+    if (!input.straat.trim() || !input.huisnummer.trim() || !input.plaats.trim()) return;
+    const seq = ++resolutieSeq.current;
+    setBezig(true);
+    setFout(null);
+    setResultaten(null);
+    setGekozen(null);
+    setAutomatisch(false);
     try {
-      // Straat + huisnummer + plaats zijn leidend. Een mogelijk foute oude postcode
-      // wordt bewust NIET meegestuurd en kan dus de officiële match niet blokkeren.
+      // Straat + huisnummer + plaats zijn leidend. Een mogelijke stale postcode
+      // wordt bewust NIET naar PDOK gestuurd.
       const r = await zoekBagAdressen({
-        straat: straat.trim(), huisnummer: huisnummer.trim(), plaats: plaats.trim(), postcode: null,
+        straat: input.straat.trim(),
+        huisnummer: input.huisnummer.trim(),
+        plaats: input.plaats.trim(),
+        postcode: null,
       });
+      if (seq !== resolutieSeq.current) return;
       const sorted = sorteerResultaten(r, {
-        straat, huisnummer, plaats, postcode, explicietLabel: voorkeursHuisnummerLabel,
+        straat: input.straat,
+        huisnummer: input.huisnummer,
+        plaats: input.plaats,
+        postcode: input.postcode,
+        explicietLabel: voorkeursHuisnummerLabel,
       });
       setResultaten(sorted);
       if (sorted.length === 0) {
         setFout('Geen officiële BAG-match gevonden voor straat, huisnummer en plaats.');
         return;
       }
-      const exacteKern = sorted.filter(x => kernMatch(x, straat, huisnummer, plaats));
-      if (exacteKern.length > 0) {
-        // Automatisch de beste BAG-match volgens de expliciete/H/1/A-regel.
-        kies(exacteKern[0], true);
-      }
+      const exacteKern = sorted.filter(x => kernMatch(x, input.straat, input.huisnummer, input.plaats));
+      if (exacteKern.length > 0) kies(exacteKern[0], input.auto);
     } catch (e) {
+      if (seq !== resolutieSeq.current) return;
       setFout(e instanceof Error ? e.message : 'BAG-lookup mislukt');
-    } finally { setBezig(false); }
+    } finally {
+      if (seq === resolutieSeq.current) setBezig(false);
+    }
+  }
+
+  // Cruciaal in Focusmodus: ieder nieuw signaal reset alle lokale state en
+  // wordt meteen GRATIS via PDOK gecontroleerd. De oude postcode blijft dus
+  // niet zichtbaar als straat + huisnummer + plaats al voldoende zijn.
+  useEffect(() => {
+    const volgendeStraat = initieleStraat ?? '';
+    const volgendHuisnummer = initieelHuisnummer ?? '';
+    const volgendePlaats = initielePlaats ?? '';
+    const volgendePostcode = initielePostcode ?? '';
+
+    setStraat(volgendeStraat);
+    setHuisnummer(volgendHuisnummer);
+    setPlaats(volgendePlaats);
+    setPostcode(volgendeStraat && volgendHuisnummer && volgendePlaats ? '' : volgendePostcode);
+    setResultaten(null);
+    setGekozen(null);
+    setFout(null);
+    setAutomatisch(false);
+
+    if (volgendeStraat.trim() && volgendHuisnummer.trim() && volgendePlaats.trim()) {
+      void resolveAdres({
+        straat: volgendeStraat,
+        huisnummer: volgendHuisnummer,
+        plaats: volgendePlaats,
+        postcode: volgendePostcode,
+        auto: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initieleStraat, initieelHuisnummer, initielePlaats, initielePostcode, voorkeursHuisnummerLabel]);
+
+  async function zoeken() {
+    if (!kanZoeken || bezig) return;
+    await resolveAdres({ straat, huisnummer, plaats, postcode, auto: true });
   }
 
   return (
     <div className="rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-3 min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <MapPin className="h-3.5 w-3.5" /><span>BAG-adres zoeken (PDOK)</span>
+        <MapPin className="h-3.5 w-3.5" /><span>BAG-adres controleren (PDOK)</span>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Controleert gratis het actuele signaaladres en kiest bij meerdere BAG-subadressen automatisch de voorkeursmatch.
+        Controleert gratis het actuele signaaladres. Bij meerdere BAG-subadressen kiest de CRM automatisch de voorkeursmatch; je kunt die altijd wijzigen.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 min-w-0">
@@ -180,15 +223,15 @@ export default function BagAdresLookup({
           <Input value={plaats} onChange={e => setPlaats(e.target.value)} />
         </div>
         <div className="space-y-1 sm:col-span-4 min-w-0">
-          <Label className="text-[11px] text-muted-foreground">Postcode</Label>
-          <Input value={postcode} onChange={e => setPostcode(e.target.value)} className="font-mono-data" />
+          <Label className="text-[11px] text-muted-foreground">Officiële postcode</Label>
+          <Input value={postcode} onChange={e => setPostcode(e.target.value)} placeholder={bezig ? 'Wordt via PDOK gecontroleerd…' : 'Nog niet vastgesteld'} className="font-mono-data" />
         </div>
       </div>
 
       <div className="flex justify-end">
         <Button type="button" size="sm" variant="secondary" disabled={!kanZoeken || bezig} onClick={zoeken}>
           {bezig ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-          Adres controleren
+          {bezig ? 'Controleren…' : 'Opnieuw controleren'}
         </Button>
       </div>
 
