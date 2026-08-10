@@ -12,8 +12,55 @@ interface Props {
 const KADASTER_SCROLL_KEY = 'bito:offmarket:kadaster-scroll-y';
 const KADASTER_PAGING_KEY = 'bito:offmarket:kadaster-paging';
 
+function scrollNaarKadasterOphalen() {
+  const scroll = () => {
+    const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
+    if (!kaart) return;
+    const knop = Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      (button.textContent ?? '').includes('Kadastergegevens ophalen'),
+    );
+    if (!knop) return;
+
+    // Eerst de browser zelf alle relevante scrollcontainers laten positioneren.
+    knop.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+
+    // Daarna de dichtstbijzijnde expliciete scrollcontainer corrigeren. Dit is
+    // nodig in Focus/embedded layouts waar window.scrollY niet leidend is.
+    let parent = knop.parentElement;
+    while (parent) {
+      const style = window.getComputedStyle(parent);
+      const overflowY = style.overflowY;
+      if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+        const knopRect = knop.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        const delta = knopRect.top - parentRect.top - (parent.clientHeight - knopRect.height) / 2;
+        parent.scrollTop += delta;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+  };
+
+  // De gekozen BAG-kaart en collapsible lijst veranderen nog kort van hoogte.
+  // Herpositioneer daarom door de volledige renderfase heen.
+  [0, 80, 220, 500, 900, 1400].forEach((ms) => window.setTimeout(scroll, ms));
+}
+
 export default function MobileTabbarScroller({ activeValue, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+
+  // Handmatige BAG-adreskeuze: altijd naar de betaalde Kadasteractie springen.
+  useEffect(() => {
+    const onAdresKlik = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest<HTMLButtonElement>('button');
+      if (!button) return;
+      if ((button.textContent ?? '').trim() !== 'Gebruik dit adres') return;
+      scrollNaarKadasterOphalen();
+    };
+    document.addEventListener('click', onAdresKlik, true);
+    return () => document.removeEventListener('click', onAdresKlik, true);
+  }, []);
 
   useEffect(() => {
     const paging = sessionStorage.getItem(KADASTER_PAGING_KEY) === '1';
