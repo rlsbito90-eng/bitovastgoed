@@ -4,8 +4,10 @@ import SignaalOnderzoeksacties from '@/components/offmarket/SignaalOnderzoeksact
 import SignaalGebiedsindeling from '@/components/offmarket/SignaalGebiedsindeling';
 import BagOverzichtKaart from '@/components/offmarket/bag/BagOverzichtKaart';
 import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadasterKaart';
+import { KadasterAdresPreferenceProvider } from '@/components/offmarket/kadaster/KadasterAdresPreferenceContext';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
+import { parseObjectAdres } from '@/lib/kadaster/adres';
 import {
   VERGUNNINGTYPE_LABEL,
   type OffMarketSignaal,
@@ -52,6 +54,12 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
     ? `${Math.round(Number(signaal.ai_verkoopkans) * 100)}%`
     : '—';
   const omschrijving = signaal.omschrijving?.trim() || 'Nog geen omschrijving vastgelegd.';
+  const parsedAdres = parseObjectAdres(
+    signaal.adres ?? signaal.titel ?? '',
+    signaal.postcode ?? null,
+    signaal.plaats ?? null,
+  );
+  const voorkeursHuisnummerLabel = parsedAdres.huisnummers[0]?.label ?? null;
 
   return (
     <div data-testid="focus-onderzoeken-inhoud" className="space-y-4 min-w-0 w-full overflow-x-hidden">
@@ -95,7 +103,9 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
       </details>
 
       <div id="focus-kadaster" className="scroll-mt-4 space-y-4 min-w-0">
-        <SignaalKadasterKaart key={`kadaster-${signaal.id}`} signaal={signaal} />
+        <KadasterAdresPreferenceProvider value={voorkeursHuisnummerLabel}>
+          <SignaalKadasterKaart key={`kadaster-${signaal.id}`} signaal={signaal} />
+        </KadasterAdresPreferenceProvider>
         <SignaalEigenaarsonderzoekSectie key={`eigenaar-${signaal.id}`} signaal={signaal} focusMode />
       </div>
     </div>
