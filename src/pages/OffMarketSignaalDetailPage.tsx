@@ -40,9 +40,6 @@ import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ListNavigator from '@/components/ListNavigator';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 
 import { getListNavigation, updateListLastViewedId } from '@/lib/listNavigation';
 import {
@@ -91,12 +88,14 @@ export default function OffMarketSignaalDetailPage() {
   })();
   const focusReturn = (location.state as {
     fromAcquisitieFocus?: boolean;
+    returnToAcquisitieList?: boolean;
     focusIndex?: number;
     focusScopeIds?: string[] | null;
     selectedIds?: string[] | null;
     focusTab?: string | null;
   } | null) ?? null;
   const fromAcquisitieFocus = !!focusReturn?.fromAcquisitieFocus;
+  const returnToAcquisitieList = !!focusReturn?.returnToAcquisitieList;
   const focusIndex = typeof focusReturn?.focusIndex === 'number' ? focusReturn.focusIndex : null;
   const focusScopeIds = Array.isArray(focusReturn?.focusScopeIds) ? focusReturn!.focusScopeIds : null;
   const selectedIds = Array.isArray(focusReturn?.selectedIds) ? focusReturn!.selectedIds : null;
@@ -105,6 +104,10 @@ export default function OffMarketSignaalDetailPage() {
     : initialTab;
 
   const handleBackToList = () => {
+    if (returnToAcquisitieList) {
+      navigate('/off-market');
+      return;
+    }
     if (fromAcquisitieFocus) {
       navigate('/off-market', {
         state: {
@@ -182,6 +185,7 @@ export default function OffMarketSignaalDetailPage() {
       navigate(`/off-market/${targetId}?mode=normaal&tab=${focusTab}`, {
         state: {
           fromAcquisitieFocus: true,
+          returnToAcquisitieList,
           focusScopeIds,
           selectedIds,
           focusIndex: nextIdx >= 0 ? nextIdx : 0,
