@@ -360,6 +360,7 @@ function StapRij({
                 onClick={() => onDownloadPdf(actief)}
                 icon={<FileDown className="h-3.5 w-3.5" />}
                 aria-label="Download PDF"
+                title="Download PDF"
               >
                 PDF
               </DuidelijkeActie>
@@ -387,6 +388,7 @@ function StapRij({
                 onClick={() => onDownloadPdf(actief)}
                 icon={<FileDown className="h-3.5 w-3.5" />}
                 aria-label="Download PDF"
+                title="Download PDF"
               >
                 PDF
               </DuidelijkeActie>
