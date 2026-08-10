@@ -85,14 +85,16 @@
     box-sizing: border-box !important;
   }
 
-  /* Dossiertabs: exact 3 x 2, zonder horizontale scroller of uitlopende pill. */
+  /* Dossiertabs: exact 3 x 2. De wrapper, grid én iedere Radix-trigger zijn
+     strikt begrensd; actieve glass-pill mag geen transform/min-width erven. */
   [data-testid="mobile-tabbar-scroller"],
   [data-testid="mobile-tabbar-scroller"] > div,
   [data-testid="signaal-mobile-tabs"] {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
   }
 
   [data-testid="signaal-mobile-tabs"] {
@@ -101,16 +103,25 @@
     gap: 0.25rem !important;
   }
 
-  [data-testid="signaal-mobile-tabs"] > * {
+  [data-testid="signaal-mobile-tabs"] > *,
+  [data-testid="signaal-mobile-tabs"] [role="tab"] {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0.55rem 0.35rem !important;
+    padding: 0.55rem 0.25rem !important;
+    box-sizing: border-box !important;
     justify-content: center !important;
     overflow: hidden !important;
     white-space: nowrap !important;
     line-height: 1.1 !important;
+    transform: none !important;
+    translate: none !important;
+  }
+
+  [data-testid="signaal-mobile-tabs"] [role="tab"][data-state="active"] {
+    transform: none !important;
+    max-width: 100% !important;
   }
 
   /* Compacte select-triggers: badge en chevron volledig zichtbaar. */
