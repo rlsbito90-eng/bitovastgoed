@@ -109,22 +109,6 @@ function sorteerResultaten(
   });
 }
 
-function scrollNaarKadasterActie() {
-  const scroll = () => {
-    const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
-    if (!kaart) return;
-    const anchor = kaart.querySelector<HTMLElement>('[data-testid="kadaster-ophalen-anchor"]');
-    const knop = anchor ?? Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      (b.textContent ?? '').includes('Kadastergegevens ophalen'),
-    );
-    (knop ?? kaart).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-  };
-
-  // Een adreskeuze verandert de hoogte van de resultatenlijst. Daarom na de
-  // directe render én nogmaals na de collapsible/layout-transitie positioneren.
-  [60, 260, 700].forEach((ms) => window.setTimeout(scroll, ms));
-}
-
 /**
  * Backstop voor de normale signaaldetailweergave: die leverde historisch alleen
  * het numerieke huisnummer aan BagAdresLookup. Het al gerenderde, geparste
@@ -187,7 +171,6 @@ export default function BagAdresLookup({
     setAutomatisch(auto);
     if (r.postcode) setPostcode(formatPostcodeWeergave(r.postcode));
     onKies(r);
-    if (!auto) scrollNaarKadasterActie();
   }
 
   async function resolveAdres(input: {
