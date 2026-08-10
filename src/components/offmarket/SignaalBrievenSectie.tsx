@@ -18,7 +18,9 @@ import GeadresseerdeKaart, { type EmailContactRegel }
 import BrievenSamenvattingRegel from '@/components/offmarket/brieven/BrievenSamenvatting';
 import OpschoonConceptenDialog from '@/components/offmarket/brieven/OpschoonConceptenDialog';
 import MarkeerVerstuurdDialog from '@/components/offmarket/brieven/MarkeerVerstuurdDialog';
-import RegistreerResponsDialog from '@/components/offmarket/brieven/RegistreerResponsDialog';
+import RegistreerResponsDialog, { type ResponsVervolgtaakVoorstel }
+  from '@/components/offmarket/brieven/RegistreerResponsDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   buildBriefViewModel, briefAlsPlatteTekst,
@@ -102,6 +104,7 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
   const [opvolgVoor, setOpvolgVoor] = useState<{ groep: GeadresseerdeGroep; stap: string } | null>(null);
   const [markeerBrief, setMarkeerBrief] = useState<OffMarketBrief | null>(null);
   const [responsBrief, setResponsBrief] = useState<{ brief: OffMarketBrief; initialStatus?: Responsstatus } | null>(null);
+  const [vervolgtaakVoorstel, setVervolgtaakVoorstel] = useState<ResponsVervolgtaakVoorstel | null>(null);
   const [opschoonOpen, setOpschoonOpen] = useState(false);
 
 
@@ -293,7 +296,7 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         relatieId={(signaal as any).eigenaar_relatie_id ?? null}
       />
 
-      {/* Responsregistratie V1 */}
+      {/* Responsregistratie */}
       <RegistreerResponsDialog
         open={!!responsBrief}
         onOpenChange={(v) => { if (!v) setResponsBrief(null); }}
@@ -301,6 +304,20 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         signaalId={signaal.id}
         relatieId={(signaal as any).eigenaar_relatie_id ?? null}
         initialResponsstatus={responsBrief?.initialStatus}
+        onVervolgtaakAanvragen={setVervolgtaakVoorstel}
+      />
+
+      {/* Een aangevinkte vervolgtaak wordt bewust pas hier door de gebruiker bevestigd. */}
+      <TaakFormDialog
+        open={!!vervolgtaakVoorstel}
+        onOpenChange={(v) => { if (!v) setVervolgtaakVoorstel(null); }}
+        taak={null}
+        defaultRelatieId={(signaal as any).eigenaar_relatie_id ?? undefined}
+        defaultOffMarketSignaalId={signaal.id}
+        defaultTitel={vervolgtaakVoorstel?.titel}
+        defaultType={vervolgtaakVoorstel?.type}
+        defaultPrioriteit={vervolgtaakVoorstel?.prioriteit}
+        defaultNotities={vervolgtaakVoorstel?.notities}
       />
 
       {/* Opschoon-dialoog */}
