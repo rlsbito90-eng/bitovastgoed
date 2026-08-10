@@ -53,7 +53,33 @@ function kernMatch(r: BagAdresResultaat, straat: string, huisnummer: string, pla
 }
 
 /**
- * Voorkeursvolgorde binnen de exacte BAG-resultset:
+ * Zeer conservatieve straatcorrectie. Alleen als PDOK bij exact hetzelfde
+ * huisnummer en dezelfde plaats precies één officiële straatnaam teruggeeft
+ * die de ingevoerde straat als volledig woorddeel bevat (of andersom).
+ * Voorbeeld: "Baerlestraat" -> "Van Baerlestraat".
+ */
+function uniekeStraatCorrectie(
+  raw: BagAdresResultaat[],
+  straat: string,
+  huisnummer: string,
+  plaats: string,
+): BagAdresResultaat[] {
+  const basis = norm(straat);
+  const zelfdeNummerPlaats = raw.filter((r) =>
+    String(r.huisnummer ?? '') === huisnummer.trim() && norm(r.woonplaats) === norm(plaats),
+  );
+  const kandidaten = zelfdeNummerPlaats.filter((r) => {
+    const officieel = norm(r.straat);
+    return officieel === basis
+      || officieel.endsWith(` ${basis}`)
+      || basis.endsWith(` ${officieel}`);
+  });
+  const straten = new Set(kandidaten.map((r) => norm(r.straat)).filter(Boolean));
+  return straten.size === 1 ? kandidaten : [];
+}
+
+/**
+ * Voorkeursvolgorde binnen de officiële BAG-resultset:
  * expliciete toevoeging uit signaal → H → 1 → A → overige → kaal nummer.
  */
 export function voorkeurScore(r: BagAdresResultaat, explicietLabel: string | null | undefined): number {
@@ -84,18 +110,19 @@ function sorteerResultaten(
 }
 
 function scrollNaarKadasterActie() {
-  window.setTimeout(() => {
+  const scroll = () => {
     const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
     if (!kaart) return;
-    const knop = Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+    const anchor = kaart.querySelector<HTMLElement>('[data-testid="kadaster-ophalen-anchor"]');
+    const knop = anchor ?? Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
       (b.textContent ?? '').includes('Kadastergegevens ophalen'),
     );
-    if (knop) {
-      knop.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    kaart.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, 180);
+    (knop ?? kaart).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  };
+
+  // Een adreskeuze verandert de hoogte van de resultatenlijst. Daarom na de
+  // directe render én nogmaals na de collapsible/layout-transitie positioneren.
+  [60, 260, 700].forEach((ms) => window.setTimeout(scroll, ms));
 }
 
 /**
@@ -134,6 +161,7 @@ export default function BagAdresLookup({
   const [resultaten, setResultaten] = useState<BagAdresResultaat[] | null>(null);
   const [gekozen, setGekozen] = useState<BagAdresResultaat | null>(null);
   const [automatisch, setAutomatisch] = useState(false);
+  const [straatGecorrigeerd, setStraatGecorrigeerd] = useState<string | null>(null);
   const resolutieSeq = useRef(0);
 
   const kanZoeken = !!straat.trim() && !!huisnummer.trim() && !!plaats.trim();
@@ -172,6 +200,7 @@ export default function BagAdresLookup({
     setResultaten(null);
     setGekozen(null);
     setAutomatisch(false);
+    setStraatGecorrigeerd(null);
 
     try {
       const raw = await zoekBagAdressen({
@@ -182,15 +211,27 @@ export default function BagAdresLookup({
       });
       if (seq !== resolutieSeq.current) return;
 
-      const exact = raw.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
-      const sorted = sorteerResultaten(exact, {
+      let officieel = raw.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
+      if (officieel.length === 0) {
+        const correctie = uniekeStraatCorrectie(raw, input.straat, input.huisnummer, input.plaats);
+        if (correctie.length > 0) {
+          officieel = correctie;
+          const officieleStraat = correctie[0]?.straat ?? null;
+          if (officieleStraat && norm(officieleStraat) !== norm(input.straat)) {
+            setStraat(officieleStraat);
+            setStraatGecorrigeerd(officieleStraat);
+          }
+        }
+      }
+
+      const sorted = sorteerResultaten(officieel, {
         postcode: input.postcode,
         explicietLabel: effectieveVoorkeur,
       });
       setResultaten(sorted);
 
       if (sorted.length === 0) {
-        setFout('Geen exact officieel BAG-adres gevonden voor deze straat, dit huisnummer en deze plaats.');
+        setFout('Geen betrouwbaar officieel BAG-adres gevonden voor deze straat, dit huisnummer en deze plaats.');
         return;
       }
 
@@ -221,6 +262,7 @@ export default function BagAdresLookup({
     setGekozen(null);
     setFout(null);
     setAutomatisch(false);
+    setStraatGecorrigeerd(null);
 
     if (volgendeStraat.trim() && volgendHuisnummer.trim() && volgendePlaats.trim()) {
       void resolveAdres({
@@ -245,7 +287,7 @@ export default function BagAdresLookup({
         <MapPin className="h-3.5 w-3.5" /><span>BAG-adres controleren (PDOK)</span>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Controleert gratis het actuele signaaladres. Alleen exacte BAG-adressen voor deze straat, dit huisnummer en deze plaats worden gebruikt.
+        Controleert gratis het actuele signaaladres. Alleen betrouwbare BAG-adressen voor deze straat, dit huisnummer en deze plaats worden gebruikt.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 min-w-0">
@@ -274,6 +316,12 @@ export default function BagAdresLookup({
         </Button>
       </div>
 
+      {straatGecorrigeerd && (
+        <p className="text-[11px] text-muted-foreground">
+          Officiële BAG-straatnaam gebruikt: <span className="font-medium text-foreground">{straatGecorrigeerd}</span>.
+        </p>
+      )}
+
       {fout && (
         <div className="flex gap-2 text-xs text-destructive">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" /><p>{fout}</p>
@@ -300,7 +348,7 @@ export default function BagAdresLookup({
       {gesorteerd && gesorteerd.length > 0 && (
         <div className="space-y-2 min-w-0">
           <p className="text-xs text-muted-foreground">
-            Exacte BAG-adressen ({gesorteerd.length}) — de gekozen match staat ook in deze lijst.
+            BAG-adressen ({gesorteerd.length}) — de gekozen match staat ook in deze lijst.
           </p>
           <CollapsibleList
             items={gesorteerd}
