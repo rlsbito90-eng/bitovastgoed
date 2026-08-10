@@ -59,7 +59,12 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
     signaal.postcode ?? null,
     signaal.plaats ?? null,
   );
-  const voorkeursHuisnummerLabel = parsedAdres.huisnummers[0]?.label ?? null;
+  const eersteHuisnummer = parsedAdres.huisnummers[0] ?? null;
+  // Alleen een expliciete letter/toevoeging uit het signaal mag de H → 1 → A-regel overrulen.
+  // Een kaal nummer "11" is dus GEEN expliciete voorkeur.
+  const voorkeursHuisnummerLabel = eersteHuisnummer && (eersteHuisnummer.huisletter || eersteHuisnummer.toevoeging)
+    ? eersteHuisnummer.label
+    : null;
 
   return (
     <div data-testid="focus-onderzoeken-inhoud" className="space-y-4 min-w-0 w-full overflow-x-hidden">
