@@ -5,7 +5,7 @@ const SCROLL_RESTORE_PAIRS: Array<[RegExp, RegExp]> = [
   [/^\/off-market$/, /^\/off-market\/[^/]+$/],
 ];
 
-const KADASTER_PAGING_KEY = "bito:offmarket:kadaster-paging-v2";
+const KADASTER_PAGING_KEY = "bito:offmarket:kadaster-paging-v3";
 
 type KadasterPagingState = {
   relativeTop: number;
@@ -24,29 +24,40 @@ function getMain(): HTMLElement | null {
   return document.querySelector<HTMLElement>("main");
 }
 
+function isVisible(el: HTMLElement): boolean {
+  return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+}
+
+function getVisibleTabsRoot(): HTMLElement | null {
+  const roots = Array.from(document.querySelectorAll<HTMLElement>(
+    '[data-testid="signaal-mobile-tabs"], [data-testid="signaal-desktop-tabs"]',
+  ));
+  return roots.find(isVisible) ?? null;
+}
+
 function isKadasterTabActief(): boolean {
-  const tabs = document.querySelector<HTMLElement>('[data-testid="signaal-mobile-tabs"]');
-  if (!tabs) return false;
-  return Array.from(tabs.querySelectorAll<HTMLElement>('[data-state="active"]')).some((el) =>
+  const root = getVisibleTabsRoot();
+  if (!root) return false;
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-state="active"]')).some((el) =>
     (el.textContent ?? "").toLowerCase().includes("kadaster"),
   );
 }
 
-function findKadasterTabTrigger(): HTMLElement | null {
-  const tabs = document.querySelector<HTMLElement>('[data-testid="signaal-mobile-tabs"]');
-  if (!tabs) return null;
-  return Array.from(tabs.querySelectorAll<HTMLElement>("button")).find((el) =>
-    (el.textContent ?? "").trim().toLowerCase() === "kadaster",
+function findVisibleKadasterTabTrigger(): HTMLElement | null {
+  const root = getVisibleTabsRoot();
+  if (!root) return null;
+  return Array.from(root.querySelectorAll<HTMLElement>("button")).find((el) =>
+    (el.textContent ?? "").trim().toLowerCase().includes("kadaster"),
   ) ?? null;
 }
 
-function scrollMainNaarElement(el: HTMLElement, blockOffset = 20) {
+function scrollMainNaarElement(el: HTMLElement, blockOffset = 24, behavior: ScrollBehavior = "auto") {
   const main = getMain();
   if (!main) return;
   const mainRect = main.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
   const top = Math.max(0, main.scrollTop + elRect.top - mainRect.top - blockOffset);
-  main.scrollTo({ top, left: 0, behavior: "auto" });
+  main.scrollTo({ top, left: 0, behavior });
 }
 
 function leesPagingState(): KadasterPagingState | null {
@@ -54,7 +65,7 @@ function leesPagingState(): KadasterPagingState | null {
     const raw = sessionStorage.getItem(KADASTER_PAGING_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as KadasterPagingState;
-    if (!Number.isFinite(parsed.relativeTop) || Date.now() - parsed.createdAt > 10_000) {
+    if (!Number.isFinite(parsed.relativeTop) || Date.now() - parsed.createdAt > 60_000) {
       sessionStorage.removeItem(KADASTER_PAGING_KEY);
       return null;
     }
@@ -69,9 +80,11 @@ function bewaarKadasterPositie() {
   const main = getMain();
   const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
   if (!main || !kaart) return;
+
   const mainRect = main.getBoundingClientRect();
   const kaartRect = kaart.getBoundingClientRect();
   const kaartTopInMain = main.scrollTop + kaartRect.top - mainRect.top;
+
   const state: KadasterPagingState = {
     relativeTop: main.scrollTop - kaartTopInMain,
     createdAt: Date.now(),
@@ -85,23 +98,37 @@ function herstelKadasterPositie() {
   const main = getMain();
   if (!main) return;
 
-  let stopped = false;
-  let frame = 0;
-  const stop = () => { stopped = true; };
-  main.addEventListener("touchstart", stop, { once: true, passive: true });
-  main.addEventListener("wheel", stop, { once: true, passive: true });
+  let cancelled = false;
+  let stableFrames = 0;
+  let observer: MutationObserver | null = null;
+  let raf = 0;
+
+  const cleanup = () => {
+    cancelled = true;
+    if (raf) cancelAnimationFrame(raf);
+    observer?.disconnect();
+    main.removeEventListener("touchstart", cancelByUser);
+    main.removeEventListener("wheel", cancelByUser);
+  };
+
+  const finish = () => {
+    sessionStorage.removeItem(KADASTER_PAGING_KEY);
+    cleanup();
+  };
+
+  const cancelByUser = () => finish();
+  main.addEventListener("touchstart", cancelByUser, { once: true, passive: true });
+  main.addEventListener("wheel", cancelByUser, { once: true, passive: true });
 
   const restore = () => {
-    if (stopped || frame++ > 45) {
-      sessionStorage.removeItem(KADASTER_PAGING_KEY);
-      return;
-    }
+    if (cancelled) return;
 
     let kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
     if (!kaart) {
-      const trigger = findKadasterTabTrigger();
+      const trigger = findVisibleKadasterTabTrigger();
       if (trigger && trigger.getAttribute("data-state") !== "active") trigger.click();
-      requestAnimationFrame(restore);
+      stableFrames = 0;
+      raf = requestAnimationFrame(restore);
       return;
     }
 
@@ -109,38 +136,75 @@ function herstelKadasterPositie() {
     const kaartRect = kaart.getBoundingClientRect();
     const kaartTopInMain = main.scrollTop + kaartRect.top - mainRect.top;
     const desired = Math.max(0, kaartTopInMain + state.relativeTop);
-    if (Math.abs(main.scrollTop - desired) > 2) {
+    const delta = Math.abs(main.scrollTop - desired);
+
+    if (delta > 2) {
       main.scrollTo({ top: desired, left: 0, behavior: "auto" });
+      stableFrames = 0;
+    } else {
+      stableFrames += 1;
     }
 
-    // Blijf kort stabiliseren terwijl async kaarten boven/onder renderen.
-    if (frame < 24) requestAnimationFrame(restore);
-    else sessionStorage.removeItem(KADASTER_PAGING_KEY);
+    // Pas opruimen nadat de positie meerdere opeenvolgende frames stabiel is.
+    // Geen vaste frame-timeout: langzamere signaallading mag de intentie niet verliezen.
+    if (stableFrames >= 4) {
+      finish();
+      return;
+    }
+
+    raf = requestAnimationFrame(restore);
   };
 
-  requestAnimationFrame(restore);
+  // Als React de relevante subtree vervangt, opnieuw proberen zonder de intentie kwijt te raken.
+  observer = new MutationObserver(() => {
+    stableFrames = 0;
+    if (!cancelled && !raf) raf = requestAnimationFrame(restore);
+  });
+  observer.observe(main, { childList: true, subtree: true });
+
+  raf = requestAnimationFrame(restore);
 }
 
-function patchKadasterAdresScroll() {
-  const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
-  if (!kaart) return;
-  const knop = Array.from(kaart.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
-    (b.textContent ?? "").includes("Kadastergegevens ophalen"),
-  );
-  if (!knop) return;
+let kadasterAdresScrollTot = 0;
+let prototypeGepatcht = false;
 
-  // BagAdresLookup roept na een handmatige keuze meerdere keren scrollIntoView
-  // aan. Op iOS kan dat zowel window als <main> bewegen. Voor alleen deze knop
-  // sturen we die aanroep daarom naar de echte app-scrollcontainer.
-  knop.scrollIntoView = (() => {
-    scrollMainNaarElement(knop, 24);
-  }) as typeof knop.scrollIntoView;
+function activeerKadasterAdresScroll() {
+  kadasterAdresScrollTot = Date.now() + 1_500;
+}
+
+function installeerKadasterScrollIntoViewGuard() {
+  if (prototypeGepatcht || typeof HTMLElement === "undefined") return () => {};
+  prototypeGepatcht = true;
+
+  const origineel = HTMLElement.prototype.scrollIntoView;
+  HTMLElement.prototype.scrollIntoView = function scrollIntoViewGuard(arg?: boolean | ScrollIntoViewOptions) {
+    const el = this as HTMLElement;
+    const kaart = el.closest?.('[data-testid="signaal-kadaster-kaart"]');
+    if (kaart && Date.now() <= kadasterAdresScrollTot) {
+      const doel = (el.textContent ?? "").includes("Kadastergegevens ophalen")
+        ? el
+        : kaart.querySelector<HTMLElement>('[data-testid="kadaster-ophalen-anchor"]')
+          ?? Array.from(kaart.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
+            (b.textContent ?? "").includes("Kadastergegevens ophalen"),
+          )
+          ?? el;
+      scrollMainNaarElement(doel as HTMLElement, 88, "smooth");
+      return;
+    }
+    return origineel.call(this, arg as never);
+  };
+
+  return () => {
+    HTMLElement.prototype.scrollIntoView = origineel;
+    prototypeGepatcht = false;
+  };
 }
 
 export default function ScrollToTop() {
-  const location = useLocation();
-  const { pathname, search, hash } = location;
+  const { pathname, search, hash } = useLocation();
   const previous = useRef<{ pathname: string; search: string; hash: string } | null>(null);
+
+  useEffect(() => installeerKadasterScrollIntoViewGuard(), []);
 
   useEffect(() => {
     const onClickCapture = (event: MouseEvent) => {
@@ -148,13 +212,17 @@ export default function ScrollToTop() {
       if (!button) return;
 
       const aria = button.getAttribute("aria-label") ?? "";
-      if ((aria === "Vorige signaal" || aria === "Volgende signaal") && isKadasterTabActief()) {
+      const isPaging = aria === "Vorige signaal" || aria === "Volgende signaal"
+        || (button.textContent ?? "").trim() === "Vorige"
+        || (button.textContent ?? "").trim().startsWith("Volgende");
+
+      if (isPaging && isKadasterTabActief()) {
         bewaarKadasterPositie();
         return;
       }
 
       if ((button.textContent ?? "").trim().startsWith("Gebruik dit adres")) {
-        patchKadasterAdresScroll();
+        activeerKadasterAdresScroll();
       }
     };
 
@@ -168,17 +236,12 @@ export default function ScrollToTop() {
 
     const paging = leesPagingState();
     if (paging && /^\/off-market\/[^/]+$/.test(pathname)) {
-      // Deze routewissel heeft een expliciete Kadaster-scrollintentie. Laat de
-      // globale top-reset volledig met rust en herstel relatief aan de kaart.
       herstelKadasterPositie();
       return;
     }
 
-    // Tab- en quickscanselectie binnen dezelfde objectroute behouden hun positie.
     if (prior && prior.pathname === pathname) return;
     if (isOptOut(prior?.pathname ?? null, pathname)) return;
-
-    // Een deep link regelt zijn eigen gerichte scroll nadat de inhoud is gemount.
     if (hash) return;
 
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
