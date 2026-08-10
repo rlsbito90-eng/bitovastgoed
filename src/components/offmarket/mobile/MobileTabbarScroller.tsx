@@ -1,40 +1,19 @@
 // Mobiele tabbar-wrapper voor Off-Market signaaldetail.
-// Voegt een subtiele edge-fade en automatische "actieve tab in beeld"-scroll toe
-// rond een bestaande TabsList. Behoudt de bestaande .glass-tabbar/.glass-tab-pill
-// styling — alleen presentatie, geen tabsstate-wijziging.
-import { useEffect, useRef } from 'react';
+// De mobiele tabbar is bewust NIET horizontaal scrollbaar: zes tabs staan
+// altijd als een vaste 3x2 indeling binnen de beschikbare breedte.
 
 interface Props {
   activeValue: string;
   children: React.ReactNode;
 }
 
-export default function MobileTabbarScroller({ activeValue, children }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const trigger = root.querySelector<HTMLElement>(`[role="tab"][data-state="active"]`);
-    if (trigger && typeof trigger.scrollIntoView === 'function') {
-      // 'nearest' inline scroll houdt de actieve tab in beeld zonder hard te springen.
-      trigger.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
-    }
-  }, [activeValue]);
-
+export default function MobileTabbarScroller({ activeValue: _activeValue, children }: Props) {
   return (
     <div
-      ref={ref}
       data-testid="mobile-tabbar-scroller"
-      className="relative -mx-1"
-      style={{
-        WebkitMaskImage:
-          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
-        maskImage:
-          'linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)',
-      }}
+      className="relative w-full min-w-0 max-w-full overflow-hidden"
     >
-      <div className="overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="w-full min-w-0 max-w-full overflow-hidden">
         {children}
       </div>
     </div>
