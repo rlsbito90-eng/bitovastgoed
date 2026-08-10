@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ListNavigationInfo } from '@/lib/listNavigation';
@@ -12,13 +12,20 @@ interface Props {
 /**
  * Herbruikbare Vorige/Volgende navigatie voor detailpagina's.
  * Werkt op basis van een eerder opgeslagen lijst-context (zie listNavigation.ts).
+ * Eventuele CRM return-context blijft behouden bij wisselen binnen dezelfde lijst.
  */
 export default function ListNavigator({ info, buildHref, itemLabel = 'item' }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { prevId, nextId, index, total } = info;
 
   const prevDisabled = !prevId;
   const nextDisabled = !nextId;
+
+  const navigeer = (id: string | null) => {
+    if (!id) return;
+    navigate(buildHref(id), { state: location.state });
+  };
 
   const baseBtn =
     'inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md transition-colors text-foreground';
@@ -32,7 +39,7 @@ export default function ListNavigator({ info, buildHref, itemLabel = 'item' }: P
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => prevId && navigate(buildHref(prevId))}
+              onClick={() => navigeer(prevId)}
               disabled={prevDisabled}
               className={`${baseBtn} ${prevDisabled ? disabled : enabled}`}
               aria-label="Vorige"
@@ -55,7 +62,7 @@ export default function ListNavigator({ info, buildHref, itemLabel = 'item' }: P
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => nextId && navigate(buildHref(nextId))}
+              onClick={() => navigeer(nextId)}
               disabled={nextDisabled}
               className={`${baseBtn} ${nextDisabled ? disabled : enabled}`}
               aria-label="Volgende"
