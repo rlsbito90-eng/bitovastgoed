@@ -1,7 +1,5 @@
 @media (max-width: 640px) {
-  /* Focusmodus is bewust full-screen en inhoudsonafhankelijk. Gebruik 100%
-     i.p.v. 100vw zodat iOS visual/layout viewport verschillen geen breedtesprong
-     veroorzaken bij wisselen van signaal. */
+  /* Focusmodus is full-screen en mag nooit inhoudsafhankelijk verspringen. */
   [role="dialog"][data-testid="focus-modus"] {
     position: fixed !important;
     inset: 0 !important;
@@ -20,26 +18,55 @@
     box-sizing: border-box !important;
     overflow-x: hidden !important;
     overflow-y: hidden !important;
-    padding-bottom: 0 !important;
+    padding: 0 !important;
     border-radius: 0 !important;
     animation: none !important;
   }
 
+  /* De focus-header is een normale flexrij boven de scrollbody; geen overlay. */
   [data-testid="focus-modus"] > div:first-of-type {
+    position: relative !important;
+    z-index: 20 !important;
+    flex: 0 0 auto !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    padding: 0.6rem 0.9rem !important;
+    min-height: 96px !important;
+    padding: calc(env(safe-area-inset-top) + 0.75rem) 4.25rem 0.75rem 1rem !important;
     box-sizing: border-box !important;
+    background: hsl(var(--background)) !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  /* Radix sluitknop mag door generieke mobiele button-CSS nooit uitrekken. */
+  [data-testid="focus-modus"] > button:last-child {
+    position: absolute !important;
+    z-index: 40 !important;
+    top: calc(env(safe-area-inset-top) + 0.65rem) !important;
+    right: 0.75rem !important;
+    left: auto !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 9999px !important;
   }
 
   [data-testid="focus-modus"] [data-testid="focus-body"] {
+    position: relative !important;
+    z-index: 1 !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden !important;
+    overflow-y: auto !important;
     box-sizing: border-box !important;
   }
 
@@ -58,14 +85,19 @@
     box-sizing: border-box !important;
   }
 
-  /* Dossiertabs: op mobiel altijd 3 x 2 binnen het scherm. Geen actieve
-     Kadaster-pill die rechts uit de glass-tabbar kan steken. */
+  /* Dossiertabs: exact 3 x 2, zonder horizontale scroller of uitlopende pill. */
+  [data-testid="mobile-tabbar-scroller"],
+  [data-testid="mobile-tabbar-scroller"] > div,
   [data-testid="signaal-mobile-tabs"] {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  [data-testid="signaal-mobile-tabs"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 0.25rem !important;
   }
 
@@ -74,9 +106,31 @@
     min-width: 0 !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding-left: 0.45rem !important;
-    padding-right: 0.45rem !important;
+    padding: 0.55rem 0.35rem !important;
     justify-content: center !important;
     overflow: hidden !important;
+    white-space: nowrap !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Compacte select-triggers: badge en chevron volledig zichtbaar. */
+  [data-testid="status-wijzig-compact"],
+  [data-testid="prioriteit-wijzig-dropdown"],
+  [data-testid="eigenaarstatus-wijzig-dropdown"] {
+    min-height: 40px !important;
+    height: 40px !important;
+    overflow: visible !important;
+    align-items: center !important;
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+  }
+
+  [data-testid="status-wijzig-compact"] > span,
+  [data-testid="prioriteit-wijzig-dropdown"] > span,
+  [data-testid="eigenaarstatus-wijzig-dropdown"] > span {
+    overflow: visible !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    line-height: 1 !important;
   }
 }
