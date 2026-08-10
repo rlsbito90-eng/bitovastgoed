@@ -14,7 +14,7 @@ interface Props {
   initieelHuisnummer?: string | null;
   initielePlaats?: string | null;
   initielePostcode?: string | null;
-  /** Volledig label uit het signaal, bv. 174-2. Exacte toevoeging heeft altijd voorrang. */
+  /** Alleen een ECHTE toevoeging uit het signaal, bv. 174-2. */
   voorkeursHuisnummerLabel?: string | null;
   onKies: (r: BagAdresResultaat) => void;
 }
@@ -52,8 +52,8 @@ function kernMatch(r: BagAdresResultaat, straat: string, huisnummer: string, pla
 }
 
 /**
- * Zakelijke voorkeursregel voor een BAG-hoofdadres bij meerdere subadressen:
- * 1. exacte toevoeging uit het signaal (bv. 174-2)
+ * Voorkeursregel bij meerdere ECHTE BAG-subadressen van hetzelfde adres:
+ * 1. expliciete toevoeging uit het signaal (bv. 174-2)
  * 2. H
  * 3. 1
  * 4. A
@@ -78,14 +78,10 @@ function sorteerResultaten(
   input: { straat: string; huisnummer: string; plaats: string; postcode: string; explicietLabel?: string | null },
 ): BagAdresResultaat[] {
   return [...resultaten].sort((a, b) => {
-    const aKern = kernMatch(a, input.straat, input.huisnummer, input.plaats) ? 0 : 1;
-    const bKern = kernMatch(b, input.straat, input.huisnummer, input.plaats) ? 0 : 1;
-    if (aKern !== bKern) return aKern - bKern;
-
     const pref = voorkeurScore(a, input.explicietLabel) - voorkeurScore(b, input.explicietLabel);
     if (pref !== 0) return pref;
 
-    // Opgeslagen postcode is alleen tie-breaker; PDOK-adres blijft leidend.
+    // Opgeslagen postcode is uitsluitend een tie-breaker; PDOK is leidend.
     const pc = pcCompact(input.postcode);
     const aPc = pc && pcCompact(a.postcode) === pc ? 0 : 1;
     const bPc = pc && pcCompact(b.postcode) === pc ? 0 : 1;
@@ -121,10 +117,21 @@ export default function BagAdresLookup({
   );
 
   function kies(r: BagAdresResultaat, auto = false) {
+    // Veiligheidsgrens: alleen een object dat daadwerkelijk door de huidige
+    // PDOK-resultset is teruggegeven mag gekozen worden.
+    if (resultaten && !resultaten.some((x) => x.id === r.id)) return;
+
     setGekozen(r);
     setAutomatisch(auto);
     if (r.postcode) setPostcode(formatPostcodeWeergave(r.postcode));
     onKies(r);
+
+    // Handmatige correctie: meteen door naar de echte Kadasteractie.
+    if (!auto) {
+      window.setTimeout(() => {
+        document.getElementById('kadaster-ophalen')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+    }
   }
 
   async function resolveAdres(input: {
@@ -138,8 +145,6 @@ export default function BagAdresLookup({
     setGekozen(null);
     setAutomatisch(false);
     try {
-      // Straat + huisnummer + plaats zijn leidend. Een mogelijke stale postcode
-      // wordt bewust NIET naar PDOK gestuurd.
       const r = await zoekBagAdressen({
         straat: input.straat.trim(),
         huisnummer: input.huisnummer.trim(),
@@ -147,7 +152,11 @@ export default function BagAdresLookup({
         postcode: null,
       });
       if (seq !== resolutieSeq.current) return;
-      const sorted = sorteerResultaten(r, {
+
+      // PDOK free-search kan ook gelijknamige straten/plaatsen elders teruggeven.
+      // Voor Kadaster tonen en kiezen we UITSLUITEND exacte straat+nummer+plaats-matches.
+      const exacteKern = r.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
+      const sorted = sorteerResultaten(exacteKern, {
         straat: input.straat,
         huisnummer: input.huisnummer,
         plaats: input.plaats,
@@ -155,12 +164,16 @@ export default function BagAdresLookup({
         explicietLabel: effectieveVoorkeur,
       });
       setResultaten(sorted);
+
       if (sorted.length === 0) {
-        setFout('Geen officiële BAG-match gevonden voor straat, huisnummer en plaats.');
+        setFout('Geen exact officieel BAG-adres gevonden voor deze straat, dit huisnummer en deze plaats.');
         return;
       }
-      const exacteKern = sorted.filter(x => kernMatch(x, input.straat, input.huisnummer, input.plaats));
-      if (exacteKern.length > 0) kies(exacteKern[0], input.auto);
+      // De automatische keuze is altijd letterlijk één van de getoonde PDOK-resultaten.
+      setGekozen(sorted[0]);
+      setAutomatisch(input.auto);
+      if (sorted[0].postcode) setPostcode(formatPostcodeWeergave(sorted[0].postcode));
+      onKies(sorted[0]);
     } catch (e) {
       if (seq !== resolutieSeq.current) return;
       setFout(e instanceof Error ? e.message : 'BAG-lookup mislukt');
@@ -169,9 +182,6 @@ export default function BagAdresLookup({
     }
   }
 
-  // Cruciaal in Focusmodus: ieder nieuw signaal reset alle lokale state en
-  // wordt meteen GRATIS via PDOK gecontroleerd. De oude postcode blijft dus
-  // niet zichtbaar als straat + huisnummer + plaats al voldoende zijn.
   useEffect(() => {
     const volgendeStraat = initieleStraat ?? '';
     const volgendHuisnummer = initieelHuisnummer ?? '';
@@ -210,7 +220,7 @@ export default function BagAdresLookup({
         <MapPin className="h-3.5 w-3.5" /><span>BAG-adres controleren (PDOK)</span>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Controleert gratis het actuele signaaladres. Bij meerdere BAG-subadressen kiest de CRM automatisch de voorkeursmatch; je kunt die altijd wijzigen.
+        Controleert gratis het actuele signaaladres. Alleen exacte BAG-adressen voor deze straat, dit huisnummer en deze plaats worden gebruikt.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 min-w-0">
@@ -257,7 +267,7 @@ export default function BagAdresLookup({
 
       {gesorteerd && gesorteerd.length > 1 && (
         <div className="space-y-2 min-w-0">
-          <p className="text-xs text-muted-foreground">Andere BAG-adressen ({gesorteerd.length - 1}) — alleen wijzigen als de automatische keuze niet klopt.</p>
+          <p className="text-xs text-muted-foreground">Andere exacte BAG-adressen ({gesorteerd.length - 1}) — alleen wijzigen als de automatische keuze niet klopt.</p>
           <CollapsibleList
             items={gesorteerd.filter(r => r.id !== gekozen?.id)}
             renderItem={r => (
