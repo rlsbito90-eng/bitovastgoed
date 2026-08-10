@@ -1,5 +1,5 @@
-// Dialog: registreer een reactie van een geadresseerde op een (verstuurde) brief.
-import { useState } from 'react';
+// Dialog: registreer of wijzig een reactie van een geadresseerde op een (verstuurde) brief.
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import ModalActionBar from '@/components/ui/modal-action-bar';
 import {
@@ -39,11 +39,12 @@ export default function RegistreerResponsDialog({
   initialResponsstatus = 'reactie_ontvangen',
 }: Props) {
   const vandaag = new Date().toISOString().slice(0, 10);
+  const isBestaandeRespons = !!brief?.responsstatus;
+  const standaardKanaal: Kanaal = ((brief?.kanaal as Kanaal | undefined) ?? 'email');
+
   const [responsstatus, setResponsstatus] = useState<Responsstatus>(initialResponsstatus);
   const [responsdatum, setResponsdatum] = useState(vandaag);
-  // V2.2 — default-responskanaal volgt het kanaal van de brief.
-  const defaultKanaal: Kanaal = ((brief?.kanaal as Kanaal | undefined) ?? 'email');
-  const [respons_kanaal, setRespons_kanaal] = useState<Kanaal>(defaultKanaal);
+  const [respons_kanaal, setRespons_kanaal] = useState<Kanaal>(standaardKanaal);
   const [samenvatting, setSamenvatting] = useState('');
   const [maakContactmoment, setMaakContactmoment] = useState(true);
   const [maakVervolgtaak, setMaakVervolgtaak] = useState(false);
@@ -52,15 +53,23 @@ export default function RegistreerResponsDialog({
   const registreer = useRegistreerRespons();
   const { addTaak } = useDataStore();
 
-  // Reset wanneer dialog opent met andere brief/initiële status
-  const reset = () => {
-    setResponsstatus(initialResponsstatus);
-    setResponsdatum(vandaag);
-    setRespons_kanaal(((brief?.kanaal as Kanaal | undefined) ?? 'email'));
-    setSamenvatting('');
-    setMaakContactmoment(true);
+  const vulFormulier = () => {
+    const bestaand = brief?.responsstatus as Responsstatus | null | undefined;
+    const bestaandKanaal = brief?.respons_kanaal as Kanaal | null | undefined;
+    setResponsstatus(bestaand ?? initialResponsstatus);
+    setResponsdatum(brief?.responsdatum || vandaag);
+    setRespons_kanaal(bestaandKanaal ?? standaardKanaal);
+    setSamenvatting(brief?.respons_samenvatting ?? '');
+    // Bij wijzigen geen dubbel contactmoment of dubbele taak aanmaken.
+    setMaakContactmoment(!bestaand);
     setMaakVervolgtaak(false);
   };
+
+  useEffect(() => {
+    if (open) vulFormulier();
+    // De state moet juist opnieuw worden opgebouwd wanneer een andere brief wordt geopend.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, initialResponsstatus]);
 
   const uitvoeren = async () => {
     if (!brief) return;
@@ -108,29 +117,27 @@ export default function RegistreerResponsDialog({
         } catch (e) { console.warn('Vervolgtaak aanmaken mislukt', e); }
       }
 
-      toast.success('Reactie geregistreerd');
+      toast.success(isBestaandeRespons ? 'Reactie bijgewerkt' : 'Reactie geregistreerd');
       onOpenChange(false);
-      reset();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Reactie registreren mislukt');
+      toast.error(e?.message ?? (isBestaandeRespons ? 'Reactie aanpassen mislukt' : 'Reactie registreren mislukt'));
     } finally {
       setBezig(false);
     }
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md" data-testid="registreer-respons-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" /> Reactie registreren
+            <MessageSquare className="h-4 w-4" />
+            {isBestaandeRespons ? 'Reactie aanpassen' : 'Reactie registreren'}
           </DialogTitle>
           <DialogDescription>
-            Leg vast hoe deze geadresseerde heeft gereageerd. Wordt opgeslagen
-            op de brief en in het briefevent-logboek.
+            {isBestaandeRespons
+              ? 'Controleer of wijzig de reeds vastgelegde reactie. Bestaande gegevens zijn vooraf ingevuld.'
+              : 'Leg vast hoe deze geadresseerde heeft gereageerd. Wordt opgeslagen op de brief en in het briefevent-logboek.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -187,7 +194,7 @@ export default function RegistreerResponsDialog({
                 onChange={(e) => setMaakContactmoment(e.target.checked)}
                 data-testid="respons-maak-contactmoment"
               />
-              Contactmoment loggen
+              {isBestaandeRespons ? 'Nieuw contactmoment loggen' : 'Contactmoment loggen'}
             </label>
             <label className="inline-flex items-center gap-2">
               <input
@@ -205,7 +212,7 @@ export default function RegistreerResponsDialog({
           cancelLabel="Annuleren"
           primary={
             <Button onClick={uitvoeren} disabled={bezig || !brief} data-testid="respons-bevestigen">
-              Bevestigen
+              {isBestaandeRespons ? 'Wijzigingen opslaan' : 'Bevestigen'}
             </Button>
           }
         />
