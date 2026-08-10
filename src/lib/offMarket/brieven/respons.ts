@@ -57,11 +57,23 @@ export function isPositieveRespons(r: Responsstatus | null | undefined): boolean
       || r === 'gesprek_gepland';
 }
 
+/**
+ * Een echte respons neemt de plaats in van de standaard "geen reactie"-opvolging
+ * die bij de brief is aangemaakt. `geen_reactie` is juist onderdeel van die oude
+ * opvolgroute en mag de gekoppelde taak daarom niet automatisch afronden.
+ */
+export function responsVervangtStandaardOpvolging(
+  r: Responsstatus | null | undefined,
+): boolean {
+  return !!r && r !== 'geen_reactie';
+}
+
 export function badgeClassVoorRespons(r: Responsstatus | null | undefined): string {
-  if (!r) return 'bg-muted/40 text-muted-foreground border-border';
-  if (isPositieveRespons(r)) return 'bg-success/10 text-success border-success/25';
-  if (isNegatieveRespons(r)) return 'bg-destructive/10 text-destructive border-destructive/25';
+  const leesbaar = '!text-xs font-semibold';
+  if (!r) return `${leesbaar} bg-muted/40 text-muted-foreground border-border`;
+  if (isPositieveRespons(r)) return `${leesbaar} bg-success/15 text-success border-success/35`;
+  if (isNegatieveRespons(r)) return `${leesbaar} bg-destructive/15 text-destructive border-destructive/35`;
   if (r === 'reactie_ontvangen' || r === 'later_opnieuw_benaderen')
-    return 'bg-accent/15 text-accent-foreground border-accent/30';
-  return 'bg-muted/40 text-muted-foreground border-border';
+    return `${leesbaar} bg-accent/25 text-foreground border-accent/45`;
+  return `${leesbaar} bg-muted/40 text-muted-foreground border-border`;
 }

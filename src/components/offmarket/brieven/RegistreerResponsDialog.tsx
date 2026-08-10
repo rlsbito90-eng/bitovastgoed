@@ -15,7 +15,8 @@ import {
 import { MessageSquare } from 'lucide-react';
 import { useRegistreerRespons } from '@/hooks/useRegistreerRespons';
 import {
-  RESPONS_LABEL, RESPONS_VOLGORDE, type Responsstatus,
+  RESPONS_LABEL, RESPONS_VOLGORDE, responsVervangtStandaardOpvolging,
+  type Responsstatus,
 } from '@/lib/offMarket/brieven/respons';
 import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import { logSystemContactMoment } from '@/lib/contactMoments';
@@ -51,7 +52,7 @@ export default function RegistreerResponsDialog({
   const [bezig, setBezig] = useState(false);
 
   const registreer = useRegistreerRespons();
-  const { addTaak } = useDataStore();
+  const { addTaak, updateTaak, taken } = useDataStore();
 
   const vulFormulier = () => {
     const bestaand = brief?.responsstatus as Responsstatus | null | undefined;
@@ -71,6 +72,19 @@ export default function RegistreerResponsDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, initialResponsstatus]);
 
+  const rondStandaardOpvolgingAf = async () => {
+    if (!brief?.gekoppelde_taak_id || !responsVervangtStandaardOpvolging(responsstatus)) return false;
+    const taak = taken.find((t) => t.id === brief.gekoppelde_taak_id);
+    if (!taak || taak.status === 'afgerond') return false;
+
+    const reden = `Automatisch afgerond: er is op ${responsdatum} een reactie geregistreerd (${RESPONS_LABEL[responsstatus]}). De responsworkflow vervangt de oorspronkelijke briefopvolging.`;
+    await updateTaak(taak.id, {
+      status: 'afgerond',
+      notities: [taak.notities, reden].filter(Boolean).join('\n\n'),
+    } as any);
+    return true;
+  };
+
   const uitvoeren = async () => {
     if (!brief) return;
     setBezig(true);
@@ -85,6 +99,14 @@ export default function RegistreerResponsDialog({
         respons_kanaal,
         respons_samenvatting: samenvatting.trim() || null,
       });
+
+      let standaardOpvolgingAfgerond = false;
+      try {
+        standaardOpvolgingAfgerond = await rondStandaardOpvolgingAf();
+      } catch (e) {
+        console.warn('Oorspronkelijke briefopvolging afronden mislukt', e);
+        toast.warning('Reactie is opgeslagen, maar de oude opvolgtaak kon niet automatisch worden afgerond.');
+      }
 
       if (maakContactmoment) {
         try {
@@ -117,7 +139,11 @@ export default function RegistreerResponsDialog({
         } catch (e) { console.warn('Vervolgtaak aanmaken mislukt', e); }
       }
 
-      toast.success(isBestaandeRespons ? 'Reactie bijgewerkt' : 'Reactie geregistreerd');
+      toast.success(isBestaandeRespons ? 'Reactie bijgewerkt' : 'Reactie geregistreerd', {
+        description: standaardOpvolgingAfgerond
+          ? 'De oorspronkelijke briefopvolging is afgerond; de respons is nu leidend.'
+          : undefined,
+      });
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message ?? (isBestaandeRespons ? 'Reactie aanpassen mislukt' : 'Reactie registreren mislukt'));
@@ -187,6 +213,12 @@ export default function RegistreerResponsDialog({
             />
           </div>
 
+          {brief?.gekoppelde_taak_id && responsVervangtStandaardOpvolging(responsstatus) && (
+            <div className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground">
+              De bestaande briefopvolging wordt bij opslaan automatisch afgerond. De geregistreerde reactie wordt daarna de leidende processtap.
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5 text-xs">
             <label className="inline-flex items-center gap-2">
               <input
@@ -202,7 +234,7 @@ export default function RegistreerResponsDialog({
                 onChange={(e) => setMaakVervolgtaak(e.target.checked)}
                 data-testid="respons-maak-vervolgtaak"
               />
-              Vervolgtaak aanmaken
+              Nieuwe vervolgtaak voor deze reactie aanmaken
             </label>
           </div>
         </div>

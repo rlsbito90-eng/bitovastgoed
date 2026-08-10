@@ -139,6 +139,7 @@ const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
 const PRINTPOST_KEY = 'off-market-acq:printpost';
 const SORTEER_KEY = 'off-market-acq:sortering';
+const ZOEK_KEY = 'off-market-acq:zoekterm';
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
@@ -175,7 +176,16 @@ export default function AcquisitieSelectieTab() {
   const initieel = useMemo(leesInitieleView, []);
   const [werkbak, setWerkbakState] = useState<WerkbakView>(initieel.werkbak);
   const [subfilter, setSubfilterState] = useState<ActieSubfilter>(initieel.subfilter);
-  const [zoekterm, setZoekterm] = useState('');
+  const [zoekterm, setZoektermState] = useState(() => {
+    try { return sessionStorage.getItem(ZOEK_KEY) ?? ''; } catch { return ''; }
+  });
+  const setZoekterm = (waarde: string) => {
+    setZoektermState(waarde);
+    try {
+      if (waarde) sessionStorage.setItem(ZOEK_KEY, waarde);
+      else sessionStorage.removeItem(ZOEK_KEY);
+    } catch { /* ignore */ }
+  };
   const zoek = normaliseerZoektekst(zoekterm);
   const zoekActief = zoek.length > 0;
 
@@ -676,6 +686,7 @@ export default function AcquisitieSelectieTab() {
     navigate(`/off-market/${signaalId}?mode=normaal&tab=${focusTab}`, {
       state: {
         fromAcquisitieFocus: true,
+        returnToAcquisitieList: true,
         focusIndex: idx >= 0 ? idx : 0,
         focusScopeIds: scopeIds,
         selectedIds: Array.from(bulkSelectie),
@@ -1018,9 +1029,9 @@ export default function AcquisitieSelectieTab() {
                         {respons && (
                           <span
                             data-testid="acquisitie-rij-responsbadge"
-                            className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${badgeClassVoorRespons(respons.status)}`}
+                            className={`inline-flex items-center gap-1 rounded border px-2 py-1 ${badgeClassVoorRespons(respons.status)}`}
                           >
-                            <MessageSquare className="h-3 w-3" />
+                            <MessageSquare className="h-3.5 w-3.5" />
                             {RESPONS_LABEL[respons.status]}
                           </span>
                         )}

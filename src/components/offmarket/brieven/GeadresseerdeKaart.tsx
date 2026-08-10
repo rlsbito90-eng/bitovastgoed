@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   Mail, MailCheck, FileEdit, ChevronDown, ChevronRight,
   Copy, FileDown, Send, Plus, Inbox, MessageSquare, MoreHorizontal,
-  Trash2, Pencil,
+  Trash2, Pencil, CheckCircle2,
 } from 'lucide-react';
 import {
   STAP_VOLGORDE, CAMPAGNE_STAP_LABEL,
@@ -318,8 +318,9 @@ function StapRij({
             {responsstatus && (
               <span
                 data-testid={`responsstatus-${stap}`}
-                className={`text-[10px] px-1.5 py-0.5 rounded-full border ${badgeClassVoorRespons(responsstatus)}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 ${badgeClassVoorRespons(responsstatus)}`}
               >
+                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                 {RESPONS_LABEL[responsstatus]}
               </span>
             )}
@@ -328,13 +329,17 @@ function StapRij({
       </div>
 
       {actief && (datum || actief.postdatum || actief.opvolgdatum) && (
-        <div className="text-[11px] leading-5 text-muted-foreground tabular-nums">
+        <div className="text-[11px] leading-5 text-muted-foreground tabular-nums space-y-0.5">
           {datum && <div>{datum}</div>}
           {actief.postdatum && <div>Postdatum {formatDateNL(actief.postdatum)}</div>}
           {actief.opvolgdatum && (
-            <div>
-              Opvolging {formatDateNL(actief.opvolgdatum)}
-              {actief.gekoppelde_taak_id && <span className="ml-2 italic opacity-70">taak gekoppeld</span>}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span>Opvolging {formatDateNL(actief.opvolgdatum)}</span>
+              {actief.gekoppelde_taak_id && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/35 px-1.5 py-0.5 text-[10px] font-medium text-foreground whitespace-nowrap">
+                  <CheckCircle2 className="h-3 w-3 shrink-0" /> Taak gekoppeld
+                </span>
+              )}
             </div>
           )}
         </div>
