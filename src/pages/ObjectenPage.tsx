@@ -20,20 +20,29 @@ import { smartObjectCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { objectMatchesCrmSearch } from '@/lib/objecten/crmObjectnummer';
 import { getObjectIntegriteitVoorObject } from '@/lib/objecten/objectIntegriteit';
-
-type ArchiefView = 'actief' | 'archief' | 'alles';
+import { maakCrmReturnState } from '@/lib/crmReturnContext';
+import {
+  loadObjectenViewState, saveObjectenViewState, type ObjectenArchiefView,
+} from '@/lib/objectenViewState';
 
 export default function ObjectenPage() {
   const navigate = useNavigate();
   const { objecten, unarchiveObject, pipelineKandidaten } = useDataStore();
   const { propertyTypes, propertySubtypes, dealTypes, subtypesForType } = usePropertyTaxonomie();
-  const [zoek, setZoek] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [subtypeFilter, setSubtypeFilter] = useState<string>('');
-  const [dealtypeFilter, setDealtypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>('');
-  const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
+  const initialView = useMemo(() => loadObjectenViewState(), []);
+  const [zoek, setZoek] = useState(initialView.zoek);
+  const [typeFilter, setTypeFilter] = useState<string>(initialView.typeFilter);
+  const [subtypeFilter, setSubtypeFilter] = useState<string>(initialView.subtypeFilter);
+  const [dealtypeFilter, setDealtypeFilter] = useState<string>(initialView.dealtypeFilter);
+  const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>(initialView.statusFilter);
+  const [archiefView, setArchiefView] = useState<ObjectenArchiefView>(initialView.archiefView);
   const [formOpen, setFormOpen] = useState(false);
+
+  useEffect(() => {
+    saveObjectenViewState({
+      zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView,
+    });
+  }, [zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView]);
 
   const aantalArchief = objecten.filter(o => o.isArchived).length;
   const aantalActief = objecten.length - aantalArchief;
@@ -90,13 +99,14 @@ export default function ObjectenPage() {
     }
   };
 
-  const tabs: { key: ArchiefView; label: string; count: number }[] = [
+  const tabs: { key: ObjectenArchiefView; label: string; count: number }[] = [
     { key: 'actief', label: 'Actief', count: aantalActief },
     { key: 'archief', label: 'Archief', count: aantalArchief },
     { key: 'alles', label: 'Alles', count: objecten.length },
   ];
 
   const isArchiefView = archiefView === 'archief';
+  const objectReturnState = maakCrmReturnState('/objecten', 'Objecten', 'objecten-lijst');
 
   return (
     <div className="page-shell-wide">
@@ -196,7 +206,12 @@ export default function ObjectenPage() {
               const integriteit = getObjectIntegriteitVoorObject(obj);
               const rendement = obj.huurinkomsten && obj.vraagprijs ? ((obj.huurinkomsten / obj.vraagprijs) * 100).toFixed(1) : null;
               return (
-                <Link key={obj.id} to={`/objecten/${obj.id}`} className="section-card block p-3.5 active:bg-muted/40 transition-colors">
+                <Link
+                  key={obj.id}
+                  to={`/objecten/${obj.id}`}
+                  state={objectReturnState}
+                  className="section-card block p-3.5 active:bg-muted/40 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-foreground text-sm leading-snug min-w-0 flex-1 break-words">
                       {obj.titel}
@@ -269,7 +284,7 @@ export default function ObjectenPage() {
                     return (
                       <tr
                         key={obj.id}
-                        onClick={() => navigate(`/objecten/${obj.id}`)}
+                        onClick={() => navigate(`/objecten/${obj.id}`, { state: objectReturnState })}
                         className="group hover:bg-muted/40 transition-colors cursor-pointer"
                       >
                         <td className="px-5 py-3.5">
