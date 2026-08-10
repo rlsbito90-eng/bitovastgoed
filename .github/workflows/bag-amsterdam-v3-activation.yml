@@ -1,0 +1,128 @@
+name: BAG Amsterdam v3 activation
+run-name: BAG Amsterdam v3 activation — dataset 3
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact: ACTIVATE_BAG_AMSTERDAM_V3_AFTER_VALIDATE_31350790890_ON_SHADOW'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-amsterdam-v3-shadow-activation
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    if: github.event.inputs.approval == 'ACTIVATE_BAG_AMSTERDAM_V3_AFTER_VALIDATE_31350790890_ON_SHADOW'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+      BAG_AMSTERDAM_ACTIVATION_APPROVAL: ${{ github.event.inputs.approval }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Controleer harde activatiegrenzen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test "$BAG_SHADOW_PROJECT_REF" != 'vyjocdlwfxrblusfngfq'
+          test "$BAG_AMSTERDAM_ACTIVATION_APPROVAL" = 'ACTIVATE_BAG_AMSTERDAM_V3_AFTER_VALIDATE_31350790890_ON_SHADOW'
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          case "$BAG_SHADOW_DATABASE_URL" in
+            *ljudxyrqoifhfikueric*|*wzkhmjuasyuvzhhycnym*|*vyjocdlwfxrblusfngfq*) exit 3 ;;
+          esac
+          test "${BAG_SHADOW_DATABASE_URL#*sslmode=require}" != "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+
+      - name: Read-only activatiepreflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bag-amsterdam-v3-activation-resultaat
+          PGOPTIONS='-c default_transaction_read_only=on' \
+          psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -F $'\t' -v ON_ERROR_STOP=1 <<'SQL' \
+            > bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          SELECT 'target', id, datasetversie, scope_code, status, is_actief,
+                 bron_metadata->>'artifact_id'
+          FROM bag_control.datasetversies WHERE id=3;
+          SELECT 'old_active', id, datasetversie, scope_code, status, is_actief
+          FROM bag_control.datasetversies WHERE id=2;
+          SELECT 'amsterdam_versions', count(*) FROM bag_control.datasetversies WHERE scope_code='0363';
+          SELECT 'amsterdam_active', count(*) FROM bag_control.datasetversies WHERE scope_code='0363' AND is_actief;
+          SELECT 'objecten', count(*) FROM bag_published.objecten WHERE datasetversie_id=3;
+          SELECT 'voorkomens', count(*) FROM bag_published.voorkomens WHERE datasetversie_id=3;
+          SELECT 'relaties', count(*) FROM bag_published.relaties WHERE datasetversie_id=3;
+          SELECT 'geometrieen', count(*) FROM bag_published.geometrieen WHERE datasetversie_id=3;
+          SQL
+
+          grep -Fx $'target\t3\tv20260808-directional-v3\t0363\tgevalideerd\tf\t9027302674' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'old_active\t2\tv20260805\t0363\tactief\tt' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'amsterdam_versions\t2' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'amsterdam_active\t1' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'objecten\t1491131' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'voorkomens\t2719273' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'relaties\t2564885' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+          grep -Fx $'geometrieen\t1872231' bag-amsterdam-v3-activation-resultaat/preflight.tsv
+
+      - name: Activeer Amsterdam v3 atomisch
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -F $'\t' -v ON_ERROR_STOP=1 <<'SQL' \
+            > bag-amsterdam-v3-activation-resultaat/activation.tsv
+          BEGIN;
+          SET LOCAL statement_timeout='30min';
+          SET LOCAL lock_timeout='5s';
+          GRANT bag_publisher TO postgres WITH SET TRUE, INHERIT FALSE;
+          SET LOCAL ROLE bag_publisher;
+          SELECT 'activation', actieve_datasetversie_id, vorige_datasetversie_id, scope_code_resultaat
+          FROM bag_control.activeer_datasetversie(3);
+          RESET ROLE;
+          REVOKE bag_publisher FROM postgres GRANTED BY postgres;
+          COMMIT;
+          SQL
+          grep -Fx $'activation\t3\t2\t0363' bag-amsterdam-v3-activation-resultaat/activation.tsv
+
+      - name: Controleer eindtoestand read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PGOPTIONS='-c default_transaction_read_only=on' \
+          psql "$BAG_SHADOW_DATABASE_URL" -X -qAt -F $'\t' -v ON_ERROR_STOP=1 <<'SQL' \
+            > bag-amsterdam-v3-activation-resultaat/postflight.tsv
+          SELECT 'new_active', id, datasetversie, scope_code, status, is_actief
+          FROM bag_control.datasetversies WHERE id=3;
+          SELECT 'old_replaced', id, datasetversie, scope_code, status, is_actief
+          FROM bag_control.datasetversies WHERE id=2;
+          SELECT 'amsterdam_active', count(*) FROM bag_control.datasetversies WHERE scope_code='0363' AND status='actief' AND is_actief;
+          SELECT 'active_id', id FROM bag_control.datasetversies WHERE scope_code='0363' AND status='actief' AND is_actief;
+          SQL
+          grep -Fx $'new_active\t3\tv20260808-directional-v3\t0363\tactief\tt' bag-amsterdam-v3-activation-resultaat/postflight.tsv
+          grep -Fx $'old_replaced\t2\tv20260805\t0363\tvervangen\tf' bag-amsterdam-v3-activation-resultaat/postflight.tsv
+          grep -Fx $'amsterdam_active\t1' bag-amsterdam-v3-activation-resultaat/postflight.tsv
+          grep -Fx $'active_id\t3' bag-amsterdam-v3-activation-resultaat/postflight.tsv
+          printf 'activation_performed=true\nrollback_pair=3,2\nscope_code=0363\n' > bag-amsterdam-v3-activation-resultaat/resultaat.txt
+
+      - name: Upload activatiebewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-amsterdam-v3-shadow-activation
+          retention-days: 30
+          if-no-files-found: warn
+          path: bag-amsterdam-v3-activation-resultaat/
