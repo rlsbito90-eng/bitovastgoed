@@ -10,7 +10,16 @@ interface Props {
 }
 
 const KADASTER_SCROLL_KEY = 'bito:offmarket:kadaster-scroll-y';
+const KADASTER_MAIN_SCROLL_KEY = 'bito:offmarket:kadaster-main-scroll-y';
 const KADASTER_PAGING_KEY = 'bito:offmarket:kadaster-paging';
+
+function zetScrollpositie(windowY: number, mainY: number) {
+  window.scrollTo({ top: windowY, left: 0, behavior: 'auto' });
+  const main = document.querySelector<HTMLElement>('main');
+  if (main && main.scrollHeight > main.clientHeight) {
+    main.scrollTo({ top: mainY, left: 0, behavior: 'auto' });
+  }
+}
 
 function scrollNaarKadasterOphalen() {
   const scroll = () => {
@@ -21,35 +30,30 @@ function scrollNaarKadasterOphalen() {
     );
     if (!knop) return;
 
-    // Eerst de browser zelf alle relevante scrollcontainers laten positioneren.
-    knop.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+    // Gebruik bewust geen scrollIntoView: op iOS kan dat meerdere ancestors
+    // tegelijk verschuiven en na een rerender bovenaan eindigen.
+    const rect = knop.getBoundingClientRect();
+    const gewensteTop = Math.max(0, window.scrollY + rect.top - window.innerHeight * 0.42);
+    window.scrollTo({ top: gewensteTop, left: 0, behavior: 'auto' });
 
-    // Daarna de dichtstbijzijnde expliciete scrollcontainer corrigeren. Dit is
-    // nodig in Focus/embedded layouts waar window.scrollY niet leidend is.
-    let parent = knop.parentElement;
-    while (parent) {
-      const style = window.getComputedStyle(parent);
-      const overflowY = style.overflowY;
-      if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
-        const knopRect = knop.getBoundingClientRect();
-        const parentRect = parent.getBoundingClientRect();
-        const delta = knopRect.top - parentRect.top - (parent.clientHeight - knopRect.height) / 2;
-        parent.scrollTop += delta;
-        break;
-      }
-      parent = parent.parentElement;
+    const main = document.querySelector<HTMLElement>('main');
+    if (main && main.scrollHeight > main.clientHeight) {
+      const mainRect = main.getBoundingClientRect();
+      const knopRect = knop.getBoundingClientRect();
+      const delta = knopRect.top - mainRect.top - main.clientHeight * 0.42;
+      main.scrollTop = Math.max(0, main.scrollTop + delta);
     }
   };
 
-  // De gekozen BAG-kaart en collapsible lijst veranderen nog kort van hoogte.
-  // Herpositioneer daarom door de volledige renderfase heen.
-  [0, 80, 220, 500, 900, 1400].forEach((ms) => window.setTimeout(scroll, ms));
+  // De BAG-lijst verandert na een keuze nog kort van hoogte. Deze absolute
+  // correctie convergeert zonder de browser zelf ancestors te laten kiezen.
+  [0, 80, 220, 500, 900].forEach((ms) => window.setTimeout(scroll, ms));
 }
 
 export default function MobileTabbarScroller({ activeValue, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Handmatige BAG-adreskeuze: altijd naar de betaalde Kadasteractie springen.
+  // Handmatige BAG-adreskeuze: naar de betaalde Kadasteractie springen.
   useEffect(() => {
     const onAdresKlik = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
@@ -65,9 +69,8 @@ export default function MobileTabbarScroller({ activeValue, children }: Props) {
   useEffect(() => {
     const paging = sessionStorage.getItem(KADASTER_PAGING_KEY) === '1';
 
-    // React Router opent een nieuw signaal standaard op Overzicht. Wanneer de
-    // navigatie vanuit Kadaster kwam, activeer Kadaster eerst opnieuw voordat
-    // we de bewaarde hoogte herstellen.
+    // Als een router/remount de tab toch terugzet, zet Kadaster terug voordat
+    // de bewaarde positie wordt hersteld.
     if (paging && activeValue !== 'kadaster') {
       const activeerKadaster = () => {
         const root = ref.current;
@@ -81,22 +84,24 @@ export default function MobileTabbarScroller({ activeValue, children }: Props) {
     }
 
     if (activeValue !== 'kadaster') {
-      if (!paging) sessionStorage.removeItem(KADASTER_SCROLL_KEY);
+      if (!paging) {
+        sessionStorage.removeItem(KADASTER_SCROLL_KEY);
+        sessionStorage.removeItem(KADASTER_MAIN_SCROLL_KEY);
+      }
       return;
     }
 
-    const herstel = () => {
-      const raw = sessionStorage.getItem(KADASTER_SCROLL_KEY);
-      const y = raw == null ? NaN : Number(raw);
-      if (!Number.isFinite(y)) return;
-      window.scrollTo(0, y);
-    };
-
-    // Op de nieuwe route renderen header, queries en Kadasterkaart niet exact
-    // tegelijk. Herstel daarom gedurende die korte renderfase meerdere keren.
     if (paging) {
-      const timers = [0, 80, 220, 500, 900, 1400].map((ms) => window.setTimeout(herstel, ms));
-      const klaar = window.setTimeout(() => sessionStorage.removeItem(KADASTER_PAGING_KEY), 1550);
+      const windowY = Number(sessionStorage.getItem(KADASTER_SCROLL_KEY));
+      const mainY = Number(sessionStorage.getItem(KADASTER_MAIN_SCROLL_KEY));
+      const herstel = () => {
+        if (!Number.isFinite(windowY)) return;
+        zetScrollpositie(windowY, Number.isFinite(mainY) ? mainY : 0);
+      };
+      const timers = [0, 50, 120, 260, 500, 900, 1400].map((ms) => window.setTimeout(herstel, ms));
+      const klaar = window.setTimeout(() => {
+        sessionStorage.removeItem(KADASTER_PAGING_KEY);
+      }, 1550);
       return () => {
         timers.forEach((timer) => window.clearTimeout(timer));
         window.clearTimeout(klaar);
@@ -110,7 +115,9 @@ export default function MobileTabbarScroller({ activeValue, children }: Props) {
       const label = button.getAttribute('aria-label');
       if (label !== 'Vorige signaal' && label !== 'Volgende signaal') return;
 
+      const main = document.querySelector<HTMLElement>('main');
       sessionStorage.setItem(KADASTER_SCROLL_KEY, String(window.scrollY));
+      sessionStorage.setItem(KADASTER_MAIN_SCROLL_KEY, String(main?.scrollTop ?? 0));
       sessionStorage.setItem(KADASTER_PAGING_KEY, '1');
     };
 
