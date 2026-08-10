@@ -23,6 +23,13 @@ import { logSystemContactMoment } from '@/lib/contactMoments';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 
+export interface ResponsVervolgtaakVoorstel {
+  titel: string;
+  type: string;
+  prioriteit: 'laag' | 'normaal' | 'hoog' | 'urgent';
+  notities: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -31,6 +38,8 @@ interface Props {
   relatieId?: string | null;
   /** Vooraf ingestelde responsstatus (bij snelle actieknoppen). */
   initialResponsstatus?: Responsstatus;
+  /** Open na succesvolle responsregistratie de normale taakdialoog met deze prefill. */
+  onVervolgtaakAanvragen?: (voorstel: ResponsVervolgtaakVoorstel) => void;
 }
 
 const KANAAL_OPTIES: Kanaal[] = ['post', 'email', 'telefoon', 'whatsapp', 'linkedin', 'anders'];
@@ -38,6 +47,7 @@ const KANAAL_OPTIES: Kanaal[] = ['post', 'email', 'telefoon', 'whatsapp', 'linke
 export default function RegistreerResponsDialog({
   open, onOpenChange, brief, signaalId, relatieId,
   initialResponsstatus = 'reactie_ontvangen',
+  onVervolgtaakAanvragen,
 }: Props) {
   const vandaag = new Date().toISOString().slice(0, 10);
   const isBestaandeRespons = !!brief?.responsstatus;
@@ -52,7 +62,7 @@ export default function RegistreerResponsDialog({
   const [bezig, setBezig] = useState(false);
 
   const registreer = useRegistreerRespons();
-  const { addTaak, updateTaak, taken } = useDataStore();
+  const { updateTaak, taken } = useDataStore();
 
   const vulFormulier = () => {
     const bestaand = brief?.responsstatus as Responsstatus | null | undefined;
@@ -61,7 +71,7 @@ export default function RegistreerResponsDialog({
     setResponsdatum(brief?.responsdatum || vandaag);
     setRespons_kanaal(bestaandKanaal ?? standaardKanaal);
     setSamenvatting(brief?.respons_samenvatting ?? '');
-    // Bij wijzigen geen dubbel contactmoment of dubbele taak aanmaken.
+    // Bij wijzigen geen dubbel contactmoment of dubbele taak voorstellen.
     setMaakContactmoment(!bestaand);
     setMaakVervolgtaak(false);
   };
@@ -84,6 +94,13 @@ export default function RegistreerResponsDialog({
     } as any);
     return true;
   };
+
+  const bouwVervolgtaakVoorstel = (): ResponsVervolgtaakVoorstel => ({
+    titel: `Vervolg op reactie — ${brief?.eigenaar_bedrijfsnaam || brief?.eigenaar_naam || 'geadresseerde'}`,
+    type: 'Follow-up',
+    prioriteit: 'normaal',
+    notities: `Vervolg op respons "${RESPONS_LABEL[responsstatus]}" via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\n\n${samenvatting.trim()}` : ''}`,
+  });
 
   const uitvoeren = async () => {
     if (!brief) return;
@@ -124,27 +141,18 @@ export default function RegistreerResponsDialog({
         } catch (e) { console.warn('Contactmoment loggen mislukt', e); }
       }
 
-      if (maakVervolgtaak) {
-        try {
-          await addTaak({
-            titel: `Vervolg op reactie — ${brief.eigenaar_bedrijfsnaam || brief.eigenaar_naam || 'geadresseerde'}`,
-            type: 'Follow-up',
-            deadline: vandaag,
-            prioriteit: 'normaal',
-            status: 'open',
-            offMarketSignaalId: signaalId,
-            relatieId: relatieId ?? undefined,
-            notities: `Vervolg op respons "${RESPONS_LABEL[responsstatus]}" via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\n\n${samenvatting.trim()}` : ''}`,
-          } as any);
-        } catch (e) { console.warn('Vervolgtaak aanmaken mislukt', e); }
-      }
-
       toast.success(isBestaandeRespons ? 'Reactie bijgewerkt' : 'Reactie geregistreerd', {
-        description: standaardOpvolgingAfgerond
-          ? 'De oorspronkelijke briefopvolging is afgerond; de respons is nu leidend.'
-          : undefined,
+        description: maakVervolgtaak
+          ? 'Stel nu de vervolgtaak in.'
+          : standaardOpvolgingAfgerond
+            ? 'De oorspronkelijke briefopvolging is afgerond; de respons is nu leidend.'
+            : undefined,
       });
+
+      // Eerst de responsdialoog sluiten; de oudercomponent opent vervolgens
+      // de normale taakdialoog. Er wordt hier bewust géén taak stil aangemaakt.
       onOpenChange(false);
+      if (maakVervolgtaak) onVervolgtaakAanvragen?.(bouwVervolgtaakVoorstel());
     } catch (e: any) {
       toast.error(e?.message ?? (isBestaandeRespons ? 'Reactie aanpassen mislukt' : 'Reactie registreren mislukt'));
     } finally {
@@ -234,8 +242,13 @@ export default function RegistreerResponsDialog({
                 onChange={(e) => setMaakVervolgtaak(e.target.checked)}
                 data-testid="respons-maak-vervolgtaak"
               />
-              Nieuwe vervolgtaak voor deze reactie aanmaken
+              Vervolgtaak instellen na opslaan
             </label>
+            {maakVervolgtaak && (
+              <p className="pl-5 text-[11px] text-muted-foreground">
+                Na het opslaan opent de taakdialoog. De taak wordt pas aangemaakt nadat je daar onder meer de deadline hebt gecontroleerd en bevestigd.
+              </p>
+            )}
           </div>
         </div>
 
