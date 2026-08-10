@@ -90,8 +90,31 @@ function scrollNaarKadasterActie() {
     const knop = Array.from(kaart.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
       (b.textContent ?? '').includes('Kadastergegevens ophalen'),
     );
-    (knop ?? kaart).scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 140);
+    if (knop) {
+      knop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    kaart.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, 180);
+}
+
+/**
+ * Backstop voor de normale signaaldetailweergave: die leverde historisch alleen
+ * het numerieke huisnummer aan BagAdresLookup. Het al gerenderde, geparste
+ * huisnummer bevat daar wél de expliciete toevoeging (bv. "9 2").
+ * Dit is alleen een fallback; een expliciete prop/context blijft leidend.
+ */
+function leesGerenderdeExplicieteVoorkeur(baseHuisnummer: string): string | null {
+  const kaart = document.querySelector<HTMLElement>('[data-testid="signaal-kadaster-kaart"]');
+  if (!kaart) return null;
+  const base = normaliseerHuisnummerLabel(baseHuisnummer);
+  const inputs = Array.from(kaart.querySelectorAll<HTMLInputElement>('input'));
+  for (const input of inputs) {
+    const label = normaliseerHuisnummerLabel(input.value);
+    if (!label || label === base) continue;
+    if (label.startsWith(`${base}-`)) return label;
+  }
+  return null;
 }
 
 export default function BagAdresLookup({
@@ -99,7 +122,8 @@ export default function BagAdresLookup({
   voorkeursHuisnummerLabel, onKies,
 }: Props) {
   const contextVoorkeur = useKadasterAdresPreference();
-  const effectieveVoorkeur = voorkeursHuisnummerLabel ?? contextVoorkeur;
+  const [domVoorkeur, setDomVoorkeur] = useState<string | null>(null);
+  const effectieveVoorkeur = voorkeursHuisnummerLabel ?? contextVoorkeur ?? domVoorkeur;
 
   const [straat, setStraat] = useState(initieleStraat ?? '');
   const [huisnummer, setHuisnummer] = useState(initieelHuisnummer ?? '');
@@ -118,9 +142,18 @@ export default function BagAdresLookup({
     [resultaten, postcode, effectieveVoorkeur],
   );
 
+  useEffect(() => {
+    if (voorkeursHuisnummerLabel || contextVoorkeur || !initieelHuisnummer) {
+      setDomVoorkeur(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDomVoorkeur(leesGerenderdeExplicieteVoorkeur(initieelHuisnummer));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [voorkeursHuisnummerLabel, contextVoorkeur, initieelHuisnummer]);
+
   function kies(r: BagAdresResultaat, auto = false) {
-    // Nooit een synthetisch/afgeleid adres kiezen: het record moet letterlijk in
-    // de actuele, exact gefilterde PDOK-resultset staan.
     if (!resultaten?.some((x) => x.id === r.id)) return;
     setGekozen(r);
     setAutomatisch(auto);
@@ -149,8 +182,6 @@ export default function BagAdresLookup({
       });
       if (seq !== resolutieSeq.current) return;
 
-      // PDOK free search kan gelijknamige straten elders teruggeven. Die worden
-      // volledig weggefilterd vóór sorteren, tonen of automatisch kiezen.
       const exact = raw.filter((x) => kernMatch(x, input.straat, input.huisnummer, input.plaats));
       const sorted = sorteerResultaten(exact, {
         postcode: input.postcode,
@@ -257,7 +288,7 @@ export default function BagAdresLookup({
               : <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />}
             <div className="min-w-0">
               <p className="font-medium break-words">
-                {automatisch ? 'Automatisch gekozen: ' : 'Gekozen: '}
+                {automatisch ? 'Automatisch gekozen uit BAG-resultaten: ' : 'Gekozen: '}
                 {gekozen.straat} {formatHuisnummerLabel(gekozen)}, {formatPostcodeWeergave(gekozen.postcode)} {gekozen.woonplaats}
               </p>
               <p className="text-muted-foreground font-mono-data break-words">Kadasteradres: {formatAanvraag(gekozen)}</p>
@@ -266,24 +297,37 @@ export default function BagAdresLookup({
         </div>
       )}
 
-      {gesorteerd && gesorteerd.length > 1 && (
+      {gesorteerd && gesorteerd.length > 0 && (
         <div className="space-y-2 min-w-0">
           <p className="text-xs text-muted-foreground">
-            Andere exacte BAG-adressen ({gesorteerd.length - 1}) — alleen wijzigen als de automatische keuze niet klopt.
+            Exacte BAG-adressen ({gesorteerd.length}) — de gekozen match staat ook in deze lijst.
           </p>
           <CollapsibleList
-            items={gesorteerd.filter((r) => r.id !== gekozen?.id)}
-            renderItem={(r) => (
-              <div className="rounded-md border border-border bg-card p-3 min-w-0">
-                <p className="text-sm font-medium break-words">{r.straat} {formatHuisnummerLabel(r)}</p>
-                <p className="text-xs text-muted-foreground font-mono-data break-words">
-                  {formatPostcodeWeergave(r.postcode)} {r.woonplaats}
-                </p>
-                <Button type="button" size="sm" variant="outline" onClick={() => kies(r)} className="mt-2 w-full sm:w-auto">
-                  Gebruik dit adres
-                </Button>
-              </div>
-            )}
+            items={gesorteerd}
+            renderItem={(r) => {
+              const isGekozen = r.id === gekozen?.id;
+              return (
+                <div className={`rounded-md border p-3 min-w-0 ${isGekozen ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium break-words">{r.straat} {formatHuisnummerLabel(r)}</p>
+                    {isGekozen && <span className="text-[10px] font-medium text-primary">Gekozen</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono-data break-words">
+                    {formatPostcodeWeergave(r.postcode)} {r.woonplaats}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isGekozen ? 'secondary' : 'outline'}
+                    disabled={isGekozen}
+                    onClick={() => kies(r)}
+                    className="mt-2 w-full sm:w-auto"
+                  >
+                    {isGekozen ? 'Dit adres is gekozen' : 'Gebruik dit adres'}
+                  </Button>
+                </div>
+              );
+            }}
             listClassName="space-y-2"
           />
         </div>
