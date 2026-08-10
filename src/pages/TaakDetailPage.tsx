@@ -2,11 +2,11 @@
 // - alle taakvelden (titel, type, prioriteit, status, deadline, notities)
 // - gekoppelde relatie/object/deal/signaal met snelle openen-knoppen
 // - acties: Bewerken, Voltooien/Heropenen, Verwijderen
-// - terug naar /taken
+// - expliciete return-context met veilige fallback naar /taken
 //
 // Bewust geen schemawijziging: 'voltooid' = status 'afgerond'.
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Pencil, Trash2, CheckCircle2, RotateCcw, ExternalLink,
@@ -24,13 +24,19 @@ import {
 import { deadlineLabel, isTaakTeLaat } from '@/lib/taakHelpers';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { useOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
+import { leesCrmReturnContext } from '@/lib/crmReturnContext';
 
 export default function TaakDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     taken, getRelatieById, getDealById, getObjectById, updateTaak, deleteTaak, contactpersonen,
   } = useDataStore();
+
+  const returnContext = leesCrmReturnContext(location.state);
+  const returnPad = returnContext?.path ?? '/taken';
+  const returnLabel = returnContext?.label ?? 'Taken';
 
   const taak = useMemo(() => taken.find((t) => t.id === id) ?? null, [taken, id]);
 
@@ -43,8 +49,8 @@ export default function TaakDetailPage() {
   if (!taak) {
     return (
       <div className="page-shell space-y-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/taken')}>
-          <ArrowLeft className="h-4 w-4 mr-1.5" /> Terug naar taken
+        <Button variant="outline" size="sm" onClick={() => navigate(returnPad)}>
+          <ArrowLeft className="h-4 w-4 mr-1.5" /> Terug naar {returnLabel.toLowerCase()}
         </Button>
         <div className="section-card p-8 text-center">
           <p className="text-sm text-muted-foreground">Taak niet gevonden.</p>
@@ -73,7 +79,7 @@ export default function TaakDetailPage() {
     try {
       await deleteTaak(taak.id);
       toast.success('Taak verwijderd');
-      navigate('/taken');
+      navigate(returnPad);
     } catch (e: any) {
       toast.error(e?.message ?? 'Verwijderen mislukt');
     }
@@ -82,8 +88,8 @@ export default function TaakDetailPage() {
   return (
     <div className="page-shell space-y-5 max-w-3xl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2">
-          <ArrowLeft className="h-4 w-4 mr-1.5" /> Terug
+        <Button variant="ghost" size="sm" onClick={() => navigate(returnPad)} className="-ml-2">
+          <ArrowLeft className="h-4 w-4 mr-1.5" /> Terug naar {returnLabel}
         </Button>
         <div className="flex items-center gap-2 flex-wrap">
           {!isAfgerond ? (
