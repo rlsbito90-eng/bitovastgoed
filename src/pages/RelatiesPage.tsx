@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
@@ -20,16 +20,31 @@ import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byString, combine } from '@/lib/sorting/comparators';
 import { smartRelatieCompare, getLeadWarmteRank } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
+import { maakCrmReturnState } from '@/lib/crmReturnContext';
+import { loadRelatiesViewState, saveRelatiesViewState } from '@/lib/relatiesViewState';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { relaties, contactMoments, taken } = useDataStore();
-  const [zoek, setZoek] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
-  const [typeFilter, setTypeFilter] = useState<PartijType | ''>('');
+  const initialView = useMemo(() => loadRelatiesViewState(), []);
+  const [zoek, setZoek] = useState(() => searchParams.get('q') ?? initialView.zoek);
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
+  const [typeFilter, setTypeFilter] = useState<PartijType | ''>(initialView.typeFilter);
   const [formOpen, setFormOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [herstelOpen, setHerstelOpen] = useState(false);
+
+  useEffect(() => {
+    saveRelatiesViewState({ zoek, statusFilter, typeFilter });
+  }, [zoek, statusFilter, typeFilter]);
+
+  // Een expliciete globale zoekopdracht in de URL wint van de eerder onthouden
+  // sessiecontext. Dit voorkomt dat /relaties?q=... stil wordt genegeerd.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setZoek(q);
+  }, [searchParams]);
 
   const sortOptions = useMemo<SortOption<Relatie>[]>(() => {
     const lc = (r: Relatie) => getLaatsteContactDatum(r.id, contactMoments);
@@ -63,6 +78,8 @@ export default function RelatiesPage() {
   useEffect(() => {
     saveListContext('relaties', filtered.map(r => r.id));
   }, [filtered]);
+
+  const relatieReturnState = maakCrmReturnState('/relaties', 'Relaties', 'relaties-lijst');
 
   return (
     <div className="page-shell-wide">
@@ -131,7 +148,12 @@ export default function RelatiesPage() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filtered.map(r => (
-              <Link key={r.id} to={`/relaties/${r.id}`} className="section-card block p-4 active:bg-muted/40 transition-colors">
+              <Link
+                key={r.id}
+                to={`/relaties/${r.id}`}
+                state={relatieReturnState}
+                className="section-card block p-4 active:bg-muted/40 transition-colors"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <RelatieNaamDisplay relatie={r} />
@@ -178,7 +200,7 @@ export default function RelatiesPage() {
                   {filtered.map(r => (
                     <tr
                       key={r.id}
-                      onClick={() => navigate(`/relaties/${r.id}`)}
+                      onClick={() => navigate(`/relaties/${r.id}`, { state: relatieReturnState })}
                       className="group hover:bg-muted/40 transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3.5">
