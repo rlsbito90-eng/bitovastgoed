@@ -122,8 +122,11 @@ export default function DynamicSectionNavigator() {
   const [label, setLabel] = useState('Naar boven');
   const [targetTop, setTargetTop] = useState(0);
   const [mode, setMode] = useState<'section' | 'top'>('top');
+  const [sectionTargetTop, setSectionTargetTop] = useState<number | null>(null);
+  const [sectionLabel, setSectionLabel] = useState('sectie');
   const armedSectionTop = useRef<number | null>(null);
   const title = useMemo(() => label, [label]);
+  const isOffMarketSignaalDetail = /^\/off-market\/[^/]+$/.test(location.pathname);
 
   useEffect(() => {
     const handleScenarioNameUpdated = (event: Event) => {
@@ -150,19 +153,9 @@ export default function DynamicSectionNavigator() {
         const scrollTop = getScrollTop(container);
         setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
 
-        if (armedSectionTop.current !== null) {
-          const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
-          if (distanceToArmedSection <= ARMED_POSITION_TOLERANCE) {
-            setMode('top');
-            setLabel('Naar boven');
-            setTargetTop(0);
-            return;
-          }
-          armedSectionTop.current = null;
-        }
-
         const sections = getCandidateSections();
         if (sections.length === 0) {
+          setSectionTargetTop(null);
           setMode('top'); setLabel('Naar boven'); setTargetTop(0); return;
         }
         const viewportTop = getViewportTop(container);
@@ -174,10 +167,26 @@ export default function DynamicSectionNavigator() {
           item.top <= scrollTop + SECTION_START_TOLERANCE ? index : active
         ), -1);
         if (currentIndex < 0) {
+          setSectionTargetTop(null);
           setMode('top'); setLabel('Naar boven'); setTargetTop(0); return;
         }
+
         const current = positions[currentIndex];
         const sectionTop = Math.max(0, current.top - 16);
+        setSectionTargetTop(sectionTop);
+        setSectionLabel(current.label);
+
+        if (armedSectionTop.current !== null) {
+          const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
+          if (distanceToArmedSection <= ARMED_POSITION_TOLERANCE) {
+            setMode('top');
+            setLabel('Naar boven');
+            setTargetTop(0);
+            return;
+          }
+          armedSectionTop.current = null;
+        }
+
         if (scrollTop - current.top > SECTION_START_TOLERANCE) {
           setMode('section');
           setLabel(`Naar begin van ${current.label}`);
@@ -212,13 +221,54 @@ export default function DynamicSectionNavigator() {
     scrollTo(container, targetTop);
   }
 
+  function handleSectionTop() {
+    if (sectionTargetTop === null) return;
+    const container = getScrollContainer();
+    armedSectionTop.current = sectionTargetTop;
+    scrollTo(container, sectionTargetTop);
+  }
+
+  function handlePageTop() {
+    armedSectionTop.current = null;
+    scrollTo(getScrollContainer(), 0);
+  }
+
   return (
     <>
       <style>{`
         [data-testid="vastgoedrekenen-case-workspace"] > .sticky { position: static !important; top: auto !important; }
         [data-testid="vastgoedrekenen-case-workspace"] [role="tabpanel"][id*="content-calculation"] > .space-y-4 > :first-child { display: none !important; }
       `}</style>
-      {visible && (
+      {visible && isOffMarketSignaalDetail && (
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 flex flex-col items-end gap-2 sm:bottom-6 sm:right-6">
+          {sectionTargetTop !== null && (
+            <button
+              type="button"
+              onClick={handleSectionTop}
+              title={`Naar begin van ${sectionLabel}`}
+              aria-label={`Naar begin van ${sectionLabel}`}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 text-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              <span className="relative inline-flex h-5 w-5 items-center justify-center">
+                <ArrowUp className="h-4 w-4" />
+                <span className="absolute bottom-0 h-px w-4 bg-current" />
+              </span>
+              <span className="text-xs font-medium">Sectie</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handlePageTop}
+            title="Naar boven"
+            aria-label="Naar boven"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <ArrowUp className="h-5 w-5" />
+            <span className="text-xs font-medium">Boven</span>
+          </button>
+        </div>
+      )}
+      {visible && !isOffMarketSignaalDetail && (
         <button type="button" onClick={handleClick} title={title} aria-label={title} className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5">
           <ArrowUp className="h-5 w-5 shrink-0" />
           <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">{label}</span>
