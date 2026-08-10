@@ -28,10 +28,12 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartTaakCompare, getTaakDeadlineMs, getTaakPrioriteitRank } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { useMemo as useMemoReact } from 'react';
+import { maakCrmReturnState } from '@/lib/crmReturnContext';
+import {
+  loadTakenViewState, saveTakenViewState, type TakenTab,
+} from '@/lib/takenViewState';
 
-type Tab = 'focus' | 'vandaag' | 'te_laat' | 'deze_week' | 'wachten' | 'alles' | 'afgerond';
-
-const TABS: { value: Tab; label: string }[] = [
+const TABS: { value: TakenTab; label: string }[] = [
   { value: 'focus', label: 'Focus' },
   { value: 'vandaag', label: 'Vandaag' },
   { value: 'te_laat', label: 'Te laat' },
@@ -45,23 +47,34 @@ const isOpenState = (s: TaakStatus) => s !== 'afgerond' && s !== 'geannuleerd';
 
 export default function TakenPage() {
   const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen } = useDataStore();
-  const [zoek, setZoek] = useState('');
-  const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>('');
+  const initialView = useMemo(() => loadTakenViewState(), []);
+  const [zoek, setZoek] = useState(initialView.zoek);
+  const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>(initialView.prioriteitFilter);
+  const [typeFilter, setTypeFilter] = useState<string>(initialView.typeFilter);
+  const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>(initialView.statusFilter);
   const [formOpen, setFormOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
-  const [tab, setTab] = useState<Tab>('focus');
+  const [tab, setTab] = useState<TakenTab>(initialView.tab);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // De werkcontext van Taken blijft binnen dezelfde browsersessie behouden.
+  // Daardoor keert een gebruiker na een detailpagina terug naar dezelfde tab,
+  // zoekterm en filters in plaats van opnieuw in Focus te landen.
+  useEffect(() => {
+    saveTakenViewState({ zoek, prioriteitFilter, typeFilter, statusFilter, tab });
+  }, [zoek, prioriteitFilter, typeFilter, statusFilter, tab]);
 
   // Backwards compat: oude ?open={id} deep-links redirecten naar /taken/:id.
   useEffect(() => {
     const openId = searchParams.get('open');
     if (!openId) return;
     if (taken.some((x) => x.id === openId)) {
-      navigate(`/taken/${openId}`, { replace: true });
+      navigate(`/taken/${openId}`, {
+        replace: true,
+        state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst'),
+      });
     } else {
       toast.error('Taak niet gevonden');
       const next = new URLSearchParams(searchParams);
@@ -211,7 +224,9 @@ export default function TakenPage() {
     return (
       <div
         key={taak.id}
-        onClick={() => navigate(`/taken/${taak.id}`)}
+        onClick={() => navigate(`/taken/${taak.id}`, {
+          state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst'),
+        })}
         className="group px-4 sm:px-5 py-3.5 flex items-start sm:items-center gap-3 hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <button
