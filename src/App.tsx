@@ -78,44 +78,57 @@ const App = () => (
             <PropertyTaxonomieProvider>
             <DataStoreProvider>
               <AcquisitieProvider>
-                <VastgoedkansenProvider>
-                  <Routes>
-                    <Route path="/auth" element={<AuthPage />} />
-                    <Route path="/oauth/consent" element={<OAuthConsentPage />} />
-                    <Route element={<ProtectedRoute />}>
-                      <Route element={<AppLayout />}>
-                        <Route index element={<DashboardPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/relaties" element={<RelatiesPage />} />
-                        <Route path="/relaties/:id" element={<RelatieDetailPage />} />
-                        <Route path="/objecten" element={<ObjectenPage />} />
-                        <Route path="/objecten/:id" element={<SafeObjectDetailRoute />} />
-                        <Route path="/deals" element={<DealsPage />} />
-                        <Route path="/deals/:id" element={<DealDetailPage />} />
-                        <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
-                        <Route path="/pipeline" element={<PipelinePage />} />
-                        <Route path="/taken" element={<TakenPage />} />
-                        <Route path="/taken/:id" element={<TaakDetailPage />} />
-                        <Route path="/rapportage" element={<RapportagePage />} />
-                        <Route path="/kadaster-kosten" element={<KadasterKostenPage />} />
-                        <Route path="/referentie-objecten" element={<ReferentieObjectenPage />} />
-                        <Route path="/admin" element={<AdminPage />} />
-                        <Route path="/vastgoedrekenen" element={<VastgoedrekenenPage />} />
-                        <Route path="/off-market" element={<OffMarketPage />} />
-                        <Route path="/off-market/signalen/:id" element={<OffMarketSignaalRoutePage />} />
-                        <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
-                        <Route path="/vastgoedkansen/vinden" element={<VastgoedkansenVindenPage />} />
-                        <Route path="/vastgoedkansen/:id" element={<VastgoedkansDetailPage />} />
-                        <Route path="/snelle-pandcheck" element={<SnellePandcheckPage />} />
-                        <Route path="/acquisitie" element={<AcquisitiePage />} />
-                        <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
-                        <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
-                        <Route path="/acquisitie/funnel" element={<AcquisitieFunnelPage />} />
-                      </Route>
-                    </Route>
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </VastgoedkansenProvider>
+              <VastgoedkansenProvider>
+              <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+                <Route
+                  path="*"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Routes>
+                          <Route path="/" element={<DashboardPage />} />
+                          <Route path="/relaties" element={<RelatiesPage />} />
+                          <Route path="/relaties/:id" element={<RelatieDetailPage />} />
+                          <Route path="/objecten" element={<ObjectenPage />} />
+                          <Route path="/objecten/:id" element={<SafeObjectDetailRoute />} />
+                          <Route path="/deals" element={<DealsPage />} />
+                          <Route path="/deals/:id" element={<DealDetailPage />} />
+                          <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
+                          <Route path="/pipeline" element={<PipelinePage />} />
+                          <Route path="/acquisitie" element={<AcquisitiePage />} />
+                          <Route path="/acquisitie/funnel" element={<AcquisitieFunnelPage />} />
+                          <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
+                          <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
+                          <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
+                          <Route path="/vastgoedkansen/vinden" element={<VastgoedkansenVindenPage />} />
+                          <Route path="/vastgoedkansen/pandcheck" element={<SnellePandcheckPage />} />
+                          <Route path="/vastgoedkansen/:id" element={<VastgoedkansDetailPage />} />
+                          <Route path="/off-market" element={<OffMarketPage />} />
+                          <Route path="/off-market/:id" element={<OffMarketSignaalRoutePage />} />
+                          <Route path="/referentieobjecten" element={<ReferentieObjectenPage />} />
+                          <Route path="/taken" element={<TakenPage />} />
+                          <Route path="/taken/:id" element={<TaakDetailPage />} />
+                          <Route path="/vastgoedrekenen" element={<VastgoedrekenenPage />} />
+                          <Route path="/rapportage" element={<RapportagePage />} />
+                          <Route path="/rapportage/kadasterkosten" element={<KadasterKostenPage />} />
+                          <Route
+                            path="/admin"
+                            element={
+                              <ProtectedRoute vereistAdmin>
+                                <AdminPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+              </VastgoedkansenProvider>
               </AcquisitieProvider>
             </DataStoreProvider>
             </PropertyTaxonomieProvider>
