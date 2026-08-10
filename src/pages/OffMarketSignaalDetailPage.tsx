@@ -35,7 +35,6 @@ import SignaalMobileCockpit from '@/components/offmarket/mobile/SignaalMobileCoc
 import SignaalMobileActionBar from '@/components/offmarket/mobile/SignaalMobileActionBar';
 import SignaalMobileBronregel from '@/components/offmarket/mobile/SignaalMobileBronregel';
 import ClassificatieReadonlyCard from '@/components/offmarket/mobile/ClassificatieReadonlyCard';
-import MobileTabbarScroller from '@/components/offmarket/mobile/MobileTabbarScroller';
 
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ListNavigator from '@/components/ListNavigator';
@@ -86,8 +85,6 @@ export default function OffMarketSignaalDetailPage() {
   const { taken } = useDataStore();
   const archive = useArchiveOffMarketSignaal();
 
-  // Initial tab uit query. Acquisitie Focusmodus forceert daarnaast mode=normaal,
-  // zodat een persoonlijke algemene Reviewmodus-voorkeur deze context niet kaapt.
   const initialTab = (() => {
     const t = searchParams.get('tab');
     return t && VALID_TABS.has(t) ? t : 'overzicht';
@@ -198,7 +195,6 @@ export default function OffMarketSignaalDetailPage() {
 
   return (
     <div className="space-y-4 lg:space-y-5 px-4 sm:px-6 pb-4 sm:pb-6 pt-0 md:pt-6 max-w-7xl">
-      {/* === Mobiel: sticky nav (Terug / vorige / teller / volgende) === */}
       <div className="lg:hidden -mx-4 sm:-mx-6 sticky top-0 z-30 glass-topbar border-b border-border/60">
         <div className="flex items-center gap-1 px-2 py-1">
           <button type="button" onClick={handleBackToList}
@@ -224,7 +220,6 @@ export default function OffMarketSignaalDetailPage() {
         </div>
       </div>
 
-      {/* === Desktop nav === */}
       <div className="hidden lg:flex items-center justify-end">
         {inFocusContext ? (
           <div className="flex items-center gap-2">
@@ -255,7 +250,6 @@ export default function OffMarketSignaalDetailPage() {
         )}
       </div>
 
-      {/* === Desktop: ongewijzigd buiten Acquisitiecontext === */}
       <div className="hidden lg:block space-y-5">
         <SignaalDetailHeader
           signaal={signaal}
@@ -286,18 +280,14 @@ export default function OffMarketSignaalDetailPage() {
                 </TabsList>
               </div>
 
-              <TabsContent value="overzicht" className="space-y-5 mt-4">
+              <TabsContent value="overzicht" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Overzicht">
                 <div className="flex flex-wrap items-center gap-3 justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Snelle acties
-                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Snelle acties</p>
                     <SignaalSnelleActiesBar signaal={signaal} />
                   </div>
                   <div className="shrink-0">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Status wijzigen
-                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Status wijzigen</p>
                     <StatusWijzigDropdown signaal={signaal} variant="inline" />
                   </div>
                 </div>
@@ -308,29 +298,29 @@ export default function OffMarketSignaalDetailPage() {
                 <SignaalDossierNotities signaal={signaal} />
               </TabsContent>
 
-              <TabsContent value="onderzoek" className="space-y-5 mt-4">
+              <TabsContent value="onderzoek" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Onderzoek">
                 <SignaalOnderzoeksacties signaal={signaal} />
                 <SignaalGebiedsindeling signaal={signaal} />
                 <BagOverzichtKaart signaal={signaal} onOpenKadaster={() => setDesktopTab('kadaster')} />
                 <SignaalKadasterKaart signaal={signaal} />
               </TabsContent>
 
-              <TabsContent value="kadaster" className="space-y-5 mt-4">
+              <TabsContent value="kadaster" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Kadaster & eigenaar">
                 <SignaalKadasterKaart signaal={signaal} />
                 <SignaalEigenaarsonderzoekSectie signaal={signaal} focusMode={eigenaarFocusMode} />
                 <SignaalKoppelingenSectie signaal={signaal} />
               </TabsContent>
 
-              <TabsContent value="brieven" className="space-y-5 mt-4">
+              <TabsContent value="brieven" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Brieven & opvolging">
                 <SignaalBrievenSectie signaal={signaal} />
               </TabsContent>
 
-              <TabsContent value="taken" className="space-y-5 mt-4">
+              <TabsContent value="taken" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Taken & tijdlijn">
                 <SignaalTakenSectie signaalId={signaal.id} />
                 <SignaalTijdlijnSectie signaalId={signaal.id} />
               </TabsContent>
 
-              <TabsContent value="technisch" className="space-y-5 mt-4">
+              <TabsContent value="technisch" className="space-y-5 mt-4" data-scroll-section data-scroll-label="Technisch">
                 <SignaalTechnischeDetails signaal={signaal} />
               </TabsContent>
             </Tabs>
@@ -351,7 +341,6 @@ export default function OffMarketSignaalDetailPage() {
         </div>
       </div>
 
-      {/* === Mobiel: compacte dossier-UX === */}
       <div className="lg:hidden space-y-3" data-testid="off-market-mobile-shell">
         <SignaalMobileHeader
           signaal={signaal}
@@ -368,62 +357,54 @@ export default function OffMarketSignaalDetailPage() {
         <SignaalMobileActionBar signaal={signaal} />
 
         <Tabs value={mobileTab} onValueChange={setMobileTab} className="pt-1">
-          <div className="glass-tabbar px-1.5 py-1">
-            <MobileTabbarScroller activeValue={mobileTab}>
-              <TabsList
-                data-testid="signaal-mobile-tabs"
-                className="bg-transparent p-0 h-auto rounded-none gap-1 flex w-max justify-start"
-              >
-                {MOBILE_TABS.map((t) => (
-                  <TabsTrigger
-                    key={t.value}
-                    value={t.value}
-                    className="glass-tab-pill data-[state=active]:!shadow-none whitespace-nowrap"
-                  >
-                    <t.Icon className="h-3.5 w-3.5 mr-1" />
-                    {t.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </MobileTabbarScroller>
+          <div className="rounded-2xl border border-border/70 bg-card/55 p-1.5 overflow-hidden">
+            <TabsList
+              data-testid="signaal-mobile-tabs"
+              className="grid grid-cols-3 w-full h-auto bg-transparent p-0 gap-1 rounded-none"
+            >
+              {MOBILE_TABS.map((t) => (
+                <TabsTrigger
+                  key={t.value}
+                  value={t.value}
+                  className="min-w-0 w-full h-11 justify-center rounded-xl px-2 text-xs text-muted-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-accent/40 data-[state=active]:shadow-none"
+                >
+                  <t.Icon className="h-4 w-4 mr-1.5 shrink-0" />
+                  <span className="truncate">{t.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </div>
 
-          <TabsContent value="overzicht" className="space-y-3 mt-3">
+          <TabsContent value="overzicht" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Overzicht">
             <SignaalSnelleActiesBar signaal={signaal} />
             <SignaalAiAnalyse signaal={signaal} />
-            <ClassificatieReadonlyCard
-              signaal={signaal}
-              onWijzig={() => setEditOpen(true)}
-            />
+            <ClassificatieReadonlyCard signaal={signaal} onWijzig={() => setEditOpen(true)} />
             <SignaalDossierNotities signaal={signaal} />
           </TabsContent>
 
-          <TabsContent value="onderzoek" className="space-y-3 mt-3">
+          <TabsContent value="onderzoek" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Onderzoek">
             <SignaalOnderzoeksacties signaal={signaal} />
             <SignaalMobileGebiedsindeling signaal={signaal} />
             <SignaalMobileBronregel signaal={signaal} />
-            <BagOverzichtKaart
-              signaal={signaal}
-              onOpenKadaster={() => setMobileTab('kadaster')}
-            />
+            <BagOverzichtKaart signaal={signaal} onOpenKadaster={() => setMobileTab('kadaster')} />
           </TabsContent>
 
-          <TabsContent value="kadaster" className="space-y-3 mt-3">
+          <TabsContent value="kadaster" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Kadaster & eigenaar">
             <SignaalKadasterKaart signaal={signaal} />
             <SignaalEigenaarsonderzoekSectie signaal={signaal} focusMode={eigenaarFocusMode} />
             <SignaalKoppelingenSectie signaal={signaal} />
           </TabsContent>
 
-          <TabsContent value="brieven" className="space-y-3 mt-3">
+          <TabsContent value="brieven" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Brieven & opvolging">
             <SignaalBrievenSectie signaal={signaal} />
           </TabsContent>
 
-          <TabsContent value="taken" className="space-y-3 mt-3">
+          <TabsContent value="taken" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Taken & tijdlijn">
             <SignaalTakenSectie signaalId={signaal.id} />
             <SignaalTijdlijnSectie signaalId={signaal.id} />
           </TabsContent>
 
-          <TabsContent value="technisch" className="space-y-3 mt-3">
+          <TabsContent value="technisch" className="space-y-3 mt-3" data-scroll-section data-scroll-label="Technisch">
             <SignaalTechnischeDetails signaal={signaal} />
           </TabsContent>
         </Tabs>
