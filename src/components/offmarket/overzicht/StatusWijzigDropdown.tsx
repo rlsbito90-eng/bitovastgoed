@@ -41,11 +41,11 @@ export default function StatusWijzigDropdown({ signaal, variant = 'inline' }: Pr
         <SelectTrigger
           aria-label="Status wijzigen"
           data-testid="status-wijzig-compact"
-          className="h-auto min-h-[36px] sm:min-h-[32px] w-auto gap-1.5 px-2 py-1 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:ring-1 focus:ring-ring focus:ring-offset-0 [&>svg]:hidden"
+          className="h-10 min-h-10 w-auto gap-1.5 px-2 py-1.5 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:ring-1 focus:ring-ring focus:ring-offset-0 overflow-visible [&>svg]:hidden [&>span]:!line-clamp-none [&>span]:!overflow-visible"
         >
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 leading-none overflow-visible">
             <OffMarketStatusBadge status={signaal.status} />
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
           </span>
         </SelectTrigger>
         <SelectContent align="end">
