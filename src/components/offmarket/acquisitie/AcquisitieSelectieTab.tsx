@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, PlayCircle, Printer, Send, Sparkles, Tag, Trash2, Users,
+  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, MessageSquare, PlayCircle, Printer, Search, Send, Sparkles, Tag, Trash2, Users,
 } from 'lucide-react';
 
 import {
@@ -24,6 +24,10 @@ import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/Eigenaa
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import { bepaalBriefStatus, type BriefStatus } from '@/lib/offMarket/briefStatus';
 import { groepeerBrievenPerGeadresseerde } from '@/lib/offMarket/brieven/groepering';
+import {
+  RESPONS_LABEL, badgeClassVoorRespons, type Responsstatus,
+} from '@/lib/offMarket/brieven/respons';
+import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
@@ -33,6 +37,7 @@ import {
 import { cleanAdres, cleanPlaats, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import ToevoegenAanAcquisitieSelectieKnop from './ToevoegenAanAcquisitieSelectieKnop';
 import AcquisitieKpis from './AcquisitieKpis';
 import AcquisitieWerkbakChips from './AcquisitieWerkbakChips';
@@ -104,6 +109,32 @@ function tekstType(s: OffMarketSignaal): string {
   return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
 }
 
+function normaliseerZoektekst(waarde: unknown): string {
+  return String(waarde ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function vervolgactieVoorRespons(status: Responsstatus): string {
+  switch (status) {
+    case 'interesse': return 'Lead kwalificeren';
+    case 'wil_meer_informatie': return 'Informatie verstrekken en contact vervolgen';
+    case 'gesprek_gepland': return 'Gesprek voorbereiden';
+    case 'reactie_ontvangen': return 'Reactie beoordelen';
+    case 'later_opnieuw_benaderen': return 'Later opvolgen';
+    case 'niet_geinteresseerd': return 'Dossier beoordelen / afsluiten';
+    case 'verkeerd_adres': return 'Geadresseerde herstellen';
+    case 'retour_post': return 'Adres controleren';
+    case 'verkocht_of_niet_relevant': return 'Dossier beoordelen / afsluiten';
+    case 'afgevallen': return 'Dossier afsluiten';
+    case 'geen_reactie': return 'Opvolgstrategie bepalen';
+    default: return 'Reactie beoordelen';
+  }
+}
+
 const FOCUS_INDEX_KEY = 'off-market-acq:focus-index';
 const SCROLL_KEY = 'off-market-acq:scroll';
 const PRINTPOST_KEY = 'off-market-acq:printpost';
@@ -144,6 +175,10 @@ export default function AcquisitieSelectieTab() {
   const initieel = useMemo(leesInitieleView, []);
   const [werkbak, setWerkbakState] = useState<WerkbakView>(initieel.werkbak);
   const [subfilter, setSubfilterState] = useState<ActieSubfilter>(initieel.subfilter);
+  const [zoekterm, setZoekterm] = useState('');
+  const zoek = normaliseerZoektekst(zoekterm);
+  const zoekActief = zoek.length > 0;
+
   const setWerkbak = (v: WerkbakView) => {
     setWerkbakState(v);
     try { sessionStorage.setItem(WERKBAK_KEY, v); } catch { /* ignore */ }
@@ -266,16 +301,36 @@ export default function AcquisitieSelectieTab() {
 
   const gefilterd = useMemo(() => {
     const rijen: SorteerbareRij[] = [];
-    for (const { signaal } of readiness.lijst) {
+    for (const { signaal, readiness: r } of readiness.lijst) {
       const ctx = werkbakPerSignaal.get(signaal.id);
       if (!ctx) continue;
-      const inWerkbak = werkbak === 'alles' ? true : ctx.werkbak === werkbak;
-      if (!inWerkbak) continue;
-      if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
-      if (
-        werkbak === 'actie' && subfilter === 'printen_posten'
-        && !matchtPrintPostFilter(ctx.actieCategorie, printPost)
-      ) continue;
+
+      if (zoekActief) {
+        const geadresseerdeTekst = r.geadresseerden
+          .flatMap((g) => [g.naam, g.bedrijfsnaam, g.verzendadres])
+          .filter(Boolean)
+          .join(' ');
+        const haystack = normaliseerZoektekst([
+          formatSignaalAdres(signaal),
+          cleanAdres(signaal.adres),
+          (signaal as any).postcode,
+          cleanPlaats(signaal.plaats),
+          tekstType(signaal),
+          signaal.type_signaal,
+          signaal.id,
+          geadresseerdeTekst,
+        ].filter(Boolean).join(' '));
+        if (!haystack.includes(zoek)) continue;
+      } else {
+        const inWerkbak = werkbak === 'alles' ? true : ctx.werkbak === werkbak;
+        if (!inWerkbak) continue;
+        if (werkbak === 'actie' && subfilter !== 'alle' && ctx.actieSubfilter !== subfilter) continue;
+        if (
+          werkbak === 'actie' && subfilter === 'printen_posten'
+          && !matchtPrintPostFilter(ctx.actieCategorie, printPost)
+        ) continue;
+      }
+
       rijen.push({
         signaalId: signaal.id,
         toegevoegdOp: toegevoegdOpPerSignaal.get(signaal.id) ?? null,
@@ -286,7 +341,7 @@ export default function AcquisitieSelectieTab() {
         plaats: cleanPlaats(signaal.plaats) || null,
       });
     }
-    const gesorteerd = sorteerRijen(actieveSortering, werkbak, rijen);
+    const gesorteerd = sorteerRijen(actieveSortering, zoekActief ? 'alles' : werkbak, rijen);
     const byId = new Map(readiness.lijst.map(x => [x.signaal.id, x]));
     return gesorteerd
       .map(r => {
@@ -297,7 +352,7 @@ export default function AcquisitieSelectieTab() {
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [
     readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost,
-    actieveSortering, toegevoegdOpPerSignaal,
+    actieveSortering, toegevoegdOpPerSignaal, zoek, zoekActief,
   ]);
 
   const [werkronde, setWerkrondeState] = useState<Werkronde | null>(() => leesWerkronde());
@@ -355,13 +410,38 @@ export default function AcquisitieSelectieTab() {
 
   const { taken } = useDataStore();
   const briefInfoPerSignaal = useMemo(() => {
-    const m = new Map<string, { status: BriefStatus; verzonden: number; aantalGeadresseerden: number }>();
+    const m = new Map<string, {
+      status: BriefStatus;
+      verzonden: number;
+      aantalGeadresseerden: number;
+      respons: null | {
+        status: Responsstatus;
+        datum: string | null;
+        kanaal: Kanaal | null;
+        samenvatting: string | null;
+      };
+    }>();
     for (const s of geselecteerdeSignalen) {
       const bs = brievenPerSignaal.get(s.id) ?? [];
       const status = bepaalBriefStatus(bs, taken as any, s.id);
       const groepen = groepeerBrievenPerGeadresseerde(bs.filter(b => !b.archived_at));
       const verzonden = groepen.filter(g => g.brieven.some(b => b.status === 'verstuurd')).length;
-      m.set(s.id, { status, verzonden, aantalGeadresseerden: groepen.length });
+      const reacties = bs
+        .filter((b) => !b.archived_at && !!b.responsstatus)
+        .sort((a, b) => String(b.responsdatum ?? (b as any).updated_at ?? b.created_at ?? '')
+          .localeCompare(String(a.responsdatum ?? (a as any).updated_at ?? a.created_at ?? '')));
+      const laatste = reacties[0];
+      m.set(s.id, {
+        status,
+        verzonden,
+        aantalGeadresseerden: groepen.length,
+        respons: laatste ? {
+          status: laatste.responsstatus as Responsstatus,
+          datum: laatste.responsdatum ?? null,
+          kanaal: (laatste.respons_kanaal as Kanaal | null | undefined) ?? null,
+          samenvatting: laatste.respons_samenvatting ?? null,
+        } : null,
+      });
     }
     return m;
   }, [geselecteerdeSignalen, brievenPerSignaal, taken]);
@@ -488,6 +568,9 @@ export default function AcquisitieSelectieTab() {
   }, []);
 
   function huidigeBron(): { bron: WerkrondeBron; naam: string } {
+    if (zoekActief) {
+      return { bron: 'handmatig', naam: `Zoekresultaten (${gefilterd.length})` };
+    }
     const bron = werkrondeBronVoorView({
       heeftHandmatigeSelectie: bulkSelectie.size > 0,
       werkbak,
@@ -543,6 +626,7 @@ export default function AcquisitieSelectieTab() {
     }
     const n = bulkSelectie.size > 0 ? bulkSelectie.size : gefilterd.length;
     if (bulkSelectie.size > 0) return `Verwerk geselecteerde (${n})`;
+    if (zoekActief) return `Verwerk zoekresultaten (${n})`;
     if (werkbak === 'actie') {
       if (subfilter === 'alle') return `Verwerk Actie (${n})`;
       if (subfilter === 'printen_posten') {
@@ -581,7 +665,7 @@ export default function AcquisitieSelectieTab() {
       scopeIds = readiness.lijst
         .filter((x) => bulkSelectie.has(x.signaal.id))
         .map((x) => x.signaal.id);
-    } else if (werkbak !== 'alles') {
+    } else if (zoekActief || werkbak !== 'alles') {
       scopeIds = gefilterd.map((x) => x.signaal.id);
     }
     const scopeList = scopeIds
@@ -651,7 +735,29 @@ export default function AcquisitieSelectieTab() {
         </Button>
       </div>
 
-      {werkbak === 'actie' && subfilter === 'printen_posten' && (
+      <div className="section-card px-3 py-2.5" data-testid="acquisitie-zoekbalk">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={zoekterm}
+              onChange={(e) => setZoekterm(e.target.value)}
+              placeholder="Zoek adres, plaats, eigenaar of signaaltype…"
+              className="pl-9"
+              aria-label="Zoek in acquisitieselectie"
+              data-testid="acquisitie-zoeken"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {zoekActief
+              ? `${gefilterd.length} resultaat${gefilterd.length === 1 ? '' : 'en'} · zoekt in alle werkbakken`
+              : `Doorzoek alle ${tellingen.werkbak.alles} signalen in de acquisitieselectie`}
+          </p>
+        </div>
+      </div>
+
+      {!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten' && (
         <div
           className="flex flex-wrap items-center gap-1.5"
           data-testid="acquisitie-printpost-chips"
@@ -834,7 +940,9 @@ export default function AcquisitieSelectieTab() {
 
       {gefilterd.length === 0 ? (
         <p className="text-sm text-muted-foreground px-1 py-4">
-          Geen signalen in dit filter.
+          {zoekActief
+            ? `Geen signalen gevonden voor “${zoekterm.trim()}”.`
+            : 'Geen signalen in dit filter.'}
         </p>
       ) : (
         <ul
@@ -846,6 +954,8 @@ export default function AcquisitieSelectieTab() {
             const plaats = cleanPlaats(signaal.plaats) || '';
             const bulkChecked = bulkSelectie.has(signaal.id);
             const toegevoegd = toegevoegdOpLabel(toegevoegdOpPerSignaal.get(signaal.id) ?? null);
+            const briefInfo = briefInfoPerSignaal.get(signaal.id);
+            const respons = briefInfo?.respons ?? null;
             return (
               <AcquisitieDossierRij
                 key={signaal.id}
@@ -887,30 +997,33 @@ export default function AcquisitieSelectieTab() {
                             eigenaarstatus={((signaal as any).eigenaarstatus as OffMarketEigenaarstatus | null) ?? 'onbekend'}
                           />
                         </span>
-                        {(() => {
-                          const info = briefInfoPerSignaal.get(signaal.id);
-                          if (!info) return null;
-                          const toonSuffix = info.aantalGeadresseerden > 1 && info.verzonden > 0;
-                          const toonOpvolging = info.status === 'brief2_gepland';
-                          return (
-                            <span
-                              data-testid="acquisitie-rij-briefstatus"
-                              className="inline-flex items-center gap-1"
-                            >
-                              <SignaalBriefStatusBadge status={info.status} />
-                              {toonSuffix && (
-                                <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
-                                  {info.verzonden}/{info.aantalGeadresseerden}
-                                </span>
-                              )}
-                              {toonOpvolging && (
-                                <span className="text-[10px] text-accent whitespace-nowrap">
-                                  Opvolging nodig
-                                </span>
-                              )}
-                            </span>
-                          );
-                        })()}
+                        {briefInfo && (
+                          <span
+                            data-testid="acquisitie-rij-briefstatus"
+                            className="inline-flex items-center gap-1"
+                          >
+                            <SignaalBriefStatusBadge status={briefInfo.status} />
+                            {briefInfo.aantalGeadresseerden > 1 && briefInfo.verzonden > 0 && (
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+                                {briefInfo.verzonden}/{briefInfo.aantalGeadresseerden}
+                              </span>
+                            )}
+                            {briefInfo.status === 'brief2_gepland' && (
+                              <span className="text-[10px] text-accent whitespace-nowrap">
+                                Opvolging nodig
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {respons && (
+                          <span
+                            data-testid="acquisitie-rij-responsbadge"
+                            className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${badgeClassVoorRespons(respons.status)}`}
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            {RESPONS_LABEL[respons.status]}
+                          </span>
+                        )}
                         {typeof signaal.ai_score === 'number' && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
                             <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
@@ -936,6 +1049,29 @@ export default function AcquisitieSelectieTab() {
                           </span>
                         )}
                       </div>
+                      {respons && (
+                        <div
+                          data-testid="acquisitie-rij-respons"
+                          className="rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2 text-[11px]"
+                        >
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="font-semibold text-foreground">Reactie — actie nodig</span>
+                            <span className="text-muted-foreground">
+                              {RESPONS_LABEL[respons.status]}
+                              {respons.datum ? ` · ${respons.datum}` : ''}
+                              {respons.kanaal ? ` · ${KANAAL_LABEL[respons.kanaal]}` : ''}
+                            </span>
+                          </div>
+                          {respons.samenvatting && (
+                            <p className="mt-1 text-muted-foreground break-words line-clamp-2">
+                              {respons.samenvatting}
+                            </p>
+                          )}
+                          <p className="mt-1 font-medium text-foreground">
+                            Volgende stap: {vervolgactieVoorRespons(respons.status)}
+                          </p>
+                        </div>
+                      )}
                       <p className="text-[11px] text-muted-foreground break-words">
                         {r.blokkadeReden ?? r.info.reden}
                       </p>
