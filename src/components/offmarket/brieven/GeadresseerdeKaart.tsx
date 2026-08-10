@@ -271,8 +271,23 @@ function StapRij({
   const verzendstatus = (actief?.verzendstatus ?? null) as Verzendstatus | null;
   const responsstatus = (actief?.responsstatus ?? null) as Responsstatus | null;
 
+  const rijOpen = (e: React.MouseEvent | React.KeyboardEvent) => {
+    if (!actief) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    onOpen(actief);
+  };
+
   return (
-    <li data-testid={`stap-rij-${stap}`} data-status={status} className="px-3 py-3 space-y-2.5">
+    <li
+      data-testid={`stap-rij-${stap}`}
+      data-status={status}
+      role={actief ? 'button' : undefined}
+      tabIndex={actief ? 0 : -1}
+      onClick={actief ? rijOpen : undefined}
+      onKeyDown={actief ? rijOpen : undefined}
+      className={`px-3 py-3 space-y-2.5 ${actief ? 'cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/60' : ''}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
@@ -340,6 +355,15 @@ function StapRij({
             <DuidelijkeActie onClick={() => onMarkeerVerstuurd(actief)} icon={<Send className="h-3.5 w-3.5" />} accent>
               Versturen
             </DuidelijkeActie>
+            {!isEmail && (
+              <DuidelijkeActie
+                onClick={() => onDownloadPdf(actief)}
+                icon={<FileDown className="h-3.5 w-3.5" />}
+                aria-label="Download PDF"
+              >
+                PDF
+              </DuidelijkeActie>
+            )}
             <DuidelijkeActie onClick={() => setMeerOpen((v) => !v)} icon={<MoreHorizontal className="h-3.5 w-3.5" />}>
               Meer
             </DuidelijkeActie>
@@ -358,6 +382,15 @@ function StapRij({
                 {responsstatus ? 'Reactie aanpassen' : 'Reactie registreren'}
               </DuidelijkeActie>
             )}
+            {!isEmail && (
+              <DuidelijkeActie
+                onClick={() => onDownloadPdf(actief)}
+                icon={<FileDown className="h-3.5 w-3.5" />}
+                aria-label="Download PDF"
+              >
+                PDF
+              </DuidelijkeActie>
+            )}
             <DuidelijkeActie onClick={() => setMeerOpen((v) => !v)} icon={<MoreHorizontal className="h-3.5 w-3.5" />}>
               Meer
             </DuidelijkeActie>
@@ -370,11 +403,6 @@ function StapRij({
           <DuidelijkeActie onClick={() => onOpen(actief)} icon={<Pencil className="h-3.5 w-3.5" />} compact>
             Brief openen
           </DuidelijkeActie>
-          {!isEmail && (
-            <DuidelijkeActie onClick={() => onDownloadPdf(actief)} icon={<FileDown className="h-3.5 w-3.5" />} compact>
-              PDF
-            </DuidelijkeActie>
-          )}
           <DuidelijkeActie onClick={() => onKopieer(actief)} icon={<Copy className="h-3.5 w-3.5" />} compact>
             Kopiëren
           </DuidelijkeActie>
@@ -411,7 +439,7 @@ function StapRij({
           <button
             type="button"
             data-testid={`oudere-concepten-toggle-${stap}`}
-            onClick={() => setOudeConceptenOpen((v) => !v)}
+            onClick={(e) => { e.stopPropagation(); setOudeConceptenOpen((v) => !v); }}
             className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
           >
             {oudeConceptenOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -424,7 +452,7 @@ function StapRij({
                   <button
                     type="button"
                     data-testid={`ouder-concept-${c.id}`}
-                    onClick={() => onOpen(c)}
+                    onClick={(e) => { e.stopPropagation(); onOpen(c); }}
                     className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                   >
                     Conceptversie van {formatDateNL(c.created_at)}
@@ -464,7 +492,10 @@ function DuidelijkeActie({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md border font-medium transition-colors ${kleur} ${compact ? 'min-h-8 px-2.5 text-[11px]' : 'min-h-9 px-3 text-xs'}`}
       {...rest}
     >
