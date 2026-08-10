@@ -18,8 +18,8 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartDealCompare, getDealGewogenCommissie } from '@/lib/sorting/urgency';
 import { getLaatsteContactDatum } from '@/lib/relatieContact';
 import type { SortOption } from '@/lib/sorting/types';
-
-type ArchiefView = 'actief' | 'archief' | 'alles';
+import { maakCrmReturnState } from '@/lib/crmReturnContext';
+import { loadDealsViewState, saveDealsViewState, type DealsArchiefView } from '@/lib/dealsViewState';
 
 const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
@@ -39,10 +39,15 @@ function Sterren({ aantal }: { aantal: number }) {
 export default function DealsPage() {
   const navigate = useNavigate();
   const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal, contactMoments } = useDataStore();
-  const [zoek, setZoek] = useState('');
-  const [faseFilter, setFaseFilter] = useState<DealFase | ''>('');
-  const [archiefView, setArchiefView] = useState<ArchiefView>('actief');
+  const initialView = useMemo(() => loadDealsViewState(), []);
+  const [zoek, setZoek] = useState(initialView.zoek);
+  const [faseFilter, setFaseFilter] = useState<DealFase | ''>(initialView.faseFilter);
+  const [archiefView, setArchiefView] = useState<DealsArchiefView>(initialView.archiefView);
   const [formOpen, setFormOpen] = useState(false);
+
+  useEffect(() => {
+    saveDealsViewState({ zoek, faseFilter, archiefView });
+  }, [zoek, faseFilter, archiefView]);
 
   const aantalArchief = deals.filter(d => d.isArchived).length;
   const aantalActief = deals.length - aantalArchief;
@@ -95,12 +100,13 @@ export default function DealsPage() {
     }
   };
 
-  const tabs: { key: ArchiefView; label: string; count: number }[] = [
+  const tabs: { key: DealsArchiefView; label: string; count: number }[] = [
     { key: 'actief', label: 'Actief', count: aantalActief },
     { key: 'archief', label: 'Archief', count: aantalArchief },
     { key: 'alles', label: 'Alles', count: deals.length },
   ];
   const isArchiefView = archiefView === 'archief';
+  const dealReturnState = maakCrmReturnState('/deals', 'Deals', 'deals-lijst');
 
   return (
     <div className="page-shell-wide">
@@ -155,7 +161,12 @@ export default function DealsPage() {
               const obj = getObjectById(deal.objectId);
               const rel = getRelatieById(deal.relatieId);
               return (
-                <Link key={deal.id} to={`/deals/${deal.id}`} className="section-card block p-4 active:bg-muted/40 transition-colors">
+                <Link
+                  key={deal.id}
+                  to={`/deals/${deal.id}`}
+                  state={dealReturnState}
+                  className="section-card block p-4 active:bg-muted/40 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground truncate">{obj?.titel}</p>
@@ -209,7 +220,7 @@ export default function DealsPage() {
                     return (
                       <tr
                         key={deal.id}
-                        onClick={() => navigate(`/deals/${deal.id}`)}
+                        onClick={() => navigate(`/deals/${deal.id}`, { state: dealReturnState })}
                         className="group hover:bg-muted/40 transition-colors cursor-pointer"
                       >
                         <td className="px-5 py-3.5">
