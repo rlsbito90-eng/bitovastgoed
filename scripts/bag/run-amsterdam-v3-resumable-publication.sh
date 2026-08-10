@@ -30,6 +30,7 @@ repls = {
     'EXPECTED_RELATIES=2531300': 'EXPECTED_RELATIES=2564885',
     'EXPECTED_GEOMETRIEEN=1830704': 'EXPECTED_GEOMETRIEEN=1872231',
     'EXPECTED_GEOMETRIE_AFWIJKINGEN=1016': 'EXPECTED_GEOMETRIE_AFWIJKINGEN=1021',
+    "SET statement_timeout='10min';": "SET statement_timeout='30min';",
     "$'2\\tv20260805\\t0363\\tgevalideerd\\tfalse'": "$'3\\tv20260808-directional-v3\\t0363\\tgevalideerd\\tfalse'",
     "[[ \"$(psql_scalar \"SELECT count(*) FROM bag_control.datasetversies WHERE scope_code='0363' AND is_actief\")\" == '0' ]] || fail 'Amsterdam is onverwacht actief.'": "[[ \"$(psql_scalar \"SELECT count(*) FROM bag_control.datasetversies WHERE scope_code='0363' AND is_actief\")\" == '1' ]] || fail 'Amsterdam heeft niet exact één actieve versie.'\n  [[ \"$(psql_scalar \"SELECT count(*) FROM bag_control.datasetversies WHERE id=2 AND datasetversie='v20260805' AND scope_code='0363' AND status='actief' AND is_actief\")\" == '1' ]] || fail 'Oude Amsterdam-versie is niet exact actief gebleven.'\n  [[ \"$(psql_scalar \"SELECT count(*) FROM bag_control.datasetversies WHERE scope_code='0363'\")\" == '2' ]] || fail 'Onverwacht aantal Amsterdam-datasetversies.'\n  [[ \"$(psql_scalar \"SELECT count(*) FROM bag_control.datasetversies WHERE id=3 AND datasetversie='v20260808-directional-v3' AND bron_metadata->>'artifact_id'='9027302674'\")\" == '1' ]] || fail 'v3 dataset-provenance wijst niet exact naar artifact 9027302674.'",
     "$'^dataset\\t2\\tv20260805\\t0363\\tgevalideerd\\tf$'": "$'^dataset\\t3\\tv20260808-directional-v3\\t0363\\tgevalideerd\\tf$'",
