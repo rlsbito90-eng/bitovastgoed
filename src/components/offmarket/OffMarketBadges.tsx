@@ -23,8 +23,8 @@ const toneStyles: Record<Tone, { wrap: string; dot: string }> = {
 function Chip({ label, tone }: { label: string; tone: Tone }) {
   const t = toneStyles[tone];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium border rounded-full whitespace-nowrap ${t.wrap}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} />
+    <span className={`inline-flex min-h-6 items-center gap-1.5 px-2 py-1 text-[11px] leading-none font-medium border rounded-full whitespace-nowrap overflow-visible ${t.wrap}`}>
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${t.dot}`} />
       {label}
     </span>
   );

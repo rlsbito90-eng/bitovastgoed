@@ -1,20 +1,12 @@
 // src/components/MatchAlertBadge.tsx
-//
-// Bel-icoon in de header met tellertje voor NIEUWE matches sinds de laatste
-// keer dat de bel is geopend. Werkt als Gmail/WhatsApp:
-//
-// - Bel-icoon staat altijd in de header (klikbaar voor overzicht)
-// - Tellertje toont alleen matches die JONGER zijn dan de "laatst gezien" tijd
-// - Klik op de bel = "gezien" → tellertje weg
-// - Komt later een nieuwe match bij → tellertje verschijnt opnieuw
-//
-// Tracking via localStorage zodat de status persistent is per browser/device.
-// Drempel: sterke match (score ≥ STRONG_MATCH_THRESHOLD, 0–100 schaal).
+// Match-status is accountgebonden in Supabase; localStorage blijft alleen cache/fallback.
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   getAllMatchesFromData,
   formatCurrencyCompact,
@@ -44,18 +36,20 @@ function loadSeen(): Set<string> {
 function saveSeen(set: Set<string>): void {
   try {
     localStorage.setItem(SEEN_KEYS_STORAGE, JSON.stringify([...set]));
+    localStorage.setItem(SEEN_INIT_STORAGE, '1');
   } catch {
-    // ignore
+    // Cache is best-effort; Supabase is de bron voor ingelogde gebruikers.
   }
 }
 
 export default function MatchAlertBadge() {
   const store = useDataStore();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [seenKeys, setSeenKeys] = useState<Set<string>>(() => new Set());
+  const [seenKeys, setSeenKeys] = useState<Set<string>>(() => loadSeen());
+  const [serverHydrated, setServerHydrated] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Bereken alle matches met score >= drempel
   const matches = useMemo(() => {
     const alle = getAllMatchesFromData(store.zoekprofielen, store.objecten);
     return alle
@@ -68,40 +62,88 @@ export default function MatchAlertBadge() {
       });
   }, [store.zoekprofielen, store.objecten]);
 
-  // Init: bij allereerste mount markeren we alle bestaande matches als gezien,
-  // zodat de gebruiker niet meteen een vol tellertje krijgt door bestaande data.
+  // Hydrateer per account. Een bestaande lokale status wordt éénmalig meegenomen
+  // als er nog geen serverstatus bestaat, zodat de huidige browser geen badges reset.
   useEffect(() => {
-    const stored = loadSeen();
-    const initialized = localStorage.getItem(SEEN_INIT_STORAGE) === '1';
-    if (!initialized) {
-      const all = new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
-      saveSeen(all);
-      try { localStorage.setItem(SEEN_INIT_STORAGE, '1'); } catch { /* ignore */ }
-      setSeenKeys(all);
-    } else {
-      setSeenKeys(stored);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let cancelled = false;
+    setServerHydrated(false);
 
-  // Sluit dropdown bij klik buiten
+    async function hydrate() {
+      if (!user) {
+        if (!cancelled) {
+          setSeenKeys(loadSeen());
+          setServerHydrated(true);
+        }
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_match_state')
+        .select('seen_keys, initialized')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (!error && data?.initialized) {
+        const next = new Set<string>(Array.isArray(data.seen_keys) ? data.seen_keys : []);
+        saveSeen(next);
+        setSeenKeys(next);
+        setServerHydrated(true);
+        return;
+      }
+
+      const localInitialized = localStorage.getItem(SEEN_INIT_STORAGE) === '1';
+      if (!localInitialized && matches.length === 0) return;
+
+      const next = localInitialized
+        ? loadSeen()
+        : new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
+
+      saveSeen(next);
+      setSeenKeys(next);
+
+      const { error: upsertError } = await supabase
+        .from('user_match_state')
+        .upsert({
+          user_id: user.id,
+          seen_keys: [...next],
+          initialized: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (!cancelled) setServerHydrated(!upsertError || true);
+    }
+
+    void hydrate();
+    return () => { cancelled = true; };
+  }, [user?.id, matches.length]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Markeer alle huidige matches als gezien
   const markeerAlsGezien = useCallback(() => {
     const next = new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
     saveSeen(next);
     setSeenKeys(next);
-  }, [matches]);
+
+    if (user) {
+      void supabase
+        .from('user_match_state')
+        .upsert({
+          user_id: user.id,
+          seen_keys: [...next],
+          initialized: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+    }
+  }, [matches, user]);
 
   const handleToggle = () => {
     if (!open) markeerAlsGezien();
@@ -109,14 +151,13 @@ export default function MatchAlertBadge() {
   };
 
   const nieuweMatches = useMemo(
-    () => matches.filter(m => !seenKeys.has(matchKey(m.objectId, m.zoekprofielId))),
-    [matches, seenKeys],
+    () => serverHydrated ? matches.filter(m => !seenKeys.has(matchKey(m.objectId, m.zoekprofielId))) : [],
+    [matches, seenKeys, serverHydrated],
   );
 
   const aantalNieuw = nieuweMatches.length;
   const aantalTotaal = matches.length;
   const top = matches.slice(0, 8);
-
 
   return (
     <div className="relative" ref={ref}>
@@ -134,7 +175,6 @@ export default function MatchAlertBadge() {
         )}
       </button>
 
-
       {open && (
         <div className="absolute right-0 top-full mt-1 w-[min(380px,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
@@ -146,8 +186,7 @@ export default function MatchAlertBadge() {
                   ? 'Geen actuele matches'
                   : aantalNieuw > 0
                     ? `${aantalNieuw} nieuw · ${aantalTotaal} totaal (score ≥ ${STRONG_MATCH_THRESHOLD})`
-                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${STRONG_MATCH_THRESHOLD})`
-                }
+                    : `${aantalTotaal} match${aantalTotaal === 1 ? '' : 'es'} (score ≥ ${STRONG_MATCH_THRESHOLD})`}
               </p>
             </div>
           </div>
@@ -166,7 +205,6 @@ export default function MatchAlertBadge() {
                 const rel = zp ? store.getRelatieById(zp.relatieId) : null;
                 if (!obj || !zp || !rel) return null;
 
-                // Markeer of deze match nieuw is sinds laatst-gezien
                 const wasNieuw = nieuweMatches.some(nm =>
                   nm.objectId === m.objectId && nm.zoekprofielId === m.zoekprofielId
                 );

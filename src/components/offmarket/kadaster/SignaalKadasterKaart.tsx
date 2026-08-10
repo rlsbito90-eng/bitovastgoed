@@ -11,7 +11,7 @@
 // Resultaten worden direct opgeslagen in `kadaster_data_records` met
 // `signaal_id`. Geen automatische call, geen relatie-/eigenaarkoppeling,
 // geen AI-herberekening.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -102,7 +102,6 @@ function Row({ label, value }: { label: string; value: string | number | null | 
     </div>
   );
 }
-
 
 function RecordKop({
   titel, r, pdf, isLatest, onDetails,
@@ -255,6 +254,18 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
   const [handmatigHuisnummer, setHandmatigHuisnummer] = useState<string>('');
   const [handmatigLetter, setHandmatigLetter] = useState<string>('');
   const [handmatigToevoeging, setHandmatigToevoeging] = useState<string>('');
+
+  // Een routewissel tussen signalen remount deze pagina niet altijd. Reset alle
+  // adreskeuzestate daarom expliciet op het nieuwe signaal, zodat een eerder
+  // gekozen BAG-adres nooit kan doorlekken naar het volgende dossier.
+  useEffect(() => {
+    setPostcodeInput((a.postcode ?? parsed.postcode ?? '').toString());
+    setHuisnummerKeuze(parsed.huisnummers[0]?.label ?? '');
+    setHandmatigHuisnummer('');
+    setHandmatigLetter('');
+    setHandmatigToevoeging('');
+    setLaatsteFout(null);
+  }, [signaal.id, a.postcode, parsed.postcode, parsed.huisnummers]);
 
   // Off Market Radar V1: alleen rechten + waarde. `object` (WOZ) wordt bewust
   // niet aangeboden — daar focust de signaalfase niet op.
@@ -455,9 +466,10 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
 
         <BagAdresLookup
           initieleStraat={parsed.straat ?? signaal.titel ?? null}
-          initieelHuisnummer={handmatigHuisnummer || parsed.huisnummers[0]?.huisnummer || null}
+          initieelHuisnummer={parsed.huisnummers[0]?.huisnummer || null}
           initielePlaats={signaal.plaats ?? null}
           initielePostcode={postcodeInput}
+          voorkeursHuisnummerLabel={parsed.huisnummers[0]?.label ?? null}
           onKies={(r: BagAdresResultaat) => {
             if (r.postcode) setPostcodeInput(`${r.postcode.slice(0, 4)} ${r.postcode.slice(4)}`);
             if (r.huisnummer) setHandmatigHuisnummer(r.huisnummer);
@@ -578,6 +590,7 @@ export default function SignaalKadasterKaart({ signaal }: Props) {
 
       <div className="flex flex-col sm:flex-row gap-2">
         <Button
+          data-testid="kadaster-ophalen-anchor"
           className="flex-1"
           disabled={!adresKlaar || mutation.isPending}
           onClick={startCall}

@@ -43,8 +43,6 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Normaliseer optionele velden: undefined (leeggemaakt) → null,
-      // zodat de DB-mapper de waarde daadwerkelijk leegmaakt i.p.v. overslaat.
       const OPTIONAL_NULLABLE_KEYS: (keyof PipelineKandidaat)[] = [
         'redenAfgevallen', 'notities',
         'teaserVerstuurdOp', 'ndaVerstuurdOp', 'ndaGetekendOp', 'informatieGedeeldOp',
@@ -74,7 +72,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
         </DialogHeader>
 
         <Tabs defaultValue="status" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="w-full">
             <TabsTrigger value="status">Status</TabsTrigger>
             <TabsTrigger value="documenten">Documenten</TabsTrigger>
             <TabsTrigger value="bieding">Bieding</TabsTrigger>
@@ -82,7 +80,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           </TabsList>
 
           <TabsContent value="status" className="space-y-3 pt-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Pipeline-fase</Label>
                 <select
@@ -111,20 +109,12 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
             {form.pipelineFase === 'afgevallen' && (
               <div>
                 <Label>Reden afgevallen</Label>
-                <Textarea
-                  rows={2}
-                  value={form.redenAfgevallen ?? ''}
-                  onChange={e => set('redenAfgevallen', e.target.value)}
-                />
+                <Textarea rows={2} value={form.redenAfgevallen ?? ''} onChange={e => set('redenAfgevallen', e.target.value)} />
               </div>
             )}
             <div>
               <Label>Notities</Label>
-              <Textarea
-                rows={3}
-                value={form.notities ?? ''}
-                onChange={e => set('notities', e.target.value)}
-              />
+              <Textarea rows={3} value={form.notities ?? ''} onChange={e => set('notities', e.target.value)} />
             </div>
           </TabsContent>
 
@@ -135,13 +125,11 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
               ['ndaGetekend', 'ndaGetekendOp', 'NDA getekend'],
               ['informatieGedeeld', 'informatieGedeeldOp', 'Informatie gedeeld'],
             ] as const).map(([flagKey, dateKey, label]) => (
-              <div key={flagKey} className="grid grid-cols-[auto_1fr_180px] items-center gap-3">
-                <Checkbox
-                  checked={!!form[flagKey]}
-                  onCheckedChange={v => set(flagKey, !!v as any)}
-                />
+              <div key={flagKey} className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_180px] items-center gap-3">
+                <Checkbox checked={!!form[flagKey]} onCheckedChange={v => set(flagKey, !!v as any)} />
                 <Label className="cursor-default">{label}</Label>
                 <Input
+                  className="col-span-2 sm:col-span-1"
                   type="date"
                   disabled={!form[flagKey]}
                   value={(form[dateKey] as string) ?? ''}
@@ -152,60 +140,39 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           </TabsContent>
 
           <TabsContent value="bieding" className="space-y-3 pt-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Bezichtiging-datum</Label>
-                <Input
-                  type="date"
-                  value={form.bezichtigingDatum ?? ''}
-                  onChange={e => set('bezichtigingDatum', e.target.value)}
-                />
+                <Input type="date" value={form.bezichtigingDatum ?? ''} onChange={e => set('bezichtigingDatum', e.target.value)} />
               </div>
               <div>
                 <Label>Bieding (€)</Label>
-                <NumberField
-                  value={form.biedingBedrag}
-                  onChange={v => set('biedingBedrag', v)}
-                />
+                <NumberField value={form.biedingBedrag} onChange={v => set('biedingBedrag', v)} />
               </div>
             </div>
             <div>
               <Label>Bieding voorwaarden</Label>
-              <Textarea
-                rows={2}
-                value={form.biedingVoorwaarden ?? ''}
-                onChange={e => set('biedingVoorwaarden', e.target.value)}
-              />
+              <Textarea rows={2} value={form.biedingVoorwaarden ?? ''} onChange={e => set('biedingVoorwaarden', e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 pt-6">
-                <Checkbox
-                  checked={!!form.financieringsvoorbehoud}
-                  onCheckedChange={v => set('financieringsvoorbehoud', !!v)}
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 sm:pt-6">
+                <Checkbox checked={!!form.financieringsvoorbehoud} onCheckedChange={v => set('financieringsvoorbehoud', !!v)} />
                 <Label className="cursor-default">Financieringsvoorbehoud</Label>
               </div>
               <div>
                 <Label>Gewenste levering</Label>
-                <Input
-                  type="date"
-                  value={form.gewensteLevering ?? ''}
-                  onChange={e => set('gewensteLevering', e.target.value)}
-                />
+                <Input type="date" value={form.gewensteLevering ?? ''} onChange={e => set('gewensteLevering', e.target.value)} />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Checkbox
-                checked={!!form.feeAkkoord}
-                onCheckedChange={v => set('feeAkkoord', !!v)}
-              />
+              <Checkbox checked={!!form.feeAkkoord} onCheckedChange={v => set('feeAkkoord', !!v)} />
               <Label className="cursor-default">Fee akkoord</Label>
             </div>
           </TabsContent>
 
           <TabsContent value="opvolging" className="space-y-4 pt-4">
             <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Laatste contact (relatie)</div>
                   <div className="text-sm mt-0.5">
@@ -214,17 +181,17 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
                       : <span className="text-muted-foreground">Nog geen contactmoment gelogd</span>}
                   </div>
                 </div>
-                <Button type="button" size="sm" variant="default" onClick={() => setLogOpen(true)} className="shrink-0">
+                <Button type="button" size="sm" variant="default" onClick={() => setLogOpen(true)} className="w-full sm:w-auto sm:shrink-0">
                   <MessageSquarePlus className="h-4 w-4 mr-1.5" />
                   Contactmoment loggen
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Echte communicatie (telefoon, e-mail, WhatsApp, afspraak…) wordt zo automatisch zichtbaar op de relatie en in de tijdlijn.
+                Echte communicatie wordt automatisch zichtbaar op de relatie en in de tijdlijn.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Laatste pipeline-activiteit</Label>
                 <Input
@@ -250,18 +217,11 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
             </div>
             <div>
               <Label>Volgende actie omschrijving</Label>
-              <Input
-                value={form.volgendeActieOmschrijving ?? ''}
-                onChange={e => set('volgendeActieOmschrijving', e.target.value)}
-              />
+              <Input value={form.volgendeActieOmschrijving ?? ''} onChange={e => set('volgendeActieOmschrijving', e.target.value)} />
             </div>
             <div>
               <Label>Volgende actie datum</Label>
-              <Input
-                type="date"
-                value={form.volgendeActieDatum ?? ''}
-                onChange={e => set('volgendeActieDatum', e.target.value)}
-              />
+              <Input type="date" value={form.volgendeActieDatum ?? ''} onChange={e => set('volgendeActieDatum', e.target.value)} />
             </div>
           </TabsContent>
         </Tabs>

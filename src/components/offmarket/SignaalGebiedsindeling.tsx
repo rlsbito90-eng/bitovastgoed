@@ -47,19 +47,19 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
   };
 
   return (
-    <section className="section-card p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <Globe2 className="h-4 w-4 text-muted-foreground" /> Gebiedsindeling
+    <section data-testid="signaal-gebiedsindeling" className="section-card p-4 space-y-3 min-w-0 overflow-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 min-w-0">
+          <Globe2 className="h-4 w-4 text-muted-foreground shrink-0" /> Gebiedsindeling
         </h3>
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="outline" onClick={verrijk} disabled={bezig || !heeftCoords}>
-            <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${bezig ? 'animate-spin' : ''}`} />
-            {status === 'verrijkt' ? 'Opnieuw verrijken' : 'Geo verrijken'}
+        <div className="grid grid-cols-2 gap-1.5 w-full sm:flex sm:w-auto sm:items-center">
+          <Button size="sm" variant="outline" onClick={verrijk} disabled={bezig || !heeftCoords} className="min-w-0 w-full sm:w-auto px-2">
+            <RefreshCcw className={`h-3.5 w-3.5 shrink-0 ${bezig ? 'animate-spin' : ''}`} />
+            <span className="truncate">{status === 'verrijkt' ? 'Opnieuw verrijken' : 'Geo verrijken'}</span>
           </Button>
           {status === 'verrijkt' && (
-            <Button size="sm" variant="outline" onClick={kopieer}>
-              <Copy className="h-3.5 w-3.5 mr-1.5" /> Kopieer
+            <Button size="sm" variant="outline" onClick={kopieer} className="min-w-0 w-full sm:w-auto px-2">
+              <Copy className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Kopieer</span>
             </Button>
           )}
         </div>
@@ -72,11 +72,11 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
       )}
 
       {status !== 'verrijkt' && heeftCoords && (
-        <p className="text-sm text-muted-foreground">{formatGebiedsindeling(s)}</p>
+        <p className="text-sm text-muted-foreground break-words">{formatGebiedsindeling(s)}</p>
       )}
 
       {status === 'verrijkt' && (
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm min-w-0">
           <Row label="Gemeente" value={s.geo_gemeente_naam} />
           <Row label="Wijk" value={s.geo_wijk_naam} />
           <Row label="Buurt" value={s.geo_buurt_naam} />
@@ -87,7 +87,7 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
       )}
 
       {status === 'fout' && s.geo_foutmelding && (
-        <p className="text-xs text-destructive">Foutmelding: {s.geo_foutmelding}</p>
+        <p className="text-xs text-destructive break-words">Foutmelding: {s.geo_foutmelding}</p>
       )}
     </section>
   );
@@ -95,9 +95,9 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div className="flex items-baseline gap-2 min-w-0">
-      <dt className="text-xs text-muted-foreground shrink-0 w-28">{label}</dt>
-      <dd className="text-sm text-foreground truncate">{value || '—'}</dd>
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-baseline gap-2 min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm text-foreground break-words min-w-0">{value || '—'}</dd>
     </div>
   );
 }

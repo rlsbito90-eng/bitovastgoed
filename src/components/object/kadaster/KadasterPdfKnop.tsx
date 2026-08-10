@@ -42,7 +42,7 @@ export default function KadasterPdfKnop({
       variant={variant}
       onClick={openen}
       disabled={bezig}
-      className="h-7 text-[11px]"
+      className="h-auto min-h-9 max-w-full whitespace-normal text-center text-[11px] sm:h-7 sm:min-h-0 sm:whitespace-nowrap"
       title={doc.bestandsnaam}
     >
       {bezig

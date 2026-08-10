@@ -389,7 +389,7 @@ export default function FocusModus({
               data-testid="focus-overslaan"
             >
               <SkipForward className="h-4 w-4" />
-              Overslaan
+              Later behandelen
             </Button>
             <Button
               type="button"
@@ -399,7 +399,7 @@ export default function FocusModus({
               data-testid="focus-volgende"
             >
               <Check className="h-4 w-4" />
-              Gereed en volgende
+              Gereed → volgende
             </Button>
             <Button
               type="button"
@@ -410,12 +410,15 @@ export default function FocusModus({
             >
               Sluiten en later doorgaan
             </Button>
-            <ToevoegenAanAcquisitieSelectieKnop
-              signaalId={signaal.id}
-              variant="compact"
-              labelMode="remove"
-              isInSelectie
-            />
+            <div className="w-full flex justify-center pt-1">
+              <ToevoegenAanAcquisitieSelectieKnop
+                signaalId={signaal.id}
+                variant="compact"
+                labelMode="remove"
+                isInSelectie
+                className="min-h-0 h-8 border-0 bg-transparent px-2 text-[11px] font-normal text-muted-foreground shadow-none hover:bg-muted/50 hover:text-foreground"
+              />
+            </div>
           </div>
         </div>
       </DialogContent>

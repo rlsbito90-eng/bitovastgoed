@@ -1,0 +1,309 @@
+/*
+ * Bito Vastgoed — mobiele UX fundering
+ * Alleen mobiele/responsive presentatielaag; geen businesslogica.
+ */
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+#root {
+  width: 100%;
+}
+
+@supports (height: 100dvh) {
+  .h-screen {
+    height: 100dvh !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+    background-attachment: scroll !important;
+  }
+
+  main {
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .section-card {
+    background-color: hsl(var(--card) / 0.96) !important;
+    backdrop-filter: blur(6px) saturate(115%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(115%) !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+
+  .glass-card {
+    backdrop-filter: blur(10px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(120%) !important;
+  }
+
+  /* Alle modals: alleen verticale scroll. Horizontale overflow is nooit toegestaan. */
+  [role="dialog"] {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  }
+
+  [role="dialog"] > *,
+  [role="dialog"] form,
+  [role="dialog"] section,
+  [role="dialog"] fieldset,
+  [role="dialog"] [class*="grid"],
+  [role="dialog"] [class*="flex"] {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  [role="dialog"] input,
+  [role="dialog"] select,
+  [role="dialog"] textarea,
+  [role="dialog"] button,
+  [role="dialog"] a {
+    max-width: 100%;
+  }
+
+  /* Tabs in een modal mogen wrappen, maar nooit een horizontale modal-scroll veroorzaken. */
+  [role="dialog"] [data-mobile-scroll-row] {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+    flex-wrap: wrap;
+  }
+
+  [role="dialog"] [data-mobile-scroll-row] > * {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  [role="dialog"] .text-\[10px\],
+  [role="dialog"] .text-\[11px\] {
+    font-size: 0.75rem !important;
+    line-height: 1.15rem !important;
+  }
+
+  [role="dialog"] .text-xs {
+    line-height: 1.2rem;
+  }
+
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  header.lg\:hidden .relative > .absolute.right-0.top-full {
+    position: fixed !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    top: calc(var(--mobile-header-height, 3.5rem) + 0.25rem) !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - var(--mobile-header-height, 3.5rem) - 1rem) !important;
+  }
+
+  header.lg\:hidden .relative > .absolute.right-0.top-full > div[class*="max-h-"] {
+    max-height: calc(100dvh - var(--mobile-header-height, 3.5rem) - 8.5rem) !important;
+  }
+
+  .glass-overlay > .glass-dark {
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .page-shell,
+  .page-shell-wide,
+  .page-shell-full {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+  }
+
+  [data-bito-page-header] {
+    margin-bottom: 0.25rem;
+  }
+
+  [data-bito-page-actions] {
+    min-width: 0;
+  }
+
+  [data-bito-page-actions] > * {
+    max-width: 100%;
+  }
+
+  main .field-label {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  main .field-value {
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  main .text-\[10px\],
+  main .text-\[11px\] {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+  }
+
+  main .text-muted-foreground {
+    text-wrap: pretty;
+  }
+
+  main button,
+  main [role="button"],
+  main input,
+  main select,
+  main textarea {
+    touch-action: manipulation;
+  }
+
+  main input:not([type="checkbox"]):not([type="radio"]),
+  main select,
+  main textarea,
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]),
+  [role="dialog"] select,
+  [role="dialog"] textarea {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  main button:not([class*="h-"]):not([class*="min-h-"]),
+  main [role="button"]:not([class*="h-"]):not([class*="min-h-"]) {
+    min-height: 2.75rem;
+  }
+
+  main .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  [data-mobile-kanban] .overflow-x-auto {
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.25rem;
+  }
+
+  [data-mobile-kanban] .w-72.shrink-0 {
+    width: min(82vw, 18rem) !important;
+    scroll-snap-align: start;
+  }
+
+  /* Focusmodus: informatie krijgt voorrang; bediening maximaal drie compacte rijen. */
+  [data-testid="focus-body"] {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  [data-testid="focus-footer"] > div {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem !important;
+    padding: 0.55rem 0.75rem !important;
+  }
+
+  [data-testid="focus-footer"] button,
+  [data-testid="focus-footer"] a {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.5rem !important;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  [data-testid="focus-open-signaal"] { grid-column: 1; grid-row: 1; }
+  [data-testid="focus-volgende"] { grid-column: 2; grid-row: 1; }
+  [data-testid="focus-vorige"] { grid-column: 1; grid-row: 2; }
+  [data-testid="focus-overslaan"] { grid-column: 2; grid-row: 2; }
+  [data-testid="focus-sluiten"] { display: none !important; }
+  [data-testid="focus-footer"] > div > :last-child {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) {
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem)) !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) .space-y-3 {
+    row-gap: 0.625rem !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) label {
+    padding: 0.625rem !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) label .text-\[10px\].text-muted-foreground,
+  [role="dialog"]:has(.bg-amber-50\/60) p.text-\[11px\].pt-1 {
+    display: none !important;
+  }
+
+  [role="dialog"]:has(.bg-amber-50\/60) footer,
+  [role="dialog"]:has(.bg-amber-50\/60) [class*="flex-col-reverse"] {
+    gap: 0.5rem !important;
+  }
+
+  .kpi-card:hover,
+  .card-hover:hover {
+    transform: none;
+  }
+
+  [data-mobile-scroll-row] {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  [data-mobile-scroll-row]::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-bito-page-actions] > button:only-child,
+  [data-bito-page-actions] > a:only-child {
+    width: 100%;
+    justify-content: center;
+  }
+
+  form {
+    scroll-margin-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-color-scheme: dark) and (max-width: 1023px) {
+  [role="dialog"] .bg-amber-50\/60 {
+    background-color: hsl(var(--accent) / 0.12) !important;
+  }
+
+  [role="dialog"] .border-amber-300 {
+    border-color: hsl(var(--accent) / 0.55) !important;
+  }
+
+  [role="dialog"] .text-amber-900\/80 {
+    color: hsl(var(--foreground) / 0.9) !important;
+  }
+}

@@ -6,11 +6,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Sheet = SheetPrimitive.Root;
-
 const SheetTrigger = SheetPrimitive.Trigger;
-
 const SheetClose = SheetPrimitive.Close;
-
 const SheetPortal = SheetPrimitive.Portal;
 
 const SheetOverlay = React.forwardRef<
@@ -19,7 +16,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/70 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -29,16 +26,16 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "fixed z-50 gap-4 overflow-x-hidden overflow-y-auto overscroll-contain bg-background p-5 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500 sm:p-6",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        top: "inset-x-0 top-0 max-h-[92dvh] border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+          "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:rounded-none",
+        left: "inset-y-0 left-0 h-[100dvh] w-[min(92vw,24rem)] border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
         right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+          "inset-y-0 right-0 h-[100dvh] w-[min(92vw,24rem)] border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
       },
     },
     defaultVariants: {
@@ -59,20 +56,19 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
         style={{
-          // Bito UI-standaard: respecteer safe-area zodat content niet onder
-          // de notch of home-indicator valt op mobiel.
-          paddingTop: "max(1.5rem, env(safe-area-inset-top))",
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-          paddingLeft: "max(1.5rem, env(safe-area-inset-left))",
-          paddingRight: "max(1.5rem, env(safe-area-inset-right))",
+          paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+          paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
+          paddingLeft: "max(1.25rem, env(safe-area-inset-left))",
+          paddingRight: "max(1.25rem, env(safe-area-inset-right))",
+          WebkitOverflowScrolling: "touch",
           ...style,
         }}
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+        <SheetPrimitive.Close className="absolute right-2.5 top-2.5 inline-flex h-11 w-11 items-center justify-center rounded-full bg-background/70 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none sm:right-3 sm:top-3">
+          <X className="h-5 w-5" />
+          <span className="sr-only">Sluiten</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>
@@ -81,12 +77,12 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
+  <div className={cn("flex min-w-0 flex-col space-y-2 pr-10 text-left", className)} {...props} />
 );
 SheetHeader.displayName = "SheetHeader";
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+  <div className={cn("flex min-w-0 flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2", className)} {...props} />
 );
 SheetFooter.displayName = "SheetFooter";
 
@@ -94,7 +90,7 @@ const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title ref={ref} className={cn("text-lg font-semibold text-foreground", className)} {...props} />
+  <SheetPrimitive.Title ref={ref} className={cn("min-w-0 break-words text-lg font-semibold leading-snug text-foreground", className)} {...props} />
 ));
 SheetTitle.displayName = SheetPrimitive.Title.displayName;
 
@@ -102,7 +98,7 @@ const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Description ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+  <SheetPrimitive.Description ref={ref} className={cn("min-w-0 break-words text-sm leading-relaxed text-muted-foreground", className)} {...props} />
 ));
 SheetDescription.displayName = SheetPrimitive.Description.displayName;
 

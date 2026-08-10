@@ -20,9 +20,7 @@ import {
   Calculator,
   Radar,
   Plus,
-  HelpCircle,
   Lightbulb,
-  ChevronDown,
 } from "lucide-react";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
@@ -45,9 +43,34 @@ import {
   resolveVrWorkspaceSection,
 } from "@/lib/vastgoedrekenen/workspaceNavigation";
 
-// Test-flag: hamburger rechts op mobiel. Zet op `false` om terug te draaien.
-// Zie .lovable/plan.md (Mobile Workflow Polish — Blok 6).
 const HAMBURGER_RIGHT_MOBILE = true;
+
+type NavGroup = "Werk" | "Vastgoed" | "Transacties" | "Acquisitie" | "Inzicht";
+
+type NavItem = {
+  path: string;
+  label: string;
+  icon: any;
+  group: NavGroup;
+  groupEnd?: boolean;
+};
+
+const navItems: NavItem[] = [
+  { path: "/", label: "Dashboard", icon: LayoutDashboard, group: "Werk" },
+  { path: "/taken", label: "Taken", icon: CheckSquare, group: "Werk" },
+  { path: "/relaties", label: "Relaties", icon: Users, group: "Werk", groupEnd: true },
+  { path: "/objecten", label: "Aanbod", icon: Building2, group: "Vastgoed" },
+  { path: "/zoekprofielen", label: "Matching", icon: Search, group: "Vastgoed" },
+  { path: "/referentieobjecten", label: "Referenties", icon: Library, group: "Vastgoed" },
+  { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, group: "Vastgoed", groupEnd: true },
+  { path: "/deals", label: "Deals", icon: Handshake, group: "Transacties" },
+  { path: "/pipeline", label: "Pipeline", icon: GitBranch, group: "Transacties", groupEnd: true },
+  { path: "/vastgoedkansen", label: "Vastgoedkansen", icon: Lightbulb, group: "Acquisitie" },
+  { path: "/acquisitie", label: "Acquisitie", icon: Target, group: "Acquisitie" },
+  { path: "/acquisitie/funnel", label: "Acquisitie-funnel", icon: BarChart3, group: "Acquisitie" },
+  { path: "/off-market", label: "Off-Market Radar", icon: Radar, group: "Acquisitie", groupEnd: true },
+  { path: "/rapportage", label: "Rapportage", icon: BarChart3, group: "Inzicht" },
+];
 
 function VastgoedrekenenSubmenu({
   pathname,
@@ -69,10 +92,10 @@ function VastgoedrekenenSubmenu({
             onClick={() => onNavigate?.()}
             data-testid={`vr-submenu-${item.section}`}
             aria-current={item.section === actief ? "page" : undefined}
-            className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
+            className={`block rounded-md px-2 py-2 text-xs transition-colors ${
               item.section === actief
                 ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+                : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
             }`}
           >
             {item.label}
@@ -83,49 +106,31 @@ function VastgoedrekenenSubmenu({
   );
 }
 
-
-const navItems: { path: string; label: string; icon: any; groupEnd?: boolean }[] = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard, groupEnd: true },
-  { path: "/taken", label: "Taken", icon: CheckSquare },
-  { path: "/relaties", label: "Relaties", icon: Users, groupEnd: true },
-  { path: "/objecten", label: "Aanbod", icon: Building2 },
-  { path: "/zoekprofielen", label: "Matching", icon: Search },
-  { path: "/referentieobjecten", label: "Referenties", icon: Library },
-  { path: "/vastgoedrekenen", label: "Vastgoedrekenen", icon: Calculator, groupEnd: true },
-  { path: "/deals", label: "Deals", icon: Handshake },
-  { path: "/pipeline", label: "Pipeline", icon: GitBranch, groupEnd: true },
-  { path: "/vastgoedkansen", label: "Vastgoedkansen", icon: Lightbulb },
-  { path: "/acquisitie", label: "Acquisitie", icon: Target },
-  { path: "/acquisitie/funnel", label: "Acquisitie-funnel", icon: BarChart3 },
-  { path: "/off-market", label: "Off-Market Radar", icon: Radar },
-  { path: "/rapportage", label: "Rapportage", icon: BarChart3 },
-];
-
 function GebruikerMenu({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const { user, isAdmin, signOut } = useAuth();
   if (!user) {
     return (
-      <div className={`px-2 py-1.5 text-[10px] text-sidebar-foreground/60 ${collapsed ? "text-center" : ""}`}>
+      <div className={`px-2 py-1.5 text-xs text-sidebar-foreground/60 ${collapsed ? "text-center" : ""}`}>
         {collapsed ? "—" : "Login tijdelijk uitgeschakeld"}
       </div>
     );
   }
-  const initialen = (user.email || "?").slice(0, 2).toUpperCase();
 
+  const initialen = (user.email || "?").slice(0, 2).toUpperCase();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors w-full text-left ${collapsed ? "justify-center" : ""}`}
+          className={`flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-sidebar-accent ${collapsed ? "justify-center" : ""}`}
           title={collapsed ? (user.email ?? "") : undefined}
         >
-          <div className="h-7 w-7 rounded-full bg-sidebar-primary/20 text-sidebar-primary flex items-center justify-center text-xs font-medium shrink-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-medium text-sidebar-primary">
             {initialen}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-sidebar-foreground truncate font-medium">{user.email}</p>
-              <p className="text-[10px] text-sidebar-foreground/60">{isAdmin ? "Admin" : "Medewerker"}</p>
+              <p className="truncate text-xs font-medium text-sidebar-foreground">{user.email}</p>
+              <p className="text-xs text-sidebar-foreground/60">{isAdmin ? "Admin" : "Medewerker"}</p>
             </div>
           )}
         </button>
@@ -133,44 +138,46 @@ function GebruikerMenu({ collapsed = false, onNavigate }: { collapsed?: boolean;
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <p className="text-xs text-muted-foreground">Ingelogd als</p>
-          <p className="text-sm truncate">{user.email}</p>
+          <p className="truncate text-sm">{user.email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {isAdmin && (
           <DropdownMenuItem asChild>
             <Link to="/admin#gebruikersbeheer" onClick={() => onNavigate?.()} data-testid="menu-gebruikersbeheer">
-              <Shield className="h-4 w-4 mr-2" /> Gebruikersbeheer
+              <Shield className="mr-2 h-4 w-4" /> Gebruikersbeheer
             </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => { onNavigate?.(); signOut(); }}>
-          <LogOut className="h-4 w-4 mr-2" /> Uitloggen
+          <LogOut className="mr-2 h-4 w-4" /> Uitloggen
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
 function GlobalSearch() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const term = q.trim();
     if (!term) return;
-    // Eenvoudige routing: doorsturen naar relaties met zoekterm in URL
     navigate(`/relaties?q=${encodeURIComponent(term)}`);
   }
+
   return (
-    <form onSubmit={submit} className="hidden md:flex items-center gap-2 w-full max-w-md">
+    <form onSubmit={submit} className="hidden w-full max-w-md items-center gap-2 md:flex">
       <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Zoek relaties, objecten, deals…"
-          className="w-full h-9 pl-9 pr-16 rounded-lg bg-muted/60 border border-transparent focus:border-border focus:bg-card text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/30 transition-all"
+          className="h-9 w-full rounded-lg border border-transparent bg-muted/60 pl-9 pr-16 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-border focus:bg-card focus:ring-2 focus:ring-ring/30"
         />
-        <kbd className="hidden lg:inline-flex absolute right-2 top-1/2 -translate-y-1/2 items-center gap-0.5 rounded border border-border/70 bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+        <kbd className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded border border-border/70 bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground lg:inline-flex">
           ⌘K
         </kbd>
       </div>
@@ -194,27 +201,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
   }, [desktopCollapsed]);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.search]);
+
   useSwipeMenu({
     isOpen: mobileOpen,
     onOpen: () => setMobileOpen(true),
     onClose: () => setMobileOpen(false),
   });
 
-  // Automatisch verversen bij terugkeer naar de app/tab
   useAutoRefreshOnFocus();
 
   return (
-    // overflow-x-hidden op de root voorkomt horizontaal "schuiven" op mobiel
-    <div className="flex h-screen bg-background overflow-x-hidden">
-      {/* Desktop Sidebar */}
+    <div className="flex h-screen min-h-0 overflow-x-hidden bg-background">
       <aside
-        className={`hidden lg:flex lg:flex-col border-r border-sidebar-border/60 glass-dark text-sidebar-foreground shrink-0 transition-[width] duration-200 ease-out ${
+        className={`hidden shrink-0 flex-col border-r border-sidebar-border/60 glass-dark text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex ${
           desktopCollapsed ? "lg:w-20" : "lg:w-64"
         }`}
       >
         <Link
           to="/"
-          className={`h-24 flex items-center border-b border-sidebar-border hover:bg-sidebar-accent/40 transition-colors ${
+          className={`flex h-24 items-center border-b border-sidebar-border transition-colors hover:bg-sidebar-accent/40 ${
             desktopCollapsed ? "justify-center px-0" : "px-3"
           }`}
           title={desktopCollapsed ? "Bito Vastgoed" : undefined}
@@ -225,7 +233,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-24 w-auto max-w-full object-contain" />
           )}
         </Link>
-        <nav className={`flex-1 py-4 space-y-0.5 overflow-y-auto ${desktopCollapsed ? "px-2" : "px-3"}`}>
+        <nav className={`flex-1 space-y-0.5 overflow-y-auto py-4 ${desktopCollapsed ? "px-2" : "px-3"}`}>
           {navItems.map((item) => {
             const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
             return (
@@ -239,100 +247,66 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   } ${
                     isActive
                       ? "bg-sidebar-accent text-sidebar-foreground font-medium shadow-[0_0_0_1px_hsl(var(--accent)/0.25),0_8px_22px_-12px_hsl(var(--accent)/0.55)] ring-1 ring-accent/30"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                   }`}
                 >
-                  {isActive && (
-                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-accent shadow-[0_0_10px_hsl(var(--accent)/0.6)]" aria-hidden />
-                  )}
+                  {isActive && <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r bg-accent" aria-hidden />}
                   <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-accent" : ""}`} />
                   {!desktopCollapsed && <span className="tracking-tight">{item.label}</span>}
                 </Link>
                 {item.path === "/vastgoedrekenen" && !desktopCollapsed && (
                   <VastgoedrekenenSubmenu pathname={location.pathname} search={location.search} />
                 )}
-                {item.groupEnd && (
-                  <div className={`my-2 border-t border-sidebar-border/40 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />
-                )}
-
+                {item.groupEnd && <div className={`my-2 border-t border-sidebar-border/40 ${desktopCollapsed ? "mx-2" : "mx-1"}`} aria-hidden />}
               </div>
             );
           })}
         </nav>
-        <div className="p-3 border-t border-sidebar-border/60">
+        <div className="border-t border-sidebar-border/60 p-3">
           <GebruikerMenu collapsed={desktopCollapsed} />
         </div>
       </aside>
 
-      {/* Main column */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
-        {/* Mobile Header */}
-      <header
-        className="lg:hidden flex items-center justify-between px-3 border-b border-border/60 glass-topbar sticky top-0 z-40"
-        style={{ height: "var(--mobile-header-height, 3.5rem)" }}
-      >
-        {HAMBURGER_RIGHT_MOBILE ? (
-          <>
-            <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
-              <img
-                src="/logo-bito-vastgoed.png"
-                alt="Bito Vastgoed"
-                className="h-9 w-auto max-w-[140px] object-contain"
-              />
-            </Link>
-            <div className="flex items-center gap-0.5 shrink-0 ml-auto">
-              <RefreshButton />
-              <MatchAlertBadge />
-              <NotificationsBell />
-              <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="p-2 -mr-1 rounded-md hover:bg-muted text-foreground min-w-11 min-h-11 flex items-center justify-center"
-                aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
-              >
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="p-2 -ml-1 rounded-md hover:bg-muted text-foreground"
-                aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
-              >
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-              <Link to="/" className="flex items-center px-1 py-1 rounded-md hover:bg-muted/60 transition-colors min-w-0">
-                <img
-                  src="/logo-bito-vastgoed.png"
-                  alt="Bito Vastgoed"
-                  className="h-9 w-auto max-w-[140px] object-contain"
-                />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+        <header
+          className="sticky top-0 z-40 flex shrink-0 items-center justify-between border-b border-border/60 px-3 glass-topbar lg:hidden"
+          style={{
+            height: "calc(var(--mobile-header-height, 3.5rem) + env(safe-area-inset-top))",
+            paddingTop: "env(safe-area-inset-top)",
+          }}
+        >
+          {HAMBURGER_RIGHT_MOBILE ? (
+            <>
+              <Link to="/" className="flex min-w-0 items-center rounded-md px-1 py-1 transition-colors hover:bg-muted/60">
+                <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-9 w-auto max-w-[132px] object-contain" />
               </Link>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <RefreshButton />
-              <MatchAlertBadge />
-              <NotificationsBell />
-            </div>
-          </>
-        )}
-      </header>
+              <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                <RefreshButton />
+                <MatchAlertBadge />
+                <NotificationsBell />
+                <button
+                  onClick={() => setMobileOpen(!mobileOpen)}
+                  className="-mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 text-foreground hover:bg-muted"
+                  aria-label={mobileOpen ? "Navigatie sluiten" : "Menu openen"}
+                  aria-expanded={mobileOpen}
+                >
+                  {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </header>
 
-        {/* Desktop topbar — premium: collapse, search, notifs, +Nieuw */}
-        <header className="hidden lg:flex items-center gap-4 h-16 px-6 border-b border-border/60 glass-topbar sticky top-0 z-40">
+        <header className="sticky top-0 z-40 hidden h-16 shrink-0 items-center gap-4 border-b border-border/60 px-6 glass-topbar lg:flex">
           <button
             onClick={() => setDesktopCollapsed((v) => !v)}
-            className="p-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="-ml-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
             title={desktopCollapsed ? "Menu uitklappen" : "Menu inklappen"}
           >
             {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
-
           <GlobalSearch />
-
           <div className="ml-auto flex items-center gap-1.5">
             <RefreshButton />
             <MatchAlertBadge />
@@ -341,73 +315,68 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Plus className="h-4 w-4" />
               <span>Nieuw</span>
             </Link>
-
           </div>
         </header>
 
-        {/* Mobile Nav Overlay */}
         {mobileOpen && (
-          <div
-            className="lg:hidden fixed inset-0 z-50 glass-overlay"
-            onClick={() => setMobileOpen(false)}
-          >
-            <div
-              className="fixed left-0 top-0 bottom-0 w-72 glass-dark text-sidebar-foreground border-r border-sidebar-border/50 p-4 flex flex-col"
+          <div className="fixed inset-0 z-50 glass-overlay lg:hidden" onClick={() => setMobileOpen(false)}>
+            <aside
+              className="fixed bottom-0 left-0 top-0 flex w-[min(86vw,20rem)] flex-col border-r border-sidebar-border/50 p-4 glass-dark text-sidebar-foreground"
               onClick={(e) => e.stopPropagation()}
+              aria-label="Mobiele navigatie"
             >
-              <Link
-                to="/"
-                onClick={() => setMobileOpen(false)}
-                className="mb-6 flex items-center -mx-2 px-2 py-1 rounded-md hover:bg-sidebar-accent"
-              >
-                <img
-                  src="/logo-bito-vastgoed.png"
-                  alt="Bito Vastgoed"
-                  className="h-10 w-auto max-w-[120px] object-contain"
-                />
-              </Link>
-              <nav className="space-y-1 flex-1">
-                {navItems.map((item) => {
-                  const isActive =
-                    item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+              <div className="mb-3 flex shrink-0 items-center justify-between">
+                <Link to="/" onClick={() => setMobileOpen(false)} className="rounded-md px-1 py-1 hover:bg-sidebar-accent">
+                  <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-10 w-auto max-w-[130px] object-contain" />
+                </Link>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-sidebar-accent"
+                  aria-label="Menu sluiten"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <nav className="min-h-0 flex-1 overflow-y-auto pr-1" aria-label="Hoofdnavigatie">
+                {navItems.map((item, index) => {
+                  const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+                  const showGroup = index === 0 || navItems[index - 1].group !== item.group;
                   return (
                     <div key={item.path}>
+                      {showGroup && (
+                        <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/45 first:mt-0">
+                          {item.group}
+                        </p>
+                      )}
                       <Link
                         to={item.path}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm transition-colors ${
+                        className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                            ? "bg-sidebar-accent font-medium text-sidebar-foreground ring-1 ring-accent/20"
+                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                         }`}
                       >
-                        <item.icon className={`h-4 w-4 ${isActive ? "text-accent" : ""}`} />
-                        {item.label}
+                        <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : ""}`} />
+                        <span>{item.label}</span>
                       </Link>
                       {item.path === "/vastgoedrekenen" && (
-                        <VastgoedrekenenSubmenu
-                          pathname={location.pathname}
-                          search={location.search}
-                          onNavigate={() => setMobileOpen(false)}
-                        />
+                        <VastgoedrekenenSubmenu pathname={location.pathname} search={location.search} onNavigate={() => setMobileOpen(false)} />
                       )}
-                      {item.groupEnd && (
-                        <div className="my-1.5 mx-1 border-t border-sidebar-border/60" aria-hidden />
-                      )}
-
                     </div>
                   );
                 })}
               </nav>
-              <div className="border-t border-sidebar-border pt-3">
+
+              <div className="shrink-0 border-t border-sidebar-border pt-3">
                 <GebruikerMenu onNavigate={() => setMobileOpen(false)} />
               </div>
-            </div>
+            </aside>
           </div>
         )}
 
-        {/* Main content area — overflow-x-hidden voorkomt mobiele zijdelingse scroll */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
           <PullToRefresh>{children}</PullToRefresh>
         </main>
       </div>
