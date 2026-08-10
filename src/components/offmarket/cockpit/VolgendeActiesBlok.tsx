@@ -9,6 +9,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatDeadlineNL } from '@/lib/offMarket/volgendeActie';
+import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import {
   CAMPAGNE_STAP_LABEL, type CampagneStap,
 } from '@/lib/offMarket/brieven/groepering';
@@ -60,6 +61,11 @@ export default function VolgendeActiesBlok({
   const zichtbaar = open.slice(0, MAX_ZICHTBAAR);
   const meer = Math.max(0, open.length - zichtbaar.length);
   const meervoud = open.length > 1;
+  const taakReturnState = maakCrmReturnState(
+    `/off-market/${signaalId}?mode=normaal&tab=taken`,
+    'signaal',
+    'off-market-signaal',
+  );
 
   return (
     <div className="section-card glass-card p-4 space-y-2.5" data-testid="volgende-acties-blok">
@@ -88,6 +94,7 @@ export default function VolgendeActiesBlok({
               >
                 <Link
                   to={`/taken/${t.id}`}
+                  state={taakReturnState}
                   className="block px-2.5 py-2 space-y-1"
                 >
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -128,7 +135,7 @@ export default function VolgendeActiesBlok({
 
       {open.length === 1 && (
         <Button asChild size="sm" className="w-full mt-1">
-          <Link to={`/taken/${open[0].id}`}>Open taak</Link>
+          <Link to={`/taken/${open[0].id}`} state={taakReturnState}>Open taak</Link>
         </Button>
       )}
     </div>
