@@ -46,11 +46,22 @@ export interface BagVerkennerPand {
   cursor: string;
 }
 
+export type BagVerkennerSortering =
+  | 'identificatie'
+  | 'adres_az'
+  | 'adres_za'
+  | 'bouwjaar_oud_nieuw'
+  | 'bouwjaar_nieuw_oud'
+  | 'gbo_groot_klein'
+  | 'gbo_klein_groot'
+  | 'vbo_aantal_hoog_laag'
+  | 'vbo_aantal_laag_hoog';
+
 export interface BagVerkennerFilters {
   zoekterm: string;
   gebruiksdoelen: string[];
   alleenGemengd: boolean;
-  sortering: 'adres' | 'bouwjaar' | 'oppervlakte' | 'identificatie';
+  sortering: BagVerkennerSortering;
 }
 
 function tekst(value: unknown): string | null {
@@ -161,16 +172,35 @@ export function filterEnSorteerBagPanden(
   });
 
   return resultaat.sort((a, b) => {
-    if (filters.sortering === 'bouwjaar') {
+    if (filters.sortering === 'bouwjaar_oud_nieuw') {
       return (a.bouwjaar ?? Number.MAX_SAFE_INTEGER) - (b.bouwjaar ?? Number.MAX_SAFE_INTEGER)
         || a.bagPandId.localeCompare(b.bagPandId, 'nl');
     }
-    if (filters.sortering === 'oppervlakte') {
+    if (filters.sortering === 'bouwjaar_nieuw_oud') {
+      return (b.bouwjaar ?? -1) - (a.bouwjaar ?? -1)
+        || a.bagPandId.localeCompare(b.bagPandId, 'nl');
+    }
+    if (filters.sortering === 'gbo_groot_klein') {
       return (b.oppervlakte ?? -1) - (a.oppervlakte ?? -1)
         || a.bagPandId.localeCompare(b.bagPandId, 'nl');
     }
-    if (filters.sortering === 'adres') {
+    if (filters.sortering === 'gbo_klein_groot') {
+      return (a.oppervlakte ?? Number.MAX_SAFE_INTEGER) - (b.oppervlakte ?? Number.MAX_SAFE_INTEGER)
+        || a.bagPandId.localeCompare(b.bagPandId, 'nl');
+    }
+    if (filters.sortering === 'vbo_aantal_hoog_laag') {
+      return b.aantalVerblijfsobjecten - a.aantalVerblijfsobjecten
+        || a.bagPandId.localeCompare(b.bagPandId, 'nl');
+    }
+    if (filters.sortering === 'vbo_aantal_laag_hoog') {
+      return a.aantalVerblijfsobjecten - b.aantalVerblijfsobjecten
+        || a.bagPandId.localeCompare(b.bagPandId, 'nl');
+    }
+    if (filters.sortering === 'adres_az') {
       return a.adres.localeCompare(b.adres, 'nl') || a.bagPandId.localeCompare(b.bagPandId, 'nl');
+    }
+    if (filters.sortering === 'adres_za') {
+      return b.adres.localeCompare(a.adres, 'nl') || a.bagPandId.localeCompare(b.bagPandId, 'nl');
     }
     return a.bagPandId.localeCompare(b.bagPandId, 'nl');
   });
