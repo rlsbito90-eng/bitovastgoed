@@ -8,11 +8,21 @@ const sql = readFileSync(
 ).replace(/\s+/g, ' ').toLowerCase();
 
 describe('Pandenverkenner 2.0 BUILD 1A.2 schema', () => {
-  it('maakt een rebuildable read-model met dataset, scope en pand als sleutel', () => {
+  it('maakt een rebuildable read-model met expliciete buildidentiteit', () => {
     expect(sql).toContain('create schema if not exists bag_search');
+    expect(sql).toContain('create table bag_search.index_builds');
     expect(sql).toContain('create table bag_search.pand_search_index');
-    expect(sql).toContain('primary key (datasetversie_id, scope_code, pand_identificatie)');
-    expect(sql).toContain('index_versie text not null');
+    expect(sql).toContain('primary key (index_build_id, pand_identificatie)');
+    expect(sql).toContain('unique (datasetversie_id, scope_code, index_versie, pand_identificatie)');
+    expect(sql).toContain('index_build_id bigint not null references bag_search.index_builds(id) on delete cascade');
+  });
+
+  it('ondersteunt atomair wisselen van één actieve build per scope', () => {
+    expect(sql).toContain("status text not null check (status in ('opbouw', 'gevalideerd', 'actief', 'vervangen', 'afgekeurd'))");
+    expect(sql).toContain('create unique index index_builds_een_actief_per_scope_idx');
+    expect(sql).toContain("where status = 'actief'");
+    expect(sql).toContain("bag_service leest uitsluitend een build met status='actief'");
+    expect(sql).toContain('half opgebouwde index nooit querybaar');
   });
 
   it('scheidt VBO som, max en aantal en borgt NULL-semantiek zonder VBO', () => {
@@ -26,6 +36,7 @@ describe('Pandenverkenner 2.0 BUILD 1A.2 schema', () => {
   it('neemt panden zonder VBO als first-class rij op', () => {
     expect(sql).toContain('heeft_vbo boolean not null');
     expect(sql).toContain('cardinality(gebruiksdoelen) = 0');
+    expect(sql).toContain('gebouwd_zonder_vbo integer not null default 0');
   });
 
   it('bevat expliciet adresmodel en deterministische adres-consistentie', () => {
@@ -61,6 +72,7 @@ describe('Pandenverkenner 2.0 BUILD 1A.2 schema', () => {
     expect(sql).toContain('enable row level security');
     expect(sql).toContain('force row level security');
     expect(sql).toContain('revoke all on table bag_search.pand_search_index from public, anon, authenticated, service_role');
+    expect(sql).toContain('revoke all on table bag_search.index_builds from public, anon, authenticated, service_role');
     expect(sql).not.toContain('grant select on bag_search.pand_search_index to bag_reader');
   });
 
