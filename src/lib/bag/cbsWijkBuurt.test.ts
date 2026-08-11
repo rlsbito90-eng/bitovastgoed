@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   bouwCbsBuurtenItemsUrl,
+  bouwCbsWijkenItemsUrl,
   valideerCbsBuurtFeature,
+  valideerCbsWijkFeature,
   wijkcodeUitBuurtcode,
 } from './cbsWijkBuurt';
 
@@ -24,6 +26,22 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       wijkCode: 'WK036301',
       buurtCode: 'BU03630102',
       buurtNaam: 'Voorbeeldbuurt',
+    });
+  });
+
+  it('accepteert uitsluitend 2025 Amsterdam-wijken met consistente codes', () => {
+    expect(valideerCbsWijkFeature({
+      jaar: 2025,
+      gemeentecode: 'GM0363',
+      gemeentenaam: 'Amsterdam',
+      wijkcode: 'WK036301',
+      wijknaam: 'Voorbeeldwijk',
+    })).toEqual({
+      bronjaar: 2025,
+      gemeenteCode: 'GM0363',
+      gemeenteNaam: 'Amsterdam',
+      wijkCode: 'WK036301',
+      wijkNaam: 'Voorbeeldwijk',
     });
   });
 
@@ -51,16 +69,24 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       buurtcode: 'BU01060102',
       buurtnaam: 'Voorbeeldbuurt',
     })).toThrow('inconsistent');
+
+    expect(() => valideerCbsWijkFeature({
+      jaar: 2025,
+      gemeentecode: 'GM0363',
+      gemeentenaam: 'Amsterdam',
+      wijkcode: 'WK010601',
+      wijknaam: 'Voorbeeldwijk',
+    })).toThrow('inconsistent');
   });
 
-  it('bouwt uitsluitend de vaste PDOK buurtenroute met begrensde bbox-paginering', () => {
-    const url = bouwCbsBuurtenItemsUrl({
-      bbox: [4.7, 52.28, 5.02, 52.44],
-      limit: 1000,
-    });
-    expect(url).toContain('https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1/collections/buurten/items?');
-    expect(url).toContain('bbox=4.7%2C52.28%2C5.02%2C52.44');
-    expect(url).toContain('limit=1000');
-    expect(url).toContain('f=json');
+  it('bouwt uitsluitend de vaste PDOK routes met begrensde bbox-paginering', () => {
+    const params = { bbox: [4.7, 52.28, 5.02, 52.44] as [number, number, number, number], limit: 1000 };
+    const buurten = bouwCbsBuurtenItemsUrl(params);
+    const wijken = bouwCbsWijkenItemsUrl(params);
+    expect(buurten).toContain('https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1/collections/buurten/items?');
+    expect(wijken).toContain('https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1/collections/wijken/items?');
+    expect(buurten).toContain('bbox=4.7%2C52.28%2C5.02%2C52.44');
+    expect(buurten).toContain('limit=1000');
+    expect(buurten).toContain('f=json');
   });
 });
