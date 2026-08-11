@@ -16,6 +16,7 @@ const MAX_BODY_BYTES = 16_384;
 const GEREGISTREERDE_SCOPES = new Set(['0106', '0363', '0599', '0518']);
 const STANDAARD_TOEGESTANE_SCOPES = '0363,0106';
 const VBO_MODI = new Set(['alle', 'met_vbo', 'zonder_vbo']);
+const MAX_MULTISELECT_OPTIES = 16;
 
 let database: ReturnType<typeof postgres> | null = null;
 
@@ -115,6 +116,21 @@ function optionalText(value: unknown, maxLength: number, label: string): string 
   return trimmed;
 }
 
+function textArray(value: unknown, label: string): string[] {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > MAX_MULTISELECT_OPTIES) {
+    throw new TypeError(`${label} mag maximaal ${MAX_MULTISELECT_OPTIES} opties bevatten`);
+  }
+  const items = value.map(item => {
+    if (typeof item !== 'string') throw new TypeError(`Ongeldige ${label}`);
+    const trimmed = item.trim();
+    if (!trimmed || trimmed.length > 128) throw new TypeError(`Ongeldige ${label}`);
+    return trimmed;
+  });
+  if (new Set(items).size !== items.length) throw new TypeError(`${label} bevat dubbele opties`);
+  return items;
+}
+
 function coordinate(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new TypeError('Viewportcoördinaten moeten eindig zijn');
@@ -139,6 +155,18 @@ async function authorize(req: Request): Promise<string> {
   const internal = !rolesError && (roles ?? []).some(({ role }) => role === 'admin' || role === 'medewerker');
   if (!internal) throw new RangeError('Forbidden');
   return userId;
+}
+
+function validateRanges(
+  bouwjaarVan: number | null, bouwjaarTot: number | null,
+  vboSomVan: number | null, vboSomTot: number | null,
+  vboMaxVan: number | null, vboMaxTot: number | null,
+  vboAantalVan: number | null, vboAantalTot: number | null,
+): void {
+  if (bouwjaarVan !== null && bouwjaarTot !== null && bouwjaarVan > bouwjaarTot) throw new TypeError('Ongeldig bouwjaarbereik');
+  if (vboSomVan !== null && vboSomTot !== null && vboSomVan > vboSomTot) throw new TypeError('Ongeldig VBO-sombereik');
+  if (vboMaxVan !== null && vboMaxTot !== null && vboMaxVan > vboMaxTot) throw new TypeError('Ongeldig VBO-maxbereik');
+  if (vboAantalVan !== null && vboAantalTot !== null && vboAantalVan > vboAantalTot) throw new TypeError('Ongeldig VBO-aantalbereik');
 }
 
 async function execute(body: Record<string, unknown>): Promise<unknown> {
@@ -168,7 +196,7 @@ async function execute(body: Record<string, unknown>): Promise<unknown> {
       return tx`SELECT * FROM bag_service.zoek_panden(${scope}, ${cursor}, ${limit})`;
     });
   }
-  if (body.action === 'search_v2') {
+  if (body.action === 'search_v2' || body.action === 'search_v3') {
     const scope = scopeCode(body.scopeCode);
     const limit = integer(body.limit ?? 100, 1, 250, 'Zoeklimiet');
     const cursor = body.cursor == null ? null : String(body.cursor).trim();
@@ -176,33 +204,30 @@ async function execute(body: Record<string, unknown>): Promise<unknown> {
 
     const bouwjaarVan = optionalInteger(body.bouwjaarVan, 1000, 3000, 'Bouwjaar vanaf');
     const bouwjaarTot = optionalInteger(body.bouwjaarTot, 1000, 3000, 'Bouwjaar tot');
-    const status = optionalText(body.status, 128, 'pandstatus');
     const vboSomVan = optionalNumber(body.vboOppervlakteSomVan, 0, 100_000_000, 'VBO-oppervlakte som vanaf');
     const vboSomTot = optionalNumber(body.vboOppervlakteSomTot, 0, 100_000_000, 'VBO-oppervlakte som tot');
     const vboMaxVan = optionalNumber(body.vboOppervlakteMaxVan, 0, 10_000_000, 'VBO-oppervlakte max vanaf');
     const vboMaxTot = optionalNumber(body.vboOppervlakteMaxTot, 0, 10_000_000, 'VBO-oppervlakte max tot');
     const vboAantalVan = optionalInteger(body.vboAantalVan, 0, 100_000, 'VBO-aantal vanaf');
     const vboAantalTot = optionalInteger(body.vboAantalTot, 0, 100_000, 'VBO-aantal tot');
-    const gebruiksdoel = optionalText(body.gebruiksdoel, 128, 'gebruiksdoel');
     const isGemengd = optionalBoolean(body.isGemengd, 'isGemengd');
     const vboModus = body.vboModus == null ? 'alle' : String(body.vboModus).trim();
     if (!VBO_MODI.has(vboModus)) throw new TypeError('Ongeldige VBO-modus');
-
-    if (bouwjaarVan !== null && bouwjaarTot !== null && bouwjaarVan > bouwjaarTot) {
-      throw new TypeError('Ongeldig bouwjaarbereik');
-    }
-    if (vboSomVan !== null && vboSomTot !== null && vboSomVan > vboSomTot) {
-      throw new TypeError('Ongeldig VBO-sombereik');
-    }
-    if (vboMaxVan !== null && vboMaxTot !== null && vboMaxVan > vboMaxTot) {
-      throw new TypeError('Ongeldig VBO-maxbereik');
-    }
-    if (vboAantalVan !== null && vboAantalTot !== null && vboAantalVan > vboAantalTot) {
-      throw new TypeError('Ongeldig VBO-aantalbereik');
-    }
+    validateRanges(bouwjaarVan, bouwjaarTot, vboSomVan, vboSomTot, vboMaxVan, vboMaxTot, vboAantalVan, vboAantalTot);
 
     return sql.begin(async (tx) => {
       await tx.unsafe('SET LOCAL ROLE bag_reader');
+      if (body.action === 'search_v3') {
+        const statussen = textArray(body.statussen, 'pandstatusselectie');
+        const gebruiksdoelen = textArray(body.gebruiksdoelen, 'gebruiksfunctieselectie');
+        return tx`SELECT * FROM bag_service.zoek_panden_v3(
+          ${scope}, ${cursor}, ${limit}, ${bouwjaarVan}, ${bouwjaarTot}, ${statussen},
+          ${vboSomVan}, ${vboSomTot}, ${vboMaxVan}, ${vboMaxTot},
+          ${vboAantalVan}, ${vboAantalTot}, ${gebruiksdoelen}, ${isGemengd}, ${vboModus}
+        )`;
+      }
+      const status = optionalText(body.status, 128, 'pandstatus');
+      const gebruiksdoel = optionalText(body.gebruiksdoel, 128, 'gebruiksdoel');
       return tx`SELECT * FROM bag_service.zoek_panden_v2(
         ${scope}, ${cursor}, ${limit}, ${bouwjaarVan}, ${bouwjaarTot}, ${status},
         ${vboSomVan}, ${vboSomTot}, ${vboMaxVan}, ${vboMaxTot},
