@@ -7,6 +7,27 @@ export interface BagServicePandRij {
   volgende_cursor: string;
 }
 
+export interface BagServicePandV2Rij {
+  datasetversie_id: string | number;
+  index_build_id: string | number;
+  identificatie: string;
+  voorkomen_sleutel: string;
+  status: string | null;
+  bouwjaar: string | number | null;
+  heeft_vbo: boolean;
+  vbo_aantal: string | number;
+  vbo_oppervlakte_som: string | number | null;
+  vbo_oppervlakte_max: string | number | null;
+  gebruiksdoelen: string[] | null;
+  is_gemengd: boolean;
+  primair_adres: string | null;
+  primair_straat: string | null;
+  primair_postcode: string | null;
+  primair_plaats: string | null;
+  adres_count: string | number;
+  volgende_cursor: string;
+}
+
 export interface BagVerkennerPand {
   datasetversieId: string;
   bagPandId: string;
@@ -93,6 +114,28 @@ export function normaliseerBagServicePand(rij: BagServicePandRij): BagVerkennerP
       velden.aantalVerblijfsobjecten ?? velden.aantal_verblijfsobjecten,
     ) ?? 0,
     gemengdGebruik: doelen.length > 1,
+    cursor: rij.volgende_cursor,
+  };
+}
+
+export function normaliseerBagServicePandV2(rij: BagServicePandV2Rij): BagVerkennerPand {
+  const adres = tekst(rij.primair_adres);
+  const doelen = gebruiksdoelen(rij.gebruiksdoelen);
+  return {
+    datasetversieId: String(rij.datasetversie_id),
+    bagPandId: rij.identificatie,
+    voorkomenSleutel: rij.voorkomen_sleutel,
+    status: rij.status,
+    adres: adres ?? rij.identificatie,
+    adresCompleet: adres !== null,
+    straat: tekst(rij.primair_straat),
+    postcode: tekst(rij.primair_postcode),
+    plaats: tekst(rij.primair_plaats),
+    bouwjaar: getal(rij.bouwjaar),
+    gebruiksdoelen: doelen,
+    oppervlakte: getal(rij.vbo_oppervlakte_som),
+    aantalVerblijfsobjecten: getal(rij.vbo_aantal) ?? 0,
+    gemengdGebruik: Boolean(rij.is_gemengd),
     cursor: rij.volgende_cursor,
   };
 }
