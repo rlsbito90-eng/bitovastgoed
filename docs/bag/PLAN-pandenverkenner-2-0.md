@@ -21,9 +21,11 @@ Voorbeeld:
 
 Bito-acquisitieclassificaties worden niet als BAG-feit in de kernindex opgeslagen. Ze komen later in een afzonderlijke classificatielaag of deterministic classifier met expliciete versieerbare regels.
 
-### 2.2 Eén rij per huidig pand
+### 2.2 Eén rij per huidig pand per indexbuild
 
-De index representeert het actuele operationele pand binnen één actieve/gevalideerde datasetversie en scope.
+De index representeert het actuele operationele pand binnen één concrete indexbuild, gekoppeld aan precies één datasetversie, scope en indexversie.
+
+Een build is volledig rebuildable. `bag_published` blijft de BAG-bronwaarheid; `bag_search` is uitsluitend een afgeleide read/search-laag.
 
 ### 2.3 Geen generiek oppervlakteveld
 
@@ -59,11 +61,12 @@ Footprint wordt in eerste instantie wel toonbaar, maar niet standaard als m²-fi
 
 Elke indexrij moet herleidbaar zijn naar minimaal:
 
+- `index_build_id`
 - `datasetversie_id`
 - `scope_code`
 - BAG-pandidentificatie
-- actueel voorkomen / voorkomen_sleutel waar relevant
-- index-/verrijkingsversie
+- actueel voorkomen / `voorkomen_sleutel`
+- `index_versie`
 
 De index wordt alleen vernieuwd na een nieuwe gevalideerde/actieve BAG-dataset. Geen blinde dagelijkse full refresh in het MVP.
 
@@ -75,6 +78,7 @@ Minimale dimensies:
 
 ### Identiteit en provenance
 
+- `index_build_id`
 - `datasetversie_id`
 - `scope_code`
 - `pand_identificatie`
@@ -114,7 +118,7 @@ Optioneel later:
 
 - `adressen[]`
 
-De keuze van het primaire adres moet deterministisch zijn. Geen willekeurige rijvolgorde. De exacte BAG-regel wordt vóór BUILD vastgelegd en getest.
+De keuze van het primaire adres moet deterministisch zijn. Geen willekeurige rijvolgorde. De exacte BAG-regel wordt vóór de daadwerkelijke indexbuild vastgelegd en getest.
 
 UI-voorbeeld:
 
@@ -138,7 +142,34 @@ Amsterdam kan aanvullend een expliciete stadsdeelverrijking krijgen.
 
 Voor wijk/buurt is centroid → point-in-polygon acceptabel als MVP-classificatie. De oorspronkelijke pandgeometrie blijft echter beschikbaar en is leidend voor latere viewport- en polygonselectie.
 
-## 5. Querycontract Pandenverkenner 2.0
+## 5. Atomair indexbuild-model
+
+Een afzonderlijke buildregistratie bewaakt de zichtbaarheid van de search-index.
+
+Minimale buildstatussen:
+
+- `opbouw`
+- `gevalideerd`
+- `actief`
+- `vervangen`
+- `afgekeurd`
+
+Per scope mag maximaal één build `actief` zijn.
+
+Proces:
+
+1. maak een nieuwe build aan als `opbouw` voor één concrete datasetversie, scope en indexversie;
+2. schrijf uitsluitend indexrijen die bij die build horen;
+3. valideer aantallen, duplicaten, provenance, VBO-semantiek, adressen en geometrie;
+4. markeer de build pas als `gevalideerd` wanneer alle harde controles groen zijn;
+5. wissel de vorige en nieuwe actieve build in één transactie;
+6. een queryfunctie leest uitsluitend een build met status `actief` die hoort bij de actieve BAG-dataset voor dezelfde scope.
+
+Een half opgebouwde build is hierdoor nooit querybaar.
+
+De indexbuild kan volledig worden verwijderd en opnieuw worden opgebouwd zonder `bag_published` te wijzigen.
+
+## 6. Querycontract Pandenverkenner 2.0
 
 De huidige zoekactie met alleen scope, cursor en limiet wordt uitgebreid naar server-side filtering.
 
@@ -164,7 +195,7 @@ Fase 1C ondersteunt minimaal:
 
 Filters worden server-side toegepast vóór paginering. De huidige client-side filtering van uitsluitend de geladen pagina is niet het eindmodel.
 
-## 6. Pandenverkenner versus CRM
+## 7. Pandenverkenner versus CRM
 
 Pandenverkenner 2.0 blijft een read/search-laag.
 
@@ -180,7 +211,7 @@ Geen automatische opslag vanuit zoekresultaten.
 
 Kadasteracties blijven volledig handmatig en vallen buiten dit PLAN.
 
-## 7. Off-Market Radar
+## 8. Off-Market Radar
 
 In Fase 1 wordt geen functionele koppeling gebouwd.
 
@@ -200,11 +231,12 @@ Fase 2 kan een afzonderlijke laag introduceren, bijvoorbeeld `pand_search_classi
 
 Een acquisitieclassificatie wordt explainable en opnieuw berekenbaar gehouden.
 
-## 8. Fasering
+## 9. Fasering
 
 ### Fase 1A — Search-index fundament
 
-- één rij per huidig operationeel pand;
+- één rij per huidig operationeel pand per build;
+- expliciet indexbuild-register;
 - scope/gemeente;
 - BAG-status;
 - bouwjaar;
@@ -254,21 +286,21 @@ Een acquisitieclassificatie wordt explainable en opnieuw berekenbaar gehouden.
 - tweede en volgende gemeente;
 - refresh/incremental pipeline.
 
-## 9. Refreshstrategie
+## 10. Refreshstrategie
 
 MVP:
 
 - indexbuild gekoppeld aan een nieuwe gevalideerde datasetversie;
-- index vóór activatie of als gecontroleerde post-importstap volledig valideren;
+- index vóór activatie volledig valideren;
 - alleen een complete, consistente index beschikbaar maken voor queries;
 - geen gedeeltelijke zichtbaarheid tijdens rebuild;
-- actieve dataset en bijbehorende zoekindex moeten aantoonbaar bij elkaar horen.
+- actieve dataset en actieve zoekindex moeten aantoonbaar bij elkaar horen.
 
 Later:
 
 - incremental/dagelijks verversen kan worden onderzocht nadat mutatiegedrag, performance en herstelpad bewezen zijn.
 
-## 10. Niet doen in Fase 1
+## 11. Niet doen in Fase 1
 
 - geen automatische Off-Market Radar-signalen;
 - geen automatische Kadasterbestellingen of -acties;
@@ -277,30 +309,34 @@ Later:
 - geen live zware VBO-aggregaties als structureel zoekmodel;
 - geen willekeurig gekozen hoofdadres;
 - geen client-only filters over slechts één geladen pagina als definitieve zoeksemantiek;
+- geen directe app- of `bag_reader`-SELECT op `bag_search`;
 - geen database- of deploymentwijziging zonder afzonderlijke BUILD en bijbehorende veiligheidscontrole.
 
-## 11. Migratiepad vanaf huidige implementatie
+## 12. Migratiepad vanaf huidige implementatie
 
 De huidige `bag_service.zoek_panden` blijft tijdens de opbouw het compatibele pad.
 
 De overgang gebeurt in kleine stappen:
 
 1. indexcontract + pure tests;
-2. indexbuild in geïsoleerde BAG-shadowomgeving;
-3. integriteits- en performancebewijs;
-4. read-only queryfunctie 2.0 naast de bestaande functie;
-5. clienttransport 2.0 achter expliciete interface/featuregrens;
-6. UI-filters omzetten naar server-side query;
-7. regressietest van selectie/preflight/promotie;
-8. pas na bewezen pariteit oude live-aggregatie uitfaseren.
+2. repository-only schema- en buildcontract;
+3. geïsoleerde schema-only proef;
+4. synthetische indexbuildproef;
+5. officiële actieve dataset read-only als bron gebruiken voor een geïsoleerde buildproef;
+6. integriteits- en performancebewijs;
+7. read-only queryfunctie 2.0 naast de bestaande functie;
+8. clienttransport 2.0 achter expliciete interface/featuregrens;
+9. UI-filters omzetten naar server-side query;
+10. regressietest van selectie/preflight/promotie;
+11. pas na bewezen pariteit oude live-aggregatie uitfaseren.
 
 Geen big-bang vervanging.
 
-## 12. Acceptatiecriteria Fase 1
+## 13. Acceptatiecriteria Fase 1
 
 Fase 1 is pas gereed als aantoonbaar geldt:
 
-- elk huidig operationeel pand in scope staat maximaal één keer in de index;
+- elk huidig operationeel pand in scope staat exact één keer in de actieve indexbuild;
 - panden zonder VBO ontbreken niet;
 - VBO-oppervlakte NULL/0-semantiek is correct;
 - som, max en aantal zijn afzonderlijk correct;
@@ -309,12 +345,15 @@ Fase 1 is pas gereed als aantoonbaar geldt:
 - geen acquisitieclassificatie is in de BAG-kernindex vermengd;
 - datasetversie/provenance is volledig herleidbaar;
 - wijk/buurtverrijking is versieerbaar;
+- een half opgebouwde build is nooit querybaar;
+- maximaal één actieve build per scope bestaat;
+- actieve dataset en actieve indexbuild corresponderen;
 - filters worden vóór paginering server-side toegepast;
 - querylimieten, auth, scope-allowlist en `bag_reader`-grens blijven intact;
 - selectie/preflight/promotie blijft handmatig;
 - bestaande actieve Amsterdam-dataset wordt niet gewijzigd door het ontwerpwerk.
 
-## 13. Besluiten
+## 14. Besluiten
 
 1. Refresh start datasetgebonden, niet dagelijks blind.
 2. Footprint mag als expliciete proxy worden getoond, niet standaard als m²-filter.
@@ -323,3 +362,5 @@ Fase 1 is pas gereed als aantoonbaar geldt:
 5. Adresmodel is expliciet onderdeel van de zoekindex.
 6. Panden zonder VBO horen vanaf Fase 1A bij het MVP.
 7. Provenance/datasetversie is verplicht onderdeel van de index.
+8. Indexbuilds hebben een eigen levenscyclus en worden atomair zichtbaar gemaakt.
+9. `bag_search` blijft rebuildable en is nooit de BAG-bronwaarheid.
