@@ -2,16 +2,21 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   valideerPandZoekAanvraag,
   valideerPandZoekAanvraagV2,
+  valideerPandZoekAanvraagV3,
   valideerViewportAanvraag,
   type BagPandZoekAanvraag,
   type BagPandZoekAanvraagV2,
+  type BagPandZoekAanvraagV3,
   type BagViewportAanvraag,
 } from './queryService';
 import {
   BAG_STANDAARD_ACTIEVE_SCOPECODES,
   bepaalActieveBagScopes,
 } from './scopeRegistry';
-import { assertBagV2ResultatenVoldoenAanFilters } from './zoekResultaatGuard';
+import {
+  assertBagV2ResultatenVoldoenAanFilters,
+  assertBagV3ResultatenVoldoenAanFilters,
+} from './zoekResultaatGuard';
 
 export interface BagTransportResultaat<T> {
   rows: T[];
@@ -62,92 +67,71 @@ async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportRes
   return { rows: data.rows as T[] };
 }
 
-export async function haalPandenInViewport<T>(
-  aanvraag: BagViewportAanvraag,
-): Promise<BagTransportResultaat<T>> {
+export async function haalPandenInViewport<T>(aanvraag: BagViewportAanvraag): Promise<BagTransportResultaat<T>> {
   const validatie = valideerViewportAanvraag(aanvraag);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
   controleerScope(aanvraag.scopeCode);
   return invoke<T>({
-    action: 'viewport',
-    scopeCode: aanvraag.scopeCode,
-    minX: aanvraag.viewport.minX,
-    minY: aanvraag.viewport.minY,
-    maxX: aanvraag.viewport.maxX,
-    maxY: aanvraag.viewport.maxY,
-    limit: aanvraag.limiet,
+    action: 'viewport', scopeCode: aanvraag.scopeCode,
+    minX: aanvraag.viewport.minX, minY: aanvraag.viewport.minY,
+    maxX: aanvraag.viewport.maxX, maxY: aanvraag.viewport.maxY, limit: aanvraag.limiet,
   });
 }
 
-export async function zoekPandenViaService<T>(
-  aanvraag: BagPandZoekAanvraag,
-): Promise<BagTransportResultaat<T>> {
+export async function zoekPandenViaService<T>(aanvraag: BagPandZoekAanvraag): Promise<BagTransportResultaat<T>> {
   const validatie = valideerPandZoekAanvraag(aanvraag);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
   controleerScope(aanvraag.scopeCode);
-  return invoke<T>({
-    action: 'search',
-    scopeCode: aanvraag.scopeCode,
-    cursor: aanvraag.naIdentificatie,
-    limit: aanvraag.limiet,
-  });
+  return invoke<T>({ action: 'search', scopeCode: aanvraag.scopeCode, cursor: aanvraag.naIdentificatie, limit: aanvraag.limiet });
 }
 
 type BagPandZoekAanvraagV2MetAliases = BagPandZoekAanvraagV2 & {
-  vboSomVan?: number | null;
-  vboSomTot?: number | null;
-  vboMaxVan?: number | null;
-  vboMaxTot?: number | null;
+  vboSomVan?: number | null; vboSomTot?: number | null; vboMaxVan?: number | null; vboMaxTot?: number | null;
 };
 
-export function normaliseerPandZoekAanvraagV2(
-  aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>,
-): BagPandZoekAanvraagV2 {
+export function normaliseerPandZoekAanvraagV2(aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>): BagPandZoekAanvraagV2 {
   const bron = aanvraag as BagPandZoekAanvraagV2MetAliases;
   return {
-    scopeCode: bron.scopeCode,
-    naIdentificatie: bron.naIdentificatie ?? null,
-    limiet: bron.limiet,
-    bouwjaarVan: bron.bouwjaarVan ?? null,
-    bouwjaarTot: bron.bouwjaarTot ?? null,
-    status: bron.status ?? null,
+    scopeCode: bron.scopeCode, naIdentificatie: bron.naIdentificatie ?? null, limiet: bron.limiet,
+    bouwjaarVan: bron.bouwjaarVan ?? null, bouwjaarTot: bron.bouwjaarTot ?? null, status: bron.status ?? null,
     vboOppervlakteSomVan: bron.vboOppervlakteSomVan ?? bron.vboSomVan ?? null,
     vboOppervlakteSomTot: bron.vboOppervlakteSomTot ?? bron.vboSomTot ?? null,
     vboOppervlakteMaxVan: bron.vboOppervlakteMaxVan ?? bron.vboMaxVan ?? null,
     vboOppervlakteMaxTot: bron.vboOppervlakteMaxTot ?? bron.vboMaxTot ?? null,
-    vboAantalVan: bron.vboAantalVan ?? null,
-    vboAantalTot: bron.vboAantalTot ?? null,
-    gebruiksdoel: bron.gebruiksdoel ?? null,
-    isGemengd: bron.isGemengd ?? null,
-    vboModus: bron.vboModus,
+    vboAantalVan: bron.vboAantalVan ?? null, vboAantalTot: bron.vboAantalTot ?? null,
+    gebruiksdoel: bron.gebruiksdoel ?? null, isGemengd: bron.isGemengd ?? null, vboModus: bron.vboModus,
   };
 }
 
-export async function zoekPandenViaServiceV2<T>(
-  aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>,
-): Promise<BagTransportResultaat<T>> {
+export async function zoekPandenViaServiceV2<T>(aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>): Promise<BagTransportResultaat<T>> {
   const genormaliseerd = normaliseerPandZoekAanvraagV2(aanvraag);
   const validatie = valideerPandZoekAanvraagV2(genormaliseerd);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
   controleerScope(genormaliseerd.scopeCode);
   const resultaat = await invoke<T>({
-    action: 'search_v2',
-    scopeCode: genormaliseerd.scopeCode,
-    cursor: genormaliseerd.naIdentificatie,
-    limit: genormaliseerd.limiet,
-    bouwjaarVan: genormaliseerd.bouwjaarVan,
-    bouwjaarTot: genormaliseerd.bouwjaarTot,
-    status: genormaliseerd.status,
-    vboOppervlakteSomVan: genormaliseerd.vboOppervlakteSomVan,
-    vboOppervlakteSomTot: genormaliseerd.vboOppervlakteSomTot,
-    vboOppervlakteMaxVan: genormaliseerd.vboOppervlakteMaxVan,
-    vboOppervlakteMaxTot: genormaliseerd.vboOppervlakteMaxTot,
-    vboAantalVan: genormaliseerd.vboAantalVan,
-    vboAantalTot: genormaliseerd.vboAantalTot,
-    gebruiksdoel: genormaliseerd.gebruiksdoel,
-    isGemengd: genormaliseerd.isGemengd,
-    vboModus: genormaliseerd.vboModus,
+    action: 'search_v2', scopeCode: genormaliseerd.scopeCode, cursor: genormaliseerd.naIdentificatie, limit: genormaliseerd.limiet,
+    bouwjaarVan: genormaliseerd.bouwjaarVan, bouwjaarTot: genormaliseerd.bouwjaarTot, status: genormaliseerd.status,
+    vboOppervlakteSomVan: genormaliseerd.vboOppervlakteSomVan, vboOppervlakteSomTot: genormaliseerd.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: genormaliseerd.vboOppervlakteMaxVan, vboOppervlakteMaxTot: genormaliseerd.vboOppervlakteMaxTot,
+    vboAantalVan: genormaliseerd.vboAantalVan, vboAantalTot: genormaliseerd.vboAantalTot,
+    gebruiksdoel: genormaliseerd.gebruiksdoel, isGemengd: genormaliseerd.isGemengd, vboModus: genormaliseerd.vboModus,
   });
   assertBagV2ResultatenVoldoenAanFilters(resultaat.rows, genormaliseerd);
+  return resultaat;
+}
+
+export async function zoekPandenViaServiceV3<T>(aanvraag: BagPandZoekAanvraagV3): Promise<BagTransportResultaat<T>> {
+  const validatie = valideerPandZoekAanvraagV3(aanvraag);
+  if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
+  const resultaat = await invoke<T>({
+    action: 'search_v3', scopeCode: aanvraag.scopeCode, cursor: aanvraag.naIdentificatie, limit: aanvraag.limiet,
+    bouwjaarVan: aanvraag.bouwjaarVan, bouwjaarTot: aanvraag.bouwjaarTot, statussen: aanvraag.statussen,
+    vboOppervlakteSomVan: aanvraag.vboOppervlakteSomVan, vboOppervlakteSomTot: aanvraag.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan, vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
+    vboAantalVan: aanvraag.vboAantalVan, vboAantalTot: aanvraag.vboAantalTot,
+    gebruiksdoelen: aanvraag.gebruiksdoelen, isGemengd: aanvraag.isGemengd, vboModus: aanvraag.vboModus,
+  });
+  assertBagV3ResultatenVoldoenAanFilters(resultaat.rows, aanvraag);
   return resultaat;
 }

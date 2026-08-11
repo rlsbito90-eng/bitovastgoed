@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
   valideerPandZoekAanvraag,
+  valideerPandZoekAanvraagV3,
   valideerViewportAanvraag,
+  type BagPandZoekAanvraagV3,
 } from './queryService';
+
+const v3Basis: BagPandZoekAanvraagV3 = {
+  scopeCode: '0363',
+  naIdentificatie: null,
+  limiet: 100,
+  bouwjaarVan: null,
+  bouwjaarTot: null,
+  statussen: [],
+  vboOppervlakteSomVan: null,
+  vboOppervlakteSomTot: null,
+  vboOppervlakteMaxVan: null,
+  vboOppervlakteMaxTot: null,
+  vboAantalVan: null,
+  vboAantalTot: null,
+  gebruiksdoelen: [],
+  isGemengd: null,
+  vboModus: 'alle',
+};
 
 describe('BAG private queryservicecontract', () => {
   it('accepteert een begrensde RD New-viewport', () => {
@@ -52,5 +72,34 @@ describe('BAG private queryservicecontract', () => {
     });
     expect(fout.geldig).toBe(false);
     expect(fout.fouten).toHaveLength(2);
+  });
+
+  it('accepteert meerdere pandstatussen en gebruiksfuncties in v3', () => {
+    expect(valideerPandZoekAanvraagV3({
+      ...v3Basis,
+      statussen: ['Bouw gestart', 'Bouwvergunning verleend'],
+      gebruiksdoelen: ['winkelfunctie', 'kantoorfunctie'],
+      vboOppervlakteSomVan: 200,
+    })).toEqual({ geldig: true, fouten: [] });
+  });
+
+  it('begrensd multiselects, dubbele opties en ongeldige tekst', () => {
+    const teVeel = valideerPandZoekAanvraagV3({
+      ...v3Basis,
+      statussen: Array.from({ length: 17 }, (_, index) => `status-${index}`),
+    });
+    expect(teVeel.geldig).toBe(false);
+    expect(teVeel.fouten).toContain('Pandstatusselectie mag maximaal 16 opties bevatten.');
+
+    const dubbel = valideerPandZoekAanvraagV3({
+      ...v3Basis,
+      gebruiksdoelen: ['woonfunctie', 'woonfunctie'],
+    });
+    expect(dubbel.geldig).toBe(false);
+    expect(dubbel.fouten).toContain('Gebruiksfunctieselectie bevat dubbele opties.');
+
+    const leeg = valideerPandZoekAanvraagV3({ ...v3Basis, statussen: ['   '] });
+    expect(leeg.geldig).toBe(false);
+    expect(leeg.fouten).toContain('Pandstatusselectie bevat een ongeldige optie.');
   });
 });

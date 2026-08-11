@@ -14,11 +14,13 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(page).not.toContain('service_role');
   });
 
-  it('gebruikt alleen de geauthenticeerde v2-transportadapter', () => {
+  it('gebruikt alleen de geauthenticeerde v3-transportadapter en houdt v2 buiten de UI', () => {
     expect(component).toContain("from '@/lib/bag/queryTransport'");
-    expect(component).toContain('zoekPandenViaServiceV2');
+    expect(component).toContain('zoekPandenViaServiceV3');
+    expect(component).not.toContain('zoekPandenViaServiceV2');
     expect(component).toContain('vboOppervlakteSomVan');
-    expect(component).not.toContain('vboSomVan: optioneelGetal');
+    expect(component).toContain('statussen: serverFilters.statussen');
+    expect(component).toContain('gebruiksdoelen: filters.gebruiksdoelen');
     expect(component).not.toContain('createClient');
     expect(component).not.toContain('fetch(');
     expect(component).not.toContain('DATABASE_URL');
@@ -34,15 +36,24 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(component).not.toContain('addKans');
   });
 
-  it('gebruikt korte GBO/VBO-labels en BAG-statusopties', () => {
+  it('gebruikt korte GBO/VBO-labels en echte multiselect voor BAG-status', () => {
     expect(component).toContain('GBO totaal vanaf');
     expect(component).toContain('GBO totaal t/m');
     expect(component).toContain('Grootste VBO vanaf');
     expect(component).toContain('Aantal VBO vanaf');
-    expect(component).toContain('Alle pandstatussen');
+    expect(component).toContain('Pandstatus');
+    expect(component).toContain('toggleStatus');
+    expect(component).toContain('serverFilters.statussen.includes(status)');
     expect(component).toContain('Sloopvergunning verleend');
     expect(component).toContain('m² GBO');
     expect(component).not.toContain('m² VBO-som');
+  });
+
+  it('maakt gebruiksfunctie echt multiselect en legt OF/EN-semantiek uit', () => {
+    expect(component).toContain('Gebruiksfunctie');
+    expect(component).toContain('previous.gebruiksdoelen.filter');
+    expect(component).toContain('[...previous.gebruiksdoelen, functie]');
+    expect(component).toContain('Binnen Pandstatus en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN.');
   });
 
   it('maakt sortering zichtbaar en benoemt dat deze op de geladen pagina werkt', () => {

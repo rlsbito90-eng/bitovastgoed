@@ -22,7 +22,7 @@ import {
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
 import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
-import { zoekPandenViaServiceV2 } from '@/lib/bag/queryTransport';
+import { zoekPandenViaServiceV3 } from '@/lib/bag/queryTransport';
 import { bepaalStraatSelectieStatus, toggleStraatSelectie } from '@/lib/bag/straatSelectie';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
@@ -60,7 +60,7 @@ interface Props {
 }
 
 interface ServerFilters {
-  status: string;
+  statussen: string[];
   bouwjaarVan: string;
   bouwjaarTot: string;
   vboSomVan: string;
@@ -73,7 +73,7 @@ interface ServerFilters {
 }
 
 const LEGE_SERVER_FILTERS: ServerFilters = {
-  status: '',
+  statussen: [],
   bouwjaarVan: '',
   bouwjaarTot: '',
   vboSomVan: '',
@@ -163,20 +163,20 @@ export default function BagServicePandenlijst({
   const laad = async (opnieuw = false) => {
     setLaden(true);
     try {
-      const resultaat = await zoekPandenViaServiceV2<BagServicePandV2Rij>({
+      const resultaat = await zoekPandenViaServiceV3<BagServicePandV2Rij>({
         scopeCode,
         naIdentificatie: opnieuw ? null : cursor,
         limiet: PAGE_SIZE,
         bouwjaarVan: optioneelGetal(serverFilters.bouwjaarVan),
         bouwjaarTot: optioneelGetal(serverFilters.bouwjaarTot),
-        status: serverFilters.status || null,
+        statussen: serverFilters.statussen,
         vboOppervlakteSomVan: optioneelGetal(serverFilters.vboSomVan),
         vboOppervlakteSomTot: optioneelGetal(serverFilters.vboSomTot),
         vboOppervlakteMaxVan: optioneelGetal(serverFilters.vboMaxVan),
         vboOppervlakteMaxTot: optioneelGetal(serverFilters.vboMaxTot),
         vboAantalVan: optioneelGetal(serverFilters.vboAantalVan),
         vboAantalTot: optioneelGetal(serverFilters.vboAantalTot),
-        gebruiksdoel: filters.gebruiksdoelen[0] ?? null,
+        gebruiksdoelen: filters.gebruiksdoelen,
         isGemengd: filters.alleenGemengd ? true : null,
         vboModus: serverFilters.vboModus,
       });
@@ -237,11 +237,20 @@ export default function BagServicePandenlijst({
 
   const toggleFunctie = (functie: string) => setFilters(previous => ({
     ...previous,
-    gebruiksdoelen: previous.gebruiksdoelen.includes(functie) ? [] : [functie],
+    gebruiksdoelen: previous.gebruiksdoelen.includes(functie)
+      ? previous.gebruiksdoelen.filter(item => item !== functie)
+      : [...previous.gebruiksdoelen, functie],
+  }));
+
+  const toggleStatus = (status: string) => setServerFilters(previous => ({
+    ...previous,
+    statussen: previous.statussen.includes(status)
+      ? previous.statussen.filter(item => item !== status)
+      : [...previous.statussen, status],
   }));
 
   const resetZoekfilters = () => {
-    setServerFilters(LEGE_SERVER_FILTERS);
+    setServerFilters({ ...LEGE_SERVER_FILTERS, statussen: [] });
     setFilters(previous => ({ ...previous, gebruiksdoelen: [], alleenGemengd: false }));
     setPaginas([]);
     setPaginaIndex(0);
@@ -332,11 +341,7 @@ export default function BagServicePandenlijst({
       </div>
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={serverFilters.status} onChange={event => setServerFilters(previous => ({ ...previous, status: event.target.value }))}>
-          <option value="">Alle pandstatussen</option>
-          {PANDSTATUSSEN.map(status => <option key={status} value={status}>{status}</option>)}
-        </select>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Input inputMode="numeric" value={serverFilters.bouwjaarVan} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarVan: event.target.value }))} placeholder="Bouwjaar vanaf" />
         <Input inputMode="numeric" value={serverFilters.bouwjaarTot} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarTot: event.target.value }))} placeholder="Bouwjaar t/m" />
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={serverFilters.vboModus} onChange={event => setServerFilters(previous => ({ ...previous, vboModus: event.target.value as ServerFilters['vboModus'] }))}>
@@ -345,6 +350,11 @@ export default function BagServicePandenlijst({
           <option value="zonder_vbo">Alleen zonder VBO</option>
         </select>
         <label className="flex items-center gap-2 rounded-md border px-3 text-xs"><Checkbox checked={filters.alleenGemengd} onCheckedChange={value => setFilters(previous => ({ ...previous, alleenGemengd: Boolean(value) }))}/>Alleen gemengd</label>
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-2 flex items-center gap-2"><span className="text-xs font-medium">Pandstatus</span>{serverFilters.statussen.length > 0 && <Badge variant="secondary">{serverFilters.statussen.length} geselecteerd</Badge>}</div>
+        <div className="flex flex-wrap gap-2">{PANDSTATUSSEN.map(status => <label key={status} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={serverFilters.statussen.includes(status)} onCheckedChange={() => toggleStatus(status)}/>{status}</label>)}</div>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -356,7 +366,10 @@ export default function BagServicePandenlijst({
         <Input inputMode="numeric" value={serverFilters.vboAantalTot} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalTot: event.target.value }))} placeholder="Aantal VBO t/m" />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
+      <div className="mt-3">
+        <div className="mb-2 flex items-center gap-2"><span className="text-xs font-medium">Gebruiksfunctie</span>{filters.gebruiksdoelen.length > 0 && <Badge variant="secondary">{filters.gebruiksdoelen.length} geselecteerd</Badge>}</div>
+        <div className="flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
+      </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_260px]">
         <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, plaats, postcode of BAG-ID" />
@@ -372,7 +385,7 @@ export default function BagServicePandenlijst({
           <option value="vbo_aantal_laag_hoog">Aantal VBO laag → hoog</option>
         </select>
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">Binnen Pandstatus en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN. Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
     </div>
 
     <div ref={resultatenTopRef} />
