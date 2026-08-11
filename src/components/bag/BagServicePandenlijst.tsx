@@ -16,13 +16,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   filterEnSorteerBagPanden,
-  normaliseerBagServicePand,
-  type BagServicePandRij,
+  normaliseerBagServicePandV2,
+  type BagServicePandV2Rij,
   type BagVerkennerFilters,
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
 import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
-import { zoekPandenViaService } from '@/lib/bag/queryTransport';
+import { zoekPandenViaServiceV2 } from '@/lib/bag/queryTransport';
 import { bepaalStraatSelectieStatus, toggleStraatSelectie } from '@/lib/bag/straatSelectie';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
@@ -48,12 +48,45 @@ interface Props {
   onHandmatigPromoveren: (panden: BagVerkennerPand[]) => Promise<BagPromotieResultaat>;
 }
 
+interface ServerFilters {
+  status: string;
+  bouwjaarVan: string;
+  bouwjaarTot: string;
+  vboSomVan: string;
+  vboSomTot: string;
+  vboMaxVan: string;
+  vboMaxTot: string;
+  vboAantalVan: string;
+  vboAantalTot: string;
+  vboModus: 'alle' | 'met_vbo' | 'zonder_vbo';
+}
+
+const LEGE_SERVER_FILTERS: ServerFilters = {
+  status: '',
+  bouwjaarVan: '',
+  bouwjaarTot: '',
+  vboSomVan: '',
+  vboSomTot: '',
+  vboMaxVan: '',
+  vboMaxTot: '',
+  vboAantalVan: '',
+  vboAantalTot: '',
+  vboModus: 'alle',
+};
+
 const REDEN_LABEL = {
   bestaand_bag_id: 'BAG-ID bestaat al in CRM',
   bestaand_adres: 'Adres bestaat al in CRM',
   onvolledig_adres: 'Bronadres is onvolledig',
   selectielimiet: 'Selectielimiet overschreden',
 } as const;
+
+function optioneelGetal(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export default function BagServicePandenlijst({
   scopeCode, bestaandeBagIds, bestaandeAdresSleutels, onHandmatigPromoveren,
@@ -72,6 +105,7 @@ export default function BagServicePandenlijst({
   const [filters, setFilters] = useState<BagVerkennerFilters>({
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
   });
+  const [serverFilters, setServerFilters] = useState<ServerFilters>(LEGE_SERVER_FILTERS);
 
   useEffect(() => {
     const controleerScroll = () => setToonNaarBoven(window.scrollY > 500);
@@ -109,13 +143,33 @@ export default function BagServicePandenlijst({
   const laad = async (opnieuw = false) => {
     setLaden(true);
     try {
-      const resultaat = await zoekPandenViaService<BagServicePandRij>({
-        scopeCode, naIdentificatie: opnieuw ? null : cursor, limiet: PAGE_SIZE,
+      const resultaat = await zoekPandenViaServiceV2<BagServicePandV2Rij>({
+        scopeCode,
+        naIdentificatie: opnieuw ? null : cursor,
+        limiet: PAGE_SIZE,
+        bouwjaarVan: optioneelGetal(serverFilters.bouwjaarVan),
+        bouwjaarTot: optioneelGetal(serverFilters.bouwjaarTot),
+        status: serverFilters.status.trim() || null,
+        vboSomVan: optioneelGetal(serverFilters.vboSomVan),
+        vboSomTot: optioneelGetal(serverFilters.vboSomTot),
+        vboMaxVan: optioneelGetal(serverFilters.vboMaxVan),
+        vboMaxTot: optioneelGetal(serverFilters.vboMaxTot),
+        vboAantalVan: optioneelGetal(serverFilters.vboAantalVan),
+        vboAantalTot: optioneelGetal(serverFilters.vboAantalTot),
+        gebruiksdoel: filters.gebruiksdoelen[0] ?? null,
+        isGemengd: filters.alleenGemengd ? true : null,
+        vboModus: serverFilters.vboModus,
       });
-      const nieuw = resultaat.rows.map(normaliseerBagServicePand);
+      const nieuw = resultaat.rows.map(normaliseerBagServicePandV2);
       if (!nieuw.length) {
+        if (opnieuw) {
+          setPaginas([]);
+          setPaginaIndex(0);
+          setCursor(null);
+          setGeselecteerd(new Set());
+        }
         setHeeftVolgende(false);
-        toast.info('Geen verdere BAG-panden gevonden.');
+        toast.info('Geen BAG-panden gevonden voor deze zoekopdracht.');
         return;
       }
 
@@ -156,10 +210,19 @@ export default function BagServicePandenlijst({
 
   const toggleFunctie = (functie: string) => setFilters(previous => ({
     ...previous,
-    gebruiksdoelen: previous.gebruiksdoelen.includes(functie)
-      ? previous.gebruiksdoelen.filter(value => value !== functie)
-      : [...previous.gebruiksdoelen, functie],
+    gebruiksdoelen: previous.gebruiksdoelen.includes(functie) ? [] : [functie],
   }));
+
+  const resetZoekfilters = () => {
+    setServerFilters(LEGE_SERVER_FILTERS);
+    setFilters(previous => ({ ...previous, gebruiksdoelen: [], alleenGemengd: false }));
+    setPaginas([]);
+    setPaginaIndex(0);
+    setCursor(null);
+    setHeeftVolgende(true);
+    setGeselecteerd(new Set());
+    setPreflight(null);
+  };
 
   const togglePand = (pand: BagVerkennerPand) => {
     if (isGeblokkeerd(pand)) return;
@@ -232,20 +295,45 @@ export default function BagServicePandenlijst({
     <div className="border-b p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2"><Database className="h-4 w-4"/><h2 className="text-sm font-medium">Private BAG-Pandenverkenner</h2><Badge variant="outline">Scope {scopeCode}</Badge></div>
-          <p className="mt-1 text-xs text-muted-foreground">Geauthenticeerde, begrensde serverquery met BAG-adressen, functies en VBO-totalen. Geen kaart en geen automatische opslag.</p>
+          <div className="flex items-center gap-2"><Database className="h-4 w-4"/><h2 className="text-sm font-medium">Private BAG-Pandenverkenner 2.0</h2><Badge variant="outline">Scope {scopeCode}</Badge></div>
+          <p className="mt-1 text-xs text-muted-foreground">Server-side zoeken in de actieve BAG-index met bouwjaar, status, VBO-oppervlakte, VBO-aantal en gebruiksfunctie. Panden zonder VBO blijven expliciet beschikbaar.</p>
         </div>
-        <Button onClick={() => laad(true)} disabled={laden}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}Pagina 1 laden</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={resetZoekfilters} disabled={laden}>Wis zoekfilters</Button>
+          <Button onClick={() => laad(true)} disabled={laden}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}Zoeken</Button>
+        </div>
       </div>
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_190px_auto]">
-        <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter huidige pagina op adres, plaats, postcode, BAG-ID of functie" />
-        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))}>
-          <option value="identificatie">BAG-identificatie</option><option value="adres">Adres</option><option value="bouwjaar">Oudste bouwjaar</option><option value="oppervlakte">Grootste oppervlakte</option>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Input value={serverFilters.status} onChange={event => setServerFilters(previous => ({ ...previous, status: event.target.value }))} placeholder="Pandstatus" />
+        <Input inputMode="numeric" value={serverFilters.bouwjaarVan} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarVan: event.target.value }))} placeholder="Bouwjaar vanaf" />
+        <Input inputMode="numeric" value={serverFilters.bouwjaarTot} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarTot: event.target.value }))} placeholder="Bouwjaar t/m" />
+        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={serverFilters.vboModus} onChange={event => setServerFilters(previous => ({ ...previous, vboModus: event.target.value as ServerFilters['vboModus'] }))}>
+          <option value="alle">Alle panden</option>
+          <option value="met_vbo">Alleen met VBO</option>
+          <option value="zonder_vbo">Alleen zonder VBO</option>
         </select>
         <label className="flex items-center gap-2 rounded-md border px-3 text-xs"><Checkbox checked={filters.alleenGemengd} onCheckedChange={value => setFilters(previous => ({ ...previous, alleenGemengd: Boolean(value) }))}/>Alleen gemengd</label>
       </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <Input inputMode="decimal" value={serverFilters.vboSomVan} onChange={event => setServerFilters(previous => ({ ...previous, vboSomVan: event.target.value }))} placeholder="VBO som m² vanaf" />
+        <Input inputMode="decimal" value={serverFilters.vboSomTot} onChange={event => setServerFilters(previous => ({ ...previous, vboSomTot: event.target.value }))} placeholder="VBO som m² t/m" />
+        <Input inputMode="decimal" value={serverFilters.vboMaxVan} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxVan: event.target.value }))} placeholder="Grootste VBO m² vanaf" />
+        <Input inputMode="decimal" value={serverFilters.vboMaxTot} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxTot: event.target.value }))} placeholder="Grootste VBO m² t/m" />
+        <Input inputMode="numeric" value={serverFilters.vboAantalVan} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalVan: event.target.value }))} placeholder="VBO-aantal vanaf" />
+        <Input inputMode="numeric" value={serverFilters.vboAantalTot} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalTot: event.target.value }))} placeholder="VBO-aantal t/m" />
+      </div>
+
       <div className="mt-3 flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_190px]">
+        <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, plaats, postcode of BAG-ID" />
+        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))}>
+          <option value="identificatie">BAG-identificatie</option><option value="adres">Adres</option><option value="bouwjaar">Oudste bouwjaar</option><option value="oppervlakte">Grootste VBO-som</option>
+        </select>
+      </div>
     </div>
 
     <div ref={resultatenTopRef} />
@@ -253,7 +341,7 @@ export default function BagServicePandenlijst({
     {panden.length>0 && <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button className="w-full sm:w-auto" variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button className="w-full sm:w-auto" size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
     {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
 
-    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Laad pagina 1 uit de actieve BAG-dataset.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
+    {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Stel eventueel zoekfilters in en start een zoekopdracht in de actieve BAG-index.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
       const status = bepaalStraatSelectieStatus(straatPanden, geselecteerd, isGeblokkeerd);
       return <div key={straat} className={status.geselecteerd > 0 ? 'bg-primary/[0.02]' : undefined}>
         <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2">
@@ -268,11 +356,11 @@ export default function BagServicePandenlijst({
             <Checkbox className="mt-1" disabled={blokkade !== null} checked={isGeselecteerd} onCheckedChange={() => togglePand(pand)}/>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<BagCrmMatchBadge pand={pand} fallbackLabel={REDEN_LABEL[blokkade]}/>}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte?`${Math.round(pand.oppervlakte)} m² totaal`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte!==null?`${Math.round(pand.oppervlakte)} m² VBO-som`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
               <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
               <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
             </div>
-            <a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a>
+            {pand.adresCompleet && <a className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" href={bouwGoogleMapsAdresUrl({ adres: pand.adres, postcode: pand.postcode, plaats: pand.plaats })} target="_blank" rel="noreferrer" aria-label={`Open ${pand.adres} in Google Maps`} title="Open adres in Google Maps"><MapPin className="h-4 w-4"/></a>}
           </div>;
         })}</div>
       </div>;
