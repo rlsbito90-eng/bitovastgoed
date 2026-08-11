@@ -10,6 +10,11 @@ export function getCrmDetailModule(pathname: string): DetailModule | null {
   return match ? match[1] as DetailModule : null;
 }
 
+export function isCrmTerugKnopTekst(text: string | null | undefined): boolean {
+  const normalized = (text ?? '').trim().toLocaleLowerCase('nl-NL');
+  return normalized === 'terug' || normalized.startsWith('terug naar ');
+}
+
 export type CrmDetailNavigationAction = 'normal' | 'return' | 'cross-detail';
 
 export function bepaalCrmDetailNavigationAction(args: {
@@ -41,6 +46,8 @@ interface Props {
  *
  * - Een vaste terug-link naar de eigen hoofdlijst respecteert een expliciete
  *   return-context wanneer het detail vanuit een andere CRM-module is geopend.
+ * - Ook programmatische terugknoppen (bijv. Button onClick={() => navigate(...)})
+ *   worden afgevangen wanneer hun zichtbare tekst "Terug" of "Terug naar …" is.
  * - Een cross-module detail-link krijgt automatisch de huidige detailroute als
  *   return-context mee.
  * - Same-module navigatie (o.a. Vorige/Volgende) blijft ongemoeid.
@@ -71,6 +78,21 @@ export default function CrmDetailNavigationBoundary({
     ) return;
 
     const element = event.target as Element | null;
+
+    // React Router kan ook via een gewone Button programmatisch naar de vaste
+    // hoofdlijst navigeren. Die onClick is niet zichtbaar als <a href> en werd
+    // daardoor eerder niet onderschept. In capture-fase sturen we zo'n expliciete
+    // terugknop rechtstreeks naar de opgeslagen broncontext.
+    if (returnContext) {
+      const button = element?.closest('button') as HTMLButtonElement | null;
+      if (button && isCrmTerugKnopTekst(button.textContent)) {
+        event.preventDefault();
+        event.stopPropagation();
+        navigate(returnContext.path);
+        return;
+      }
+    }
+
     const anchor = element?.closest('a[href]') as HTMLAnchorElement | null;
     if (!anchor || anchor.hasAttribute('download')) return;
     if (anchor.target && anchor.target !== '_self') return;
