@@ -140,7 +140,8 @@ BEGIN
   JOIN actieve a
     ON a.build_id = i.index_build_id
    AND a.datasetversie_id = i.datasetversie_id
-  WHERE (p_na_identificatie IS NULL OR i.pand_identificatie > p_na_identificatie)
+  WHERE i.scope_code = p_scope_code
+    AND (p_na_identificatie IS NULL OR i.pand_identificatie > p_na_identificatie)
     AND (p_bouwjaar_van IS NULL OR i.oorspronkelijk_bouwjaar >= p_bouwjaar_van)
     AND (p_bouwjaar_tot IS NULL OR i.oorspronkelijk_bouwjaar <= p_bouwjaar_tot)
     AND (cardinality(COALESCE(p_statussen, ARRAY[]::text[])) = 0 OR i.pandstatus_huidig = ANY(p_statussen))
