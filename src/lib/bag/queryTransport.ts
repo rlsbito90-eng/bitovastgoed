@@ -1,8 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
   valideerPandZoekAanvraag,
+  valideerPandZoekAanvraagV2,
   valideerViewportAanvraag,
   type BagPandZoekAanvraag,
+  type BagPandZoekAanvraagV2,
   type BagViewportAanvraag,
 } from './queryService';
 import {
@@ -87,5 +89,31 @@ export async function zoekPandenViaService<T>(
     scopeCode: aanvraag.scopeCode,
     cursor: aanvraag.naIdentificatie,
     limit: aanvraag.limiet,
+  });
+}
+
+export async function zoekPandenViaServiceV2<T>(
+  aanvraag: BagPandZoekAanvraagV2,
+): Promise<BagTransportResultaat<T>> {
+  const validatie = valideerPandZoekAanvraagV2(aanvraag);
+  if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
+  return invoke<T>({
+    action: 'search_v2',
+    scopeCode: aanvraag.scopeCode,
+    cursor: aanvraag.naIdentificatie,
+    limit: aanvraag.limiet,
+    bouwjaarVan: aanvraag.bouwjaarVan,
+    bouwjaarTot: aanvraag.bouwjaarTot,
+    status: aanvraag.status,
+    vboOppervlakteSomVan: aanvraag.vboOppervlakteSomVan,
+    vboOppervlakteSomTot: aanvraag.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan,
+    vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
+    vboAantalVan: aanvraag.vboAantalVan,
+    vboAantalTot: aanvraag.vboAantalTot,
+    gebruiksdoel: aanvraag.gebruiksdoel,
+    isGemengd: aanvraag.isGemengd,
+    vboModus: aanvraag.vboModus,
   });
 }

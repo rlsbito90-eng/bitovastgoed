@@ -6,7 +6,7 @@ const page = readFileSync(resolve(process.cwd(), 'src/pages/VastgoedkansenVinden
 const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagServicePandenlijst.tsx'), 'utf8');
 const dialog = readFileSync(resolve(process.cwd(), 'src/components/bag/BagHandmatigePromotieDialog.tsx'), 'utf8');
 
-describe('BAG 2A.10 lijst-/filterinterface', () => {
+describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
   it('is standaard uit en vereist een expliciete niet-geheime featureflag', () => {
     expect(page).toContain("VITE_BAG_QUERY_SERVICE_ENABLED === 'true'");
     expect(page).toContain('<BagServicePandenlijst scopeCode={BAG_SERVICE_SCOPE}');
@@ -14,20 +14,21 @@ describe('BAG 2A.10 lijst-/filterinterface', () => {
     expect(page).not.toContain('service_role');
   });
 
-  it('gebruikt alleen de geauthenticeerde transportadapter', () => {
+  it('gebruikt alleen de geauthenticeerde v2-transportadapter', () => {
     expect(component).toContain("from '@/lib/bag/queryTransport'");
-    expect(component).toContain('zoekPandenViaService');
+    expect(component).toContain('zoekPandenViaServiceV2');
     expect(component).not.toContain('createClient');
     expect(component).not.toContain('fetch(');
     expect(component).not.toContain('DATABASE_URL');
   });
 
-  it('bouwt een begrensde lijst zonder kaart of automatische opslag', () => {
+  it('bouwt een begrensde server-side zoeklijst zonder automatische opslag', () => {
     expect(component).toContain('const PAGE_SIZE = 100');
-    expect(component).toContain('Pagina 1 laden');
-    expect(component).toContain('Geen kaart en geen automatische opslag.');
+    expect(component).toContain('Private BAG-Pandenverkenner 2.0');
+    expect(component).toContain('Server-side zoeken in de actieve BAG-index');
+    expect(component).toContain('Alleen zonder VBO');
     expect(component).toContain('Selecteer straat');
-    expect(component).not.toMatch(/maplibre|react-map|google\.com\/maps/i);
+    expect(component).not.toMatch(/maplibre|react-map/i);
     expect(component).not.toContain('addKans');
   });
 

@@ -1,4 +1,4 @@
-// BAG BUILD 2A.9 — geauthenticeerde, shadow-only transportgrens.
+// BAG BUILD 2A.9 + Pandenverkenner 2.0 — geauthenticeerde, shadow-only transportgrens.
 // @ts-nocheck — Deno Edge Runtime; contract wordt statisch en via pure clienttests bewaakt.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import postgres from 'npm:postgres@3.4.7';
@@ -15,6 +15,7 @@ const CRM_AUTH_URL = `https://${CRM_AUTH_REF}.supabase.co`;
 const MAX_BODY_BYTES = 16_384;
 const GEREGISTREERDE_SCOPES = new Set(['0106', '0363', '0599', '0518']);
 const STANDAARD_TOEGESTANE_SCOPES = '0363,0106';
+const VBO_MODI = new Set(['alle', 'met_vbo', 'zonder_vbo']);
 
 let database: ReturnType<typeof postgres> | null = null;
 
@@ -87,6 +88,33 @@ function integer(value: unknown, min: number, max: number, label: string): numbe
   return Number(value);
 }
 
+function optionalInteger(value: unknown, min: number, max: number, label: string): number | null {
+  if (value == null || value === '') return null;
+  return integer(value, min, max, label);
+}
+
+function optionalNumber(value: unknown, min: number, max: number, label: string): number | null {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new TypeError(`${label} moet tussen ${min} en ${max} liggen`);
+  }
+  return value;
+}
+
+function optionalBoolean(value: unknown, label: string): boolean | null {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'boolean') throw new TypeError(`${label} moet boolean zijn`);
+  return value;
+}
+
+function optionalText(value: unknown, maxLength: number, label: string): string | null {
+  if (value == null) return null;
+  if (typeof value !== 'string') throw new TypeError(`${label} moet tekst zijn`);
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) throw new TypeError(`Ongeldige ${label}`);
+  return trimmed;
+}
+
 function coordinate(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new TypeError('Viewportcoördinaten moeten eindig zijn');
@@ -138,6 +166,48 @@ async function execute(body: Record<string, unknown>): Promise<unknown> {
     return sql.begin(async (tx) => {
       await tx.unsafe('SET LOCAL ROLE bag_reader');
       return tx`SELECT * FROM bag_service.zoek_panden(${scope}, ${cursor}, ${limit})`;
+    });
+  }
+  if (body.action === 'search_v2') {
+    const scope = scopeCode(body.scopeCode);
+    const limit = integer(body.limit ?? 100, 1, 250, 'Zoeklimiet');
+    const cursor = body.cursor == null ? null : String(body.cursor).trim();
+    if (cursor !== null && (!cursor || cursor.length > 128)) throw new TypeError('Ongeldige keysetcursor');
+
+    const bouwjaarVan = optionalInteger(body.bouwjaarVan, 1000, 3000, 'Bouwjaar vanaf');
+    const bouwjaarTot = optionalInteger(body.bouwjaarTot, 1000, 3000, 'Bouwjaar tot');
+    const status = optionalText(body.status, 128, 'pandstatus');
+    const vboSomVan = optionalNumber(body.vboOppervlakteSomVan, 0, 100_000_000, 'VBO-oppervlakte som vanaf');
+    const vboSomTot = optionalNumber(body.vboOppervlakteSomTot, 0, 100_000_000, 'VBO-oppervlakte som tot');
+    const vboMaxVan = optionalNumber(body.vboOppervlakteMaxVan, 0, 10_000_000, 'VBO-oppervlakte max vanaf');
+    const vboMaxTot = optionalNumber(body.vboOppervlakteMaxTot, 0, 10_000_000, 'VBO-oppervlakte max tot');
+    const vboAantalVan = optionalInteger(body.vboAantalVan, 0, 100_000, 'VBO-aantal vanaf');
+    const vboAantalTot = optionalInteger(body.vboAantalTot, 0, 100_000, 'VBO-aantal tot');
+    const gebruiksdoel = optionalText(body.gebruiksdoel, 128, 'gebruiksdoel');
+    const isGemengd = optionalBoolean(body.isGemengd, 'isGemengd');
+    const vboModus = body.vboModus == null ? 'alle' : String(body.vboModus).trim();
+    if (!VBO_MODI.has(vboModus)) throw new TypeError('Ongeldige VBO-modus');
+
+    if (bouwjaarVan !== null && bouwjaarTot !== null && bouwjaarVan > bouwjaarTot) {
+      throw new TypeError('Ongeldig bouwjaarbereik');
+    }
+    if (vboSomVan !== null && vboSomTot !== null && vboSomVan > vboSomTot) {
+      throw new TypeError('Ongeldig VBO-sombereik');
+    }
+    if (vboMaxVan !== null && vboMaxTot !== null && vboMaxVan > vboMaxTot) {
+      throw new TypeError('Ongeldig VBO-maxbereik');
+    }
+    if (vboAantalVan !== null && vboAantalTot !== null && vboAantalVan > vboAantalTot) {
+      throw new TypeError('Ongeldig VBO-aantalbereik');
+    }
+
+    return sql.begin(async (tx) => {
+      await tx.unsafe('SET LOCAL ROLE bag_reader');
+      return tx`SELECT * FROM bag_service.zoek_panden_v2(
+        ${scope}, ${cursor}, ${limit}, ${bouwjaarVan}, ${bouwjaarTot}, ${status},
+        ${vboSomVan}, ${vboSomTot}, ${vboMaxVan}, ${vboMaxTot},
+        ${vboAantalVan}, ${vboAantalTot}, ${gebruiksdoel}, ${isGemengd}, ${vboModus}
+      )`;
     });
   }
   throw new TypeError('Onbekende BAG-queryactie');
