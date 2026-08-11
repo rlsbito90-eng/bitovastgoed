@@ -11,6 +11,7 @@ import {
   BAG_STANDAARD_ACTIEVE_SCOPECODES,
   bepaalActieveBagScopes,
 } from './scopeRegistry';
+import { assertBagV2ResultatenVoldoenAanFilters } from './zoekResultaatGuard';
 
 export interface BagTransportResultaat<T> {
   rows: T[];
@@ -129,7 +130,7 @@ export async function zoekPandenViaServiceV2<T>(
   const validatie = valideerPandZoekAanvraagV2(genormaliseerd);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
   controleerScope(genormaliseerd.scopeCode);
-  return invoke<T>({
+  const resultaat = await invoke<T>({
     action: 'search_v2',
     scopeCode: genormaliseerd.scopeCode,
     cursor: genormaliseerd.naIdentificatie,
@@ -147,4 +148,6 @@ export async function zoekPandenViaServiceV2<T>(
     isGemengd: genormaliseerd.isGemengd,
     vboModus: genormaliseerd.vboModus,
   });
+  assertBagV2ResultatenVoldoenAanFilters(resultaat.rows, genormaliseerd);
+  return resultaat;
 }
