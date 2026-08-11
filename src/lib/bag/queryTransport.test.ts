@@ -5,6 +5,17 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: { auth: { getSessio
 
 import { haalPandenInViewport, zoekPandenViaService, zoekPandenViaServiceV3 } from './queryTransport';
 
+const v3Aanvraag = {
+  scopeCode: '0363', naIdentificatie: null, limiet: 100,
+  bouwjaarVan: null, bouwjaarTot: null,
+  statussen: ['Bouw gestart', 'Bouwvergunning verleend'],
+  vboOppervlakteSomVan: 200, vboOppervlakteSomTot: null,
+  vboOppervlakteMaxVan: null, vboOppervlakteMaxTot: null,
+  vboAantalVan: null, vboAantalTot: 2,
+  gebruiksdoelen: ['winkelfunctie', 'kantoorfunctie'],
+  isGemengd: true, vboModus: 'met_vbo' as const,
+};
+
 describe('BAG querytransport', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
@@ -48,16 +59,7 @@ describe('BAG querytransport', () => {
 
   it('stuurt v3 multiselects als arrays zonder v2-versmalling', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ rows: [] }), { status: 200 }));
-    await zoekPandenViaServiceV3({
-      scopeCode: '0363', naIdentificatie: null, limiet: 100,
-      bouwjaarVan: null, bouwjaarTot: null,
-      statussen: ['Bouw gestart', 'Bouwvergunning verleend'],
-      vboOppervlakteSomVan: 200, vboOppervlakteSomTot: null,
-      vboOppervlakteMaxVan: null, vboOppervlakteMaxTot: null,
-      vboAantalVan: null, vboAantalTot: 2,
-      gebruiksdoelen: ['winkelfunctie', 'kantoorfunctie'],
-      isGemengd: true, vboModus: 'met_vbo',
-    });
+    await zoekPandenViaServiceV3(v3Aanvraag);
     expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       body: JSON.stringify({
         action: 'search_v3', scopeCode: '0363', cursor: null, limit: 100,
@@ -70,6 +72,21 @@ describe('BAG querytransport', () => {
         isGemengd: true, vboModus: 'met_vbo',
       }),
     }));
+  });
+
+  it('probeert uitsluitend search_v3 eenmaal opnieuw bij een echte netwerkfout', async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new TypeError('network connection lost'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ rows: [] }), { status: 200 }));
+
+    await expect(zoekPandenViaServiceV3(v3Aanvraag)).resolves.toEqual({ rows: [] });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('probeert een HTTP-fout niet opnieuw', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'tijdelijk' }), { status: 503 }));
+    await expect(zoekPandenViaServiceV3(v3Aanvraag)).rejects.toThrow('De BAG-queryservice is niet beschikbaar.');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('weigert een ontbrekende of verkeerde project-URL voor ieder netwerkverzoek', async () => {

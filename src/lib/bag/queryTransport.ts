@@ -35,7 +35,10 @@ function controleerScope(scopeCode: string): void {
   }
 }
 
-async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportResultaat<T>> {
+async function invoke<T>(
+  body: Record<string, unknown>,
+  opties: { retryBijNetwerkfout?: boolean } = {},
+): Promise<BagTransportResultaat<T>> {
   const configuredUrl = import.meta.env.VITE_BAG_QUERY_FUNCTION_URL?.trim();
   if (configuredUrl !== SHADOW_FUNCTION_URL) {
     throw new Error('De BAG-queryservice is niet veilig geconfigureerd.');
@@ -47,21 +50,27 @@ async function invoke<T>(body: Record<string, unknown>): Promise<BagTransportRes
     throw new Error('Log opnieuw in om de BAG-queryservice te gebruiken.');
   }
 
-  let response: Response;
-  try {
-    response = await fetch(configuredUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new Error('De BAG-queryservice is niet beschikbaar.');
+  const maximaalPogingen = opties.retryBijNetwerkfout ? 2 : 1;
+  let response: Response | null = null;
+  for (let poging = 1; poging <= maximaalPogingen; poging += 1) {
+    try {
+      response = await fetch(configuredUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      break;
+    } catch {
+      if (poging === maximaalPogingen) {
+        throw new Error('De BAG-queryservice is niet beschikbaar.');
+      }
+    }
   }
 
-  if (!response.ok) throw new Error('De BAG-queryservice is niet beschikbaar.');
+  if (!response?.ok) throw new Error('De BAG-queryservice is niet beschikbaar.');
   const data = await response.json().catch(() => null) as { rows?: unknown } | null;
   if (!data || !Array.isArray(data.rows)) throw new Error('Ongeldig antwoord van de BAG-queryservice.');
   return { rows: data.rows as T[] };
@@ -131,7 +140,7 @@ export async function zoekPandenViaServiceV3<T>(aanvraag: BagPandZoekAanvraagV3)
     vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan, vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
     vboAantalVan: aanvraag.vboAantalVan, vboAantalTot: aanvraag.vboAantalTot,
     gebruiksdoelen: aanvraag.gebruiksdoelen, isGemengd: aanvraag.isGemengd, vboModus: aanvraag.vboModus,
-  });
+  }, { retryBijNetwerkfout: true });
   assertBagV3ResultatenVoldoenAanFilters(resultaat.rows, aanvraag);
   return resultaat;
 }
