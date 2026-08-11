@@ -92,28 +92,59 @@ export async function zoekPandenViaService<T>(
   });
 }
 
+type BagPandZoekAanvraagV2MetAliases = BagPandZoekAanvraagV2 & {
+  vboSomVan?: number | null;
+  vboSomTot?: number | null;
+  vboMaxVan?: number | null;
+  vboMaxTot?: number | null;
+};
+
+export function normaliseerPandZoekAanvraagV2(
+  aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>,
+): BagPandZoekAanvraagV2 {
+  const bron = aanvraag as BagPandZoekAanvraagV2MetAliases;
+  return {
+    scopeCode: bron.scopeCode,
+    naIdentificatie: bron.naIdentificatie ?? null,
+    limiet: bron.limiet,
+    bouwjaarVan: bron.bouwjaarVan ?? null,
+    bouwjaarTot: bron.bouwjaarTot ?? null,
+    status: bron.status ?? null,
+    vboOppervlakteSomVan: bron.vboOppervlakteSomVan ?? bron.vboSomVan ?? null,
+    vboOppervlakteSomTot: bron.vboOppervlakteSomTot ?? bron.vboSomTot ?? null,
+    vboOppervlakteMaxVan: bron.vboOppervlakteMaxVan ?? bron.vboMaxVan ?? null,
+    vboOppervlakteMaxTot: bron.vboOppervlakteMaxTot ?? bron.vboMaxTot ?? null,
+    vboAantalVan: bron.vboAantalVan ?? null,
+    vboAantalTot: bron.vboAantalTot ?? null,
+    gebruiksdoel: bron.gebruiksdoel ?? null,
+    isGemengd: bron.isGemengd ?? null,
+    vboModus: bron.vboModus,
+  };
+}
+
 export async function zoekPandenViaServiceV2<T>(
-  aanvraag: BagPandZoekAanvraagV2,
+  aanvraag: BagPandZoekAanvraagV2 | Record<string, unknown>,
 ): Promise<BagTransportResultaat<T>> {
-  const validatie = valideerPandZoekAanvraagV2(aanvraag);
+  const genormaliseerd = normaliseerPandZoekAanvraagV2(aanvraag);
+  const validatie = valideerPandZoekAanvraagV2(genormaliseerd);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
-  controleerScope(aanvraag.scopeCode);
+  controleerScope(genormaliseerd.scopeCode);
   return invoke<T>({
     action: 'search_v2',
-    scopeCode: aanvraag.scopeCode,
-    cursor: aanvraag.naIdentificatie,
-    limit: aanvraag.limiet,
-    bouwjaarVan: aanvraag.bouwjaarVan,
-    bouwjaarTot: aanvraag.bouwjaarTot,
-    status: aanvraag.status,
-    vboOppervlakteSomVan: aanvraag.vboOppervlakteSomVan,
-    vboOppervlakteSomTot: aanvraag.vboOppervlakteSomTot,
-    vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan,
-    vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
-    vboAantalVan: aanvraag.vboAantalVan,
-    vboAantalTot: aanvraag.vboAantalTot,
-    gebruiksdoel: aanvraag.gebruiksdoel,
-    isGemengd: aanvraag.isGemengd,
-    vboModus: aanvraag.vboModus,
+    scopeCode: genormaliseerd.scopeCode,
+    cursor: genormaliseerd.naIdentificatie,
+    limit: genormaliseerd.limiet,
+    bouwjaarVan: genormaliseerd.bouwjaarVan,
+    bouwjaarTot: genormaliseerd.bouwjaarTot,
+    status: genormaliseerd.status,
+    vboOppervlakteSomVan: genormaliseerd.vboOppervlakteSomVan,
+    vboOppervlakteSomTot: genormaliseerd.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: genormaliseerd.vboOppervlakteMaxVan,
+    vboOppervlakteMaxTot: genormaliseerd.vboOppervlakteMaxTot,
+    vboAantalVan: genormaliseerd.vboAantalVan,
+    vboAantalTot: genormaliseerd.vboAantalTot,
+    gebruiksdoel: genormaliseerd.gebruiksdoel,
+    isGemengd: genormaliseerd.isGemengd,
+    vboModus: genormaliseerd.vboModus,
   });
 }
