@@ -11,6 +11,14 @@ export interface CbsBuurtFeatureProperties {
   buurtnaam: string;
 }
 
+export interface CbsWijkFeatureProperties {
+  jaar: number;
+  gemeentecode: string;
+  gemeentenaam: string;
+  wijkcode: string;
+  wijknaam: string;
+}
+
 export interface CbsBuurtIdentiteit {
   bronjaar: number;
   gemeenteCode: string;
@@ -20,8 +28,37 @@ export interface CbsBuurtIdentiteit {
   buurtNaam: string;
 }
 
+export interface CbsWijkIdentiteit {
+  bronjaar: number;
+  gemeenteCode: string;
+  gemeenteNaam: string;
+  wijkCode: string;
+  wijkNaam: string;
+}
+
 const GEMEENTECODE = /^GM\d{4}$/;
+const WIJKCODE = /^WK\d{6}$/;
 const BUURTCODE = /^BU\d{8}$/;
+
+function valideerGemeente(
+  jaar: number,
+  gemeentecode: string,
+  gemeentenaam: string,
+  verwachteGemeentecode: string,
+): string {
+  if (jaar !== CBS_WIJK_BUURT_JAAR) {
+    throw new TypeError(`Onverwacht CBS-bronjaar: ${jaar}.`);
+  }
+  if (!GEMEENTECODE.test(gemeentecode)) {
+    throw new TypeError('Ongeldige CBS-gemeentecode.');
+  }
+  if (gemeentecode !== verwachteGemeentecode) {
+    throw new TypeError('CBS-gebied valt buiten de toegestane gemeente.');
+  }
+  const gemeenteNaam = gemeentenaam?.trim();
+  if (!gemeenteNaam) throw new TypeError('CBS-gebied mist gemeentenaam.');
+  return gemeenteNaam;
+}
 
 export function wijkcodeUitBuurtcode(buurtcode: string): string {
   if (!BUURTCODE.test(buurtcode)) {
@@ -34,26 +71,20 @@ export function valideerCbsBuurtFeature(
   properties: CbsBuurtFeatureProperties,
   verwachteGemeentecode = CBS_WIJK_BUURT_GEMEENTECODE_AMSTERDAM,
 ): CbsBuurtIdentiteit {
-  if (properties.jaar !== CBS_WIJK_BUURT_JAAR) {
-    throw new TypeError(`Onverwacht CBS-bronjaar: ${properties.jaar}.`);
-  }
-  if (!GEMEENTECODE.test(properties.gemeentecode)) {
-    throw new TypeError('Ongeldige CBS-gemeentecode.');
-  }
-  if (properties.gemeentecode !== verwachteGemeentecode) {
-    throw new TypeError('CBS-buurt valt buiten de toegestane gemeente.');
-  }
+  const gemeenteNaam = valideerGemeente(
+    properties.jaar,
+    properties.gemeentecode,
+    properties.gemeentenaam,
+    verwachteGemeentecode,
+  );
   if (!BUURTCODE.test(properties.buurtcode)) {
     throw new TypeError('Ongeldige CBS-buurtcode.');
   }
   if (properties.buurtcode.slice(2, 6) !== properties.gemeentecode.slice(2)) {
     throw new TypeError('CBS-buurtcode en gemeentecode zijn inconsistent.');
   }
-  const gemeenteNaam = properties.gemeentenaam?.trim();
   const buurtNaam = properties.buurtnaam?.trim();
-  if (!gemeenteNaam || !buurtNaam) {
-    throw new TypeError('CBS-buurt mist gemeente- of buurtnaam.');
-  }
+  if (!buurtNaam) throw new TypeError('CBS-buurt mist buurtnaam.');
 
   return {
     bronjaar: properties.jaar,
@@ -65,10 +96,37 @@ export function valideerCbsBuurtFeature(
   };
 }
 
-export function bouwCbsBuurtenItemsUrl(params: {
-  bbox: [number, number, number, number];
-  limit?: number;
-}): string {
+export function valideerCbsWijkFeature(
+  properties: CbsWijkFeatureProperties,
+  verwachteGemeentecode = CBS_WIJK_BUURT_GEMEENTECODE_AMSTERDAM,
+): CbsWijkIdentiteit {
+  const gemeenteNaam = valideerGemeente(
+    properties.jaar,
+    properties.gemeentecode,
+    properties.gemeentenaam,
+    verwachteGemeentecode,
+  );
+  if (!WIJKCODE.test(properties.wijkcode)) {
+    throw new TypeError('Ongeldige CBS-wijkcode.');
+  }
+  if (properties.wijkcode.slice(2, 6) !== properties.gemeentecode.slice(2)) {
+    throw new TypeError('CBS-wijkcode en gemeentecode zijn inconsistent.');
+  }
+  const wijkNaam = properties.wijknaam?.trim();
+  if (!wijkNaam) throw new TypeError('CBS-wijk mist wijknaam.');
+  return {
+    bronjaar: properties.jaar,
+    gemeenteCode: properties.gemeentecode,
+    gemeenteNaam,
+    wijkCode: properties.wijkcode,
+    wijkNaam,
+  };
+}
+
+function bouwItemsUrl(
+  collectie: 'buurten' | 'wijken',
+  params: { bbox: [number, number, number, number]; limit?: number },
+): string {
   const [minX, minY, maxX, maxY] = params.bbox;
   if (![minX, minY, maxX, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) {
     throw new TypeError('Ongeldige CBS-bbox.');
@@ -82,5 +140,19 @@ export function bouwCbsBuurtenItemsUrl(params: {
     bbox: [minX, minY, maxX, maxY].join(','),
     limit: String(limit),
   });
-  return `${CBS_WIJK_BUURT_PDOK_BASIS_URL}/collections/buurten/items?${query.toString()}`;
+  return `${CBS_WIJK_BUURT_PDOK_BASIS_URL}/collections/${collectie}/items?${query.toString()}`;
+}
+
+export function bouwCbsBuurtenItemsUrl(params: {
+  bbox: [number, number, number, number];
+  limit?: number;
+}): string {
+  return bouwItemsUrl('buurten', params);
+}
+
+export function bouwCbsWijkenItemsUrl(params: {
+  bbox: [number, number, number, number];
+  limit?: number;
+}): string {
+  return bouwItemsUrl('wijken', params);
 }
