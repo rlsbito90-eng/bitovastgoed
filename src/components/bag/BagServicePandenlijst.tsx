@@ -40,6 +40,17 @@ const FUNCTIES = [
   'bijeenkomstfunctie', 'gezondheidszorgfunctie', 'logiesfunctie',
   'onderwijsfunctie', 'sportfunctie', 'overige gebruiksfunctie',
 ];
+const PANDSTATUSSEN = [
+  'Pand in gebruik',
+  'Pand in gebruik (niet ingemeten)',
+  'Bouwvergunning verleend',
+  'Bouw gestart',
+  'Verbouwing pand',
+  'Sloopvergunning verleend',
+  'Pand gesloopt',
+  'Niet gerealiseerd pand',
+  'Pand ten onrechte opgevoerd',
+];
 
 interface Props {
   scopeCode: string;
@@ -114,6 +125,15 @@ export default function BagServicePandenlijst({
     return () => window.removeEventListener('scroll', controleerScroll);
   }, []);
 
+  useEffect(() => {
+    setPaginas([]);
+    setPaginaIndex(0);
+    setCursor(null);
+    setHeeftVolgende(true);
+    setGeselecteerd(new Set());
+    setPreflight(null);
+  }, [serverFilters, filters.gebruiksdoelen, filters.alleenGemengd]);
+
   const panden = useMemo(() => paginas.flat(), [paginas]);
   const actievePagina = paginas[paginaIndex] ?? [];
   const zichtbaar = useMemo(
@@ -149,11 +169,11 @@ export default function BagServicePandenlijst({
         limiet: PAGE_SIZE,
         bouwjaarVan: optioneelGetal(serverFilters.bouwjaarVan),
         bouwjaarTot: optioneelGetal(serverFilters.bouwjaarTot),
-        status: serverFilters.status.trim() || null,
-        vboSomVan: optioneelGetal(serverFilters.vboSomVan),
-        vboSomTot: optioneelGetal(serverFilters.vboSomTot),
-        vboMaxVan: optioneelGetal(serverFilters.vboMaxVan),
-        vboMaxTot: optioneelGetal(serverFilters.vboMaxTot),
+        status: serverFilters.status || null,
+        vboOppervlakteSomVan: optioneelGetal(serverFilters.vboSomVan),
+        vboOppervlakteSomTot: optioneelGetal(serverFilters.vboSomTot),
+        vboOppervlakteMaxVan: optioneelGetal(serverFilters.vboMaxVan),
+        vboOppervlakteMaxTot: optioneelGetal(serverFilters.vboMaxTot),
         vboAantalVan: optioneelGetal(serverFilters.vboAantalVan),
         vboAantalTot: optioneelGetal(serverFilters.vboAantalTot),
         gebruiksdoel: filters.gebruiksdoelen[0] ?? null,
@@ -187,6 +207,13 @@ export default function BagServicePandenlijst({
       setHeeftVolgende(nieuw.length === PAGE_SIZE);
       scrollNaarResultaten();
     } catch (error) {
+      if (opnieuw) {
+        setPaginas([]);
+        setPaginaIndex(0);
+        setCursor(null);
+        setHeeftVolgende(true);
+        setGeselecteerd(new Set());
+      }
       toast.error(error instanceof Error ? error.message : 'BAG-lijst laden mislukt.');
     } finally {
       setLaden(false);
@@ -296,7 +323,7 @@ export default function BagServicePandenlijst({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2"><Database className="h-4 w-4"/><h2 className="text-sm font-medium">Private BAG-Pandenverkenner 2.0</h2><Badge variant="outline">Scope {scopeCode}</Badge></div>
-          <p className="mt-1 text-xs text-muted-foreground">Server-side zoeken in de actieve BAG-index met bouwjaar, status, VBO-oppervlakte, VBO-aantal en gebruiksfunctie. Panden zonder VBO blijven expliciet beschikbaar.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Server-side zoeken in de actieve BAG-index met bouwjaar, status, GBO, grootste VBO, aantal VBO’s en gebruiksfunctie.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={resetZoekfilters} disabled={laden}>Wis zoekfilters</Button>
@@ -306,7 +333,10 @@ export default function BagServicePandenlijst({
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Input value={serverFilters.status} onChange={event => setServerFilters(previous => ({ ...previous, status: event.target.value }))} placeholder="Pandstatus" />
+        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={serverFilters.status} onChange={event => setServerFilters(previous => ({ ...previous, status: event.target.value }))}>
+          <option value="">Alle pandstatussen</option>
+          {PANDSTATUSSEN.map(status => <option key={status} value={status}>{status}</option>)}
+        </select>
         <Input inputMode="numeric" value={serverFilters.bouwjaarVan} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarVan: event.target.value }))} placeholder="Bouwjaar vanaf" />
         <Input inputMode="numeric" value={serverFilters.bouwjaarTot} onChange={event => setServerFilters(previous => ({ ...previous, bouwjaarTot: event.target.value }))} placeholder="Bouwjaar t/m" />
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={serverFilters.vboModus} onChange={event => setServerFilters(previous => ({ ...previous, vboModus: event.target.value as ServerFilters['vboModus'] }))}>
@@ -318,22 +348,31 @@ export default function BagServicePandenlijst({
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <Input inputMode="decimal" value={serverFilters.vboSomVan} onChange={event => setServerFilters(previous => ({ ...previous, vboSomVan: event.target.value }))} placeholder="VBO som m² vanaf" />
-        <Input inputMode="decimal" value={serverFilters.vboSomTot} onChange={event => setServerFilters(previous => ({ ...previous, vboSomTot: event.target.value }))} placeholder="VBO som m² t/m" />
-        <Input inputMode="decimal" value={serverFilters.vboMaxVan} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxVan: event.target.value }))} placeholder="Grootste VBO m² vanaf" />
-        <Input inputMode="decimal" value={serverFilters.vboMaxTot} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxTot: event.target.value }))} placeholder="Grootste VBO m² t/m" />
-        <Input inputMode="numeric" value={serverFilters.vboAantalVan} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalVan: event.target.value }))} placeholder="VBO-aantal vanaf" />
-        <Input inputMode="numeric" value={serverFilters.vboAantalTot} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalTot: event.target.value }))} placeholder="VBO-aantal t/m" />
+        <Input inputMode="decimal" value={serverFilters.vboSomVan} onChange={event => setServerFilters(previous => ({ ...previous, vboSomVan: event.target.value }))} placeholder="GBO totaal vanaf" />
+        <Input inputMode="decimal" value={serverFilters.vboSomTot} onChange={event => setServerFilters(previous => ({ ...previous, vboSomTot: event.target.value }))} placeholder="GBO totaal t/m" />
+        <Input inputMode="decimal" value={serverFilters.vboMaxVan} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxVan: event.target.value }))} placeholder="Grootste VBO vanaf" />
+        <Input inputMode="decimal" value={serverFilters.vboMaxTot} onChange={event => setServerFilters(previous => ({ ...previous, vboMaxTot: event.target.value }))} placeholder="Grootste VBO t/m" />
+        <Input inputMode="numeric" value={serverFilters.vboAantalVan} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalVan: event.target.value }))} placeholder="Aantal VBO vanaf" />
+        <Input inputMode="numeric" value={serverFilters.vboAantalTot} onChange={event => setServerFilters(previous => ({ ...previous, vboAantalTot: event.target.value }))} placeholder="Aantal VBO t/m" />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_190px]">
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_260px]">
         <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, plaats, postcode of BAG-ID" />
-        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))}>
-          <option value="identificatie">BAG-identificatie</option><option value="adres">Adres</option><option value="bouwjaar">Oudste bouwjaar</option><option value="oppervlakte">Grootste VBO-som</option>
+        <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))} aria-label="Sorteer geladen pagina">
+          <option value="identificatie">Sortering: BAG-ID</option>
+          <option value="adres_az">Adres A–Z</option>
+          <option value="adres_za">Adres Z–A</option>
+          <option value="bouwjaar_oud_nieuw">Bouwjaar oud → nieuw</option>
+          <option value="bouwjaar_nieuw_oud">Bouwjaar nieuw → oud</option>
+          <option value="gbo_groot_klein">GBO groot → klein</option>
+          <option value="gbo_klein_groot">GBO klein → groot</option>
+          <option value="vbo_aantal_hoog_laag">Aantal VBO hoog → laag</option>
+          <option value="vbo_aantal_laag_hoog">Aantal VBO laag → hoog</option>
         </select>
       </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
     </div>
 
     <div ref={resultatenTopRef} />
@@ -356,7 +395,7 @@ export default function BagServicePandenlijst({
             <Checkbox className="mt-1" disabled={blokkade !== null} checked={isGeselecteerd} onCheckedChange={() => togglePand(pand)}/>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<BagCrmMatchBadge pand={pand} fallbackLabel={REDEN_LABEL[blokkade]}/>}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte!==null?`${Math.round(pand.oppervlakte)} m² VBO-som`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte!==null?`${Math.round(pand.oppervlakte)} m² GBO`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
               <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
               <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
             </div>

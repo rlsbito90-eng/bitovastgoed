@@ -17,6 +17,8 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
   it('gebruikt alleen de geauthenticeerde v2-transportadapter', () => {
     expect(component).toContain("from '@/lib/bag/queryTransport'");
     expect(component).toContain('zoekPandenViaServiceV2');
+    expect(component).toContain('vboOppervlakteSomVan');
+    expect(component).not.toContain('vboSomVan: optioneelGetal');
     expect(component).not.toContain('createClient');
     expect(component).not.toContain('fetch(');
     expect(component).not.toContain('DATABASE_URL');
@@ -30,6 +32,32 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(component).toContain('Selecteer straat');
     expect(component).not.toMatch(/maplibre|react-map/i);
     expect(component).not.toContain('addKans');
+  });
+
+  it('gebruikt korte GBO/VBO-labels en BAG-statusopties', () => {
+    expect(component).toContain('GBO totaal vanaf');
+    expect(component).toContain('GBO totaal t/m');
+    expect(component).toContain('Grootste VBO vanaf');
+    expect(component).toContain('Aantal VBO vanaf');
+    expect(component).toContain('Alle pandstatussen');
+    expect(component).toContain('Sloopvergunning verleend');
+    expect(component).toContain('m² GBO');
+    expect(component).not.toContain('m² VBO-som');
+  });
+
+  it('maakt sortering zichtbaar en benoemt dat deze op de geladen pagina werkt', () => {
+    expect(component).toContain('Sorteer geladen pagina');
+    expect(component).toContain('Bouwjaar oud → nieuw');
+    expect(component).toContain('Bouwjaar nieuw → oud');
+    expect(component).toContain('GBO groot → klein');
+    expect(component).toContain('Aantal VBO hoog → laag');
+    expect(component).toContain('Sortering geldt nu voor de geladen pagina.');
+  });
+
+  it('wist oude resultaten zodra server-side zoekfilters wijzigen', () => {
+    expect(component).toContain('[serverFilters, filters.gebruiksdoelen, filters.alleenGemengd]');
+    expect(component).toContain('setPaginas([])');
+    expect(component).toContain('setCursor(null)');
   });
 
   it('toont echte pagina-navigatie en geen steeds langer wordende lijst', () => {
