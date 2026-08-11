@@ -16,6 +16,10 @@ describe('Pandenverkenner v3 SQL-contract', () => {
     expect(sql).not.toMatch(/DROP\s+FUNCTION\s+bag_service\.zoek_panden_v2/i);
   });
 
+  it('filtert indexrijen expliciet op scope zodat de scope-index gebruikt kan worden', () => {
+    expect(sql).toContain('WHERE i.scope_code = p_scope_code');
+  });
+
   it('gebruikt OR-semantiek voor status en gebruiksfuncties', () => {
     expect(sql).toContain('i.pandstatus_huidig = ANY(p_statussen)');
     expect(sql).toContain('i.gebruiksdoelen && p_gebruiksdoelen');
