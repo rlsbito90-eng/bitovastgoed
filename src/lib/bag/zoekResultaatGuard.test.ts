@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { assertBagV2ResultatenVoldoenAanFilters } from './zoekResultaatGuard';
-import type { BagPandZoekAanvraagV2 } from './queryService';
+import { assertBagV2ResultatenVoldoenAanFilters, assertBagV3ResultatenVoldoenAanFilters } from './zoekResultaatGuard';
+import type { BagPandZoekAanvraagV2, BagPandZoekAanvraagV3 } from './queryService';
 
-const basis: BagPandZoekAanvraagV2 = {
-  scopeCode: '0363',
-  naIdentificatie: null,
-  limiet: 100,
-  bouwjaarVan: null,
-  bouwjaarTot: null,
-  status: null,
-  vboOppervlakteSomVan: null,
-  vboOppervlakteSomTot: null,
-  vboOppervlakteMaxVan: null,
-  vboOppervlakteMaxTot: null,
-  vboAantalVan: null,
-  vboAantalTot: null,
-  gebruiksdoel: null,
-  isGemengd: null,
-  vboModus: 'alle',
+const basisV2: BagPandZoekAanvraagV2 = {
+  scopeCode: '0363', naIdentificatie: null, limiet: 100,
+  bouwjaarVan: null, bouwjaarTot: null, status: null,
+  vboOppervlakteSomVan: null, vboOppervlakteSomTot: null,
+  vboOppervlakteMaxVan: null, vboOppervlakteMaxTot: null,
+  vboAantalVan: null, vboAantalTot: null, gebruiksdoel: null,
+  isGemengd: null, vboModus: 'alle',
+};
+
+const basisV3: BagPandZoekAanvraagV3 = {
+  scopeCode: '0363', naIdentificatie: null, limiet: 100,
+  bouwjaarVan: null, bouwjaarTot: null, statussen: [],
+  vboOppervlakteSomVan: null, vboOppervlakteSomTot: null,
+  vboOppervlakteMaxVan: null, vboOppervlakteMaxTot: null,
+  vboAantalVan: null, vboAantalTot: null, gebruiksdoelen: [],
+  isGemengd: null, vboModus: 'alle',
 };
 
 const rij = {
@@ -31,35 +31,47 @@ const rij = {
   is_gemengd: true,
 };
 
-describe('Pandenverkenner v2 resultaatguard', () => {
-  it('accepteert een resultaat dat exact aan gecombineerde filters voldoet', () => {
+describe('Pandenverkenner resultaatguard', () => {
+  it('accepteert een v2-resultaat dat exact aan gecombineerde filters voldoet', () => {
     expect(() => assertBagV2ResultatenVoldoenAanFilters([rij], {
-      ...basis,
-      vboOppervlakteSomVan: 200,
-      vboAantalTot: 2,
-      gebruiksdoel: 'winkelfunctie',
-      isGemengd: true,
+      ...basisV2, vboOppervlakteSomVan: 200, vboAantalTot: 2,
+      gebruiksdoel: 'winkelfunctie', isGemengd: true,
     })).not.toThrow();
   });
 
   it('blokkeert een pand van 156 m² bij GBO totaal vanaf 200', () => {
     expect(() => assertBagV2ResultatenVoldoenAanFilters([
       { ...rij, vbo_oppervlakte_som: 156 },
-    ], { ...basis, vboOppervlakteSomVan: 200 })).toThrow(/niet aan de toegepaste filters/);
+    ], { ...basisV2, vboOppervlakteSomVan: 200 })).toThrow(/niet aan de toegepaste filters/);
   });
 
-  it('borgt ook grootste VBO, VBO-aantal, status en gebruik', () => {
-    expect(() => assertBagV2ResultatenVoldoenAanFilters([
-      { ...rij, vbo_oppervlakte_max: 90 },
-    ], { ...basis, vboOppervlakteMaxVan: 100 })).toThrow();
-    expect(() => assertBagV2ResultatenVoldoenAanFilters([
-      { ...rij, vbo_aantal: 3 },
-    ], { ...basis, vboAantalTot: 2 })).toThrow();
-    expect(() => assertBagV2ResultatenVoldoenAanFilters([
+  it('borgt in v3 OR binnen statusselectie en AND met overige filtergroepen', () => {
+    expect(() => assertBagV3ResultatenVoldoenAanFilters([
+      { ...rij, status: 'Bouw gestart' },
+    ], {
+      ...basisV3,
+      statussen: ['Bouw gestart', 'Bouwvergunning verleend'],
+      vboOppervlakteSomVan: 200,
+    })).not.toThrow();
+
+    expect(() => assertBagV3ResultatenVoldoenAanFilters([
       { ...rij, status: 'Pand gesloopt' },
-    ], { ...basis, status: 'Pand in gebruik' })).toThrow();
-    expect(() => assertBagV2ResultatenVoldoenAanFilters([
-      { ...rij, gebruiksdoelen: ['woonfunctie'] },
-    ], { ...basis, gebruiksdoel: 'winkelfunctie' })).toThrow();
+    ], {
+      ...basisV3,
+      statussen: ['Bouw gestart', 'Bouwvergunning verleend'],
+      vboOppervlakteSomVan: 200,
+    })).toThrow();
+  });
+
+  it('borgt in v3 OR binnen gebruiksfuncties', () => {
+    expect(() => assertBagV3ResultatenVoldoenAanFilters([rij], {
+      ...basisV3,
+      gebruiksdoelen: ['kantoorfunctie', 'winkelfunctie'],
+    })).not.toThrow();
+
+    expect(() => assertBagV3ResultatenVoldoenAanFilters([rij], {
+      ...basisV3,
+      gebruiksdoelen: ['kantoorfunctie', 'logiesfunctie'],
+    })).toThrow();
   });
 });
