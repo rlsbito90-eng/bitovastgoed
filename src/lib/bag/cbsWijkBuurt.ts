@@ -37,8 +37,8 @@ export interface CbsWijkIdentiteit {
 }
 
 const GEMEENTECODE = /^GM\d{4}$/;
-const WIJKCODE = /^WK\d{6}$/;
-const BUURTCODE = /^BU\d{8}$/;
+const WIJKCODE = /^WK\d{4}[A-Z0-9]{2}$/;
+const BUURTCODE = /^BU\d{4}[A-Z0-9]{4}$/;
 
 function valideerGemeente(
   jaar: number,
