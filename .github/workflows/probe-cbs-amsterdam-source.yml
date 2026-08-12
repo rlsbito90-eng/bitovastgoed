@@ -1,0 +1,119 @@
+name: Probe CBS Amsterdam source
+
+on:
+  push:
+    branches:
+      - probe/pandenverkenner-cbs-amsterdam-source-3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch and validate CBS 2025 Amsterdam package
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import pathlib
+          import re
+          import urllib.parse
+          import urllib.request
+
+          OUT = pathlib.Path('cbs-amsterdam-source')
+          OUT.mkdir(exist_ok=True)
+          BASE = 'https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1'
+          BBOX = '4.731447,52.278677,5.101708,52.472446'
+          EXPECTED_GM = 'GM0363'
+
+          def fetch(collection):
+              q = urllib.parse.urlencode({'f': 'json', 'bbox': BBOX, 'limit': 1000})
+              url = f'{BASE}/collections/{collection}/items?{q}'
+              req = urllib.request.Request(url, headers={'User-Agent': 'BitoVastgoed-Pandenverkenner-CBS-Probe/1.0'})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  data = json.load(r)
+              features = data.get('features') or []
+              if len(features) >= 1000:
+                  raise RuntimeError(f'{collection}: bbox-resultaat raakt limiet 1000; paging vereist')
+              return url, data, features
+
+          def polygonal(feature):
+              g = feature.get('geometry') or {}
+              return g.get('type') in {'Polygon', 'MultiPolygon'} and bool(g.get('coordinates'))
+
+          urls = {}
+          raw_counts = {}
+          kept = {}
+          for collection in ('buurten', 'wijken'):
+              url, data, features = fetch(collection)
+              urls[collection] = url
+              raw_counts[collection] = len(features)
+              amsterdam = []
+              for f in features:
+                  p = f.get('properties') or {}
+                  if p.get('gemeentecode') != EXPECTED_GM:
+                      continue
+                  if p.get('jaar') != 2025:
+                      raise RuntimeError(f'{collection}: onverwacht bronjaar {p.get("jaar")}')
+                  if not polygonal(f):
+                      raise RuntimeError(f'{collection}: niet-polygonale geometrie')
+                  if collection == 'buurten':
+                      code = str(p.get('buurtcode') or '')
+                      if not re.fullmatch(r'BU0363\d{4}', code):
+                          raise RuntimeError(f'ongeldige Amsterdam-buurtcode: {code}')
+                      if not str(p.get('buurtnaam') or '').strip():
+                          raise RuntimeError(f'buurt zonder naam: {code}')
+                  else:
+                      code = str(p.get('wijkcode') or '')
+                      if not re.fullmatch(r'WK0363\d{2}', code):
+                          raise RuntimeError(f'ongeldige Amsterdam-wijkcode: {code}')
+                      if not str(p.get('wijknaam') or '').strip():
+                          raise RuntimeError(f'wijk zonder naam: {code}')
+                  amsterdam.append(f)
+
+              key = 'buurtcode' if collection == 'buurten' else 'wijkcode'
+              codes = [str((f.get('properties') or {}).get(key) or '') for f in amsterdam]
+              if len(codes) != len(set(codes)):
+                  raise RuntimeError(f'{collection}: dubbele codes in bronpakket')
+              kept[collection] = amsterdam
+              package = {'type': 'FeatureCollection', 'features': amsterdam}
+              path = OUT / f'amsterdam-{collection}-2025.geojson'
+              path.write_text(json.dumps(package, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+
+          buurt_wijken = {f"WK{(f['properties']['buurtcode'])[2:8]}" for f in kept['buurten']}
+          wijk_codes = {f['properties']['wijkcode'] for f in kept['wijken']}
+          ontbrekende_wijken = sorted(buurt_wijken - wijk_codes)
+          if ontbrekende_wijken:
+              raise RuntimeError(f'buurten verwijzen naar ontbrekende wijken: {ontbrekende_wijken}')
+
+          report = {
+              'status': 'CBS_AMSTERDAM_SOURCE_OK',
+              'bronjaar': 2025,
+              'gemeentecode': EXPECTED_GM,
+              'bbox_crs84': BBOX,
+              'raw_bbox_features': raw_counts,
+              'amsterdam_buurten': len(kept['buurten']),
+              'amsterdam_wijken': len(kept['wijken']),
+              'unieke_buurtcodes': len({f['properties']['buurtcode'] for f in kept['buurten']}),
+              'unieke_wijkcodes': len(wijk_codes),
+              'buurt_wijk_referenties_zonder_match': len(ontbrekende_wijken),
+              'source_urls': urls,
+          }
+          for p in OUT.glob('*.geojson'):
+              report[p.name + '_sha256'] = hashlib.sha256(p.read_bytes()).hexdigest()
+          (OUT / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+
+      - name: Upload CBS Amsterdam source proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbs-amsterdam-source-2025
+          path: cbs-amsterdam-source/
+          if-no-files-found: error
+          retention-days: 14
