@@ -735,7 +735,7 @@ export default function AcquisitieSelectieTab() {
 
   return (
     <section className="space-y-3" data-testid="acquisitie-selectie-tab">
-      <VastgoedkansenInAcquisitieSelectie items={items} />
+      {heeftVastgoedkansen && <VastgoedkansenInAcquisitieSelectie items={items} />}
       <AcquisitieKpis kpis={readiness.kpis} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
