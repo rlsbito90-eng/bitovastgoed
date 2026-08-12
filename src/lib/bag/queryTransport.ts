@@ -6,8 +6,10 @@ import {
   valideerPandZoekAanvraagV4,
   valideerViewportAanvraag,
   valideerKaartAanvraagV2,
+  valideerKaartAanvraagV3,
   type BagCbsGebiedsoptie,
   type BagKaartAanvraagV2,
+  type BagKaartAanvraagV3,
   type BagPandZoekAanvraag,
   type BagPandZoekAanvraagV2,
   type BagPandZoekAanvraagV3,
@@ -119,6 +121,22 @@ export async function haalPandenOpKaartV2<T>(aanvraag: BagKaartAanvraagV2): Prom
     vboModus: aanvraag.vboModus,
     wijkCodes: aanvraag.wijkCodes,
     buurtCodes: aanvraag.buurtCodes,
+  }, { retryBijNetwerkfout: true });
+}
+
+export async function haalPandenOpKaartV3<T>(aanvraag: BagKaartAanvraagV3): Promise<BagTransportResultaat<T>> {
+  const validatie = valideerKaartAanvraagV3(aanvraag);
+  if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
+  return invoke<T>({
+    action: 'viewport_v3', scopeCode: aanvraag.scopeCode,
+    minLon: aanvraag.viewport.minLon, minLat: aanvraag.viewport.minLat, maxLon: aanvraag.viewport.maxLon, maxLat: aanvraag.viewport.maxLat,
+    zoom: aanvraag.zoom, limit: aanvraag.limiet,
+    bouwjaarVan: aanvraag.bouwjaarVan, bouwjaarTot: aanvraag.bouwjaarTot, statussen: aanvraag.statussen,
+    vboOppervlakteSomVan: aanvraag.vboOppervlakteSomVan, vboOppervlakteSomTot: aanvraag.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan, vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
+    vboAantalVan: aanvraag.vboAantalVan, vboAantalTot: aanvraag.vboAantalTot, gebruiksdoelen: aanvraag.gebruiksdoelen,
+    isGemengd: aanvraag.isGemengd, vboModus: aanvraag.vboModus, wijkCodes: aanvraag.wijkCodes, buurtCodes: aanvraag.buurtCodes,
   }, { retryBijNetwerkfout: true });
 }
 

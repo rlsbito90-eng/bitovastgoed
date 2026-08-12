@@ -87,21 +87,21 @@ describe('Pandenverkenner kaart-UX 1E.1', () => {
   it('hergebruikt MapLibre en de bestaande gratis PDOK-achtergrondkaart', () => {
     expect(component).toContain("from 'react-map-gl/maplibre'");
     expect(component).toContain('service.pdok.nl/brt/achtergrondkaart/wmts');
-    expect(component).toContain('clusterMaxZoom');
+    expect(component).toContain('bag-server-clusters');
     expect(component).toContain('Zoek in dit gebied');
   });
 
   it('zoekt niet automatisch bij iedere kaartbeweging', () => {
-    expect(component).toContain('if (focusBewegingRef.current) { focusBewegingRef.current = false; return; }');
-    expect(component).toContain('if (heeftGezocht) setKaartVerouderd(true);');
+    expect(component).toContain('if(focusBewegingRef.current){focusBewegingRef.current=false;return;}');
+    expect(component).toContain('if(heeftGezocht)setKaartVerouderd(true);');
     expect(component).not.toContain('onMove={zoekInKaartgebied}');
-    expect(component).toContain('Zoom verder in voor een complete kaartselectie');
+    expect(component).toContain('Zoom verder in voor een complete selectie.');
   });
 
   it('herstelt kaartgebied en resultaten binnen dezelfde browsersessie', () => {
     expect(component).toContain('leesKaartSessie');
     expect(component).toContain('bewaarKaartSessie');
-    expect(component).toContain('initialViewState={initiëleSessie?.viewState ?? AMSTERDAM_VIEWPORT}');
+    expect(component).toContain('initialViewState={initiëleSessie?.viewState??AMSTERDAM_VIEWPORT}');
   });
 
   it('koppelt dezelfde lijstfilters aan de kaartcomponent', () => {

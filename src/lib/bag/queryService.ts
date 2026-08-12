@@ -66,6 +66,10 @@ export type BagKaartAanvraagV2 = Omit<BagPandZoekAanvraagV4, 'naIdentificatie' |
   limiet: number;
 };
 
+export type BagKaartAanvraagV3 = BagKaartAanvraagV2 & {
+  zoom: number;
+};
+
 export interface BagCbsGebiedsoptie {
   cbs_gebiedsjaar: number;
   wijk_code: string;
@@ -199,6 +203,14 @@ export function valideerKaartAanvraagV2(
     || viewport.minLat >= viewport.maxLat
   ) {
     fouten.push('De kaartviewport valt buiten de begrensde Nederlandse WGS84-zone.');
+  }
+  return { geldig: fouten.length === 0, fouten };
+}
+
+export function valideerKaartAanvraagV3(aanvraag: BagKaartAanvraagV3): BagQueryValidatie {
+  const fouten = [...valideerKaartAanvraagV2(aanvraag).fouten];
+  if (!Number.isFinite(aanvraag.zoom) || aanvraag.zoom < 7 || aanvraag.zoom > 22) {
+    fouten.push('De kaartzoom moet tussen 7 en 22 liggen.');
   }
   return { geldig: fouten.length === 0, fouten };
 }
