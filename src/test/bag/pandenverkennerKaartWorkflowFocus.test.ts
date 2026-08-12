@@ -12,6 +12,7 @@ describe('Pandenverkenner kaartworkflow en focus', () => {
     expect(kaartBlok).toContain('Controleer selectie');
     expect(kaartBlok).toContain('Selectie technisch gereed voor handmatige promotie');
     expect(kaartBlok).toContain('Handmatig toevoegen…');
+    expect(kaartBlok).toContain('setPromotieOpen(true)');
   });
 
   it('centreert een aangeklikt pand met ruimte voor de popup zonder kaartdata stale te markeren', () => {
