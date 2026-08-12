@@ -9,7 +9,8 @@ describe('Pandenverkenner UX 1E.2 contract', () => {
     expect(pandenverkenner).toContain("useState<'zoeken' | 'kaart'>('zoeken')");
     expect(pandenverkenner).toContain('Zoeken & lijst');
     expect(pandenverkenner).toContain('>Kaart');
-    expect(pandenverkenner).toContain("weergave === 'kaart' && <BagPandenKaart");
+    expect(pandenverkenner).toContain("weergave === 'kaart' && <>");
+    expect(pandenverkenner).toContain('<BagPandenKaart scopeCode={scopeCode} filters={kaartFilters}');
   });
 
   it('houdt uitgebreide filters standaard compact', () => {
