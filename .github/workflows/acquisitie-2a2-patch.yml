@@ -1,0 +1,207 @@
+name: Acquisitie 2.0A.2 patch
+
+on:
+  push:
+    branches:
+      - feat/acquisitie-workflow-2-0a2-statuspresentatie
+    paths:
+      - '.github/workflows/acquisitie-2a2-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/acquisitie-workflow-2-0a2-statuspresentatie
+          fetch-depth: 0
+
+      - name: Apply status presentation and selection boundary
+        shell: bash
+        run: |
+          cat > src/lib/vastgoedkansStatusPresentation.ts <<'EOF'
+          import type { VastgoedkansStatus } from './vastgoedkansen';
+
+          export interface VastgoedkansStatusPresentatie {
+            chip: string;
+            row: string;
+            marker: string;
+          }
+
+          export const VASTGOEDKANS_STATUS_PRESENTATIE: Record<VastgoedkansStatus, VastgoedkansStatusPresentatie> = {
+            te_beoordelen: {
+              chip: 'border-warning/40 bg-warning/10 text-warning',
+              row: 'border-l-4 border-l-warning/55',
+              marker: 'bg-warning',
+            },
+            onderzoek: {
+              chip: 'border-primary/35 bg-primary/10 text-primary',
+              row: 'border-l-4 border-l-primary/45',
+              marker: 'bg-primary',
+            },
+            brief_voorbereiden: {
+              chip: 'border-accent/40 bg-accent/10 text-accent-foreground',
+              row: 'border-l-4 border-l-accent/55',
+              marker: 'bg-accent',
+            },
+            opvolgen: {
+              chip: 'border-warning/45 bg-warning/10 text-warning',
+              row: 'border-l-4 border-l-warning/70',
+              marker: 'bg-warning',
+            },
+            wachten: {
+              chip: 'border-border bg-muted/60 text-muted-foreground',
+              row: 'border-l-4 border-l-border',
+              marker: 'bg-muted-foreground',
+            },
+            positieve_reactie: {
+              chip: 'border-success/40 bg-success/10 text-success',
+              row: 'border-l-4 border-l-success/60',
+              marker: 'bg-success',
+            },
+            afgevallen: {
+              chip: 'border-destructive/35 bg-destructive/10 text-destructive',
+              row: 'border-l-4 border-l-destructive/50',
+              marker: 'bg-destructive',
+            },
+            gepromoveerd: {
+              chip: 'border-success/40 bg-success/10 text-success',
+              row: 'border-l-4 border-l-success/70',
+              marker: 'bg-success',
+            },
+          };
+
+          export function vastgoedkansStatusChipClass(status: VastgoedkansStatus, actief = false): string {
+            const basis = 'shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors';
+            if (actief) return `${basis} ${VASTGOEDKANS_STATUS_PRESENTATIE[status].chip} font-semibold ring-1 ring-current/20`;
+            return `${basis} ${VASTGOEDKANS_STATUS_PRESENTATIE[status].chip} opacity-75 hover:opacity-100`;
+          }
+
+          export function vastgoedkansStatusRowClass(status: VastgoedkansStatus): string {
+            return VASTGOEDKANS_STATUS_PRESENTATIE[status].row;
+          }
+          EOF
+
+          cat > src/lib/vastgoedkansAcquisitieSelectieBoundary.ts <<'EOF'
+          import type { Vastgoedkans } from './vastgoedkansen';
+          import { vastgoedkansNaarDossierContext } from './acquisitieDossierAdapters';
+
+          /**
+           * BUILD 2.0A.2 bewaakt de grens tussen Vastgoedkansen en de legacy
+           * Off-Market-selectietabel. Een Vastgoedkans is al een volwaardig
+           * acquisitiedossier, maar mag niet als fictief Off-Market-signaal worden
+           * ingevoegd om de bestaande signaal_id-FK te omzeilen.
+           */
+          export function bouwVastgoedkansSelectieBoundary(kans: Vastgoedkans) {
+            return {
+              dossier: vastgoedkansNaarDossierContext(kans),
+              actief: !kans.archivedAt,
+              legacyOffMarketSelectieDirect: false as const,
+              vereistGedeeldSelectieContract: true as const,
+            };
+          }
+          EOF
+
+          cat > src/lib/vastgoedkansStatusPresentation.test.ts <<'EOF'
+          import { describe, expect, it } from 'vitest';
+          import { STATUS_VOLGORDE } from './vastgoedkansen';
+          import {
+            VASTGOEDKANS_STATUS_PRESENTATIE,
+            vastgoedkansStatusChipClass,
+            vastgoedkansStatusRowClass,
+          } from './vastgoedkansStatusPresentation';
+
+          describe('BUILD 2.0A.2 — Vastgoedkansen statuspresentatie', () => {
+            it('heeft voor iedere operationele status een expliciete presentatie', () => {
+              expect(Object.keys(VASTGOEDKANS_STATUS_PRESENTATIE).sort()).toEqual([...STATUS_VOLGORDE].sort());
+              for (const status of STATUS_VOLGORDE) {
+                expect(vastgoedkansStatusChipClass(status)).toContain('rounded-full');
+                expect(vastgoedkansStatusRowClass(status)).toContain('border-l-4');
+              }
+            });
+
+            it('maakt positieve reactie en afgevallen ook zonder labeltekst visueel verschillend', () => {
+              expect(VASTGOEDKANS_STATUS_PRESENTATIE.positieve_reactie.chip)
+                .not.toBe(VASTGOEDKANS_STATUS_PRESENTATIE.afgevallen.chip);
+              expect(VASTGOEDKANS_STATUS_PRESENTATIE.positieve_reactie.row)
+                .not.toBe(VASTGOEDKANS_STATUS_PRESENTATIE.afgevallen.row);
+            });
+          });
+          EOF
+
+          cat > src/lib/vastgoedkansAcquisitieSelectieBoundary.test.ts <<'EOF'
+          import { describe, expect, it } from 'vitest';
+          import { bouwVastgoedkansSelectieBoundary } from './vastgoedkansAcquisitieSelectieBoundary';
+          import type { Vastgoedkans } from './vastgoedkansen';
+
+          const kans = {
+            id: '11111111-1111-1111-1111-111111111111',
+            adres: 'Teststraat 1',
+            postcode: '1000 AA',
+            plaats: 'Amsterdam',
+            objectId: null,
+            eigenaarRelatieId: null,
+            archivedAt: null,
+          } as Vastgoedkans;
+
+          describe('BUILD 2.0A.2 — selectiegrens', () => {
+            it('mapt een Vastgoedkans naar de gedeelde dossiercontext zonder legacy signaal te fabriceren', () => {
+              const grens = bouwVastgoedkansSelectieBoundary(kans);
+              expect(grens.dossier.bronType).toBe('vastgoedkans');
+              expect(grens.dossier.bronId).toBe(kans.id);
+              expect(grens.actief).toBe(true);
+              expect(grens.legacyOffMarketSelectieDirect).toBe(false);
+              expect(grens.vereistGedeeldSelectieContract).toBe(true);
+            });
+          });
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/pages/VastgoedkansenPage.tsx')
+          s = p.read_text()
+          old = "import { leesVastgoedkansWerkcontext } from '@/lib/vastgoedkansWorkspace';\nimport VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';"
+          new = "import { leesVastgoedkansWerkcontext } from '@/lib/vastgoedkansWorkspace';\nimport { vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';\nimport VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';"
+          if old not in s:
+              raise SystemExit('import anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${werkbak === status ? 'bg-foreground text-background' : 'bg-card text-muted-foreground'}`}"
+          new = "className={vastgoedkansStatusChipClass(status, werkbak === status)}"
+          if old not in s:
+              raise SystemExit('status chip anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "{list.map((kans) => <div key={kans.id} className=\"flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5\">"
+          new = "{list.map((kans) => <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>"
+          if old not in s:
+              raise SystemExit('row anchor not found')
+          s = s.replace(old, new, 1)
+
+          old = "{kans.kansnummer && <span className=\"text-[11px] font-mono-data text-muted-foreground\">{kans.kansnummer}</span>}<Badge variant=\"outline\">{PRIORITEIT_LABEL[kans.prioriteit] ?? `P${kans.prioriteit}`}</Badge>"
+          new = "{kans.kansnummer && <span className=\"text-[11px] font-mono-data text-muted-foreground\">{kans.kansnummer}</span>}<Badge variant=\"outline\" className={VASTGOEDKANS_STATUS_PRESENTATIE[kans.status].chip}>{STATUS_LABEL[kans.status]}</Badge><Badge variant=\"outline\">{PRIORITEIT_LABEL[kans.prioriteit] ?? `P${kans.prioriteit}`}</Badge>"
+          # import the presentation object only if this replacement is used
+          if old not in s:
+              raise SystemExit('row badge anchor not found')
+          s = s.replace(old, new, 1)
+          s = s.replace(
+              "import { vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';",
+              "import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';",
+              1,
+          )
+          p.write_text(s)
+          PY
+
+          git rm .github/workflows/acquisitie-2a2-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/vastgoedkansStatusPresentation.ts \
+                  src/lib/vastgoedkansStatusPresentation.test.ts \
+                  src/lib/vastgoedkansAcquisitieSelectieBoundary.ts \
+                  src/lib/vastgoedkansAcquisitieSelectieBoundary.test.ts \
+                  src/pages/VastgoedkansenPage.tsx
+          git commit -m "BUILD 2.0A.2: kleur Vastgoedkansen-statussen en borg selectiegrens"
+          git push origin HEAD:feat/acquisitie-workflow-2-0a2-statuspresentatie
