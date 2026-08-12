@@ -23,5 +23,6 @@ describe('Pandenverkenner kaartworkflow en focus', () => {
     expect(kaart).toContain('offset:[0,110]');
     expect(kaart).toContain('anchor="bottom"');
     expect(kaart).toContain('if(focusBewegingRef.current){focusBewegingRef.current=false;return;}');
+    expect(kaart).toContain('if(clusterDrilldownRef.current){clusterDrilldownRef.current=false;void zoekInKaartgebied();return;}');
   });
 });

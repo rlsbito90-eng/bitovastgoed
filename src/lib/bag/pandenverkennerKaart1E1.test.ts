@@ -88,12 +88,13 @@ describe('Pandenverkenner kaart-UX 1E.1', () => {
     expect(component).toContain("from 'react-map-gl/maplibre'");
     expect(component).toContain('service.pdok.nl/brt/achtergrondkaart/wmts');
     expect(component).toContain('bag-server-clusters');
-    expect(component).toContain('Zoek in dit gebied');
+    expect(component).toContain('Ververs kaart');
   });
 
-  it('zoekt niet automatisch bij iedere kaartbeweging', () => {
+  it('ververst gedebounced na kaartbeweging en laat programmatische pandfocus met rust', () => {
     expect(component).toContain('if(focusBewegingRef.current){focusBewegingRef.current=false;return;}');
-    expect(component).toContain('if(heeftGezocht)setKaartVerouderd(true);');
+    expect(component).toContain('setTimeout(()=>void zoekInKaartgebied(),700)');
+    expect(component).toContain('clusterDrilldownRef.current');
     expect(component).not.toContain('onMove={zoekInKaartgebied}');
     expect(component).toContain('Zoom verder in voor een complete selectie.');
   });

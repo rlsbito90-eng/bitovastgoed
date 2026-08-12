@@ -7,7 +7,7 @@ const kansen = fs.readFileSync('src/pages/VastgoedkansenPage.tsx', 'utf8');
 describe('Pandenverkenner UX 1E.2 contract', () => {
   it('scheidt zoeken/lijst, kaart en opgeslagen zoekopdrachten in werkweergaven', () => {
     expect(pandenverkenner).toContain("useState<'zoeken' | 'kaart' | 'opgeslagen'>");
-    expect(pandenverkenner).toContain('Zoeken & lijst');
+    expect(pandenverkenner).toContain('>Zoeken');
     expect(pandenverkenner).toContain('>Kaart');
     expect(pandenverkenner).toContain('>Opgeslagen');
     expect(pandenverkenner).toContain("weergave === 'kaart' && <>");

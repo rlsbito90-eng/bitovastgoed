@@ -21,6 +21,7 @@ describe('Pandenverkenner workflow & persistence', () => {
   });
 
   it('maakt van preflight een zichtbare review met verwijdermogelijkheid', () => {
+    expect(lijst).toContain("weergave === 'kaart' ? kaartReviewRef : lijstReviewRef");
     expect(lijst).toContain("reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
     expect(review).toContain('klaar om toe te voegen');
     expect(review).toContain('Verwijder');

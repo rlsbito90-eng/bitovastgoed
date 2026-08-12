@@ -115,7 +115,8 @@ export default function BagServicePandenlijst({
   const [promotieBezig, setPromotieBezig] = useState(false);
   const [toonNaarBoven, setToonNaarBoven] = useState(false);
   const resultatenTopRef = useRef<HTMLDivElement | null>(null);
-  const reviewRef = useRef<HTMLDivElement | null>(null);
+  const kaartReviewRef = useRef<HTMLDivElement | null>(null);
+  const lijstReviewRef = useRef<HTMLDivElement | null>(null);
   const initiëleWerkcontext = useRef(leesWerkcontext(scopeCode)).current;
   const [filters, setFilters] = useState<BagVerkennerFilters>(initiëleWerkcontext?.filters ?? {
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
@@ -390,7 +391,8 @@ export default function BagServicePandenlijst({
   const controleerSelectie = () => {
     const beoordeling = beoordeelBagSelectie(selectiePanden, geselecteerd, context);
     setPreflight(beoordeling);
-    requestAnimationFrame(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    const reviewRef = weergave === 'kaart' ? kaartReviewRef : lijstReviewRef;
+    requestAnimationFrame(() => requestAnimationFrame(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
   };
 
   const verwijderUitReview = (bagPandId: string) => {
@@ -454,7 +456,7 @@ export default function BagServicePandenlijst({
 
       <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg border bg-muted/20 p-1">
         <Button type="button" variant={weergave === 'zoeken' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('zoeken')}>
-          <Search className="mr-2 h-4 w-4" />Zoeken & lijst
+          <Search className="mr-2 h-4 w-4" />Zoeken
         </Button>
         <Button type="button" variant={weergave === 'kaart' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('kaart')}>
           <MapPinned className="mr-2 h-4 w-4" />Kaart
@@ -554,14 +556,14 @@ export default function BagServicePandenlijst({
     {weergave === 'kaart' && <>
       <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} geselecteerdeIds={geselecteerd} onKandidaatToggle={toggleKaartKandidaat} />
       {geselecteerd.size > 0 && <div className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3 text-sm"><span>{geselecteerd.size} kandidaat{geselecteerd.size === 1 ? '' : 'panden'} geselecteerd</span><Button size="sm" onClick={controleerSelectie}><CheckCircle2 className="mr-1.5 h-4 w-4" />Controleer selectie</Button></div>}
-      {preflight && <div ref={reviewRef} className="scroll-mt-4 border-b"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
+      {preflight && <div ref={kaartReviewRef} className="scroll-mt-24 border-b"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
     </>}
 
     <div className={weergave === 'zoeken' ? 'block' : 'hidden'}>
     <div ref={resultatenTopRef} />
     {paginering}
     {panden.length>0 && <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button className="w-full sm:w-auto" variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button className="w-full sm:w-auto" size="sm" disabled={!geselecteerd.size} onClick={controleerSelectie}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
-    {preflight && <div ref={reviewRef} className="scroll-mt-4 border-t"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
+    {preflight && <div ref={lijstReviewRef} className="scroll-mt-24 border-t"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
 
     {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Stel eventueel zoekfilters in en start een zoekopdracht in de actieve BAG-index.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
       const status = bepaalStraatSelectieStatus(straatPanden, geselecteerd, isGeblokkeerd);

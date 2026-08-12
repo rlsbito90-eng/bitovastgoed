@@ -51,3 +51,5 @@ describe('Pandenverkenner Map v2', () => {
     expect(model).toContain('bouwBagKaartV3Contouren');
   });
 });
+
+// 1G.2 UX-contract: serverclusters zijn interactief en kaartbeweging ververst gedebounced.
