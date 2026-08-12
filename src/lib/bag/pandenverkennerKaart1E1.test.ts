@@ -91,8 +91,9 @@ describe('Pandenverkenner kaart-UX 1E.1', () => {
     expect(component).toContain('Ververs kaart');
   });
 
-  it('ververst gedebounced na kaartbeweging en laat programmatische pandfocus met rust', () => {
-    expect(component).toContain('if(focusBewegingRef.current){focusBewegingRef.current=false;return;}');
+  it('ververst gedebounced en haalt contourdata alsnog op na programmatische focus', () => {
+    expect(component).toContain('focusVerversNaMoveRef.current=map.getZoom()<16.5');
+    expect(component).toContain('if(focusVerversNaMoveRef.current){focusVerversNaMoveRef.current=false;void zoekInKaartgebied();}');
     expect(component).toContain('setTimeout(()=>void zoekInKaartgebied(),700)');
     expect(component).toContain('clusterDrilldownRef.current');
     expect(component).not.toContain('onMove={zoekInKaartgebied}');
