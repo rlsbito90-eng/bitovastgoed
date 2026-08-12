@@ -1,6 +1,6 @@
--- BUILD Map v2 kandidaat — niet automatisch toepassen.
--- Server-side clustering voor uitgezoomde kaart en BAG-pandcontouren bij hoge zoom.
+-- BUILD Map v2 — server-side clustering voor uitgezoomde kaart en BAG-pandcontouren bij hoge zoom.
 -- WGS84 aan de API-rand; ruimtelijke filtering en clustering in RD New (EPSG:28992).
+-- Shadow-proef op xfygspvpeugxowxbcvnm is geslaagd vóór merge.
 
 CREATE OR REPLACE FUNCTION bag_service.panden_kaart_v3(
   p_scope_code text,
@@ -190,6 +190,5 @@ BEGIN
 END
 $function$;
 
--- Activatiegate buiten deze kandidaat:
--- REVOKE ALL ON FUNCTION bag_service.panden_kaart_v3(...) FROM PUBLIC, anon, authenticated;
--- GRANT EXECUTE ON FUNCTION bag_service.panden_kaart_v3(...) TO bag_reader;
+REVOKE ALL ON FUNCTION bag_service.panden_kaart_v3(text,double precision,double precision,double precision,double precision,double precision,integer,integer,integer,text[],numeric,numeric,numeric,numeric,integer,integer,text[],boolean,text,text[],text[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION bag_service.panden_kaart_v3(text,double precision,double precision,double precision,double precision,double precision,integer,integer,integer,text[],numeric,numeric,numeric,numeric,integer,integer,text[],boolean,text,text[],text[]) TO bag_reader;
