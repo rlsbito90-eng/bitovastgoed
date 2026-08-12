@@ -25,6 +25,10 @@ export interface BagServicePandV2Rij {
   primair_postcode: string | null;
   primair_plaats: string | null;
   adres_count: string | number;
+  wijk_code?: string | null;
+  wijk_naam?: string | null;
+  buurt_code?: string | null;
+  buurt_naam?: string | null;
   volgende_cursor: string;
 }
 
@@ -38,6 +42,10 @@ export interface BagVerkennerPand {
   straat: string | null;
   postcode: string | null;
   plaats: string | null;
+  wijkCode: string | null;
+  wijkNaam: string | null;
+  buurtCode: string | null;
+  buurtNaam: string | null;
   bouwjaar: number | null;
   gebruiksdoelen: string[];
   oppervlakte: number | null;
@@ -116,6 +124,10 @@ export function normaliseerBagServicePand(rij: BagServicePandRij): BagVerkennerP
     straat,
     postcode: eersteTekst(velden, ['postcode']),
     plaats: eersteTekst(velden, ['woonplaats_naam', 'woonplaatsnaam', 'woonplaats', 'plaats']),
+    wijkCode: null,
+    wijkNaam: null,
+    buurtCode: null,
+    buurtNaam: null,
     bouwjaar: getal(
       velden.oorspronkelijkBouwjaar ?? velden.oorspronkelijk_bouwjaar ?? velden.bouwjaar,
     ),
@@ -142,6 +154,10 @@ export function normaliseerBagServicePandV2(rij: BagServicePandV2Rij): BagVerken
     straat: tekst(rij.primair_straat),
     postcode: tekst(rij.primair_postcode),
     plaats: tekst(rij.primair_plaats),
+    wijkCode: tekst(rij.wijk_code),
+    wijkNaam: tekst(rij.wijk_naam),
+    buurtCode: tekst(rij.buurt_code),
+    buurtNaam: tekst(rij.buurt_naam),
     bouwjaar: getal(rij.bouwjaar),
     gebruiksdoelen: doelen,
     oppervlakte: getal(rij.vbo_oppervlakte_som),
@@ -167,8 +183,10 @@ export function filterEnSorteerBagPanden(
       pandDoel => norm(pandDoel).includes(doel),
     ))) return false;
     if (!zoekterm) return true;
-    return [pand.adres, pand.straat, pand.postcode, pand.plaats, pand.bagPandId, ...pand.gebruiksdoelen]
-      .some(value => norm(value).includes(zoekterm));
+    return [
+      pand.adres, pand.straat, pand.postcode, pand.plaats, pand.wijkNaam, pand.buurtNaam,
+      pand.bagPandId, ...pand.gebruiksdoelen,
+    ].some(value => norm(value).includes(zoekterm));
   });
 
   return resultaat.sort((a, b) => {
