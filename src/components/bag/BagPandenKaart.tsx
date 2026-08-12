@@ -10,10 +10,12 @@ import Map, {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Point } from 'geojson';
-import { Loader2, MapPinned, RefreshCw } from 'lucide-react';
+import { Check, Copy, ExternalLink, Loader2, MapPinned, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
+import type { BagVerkennerPand } from '@/lib/bag/pandenverkennerModel';
 import { haalPandenOpKaartV2 } from '@/lib/bag/queryTransport';
 import {
   bouwBagKaartGeoJson,
@@ -85,6 +87,33 @@ const PAND_LAYER = {
 interface Props {
   scopeCode: string;
   filters: BagKaartFilters;
+  geselecteerdeIds?: Set<string>;
+  onKandidaatToggle?: (pand: BagVerkennerPand) => void;
+}
+
+function kaartRijNaarVerkennerPand(row: BagKaartPandRij): BagVerkennerPand {
+  const adres = row.primair_adres?.trim() || row.identificatie;
+  return {
+    datasetversieId: String(row.datasetversie_id),
+    bagPandId: row.identificatie,
+    voorkomenSleutel: '',
+    status: row.status,
+    adres,
+    adresCompleet: Boolean(row.primair_adres?.trim()),
+    straat: null,
+    postcode: row.primair_postcode?.trim() || null,
+    plaats: row.primair_plaats?.trim() || null,
+    wijkCode: row.wijk_code?.trim() || null,
+    wijkNaam: row.wijk_naam?.trim() || null,
+    buurtCode: row.buurt_code?.trim() || null,
+    buurtNaam: row.buurt_naam?.trim() || null,
+    bouwjaar: Number.isFinite(row.bouwjaar) ? row.bouwjaar : null,
+    gebruiksdoelen: row.gebruiksdoelen ?? [],
+    oppervlakte: row.vbo_oppervlakte_som == null ? null : Number(row.vbo_oppervlakte_som),
+    aantalVerblijfsobjecten: Number.isFinite(row.vbo_aantal) ? Number(row.vbo_aantal) : 0,
+    gemengdGebruik: Boolean(row.is_gemengd),
+    cursor: '',
+  };
 }
 
 function formatGetal(value: number | null, suffix = ''): string | null {
@@ -92,7 +121,7 @@ function formatGetal(value: number | null, suffix = ''): string | null {
   return `${Math.round(value).toLocaleString('nl-NL')}${suffix}`;
 }
 
-export default function BagPandenKaart({ scopeCode, filters }: Props) {
+export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = new Set(), onKandidaatToggle }: Props) {
   const mapRef = useRef<MapRef | null>(null);
   const [rows, setRows] = useState<BagKaartPandRij[]>([]);
   const [laden, setLaden] = useState(false);
@@ -174,6 +203,19 @@ export default function BagPandenKaart({ scopeCode, filters }: Props) {
     return feature?.geometry.coordinates as [number, number] | undefined;
   }, [geojson.features, geselecteerd]);
 
+  const geselecteerdRij = useMemo(() => rows.find(row => row.identificatie === geselecteerd?.id) ?? null, [rows, geselecteerd]);
+  const kandidaatGeselecteerd = geselecteerd ? geselecteerdeIds.has(geselecteerd.id) : false;
+
+  const kopieerBagId = async () => {
+    if (!geselecteerd) return;
+    try {
+      await navigator.clipboard.writeText(geselecteerd.id);
+      toast.success('BAG-ID gekopieerd.');
+    } catch {
+      toast.error('BAG-ID kopiëren mislukt.');
+    }
+  };
+
   return (
     <div className="border-b p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -234,18 +276,36 @@ export default function BagPandenKaart({ scopeCode, filters }: Props) {
               maxWidth="320px"
               offset={10}
             >
-              <div className="min-w-[220px] p-1 text-xs text-foreground">
-                <p className="text-sm font-semibold">{geselecteerd.adres}</p>
-                <p className="mt-1 text-muted-foreground">{[geselecteerd.postcode, geselecteerd.plaats].filter(Boolean).join(' ')}</p>
-                <div className="mt-2 space-y-1 text-muted-foreground">
-                  {geselecteerd.status && <p>{geselecteerd.status}</p>}
+              <div className="min-w-[240px] p-1 text-sm text-foreground">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold leading-tight">{geselecteerd.adres}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{[geselecteerd.postcode, geselecteerd.plaats].filter(Boolean).join(' ')}</p>
+                  </div>
+                  {kandidaatGeselecteerd && <Badge variant="secondary" className="shrink-0 text-[10px]">Geselecteerd</Badge>}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {geselecteerd.status && <p className="col-span-2">{geselecteerd.status}</p>}
                   {geselecteerd.bouwjaar !== null && <p>Bouwjaar {geselecteerd.bouwjaar}</p>}
                   {geselecteerd.gbo !== null && <p>{formatGetal(geselecteerd.gbo, ' m² GBO')}</p>}
                   {geselecteerd.vboAantal !== null && <p>{formatGetal(geselecteerd.vboAantal, ' VBO')}</p>}
-                  {geselecteerd.wijk && <p>Wijk: {geselecteerd.wijk}</p>}
-                  {geselecteerd.buurt && <p>Buurt: {geselecteerd.buurt}</p>}
+                  {geselecteerd.wijk && <p className="col-span-2">Wijk: {geselecteerd.wijk}</p>}
+                  {geselecteerd.buurt && <p className="col-span-2">Buurt: {geselecteerd.buurt}</p>}
                 </div>
-                <p className="mt-2 font-mono text-[10px] text-muted-foreground">BAG-pand {geselecteerd.id}</p>
+                <div className="mt-3 grid gap-2">
+                  {geselecteerdRij && onKandidaatToggle && (
+                    <Button size="sm" variant={kandidaatGeselecteerd ? 'secondary' : 'default'} className="w-full justify-center text-xs" onClick={() => onKandidaatToggle(kaartRijNaarVerkennerPand(geselecteerdRij))}>
+                      <Check className="mr-1.5 h-3.5 w-3.5" />{kandidaatGeselecteerd ? 'Deselecteer kandidaat' : 'Selecteer kandidaat'}
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button asChild size="sm" variant="outline" className="text-xs">
+                      <a href={bouwGoogleMapsAdresUrl({ adres: geselecteerd.adres, postcode: geselecteerd.postcode || null, plaats: geselecteerd.plaats || null })} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-3.5 w-3.5" />Google Maps</a>
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => void kopieerBagId()}><Copy className="mr-1.5 h-3.5 w-3.5" />BAG-ID</Button>
+                  </div>
+                </div>
+                <p className="mt-3 truncate font-mono-data text-[10px] text-muted-foreground" title={`BAG-pand ${geselecteerd.id}`}>BAG-pand {geselecteerd.id}</p>
               </div>
             </Popup>
           )}
