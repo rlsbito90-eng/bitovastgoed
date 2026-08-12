@@ -34,9 +34,16 @@ import BagGebiedsfilters from './BagGebiedsfilters';
 import BagPandenKaart from './BagPandenKaart';
 import BagSelectieReview from './BagSelectieReview';
 import {
-  bewaarWerkcontext, bewaarZoekprofielen, leesWerkcontext, leesZoekprofielen, maakZoekprofiel,
+  bewaarWerkcontext, leesLokaleZoekprofielen, leesWerkcontext, wisLokaleZoekprofielen,
   type BagPersistenteServerFilters, type BagZoekprofiel,
 } from '@/lib/bag/pandenverkennerPersistence';
+import {
+  haalAccountZoekprofielen,
+  importeerLokaleZoekprofielen,
+  maakAccountZoekprofiel,
+  verwijderAccountZoekprofiel,
+  werkAccountZoekprofielBij,
+} from '@/lib/bag/zoekprofielenRepository';
 import type { BagKaartFilters } from '@/lib/bag/kaartModel';
 import {
   beoordeelBagSelectie,
@@ -126,7 +133,10 @@ export default function BagServicePandenlijst({
   const [gebiedenLaden, setGebiedenLaden] = useState(false);
   const [weergave, setWeergave] = useState<'zoeken' | 'kaart' | 'opgeslagen'>(initiëleWerkcontext?.weergave ?? 'zoeken');
   const [toonMeerFilters, setToonMeerFilters] = useState(initiëleWerkcontext?.toonMeerFilters ?? false);
-  const [zoekprofielen, setZoekprofielen] = useState<BagZoekprofiel[]>(() => leesZoekprofielen(scopeCode));
+  const [zoekprofielen, setZoekprofielen] = useState<BagZoekprofiel[]>([]);
+  const [profielenLaden, setProfielenLaden] = useState(false);
+  const [profielActieBezig, setProfielActieBezig] = useState(false);
+  const [actiefProfielId, setActiefProfielId] = useState<string | null>(null);
   const [profielNaam, setProfielNaam] = useState('');
   const [kaartKandidaten, setKaartKandidaten] = useState<Map<string, BagVerkennerPand>>(new Map());
 
@@ -139,6 +149,34 @@ export default function BagServicePandenlijst({
       .finally(() => { if (actief) setGebiedenLaden(false); });
     return () => { actief = false; };
   }, [scopeCode]);
+
+  useEffect(() => {
+    let actief = true;
+    setProfielenLaden(true);
+    void (async () => {
+      const lokaal = leesLokaleZoekprofielen(scopeCode);
+      if (lokaal.length) {
+        await importeerLokaleZoekprofielen(lokaal);
+        wisLokaleZoekprofielen(scopeCode);
+      }
+      const remote = await haalAccountZoekprofielen(scopeCode);
+      if (actief) setZoekprofielen(remote);
+    })()
+      .catch(error => { if (actief) toast.error(error instanceof Error ? error.message : 'Opgeslagen zoekopdrachten laden mislukt.'); })
+      .finally(() => { if (actief) setProfielenLaden(false); });
+    return () => { actief = false; };
+  }, [scopeCode]);
+
+  useEffect(() => {
+    if (weergave !== 'opgeslagen') return;
+    let actief = true;
+    setProfielenLaden(true);
+    void haalAccountZoekprofielen(scopeCode)
+      .then(remote => { if (actief) setZoekprofielen(remote); })
+      .catch(error => { if (actief) toast.error(error instanceof Error ? error.message : 'Opgeslagen zoekopdrachten verversen mislukt.'); })
+      .finally(() => { if (actief) setProfielenLaden(false); });
+    return () => { actief = false; };
+  }, [scopeCode, weergave]);
 
   useEffect(() => {
     bewaarWerkcontext({ scopeCode, serverFilters, filters, weergave, toonMeerFilters });
@@ -300,29 +338,83 @@ export default function BagServicePandenlijst({
       : [...previous.statussen, status],
   }));
 
-  const slaZoekprofielOp = () => {
+  const slaZoekprofielOp = async () => {
     const naam = profielNaam.trim();
     if (!naam) return toast.error('Geef de zoekopdracht eerst een naam.');
-    const profiel = maakZoekprofiel({ naam, scopeCode, serverFilters, filters });
-    const next = [profiel, ...zoekprofielen];
-    setZoekprofielen(next);
-    bewaarZoekprofielen(scopeCode, next);
-    setProfielNaam('');
-    toast.success('Zoekopdracht opgeslagen op dit apparaat.');
+    setProfielActieBezig(true);
+    try {
+      const profiel = await maakAccountZoekprofiel({ naam, scopeCode, serverFilters, filters });
+      setZoekprofielen(previous => [profiel, ...previous.filter(item => item.id !== profiel.id)]);
+      setProfielNaam('');
+      toast.success('Zoekopdracht opgeslagen in je account.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Zoekopdracht opslaan mislukt.');
+    } finally {
+      setProfielActieBezig(false);
+    }
   };
 
-  const openZoekprofiel = (profiel: BagZoekprofiel) => {
+  const openZoekprofiel = (profiel: BagZoekprofiel, bewerken = false) => {
     setServerFilters(profiel.serverFilters);
     setFilters(profiel.filters);
     setToonMeerFilters(true);
+    setActiefProfielId(bewerken ? profiel.id : null);
+    setProfielNaam(bewerken ? profiel.naam : '');
     setWeergave('zoeken');
-    toast.success(`Zoekopdracht “${profiel.naam}” geladen.`);
+    toast.success(bewerken ? `Zoekopdracht “${profiel.naam}” geopend om te wijzigen.` : `Zoekopdracht “${profiel.naam}” geladen.`);
   };
 
-  const verwijderZoekprofiel = (id: string) => {
-    const next = zoekprofielen.filter(profiel => profiel.id !== id);
-    setZoekprofielen(next);
-    bewaarZoekprofielen(scopeCode, next);
+  const bewaarProfielWijzigingen = async () => {
+    if (!actiefProfielId) return;
+    const naam = profielNaam.trim();
+    if (!naam) return toast.error('Geef de zoekopdracht een naam.');
+    setProfielActieBezig(true);
+    try {
+      const profiel = await werkAccountZoekprofielBij(actiefProfielId, { naam, scopeCode, serverFilters, filters });
+      setZoekprofielen(previous => [profiel, ...previous.filter(item => item.id !== profiel.id)]);
+      setProfielNaam(profiel.naam);
+      toast.success('Wijzigingen opgeslagen.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Wijzigingen opslaan mislukt.');
+    } finally {
+      setProfielActieBezig(false);
+    }
+  };
+
+  const slaProfielOpAlsNieuw = async () => {
+    const naam = profielNaam.trim();
+    if (!naam) return toast.error('Geef de nieuwe zoekopdracht een naam.');
+    const origineel = zoekprofielen.find(profiel => profiel.id === actiefProfielId);
+    const nieuweNaam = origineel?.naam === naam ? `${naam} kopie` : naam;
+    setProfielActieBezig(true);
+    try {
+      const profiel = await maakAccountZoekprofiel({ naam: nieuweNaam, scopeCode, serverFilters, filters });
+      setZoekprofielen(previous => [profiel, ...previous]);
+      setActiefProfielId(profiel.id);
+      setProfielNaam(profiel.naam);
+      toast.success(`Nieuwe zoekopdracht “${profiel.naam}” opgeslagen.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Opslaan als nieuw mislukt.');
+    } finally {
+      setProfielActieBezig(false);
+    }
+  };
+
+  const verwijderZoekprofiel = async (id: string) => {
+    setProfielActieBezig(true);
+    try {
+      await verwijderAccountZoekprofiel(id);
+      setZoekprofielen(previous => previous.filter(profiel => profiel.id !== id));
+      if (actiefProfielId === id) {
+        setActiefProfielId(null);
+        setProfielNaam('');
+      }
+      toast.success('Zoekopdracht verwijderd.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Zoekopdracht verwijderen mislukt.');
+    } finally {
+      setProfielActieBezig(false);
+    }
   };
 
   const resetZoekfilters = () => {
@@ -466,6 +558,21 @@ export default function BagServicePandenlijst({
         </Button>
       </div>
 
+      {weergave === 'zoeken' && actiefProfielId && <div className="mt-3 rounded-lg border bg-muted/10 p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium">Zoekprofiel wijzigen</p>
+            <p className="mb-2 text-[11px] text-muted-foreground">Pas de filters aan en sla de wijzigingen op, of bewaar de huidige variant als nieuw profiel.</p>
+            <Input value={profielNaam} onChange={event => setProfielNaam(event.target.value)} placeholder="Naam zoekprofiel" />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="button" size="sm" onClick={() => void bewaarProfielWijzigingen()} disabled={profielActieBezig}>Wijzigingen opslaan</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => void slaProfielOpAlsNieuw()} disabled={profielActieBezig}>Opslaan als nieuw</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setActiefProfielId(null); setProfielNaam(''); }}>Stop wijzigen</Button>
+          </div>
+        </div>
+      </div>}
+
       {weergave === 'zoeken' && <>
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
 
@@ -540,15 +647,16 @@ export default function BagServicePandenlijst({
 
     {weergave === 'opgeslagen' && <div className="border-b p-4">
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Input value={profielNaam} onChange={event => setProfielNaam(event.target.value)} placeholder="Naam van deze zoekopdracht" />
-        <Button type="button" onClick={slaZoekprofielOp}>Zoekopdracht opslaan</Button>
+        <Input value={actiefProfielId ? '' : profielNaam} disabled={Boolean(actiefProfielId)} onChange={event => setProfielNaam(event.target.value)} placeholder={actiefProfielId ? 'Stop eerst met wijzigen om een nieuw profiel te maken' : 'Naam van deze zoekopdracht'} />
+        <Button type="button" onClick={() => void slaZoekprofielOp()} disabled={profielActieBezig || Boolean(actiefProfielId)}>Zoekopdracht opslaan</Button>
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">Opgeslagen zoekopdrachten bewaren de filterdefinitie op dit apparaat; resultaten worden bij openen opnieuw actueel opgehaald.</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">Zoekopdrachten zijn gekoppeld aan je Bito-account en daardoor beschikbaar op je andere apparaten. Alleen de filterdefinitie wordt opgeslagen; resultaten worden steeds opnieuw actueel opgehaald.</p>
       <div className="mt-4 space-y-2">
-        {!zoekprofielen.length && <p className="rounded-md border p-4 text-sm text-muted-foreground">Nog geen opgeslagen zoekopdrachten.</p>}
-        {zoekprofielen.map(profiel => <div key={profiel.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-          <div className="min-w-0"><p className="truncate text-sm font-medium">{profiel.naam}</p><p className="text-[11px] text-muted-foreground">{new Date(profiel.bijgewerktOp).toLocaleDateString('nl-NL')}</p></div>
-          <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" onClick={() => openZoekprofiel(profiel)}>Open</Button><Button size="sm" variant="ghost" onClick={() => verwijderZoekprofiel(profiel.id)}>Verwijder</Button></div>
+        {profielenLaden && <p className="rounded-md border p-4 text-sm text-muted-foreground">Opgeslagen zoekopdrachten laden…</p>}
+        {!profielenLaden && !zoekprofielen.length && <p className="rounded-md border p-4 text-sm text-muted-foreground">Nog geen opgeslagen zoekopdrachten.</p>}
+        {zoekprofielen.map(profiel => <div key={profiel.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0"><p className="truncate text-sm font-medium">{profiel.naam}</p><p className="text-[11px] text-muted-foreground">Laatst gewijzigd {new Date(profiel.bijgewerktOp).toLocaleDateString('nl-NL')}</p></div>
+          <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openZoekprofiel(profiel, false)}>Openen</Button><Button size="sm" variant="outline" onClick={() => openZoekprofiel(profiel, true)}>Wijzigen</Button><Button size="sm" variant="ghost" disabled={profielActieBezig} onClick={() => void verwijderZoekprofiel(profiel.id)}>Verwijder</Button></div>
         </div>)}
       </div>
     </div>}

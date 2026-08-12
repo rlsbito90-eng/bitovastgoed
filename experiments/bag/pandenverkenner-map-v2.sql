@@ -183,7 +183,7 @@ BEGIN
     g.datasetversie_id,g.index_build_id,g.pand_identificatie,g.pandstatus_huidig,g.oorspronkelijk_bouwjaar,g.vbo_aantal,g.vbo_oppervlakte_som,
     g.gebruiksdoelen,g.is_gemengd,g.primair_adres,g.primair_postcode,g.primair_plaats,g.wijk_code,g.wijk_naam,g.buurt_code,g.buurt_naam,
     extensions.st_asgeojson(extensions.st_transform(g.centroid,4326),6,0)::jsonb,
-    CASE WHEN p_zoom >= 17 THEN extensions.st_asgeojson(extensions.st_transform(g.pand_geometrie,4326),6,0)::jsonb ELSE NULL::jsonb END,
+    CASE WHEN p_zoom >= 16.5 THEN extensions.st_asgeojson(extensions.st_transform(g.pand_geometrie,4326),6,0)::jsonb ELSE NULL::jsonb END,
     g.is_afgekapt
   FROM gemarkeerd g
   LIMIT p_limiet;

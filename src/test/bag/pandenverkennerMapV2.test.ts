@@ -20,7 +20,7 @@ describe('Pandenverkenner Map v2', () => {
 
   it('begrenst individuele panden en levert contouren pas vanaf zoom 17', () => {
     expect(sql).toContain('LIMIT p_limiet + 1');
-    expect(sql).toContain('CASE WHEN p_zoom >= 17');
+    expect(sql).toContain('CASE WHEN p_zoom >= 16.5');
     expect(sql).toContain('g.pand_geometrie');
     expect(sql).toContain('pand_geojson');
   });
@@ -44,7 +44,7 @@ describe('Pandenverkenner Map v2', () => {
   it('rendert serverclusters en echte pandcontouren zonder client-side GeoJSON clustering', () => {
     expect(kaart).toContain('bag-server-clusters');
     expect(kaart).toContain('bag-pandcontour-fill');
-    expect(kaart).toContain('minzoom:17');
+    expect(kaart).toContain('minzoom:16.5');
     expect(kaart).toContain('haalPandenOpKaartV3');
     expect(kaart).not.toContain('clusterMaxZoom');
     expect(kaart).not.toContain('clusterRadius');
