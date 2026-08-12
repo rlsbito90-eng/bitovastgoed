@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/VastgoedkansenVindenPage.tsx'), 'utf8');
 const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagServicePandenlijst.tsx'), 'utf8');
+const review = readFileSync(resolve(process.cwd(), 'src/components/bag/BagSelectieReview.tsx'), 'utf8');
 const dialog = readFileSync(resolve(process.cwd(), 'src/components/bag/BagHandmatigePromotieDialog.tsx'), 'utf8');
 
 describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
@@ -94,10 +95,11 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(component).toContain("window.scrollTo({ top: 0, behavior: 'smooth' })");
   });
 
-  it('houdt selectie lokaal en vereist een afzonderlijke preflight', () => {
+  it('houdt selectie lokaal en vereist een afzonderlijke preflightreview', () => {
     expect(component).toContain('beoordeelBagSelectie');
     expect(component).toContain('Controleer selectie');
-    expect(component).toContain('Er is niets opgeslagen.');
+    expect(component).toContain('BagSelectieReview');
+    expect(review).toContain('Er is nog niets opgeslagen.');
     expect(component).toContain('maximaalAantal: 250');
     expect(component).not.toContain('addKans');
   });
@@ -105,7 +107,7 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
   it('promoveert alleen na groene preflight en een afzonderlijke dialoog', () => {
     expect(component).toContain("if (!preflight?.toegestaan) return");
     expect(component).toContain('BagHandmatigePromotieDialog');
-    expect(component).toContain('Handmatig toevoegen…');
+    expect(review).toContain('Toevoegen aan Vastgoedkansen');
     expect(page).toContain('onHandmatigPromoveren={promoveerPrivateBagPanden}');
   });
 
@@ -118,14 +120,14 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
 });
 
 describe('BAG preflightpositie', () => {
-  it('toont het preflightblok vóór de pandenlijst', () => {
-    const preflightIndex = component.indexOf('{preflight && <div');
+  it('toont de review vóór de pandenlijst en scrollt er na controle naartoe', () => {
+    const preflightIndex = component.indexOf('{preflight && <div ref={reviewRef}');
     const lijstIndex = component.indexOf('{!panden.length ?');
     const actiesIndex = component.indexOf('Controleer selectie');
     expect(preflightIndex).toBeGreaterThan(-1);
     expect(lijstIndex).toBeGreaterThan(-1);
     expect(actiesIndex).toBeLessThan(preflightIndex);
     expect(preflightIndex).toBeLessThan(lijstIndex);
-    expect(component.split('Er is niets opgeslagen.')).toHaveLength(3);
+    expect(component).toContain("reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
   });
 });
