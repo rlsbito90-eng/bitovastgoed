@@ -1,0 +1,47 @@
+name: Apply Pandenverkenner kaart flow hotfix
+
+on:
+  push:
+    branches:
+      - fix/pandenverkenner-kaart-flow-label
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pandenverkenner-kaart-flow-label
+      - name: Apply focused frontend patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          lijst = Path('src/components/bag/BagServicePandenlijst.tsx')
+          text = lijst.read_text()
+          old = "<Button size=\"sm\" onClick={() => { setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context)); setWeergave('zoeken'); }}><CheckCircle2 className=\"mr-1.5 h-4 w-4\" />Controleer selectie</Button>"
+          new = "<Button size=\"sm\" onClick={() => setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context))}><CheckCircle2 className=\"mr-1.5 h-4 w-4\" />Controleer selectie</Button>"
+          if old not in text:
+              raise SystemExit('kaart preflight transition target not found')
+          lijst.write_text(text.replace(old, new, 1))
+
+          kaart = Path('src/components/bag/BagPandenKaart.tsx')
+          text = kaart.read_text()
+          text = text.replace("Beweeg of zoom de kaart en kies daarna ‘Zoek in dit kaartgebied’. Dezelfde filters als de lijst worden gebruikt.", "Beweeg of zoom de kaart en kies daarna ‘Toon panden in beeld’. Dezelfde filters als de lijst worden gebruikt.", 1)
+          text = text.replace("          Zoek in dit kaartgebied\n", "          Toon panden in beeld\n", 1)
+          kaart.write_text(text)
+
+          test = Path('src/test/bag/pandenverkennerKaartFlowHotfix.test.ts')
+          test.write_text("""import { describe, expect, it } from 'vitest';\nimport fs from 'node:fs';\n\nconst lijst = fs.readFileSync('src/components/bag/BagServicePandenlijst.tsx', 'utf8');\nconst kaart = fs.readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');\n\ndescribe('Pandenverkenner kaartflow hotfix', () => {\n  it('blijft in kaartweergave na Controleer selectie', () => {\n    expect(lijst).toContain('onClick={() => setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context))}');\n    expect(lijst).not.toContain(\"setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context)); setWeergave('zoeken')\");\n  });\n\n  it('gebruikt de actiegerichte kaartlabeltekst', () => {\n    expect(kaart).toContain('Toon panden in beeld');\n    expect(kaart).not.toContain('Zoek in dit kaartgebied');\n  });\n});\n""")
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/bag/BagServicePandenlijst.tsx src/components/bag/BagPandenKaart.tsx src/test/bag/pandenverkennerKaartFlowHotfix.test.ts
+          git commit -m "fix(bag): behoud kaartweergave na selectiecontrole"
+          git push origin HEAD:fix/pandenverkenner-kaart-flow-label
