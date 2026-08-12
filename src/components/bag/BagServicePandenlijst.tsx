@@ -7,7 +7,9 @@ import {
   Database,
   Loader2,
   MapPin,
+  MapPinned,
   Search,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -127,6 +129,8 @@ export default function BagServicePandenlijst({
   const [serverFilters, setServerFilters] = useState<ServerFilters>(LEGE_SERVER_FILTERS);
   const [gebiedsopties, setGebiedsopties] = useState<BagCbsGebiedsoptie[]>([]);
   const [gebiedenLaden, setGebiedenLaden] = useState(false);
+  const [weergave, setWeergave] = useState<'zoeken' | 'kaart'>('zoeken');
+  const [toonMeerFilters, setToonMeerFilters] = useState(false);
 
   useEffect(() => {
     let actief = true;
@@ -373,11 +377,22 @@ export default function BagServicePandenlijst({
           <div className="flex items-center gap-2"><Database className="h-4 w-4"/><h2 className="text-sm font-medium">Private BAG-Pandenverkenner 2.0</h2><Badge variant="outline">Scope {scopeCode}</Badge></div>
           <p className="mt-1 text-xs text-muted-foreground">Server-side zoeken in de actieve BAG-index met bouwjaar, status, GBO, grootste VBO, aantal VBO’s en gebruiksfunctie.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {weergave === 'zoeken' && <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={resetZoekfilters} disabled={laden}>Wis zoekfilters</Button>
           <Button onClick={() => laad(true)} disabled={laden}>{laden?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Search className="mr-2 h-4 w-4"/>}Zoeken</Button>
-        </div>
+        </div>}
       </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1">
+        <Button type="button" variant={weergave === 'zoeken' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('zoeken')}>
+          <Search className="mr-2 h-4 w-4" />Zoeken & lijst
+        </Button>
+        <Button type="button" variant={weergave === 'kaart' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('kaart')}>
+          <MapPinned className="mr-2 h-4 w-4" />Kaart
+        </Button>
+      </div>
+
+      {weergave === 'zoeken' && <>
       <div className="mt-4"><BagScopeStatus actieveScopeCode={scopeCode} /></div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -391,6 +406,17 @@ export default function BagServicePandenlijst({
         <label className="flex items-center gap-2 rounded-md border px-3 text-xs"><Checkbox checked={filters.alleenGemengd} onCheckedChange={value => setFilters(previous => ({ ...previous, alleenGemengd: Boolean(value) }))}/>Alleen gemengd</label>
       </div>
 
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/10 p-2.5">
+        <div className="min-w-0">
+          <p className="text-xs font-medium">Meer filters</p>
+          <p className="text-[11px] text-muted-foreground">Pandstatus, wijk/buurt, GBO/VBO en gebruiksfunctie.</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={() => setToonMeerFilters(value => !value)} aria-expanded={toonMeerFilters}>
+          <SlidersHorizontal className="mr-1.5 h-4 w-4" />{toonMeerFilters ? 'Minder' : 'Meer'}
+        </Button>
+      </div>
+
+      {toonMeerFilters && <>
       <div className="mt-3">
         <div className="mb-2 flex items-center gap-2"><span className="text-xs font-medium">Pandstatus</span>{serverFilters.statussen.length > 0 && <Badge variant="secondary">{serverFilters.statussen.length} geselecteerd</Badge>}</div>
         <div className="flex flex-wrap gap-2">{PANDSTATUSSEN.map(status => <label key={status} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={serverFilters.statussen.includes(status)} onCheckedChange={() => toggleStatus(status)}/>{status}</label>)}</div>
@@ -418,6 +444,7 @@ export default function BagServicePandenlijst({
         <div className="mb-2 flex items-center gap-2"><span className="text-xs font-medium">Gebruiksfunctie</span>{filters.gebruiksdoelen.length > 0 && <Badge variant="secondary">{filters.gebruiksdoelen.length} geselecteerd</Badge>}</div>
         <div className="flex flex-wrap gap-2">{FUNCTIES.map(functie => <label key={functie} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={filters.gebruiksdoelen.includes(functie)} onCheckedChange={() => toggleFunctie(functie)}/>{functie}</label>)}</div>
       </div>
+      </>}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_260px]">
         <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, wijk, buurt, postcode of BAG-ID" />
@@ -434,10 +461,12 @@ export default function BagServicePandenlijst({
         </select>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">Binnen Pandstatus, Wijk, Buurt en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN. Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
+      </>}
     </div>
 
-    <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} />
+    {weergave === 'kaart' && <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} />}
 
+    <div className={weergave === 'zoeken' ? 'block' : 'hidden'}>
     <div ref={resultatenTopRef} />
     {paginering}
     {panden.length>0 && <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button className="w-full sm:w-auto" variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button className="w-full sm:w-auto" size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(panden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
@@ -469,6 +498,7 @@ export default function BagServicePandenlijst({
     })}</div>}
 
     {panden.length>0 && <div className="border-t">{paginering}<div className="px-4 py-3 text-xs text-muted-foreground">{zichtbaar.length} zichtbaar op deze pagina · {panden.length} panden verdeeld over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}</div></div>}
+    </div>
     {toonNaarBoven && <Button className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg" size="icon" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Naar boven" title="Naar boven"><ArrowUp className="h-4 w-4" /></Button>}
     <BagHandmatigePromotieDialog open={promotieOpen} aantal={preflight?.kandidaten.length ?? 0} bezig={promotieBezig} onOpenChange={setPromotieOpen} onConfirm={promoveer}/>
   </section>;
