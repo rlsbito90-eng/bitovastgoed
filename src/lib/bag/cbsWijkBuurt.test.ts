@@ -8,39 +8,40 @@ import {
 } from './cbsWijkBuurt';
 
 describe('CBS wijk/buurt verrijkingscontract', () => {
-  it('leidt de wijkcode deterministisch af uit de CBS-buurtcode', () => {
+  it('leidt de wijkcode deterministisch af uit numerieke en alfanumerieke CBS-buurtcodes', () => {
     expect(wijkcodeUitBuurtcode('BU03630102')).toBe('WK036301');
+    expect(wijkcodeUitBuurtcode('BU0363AA01')).toBe('WK0363AA');
   });
 
-  it('accepteert uitsluitend 2025 Amsterdam-buurten met consistente codes', () => {
+  it('accepteert 2025 Amsterdam-buurten met numerieke of alfanumerieke gebiedsdelen', () => {
     expect(valideerCbsBuurtFeature({
       jaar: 2025,
       gemeentecode: 'GM0363',
       gemeentenaam: 'Amsterdam',
-      buurtcode: 'BU03630102',
+      buurtcode: 'BU0363AA01',
       buurtnaam: 'Voorbeeldbuurt',
     })).toEqual({
       bronjaar: 2025,
       gemeenteCode: 'GM0363',
       gemeenteNaam: 'Amsterdam',
-      wijkCode: 'WK036301',
-      buurtCode: 'BU03630102',
+      wijkCode: 'WK0363AA',
+      buurtCode: 'BU0363AA01',
       buurtNaam: 'Voorbeeldbuurt',
     });
   });
 
-  it('accepteert uitsluitend 2025 Amsterdam-wijken met consistente codes', () => {
+  it('accepteert 2025 Amsterdam-wijken met numerieke of alfanumerieke gebiedsdelen', () => {
     expect(valideerCbsWijkFeature({
       jaar: 2025,
       gemeentecode: 'GM0363',
       gemeentenaam: 'Amsterdam',
-      wijkcode: 'WK036301',
+      wijkcode: 'WK0363AA',
       wijknaam: 'Voorbeeldwijk',
     })).toEqual({
       bronjaar: 2025,
       gemeenteCode: 'GM0363',
       gemeenteNaam: 'Amsterdam',
-      wijkCode: 'WK036301',
+      wijkCode: 'WK0363AA',
       wijkNaam: 'Voorbeeldwijk',
     });
   });
@@ -50,7 +51,7 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       jaar: 2024,
       gemeentecode: 'GM0363',
       gemeentenaam: 'Amsterdam',
-      buurtcode: 'BU03630102',
+      buurtcode: 'BU0363AA01',
       buurtnaam: 'Voorbeeldbuurt',
     })).toThrow('Onverwacht CBS-bronjaar');
 
@@ -58,7 +59,7 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       jaar: 2025,
       gemeentecode: 'GM0106',
       gemeentenaam: 'Assen',
-      buurtcode: 'BU01060102',
+      buurtcode: 'BU0106AA01',
       buurtnaam: 'Voorbeeldbuurt',
     })).toThrow('buiten de toegestane gemeente');
 
@@ -66,7 +67,7 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       jaar: 2025,
       gemeentecode: 'GM0363',
       gemeentenaam: 'Amsterdam',
-      buurtcode: 'BU01060102',
+      buurtcode: 'BU0106AA01',
       buurtnaam: 'Voorbeeldbuurt',
     })).toThrow('inconsistent');
 
@@ -74,9 +75,11 @@ describe('CBS wijk/buurt verrijkingscontract', () => {
       jaar: 2025,
       gemeentecode: 'GM0363',
       gemeentenaam: 'Amsterdam',
-      wijkcode: 'WK010601',
+      wijkcode: 'WK0106AA',
       wijknaam: 'Voorbeeldwijk',
     })).toThrow('inconsistent');
+
+    expect(() => wijkcodeUitBuurtcode('BU0363-?01')).toThrow('Ongeldige CBS-buurtcode');
   });
 
   it('bouwt uitsluitend de vaste PDOK routes met begrensde bbox-paginering', () => {
