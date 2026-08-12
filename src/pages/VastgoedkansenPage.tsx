@@ -26,7 +26,7 @@ export default function VastgoedkansenPage() {
   }), [kansen, werkbak, q]);
 
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
-    <PageHeader title="Vastgoedkansen" subtitle="Compacte acquisitiewerkbank vóór een pand een CRM-Object wordt." actions={<div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link to="/vastgoedkansen/vinden"><Radar className="mr-1.5 h-4 w-4" />Panden vinden</Link></Button><Button onClick={() => setForm({ open: true, kans: null })}><Plus className="mr-1.5 h-4 w-4" />Nieuwe kans</Button></div>} />
+    <PageHeader title="Vastgoedkansen" subtitle="Compacte acquisitiewerkbank vóór een pand een CRM-Object wordt." actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setForm({ open: true, kans: null })}><Plus className="mr-1.5 h-4 w-4" />Nieuwe kans</Button><Button asChild><Link to="/vastgoedkansen/vinden"><Radar className="mr-1.5 h-4 w-4" />Panden vinden</Link></Button></div>} />
 
     {hervatKans && <section className="section-card border-primary/30 bg-primary/5 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
