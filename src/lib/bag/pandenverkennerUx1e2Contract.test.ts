@@ -5,16 +5,17 @@ const pandenverkenner = fs.readFileSync('src/components/bag/BagServicePandenlijs
 const kansen = fs.readFileSync('src/pages/VastgoedkansenPage.tsx', 'utf8');
 
 describe('Pandenverkenner UX 1E.2 contract', () => {
-  it('scheidt zoeken/lijst en kaart in twee weergaven', () => {
-    expect(pandenverkenner).toContain("useState<'zoeken' | 'kaart'>('zoeken')");
+  it('scheidt zoeken/lijst, kaart en opgeslagen zoekopdrachten in werkweergaven', () => {
+    expect(pandenverkenner).toContain("useState<'zoeken' | 'kaart' | 'opgeslagen'>");
     expect(pandenverkenner).toContain('Zoeken & lijst');
     expect(pandenverkenner).toContain('>Kaart');
+    expect(pandenverkenner).toContain('>Opgeslagen');
     expect(pandenverkenner).toContain("weergave === 'kaart' && <>");
     expect(pandenverkenner).toContain('<BagPandenKaart scopeCode={scopeCode} filters={kaartFilters}');
   });
 
-  it('houdt uitgebreide filters standaard compact', () => {
-    expect(pandenverkenner).toContain('const [toonMeerFilters, setToonMeerFilters] = useState(false)');
+  it('houdt uitgebreide filters compact en herstelt de laatst gekozen toestand', () => {
+    expect(pandenverkenner).toContain('initiëleWerkcontext?.toonMeerFilters ?? false');
     expect(pandenverkenner).toContain('Pandstatus, wijk/buurt, GBO/VBO en gebruiksfunctie.');
     expect(pandenverkenner).toContain('{toonMeerFilters && <>');
   });
