@@ -49,7 +49,7 @@ jobs:
           command -v gh
           command -v python3
 
-          psql "$BAG_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -At <<'SQL' > preflight.tsv
+          psql "$BAG_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -F $'\t' -A -t <<'SQL' > preflight.tsv
           select 'build_status', status from bag_search.index_builds where id=3 and scope_code='0363';
           select 'index_rows', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363';
           select 'live_wijk_filled', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and wijk_code is not null;
