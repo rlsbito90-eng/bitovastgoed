@@ -1,0 +1,35 @@
+name: Apply Pandenverkenner 1E.1 patch
+
+on:
+  push:
+    branches:
+      - feat/pandenverkenner-kaart-1e1
+    paths:
+      - scripts/bag/apply-pandenverkenner-map-1e1.mjs
+      - .github/workflows/apply-pandenverkenner-map-1e1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/pandenverkenner-kaart-1e1
+          fetch-depth: 0
+      - name: Pas bronpatch toe
+        run: node scripts/bag/apply-pandenverkenner-map-1e1.mjs
+      - name: Verwijder eenmalige patchtooling
+        run: |
+          rm scripts/bag/apply-pandenverkenner-map-1e1.mjs
+          rm .github/workflows/apply-pandenverkenner-map-1e1.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/bag/queryService.ts src/lib/bag/queryTransport.ts supabase/functions/bag-query-service/index.ts src/components/bag/BagServicePandenlijst.tsx scripts/bag/apply-pandenverkenner-map-1e1.mjs .github/workflows/apply-pandenverkenner-map-1e1.yml
+          git diff --cached --check
+          git commit -m "feat(bag): koppel kaartquery en kaart-UI aan Pandenverkenner 1E.1"
+          git push origin HEAD:feat/pandenverkenner-kaart-1e1
