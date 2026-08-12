@@ -50,7 +50,7 @@ function veiligSchrijf(storage: Storage | undefined, sleutel: string, waarde: un
   try {
     storage.setItem(sleutel, JSON.stringify(waarde));
   } catch {
-    // Opslag is uitsluitend UX-state; een volle/geblokkeerde browseropslag mag de zoekfunctie nooit blokkeren.
+    // UX-state mag de zoekfunctie nooit blokkeren.
   }
 }
 
@@ -83,30 +83,18 @@ export function bewaarWerkcontext(context: Omit<BagWerkcontext, 'versie' | 'bijg
   } satisfies BagWerkcontext);
 }
 
-export function leesZoekprofielen(scopeCode: string): BagZoekprofiel[] {
+// Alleen nog gebruikt om bestaande browser-lokale Saved Searches v1 éénmalig naar het account te migreren.
+export function leesLokaleZoekprofielen(scopeCode: string): BagZoekprofiel[] {
   const profielen = veiligLees<BagZoekprofiel[]>(lokaal(), zoekprofielenSleutel(scopeCode));
   return Array.isArray(profielen) ? profielen.filter(profiel => profiel.scopeCode === scopeCode) : [];
 }
 
-export function bewaarZoekprofielen(scopeCode: string, profielen: BagZoekprofiel[]): void {
-  veiligSchrijf(lokaal(), zoekprofielenSleutel(scopeCode), profielen);
-}
-
-export function maakZoekprofiel(input: {
-  naam: string;
-  scopeCode: string;
-  serverFilters: BagPersistenteServerFilters;
-  filters: BagVerkennerFilters;
-}): BagZoekprofiel {
-  const nu = new Date().toISOString();
-  const cryptoId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-  return {
-    id: cryptoId,
-    naam: input.naam.trim(),
-    scopeCode: input.scopeCode,
-    serverFilters: input.serverFilters,
-    filters: input.filters,
-    aangemaaktOp: nu,
-    bijgewerktOp: nu,
-  };
+export function wisLokaleZoekprofielen(scopeCode: string): void {
+  const storage = lokaal();
+  if (!storage) return;
+  try {
+    storage.removeItem(zoekprofielenSleutel(scopeCode));
+  } catch {
+    // Migratie is best effort; cloudprofielen blijven de bron van waarheid.
+  }
 }
