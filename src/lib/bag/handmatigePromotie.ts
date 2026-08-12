@@ -20,7 +20,9 @@ export function maakHandmatigeBagKans(
     typeVastgoed: pand.gebruiksdoelen.join(', ') || undefined,
     korteOmschrijving: `${hoofdtype} — ${pand.adres}`,
     herkomst: 'bag_selectie',
-    herkomstReferentie: `Private BAG scope ${scopeCode}; dataset ${pand.datasetversieId}; voorkomen ${pand.voorkomenSleutel}`,
+    herkomstReferentie: pand.voorkomenSleutel
+      ? `Private BAG scope ${scopeCode}; dataset ${pand.datasetversieId}; voorkomen ${pand.voorkomenSleutel}`
+      : `Private BAG scope ${scopeCode}; dataset ${pand.datasetversieId}; geselecteerd via kaart`,
     bagPandId: pand.bagPandId,
     redenInteressant: `Handmatig geselecteerd in Pandenverkenner uit BAG-dataset ${pand.datasetversieId}.`,
     status: 'te_beoordelen',
