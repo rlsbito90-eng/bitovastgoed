@@ -32,6 +32,11 @@ import BagCrmMatchBadge from './BagCrmMatchBadge';
 import BagScopeStatus from './BagScopeStatus';
 import BagGebiedsfilters from './BagGebiedsfilters';
 import BagPandenKaart from './BagPandenKaart';
+import BagSelectieReview from './BagSelectieReview';
+import {
+  bewaarWerkcontext, bewaarZoekprofielen, leesWerkcontext, leesZoekprofielen, maakZoekprofiel,
+  type BagPersistenteServerFilters, type BagZoekprofiel,
+} from '@/lib/bag/pandenverkennerPersistence';
 import type { BagKaartFilters } from '@/lib/bag/kaartModel';
 import {
   beoordeelBagSelectie,
@@ -65,20 +70,7 @@ interface Props {
   onHandmatigPromoveren: (panden: BagVerkennerPand[]) => Promise<BagPromotieResultaat>;
 }
 
-interface ServerFilters {
-  statussen: string[];
-  wijkCodes: string[];
-  buurtCodes: string[];
-  bouwjaarVan: string;
-  bouwjaarTot: string;
-  vboSomVan: string;
-  vboSomTot: string;
-  vboMaxVan: string;
-  vboMaxTot: string;
-  vboAantalVan: string;
-  vboAantalTot: string;
-  vboModus: 'alle' | 'met_vbo' | 'zonder_vbo';
-}
+type ServerFilters = BagPersistenteServerFilters;
 
 const LEGE_SERVER_FILTERS: ServerFilters = {
   statussen: [],
@@ -123,14 +115,18 @@ export default function BagServicePandenlijst({
   const [promotieBezig, setPromotieBezig] = useState(false);
   const [toonNaarBoven, setToonNaarBoven] = useState(false);
   const resultatenTopRef = useRef<HTMLDivElement | null>(null);
-  const [filters, setFilters] = useState<BagVerkennerFilters>({
+  const reviewRef = useRef<HTMLDivElement | null>(null);
+  const initiëleWerkcontext = useRef(leesWerkcontext(scopeCode)).current;
+  const [filters, setFilters] = useState<BagVerkennerFilters>(initiëleWerkcontext?.filters ?? {
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
   });
-  const [serverFilters, setServerFilters] = useState<ServerFilters>(LEGE_SERVER_FILTERS);
+  const [serverFilters, setServerFilters] = useState<ServerFilters>(initiëleWerkcontext?.serverFilters ?? LEGE_SERVER_FILTERS);
   const [gebiedsopties, setGebiedsopties] = useState<BagCbsGebiedsoptie[]>([]);
   const [gebiedenLaden, setGebiedenLaden] = useState(false);
-  const [weergave, setWeergave] = useState<'zoeken' | 'kaart'>('zoeken');
-  const [toonMeerFilters, setToonMeerFilters] = useState(false);
+  const [weergave, setWeergave] = useState<'zoeken' | 'kaart' | 'opgeslagen'>(initiëleWerkcontext?.weergave ?? 'zoeken');
+  const [toonMeerFilters, setToonMeerFilters] = useState(initiëleWerkcontext?.toonMeerFilters ?? false);
+  const [zoekprofielen, setZoekprofielen] = useState<BagZoekprofiel[]>(() => leesZoekprofielen(scopeCode));
+  const [profielNaam, setProfielNaam] = useState('');
   const [kaartKandidaten, setKaartKandidaten] = useState<Map<string, BagVerkennerPand>>(new Map());
 
   useEffect(() => {
@@ -142,6 +138,10 @@ export default function BagServicePandenlijst({
       .finally(() => { if (actief) setGebiedenLaden(false); });
     return () => { actief = false; };
   }, [scopeCode]);
+
+  useEffect(() => {
+    bewaarWerkcontext({ scopeCode, serverFilters, filters, weergave, toonMeerFilters });
+  }, [scopeCode, serverFilters, filters, weergave, toonMeerFilters]);
 
   useEffect(() => {
     const controleerScroll = () => setToonNaarBoven(window.scrollY > 500);
@@ -299,6 +299,31 @@ export default function BagServicePandenlijst({
       : [...previous.statussen, status],
   }));
 
+  const slaZoekprofielOp = () => {
+    const naam = profielNaam.trim();
+    if (!naam) return toast.error('Geef de zoekopdracht eerst een naam.');
+    const profiel = maakZoekprofiel({ naam, scopeCode, serverFilters, filters });
+    const next = [profiel, ...zoekprofielen];
+    setZoekprofielen(next);
+    bewaarZoekprofielen(scopeCode, next);
+    setProfielNaam('');
+    toast.success('Zoekopdracht opgeslagen op dit apparaat.');
+  };
+
+  const openZoekprofiel = (profiel: BagZoekprofiel) => {
+    setServerFilters(profiel.serverFilters);
+    setFilters(profiel.filters);
+    setToonMeerFilters(true);
+    setWeergave('zoeken');
+    toast.success(`Zoekopdracht “${profiel.naam}” geladen.`);
+  };
+
+  const verwijderZoekprofiel = (id: string) => {
+    const next = zoekprofielen.filter(profiel => profiel.id !== id);
+    setZoekprofielen(next);
+    bewaarZoekprofielen(scopeCode, next);
+  };
+
   const resetZoekfilters = () => {
     setServerFilters({ ...LEGE_SERVER_FILTERS, statussen: [] });
     setFilters(previous => ({ ...previous, gebruiksdoelen: [], alleenGemengd: false }));
@@ -362,6 +387,21 @@ export default function BagServicePandenlijst({
     setPreflight(null);
   };
 
+  const controleerSelectie = () => {
+    const beoordeling = beoordeelBagSelectie(selectiePanden, geselecteerd, context);
+    setPreflight(beoordeling);
+    requestAnimationFrame(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const verwijderUitReview = (bagPandId: string) => {
+    const next = new Set(geselecteerd);
+    next.delete(bagPandId);
+    setGeselecteerd(next);
+    setKaartKandidaten(previous => { const map = new Map(previous); map.delete(bagPandId); return map; });
+    const resterendePanden = selectiePanden.filter(pand => pand.bagPandId !== bagPandId);
+    setPreflight(beoordeelBagSelectie(resterendePanden, next, context));
+  };
+
   const promoveer = async () => {
     if (!preflight?.toegestaan) return;
     setPromotieBezig(true);
@@ -412,12 +452,15 @@ export default function BagServicePandenlijst({
         </div>}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1">
+      <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg border bg-muted/20 p-1">
         <Button type="button" variant={weergave === 'zoeken' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('zoeken')}>
           <Search className="mr-2 h-4 w-4" />Zoeken & lijst
         </Button>
         <Button type="button" variant={weergave === 'kaart' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('kaart')}>
           <MapPinned className="mr-2 h-4 w-4" />Kaart
+        </Button>
+        <Button type="button" variant={weergave === 'opgeslagen' ? 'secondary' : 'ghost'} className="w-full justify-center" onClick={() => setWeergave('opgeslagen')}>
+          Opgeslagen
         </Button>
       </div>
 
@@ -493,17 +536,32 @@ export default function BagServicePandenlijst({
       </>}
     </div>
 
+    {weergave === 'opgeslagen' && <div className="border-b p-4">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input value={profielNaam} onChange={event => setProfielNaam(event.target.value)} placeholder="Naam van deze zoekopdracht" />
+        <Button type="button" onClick={slaZoekprofielOp}>Zoekopdracht opslaan</Button>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">Opgeslagen zoekopdrachten bewaren de filterdefinitie op dit apparaat; resultaten worden bij openen opnieuw actueel opgehaald.</p>
+      <div className="mt-4 space-y-2">
+        {!zoekprofielen.length && <p className="rounded-md border p-4 text-sm text-muted-foreground">Nog geen opgeslagen zoekopdrachten.</p>}
+        {zoekprofielen.map(profiel => <div key={profiel.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+          <div className="min-w-0"><p className="truncate text-sm font-medium">{profiel.naam}</p><p className="text-[11px] text-muted-foreground">{new Date(profiel.bijgewerktOp).toLocaleDateString('nl-NL')}</p></div>
+          <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" onClick={() => openZoekprofiel(profiel)}>Open</Button><Button size="sm" variant="ghost" onClick={() => verwijderZoekprofiel(profiel.id)}>Verwijder</Button></div>
+        </div>)}
+      </div>
+    </div>}
+
     {weergave === 'kaart' && <>
       <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} geselecteerdeIds={geselecteerd} onKandidaatToggle={toggleKaartKandidaat} />
-      {geselecteerd.size > 0 && <div className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3 text-sm"><span>{geselecteerd.size} kandidaat{geselecteerd.size === 1 ? '' : 'panden'} geselecteerd</span><Button size="sm" onClick={() => setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context))}><CheckCircle2 className="mr-1.5 h-4 w-4" />Controleer selectie</Button></div>}
-      {preflight && <div className={`border-b p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
+      {geselecteerd.size > 0 && <div className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3 text-sm"><span>{geselecteerd.size} kandidaat{geselecteerd.size === 1 ? '' : 'panden'} geselecteerd</span><Button size="sm" onClick={controleerSelectie}><CheckCircle2 className="mr-1.5 h-4 w-4" />Controleer selectie</Button></div>}
+      {preflight && <div ref={reviewRef} className="scroll-mt-4 border-b"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
     </>}
 
     <div className={weergave === 'zoeken' ? 'block' : 'hidden'}>
     <div ref={resultatenTopRef} />
     {paginering}
-    {panden.length>0 && <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button className="w-full sm:w-auto" variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button className="w-full sm:w-auto" size="sm" disabled={!geselecteerd.size} onClick={() => setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context))}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
-    {preflight && <div className={`border-t p-4 text-sm ${preflight.toegestaan ? 'bg-emerald-500/5' : 'bg-amber-500/5'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{preflight.toegestaan ? 'Selectie technisch gereed voor handmatige promotie' : 'Selectie geblokkeerd'}</p><p className="mt-1 text-xs text-muted-foreground">{preflight.geselecteerd} gecontroleerd · {preflight.kandidaten.length} kandidaat · {preflight.blokkades.length} blokkade(s). Er is niets opgeslagen.</p></div>{preflight.toegestaan&&<Button size="sm" onClick={() => setPromotieOpen(true)}>Handmatig toevoegen…</Button>}</div>{preflight.blokkades.length>0&&<ul className="mt-2 list-disc pl-5 text-xs">{preflight.blokkades.map(item=><li key={`${item.bagPandId}:${item.reden}`}>{item.bagPandId}: {REDEN_LABEL[item.reden]}</li>)}</ul>}</div>}
+    {panden.length>0 && <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{geselecteerd.size} geselecteerd over {paginas.length} geladen pagina{paginas.length === 1 ? '' : '’s'}; selectie blijft lokaal tot de preflight.</p><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button className="w-full sm:w-auto" variant="outline" size="sm" onClick={() => selecteerPanden(zichtbaar)}>Selecteer zichtbare pagina</Button><Button className="w-full sm:w-auto" variant="outline" size="sm" disabled={!geselecteerd.size} onClick={() => { setGeselecteerd(new Set()); setPreflight(null); }}>Wis selectie</Button><Button className="w-full sm:w-auto" size="sm" disabled={!geselecteerd.size} onClick={controleerSelectie}><CheckCircle2 className="mr-2 h-4 w-4"/>Controleer selectie</Button></div></div>}
+    {preflight && <div ref={reviewRef} className="scroll-mt-4 border-t"><BagSelectieReview preflight={preflight} redenLabel={reden => REDEN_LABEL[reden]} onVerwijder={verwijderUitReview} onToevoegen={() => setPromotieOpen(true)} /></div>}
 
     {!panden.length ? <div className="p-10 text-center text-sm text-muted-foreground">Stel eventueel zoekfilters in en start een zoekopdracht in de actieve BAG-index.</div> : <div className="divide-y">{straatgroepen.map(([straat, straatPanden]) => {
       const status = bepaalStraatSelectieStatus(straatPanden, geselecteerd, isGeblokkeerd);
