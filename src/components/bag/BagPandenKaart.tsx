@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, {
   Layer,
   NavigationControl,
@@ -24,6 +24,7 @@ import {
   type BagKaartFilters,
   type BagKaartPandRij,
 } from '@/lib/bag/kaartModel';
+import { bewaarKaartSessie, leesKaartSessie } from '@/lib/bag/kaartSession';
 
 const PDOK_TILE = 'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png';
 const PDOK_ATTRIBUTION = '&copy; <a href="https://www.pdok.nl">PDOK</a> / <a href="https://www.kadaster.nl">Kadaster</a>';
@@ -124,11 +125,22 @@ function formatGetal(value: number | null, suffix = ''): string | null {
 export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = new Set(), onKandidaatToggle }: Props) {
   const mapRef = useRef<MapRef | null>(null);
   const focusBewegingRef = useRef(false);
-  const [rows, setRows] = useState<BagKaartPandRij[]>([]);
+  const filterKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const initiëleSessie = useRef(leesKaartSessie(scopeCode, filterKey)).current;
+  const [rows, setRows] = useState<BagKaartPandRij[]>(initiëleSessie?.rows ?? []);
   const [laden, setLaden] = useState(false);
-  const [heeftGezocht, setHeeftGezocht] = useState(false);
+  const [heeftGezocht, setHeeftGezocht] = useState(initiëleSessie?.heeftGezocht ?? false);
   const [kaartVerouderd, setKaartVerouderd] = useState(false);
   const [geselecteerd, setGeselecteerd] = useState<BagKaartFeatureProperties | null>(null);
+
+  useEffect(() => {
+    const sessie = leesKaartSessie(scopeCode, filterKey);
+    setRows(sessie?.rows ?? []);
+    setHeeftGezocht(sessie?.heeftGezocht ?? false);
+    setKaartVerouderd(false);
+    setGeselecteerd(null);
+    if (sessie?.viewState) mapRef.current?.jumpTo(sessie.viewState);
+  }, [scopeCode, filterKey]);
 
   const geojson = useMemo(() => bouwBagKaartGeoJson(rows), [rows]);
   const afgekapt = useMemo(() => isBagKaartAfgekapt(rows), [rows]);
@@ -152,6 +164,8 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
       });
       setRows(resultaat.rows);
       setHeeftGezocht(true);
+      const center = map.getCenter();
+      bewaarKaartSessie({ scopeCode, filterKey, rows: resultaat.rows, heeftGezocht: true, viewState: { longitude: center.lng, latitude: center.lat, zoom: map.getZoom() } });
       setKaartVerouderd(false);
       setGeselecteerd(null);
       if (!resultaat.rows.length) toast.info('Geen BAG-panden in dit kaartgebied voor de gekozen filters.');
@@ -240,12 +254,12 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
             {afgekapt && <Badge variant="secondary">Max. {KAART_LIMIET.toLocaleString('nl-NL')}</Badge>}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Beweeg of zoom de kaart en kies daarna ‘Toon panden in beeld’. Dezelfde filters als de lijst worden gebruikt.
+            De kaart onthoudt je laatste gebied binnen deze browsersessie. Verplaats of zoom en kies daarna ‘Zoek in dit gebied’.
           </p>
         </div>
         <Button onClick={() => void zoekInKaartgebied()} disabled={laden}>
           {laden ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : kaartVerouderd ? <RefreshCw className="mr-2 h-4 w-4" /> : <MapPinned className="mr-2 h-4 w-4" />}
-          Toon panden in beeld
+          Zoek in dit gebied
         </Button>
       </div>
 
@@ -260,8 +274,13 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={STYLE as never}
-          initialViewState={AMSTERDAM_VIEWPORT}
-          onMoveEnd={() => { if (focusBewegingRef.current) { focusBewegingRef.current = false; return; } if (heeftGezocht) setKaartVerouderd(true); }}
+          initialViewState={initiëleSessie?.viewState ?? AMSTERDAM_VIEWPORT}
+          onMoveEnd={() => {
+            const map = mapRef.current?.getMap();
+            if (map) { const center = map.getCenter(); bewaarKaartSessie({ scopeCode, filterKey, rows, heeftGezocht, viewState: { longitude: center.lng, latitude: center.lat, zoom: map.getZoom() } }); }
+            if (focusBewegingRef.current) { focusBewegingRef.current = false; return; }
+            if (heeftGezocht) setKaartVerouderd(true);
+          }}
           onClick={onClickKaart}
           interactiveLayerIds={['bag-clusters', 'bag-panden']}
           cursor="pointer"
@@ -328,7 +347,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
         {!heeftGezocht && (
           <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-center">
             <div className="rounded-md border bg-background/95 px-3 py-2 text-xs shadow-sm">
-              Start met ‘Toon panden in beeld’ om panden op de kaart te laden.
+              Start met ‘Zoek in dit gebied’ om panden op de kaart te laden.
             </div>
           </div>
         )}
