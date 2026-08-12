@@ -11,13 +11,14 @@ describe('Pandenverkenner kaartflow hotfix', () => {
     const controleerSelectieBlok = lijst.slice(start, einde);
     expect(start).toBeGreaterThan(-1);
     expect(controleerSelectieBlok).toContain('setPreflight(beoordeling)');
+    expect(controleerSelectieBlok).toContain("weergave === 'kaart' ? kaartReviewRef : lijstReviewRef");
     expect(controleerSelectieBlok).toContain("reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
     expect(controleerSelectieBlok).not.toContain('setWeergave');
     expect(lijst).toContain('<BagSelectieReview');
   });
 
   it('gebruikt de expliciete gebiedszoekactie', () => {
-    expect(kaart).toContain('Zoek in dit gebied');
+    expect(kaart).toContain('Ververs kaart');
     expect(kaart).not.toContain('Zoek in dit kaartgebied');
   });
 });

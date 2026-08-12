@@ -121,7 +121,7 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
 
 describe('BAG preflightpositie', () => {
   it('toont de review vóór de pandenlijst en scrollt er na controle naartoe', () => {
-    const preflightIndex = component.indexOf('{preflight && <div ref={reviewRef}');
+    const preflightIndex = component.indexOf('{preflight && <div ref={lijstReviewRef}');
     const lijstIndex = component.indexOf('{!panden.length ?');
     const actiesIndex = component.indexOf('Controleer selectie');
     expect(preflightIndex).toBeGreaterThan(-1);
@@ -129,5 +129,6 @@ describe('BAG preflightpositie', () => {
     expect(actiesIndex).toBeLessThan(preflightIndex);
     expect(preflightIndex).toBeLessThan(lijstIndex);
     expect(component).toContain("reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
+    expect(component).toContain("weergave === 'kaart' ? kaartReviewRef : lijstReviewRef");
   });
 });
