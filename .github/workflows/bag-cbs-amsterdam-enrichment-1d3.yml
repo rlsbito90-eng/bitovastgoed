@@ -1,0 +1,93 @@
+name: BAG CBS Amsterdam enrichment 1D.3
+
+on:
+  push:
+    branches:
+      - feat/pandenverkenner-cbs-enrichment-1d3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bag-cbs-amsterdam-enrichment-1d3
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: bag-shadow
+    env:
+      BAG_SHADOW_DATABASE_URL: ${{ secrets.BAG_SHADOW_DATABASE_URL }}
+      BAG_SHADOW_PROJECT_REF: xfygspvpeugxowxbcvnm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Harde preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BAG_SHADOW_PROJECT_REF" = 'xfygspvpeugxowxbcvnm'
+          test "$BAG_SHADOW_PROJECT_REF" != 'ljudxyrqoifhfikueric'
+          test "$BAG_SHADOW_PROJECT_REF" != 'wzkhmjuasyuvzhhycnym'
+          test -n "$BAG_SHADOW_DATABASE_URL"
+          command -v psql
+
+          psql "$BAG_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -F $'\t' -A -P footer=off <<'SQL' > preflight.tsv
+          select 'build_status', status from bag_search.index_builds where id=3 and scope_code='0363';
+          select 'index_rows', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363';
+          select 'wijk_filled_before', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and wijk_code is not null;
+          select 'buurt_filled_before', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and buurt_code is not null;
+          select 'staging_buurten', count(*) from bag_search.cbs_buurten_staging;
+          select 'staging_wijken', count(*) from bag_search.cbs_wijken_staging;
+          SQL
+          cat preflight.tsv
+          grep -qx $'build_status\tactief' preflight.tsv
+          grep -qx $'index_rows\t211112' preflight.tsv
+          grep -qx $'wijk_filled_before\t0' preflight.tsv
+          grep -qx $'buurt_filled_before\t0' preflight.tsv
+          grep -qx $'staging_buurten\t519' preflight.tsv
+          grep -qx $'staging_wijken\t111' preflight.tsv
+
+      - name: Voer atomische CBS-verrijking uit
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$BAG_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f experiments/bag/pandenverkenner-2-0/1d3-cbs-amsterdam-active-enrichment.sql | tee enrichment.log
+          grep -Eq '211082' enrichment.log
+
+      - name: Eindcontrole
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$BAG_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -F $'\t' -A -P footer=off <<'SQL' > resultaat.tsv
+          select 'build_status', status from bag_search.index_builds where id=3 and scope_code='0363';
+          select 'index_rows', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363';
+          select 'wijk_filled', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and wijk_code is not null;
+          select 'buurt_filled', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and buurt_code is not null;
+          select 'cbs_2025', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and cbs_gebiedsjaar=2025;
+          select 'buurt_null', count(*) from bag_search.pand_search_index where index_build_id=3 and scope_code='0363' and buurt_code is null;
+          select 'meta_verrijkt', cbs_verrijkte_panden from bag_search.index_builds where id=3 and scope_code='0363';
+          select 'meta_ongekoppeld', cbs_ongekoppelde_panden from bag_search.index_builds where id=3 and scope_code='0363';
+          SQL
+          cat resultaat.tsv
+          grep -qx $'build_status\tactief' resultaat.tsv
+          grep -qx $'index_rows\t211112' resultaat.tsv
+          grep -qx $'wijk_filled\t211082' resultaat.tsv
+          grep -qx $'buurt_filled\t211082' resultaat.tsv
+          grep -qx $'cbs_2025\t211082' resultaat.tsv
+          grep -qx $'buurt_null\t30' resultaat.tsv
+          grep -qx $'meta_verrijkt\t211082' resultaat.tsv
+          grep -qx $'meta_ongekoppeld\t30' resultaat.tsv
+
+      - name: Upload bewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bag-cbs-amsterdam-enrichment-1d3-proof
+          path: |
+            preflight.tsv
+            enrichment.log
+            resultaat.tsv
+          if-no-files-found: warn
+          retention-days: 14
