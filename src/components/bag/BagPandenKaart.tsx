@@ -227,12 +227,12 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
             {afgekapt && <Badge variant="secondary">Max. {KAART_LIMIET.toLocaleString('nl-NL')}</Badge>}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Beweeg of zoom de kaart en kies daarna ‘Zoek in dit kaartgebied’. Dezelfde filters als de lijst worden gebruikt.
+            Beweeg of zoom de kaart en kies daarna ‘Toon panden in beeld’. Dezelfde filters als de lijst worden gebruikt.
           </p>
         </div>
         <Button onClick={() => void zoekInKaartgebied()} disabled={laden}>
           {laden ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : kaartVerouderd ? <RefreshCw className="mr-2 h-4 w-4" /> : <MapPinned className="mr-2 h-4 w-4" />}
-          Zoek in dit kaartgebied
+          Toon panden in beeld
         </Button>
       </div>
 

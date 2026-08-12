@@ -495,7 +495,7 @@ export default function BagServicePandenlijst({
 
     {weergave === 'kaart' && <>
       <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} geselecteerdeIds={geselecteerd} onKandidaatToggle={toggleKaartKandidaat} />
-      {geselecteerd.size > 0 && <div className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3 text-sm"><span>{geselecteerd.size} kandidaat{geselecteerd.size === 1 ? '' : 'panden'} geselecteerd</span><Button size="sm" onClick={() => { setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context)); setWeergave('zoeken'); }}><CheckCircle2 className="mr-1.5 h-4 w-4" />Controleer selectie</Button></div>}
+      {geselecteerd.size > 0 && <div className="flex items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3 text-sm"><span>{geselecteerd.size} kandidaat{geselecteerd.size === 1 ? '' : 'panden'} geselecteerd</span><Button size="sm" onClick={() => setPreflight(beoordeelBagSelectie(selectiePanden, geselecteerd, context))}><CheckCircle2 className="mr-1.5 h-4 w-4" />Controleer selectie</Button></div>}
     </>}
 
     <div className={weergave === 'zoeken' ? 'block' : 'hidden'}>
