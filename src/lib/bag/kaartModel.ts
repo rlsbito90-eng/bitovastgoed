@@ -52,6 +52,15 @@ export interface BagKaartFeatureProperties {
   buurt: string;
 }
 
+export interface BagKaartV3Rij {
+  item_type: 'cluster' | 'pand'; cluster_id: string | null; aantal: number; datasetversie_id: number | null; index_build_id: number | null; identificatie: string | null;
+  status: string | null; bouwjaar: number | null; vbo_aantal: number | null; vbo_oppervlakte_som: number | string | null; gebruiksdoelen: string[] | null; is_gemengd: boolean | null;
+  primair_adres: string | null; primair_postcode: string | null; primair_plaats: string | null; wijk_code: string | null; wijk_naam: string | null; buurt_code: string | null; buurt_naam: string | null;
+  center_geojson: Point | null; pand_geojson: import('geojson').Polygon | import('geojson').MultiPolygon | null; afgekapt: boolean;
+}
+
+export interface BagKaartV3FeatureProperties extends BagKaartFeatureProperties { itemType: 'cluster' | 'pand'; aantal: number; clusterId: string; }
+
 function getal(value: number | string | null): number | null {
   if (value === null) return null;
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -86,6 +95,21 @@ export function bouwBagKaartGeoJson(rows: BagKaartPandRij[]): FeatureCollection<
       },
     })),
   };
+}
+
+export function bouwBagKaartV3Punten(rows: BagKaartV3Rij[]): FeatureCollection<Point, BagKaartV3FeatureProperties> {
+  return { type: 'FeatureCollection', features: rows.filter(row => geldigPunt(row.center_geojson)).map(row => ({
+    type: 'Feature', geometry: row.center_geojson as Point, properties: {
+      itemType: row.item_type, aantal: Number(row.aantal) || 0, clusterId: row.cluster_id ?? '', id: row.identificatie ?? row.cluster_id ?? '',
+      adres: row.primair_adres ?? (row.item_type === 'cluster' ? `${Number(row.aantal) || 0} panden` : `BAG-pand ${row.identificatie ?? ''}`),
+      postcode: row.primair_postcode ?? '', plaats: row.primair_plaats ?? '', status: row.status ?? '', bouwjaar: Number.isFinite(row.bouwjaar) ? row.bouwjaar : null,
+      gbo: getal(row.vbo_oppervlakte_som), vboAantal: Number.isFinite(row.vbo_aantal) ? row.vbo_aantal : null, wijk: row.wijk_naam ?? '', buurt: row.buurt_naam ?? '',
+    }
+  })) };
+}
+
+export function bouwBagKaartV3Contouren(rows: BagKaartV3Rij[]): import('geojson').FeatureCollection<import('geojson').Polygon | import('geojson').MultiPolygon, { id: string }> {
+  return { type: 'FeatureCollection', features: rows.filter(row => row.item_type === 'pand' && row.identificatie && row.pand_geojson).map(row => ({ type: 'Feature', geometry: row.pand_geojson!, properties: { id: row.identificatie! } })) };
 }
 
 export function isBagKaartAfgekapt(rows: BagKaartPandRij[]): boolean {
