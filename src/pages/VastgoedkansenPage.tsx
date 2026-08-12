@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
+import { useActieveVastgoedkansSelectieIds, useVoegVastgoedkansToeAanAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { HERKOMST_LABEL, PRIORITEIT_LABEL, STATUS_LABEL, STATUS_VOLGORDE, kansTitel, type Vastgoedkans, type VastgoedkansStatus } from '@/lib/vastgoedkansen';
 import { leesVastgoedkansWerkcontext } from '@/lib/vastgoedkansWorkspace';
 import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';
@@ -18,6 +19,8 @@ type Werkbak = VastgoedkansStatus | 'alles' | 'archief';
 
 export default function VastgoedkansenPage() {
   const { kansen, archief, laden, archiveKansen, restoreKansen } = useVastgoedkansen();
+  const actieveAcquisitieIds = useActieveVastgoedkansSelectieIds();
+  const voegToeAanAcquisitie = useVoegVastgoedkansToeAanAcquisitieSelectie();
   const [werkbak, setWerkbakState] = useState<Werkbak>('te_beoordelen');
   const [q, setQ] = useState('');
   const [form, setForm] = useState<{ open: boolean; kans: Vastgoedkans | null }>({ open: false, kans: null });
@@ -49,6 +52,21 @@ export default function VastgoedkansenPage() {
   });
   const toggleAlles = () => setGeselecteerd(alleZichtbaarGeselecteerd ? new Set() : new Set(list.map((kans) => kans.id)));
   const stopSelecteren = () => { setSelectieModus(false); setGeselecteerd(new Set()); };
+
+  const voegSelectieToeAanAcquisitie = async () => {
+    const ids = [...geselecteerd];
+    const toeTeVoegen = ids.filter((id) => !actieveAcquisitieIds.has(id));
+    if (toeTeVoegen.length === 0) {
+      toast.info('Alle geselecteerde Vastgoedkansen staan al in de acquisitieselectie.');
+      return;
+    }
+    try {
+      for (const id of toeTeVoegen) await voegToeAanAcquisitie.mutateAsync(id);
+      toast.success(`${toeTeVoegen.length} Vastgoedkans${toeTeVoegen.length === 1 ? '' : 'en'} toegevoegd aan de acquisitieselectie.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Toevoegen aan acquisitieselectie mislukt.');
+    }
+  };
 
   const voerBulkActieUit = async () => {
     const ids = [...geselecteerd];
@@ -91,7 +109,7 @@ export default function VastgoedkansenPage() {
 
     {selectieModus && <section className="section-card flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4">
       <div className="flex items-center gap-3"><Checkbox checked={alleZichtbaarGeselecteerd} onCheckedChange={toggleAlles} aria-label="Selecteer alle zichtbare vastgoedkansen" /><div><p className="text-sm font-medium">{geselecteerd.size} geselecteerd</p><p className="text-xs text-muted-foreground">{list.length} zichtbaar in deze werkbak</p></div></div>
-      <div className="flex flex-wrap gap-2">{werkbak === 'archief' ? <Button variant="outline" disabled={geselecteerd.size === 0} onClick={() => setBevestigActie('heropenen')}><RotateCcw className="mr-1.5 h-4 w-4" />Heropenen</Button> : <Button variant="outline" disabled={geselecteerd.size === 0} onClick={() => setBevestigActie('archiveren')}><Archive className="mr-1.5 h-4 w-4" />Archiveren</Button>}</div>
+      <div className="flex flex-wrap gap-2">{werkbak === 'archief' ? <Button variant="outline" disabled={geselecteerd.size === 0} onClick={() => setBevestigActie('heropenen')}><RotateCcw className="mr-1.5 h-4 w-4" />Heropenen</Button> : <><Button variant="secondary" disabled={geselecteerd.size === 0 || voegToeAanAcquisitie.isPending} onClick={() => void voegSelectieToeAanAcquisitie()}>Naar acquisitieselectie</Button><Button variant="outline" disabled={geselecteerd.size === 0} onClick={() => setBevestigActie('archiveren')}><Archive className="mr-1.5 h-4 w-4" />Archiveren</Button></>}</div>
     </section>}
 
     <section className="section-card min-w-0 overflow-hidden">
