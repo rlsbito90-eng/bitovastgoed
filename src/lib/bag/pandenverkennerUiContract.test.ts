@@ -14,12 +14,15 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(page).not.toContain('service_role');
   });
 
-  it('gebruikt alleen de geauthenticeerde v3-transportadapter en houdt v2 buiten de UI', () => {
+  it('gebruikt alleen de geauthenticeerde v4-transportadapter en houdt v2/v3 buiten de UI', () => {
     expect(component).toContain("from '@/lib/bag/queryTransport'");
-    expect(component).toContain('zoekPandenViaServiceV3');
+    expect(component).toContain('zoekPandenViaServiceV4');
     expect(component).not.toContain('zoekPandenViaServiceV2');
+    expect(component).not.toContain('zoekPandenViaServiceV3');
     expect(component).toContain('vboOppervlakteSomVan');
     expect(component).toContain('statussen: serverFilters.statussen');
+    expect(component).toContain('wijkCodes: serverFilters.wijkCodes');
+    expect(component).toContain('buurtCodes: serverFilters.buurtCodes');
     expect(component).toContain('gebruiksdoelen: filters.gebruiksdoelen');
     expect(component).not.toContain('createClient');
     expect(component).not.toContain('fetch(');
@@ -49,11 +52,12 @@ describe('BAG Pandenverkenner 2.0 lijst-/filterinterface', () => {
     expect(component).not.toContain('m² VBO-som');
   });
 
-  it('maakt gebruiksfunctie echt multiselect en legt OF/EN-semantiek uit', () => {
+  it('maakt gebruiksfunctie en gebiedsfilters multiselect en legt OF/EN-semantiek uit', () => {
     expect(component).toContain('Gebruiksfunctie');
+    expect(component).toContain('BagGebiedsfilters');
     expect(component).toContain('previous.gebruiksdoelen.filter');
     expect(component).toContain('[...previous.gebruiksdoelen, functie]');
-    expect(component).toContain('Binnen Pandstatus en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN.');
+    expect(component).toContain('Binnen Pandstatus, Wijk, Buurt en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN.');
   });
 
   it('maakt sortering zichtbaar en benoemt dat deze op de geladen pagina werkt', () => {
