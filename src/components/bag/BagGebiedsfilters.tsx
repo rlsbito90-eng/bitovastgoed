@@ -61,7 +61,7 @@ export default function BagGebiedsfilters({
 
   return (
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
-      <details className="rounded-md border bg-background" open={wijkCodes.length > 0}>
+      <details className="rounded-md border bg-background">
         <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
           <span className="flex items-center justify-between gap-2">
             <span>Wijk</span>
@@ -86,7 +86,7 @@ export default function BagGebiedsfilters({
         </div>
       </details>
 
-      <details className="rounded-md border bg-background" open={buurtCodes.length > 0}>
+      <details className="rounded-md border bg-background">
         <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
           <span className="flex items-center justify-between gap-2">
             <span>Buurt</span>
