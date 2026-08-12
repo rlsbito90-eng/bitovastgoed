@@ -1,0 +1,22 @@
+name: Run Pandenverkenner kaartworkflow test patch
+on:
+  push:
+    branches:
+      - fix/pandenverkenner-kaart-workflow-focus
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pandenverkenner-kaart-workflow-focus
+      - run: node scripts/dev/apply-pandenverkenner-kaart-workflow-tests.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/bag/BagPandenKaart.tsx src/lib/bag/pandenverkennerKaart1E1.test.ts src/lib/bag/pandenverkennerUiContract.test.ts
+          git commit -m "test(bag): actualiseer kaartworkflow-contracten"
+          git push origin HEAD:fix/pandenverkenner-kaart-workflow-focus
