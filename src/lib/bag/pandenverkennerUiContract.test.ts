@@ -126,6 +126,6 @@ describe('BAG preflightpositie', () => {
     expect(lijstIndex).toBeGreaterThan(-1);
     expect(actiesIndex).toBeLessThan(preflightIndex);
     expect(preflightIndex).toBeLessThan(lijstIndex);
-    expect(component.split('Er is niets opgeslagen.')).toHaveLength(2);
+    expect(component.split('Er is niets opgeslagen.')).toHaveLength(3);
   });
 });

@@ -123,6 +123,7 @@ function formatGetal(value: number | null, suffix = ''): string | null {
 
 export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = new Set(), onKandidaatToggle }: Props) {
   const mapRef = useRef<MapRef | null>(null);
+  const focusBewegingRef = useRef(false);
   const [rows, setRows] = useState<BagKaartPandRij[]>([]);
   const [laden, setLaden] = useState(false);
   const [heeftGezocht, setHeeftGezocht] = useState(false);
@@ -194,6 +195,18 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
         wijk: String(properties.wijk ?? ''),
         buurt: String(properties.buurt ?? ''),
       });
+      if (feature.geometry.type === 'Point') {
+        const map = mapRef.current?.getMap();
+        if (map) {
+          focusBewegingRef.current = true;
+          map.easeTo({
+            center: (feature.geometry as Point).coordinates as [number, number],
+            zoom: Math.max(map.getZoom(), 16),
+            offset: [0, 110],
+            duration: 420,
+          });
+        }
+      }
     }
   }, []);
 
@@ -248,7 +261,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
           mapLib={maplibregl}
           mapStyle={STYLE as never}
           initialViewState={AMSTERDAM_VIEWPORT}
-          onMoveEnd={() => { if (heeftGezocht) setKaartVerouderd(true); }}
+          onMoveEnd={() => { if (focusBewegingRef.current) { focusBewegingRef.current = false; return; } if (heeftGezocht) setKaartVerouderd(true); }}
           onClick={onClickKaart}
           interactiveLayerIds={['bag-clusters', 'bag-panden']}
           cursor="pointer"
@@ -274,7 +287,8 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
               closeOnClick={false}
               onClose={() => setGeselecteerd(null)}
               maxWidth="320px"
-              offset={10}
+              anchor="bottom"
+              offset={12}
             >
               <div className="min-w-[240px] p-1 text-sm text-foreground">
                 <div className="flex items-start justify-between gap-2">
@@ -314,7 +328,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
         {!heeftGezocht && (
           <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-center">
             <div className="rounded-md border bg-background/95 px-3 py-2 text-xs shadow-sm">
-              Start met ‘Zoek in dit kaartgebied’ om panden op de kaart te laden.
+              Start met ‘Toon panden in beeld’ om panden op de kaart te laden.
             </div>
           </div>
         )}
