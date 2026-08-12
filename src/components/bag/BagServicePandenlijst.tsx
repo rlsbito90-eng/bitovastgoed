@@ -22,11 +22,13 @@ import {
   type BagVerkennerPand,
 } from '@/lib/bag/pandenverkennerModel';
 import { bouwGoogleMapsAdresUrl } from '@/lib/bag/googleMaps';
-import { zoekPandenViaServiceV3 } from '@/lib/bag/queryTransport';
+import { haalCbsGebiedsopties, zoekPandenViaServiceV4 } from '@/lib/bag/queryTransport';
+import type { BagCbsGebiedsoptie } from '@/lib/bag/queryService';
 import { bepaalStraatSelectieStatus, toggleStraatSelectie } from '@/lib/bag/straatSelectie';
 import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
 import BagScopeStatus from './BagScopeStatus';
+import BagGebiedsfilters from './BagGebiedsfilters';
 import {
   beoordeelBagSelectie,
   blokkadeVoorPand,
@@ -61,6 +63,8 @@ interface Props {
 
 interface ServerFilters {
   statussen: string[];
+  wijkCodes: string[];
+  buurtCodes: string[];
   bouwjaarVan: string;
   bouwjaarTot: string;
   vboSomVan: string;
@@ -74,6 +78,8 @@ interface ServerFilters {
 
 const LEGE_SERVER_FILTERS: ServerFilters = {
   statussen: [],
+  wijkCodes: [],
+  buurtCodes: [],
   bouwjaarVan: '',
   bouwjaarTot: '',
   vboSomVan: '',
@@ -117,6 +123,18 @@ export default function BagServicePandenlijst({
     zoekterm: '', gebruiksdoelen: [], alleenGemengd: false, sortering: 'identificatie',
   });
   const [serverFilters, setServerFilters] = useState<ServerFilters>(LEGE_SERVER_FILTERS);
+  const [gebiedsopties, setGebiedsopties] = useState<BagCbsGebiedsoptie[]>([]);
+  const [gebiedenLaden, setGebiedenLaden] = useState(false);
+
+  useEffect(() => {
+    let actief = true;
+    setGebiedenLaden(true);
+    void haalCbsGebiedsopties(scopeCode)
+      .then(resultaat => { if (actief) setGebiedsopties(resultaat.rows); })
+      .catch(error => { if (actief) toast.error(error instanceof Error ? error.message : 'Wijken en buurten laden mislukt.'); })
+      .finally(() => { if (actief) setGebiedenLaden(false); });
+    return () => { actief = false; };
+  }, [scopeCode]);
 
   useEffect(() => {
     const controleerScroll = () => setToonNaarBoven(window.scrollY > 500);
@@ -163,13 +181,15 @@ export default function BagServicePandenlijst({
   const laad = async (opnieuw = false) => {
     setLaden(true);
     try {
-      const resultaat = await zoekPandenViaServiceV3<BagServicePandV2Rij>({
+      const resultaat = await zoekPandenViaServiceV4<BagServicePandV2Rij>({
         scopeCode,
         naIdentificatie: opnieuw ? null : cursor,
         limiet: PAGE_SIZE,
         bouwjaarVan: optioneelGetal(serverFilters.bouwjaarVan),
         bouwjaarTot: optioneelGetal(serverFilters.bouwjaarTot),
         statussen: serverFilters.statussen,
+        wijkCodes: serverFilters.wijkCodes,
+        buurtCodes: serverFilters.buurtCodes,
         vboOppervlakteSomVan: optioneelGetal(serverFilters.vboSomVan),
         vboOppervlakteSomTot: optioneelGetal(serverFilters.vboSomTot),
         vboOppervlakteMaxVan: optioneelGetal(serverFilters.vboMaxVan),
@@ -357,6 +377,15 @@ export default function BagServicePandenlijst({
         <div className="flex flex-wrap gap-2">{PANDSTATUSSEN.map(status => <label key={status} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs"><Checkbox checked={serverFilters.statussen.includes(status)} onCheckedChange={() => toggleStatus(status)}/>{status}</label>)}</div>
       </div>
 
+      <BagGebiedsfilters
+        opties={gebiedsopties}
+        wijkCodes={serverFilters.wijkCodes}
+        buurtCodes={serverFilters.buurtCodes}
+        onWijkCodesChange={wijkCodes => setServerFilters(previous => ({ ...previous, wijkCodes }))}
+        onBuurtCodesChange={buurtCodes => setServerFilters(previous => ({ ...previous, buurtCodes }))}
+        laden={gebiedenLaden}
+      />
+
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <Input inputMode="decimal" value={serverFilters.vboSomVan} onChange={event => setServerFilters(previous => ({ ...previous, vboSomVan: event.target.value }))} placeholder="GBO totaal vanaf" />
         <Input inputMode="decimal" value={serverFilters.vboSomTot} onChange={event => setServerFilters(previous => ({ ...previous, vboSomTot: event.target.value }))} placeholder="GBO totaal t/m" />
@@ -372,7 +401,7 @@ export default function BagServicePandenlijst({
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_260px]">
-        <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, plaats, postcode of BAG-ID" />
+        <Input value={filters.zoekterm} onChange={event => setFilters(previous => ({ ...previous, zoekterm: event.target.value }))} placeholder="Filter geladen pagina lokaal op adres, wijk, buurt, postcode of BAG-ID" />
         <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={filters.sortering} onChange={event => setFilters(previous => ({ ...previous, sortering: event.target.value as BagVerkennerFilters['sortering'] }))} aria-label="Sorteer geladen pagina">
           <option value="identificatie">Sortering: BAG-ID</option>
           <option value="adres_az">Adres A–Z</option>
@@ -385,7 +414,7 @@ export default function BagServicePandenlijst({
           <option value="vbo_aantal_laag_hoog">Aantal VBO laag → hoog</option>
         </select>
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">Binnen Pandstatus en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN. Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">Binnen Pandstatus, Wijk, Buurt en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN. Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
     </div>
 
     <div ref={resultatenTopRef} />
@@ -408,7 +437,7 @@ export default function BagServicePandenlijst({
             <Checkbox className="mt-1" disabled={blokkade !== null} checked={isGeselecteerd} onCheckedChange={() => togglePand(pand)}/>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{pand.adres}</p>{pand.gemengdGebruik&&<Badge>Gemengd</Badge>}{pand.status&&<Badge variant="outline">{pand.status}</Badge>}{blokkade&&<BagCrmMatchBadge pand={pand} fallbackLabel={REDEN_LABEL[blokkade]}/>}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte!==null?`${Math.round(pand.oppervlakte)} m² GBO`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{[pand.postcode,pand.plaats,pand.wijkNaam,pand.buurtNaam,pand.bouwjaar?`Bouwjaar ${pand.bouwjaar}`:null,pand.oppervlakte!==null?`${Math.round(pand.oppervlakte)} m² GBO`:null,`${pand.aantalVerblijfsobjecten} VBO${pand.aantalVerblijfsobjecten === 1 ? '' : '’s'}`].filter(Boolean).join(' · ')}</p>
               <div className="mt-2 flex flex-wrap gap-1">{pand.gebruiksdoelen.map(doel => <Badge key={doel} variant="secondary" className="text-[10px]">{doel}</Badge>)}</div>
               <p className="mt-2 font-mono-data text-[11px] text-muted-foreground">BAG-pand {pand.bagPandId}</p>
             </div>
