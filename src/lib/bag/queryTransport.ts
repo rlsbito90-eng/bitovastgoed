@@ -3,10 +3,13 @@ import {
   valideerPandZoekAanvraag,
   valideerPandZoekAanvraagV2,
   valideerPandZoekAanvraagV3,
+  valideerPandZoekAanvraagV4,
   valideerViewportAanvraag,
+  type BagCbsGebiedsoptie,
   type BagPandZoekAanvraag,
   type BagPandZoekAanvraagV2,
   type BagPandZoekAanvraagV3,
+  type BagPandZoekAanvraagV4,
   type BagViewportAanvraag,
 } from './queryService';
 import {
@@ -16,6 +19,7 @@ import {
 import {
   assertBagV2ResultatenVoldoenAanFilters,
   assertBagV3ResultatenVoldoenAanFilters,
+  assertBagV4ResultatenVoldoenAanFilters,
 } from './zoekResultaatGuard';
 
 export interface BagTransportResultaat<T> {
@@ -87,6 +91,11 @@ export async function haalPandenInViewport<T>(aanvraag: BagViewportAanvraag): Pr
   });
 }
 
+export async function haalCbsGebiedsopties(scopeCode: string): Promise<BagTransportResultaat<BagCbsGebiedsoptie>> {
+  controleerScope(scopeCode);
+  return invoke<BagCbsGebiedsoptie>({ action: 'gebiedsopties', scopeCode });
+}
+
 export async function zoekPandenViaService<T>(aanvraag: BagPandZoekAanvraag): Promise<BagTransportResultaat<T>> {
   const validatie = valideerPandZoekAanvraag(aanvraag);
   if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
@@ -142,5 +151,22 @@ export async function zoekPandenViaServiceV3<T>(aanvraag: BagPandZoekAanvraagV3)
     gebruiksdoelen: aanvraag.gebruiksdoelen, isGemengd: aanvraag.isGemengd, vboModus: aanvraag.vboModus,
   }, { retryBijNetwerkfout: true });
   assertBagV3ResultatenVoldoenAanFilters(resultaat.rows, aanvraag);
+  return resultaat;
+}
+
+export async function zoekPandenViaServiceV4<T>(aanvraag: BagPandZoekAanvraagV4): Promise<BagTransportResultaat<T>> {
+  const validatie = valideerPandZoekAanvraagV4(aanvraag);
+  if (!validatie.geldig) throw new TypeError(validatie.fouten.join(' '));
+  controleerScope(aanvraag.scopeCode);
+  const resultaat = await invoke<T>({
+    action: 'search_v4', scopeCode: aanvraag.scopeCode, cursor: aanvraag.naIdentificatie, limit: aanvraag.limiet,
+    bouwjaarVan: aanvraag.bouwjaarVan, bouwjaarTot: aanvraag.bouwjaarTot, statussen: aanvraag.statussen,
+    vboOppervlakteSomVan: aanvraag.vboOppervlakteSomVan, vboOppervlakteSomTot: aanvraag.vboOppervlakteSomTot,
+    vboOppervlakteMaxVan: aanvraag.vboOppervlakteMaxVan, vboOppervlakteMaxTot: aanvraag.vboOppervlakteMaxTot,
+    vboAantalVan: aanvraag.vboAantalVan, vboAantalTot: aanvraag.vboAantalTot,
+    gebruiksdoelen: aanvraag.gebruiksdoelen, isGemengd: aanvraag.isGemengd, vboModus: aanvraag.vboModus,
+    wijkCodes: aanvraag.wijkCodes, buurtCodes: aanvraag.buurtCodes,
+  }, { retryBijNetwerkfout: true });
+  assertBagV4ResultatenVoldoenAanFilters(resultaat.rows, aanvraag);
   return resultaat;
 }
