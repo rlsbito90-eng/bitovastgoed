@@ -54,6 +54,18 @@ export interface BagPandZoekAanvraagV4 extends BagPandZoekAanvraagV3 {
   buurtCodes: string[];
 }
 
+export interface BagWgs84Viewport {
+  minLon: number;
+  minLat: number;
+  maxLon: number;
+  maxLat: number;
+}
+
+export type BagKaartAanvraagV2 = Omit<BagPandZoekAanvraagV4, 'naIdentificatie' | 'limiet'> & {
+  viewport: BagWgs84Viewport;
+  limiet: number;
+};
+
 export interface BagCbsGebiedsoptie {
   cbs_gebiedsjaar: number;
   wijk_code: string;
@@ -160,6 +172,34 @@ export function valideerViewportAanvraag(
     fouten.push('De viewport valt buiten de begrensde RD New-zone.');
   }
 
+  return { geldig: fouten.length === 0, fouten };
+}
+
+export function valideerKaartAanvraagV2(
+  aanvraag: BagKaartAanvraagV2,
+): BagQueryValidatie {
+  const fouten = [...valideerPandZoekAanvraagV4({
+    ...aanvraag,
+    naIdentificatie: null,
+    limiet: 100,
+  }).fouten];
+  const { viewport, limiet } = aanvraag;
+  const waarden = [viewport.minLon, viewport.minLat, viewport.maxLon, viewport.maxLat];
+  if (!Number.isInteger(limiet) || limiet < 1 || limiet > 1_500) {
+    fouten.push('De kaartlimiet moet tussen 1 en 1.500 liggen.');
+  }
+  if (waarden.some(waarde => !Number.isFinite(waarde))) {
+    fouten.push('Alle kaartcoördinaten moeten eindig zijn.');
+  } else if (
+    viewport.minLon < 3.0
+    || viewport.maxLon > 8.0
+    || viewport.minLat < 50.0
+    || viewport.maxLat > 54.5
+    || viewport.minLon >= viewport.maxLon
+    || viewport.minLat >= viewport.maxLat
+  ) {
+    fouten.push('De kaartviewport valt buiten de begrensde Nederlandse WGS84-zone.');
+  }
   return { geldig: fouten.length === 0, fouten };
 }
 

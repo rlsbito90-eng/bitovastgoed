@@ -29,6 +29,8 @@ import BagHandmatigePromotieDialog from './BagHandmatigePromotieDialog';
 import BagCrmMatchBadge from './BagCrmMatchBadge';
 import BagScopeStatus from './BagScopeStatus';
 import BagGebiedsfilters from './BagGebiedsfilters';
+import BagPandenKaart from './BagPandenKaart';
+import type { BagKaartFilters } from '@/lib/bag/kaartModel';
 import {
   beoordeelBagSelectie,
   blokkadeVoorPand,
@@ -170,6 +172,23 @@ export default function BagServicePandenlijst({
     });
     return [...groepen.entries()];
   }, [zichtbaar]);
+
+  const kaartFilters = useMemo<BagKaartFilters>(() => ({
+    bouwjaarVan: optioneelGetal(serverFilters.bouwjaarVan),
+    bouwjaarTot: optioneelGetal(serverFilters.bouwjaarTot),
+    statussen: serverFilters.statussen,
+    wijkCodes: serverFilters.wijkCodes,
+    buurtCodes: serverFilters.buurtCodes,
+    vboOppervlakteSomVan: optioneelGetal(serverFilters.vboSomVan),
+    vboOppervlakteSomTot: optioneelGetal(serverFilters.vboSomTot),
+    vboOppervlakteMaxVan: optioneelGetal(serverFilters.vboMaxVan),
+    vboOppervlakteMaxTot: optioneelGetal(serverFilters.vboMaxTot),
+    vboAantalVan: optioneelGetal(serverFilters.vboAantalVan),
+    vboAantalTot: optioneelGetal(serverFilters.vboAantalTot),
+    gebruiksdoelen: filters.gebruiksdoelen,
+    isGemengd: filters.alleenGemengd ? true : null,
+    vboModus: serverFilters.vboModus,
+  }), [serverFilters, filters.gebruiksdoelen, filters.alleenGemengd]);
 
   const context = { bestaandeBagIds, bestaandeAdresSleutels, maximaalAantal: 250 };
   const isGeblokkeerd = (pand: BagVerkennerPand) => blokkadeVoorPand(pand, context) !== null;
@@ -416,6 +435,8 @@ export default function BagServicePandenlijst({
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">Binnen Pandstatus, Wijk, Buurt en Gebruiksfunctie geldt OF; tussen verschillende filtergroepen geldt EN. Sortering geldt nu voor de geladen pagina. Bij wijziging van een zoekfilter worden oude resultaten gewist; klik daarna opnieuw op Zoeken.</p>
     </div>
+
+    <BagPandenKaart scopeCode={scopeCode} filters={kaartFilters} />
 
     <div ref={resultatenTopRef} />
     {paginering}
