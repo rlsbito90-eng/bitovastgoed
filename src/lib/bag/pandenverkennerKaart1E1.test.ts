@@ -88,7 +88,7 @@ describe('Pandenverkenner kaart-UX 1E.1', () => {
     expect(component).toContain("from 'react-map-gl/maplibre'");
     expect(component).toContain('service.pdok.nl/brt/achtergrondkaart/wmts');
     expect(component).toContain('clusterMaxZoom');
-    expect(component).toContain('Toon panden in beeld');
+    expect(component).toContain('Zoek in dit gebied');
   });
 
   it('zoekt niet automatisch bij iedere kaartbeweging', () => {
@@ -96,6 +96,12 @@ describe('Pandenverkenner kaart-UX 1E.1', () => {
     expect(component).toContain('if (heeftGezocht) setKaartVerouderd(true);');
     expect(component).not.toContain('onMove={zoekInKaartgebied}');
     expect(component).toContain('Zoom verder in voor een complete kaartselectie');
+  });
+
+  it('herstelt kaartgebied en resultaten binnen dezelfde browsersessie', () => {
+    expect(component).toContain('leesKaartSessie');
+    expect(component).toContain('bewaarKaartSessie');
+    expect(component).toContain('initialViewState={initiëleSessie?.viewState ?? AMSTERDAM_VIEWPORT}');
   });
 
   it('koppelt dezelfde lijstfilters aan de kaartcomponent', () => {

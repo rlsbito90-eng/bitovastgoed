@@ -17,7 +17,7 @@ export default function BagHandmatigePromotieDialog({
   return <AlertDialog open={open} onOpenChange={onOpenChange}>
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>{aantal} BAG-pand{aantal === 1 ? '' : 'en'} handmatig toevoegen?</AlertDialogTitle>
+        <AlertDialogTitle>{aantal} BAG-pand{aantal === 1 ? '' : 'en'} toevoegen aan Vastgoedkansen?</AlertDialogTitle>
         <AlertDialogDescription>
           Dit maakt uitsluitend Vastgoedkansen met status te beoordelen. Er worden geen Objecten of Deals gemaakt en er start geen Kadaster-, eigenaar-, brief- of andere vervolgactie.
         </AlertDialogDescription>
