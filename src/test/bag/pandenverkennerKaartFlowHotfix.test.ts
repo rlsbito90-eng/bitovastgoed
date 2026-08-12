@@ -6,9 +6,14 @@ const kaart = fs.readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
 
 describe('Pandenverkenner kaartflow hotfix', () => {
   it('blijft in kaartweergave na Controleer selectie en gebruikt de gedeelde review', () => {
-    expect(lijst).toContain('onClick={controleerSelectie}');
+    const start = lijst.indexOf('const controleerSelectie = () => {');
+    const einde = lijst.indexOf('const verwijderUitReview', start);
+    const controleerSelectieBlok = lijst.slice(start, einde);
+    expect(start).toBeGreaterThan(-1);
+    expect(controleerSelectieBlok).toContain('setPreflight(beoordeling)');
+    expect(controleerSelectieBlok).toContain("reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
+    expect(controleerSelectieBlok).not.toContain('setWeergave');
     expect(lijst).toContain('<BagSelectieReview');
-    expect(lijst).not.toContain("setWeergave('zoeken')");
   });
 
   it('gebruikt de expliciete gebiedszoekactie', () => {
