@@ -17,12 +17,13 @@ describe('Pandenverkenner kaartworkflow en focus', () => {
     expect(review).toContain('klaar om toe te voegen');
   });
 
-  it('centreert een aangeklikt pand met ruimte voor de popup zonder kaartdata stale te markeren', () => {
+  it('centreert een aangeklikt pand met popup-ruimte en laadt ontbrekende contourdata na focus', () => {
     expect(kaart).toContain('focusBewegingRef.current=true');
-    expect(kaart).toContain('zoom:Math.max(map.getZoom(),17)');
+    expect(kaart).toContain('focusVerversNaMoveRef.current=map.getZoom()<16.5');
+    expect(kaart).toContain('zoom:Math.max(map.getZoom(),16.6)');
     expect(kaart).toContain('offset:[0,110]');
     expect(kaart).toContain('anchor="bottom"');
-    expect(kaart).toContain('if(focusBewegingRef.current){focusBewegingRef.current=false;return;}');
+    expect(kaart).toContain('if(focusVerversNaMoveRef.current){focusVerversNaMoveRef.current=false;void zoekInKaartgebied();}');
     expect(kaart).toContain('if(clusterDrilldownRef.current){clusterDrilldownRef.current=false;void zoekInKaartgebied();return;}');
   });
 });
