@@ -49,6 +49,19 @@ export interface BagPandZoekAanvraagV3 extends BagPandZoekAanvraag {
   vboModus: BagVboModus;
 }
 
+export interface BagPandZoekAanvraagV4 extends BagPandZoekAanvraagV3 {
+  wijkCodes: string[];
+  buurtCodes: string[];
+}
+
+export interface BagCbsGebiedsoptie {
+  cbs_gebiedsjaar: number;
+  wijk_code: string;
+  wijk_naam: string;
+  buurt_code: string;
+  buurt_naam: string;
+}
+
 export interface BagQueryValidatie {
   geldig: boolean;
   fouten: string[];
@@ -57,6 +70,10 @@ export interface BagQueryValidatie {
 const SCOPE_CODE = /^[A-Za-z0-9_-]{1,64}$/;
 const VBO_MODI = new Set<BagVboModus>(['alle', 'met_vbo', 'zonder_vbo']);
 const MAX_MULTISELECT_OPTIES = 16;
+const MAX_WIJKSELECTIE = 64;
+const MAX_BUURTSELECTIE = 128;
+const WIJK_CODE = /^WK([0-9]{4})[A-Z0-9]{2}$/;
+const BUURT_CODE = /^BU([0-9]{4})[A-Z0-9]{4}$/;
 
 function valideerOptioneelGeheelGetal(
   waarde: number | null,
@@ -84,9 +101,14 @@ function valideerOptioneelGetal(
   }
 }
 
-function valideerTekstSelectie(waarden: string[], label: string, fouten: string[]): void {
-  if (!Array.isArray(waarden) || waarden.length > MAX_MULTISELECT_OPTIES) {
-    fouten.push(`${label} mag maximaal ${MAX_MULTISELECT_OPTIES} opties bevatten.`);
+function valideerTekstSelectie(
+  waarden: string[],
+  label: string,
+  fouten: string[],
+  maximaal = MAX_MULTISELECT_OPTIES,
+): void {
+  if (!Array.isArray(waarden) || waarden.length > maximaal) {
+    fouten.push(`${label} mag maximaal ${maximaal} opties bevatten.`);
     return;
   }
   if (waarden.some(waarde => typeof waarde !== 'string' || !waarde.trim() || waarde.length > 128)) {
@@ -94,6 +116,23 @@ function valideerTekstSelectie(waarden: string[], label: string, fouten: string[
   }
   if (new Set(waarden.map(waarde => waarde.trim())).size !== waarden.length) {
     fouten.push(`${label} bevat dubbele opties.`);
+  }
+}
+
+function valideerGebiedscodes(
+  waarden: string[],
+  scopeCode: string,
+  type: 'wijk' | 'buurt',
+  fouten: string[],
+): void {
+  const max = type === 'wijk' ? MAX_WIJKSELECTIE : MAX_BUURTSELECTIE;
+  valideerTekstSelectie(waarden, type === 'wijk' ? 'Wijkselectie' : 'Buurtselectie', fouten, max);
+  const patroon = type === 'wijk' ? WIJK_CODE : BUURT_CODE;
+  if (waarden.some((waarde) => {
+    const match = patroon.exec(waarde);
+    return !match || match[1] !== scopeCode;
+  })) {
+    fouten.push(`De ${type}selectie bevat een code buiten de actieve BAG-scope.`);
   }
 }
 
@@ -192,5 +231,14 @@ export function valideerPandZoekAanvraagV3(
   valideerGemeenschappelijkeV2Velden(aanvraag, fouten);
   valideerTekstSelectie(aanvraag.statussen, 'Pandstatusselectie', fouten);
   valideerTekstSelectie(aanvraag.gebruiksdoelen, 'Gebruiksfunctieselectie', fouten);
+  return { geldig: fouten.length === 0, fouten };
+}
+
+export function valideerPandZoekAanvraagV4(
+  aanvraag: BagPandZoekAanvraagV4,
+): BagQueryValidatie {
+  const fouten = [...valideerPandZoekAanvraagV3(aanvraag).fouten];
+  valideerGebiedscodes(aanvraag.wijkCodes, aanvraag.scopeCode, 'wijk', fouten);
+  valideerGebiedscodes(aanvraag.buurtCodes, aanvraag.scopeCode, 'buurt', fouten);
   return { geldig: fouten.length === 0, fouten };
 }
