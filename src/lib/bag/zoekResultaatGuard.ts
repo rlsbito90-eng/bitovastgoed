@@ -1,4 +1,8 @@
-import type { BagPandZoekAanvraagV2, BagPandZoekAanvraagV3 } from './queryService';
+import type {
+  BagPandZoekAanvraagV2,
+  BagPandZoekAanvraagV3,
+  BagPandZoekAanvraagV4,
+} from './queryService';
 
 interface BagV2ResultaatRij {
   bouwjaar?: string | number | null;
@@ -9,6 +13,8 @@ interface BagV2ResultaatRij {
   vbo_oppervlakte_max?: string | number | null;
   gebruiksdoelen?: string[] | null;
   is_gemengd?: boolean;
+  wijk_code?: string | null;
+  buurt_code?: string | null;
 }
 
 function getal(value: unknown): number | null {
@@ -22,7 +28,7 @@ function getal(value: unknown): number | null {
 
 function voldoetGemeenschappelijk(
   rij: BagV2ResultaatRij,
-  aanvraag: BagPandZoekAanvraagV2 | BagPandZoekAanvraagV3,
+  aanvraag: BagPandZoekAanvraagV2 | BagPandZoekAanvraagV3 | BagPandZoekAanvraagV4,
 ): boolean {
   const bouwjaar = getal(rij.bouwjaar);
   const som = getal(rij.vbo_oppervlakte_som);
@@ -57,6 +63,13 @@ function voldoetV3(rij: BagV2ResultaatRij, aanvraag: BagPandZoekAanvraagV3): boo
   return true;
 }
 
+function voldoetV4(rij: BagV2ResultaatRij, aanvraag: BagPandZoekAanvraagV4): boolean {
+  if (!voldoetV3(rij, aanvraag)) return false;
+  if (aanvraag.wijkCodes.length && !aanvraag.wijkCodes.includes(rij.wijk_code ?? '')) return false;
+  if (aanvraag.buurtCodes.length && !aanvraag.buurtCodes.includes(rij.buurt_code ?? '')) return false;
+  return true;
+}
+
 function assertResultaten(rows: unknown[], voldoet: (rij: BagV2ResultaatRij) => boolean): void {
   const afwijkend = rows.find(row => !voldoet((row ?? {}) as BagV2ResultaatRij));
   if (afwijkend) {
@@ -70,4 +83,8 @@ export function assertBagV2ResultatenVoldoenAanFilters(rows: unknown[], aanvraag
 
 export function assertBagV3ResultatenVoldoenAanFilters(rows: unknown[], aanvraag: BagPandZoekAanvraagV3): void {
   assertResultaten(rows, rij => voldoetV3(rij, aanvraag));
+}
+
+export function assertBagV4ResultatenVoldoenAanFilters(rows: unknown[], aanvraag: BagPandZoekAanvraagV4): void {
+  assertResultaten(rows, rij => voldoetV4(rij, aanvraag));
 }
