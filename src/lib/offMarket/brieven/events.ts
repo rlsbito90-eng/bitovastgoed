@@ -1,6 +1,7 @@
 // Append-only audit-log voor brievenflow. UI leest primair uit
 // `off_market_brieven`; events vormen alleen het logboek.
 import { supabase } from '@/integrations/supabase/client';
+import { projecteerBriefEventNaarWorkflow } from '@/lib/workflow/acquisitieBriefWorkflowAdapter';
 
 export type BriefEventType =
   | 'concept_created'
@@ -37,6 +38,10 @@ export interface BriefEventInput {
  * alleen `signaal_id` meegeven blijven exact hetzelfde werken; het verplichte
  * `dossier_type` wordt hier afgeleid. Nieuwe Vastgoedkans-callers geven alleen
  * `vastgoedkans_id` mee. Exact één dossierbron is verplicht.
+ *
+ * BUILD 2.0E projecteert hetzelfde feit deterministisch naar een workflow-advies.
+ * Dat advies wordt in hetzelfde append-only event opgeslagen; er wordt geen
+ * dossierstatus, taak of externe actie automatisch uitgevoerd.
  */
 export async function logBriefEvent(input: BriefEventInput): Promise<void> {
   try {
@@ -47,6 +52,7 @@ export async function logBriefEvent(input: BriefEventInput): Promise<void> {
       return;
     }
 
+    const workflow = projecteerBriefEventNaarWorkflow(input);
     const { data: u } = await supabase.auth.getUser();
     const payload: any = {
       signaal_id: signaalId,
@@ -58,7 +64,14 @@ export async function logBriefEvent(input: BriefEventInput): Promise<void> {
       kanaal: input.kanaal ?? null,
       event_type: input.event_type,
       status: input.status ?? null,
-      metadata: input.metadata ?? {},
+      volgende_actie: workflow.volgendeActie,
+      volgende_actie_op: workflow.volgendeActieOp,
+      metadata: {
+        ...(input.metadata ?? {}),
+        ...(workflow.workflowCode
+          ? { workflow: { code: workflow.workflowCode, mode: workflow.workflowMode } }
+          : {}),
+      },
       created_by: u.user?.id ?? null,
     };
     if (input.event_date) payload.event_date = input.event_date;
