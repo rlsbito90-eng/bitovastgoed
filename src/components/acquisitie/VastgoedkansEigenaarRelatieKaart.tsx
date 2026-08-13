@@ -194,7 +194,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
             defaultRelatieId={gekoppeld.id}
             defaultObjectId={kans?.objectId ?? undefined}
             defaultTitel="Opvolgen eigenaar Vastgoedkans"
-            defaultType="Acquisitie"
+            defaultType="Follow-up"
             defaultNotities={kansContext ? `Vastgoedkans: ${kansContext}` : `Vastgoedkans-ID: ${vastgoedkansId}`}
           />
         </>
