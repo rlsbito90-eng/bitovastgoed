@@ -33,6 +33,15 @@ describe('BUILD 2.0C.1 — Vastgoedkans brief persistence contract', () => {
     expect(migration).not.toMatch(/update\s+public\.off_market_brieven/i);
   });
 
+  it('houdt bronverwijdering consistent met het exact-één-broncontract', () => {
+    const sourceFks = migration.match(/foreign key \(vastgoedkans_id\)[\s\S]*?not valid;/gi) ?? [];
+    expect(sourceFks).toHaveLength(2);
+    for (const fk of sourceFks) {
+      expect(fk).toMatch(/on delete cascade/i);
+      expect(fk).not.toMatch(/on delete set null/i);
+    }
+  });
+
   it('maakt brief-events dossierbreed en backfillt alleen het bestaande brontype', () => {
     expect(migration).toContain('off_market_brief_events_vastgoedkans_id_fkey');
     expect(migration).toContain("dossier_type in ('off_market_signaal','vastgoedkans')");
