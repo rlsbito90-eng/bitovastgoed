@@ -80,11 +80,16 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie
   const vastgoedkans = match.bron === 'vastgoedkans'
     ? alleVastgoedkansen.find(item => item.id === match.recordId)
     : undefined;
+  const inAcquisitieselectie = Boolean(
+    match.bron === 'vastgoedkans'
+    && !vastgoedkans?.archivedAt
+    && actieveVastgoedkansSelectieIds.has(match.recordId),
+  );
 
   if (vastgoedkans?.archivedAt) {
     label = 'Gearchiveerd';
     variant = 'outline';
-  } else if (match.bron === 'vastgoedkans' && actieveVastgoedkansSelectieIds.has(match.recordId)) {
+  } else if (inAcquisitieselectie) {
     label = 'In Acquisitieselectie';
   } else if (match.bron === 'vastgoedkans') {
     label = 'Al Vastgoedkans';
@@ -92,6 +97,14 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie
 
   const archiefdatum = formatteerArchiefdatum(vastgoedkans?.archivedAt);
   const toonHeropenen = Boolean(toonArchiefActie && vastgoedkans?.archivedAt);
+  const linkRoute = inAcquisitieselectie
+    ? `/off-market?vastgoedkans=${encodeURIComponent(match.recordId)}`
+    : match.route;
+
+  const openAcquisitieselectie = () => {
+    if (!inAcquisitieselectie) return;
+    try { sessionStorage.setItem('off-market-filter:tab', 'acquisitieselectie'); } catch { /* ignore */ }
+  };
 
   const heropen = async () => {
     if (!vastgoedkans?.archivedAt || heropenenBezig) return;
@@ -109,12 +122,18 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie
   return (
     <div className="space-y-2" onClick={event => event.stopPropagation()}>
       <Link
-        to={match.route}
-        aria-label={`${label}; open bestaand CRM-record`}
+        to={linkRoute}
+        aria-label={`${label}; ${inAcquisitieselectie ? 'open in Acquisitieselectie' : 'open bestaand CRM-record'}`}
         title={`${label} via ${match.matchtype === 'bag_id' ? 'BAG-ID' : 'adres'}`}
+        onClick={openAcquisitieselectie}
       >
         <Badge variant={variant} className="cursor-pointer hover:underline">{label}</Badge>
       </Link>
+      {inAcquisitieselectie && (
+        <Button asChild size="sm" variant="secondary" className="h-7 text-xs">
+          <Link to={linkRoute} onClick={openAcquisitieselectie}>Open Acquisitieselectie</Link>
+        </Button>
+      )}
       {toonHeropenen && (
         <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
           <p>{archiefdatum ? `Gearchiveerd op ${archiefdatum}` : 'Gearchiveerd'}{vastgoedkans?.archivedReason ? ` · ${vastgoedkans.archivedReason}` : ''}</p>

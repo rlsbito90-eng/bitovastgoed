@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Archive, ExternalLink, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,16 @@ interface Props {
 export default function VastgoedkansenInAcquisitieSelectie({ items }: Props) {
   const { getKansById } = useVastgoedkansen();
   const verwijder = useVerwijderVastgoedkansUitAcquisitieSelectie();
+  const [searchParams] = useSearchParams();
+  const focusVastgoedkansId = searchParams.get('vastgoedkans');
   const kansItems = items.filter((item) => Boolean(item.vastgoedkans_id));
+
+  useEffect(() => {
+    if (!focusVastgoedkansId) return;
+    const element = document.querySelector<HTMLElement>(`[data-vastgoedkans-id="${CSS.escape(focusVastgoedkansId)}"]`);
+    if (!element) return;
+    requestAnimationFrame(() => element.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  }, [focusVastgoedkansId, kansItems.length]);
 
   if (kansItems.length === 0) return null;
 
@@ -45,6 +55,7 @@ export default function VastgoedkansenInAcquisitieSelectie({ items }: Props) {
       <div className="divide-y divide-border/70">
         {kansItems.map((item) => {
           const kans = item.vastgoedkans_id ? getKansById(item.vastgoedkans_id) : undefined;
+          const heeftFocus = Boolean(kans && focusVastgoedkansId === kans.id);
           if (!kans) {
             return (
               <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -58,12 +69,17 @@ export default function VastgoedkansenInAcquisitieSelectie({ items }: Props) {
             );
           }
           return (
-            <div key={item.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+            <div
+              key={item.id}
+              data-vastgoedkans-id={kans.id}
+              className={`flex flex-wrap items-start justify-between gap-3 px-4 py-3 transition-colors ${heeftFocus ? 'bg-primary/5 ring-2 ring-inset ring-primary/30' : ''}`}
+            >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link to={`/vastgoedkansen/${kans.id}`} className="break-words text-sm font-medium hover:text-primary hover:underline">
                     {kansTitel(kans)}
                   </Link>
+                  {heeftFocus && <Badge>Geselecteerd dossier</Badge>}
                   <Badge variant="outline" className={VASTGOEDKANS_STATUS_PRESENTATIE[kans.status].chip}>
                     {STATUS_LABEL[kans.status]}
                   </Badge>
