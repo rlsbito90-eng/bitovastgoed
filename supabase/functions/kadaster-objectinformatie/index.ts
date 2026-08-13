@@ -26,36 +26,18 @@ import { normaliseerKadasterResponse, logRegel, responseShape } from './_normali
 import { persistKadasterRecords } from './_persist.ts';
 import { extractPdfFromResponse, persistKadasterPdf } from './_pdf.ts';
 
-// Officiële Kadata Objectinformatie API host (zie Swagger:
-//   https://kadatawebservice.kadaster.nl/objectinformatieApi/swagger/v1/swagger.json).
-// `api.kadaster.nl/objectinformatieapi/...` bestaat NIET en geeft Kadaster's
-// generieke 404-pagina terug, wat eerder als "object niet gevonden" werd
-// geïnterpreteerd.
 const KADASTER_BASE_URL =
   Deno.env.get('KADASTER_OBJECTINFORMATIE_BASE_URL')
   ?? 'https://kadatawebservice.kadaster.nl/objectinformatieapi/api/v1';
 
 const DEFAULT_PRODUCTEN_PER_MODUS: Record<KadasterModus, KadasterProductCode[]> = {
-  // Standalone gebiedsdata-aanvragen worden door Kadaster geweigerd
-  // ("minimaal één product met kosten"); de UI biedt dit niet meer aan,
-  // maar we houden de mapping als documentatie.
   gebiedsdata: ['lasten', 'buurt'],
-  kadaster:    ['object', 'waarde', 'lasten', 'buurt'],
+  kadaster: ['object', 'waarde', 'lasten', 'buurt'],
 };
 
 const BETAALDE_PRODUCTEN: KadasterProductCode[] = ['object', 'waarde', 'rechten'];
-
-/**
- * Veilige allowlist zolang Kadaster's /products endpoint nog niet bevestigd
- * is voor deze API-key. `lasten` en `buurt` zijn in de praktijk geweigerd
- * met HTTP 409 "Een of meer onbekende producten opgegeven", dus we sturen
- * ze standaard niet mee. Wordt overschreven door de live /products lijst
- * zodra die succesvol is opgehaald.
- */
 const FALLBACK_ALLOWED: KadasterProductCode[] = ['object', 'waarde'];
 
-// Process-cache voor /products. TTL klein houden zodat sleutelwijzigingen
-// snel zichtbaar worden, maar voorkomt dat we elke /report een extra GET doen.
 interface KadasterProductMeta {
   code: KadasterProductCode;
   name: string | null;
@@ -88,7 +70,7 @@ async function fetchAvailableProductsFull(apiKey: string): Promise<KadasterProdu
   try {
     const resp = await fetch(`${KADASTER_BASE_URL}/products`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json', 'X-API-KEY': apiKey },
+      headers: { Accept: 'application/json', 'X-API-KEY': apiKey },
     });
     if (!resp.ok) return null;
     const data = await resp.json().catch(() => null);
@@ -156,7 +138,6 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // --- Auth ---
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return jsonError('Niet ingelogd', 401, 'unauthorized');
@@ -177,15 +158,10 @@ Deno.serve(async (req: Request) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId);
-    const isIntern = (rollen ?? []).some(r =>
-      r.role === 'admin' || r.role === 'medewerker'
-    );
+    const isIntern = (rollen ?? []).some(r => r.role === 'admin' || r.role === 'medewerker');
     if (!isIntern) return jsonError('Geen toegang', 403, 'forbidden');
 
-    // --- Input ---
     const raw = await req.json().catch(() => null);
-
-    // --- API key (vereist voor zowel /products als /report) ---
     const apiKey = Deno.env.get('KADASTER_OBJECTINFORMATIE_API_KEY');
     if (!apiKey) {
       return jsonError(
@@ -194,10 +170,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // --- Lichtgewicht actie: alleen /products opvragen ---
-    // Geen kosten — Kadaster's /products is gratis metadata. Wordt door de
-    // frontend gebruikt om dynamisch te bepalen welke producten beschikbaar
-    // zijn (o.a. rechten/eigendomsinformatie) voor deze API-key.
     if (raw && typeof raw === 'object'
         && (raw as Record<string, unknown>).action === 'list_products') {
       const items = await fetchAvailableProductsFull(apiKey);
@@ -219,17 +191,14 @@ Deno.serve(async (req: Request) => {
     }
     const body = parsed.data;
 
-    // BUILD 2.0B.1B — Vastgoedkans is een eigen dossierbron.
-    // Blokkeer ongeldige context vóór een eventuele betaalde Kadaster-call.
-    if (body.context?.vastgoedkans_id && (body.context.object_id || body.context.signaal_id)) {
+    const targetCount = [
+      body.context?.object_id,
+      body.context?.signaal_id,
+      body.context?.vastgoedkans_id,
+    ].filter(Boolean).length;
+    if (targetCount > 1) {
       return jsonError(
-        'Vastgoedkans-context mag niet met object_id of signaal_id worden gecombineerd.',
-        400, 'invalid_input',
-      );
-    }
-    if (body.context?.vastgoedkans_id && body.includePdf === true) {
-      return jsonError(
-        'Kadasterbericht/PDF is voor Vastgoedkansen nog niet geactiveerd.',
+        'Kadaster-context mag maar één dossierdoel bevatten.',
         400, 'invalid_input',
       );
     }
@@ -248,18 +217,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const modus = body.modus;
-
-    // --- Productselectie bepalen ---
-    // Default per modus, of expliciete selectie uit de body. Kadaster
-    // weigert bestellingen zonder betaald product; we valideren dat
-    // hier vooraf om onnodige upstream-calls te voorkomen.
     const gevraagd = body.producten && body.producten.length > 0
       ? Array.from(new Set(body.producten))
       : DEFAULT_PRODUCTEN_PER_MODUS[modus];
 
-    // Allowlist: live /products endpoint indien beschikbaar, anders
-    // veilige fallback met alleen ['object', 'waarde']. `lasten`/`buurt`
-    // worden in V1 nooit gestuurd zonder bevestiging via /products.
     const live = await fetchAvailableProducts(apiKey);
     const allowed = live && live.length > 0 ? live : FALLBACK_ALLOWED;
     const filteredOut = gevraagd.filter(c => !allowed.includes(c));
@@ -275,12 +236,7 @@ Deno.serve(async (req: Request) => {
         { allowed_products: allowed, products_source: live ? 'live' : 'fallback', filtered_out: filteredOut },
       );
     }
-    // Swagger definieert de enum als PascalCase ("OnlyComplete", "WithoutProduct",
-    // "PartialProduct"). Lowercase varianten worden door Kadaster afgewezen.
-    // Rechten/eigendomsinformatie levert in praktijk alleen zinvolle inhoud
-    // bij OnlyComplete (Kadaster vereist een volledige rapportage); overige
-    // producten houden WithoutProduct zodat één ontbrekend product de
-    // overige niet blokkeert.
+
     const selection = codes.map((code) => ({
       code,
       deliver: code === 'rechten' ? ('OnlyComplete' as const) : ('WithoutProduct' as const),
@@ -297,7 +253,6 @@ Deno.serve(async (req: Request) => {
       zoekadresType = 'bagId';
       zoekadresWaarde = body.bagId;
     } else if (body.adres) {
-      // Postcode altijd normaliseren naar formaat zonder spatie + uppercase.
       const normPostcode = body.adres.postalcode.replace(/\s+/g, '').toUpperCase();
       if (!/^\d{4}[A-Z]{2}$/.test(normPostcode)) {
         return jsonError(
@@ -309,8 +264,6 @@ Deno.serve(async (req: Request) => {
         postalcode: normPostcode,
         houseNumber: String(body.adres.houseNumber),
       };
-      // Lege strings niet meesturen — Swagger geeft nullable, en Kadaster
-      // weigert in de praktijk lege toevoegingen bij sommige adressen.
       if (body.adres.houseLetter && body.adres.houseLetter.trim()) {
         pht.houseLetter = body.adres.houseLetter.trim();
       }
@@ -325,9 +278,6 @@ Deno.serve(async (req: Request) => {
       ].filter(Boolean).join(' ');
     }
 
-    // Veilige debug-info: bevat genormaliseerde input + request body zonder
-    // de API-key. Wordt zowel bij succes als fout teruggegeven zodat de UI
-    // technische details kan tonen.
     const debug = {
       endpoint: '/report',
       base_url: KADASTER_BASE_URL,
@@ -339,7 +289,6 @@ Deno.serve(async (req: Request) => {
       filtered_out: filteredOut,
     };
 
-    // --- Kadaster call ---
     const upstreamUrl = `${KADASTER_BASE_URL}/report`;
     const t0 = Date.now();
     let upstreamResp: Response;
@@ -348,7 +297,7 @@ Deno.serve(async (req: Request) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'X-API-KEY': apiKey,
         },
         body: JSON.stringify(reportBody),
@@ -364,20 +313,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // --- HTTP-status mapping naar NL meldingen ---
     if (!upstreamResp.ok) {
       const status = upstreamResp.status;
       const tekst = await upstreamResp.text().catch(() => '');
-      // Probeer Kadaster's ErrorResponse uit te lezen (message + identifier).
       let upstreamMessage: string | null = null;
       let upstreamIdentifier: string | null = null;
       try {
-        const parsed = JSON.parse(tekst);
-        if (parsed && typeof parsed === 'object') {
-          if (typeof parsed.message === 'string') upstreamMessage = parsed.message;
-          if (typeof parsed.identifier === 'string') upstreamIdentifier = parsed.identifier;
+        const parsedUpstream = JSON.parse(tekst);
+        if (parsedUpstream && typeof parsedUpstream === 'object') {
+          if (typeof parsedUpstream.message === 'string') upstreamMessage = parsedUpstream.message;
+          if (typeof parsedUpstream.identifier === 'string') upstreamIdentifier = parsedUpstream.identifier;
         }
-      } catch { /* niet-JSON respons (bv. HTML 404 pagina) */ }
+      } catch { /* niet-JSON respons */ }
       const debugMetUpstream = {
         ...debug,
         upstream_status: status,
@@ -409,7 +356,6 @@ Deno.serve(async (req: Request) => {
         );
       }
       if (status === 409 || status === 422) {
-        // Parse "Een of meer onbekende producten opgegeven: lasten, buurt"
         const m = upstreamMessage?.match(/onbekende producten[^:]*:\s*([a-zA-Z, ]+)/i);
         const onbekend = m?.[1]?.split(',').map(s => s.trim()).filter(Boolean) ?? [];
         const melding = onbekend.length > 0
@@ -436,10 +382,6 @@ Deno.serve(async (req: Request) => {
     const shape = responseShape(ruwe);
     const opgehaaldOp = new Date().toISOString();
 
-    // --- Direct persisten (zonder extra Kadaster-call) ---
-    // Persist gebeurt automatisch zodra Kadaster succesvol een respons
-    // heeft geleverd, zodat de gebruiker de preview kan sluiten,
-    // wegnavigeren of de browser kan verversen zonder data te verliezen.
     let persisted: { inserted: number; ids: string[] } | null = null;
     let persistFout: string | null = null;
     const wilPersist = body.persist === true
@@ -464,10 +406,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // --- Kadasterbericht/PDF persisten (Fase 4K.5) ---
-    // Alleen wanneer expliciet aangevraagd via `includePdf` én records zijn
-    // opgeslagen. PDF wordt intern bewaard; nooit automatisch in dataroom
-    // of export.
     let pdfInfo: Awaited<ReturnType<typeof persistKadasterPdf>> | null = null;
     let pdfAvailable = false;
     if (body.includePdf === true) {
@@ -478,6 +416,7 @@ Deno.serve(async (req: Request) => {
           pdfInfo = await persistKadasterPdf(userClient, {
             objectId: body.context?.object_id ?? null,
             signaalId: body.context?.signaal_id ?? null,
+            vastgoedkansId: body.context?.vastgoedkans_id ?? null,
             recordIds: persisted.ids,
             productCodes: codes,
             zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
@@ -504,8 +443,6 @@ Deno.serve(async (req: Request) => {
       bron: 'kadaster_objectinformatie_api',
       opgehaald_op: opgehaaldOp,
       productcodes: codes,
-      // Prijs is afhankelijk van de Kadaster-tarieven en wordt niet vooraf
-      // hardgecodeerd; UI toont "prijs volgens Kadaster" bij null.
       kosten_indicatie_eur: null,
       zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
       producten,
@@ -528,7 +465,7 @@ Deno.serve(async (req: Request) => {
           error: pdfInfo?.error
             ?? (!pdfAvailable
               ? 'Kadaster heeft geen PDF/Kadasterbericht meegeleverd in de respons.'
-              : (!wilPersist ? 'PDF niet opgeslagen: geen object/signaal-context.' : null)),
+              : (!wilPersist ? 'PDF niet opgeslagen: geen dossiercontext.' : null)),
         } : null,
       },
     };
@@ -550,12 +487,8 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.error('[kadaster-objectinformatie] onverwachte fout:',
-      e instanceof Error ? e.message : e);
-    return jsonError(
-      'Onverwachte fout in Kadaster-functie.',
-      500, 'unknown',
-    );
+    console.error('[kadaster-objectinformatie] onverwachte fout:', e instanceof Error ? e.message : e);
+    return jsonError('Onverwachte fout in Kadaster-functie.', 500, 'unknown');
   }
 });
 
