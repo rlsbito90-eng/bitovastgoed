@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
+import KadasterPdfKnop from '@/components/object/kadaster/KadasterPdfKnop';
 import VastgoedkansEigenaarRelatieKaart from '@/components/acquisitie/VastgoedkansEigenaarRelatieKaart';
 import BagAdresLookup from '@/components/shared/BagAdresLookup';
 import { useKadasterDataRecordsForVastgoedkans, laatsteRecordsPerProduct } from '@/hooks/useKadasterDataRecords';
+import { useKadasterDocumentenForVastgoedkans } from '@/hooks/useKadasterDocumenten';
 import { KadasterApiError, useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
 import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
@@ -51,8 +53,6 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const huisnummer = gekozenBagAdres?.huisnummer ?? initieelHuisnummer?.huisnummer ?? null;
   const huisletter = gekozenBagAdres ? gekozenBagAdres.huisletter : (initieelHuisnummer?.huisletter ?? null);
   const toevoeging = gekozenBagAdres ? gekozenBagAdres.huisnummertoevoeging : (initieelHuisnummer?.toevoeging ?? null);
-  // Betaalde Kadasteractie pas vrijgeven nadat PDOK/BAG een officieel adres heeft gekozen.
-  // Daarmee kan een ruwe Vastgoedkans-adresstring niet rechtstreeks meer naar Kadaster lekken.
   const adresKlaar = !!gekozenBagAdres && !!postcodeApi && !!huisnummer;
   const adresLabel = adresKlaar
     ? [postcodeApi, `${huisnummer ?? ''}${huisletter ?? ''}`, toevoeging].filter(Boolean).join(' ')
@@ -65,10 +65,13 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
   const [selRechten, setSelRechten] = useState(false);
+  const [selPdf, setSelPdf] = useState(true);
 
   const mutation = useKadasterObjectinformatie();
   const queryClient = useQueryClient();
   const recordsQuery = useKadasterDataRecordsForVastgoedkans(vastgoedkansId);
+  const documentenQuery = useKadasterDocumentenForVastgoedkans(vastgoedkansId);
+  const documenten = documentenQuery.data ?? [];
   const laatste = useMemo(() => laatsteRecordsPerProduct(recordsQuery.data ?? []), [recordsQuery.data]);
   const catalogus = useKadasterProductCatalogus(kostenOpen);
   const rechtenItem = useMemo(() => catalogus.data?.products.find((p) => p.code === 'rechten') ?? null, [catalogus.data]);
@@ -104,8 +107,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
       producten: geselecteerdeProducten(),
       context: { vastgoedkans_id: vastgoedkansId },
       persist: true,
-      // BUILD 2.0B.1: document-persistence is nog niet gegeneraliseerd naar Vastgoedkansen.
-      includePdf: false,
+      includePdf: selPdf,
     };
 
     try {
@@ -113,8 +115,18 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
       setPreview(resp);
       setPreviewOpen(true);
       if (resp.persist?.ok) {
-        await queryClient.invalidateQueries({ queryKey: ['kadaster_data_records', 'vastgoedkans', vastgoedkansId] });
-        toast.success('Kadastergegevens opgeslagen bij deze Vastgoedkans.');
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['kadaster_data_records', 'vastgoedkans', vastgoedkansId] }),
+          queryClient.invalidateQueries({ queryKey: ['kadaster_documenten', 'vastgoedkans_id', vastgoedkansId] }),
+        ]);
+        const pdf = resp.persist.pdf;
+        if (pdf?.requested && pdf.ok) {
+          toast.success('Kadastergegevens en Kadasterbericht opgeslagen bij deze Vastgoedkans.');
+        } else if (pdf?.requested && !pdf.ok) {
+          toast.warning(`Kadastergegevens opgeslagen, maar Kadasterbericht/PDF kon niet worden opgeslagen.${pdf.error ? ` (${pdf.error})` : ''}`, { duration: 10_000 });
+        } else {
+          toast.success('Kadastergegevens opgeslagen bij deze Vastgoedkans.');
+        }
       } else if (resp.persist?.requested) {
         toast.warning('Kadastergegevens zijn opgehaald, maar opslaan is mislukt. Doe geen nieuwe aanvraag voordat dit is gecontroleerd.', { duration: 12_000 });
       }
@@ -146,7 +158,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
           <h2 className="font-medium">Kadastergegevens ophalen</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Controleer eerst gratis het officiële BAG-adres. Alleen na expliciete kostenbevestiging wordt een Kadasteraanvraag gedaan en aan deze Vastgoedkans opgeslagen. Er wordt niets automatisch naar eigenaar- of dossiervelden overgenomen.
+          Controleer eerst gratis het officiële BAG-adres. Alleen na expliciete kostenbevestiging wordt een Kadasteraanvraag gedaan en aan deze Vastgoedkans opgeslagen. Het officiële Kadasterbericht kan intern worden meebewaard.
         </p>
       </div>
 
@@ -168,11 +180,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
             <span className="text-muted-foreground">Aanvraagadres</span>
             <span className="font-mono-data">{adresLabel}</span>
           </div>
-          {gekozenBagAdres && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Officieel BAG-adres gekozen: {gekozenBagAdres.weergavenaam || adresLabel}
-            </p>
-          )}
+          {gekozenBagAdres && <p className="mt-2 text-xs text-muted-foreground">Officieel BAG-adres gekozen: {gekozenBagAdres.weergavenaam || adresLabel}</p>}
           {!adresKlaar && <p className="mt-2 text-xs text-destructive">Nog geen bruikbaar officieel BAG-adres gekozen; Kadaster-opvragen blijft geblokkeerd.</p>}
         </div>
       </div>
@@ -195,6 +203,20 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
             <div><p className="text-xs text-muted-foreground">Kadastrale aanduiding</p><p className="mt-1 text-sm">{rechtenRecord?.kadastrale_aanduiding || '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">Rechthebbende</p><p className="mt-1 text-sm">{rechtenRecord?.rechthebbende_naam || '—'}</p></div>
           </div>
+          {documenten.length > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-xs font-medium">Kadasterberichten ({documenten.length})</p>
+              {documenten.map((document) => (
+                <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
+                  <div>
+                    <p className="text-xs">{document.bestandsnaam}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatDatum(document.fetched_at)}</p>
+                  </div>
+                  <KadasterPdfKnop document={document} label="Kadasterbericht openen" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -207,7 +229,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Producten en kosten bevestigen</DialogTitle>
-            <DialogDescription>Deze aanvraag wordt door Kadaster in rekening gebracht. Er wordt geen PDF besteld of opgeslagen voor Vastgoedkansen.</DialogDescription>
+            <DialogDescription>Deze aanvraag wordt door Kadaster in rekening gebracht. Controleer de producten en of het officiële Kadasterbericht intern moet worden opgeslagen.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
             <div className="rounded-md border bg-muted/30 p-3 text-xs"><span className="text-muted-foreground">Zoekadres: </span><span className="font-mono-data">{adresLabel}</span></div>
@@ -220,6 +242,10 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
               </label>
             )}
             {!rechtenBeschikbaar && <p className="text-[11px] text-muted-foreground">{catalogus.isLoading ? 'Productlijst wordt opgehaald…' : 'Rechten/eigendomsinformatie is niet beschikbaar voor deze API-key.'}</p>}
+            <label className="flex items-start gap-2 rounded-md border p-2">
+              <Checkbox className="mt-0.5" checked={selPdf} onCheckedChange={(v) => setSelPdf(v === true)} />
+              <span><span className="block">Kadasterbericht/PDF intern opslaan</span><span className="block text-[10px] text-muted-foreground">Bewaar het officiële bericht bij deze Vastgoedkans zodat het later opnieuw geopend kan worden.</span></span>
+            </label>
             {!heeftBetaaldProduct && <p className="text-xs text-destructive">Selecteer minimaal één betaald product.</p>}
           </div>
           <DialogFooter>
@@ -242,7 +268,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
           <AlertDialogHeader>
             <AlertDialogTitle>Rechten / eigendomsinformatie bevestigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Dit betaalde product kan namen of bedrijfsnamen van rechthebbenden bevatten. Het resultaat wordt uitsluitend als Kadasterrecord aan deze Vastgoedkans opgeslagen; er wordt geen eigenaar of relatie automatisch aangemaakt of gekoppeld.
+              Dit betaalde product kan namen of bedrijfsnamen van rechthebbenden bevatten. Het resultaat en, indien geselecteerd, het Kadasterbericht worden intern aan deze Vastgoedkans opgeslagen; er wordt geen eigenaar of relatie automatisch aangemaakt of gekoppeld.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
