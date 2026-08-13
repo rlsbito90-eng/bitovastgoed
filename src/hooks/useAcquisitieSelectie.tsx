@@ -7,7 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface AcquisitieSelectieItem {
   id: string;
-  signaal_id: string;
+  signaal_id: string | null;
+  vastgoedkans_id: string | null;
   toegevoegd_door: string | null;
   toegevoegd_op: string;
   notitie: string | null;
@@ -45,7 +46,7 @@ export function useAcquisitieSelectie() {
 /** Set van signaal-ids in de actieve selectie. */
 export function useActieveSelectieIds(): Set<string> {
   const { data = [] } = useAcquisitieSelectie();
-  return useMemo(() => new Set(data.map(r => r.signaal_id)), [data]);
+  return useMemo(() => new Set(data.map(r => r.signaal_id).filter((id): id is string => typeof id === 'string' && id.length > 0)), [data]);
 }
 
 function useSignaalIdsMetVerzondenBrief(): Set<string> {
@@ -74,7 +75,7 @@ export function useAcquisitieSelectieCount(): number {
   const { data = [] } = useAcquisitieSelectie();
   const verzonden = useSignaalIdsMetVerzondenBrief();
   return useMemo(
-    () => data.filter((item) => !verzonden.has(item.signaal_id)).length,
+    () => data.filter((item) => item.signaal_id === null || !verzonden.has(item.signaal_id)).length,
     [data, verzonden],
   );
 }
@@ -162,5 +163,78 @@ export function useVerwijderUitAcquisitieSelectie() {
       return { signaal_id: signaalId };
     },
     onSuccess: (res) => invalidateAll(qc, res.signaal_id),
+  });
+}
+
+/** Set van Vastgoedkans-ids in de actieve gedeelde acquisitieselectie. */
+export function useActieveVastgoedkansSelectieIds(): Set<string> {
+  const { data = [] } = useAcquisitieSelectie();
+  return useMemo(
+    () => new Set(data.map(r => r.vastgoedkans_id).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    [data],
+  );
+}
+
+/** Vastgoedkans toevoegen/heractiveren zonder een Off-Market-signaal te fabriceren. */
+export function useVoegVastgoedkansToeAanAcquisitieSelectie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vastgoedkansId: string): Promise<AcquisitieSelectieItem> => {
+      const { data: u } = await supabase.auth.getUser();
+      const door = u.user?.id ?? null;
+      const { data: bestaand, error: leesFout } = await (supabase as any)
+        .from(TABLE)
+        .select('*')
+        .eq('vastgoedkans_id', vastgoedkansId)
+        .order('toegevoegd_op', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (leesFout) throw new Error(leesFout.message);
+      if (bestaand && bestaand.archived_at === null) return bestaand as AcquisitieSelectieItem;
+      if (bestaand) {
+        const { data, error } = await (supabase as any)
+          .from(TABLE)
+          .update({ archived_at: null, toegevoegd_door: door, toegevoegd_op: new Date().toISOString() })
+          .eq('id', bestaand.id)
+          .select()
+          .single();
+        if (error) throw new Error(error.message);
+        return data as AcquisitieSelectieItem;
+      }
+      const { data, error } = await (supabase as any)
+        .from(TABLE)
+        .insert({ vastgoedkans_id: vastgoedkansId, signaal_id: null, toegevoegd_door: door })
+        .select()
+        .single();
+      if (error) {
+        const { data: nu } = await (supabase as any)
+          .from(TABLE)
+          .select('*')
+          .eq('vastgoedkans_id', vastgoedkansId)
+          .is('archived_at', null)
+          .maybeSingle();
+        if (nu) return nu as AcquisitieSelectieItem;
+        throw new Error(error.message);
+      }
+      return data as AcquisitieSelectieItem;
+    },
+    onSuccess: () => invalidateAll(qc),
+  });
+}
+
+/** Soft-remove van een Vastgoedkans uit dezelfde gedeelde selectie. */
+export function useVerwijderVastgoedkansUitAcquisitieSelectie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vastgoedkansId: string): Promise<{ vastgoedkans_id: string }> => {
+      const { error } = await (supabase as any)
+        .from(TABLE)
+        .update({ archived_at: new Date().toISOString() })
+        .eq('vastgoedkans_id', vastgoedkansId)
+        .is('archived_at', null);
+      if (error) throw new Error(error.message);
+      return { vastgoedkans_id: vastgoedkansId };
+    },
+    onSuccess: () => invalidateAll(qc),
   });
 }

@@ -48,6 +48,7 @@ import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
 import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
 import AcquisitieDossierRij from './AcquisitieDossierRij';
+import VastgoedkansenInAcquisitieSelectie from './VastgoedkansenInAcquisitieSelectie';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   ACTIE_SUBFILTER_LABEL,
@@ -159,13 +160,14 @@ export default function AcquisitieSelectieTab() {
       (a.toegevoegd_op ?? '').localeCompare(b.toegevoegd_op ?? ''),
     );
     return lijst
-      .map(it => signaalIndex.get(it.signaal_id))
+      .filter(it => typeof it.signaal_id === 'string' && it.signaal_id.length > 0)
+      .map(it => signaalIndex.get(it.signaal_id!))
       .filter((s): s is OffMarketSignaal => !!s);
   }, [items, signaalIndex]);
 
   const toegevoegdOpPerSignaal = useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const it of items) m.set(it.signaal_id, it.toegevoegd_op ?? null);
+    for (const it of items) if (it.signaal_id) m.set(it.signaal_id, it.toegevoegd_op ?? null);
     return m;
   }, [items]);
 
@@ -699,7 +701,9 @@ export default function AcquisitieSelectieTab() {
     return <p className="px-5 py-10 text-sm text-muted-foreground">Selectie laden…</p>;
   }
 
-  if (geselecteerdeSignalen.length === 0) {
+  const heeftVastgoedkansen = items.some((item) => Boolean(item.vastgoedkans_id));
+
+  if (geselecteerdeSignalen.length === 0 && !heeftVastgoedkansen) {
     return (
       <section className="section-card px-5 py-12 text-center">
         <div className="flex flex-col items-center gap-3">
@@ -717,12 +721,21 @@ export default function AcquisitieSelectieTab() {
     );
   }
 
+  if (geselecteerdeSignalen.length === 0 && heeftVastgoedkansen) {
+    return (
+      <section className="space-y-3" data-testid="acquisitie-selectie-tab">
+        <VastgoedkansenInAcquisitieSelectie items={items} />
+      </section>
+    );
+  }
+
   const geselecteerdeSignalenBulk = Array.from(bulkSelectie)
     .map(id => signaalIndex.get(id))
     .filter((s): s is OffMarketSignaal => !!s);
 
   return (
     <section className="space-y-3" data-testid="acquisitie-selectie-tab">
+      {heeftVastgoedkansen && <VastgoedkansenInAcquisitieSelectie items={items} />}
       <AcquisitieKpis kpis={readiness.kpis} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
