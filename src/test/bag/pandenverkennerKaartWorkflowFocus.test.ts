@@ -18,12 +18,12 @@ describe('Pandenverkenner kaartworkflow en focus', () => {
   });
 
   it('centreert een aangeklikt pand met popup-ruimte en laadt ontbrekende contourdata na focus', () => {
-    expect(kaart).toContain('focusBewegingRef.current=true');
-    expect(kaart).toContain('focusVerversNaMoveRef.current=map.getZoom()<16.5');
-    expect(kaart).toContain('zoom:Math.max(map.getZoom(),16.6)');
-    expect(kaart).toContain('offset:[0,110]');
+    expect(kaart).toMatch(/focusBewegingRef\.current\s*=\s*true/);
+    expect(kaart).toMatch(/focusVerversNaMoveRef\.current\s*=\s*map\.getZoom\(\)\s*<\s*16\.5/);
+    expect(kaart).toMatch(/zoom:\s*Math\.max\(map\.getZoom\(\),\s*16\.6\)/);
+    expect(kaart).toMatch(/offset:\s*\[0,\s*110\]/);
     expect(kaart).toContain('anchor="bottom"');
-    expect(kaart).toContain('if(focusVerversNaMoveRef.current){focusVerversNaMoveRef.current=false;void zoekInKaartgebied();}');
-    expect(kaart).toContain('if(clusterDrilldownRef.current){clusterDrilldownRef.current=false;void zoekInKaartgebied();return;}');
+    expect(kaart).toMatch(/if\s*\(focusVerversNaMoveRef\.current\)\s*\{\s*focusVerversNaMoveRef\.current\s*=\s*false;\s*void zoekInKaartgebied\(\);/);
+    expect(kaart).toMatch(/if\s*\(clusterDrilldownRef\.current\)\s*\{\s*clusterDrilldownRef\.current\s*=\s*false;\s*void zoekInKaartgebied\(\);\s*return;/);
   });
 });
