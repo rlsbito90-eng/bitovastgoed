@@ -10,6 +10,7 @@ create table if not exists public.eigenaren (
   voornamen text,
   voorletters text,
   kvk_nummer text,
+  dedupe_sleutel text,
   adres text,
   postcode text,
   plaats text,
@@ -32,6 +33,8 @@ comment on table public.eigenaren is
   'Centraal acquisitieregister voor gevonden eigenaren/rechthebbenden; een record is niet automatisch een CRM-relatie.';
 comment on column public.eigenaren.crm_relatie_id is
   'Optionele bewuste koppeling naar een bestaande commerciële CRM-relatie.';
+comment on column public.eigenaren.dedupe_sleutel is
+  'Alleen zetten bij voldoende sterke identiteit (bijv. exact KvK of sterke persoon+adres-identiteit); null voorkomt onveilige naamdeduplicatie.';
 
 create index if not exists eigenaren_naam_idx
   on public.eigenaren (lower(naam));
@@ -41,6 +44,9 @@ create index if not exists eigenaren_bedrijfsnaam_idx
 create index if not exists eigenaren_kvk_idx
   on public.eigenaren (kvk_nummer)
   where kvk_nummer is not null;
+create unique index if not exists eigenaren_dedupe_sleutel_unique
+  on public.eigenaren (dedupe_sleutel)
+  where dedupe_sleutel is not null;
 create index if not exists eigenaren_crm_relatie_idx
   on public.eigenaren (crm_relatie_id)
   where crm_relatie_id is not null;
