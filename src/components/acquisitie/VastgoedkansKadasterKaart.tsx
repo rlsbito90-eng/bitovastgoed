@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
+import VastgoedkansEigenaarRelatieKaart from '@/components/acquisitie/VastgoedkansEigenaarRelatieKaart';
 import { useKadasterDataRecordsForVastgoedkans, laatsteRecordsPerProduct } from '@/hooks/useKadasterDataRecords';
 import { KadasterApiError, useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
@@ -128,101 +129,105 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const laatsteDatum = recordsQuery.data?.[0]?.fetched_at ?? null;
 
   return (
-    <section className="section-card p-4 sm:p-5 space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <FileSearch className="h-4 w-4" />
-          <h2 className="font-medium">Kadastergegevens ophalen</h2>
+    <>
+      <section className="section-card p-4 sm:p-5 space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileSearch className="h-4 w-4" />
+            <h2 className="font-medium">Kadastergegevens ophalen</h2>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Alleen na expliciete kostenbevestiging. Een succesvolle aanvraag wordt direct aan deze Vastgoedkans opgeslagen. Er wordt niets automatisch naar eigenaar- of dossiervelden overgenomen.
+          </p>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Alleen na expliciete kostenbevestiging. Een succesvolle aanvraag wordt direct aan deze Vastgoedkans opgeslagen. Er wordt niets automatisch naar eigenaar- of dossiervelden overgenomen.
-        </p>
-      </div>
 
-      <div className="rounded-md border bg-muted/20 p-3 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-muted-foreground">Aanvraagadres</span>
-          <span className="font-mono-data">{adresLabel}</span>
-        </div>
-        {!adresKlaar && <p className="mt-2 text-xs text-destructive">Postcode of huisnummer ontbreekt; Kadaster-opvragen is daarom geblokkeerd.</p>}
-      </div>
-
-      {(recordsQuery.data?.length ?? 0) > 0 && (
-        <div className="rounded-md border p-3 space-y-3">
+        <div className="rounded-md border bg-muted/20 p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium">Opgeslagen Kadastergegevens</p>
-              <p className="text-xs text-muted-foreground">Laatste opvraag: {formatDatum(laatsteDatum)}</p>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {objectRecord && <Badge variant="outline">WOZ-object</Badge>}
-              {waardeRecord && <Badge variant="outline">Koopsom</Badge>}
-              {rechtenRecord && <Badge variant="outline">Rechten</Badge>}
-            </div>
+            <span className="text-muted-foreground">Aanvraagadres</span>
+            <span className="font-mono-data">{adresLabel}</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div><p className="text-xs text-muted-foreground">Koopsom</p><p className="mt-1 text-sm">{formatEuro(waardeRecord?.koopsom)}</p></div>
-            <div><p className="text-xs text-muted-foreground">Kadastrale aanduiding</p><p className="mt-1 text-sm">{rechtenRecord?.kadastrale_aanduiding || '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">Rechthebbende</p><p className="mt-1 text-sm">{rechtenRecord?.rechthebbende_naam || '—'}</p></div>
-          </div>
+          {!adresKlaar && <p className="mt-2 text-xs text-destructive">Postcode of huisnummer ontbreekt; Kadaster-opvragen is daarom geblokkeerd.</p>}
         </div>
-      )}
 
-      <Button onClick={bevestigKosten} disabled={!adresKlaar || mutation.isPending}>
-        <Coins className="mr-2 h-4 w-4" />
-        {mutation.isPending ? 'Bezig…' : 'Kadastergegevens ophalen'}
-      </Button>
-
-      <Dialog open={kostenOpen} onOpenChange={setKostenOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Producten en kosten bevestigen</DialogTitle>
-            <DialogDescription>Deze aanvraag wordt door Kadaster in rekening gebracht. Er wordt geen PDF besteld of opgeslagen voor Vastgoedkansen.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <div className="rounded-md border bg-muted/30 p-3 text-xs"><span className="text-muted-foreground">Zoekadres: </span><span className="font-mono-data">{adresLabel}</span></div>
-            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selObject} onCheckedChange={(v) => setSelObject(v === true)} /><span>WOZ-object</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
-            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selWaarde} onCheckedChange={(v) => setSelWaarde(v === true)} /><span>Koopsom</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
-            {rechtenBeschikbaar && (
-              <label className="flex items-start justify-between gap-2 rounded-md border border-amber-300 bg-amber-50/60 p-2">
-                <span className="flex items-start gap-2"><Checkbox className="mt-0.5" checked={selRechten} onCheckedChange={(v) => setSelRechten(v === true)} /><span><span className="block">{rechtenItem?.name?.trim() || 'Rechten / eigendomsinformatie'}</span><span className="block text-[10px] text-amber-900/80">Gevoelige eigendomsinformatie; aparte bevestiging vereist.</span></span></span>
-                <span className="whitespace-nowrap text-xs text-muted-foreground">{rechtenItem?.priceEur != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(rechtenItem.priceEur) : 'prijs volgens Kadaster'}</span>
-              </label>
-            )}
-            {!rechtenBeschikbaar && <p className="text-[11px] text-muted-foreground">{catalogus.isLoading ? 'Productlijst wordt opgehaald…' : 'Rechten/eigendomsinformatie is niet beschikbaar voor deze API-key.'}</p>}
-            {!heeftBetaaldProduct && <p className="text-xs text-destructive">Selecteer minimaal één betaald product.</p>}
+        {(recordsQuery.data?.length ?? 0) > 0 && (
+          <div className="rounded-md border p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">Opgeslagen Kadastergegevens</p>
+                <p className="text-xs text-muted-foreground">Laatste opvraag: {formatDatum(laatsteDatum)}</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {objectRecord && <Badge variant="outline">WOZ-object</Badge>}
+                {waardeRecord && <Badge variant="outline">Koopsom</Badge>}
+                {rechtenRecord && <Badge variant="outline">Rechten</Badge>}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div><p className="text-xs text-muted-foreground">Koopsom</p><p className="mt-1 text-sm">{formatEuro(waardeRecord?.koopsom)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Kadastrale aanduiding</p><p className="mt-1 text-sm">{rechtenRecord?.kadastrale_aanduiding || '—'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Rechthebbende</p><p className="mt-1 text-sm">{rechtenRecord?.rechthebbende_naam || '—'}</p></div>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setKostenOpen(false)} disabled={mutation.isPending}>Annuleren</Button>
-            <Button disabled={mutation.isPending || !heeftBetaaldProduct} onClick={async () => {
-              if (selRechten && rechtenBeschikbaar) {
+        )}
+
+        <Button onClick={bevestigKosten} disabled={!adresKlaar || mutation.isPending}>
+          <Coins className="mr-2 h-4 w-4" />
+          {mutation.isPending ? 'Bezig…' : 'Kadastergegevens ophalen'}
+        </Button>
+
+        <Dialog open={kostenOpen} onOpenChange={setKostenOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Producten en kosten bevestigen</DialogTitle>
+              <DialogDescription>Deze aanvraag wordt door Kadaster in rekening gebracht. Er wordt geen PDF besteld of opgeslagen voor Vastgoedkansen.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 text-sm">
+              <div className="rounded-md border bg-muted/30 p-3 text-xs"><span className="text-muted-foreground">Zoekadres: </span><span className="font-mono-data">{adresLabel}</span></div>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selObject} onCheckedChange={(v) => setSelObject(v === true)} /><span>WOZ-object</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selWaarde} onCheckedChange={(v) => setSelWaarde(v === true)} /><span>Koopsom</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
+              {rechtenBeschikbaar && (
+                <label className="flex items-start justify-between gap-2 rounded-md border border-amber-300 bg-amber-50/60 p-2">
+                  <span className="flex items-start gap-2"><Checkbox className="mt-0.5" checked={selRechten} onCheckedChange={(v) => setSelRechten(v === true)} /><span><span className="block">{rechtenItem?.name?.trim() || 'Rechten / eigendomsinformatie'}</span><span className="block text-[10px] text-amber-900/80">Gevoelige eigendomsinformatie; aparte bevestiging vereist.</span></span></span>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">{rechtenItem?.priceEur != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(rechtenItem.priceEur) : 'prijs volgens Kadaster'}</span>
+                </label>
+              )}
+              {!rechtenBeschikbaar && <p className="text-[11px] text-muted-foreground">{catalogus.isLoading ? 'Productlijst wordt opgehaald…' : 'Rechten/eigendomsinformatie is niet beschikbaar voor deze API-key.'}</p>}
+              {!heeftBetaaldProduct && <p className="text-xs text-destructive">Selecteer minimaal één betaald product.</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setKostenOpen(false)} disabled={mutation.isPending}>Annuleren</Button>
+              <Button disabled={mutation.isPending || !heeftBetaaldProduct} onClick={async () => {
+                if (selRechten && rechtenBeschikbaar) {
+                  setKostenOpen(false);
+                  setRechtenOpen(true);
+                  return;
+                }
                 setKostenOpen(false);
-                setRechtenOpen(true);
-                return;
-              }
-              setKostenOpen(false);
-              await voerCallUit();
-            }}>Ophalen</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                await voerCallUit();
+              }}>Ophalen</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <AlertDialog open={rechtenOpen} onOpenChange={setRechtenOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rechten / eigendomsinformatie bevestigen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Dit betaalde product kan namen of bedrijfsnamen van rechthebbenden bevatten. Het resultaat wordt uitsluitend als Kadasterrecord aan deze Vastgoedkans opgeslagen; er wordt geen eigenaar of relatie automatisch aangemaakt of gekoppeld.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutation.isPending}>Annuleren</AlertDialogCancel>
-            <AlertDialogAction disabled={mutation.isPending} onClick={async () => { setRechtenOpen(false); await voerCallUit(); }}>Rechten ophalen</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={rechtenOpen} onOpenChange={setRechtenOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Rechten / eigendomsinformatie bevestigen</AlertDialogTitle>
+              <AlertDialogDescription>
+                Dit betaalde product kan namen of bedrijfsnamen van rechthebbenden bevatten. Het resultaat wordt uitsluitend als Kadasterrecord aan deze Vastgoedkans opgeslagen; er wordt geen eigenaar of relatie automatisch aangemaakt of gekoppeld.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={mutation.isPending}>Annuleren</AlertDialogCancel>
+              <AlertDialogAction disabled={mutation.isPending} onClick={async () => { setRechtenOpen(false); await voerCallUit(); }}>Rechten ophalen</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <KadasterPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} preview={preview} gebiedsVariant="gebiedscontext" />
-    </section>
+        <KadasterPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} preview={preview} gebiedsVariant="gebiedscontext" />
+      </section>
+
+      <VastgoedkansEigenaarRelatieKaart vastgoedkansId={vastgoedkansId} />
+    </>
   );
 }
