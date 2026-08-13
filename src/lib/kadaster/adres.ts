@@ -13,6 +13,7 @@ export interface ParsedHuisnummer {
 export interface ParsedAdres {
   postcode: string | null;  // genormaliseerd "5211 MS"
   straat: string | null;
+  plaats: string | null;
   huisnummers: ParsedHuisnummer[];
   betrouwbaar: boolean;     // false → vraag gebruiker handmatig
 }
@@ -87,11 +88,12 @@ export function parseObjectAdres(
   plaatsApart: string | null | undefined,
 ): ParsedAdres {
   const tekst = (adres ?? '').trim();
+  const plaats = plaatsApart?.trim() || null;
   let postcode = normaliseerPostcode(postcodeApart);
   if (!postcode) postcode = normaliseerPostcode(tekst);
 
   if (!tekst) {
-    return { postcode, straat: null, huisnummers: [], betrouwbaar: false };
+    return { postcode, straat: null, plaats, huisnummers: [], betrouwbaar: false };
   }
 
   // Strip postcode + plaats uit de tekst
@@ -99,8 +101,8 @@ export function parseObjectAdres(
   if (postcode) {
     rest = rest.replace(new RegExp(postcode.replace(' ', '\\s*'), 'i'), '').trim();
   }
-  if (plaatsApart) {
-    rest = rest.replace(new RegExp('\\b' + plaatsApart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '').trim();
+  if (plaats) {
+    rest = rest.replace(new RegExp('\\b' + plaats.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '').trim();
   }
   // Strip trailing leestekens
   rest = rest.replace(/[,;]+\s*$/, '').trim();
@@ -133,5 +135,5 @@ export function parseObjectAdres(
   const lijst = Array.from(uniq.values());
 
   const betrouwbaar = !!postcode && lijst.length > 0;
-  return { postcode, straat, huisnummers: lijst, betrouwbaar };
+  return { postcode, straat, plaats, huisnummers: lijst, betrouwbaar };
 }
