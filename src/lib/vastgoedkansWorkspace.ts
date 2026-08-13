@@ -1,6 +1,14 @@
-import type { Vastgoedkans } from '@/lib/vastgoedkansen';
+import type {
+  BriefStatus,
+  EigenaarOnderzoekStatus,
+  Vastgoedkans,
+  VastgoedkansHerkomst,
+  VastgoedkansStatus,
+} from '@/lib/vastgoedkansen';
 
 export type VastgoedkansWerkTab = 'overzicht' | 'onderzoek' | 'kadaster' | 'brieven' | 'dossier';
+export type VastgoedkansWerkbak = VastgoedkansStatus | 'alles' | 'archief';
+export type VastgoedkansSortering = 'recent' | 'prioriteit' | 'score' | 'adres' | 'opvolgdatum';
 
 export interface VastgoedkansWerkcontext {
   tab: VastgoedkansWerkTab;
@@ -11,7 +19,29 @@ export interface VastgoedkansWerkcontext {
   bijgewerktOp: string;
 }
 
+export interface VastgoedkansLijstFilters {
+  prioriteiten: number[];
+  herkomsten: VastgoedkansHerkomst[];
+  eigenaar: EigenaarOnderzoekStatus[];
+  brief: BriefStatus[];
+}
+
+export interface VastgoedkansLijstWorkspaceState {
+  werkbak: VastgoedkansWerkbak;
+  zoekterm: string;
+  sortering: VastgoedkansSortering;
+  filters: VastgoedkansLijstFilters;
+}
+
 const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
+const LIST_STORAGE_KEY = 'bito-vastgoedkansen-list-workspace-v1';
+
+export const DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE: VastgoedkansLijstWorkspaceState = {
+  werkbak: 'te_beoordelen',
+  zoekterm: '',
+  sortering: 'recent',
+  filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
+};
 
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
   if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
@@ -54,3 +84,79 @@ export function bepaalWerkcontextNavigatie(ids: string[], huidigId: string) {
     volgendeId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
   };
 }
+
+const geldigWerkbak = (waarde: unknown): waarde is VastgoedkansWerkbak =>
+  typeof waarde === 'string' && ['te_beoordelen','onderzoek','brief_voorbereiden','opvolgen','wachten','positieve_reactie','afgevallen','gepromoveerd','alles','archief'].includes(waarde);
+const geldigSortering = (waarde: unknown): waarde is VastgoedkansSortering =>
+  typeof waarde === 'string' && ['recent','prioriteit','score','adres','opvolgdatum'].includes(waarde);
+const strings = <T extends string>(waarde: unknown): T[] => Array.isArray(waarde) ? waarde.filter((x): x is T => typeof x === 'string') : [];
+const prioriteiten = (waarde: unknown): number[] => Array.isArray(waarde) ? waarde.filter((x): x is number => Number.isInteger(x) && x >= 1 && x <= 5) : [];
+
+export function leesVastgoedkansLijstWorkspace(): VastgoedkansLijstWorkspaceState {
+  if (typeof window === 'undefined') return DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE;
+  try {
+    const raw = window.localStorage.getItem(LIST_STORAGE_KEY);
+    if (!raw) return DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE;
+    const value = JSON.parse(raw) as Partial<VastgoedkansLijstWorkspaceState>;
+    const filters = value.filters ?? ({} as VastgoedkansLijstFilters);
+    return {
+      werkbak: geldigWerkbak(value.werkbak) ? value.werkbak : 'te_beoordelen',
+      zoekterm: typeof value.zoekterm === 'string' ? value.zoekterm : '',
+      sortering: geldigSortering(value.sortering) ? value.sortering : 'recent',
+      filters: {
+        prioriteiten: prioriteiten(filters.prioriteiten),
+        herkomsten: strings<VastgoedkansHerkomst>(filters.herkomsten),
+        eigenaar: strings<EigenaarOnderzoekStatus>(filters.eigenaar),
+        brief: strings<BriefStatus>(filters.brief),
+      },
+    };
+  } catch {
+    return DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE;
+  }
+}
+
+export function bewaarVastgoedkansLijstWorkspace(state: VastgoedkansLijstWorkspaceState): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(LIST_STORAGE_KEY, JSON.stringify(state));
+}
+
+const norm = (waarde: string | null | undefined): string =>
+  (waarde ?? '').toLocaleLowerCase('nl-NL').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+const millis = (waarde: string | null | undefined): number | null => {
+  if (!waarde) return null;
+  const n = Date.parse(waarde);
+  return Number.isNaN(n) ? null : n;
+};
+const cmpNullable = (a: number | null, b: number | null, desc = false): number => {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return desc ? b - a : a - b;
+};
+
+export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: VastgoedkansLijstWorkspaceState): Vastgoedkans[] {
+  const q = norm(state.zoekterm.trim());
+  const lijst = kansen.filter((kans) => {
+    if (state.werkbak !== 'alles' && state.werkbak !== 'archief' && kans.status !== state.werkbak) return false;
+    if (q && !norm([kans.korteOmschrijving,kans.adres,kans.postcode,kans.plaats,kans.provincie,kans.typeVastgoed,kans.redenInteressant,kans.eigenaarNaam,kans.kansnummer].filter(Boolean).join(' ')).includes(q)) return false;
+    if (state.filters.prioriteiten.length && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
+    if (state.filters.herkomsten.length && !state.filters.herkomsten.includes(kans.herkomst)) return false;
+    if (state.filters.eigenaar.length && !state.filters.eigenaar.includes(kans.eigenaarStatus)) return false;
+    if (state.filters.brief.length && !state.filters.brief.includes(kans.briefStatus)) return false;
+    return true;
+  });
+  return [...lijst].sort((a, b) => {
+    let verschil = 0;
+    if (state.sortering === 'prioriteit') verschil = a.prioriteit - b.prioriteit;
+    if (state.sortering === 'score') verschil = cmpNullable(a.algoritmeScore, b.algoritmeScore, true);
+    if (state.sortering === 'adres') verschil = norm([a.plaats,a.adres].filter(Boolean).join(' ')).localeCompare(norm([b.plaats,b.adres].filter(Boolean).join(' ')), 'nl');
+    if (state.sortering === 'opvolgdatum') verschil = cmpNullable(millis(a.opvolgdatum ?? a.volgendeActieDatum), millis(b.opvolgdatum ?? b.volgendeActieDatum));
+    if (state.sortering === 'recent' || verschil === 0) verschil = cmpNullable(millis(a.updatedAt), millis(b.updatedAt), true);
+    return verschil || a.id.localeCompare(b.id);
+  });
+}
+
+export const telActieveVastgoedkansFilters = (filters: VastgoedkansLijstFilters): number =>
+  filters.prioriteiten.length + filters.herkomsten.length + filters.eigenaar.length + filters.brief.length;
+
+export const legeVastgoedkansFilters = (): VastgoedkansLijstFilters => ({ prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] });
