@@ -16,25 +16,28 @@ describe('BUILD 2.0B.2 — eigenaar naar CRM-relatie', () => {
     expect(compacteKansenHook).toContain('.update({eigenaar_relatie_id:relatieId})');
   });
 
-  it('maakt of koppelt nooit automatisch vanuit de Kadasternaam', () => {
-    expect(relatieBron).toContain('Gebruik als zoekterm');
-    expect(relatieBron).toContain('wordt nooit automatisch gekoppeld of aangemaakt');
+  it('maakt of koppelt nooit automatisch vanuit Kadaster-eigenaarsdata', () => {
+    expect(relatieBron).toContain('Kadaster-eigenaren blijven acquisitiedata');
+    expect(relatieBron).toContain('wordt niet automatisch aan Relaties toegevoegd');
     expect(relatieBron).not.toContain('useEffect(');
     expect(relatieBron).not.toContain('addRelatie(');
     expect(relatieBron).not.toContain('updateKans(');
   });
 
-  it('vereist een expliciete klik voor bestaande relaties', () => {
-    expect(relatieBron).toContain('onClick={() => koppel(relatie)}');
-    expect(relatieBron).toContain("onClick={ontkoppel}");
-    expect(relatieBron).toContain("placeholder=\"Zoek bestaande relatie op naam of bedrijf…\"");
+  it('vereist een expliciete klik voor bestaande CRM-relaties', () => {
+    expect(relatieBron).toContain('onClick={() => koppel(match.relatie)}');
+    expect(relatieBron).toContain('onClick={() => koppel(r)}');
+    expect(relatieBron).toContain('onClick={ontkoppel}');
+    expect(relatieBron).toContain('placeholder="Zoek bestaande relatie op naam of bedrijf…"');
   });
 
-  it('hergebruikt QuickCreate en laat de gebruiker de Kadasternaam eerst beoordelen', () => {
-    expect(relatieBron).toContain('<QuickCreateRelationDialog');
-    expect(relatieBron).toContain('context="verkoper"');
-    expect(relatieBron).toContain("defaultValues={{ naam: kadasterNaam || effectieveZoekterm, type: 'eigenaar' }}");
-    expect(relatieBron).toContain('Nieuwe relatie aanmaken');
+  it('houdt nieuwe Kadaster-eigenaren buiten Relaties en gebruikt eigenaarvoorstellen als acquisitiedata', () => {
+    expect(relatieBron).toContain('bouwKadasterEigenaarVoorstellen');
+    expect(relatieBron).toContain('vindCrmMatches');
+    expect(relatieBron).toContain('Eigenaarvoorstellen uit Kadaster');
+    expect(relatieBron).toContain('Bestaande CRM-match gevonden');
+    expect(relatieBron).not.toContain('<QuickCreateRelationDialog');
+    expect(relatieBron).not.toContain('Nieuwe relatie aanmaken');
   });
 
   it('blijft onderdeel van de Vastgoedkans Kadaster/eigenaar-werkplek zonder Kadaster-call te starten', () => {
