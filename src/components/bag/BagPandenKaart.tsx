@@ -78,14 +78,15 @@ function formatGetal(value: number | null, suffix = '') {
 }
 
 export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = new Set(), onKandidaatToggle }: Props) {
-  const { kansen } = useVastgoedkansen();
+  const { kansen, archief } = useVastgoedkansen();
+  const alleVastgoedkansen = useMemo(() => [...kansen, ...archief], [kansen, archief]);
   const actieveVastgoedkansSelectieIds = useActieveVastgoedkansSelectieIds();
   const { objecten } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalenAlle();
 
   const crmIndex = useMemo(() => {
     const referenties: CrmObjectReferentie[] = [
-      ...kansen.map(kans => ({ bron: 'vastgoedkans' as const, recordId: kans.id, route: `/vastgoedkansen/${kans.id}`, bagPandId: kans.bagPandId, adres: kans.adres, postcode: kans.postcode })),
+      ...alleVastgoedkansen.map(kans => ({ bron: 'vastgoedkans' as const, recordId: kans.id, route: `/vastgoedkansen/${kans.id}`, bagPandId: kans.bagPandId, adres: kans.adres, postcode: kans.postcode })),
       ...objecten.map(object => {
         const bron = object as typeof object & { bagPandId?: string; straatAdres?: string };
         return { bron: 'object' as const, recordId: object.id, route: `/objecten/${object.id}`, bagPandId: bron.bagPandId, adres: object.adres ?? bron.straatAdres ?? '', postcode: object.postcode };
@@ -96,7 +97,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
       }),
     ];
     return bouwCrmObjectMatchIndex(referenties.filter(referentie => referentie.adres || referentie.bagPandId));
-  }, [kansen, objecten, signalen]);
+  }, [alleVastgoedkansen, objecten, signalen]);
 
   const mapRef = useRef<MapRef | null>(null);
   const focusBewegingRef = useRef(false);
@@ -131,7 +132,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
   const workflowStatusVoorPand = useCallback((pand: BagVerkennerPand): BagKaartWorkflowStatus => {
     const match = vindCrmObjectMatch(pand, crmIndex);
     if (match?.bron === 'vastgoedkans') {
-      const kans = kansen.find(item => item.id === match.recordId);
+      const kans = alleVastgoedkansen.find(item => item.id === match.recordId);
       return bepaalBagKaartWorkflowStatus({
         crmBron: 'vastgoedkans',
         vastgoedkansGearchiveerd: Boolean(kans?.archivedAt),
@@ -143,7 +144,7 @@ export default function BagPandenKaart({ scopeCode, filters, geselecteerdeIds = 
       crmBron: match?.bron ?? null,
       lokaalGeselecteerd: geselecteerdeIds.has(pand.bagPandId),
     });
-  }, [actieveVastgoedkansSelectieIds, crmIndex, geselecteerdeIds, kansen]);
+  }, [actieveVastgoedkansSelectieIds, alleVastgoedkansen, crmIndex, geselecteerdeIds]);
 
   const workflowStatusPerPandId = useMemo(() => {
     const statuses = new Map<string, BagKaartWorkflowStatus>();
