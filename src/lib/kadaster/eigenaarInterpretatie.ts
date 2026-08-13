@@ -105,7 +105,7 @@ function kandidaatUitObject(o: Record<string, unknown>, inherited: { aandeel: st
     ?? zoekEerste(o, ['geslachtsnaam', 'achternaam', 'surname']);
   const volledigeNaam = zoekEerste(persoon, ['volledigeNaam', 'naam'])
     ?? zoekEerste(o, ['volledigeNaam', 'naamRechthebbende']);
-  const natuurlijkeNaam = volledigeNaam ?? [voornamen, geslachtsnaam].filter(Boolean).join(' ').trim() || null;
+  const natuurlijkeNaam = volledigeNaam ?? ([voornamen, geslachtsnaam].filter(Boolean).join(' ').trim() || null);
   const bedrijfsnaam = zoekEerste(onderneming, ['statutaireNaam', 'bedrijfsnaam', 'naam', 'handelsnaam', 'organisatieNaam'])
     ?? zoekEerste(o, ['bedrijfsnaam', 'statutaireNaam', 'handelsnaam', 'organisatieNaam']);
   const naam = bedrijfsnaam ?? natuurlijkeNaam ?? zoekEerste(o, ['naam']);
