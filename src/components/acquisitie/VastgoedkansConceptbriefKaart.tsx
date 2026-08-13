@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { Download, FileText, Save, Send } from 'lucide-react';
+import { CalendarPlus, Download, FileText, Save, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import BriefPDF from '@/components/offmarket/BriefPDF';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import {
   logVastgoedkansBriefPdfGenerated,
   useMarkVastgoedkansBriefVerstuurd,
@@ -58,6 +60,8 @@ export default function VastgoedkansConceptbriefKaart({
   const brieven = useVastgoedkansBrieven(vastgoedkansId);
   const upsert = useUpsertVastgoedkansBriefConcept();
   const markeer = useMarkVastgoedkansBriefVerstuurd();
+  const { getKansById } = useVastgoedkansen();
+  const kans = getKansById(vastgoedkansId);
   const alleBrieven = brieven.data ?? [];
   const brief1 = useMemo(() => briefVoorStap(alleBrieven, 'brief_1'), [alleBrieven]);
   const brief2 = useMemo(() => briefVoorStap(alleBrieven, 'brief_2'), [alleBrieven]);
@@ -67,6 +71,7 @@ export default function VastgoedkansConceptbriefKaart({
     : objectadres;
 
   const [open, setOpen] = useState(false);
+  const [taakOpen, setTaakOpen] = useState(false);
   const [actieveStap, setActieveStap] = useState<BriefStap>('brief_1');
   const [markeerTarget, setMarkeerTarget] = useState<AcquisitieBrief | null>(null);
   const [postdatum, setPostdatum] = useState(new Date().toISOString().slice(0, 10));
@@ -79,6 +84,7 @@ export default function VastgoedkansConceptbriefKaart({
 
   const actieveBrief = actieveStap === 'brief_1' ? brief1 : brief2;
   const actiefConcept = actieveBrief?.status === 'concept' ? actieveBrief : null;
+  const kansContext = [kans?.kansnummer, objectomschrijving].filter(Boolean).join(' · ');
 
   useEffect(() => {
     if (!open || !actiefConcept) return;
@@ -283,6 +289,20 @@ export default function VastgoedkansConceptbriefKaart({
         {renderBrief('brief_2', brief2)}
       </div>
 
+      {brief1?.status === 'verstuurd' && (
+        <div id="vastgoedkans-opvolging" className="mt-4 rounded-md border border-dashed p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Vervolgtaak</p>
+              <p className="mt-1 text-xs text-muted-foreground">Maak desgewenst expliciet een CRM-taak aan. Er wordt nooit automatisch een taak of commerciële status aangemaakt.</p>
+            </div>
+            <Button type="button" size="sm" variant="outline" onClick={() => setTaakOpen(true)}>
+              <CalendarPlus className="mr-1.5 h-4 w-4" />Vervolgtaak aanmaken
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
@@ -326,6 +346,17 @@ export default function VastgoedkansConceptbriefKaart({
           </div>
         </DialogContent>
       </Dialog>
+
+      <TaakFormDialog
+        open={taakOpen}
+        onOpenChange={setTaakOpen}
+        defaultRelatieId={kans?.eigenaarRelatieId ?? undefined}
+        defaultObjectId={kans?.objectId ?? undefined}
+        defaultTitel="Opvolgen eigenaar Vastgoedkans"
+        defaultType="Follow-up"
+        defaultDeadline={brief1?.opvolgdatum ?? undefined}
+        defaultNotities={kansContext ? `Vastgoedkans: ${kansContext}` : `Vastgoedkans-ID: ${vastgoedkansId}`}
+      />
     </section>
   );
 }
