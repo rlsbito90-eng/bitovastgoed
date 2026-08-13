@@ -54,7 +54,9 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const huisnummer = gekozenBagAdres?.huisnummer ?? initieelHuisnummer?.huisnummer ?? null;
   const huisletter = gekozenBagAdres ? gekozenBagAdres.huisletter : (initieelHuisnummer?.huisletter ?? null);
   const toevoeging = gekozenBagAdres ? gekozenBagAdres.huisnummertoevoeging : (initieelHuisnummer?.toevoeging ?? null);
-  const adresKlaar = !!postcodeApi && !!huisnummer;
+  // Betaalde Kadasteractie pas vrijgeven nadat PDOK/BAG een officieel adres heeft gekozen.
+  // Daarmee kan een ruwe Vastgoedkans-adresstring niet rechtstreeks meer naar Kadaster lekken.
+  const adresKlaar = !!gekozenBagAdres && !!postcodeApi && !!huisnummer;
   const adresLabel = adresKlaar
     ? [postcodeApi, `${huisnummer ?? ''}${huisletter ?? ''}`, toevoeging].filter(Boolean).join(' ')
     : [adres, postcode, plaats].filter(Boolean).join(', ') || 'Adres niet compleet';
@@ -174,7 +176,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
               Officieel BAG-adres gekozen: {gekozenBagAdres.weergavenaam || adresLabel}
             </p>
           )}
-          {!adresKlaar && <p className="mt-2 text-xs text-destructive">Nog geen bruikbaar officieel adres; Kadaster-opvragen blijft geblokkeerd.</p>}
+          {!adresKlaar && <p className="mt-2 text-xs text-destructive">Nog geen bruikbaar officieel BAG-adres gekozen; Kadaster-opvragen blijft geblokkeerd.</p>}
         </div>
       </div>
 
