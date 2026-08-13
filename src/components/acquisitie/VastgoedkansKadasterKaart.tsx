@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Coins, FileSearch, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,11 +43,8 @@ function formatEuro(value: number | null | undefined): string {
 
 export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postcode, plaats }: Props) {
   const parsed = useMemo(() => parseObjectAdres(adres, postcode, plaats), [adres, postcode, plaats]);
-  const [gekozenBagAdres, setGekozenBagAdres] = useState<BagAdresResultaat | null>(null);
-
-  useEffect(() => {
-    setGekozenBagAdres(null);
-  }, [vastgoedkansId, adres, postcode, plaats]);
+  const [bagKeuze, setBagKeuze] = useState<{ vastgoedkansId: string; adres: BagAdresResultaat } | null>(null);
+  const gekozenBagAdres = bagKeuze?.vastgoedkansId === vastgoedkansId ? bagKeuze.adres : null;
 
   const initieelHuisnummer = parsed.huisnummers[0] ?? null;
   const postcodeApi = normaliseerPostcode(gekozenBagAdres?.postcode ?? postcode ?? parsed.postcode);
@@ -164,7 +161,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
           initielePlaats={plaats ?? parsed.plaats ?? null}
           initielePostcode={postcode ?? parsed.postcode ?? null}
           voorkeursHuisnummerLabel={initieelHuisnummer?.label ?? null}
-          onKies={(resultaat) => setGekozenBagAdres(resultaat)}
+          onKies={(resultaat) => setBagKeuze({ vastgoedkansId, adres: resultaat })}
         />
         <div className="rounded-md border bg-background/60 p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
