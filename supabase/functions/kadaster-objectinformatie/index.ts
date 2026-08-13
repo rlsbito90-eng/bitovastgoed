@@ -143,6 +143,7 @@ const BodySchema = z.object({
   context: z.object({
     object_id: z.string().uuid().nullish(),
     signaal_id: z.string().uuid().nullish(),
+    vastgoedkans_id: z.string().uuid().nullish(),
   }).nullish(),
   persist: z.boolean().nullish(),
   includePdf: z.boolean().nullish(),
@@ -217,6 +218,35 @@ Deno.serve(async (req: Request) => {
       );
     }
     const body = parsed.data;
+
+    // BUILD 2.0B.1B — Vastgoedkans is een eigen dossierbron.
+    // Blokkeer ongeldige context vóór een eventuele betaalde Kadaster-call.
+    if (body.context?.vastgoedkans_id && (body.context.object_id || body.context.signaal_id)) {
+      return jsonError(
+        'Vastgoedkans-context mag niet met object_id of signaal_id worden gecombineerd.',
+        400, 'invalid_input',
+      );
+    }
+    if (body.context?.vastgoedkans_id && body.includePdf === true) {
+      return jsonError(
+        'Kadasterbericht/PDF is voor Vastgoedkansen nog niet geactiveerd.',
+        400, 'invalid_input',
+      );
+    }
+    if (body.persist === true && body.context?.vastgoedkans_id) {
+      const { data: vastgoedkans, error: vastgoedkansError } = await userClient
+        .from('vastgoedkansen')
+        .select('id')
+        .eq('id', body.context.vastgoedkans_id)
+        .maybeSingle();
+      if (vastgoedkansError || !vastgoedkans) {
+        return jsonError(
+          'Vastgoedkans bestaat niet of is niet toegankelijk.',
+          400, 'invalid_input',
+        );
+      }
+    }
+
     const modus = body.modus;
 
     // --- Productselectie bepalen ---
@@ -413,12 +443,13 @@ Deno.serve(async (req: Request) => {
     let persisted: { inserted: number; ids: string[] } | null = null;
     let persistFout: string | null = null;
     const wilPersist = body.persist === true
-      && (body.context?.object_id || body.context?.signaal_id);
+      && (body.context?.object_id || body.context?.signaal_id || body.context?.vastgoedkans_id);
     if (wilPersist) {
       try {
         persisted = await persistKadasterRecords(userClient, {
           objectId: body.context?.object_id ?? null,
           signaalId: body.context?.signaal_id ?? null,
+          vastgoedkansId: body.context?.vastgoedkans_id ?? null,
           mode: modus,
           fetchedAt: opgehaaldOp,
           zoekadres: { type: zoekadresType, waarde: zoekadresWaarde },
@@ -506,6 +537,7 @@ Deno.serve(async (req: Request) => {
       modus, user: userId,
       object_id: body.context?.object_id ?? null,
       signaal_id: body.context?.signaal_id ?? null,
+      vastgoedkans_id: body.context?.vastgoedkans_id ?? null,
       producten: codes.join(','),
       beschikbaar: producten.filter(p => p.beschikbaar).length,
       persist_ok: persisted !== null,
