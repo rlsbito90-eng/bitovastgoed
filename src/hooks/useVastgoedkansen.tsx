@@ -235,7 +235,7 @@ export function VastgoedkansenProvider({ children }: { children: React.ReactNode
     if (ids.length === 0) return;
     const { data: u } = await supabase.auth.getUser();
     const nu = new Date().toISOString();
-    const { data, error } = await sb.from('vastgoedkansen').update({ archived_at: nu, archived_by: u.user?.id ?? null, archived_reason: reden }).in('id', ids).is('archived_at', null).select('*');
+    const { data, error } = await sb.from('vastgoedkansen').update({archived_at:nu,archived_by:u.user?.id ?? null,archived_reason:reden}).in('id', ids).is('archived_at', null).select('*');
     if (error) throw error;
     const gewijzigd = (data ?? []).map(fromDb);
     const set = new Set(gewijzigd.map((k: Vastgoedkans) => k.id));
@@ -245,7 +245,7 @@ export function VastgoedkansenProvider({ children }: { children: React.ReactNode
 
   const restoreKansen = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return;
-    const { data, error } = await sb.from('vastgoedkansen').update({ archived_at: null, archived_by: null, archived_reason: null }).in('id', ids).not('archived_at', 'is', null).select('*');
+    const { data, error } = await sb.from('vastgoedkansen').update({archived_at:null,archived_by:null,archived_reason:null}).in('id', ids).not('archived_at', 'is', null).select('*');
     if (error) throw error;
     const gewijzigd = (data ?? []).map(fromDb);
     const set = new Set(gewijzigd.map((k: Vastgoedkans) => k.id));
