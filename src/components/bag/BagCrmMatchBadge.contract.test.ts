@@ -16,8 +16,15 @@ describe('private BAG CRM-broncontext', () => {
     expect(badge).toContain('/vastgoedkansen/${kans.id}');
     expect(badge).toContain('/objecten/${object.id}');
     expect(badge).toContain('/off-market/${signaal.id}');
-    expect(badge).toContain('Al bekend als');
     expect(badge).toContain('matchtype');
+  });
+
+  it('toont voor Vastgoedkansen de actuele CRM-lifecycle in plaats van alleen een generieke match', () => {
+    expect(badge).toContain('useActieveVastgoedkansSelectieIds');
+    expect(badge).toContain("label = 'Al Vastgoedkans'");
+    expect(badge).toContain("label = 'In Acquisitieselectie'");
+    expect(badge).toContain("label = 'Gearchiveerd'");
+    expect(badge).toContain('kans?.archivedAt');
   });
 
   it('vervangt de generieke blokkadebadge door broncontext', () => {
