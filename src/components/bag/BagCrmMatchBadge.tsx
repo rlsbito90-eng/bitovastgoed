@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { useActieveVastgoedkansSelectieIds } from '@/hooks/useAcquisitieSelectie';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketSignalenAlle } from '@/hooks/useOffMarketSignalen';
@@ -19,6 +20,7 @@ interface Props {
 
 export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
   const { kansen } = useVastgoedkansen();
+  const actieveVastgoedkansSelectieIds = useActieveVastgoedkansSelectieIds();
   const { objecten } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalenAlle();
 
@@ -61,7 +63,21 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
   const match = vindCrmObjectMatch(pand, index);
   if (!match) return <Badge variant="secondary">{fallbackLabel}</Badge>;
 
-  const label = `Al bekend als ${CRM_OBJECT_BRON_LABEL[match.bron]}`;
+  let label = `Al bekend als ${CRM_OBJECT_BRON_LABEL[match.bron]}`;
+  let variant: 'secondary' | 'outline' = 'secondary';
+
+  if (match.bron === 'vastgoedkans') {
+    const kans = kansen.find(item => item.id === match.recordId);
+    if (kans?.archivedAt) {
+      label = 'Gearchiveerd';
+      variant = 'outline';
+    } else if (actieveVastgoedkansSelectieIds.has(match.recordId)) {
+      label = 'In Acquisitieselectie';
+    } else {
+      label = 'Al Vastgoedkans';
+    }
+  }
+
   return (
     <Link
       to={match.route}
@@ -69,7 +85,7 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
       title={`${label} via ${match.matchtype === 'bag_id' ? 'BAG-ID' : 'adres'}`}
       onClick={event => event.stopPropagation()}
     >
-      <Badge variant="secondary" className="cursor-pointer hover:underline">{label}</Badge>
+      <Badge variant={variant} className="cursor-pointer hover:underline">{label}</Badge>
     </Link>
   );
 }
