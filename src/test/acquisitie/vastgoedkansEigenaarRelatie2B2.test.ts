@@ -6,13 +6,14 @@ const root = process.cwd();
 const relatieBron = fs.readFileSync(path.join(root, 'src/components/acquisitie/VastgoedkansEigenaarRelatieKaart.tsx'), 'utf8');
 const kadasterBron = fs.readFileSync(path.join(root, 'src/components/acquisitie/VastgoedkansKadasterKaart.tsx'), 'utf8');
 const kansenHook = fs.readFileSync(path.join(root, 'src/hooks/useVastgoedkansen.tsx'), 'utf8');
+const compacteKansenHook = kansenHook.replace(/\s+/g, '');
 
 describe('BUILD 2.0B.2 — eigenaar naar CRM-relatie', () => {
   it('gebruikt het bestaande Vastgoedkans-relatiecontract', () => {
     expect(relatieBron).toContain('updateEigenaarRelatie');
     expect(relatieBron).toContain('await updateEigenaarRelatie(vastgoedkansId, relatie.id)');
     expect(relatieBron).toContain('await updateEigenaarRelatie(vastgoedkansId, null)');
-    expect(kansenHook).toContain(".update({eigenaar_relatie_id:relatieId})");
+    expect(compacteKansenHook).toContain('.update({eigenaar_relatie_id:relatieId})');
   });
 
   it('maakt of koppelt nooit automatisch vanuit de Kadasternaam', () => {

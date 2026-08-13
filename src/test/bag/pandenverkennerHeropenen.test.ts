@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const badge = readFileSync('src/components/bag/BagCrmMatchBadge.tsx', 'utf8');
 const hook = readFileSync('src/hooks/useVastgoedkansen.tsx', 'utf8');
+const compactHook = hook.replace(/\s+/g, '');
 
 describe('Pandenverkenner heropenen', () => {
   it('toont archiefdatum, reden en een expliciete heropenactie', () => {
@@ -19,7 +20,7 @@ describe('Pandenverkenner heropenen', () => {
   });
 
   it('bestaande restore-lifecycle wist alleen archiefmetadata', () => {
-    expect(hook).toContain("update({archived_at:null,archived_by:null,archived_reason:null})");
-    expect(hook).toContain(".not('archived_at','is',null)");
+    expect(compactHook).toContain('update({archived_at:null,archived_by:null,archived_reason:null})');
+    expect(compactHook).toContain(".not('archived_at','is',null)");
   });
 });
