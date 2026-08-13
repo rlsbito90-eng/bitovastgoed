@@ -26,6 +26,7 @@ export interface AcquisitieBrievenReadModel {
   faseLabel: string;
   primaireActie: string;
   toelichting: string;
+  eigenaarNaam: string | null;
   eigenaarBekend: boolean;
   relatieGekoppeld: boolean;
   geadresseerdeAanwezig: boolean;
@@ -45,6 +46,7 @@ export function bouwAcquisitieBrievenReadModel(
   dossier: AcquisitieDossierContext,
   bron: AcquisitieBrievenBrongegevens,
 ): AcquisitieBrievenReadModel {
+  const eigenaarNaam = bron.eigenaarNaam?.trim() || null;
   const eigenaarBekend = gevuld(bron.eigenaarNaam) || gevuld(bron.eigenaarRelatieId) || gevuld(dossier.eigenaarRelatieId);
   const relatieGekoppeld = gevuld(bron.eigenaarRelatieId) || gevuld(dossier.eigenaarRelatieId);
   const geadresseerdeAanwezig = gevuld(bron.geadresseerde);
@@ -102,6 +104,7 @@ export function bouwAcquisitieBrievenReadModel(
     faseLabel,
     primaireActie,
     toelichting,
+    eigenaarNaam,
     eigenaarBekend,
     relatieGekoppeld,
     geadresseerdeAanwezig,
