@@ -1,4 +1,4 @@
-// React Query hook voor opgeslagen Kadasterberichten/PDF's (Fase 4K.5).
+// React Query hook voor opgeslagen Kadasterberichten/PDF's (Fase 4K.5 / BUILD 2.0B).
 // Intern only — leesrechten gelden alleen voor admin/medewerker.
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ export interface KadasterDocument {
   id: string;
   object_id: string | null;
   signaal_id: string | null;
+  vastgoedkans_id: string | null;
   kadaster_data_record_id: string | null;
   source: string;
   product_codes: string[];
@@ -21,7 +22,7 @@ export interface KadasterDocument {
   created_at: string;
 }
 
-type Col = 'object_id' | 'signaal_id';
+type Col = 'object_id' | 'signaal_id' | 'vastgoedkans_id';
 
 function gebruikKadasterDocumenten(col: Col, id: string | null | undefined) {
   return useQuery({
@@ -55,6 +56,9 @@ export function useKadasterDocumentenForObject(objectId: string | null | undefin
 export function useKadasterDocumentenForSignaal(signaalId: string | null | undefined) {
   return gebruikKadasterDocumenten('signaal_id', signaalId);
 }
+export function useKadasterDocumentenForVastgoedkans(vastgoedkansId: string | null | undefined) {
+  return gebruikKadasterDocumenten('vastgoedkans_id', vastgoedkansId);
+}
 
 /** Open een intern Kadasterbericht via een tijdelijke signed URL. */
 export async function openKadasterDocument(doc: KadasterDocument): Promise<void> {
@@ -69,12 +73,8 @@ export async function openKadasterDocument(doc: KadasterDocument): Promise<void>
 
 /**
  * Map per record_id → bijbehorend Kadasterdocument.
- *
  * Primair: directe `kadaster_data_record_id`-koppeling.
- * Fallback: records die `pdf_document_id` missen worden alsnog gekoppeld
- * aan een document dat hetzelfde `signaal_id`/`object_id`, hetzelfde
- * product en dezelfde `fetched_at` (binnen 5 min) deelt. Zo blijven
- * PDF-knoppen zichtbaar bij oudere records waar de directe FK ontbreekt.
+ * Fallback: oudere records worden gekoppeld op dossierdoel + product + tijd.
  */
 export function documentenPerRecord(
   docs: KadasterDocument[],
@@ -82,6 +82,7 @@ export function documentenPerRecord(
     id: string;
     signaal_id: string | null;
     object_id: string | null;
+    vastgoedkans_id?: string | null;
     product_code: string;
     fetched_at: string;
     pdf_document_id?: string | null;
@@ -102,6 +103,7 @@ export function documentenPerRecord(
       if (used.has(d)) return false;
       if (r.signaal_id && d.signaal_id !== r.signaal_id) return false;
       if (r.object_id && d.object_id !== r.object_id) return false;
+      if (r.vastgoedkans_id && d.vastgoedkans_id !== r.vastgoedkans_id) return false;
       if (!(d.product_codes ?? []).includes(r.product_code)) return false;
       const dt = Math.abs(new Date(d.fetched_at).getTime() - tijd);
       return dt <= 5 * 60 * 1000;
