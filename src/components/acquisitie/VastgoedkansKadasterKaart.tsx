@@ -17,6 +17,7 @@ import { KadasterApiError, useKadasterObjectinformatie } from '@/hooks/useKadast
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
 import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
+import { formatKadasterPrijs, kadasterProductPrijs } from '@/lib/kadaster/tarieven';
 import type { KadasterPreview, KadasterProductCode, KadasterRequestInput } from '@/lib/kadaster/types';
 
 interface Props {
@@ -64,7 +65,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const [preview, setPreview] = useState<KadasterPreview | null>(null);
   const [selObject, setSelObject] = useState(true);
   const [selWaarde, setSelWaarde] = useState(true);
-  const [selRechten, setSelRechten] = useState(false);
+  const [selRechten, setSelRechten] = useState(true);
   const [selPdf, setSelPdf] = useState(true);
 
   const mutation = useKadasterObjectinformatie();
@@ -74,7 +75,12 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
   const documenten = documentenQuery.data ?? [];
   const laatste = useMemo(() => laatsteRecordsPerProduct(recordsQuery.data ?? []), [recordsQuery.data]);
   const catalogus = useKadasterProductCatalogus(kostenOpen);
+  const objectItem = useMemo(() => catalogus.data?.products.find((p) => p.code === 'object') ?? null, [catalogus.data]);
+  const waardeItem = useMemo(() => catalogus.data?.products.find((p) => p.code === 'waarde') ?? null, [catalogus.data]);
   const rechtenItem = useMemo(() => catalogus.data?.products.find((p) => p.code === 'rechten') ?? null, [catalogus.data]);
+  const objectPrijs = kadasterProductPrijs('object', objectItem?.priceEur);
+  const waardePrijs = kadasterProductPrijs('waarde', waardeItem?.priceEur);
+  const rechtenPrijs = kadasterProductPrijs('rechten', rechtenItem?.priceEur);
   const rechtenBeschikbaar = !!rechtenItem;
   const heeftBetaaldProduct = selObject || selWaarde || (selRechten && rechtenBeschikbaar);
 
@@ -233,12 +239,12 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
           </DialogHeader>
           <div className="space-y-2 text-sm">
             <div className="rounded-md border bg-muted/30 p-3 text-xs"><span className="text-muted-foreground">Zoekadres: </span><span className="font-mono-data">{adresLabel}</span></div>
-            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selObject} onCheckedChange={(v) => setSelObject(v === true)} /><span>WOZ-object</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
-            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selWaarde} onCheckedChange={(v) => setSelWaarde(v === true)} /><span>Koopsom</span></span><span className="text-xs text-muted-foreground">prijs volgens Kadaster</span></label>
+            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selObject} onCheckedChange={(v) => setSelObject(v === true)} /><span>WOZ-object</span></span><span className="text-xs text-muted-foreground">{formatKadasterPrijs(objectPrijs)}</span></label>
+            <label className="flex items-center justify-between gap-2 rounded-md border p-2"><span className="flex items-center gap-2"><Checkbox checked={selWaarde} onCheckedChange={(v) => setSelWaarde(v === true)} /><span>Koopsom</span></span><span className="text-xs text-muted-foreground">{formatKadasterPrijs(waardePrijs)}</span></label>
             {rechtenBeschikbaar && (
               <label className="flex items-start justify-between gap-2 rounded-md border border-amber-300 bg-amber-50/60 p-2">
                 <span className="flex items-start gap-2"><Checkbox className="mt-0.5" checked={selRechten} onCheckedChange={(v) => setSelRechten(v === true)} /><span><span className="block">{rechtenItem?.name?.trim() || 'Rechten / eigendomsinformatie'}</span><span className="block text-[10px] text-amber-900/80">Gevoelige eigendomsinformatie; aparte bevestiging vereist.</span></span></span>
-                <span className="whitespace-nowrap text-xs text-muted-foreground">{rechtenItem?.priceEur != null ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(rechtenItem.priceEur) : 'prijs volgens Kadaster'}</span>
+                <span className="whitespace-nowrap text-xs text-muted-foreground">{formatKadasterPrijs(rechtenPrijs)}</span>
               </label>
             )}
             {!rechtenBeschikbaar && <p className="text-[11px] text-muted-foreground">{catalogus.isLoading ? 'Productlijst wordt opgehaald…' : 'Rechten/eigendomsinformatie is niet beschikbaar voor deze API-key.'}</p>}
