@@ -44,7 +44,7 @@ describe('Pandenverkenner Map v2', () => {
   it('rendert serverclusters en echte pandcontouren zonder client-side GeoJSON clustering', () => {
     expect(kaart).toContain('bag-server-clusters');
     expect(kaart).toContain('bag-pandcontour-fill');
-    expect(kaart).toContain('minzoom:16.5');
+    expect(kaart).toMatch(/minzoom:\s*16\.5/);
     expect(kaart).toContain('haalPandenOpKaartV3');
     expect(kaart).not.toContain('clusterMaxZoom');
     expect(kaart).not.toContain('clusterRadius');
