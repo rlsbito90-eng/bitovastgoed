@@ -24,17 +24,21 @@ export interface KadasterRequestInput {
    * aanvraag — Kadaster weigert standalone gratis bestellingen.
    */
   producten?: KadasterProductCode[] | null;
-  context?: { object_id?: string | null; signaal_id?: string | null };
+  context?: {
+    object_id?: string | null;
+    signaal_id?: string | null;
+    vastgoedkans_id?: string | null;
+  };
   /**
-   * Wanneer true en context.object_id/signaal_id aanwezig is, schrijft de
-   * edge function elk product direct in `kadaster_data_records`. Geen
-   * extra Kadaster-call.
+   * Wanneer true en minimaal één contextbron aanwezig is, schrijft de edge
+   * function elk product direct in `kadaster_data_records`. Geen extra
+   * Kadaster-call. Voor Vastgoedkansen ondersteunt 2.0B.1 nog geen PDF-opslag.
    */
   persist?: boolean | null;
   /**
    * Fase 4K.5 — vraag het officiële Kadasterbericht/PDF mee aan. Wordt
    * intern opgeslagen als `kadaster_documenten` rij (niet in dataroom,
-   * niet voor klanten).
+   * niet voor klanten). In 2.0B.1 alleen ondersteund voor object/signaal.
    */
   includePdf?: boolean | null;
 }
