@@ -4,6 +4,8 @@ import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
 import { defaultFollowupDagen } from '@/lib/offMarket/email/emailProfielen';
 import { logBriefEvent } from '@/lib/offMarket/brieven/events';
+import type { Responsstatus } from '@/lib/offMarket/brieven/respons';
+import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 
 export interface AcquisitieBrief extends Omit<OffMarketBrief, 'signaal_id'> {
@@ -183,6 +185,68 @@ export function useMarkVastgoedkansBriefVerstuurd() {
         event_type: 'posted',
         status: 'gepost',
         metadata: { postdatum, opvolgdatum },
+      });
+      return brief;
+    },
+    onSuccess: (brief) => {
+      qc.invalidateQueries({ queryKey: ['off_market_brieven', 'vastgoedkans', brief.vastgoedkans_id] });
+    },
+  });
+}
+
+export interface RegistreerVastgoedkansBriefResponsInput {
+  id: string;
+  vastgoedkans_id: string;
+  responsstatus: Responsstatus;
+  responsdatum: string;
+  respons_kanaal?: Kanaal | null;
+  respons_samenvatting?: string | null;
+}
+
+/**
+ * BUILD 2.0C.4: legt uitsluitend een expliciet geregistreerde respons vast
+ * op een reeds verstuurde Vastgoedkans-brief. Geen taak-, relatie-, object-,
+ * signaal- of Vastgoedkans-status wordt automatisch gewijzigd.
+ */
+export function useRegistreerVastgoedkansBriefRespons() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: RegistreerVastgoedkansBriefResponsInput): Promise<AcquisitieBrief> => {
+      const id = input.id.trim();
+      const vastgoedkansId = input.vastgoedkans_id.trim();
+      const responsdatum = input.responsdatum.trim();
+      if (!id || !vastgoedkansId || !/^\d{4}-\d{2}-\d{2}$/.test(responsdatum)) {
+        throw new Error('Brief, Vastgoedkans en geldige responsdatum zijn verplicht.');
+      }
+
+      const patch: Record<string, unknown> = {
+        responsstatus: input.responsstatus,
+        responsdatum,
+        respons_kanaal: input.respons_kanaal ?? null,
+        respons_samenvatting: input.respons_samenvatting?.trim() || null,
+      };
+      if (input.responsstatus === 'retour_post') patch.verzendstatus = 'retour';
+
+      const { data, error } = await (supabase as any)
+        .from(TABLE)
+        .update(patch)
+        .eq('id', id)
+        .eq('vastgoedkans_id', vastgoedkansId)
+        .eq('status', 'verstuurd')
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+
+      const brief = data as AcquisitieBrief;
+      await logBriefEvent({
+        vastgoedkans_id: vastgoedkansId,
+        brief_id: brief.id,
+        geadresseerde_key: brief.geadresseerde_key ?? null,
+        campagne_stap: brief.campagne_stap ?? 'brief_1',
+        kanaal: input.respons_kanaal ?? brief.kanaal ?? 'post',
+        event_type: input.responsstatus === 'retour_post' ? 'returned_mail' : 'response_received',
+        status: input.responsstatus,
+        metadata: { samenvatting: input.respons_samenvatting?.trim() || null, responsdatum },
       });
       return brief;
     },
