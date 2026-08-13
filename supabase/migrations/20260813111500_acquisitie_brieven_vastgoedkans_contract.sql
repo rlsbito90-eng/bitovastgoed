@@ -12,7 +12,7 @@ begin
     alter table public.off_market_brieven
       add constraint off_market_brieven_vastgoedkans_id_fkey
       foreign key (vastgoedkans_id) references public.vastgoedkansen(id)
-      on update cascade on delete set null not valid;
+      on update cascade on delete cascade not valid;
     alter table public.off_market_brieven validate constraint off_market_brieven_vastgoedkans_id_fkey;
   end if;
   if not exists (select 1 from pg_constraint where conrelid='public.off_market_brieven'::regclass and conname='off_market_brieven_exact_een_dossier_check') then
@@ -49,7 +49,7 @@ begin
     alter table public.off_market_brief_events
       add constraint off_market_brief_events_vastgoedkans_id_fkey
       foreign key (vastgoedkans_id) references public.vastgoedkansen(id)
-      on update cascade on delete set null not valid;
+      on update cascade on delete cascade not valid;
     alter table public.off_market_brief_events validate constraint off_market_brief_events_vastgoedkans_id_fkey;
   end if;
   if not exists (select 1 from pg_constraint where conrelid='public.off_market_brief_events'::regclass and conname='off_market_brief_events_relatie_id_fkey') then
