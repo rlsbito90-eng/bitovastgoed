@@ -71,12 +71,12 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
   }
 
   return (
-    <section id="vastgoedkans-relatiekoppeling" className="section-card scroll-mt-24 p-4 sm:p-5 space-y-4">
+    <div id="vastgoedkans-relatiekoppeling" className="scroll-mt-24 rounded-md border bg-muted/10 p-3 sm:p-4 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Link2 className="h-4 w-4" />
-            <h2 className="font-medium">CRM-relatie eigenaar</h2>
+            <h3 className="font-medium">CRM-relatie eigenaar</h3>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Koppel bewust een bestaande CRM-relatie of maak er expliciet één aan. Een Kadasternaam is alleen een zoeksuggestie en wordt nooit automatisch gekoppeld of aangemaakt.
@@ -86,7 +86,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
       </div>
 
       {gekoppeld ? (
-        <div className="rounded-md border p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-md border bg-background p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Gekoppelde relatie</p>
             <p className="mt-1 truncate text-sm font-medium">{getRelatieDropdownLabel(gekoppeld)}</p>
@@ -100,11 +100,11 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
           </div>
         </div>
       ) : (
-        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Nog geen CRM-relatie gekoppeld.</div>
+        <div className="rounded-md border border-dashed bg-background p-3 text-sm text-muted-foreground">Nog geen CRM-relatie gekoppeld.</div>
       )}
 
       {kadasterNaam && (
-        <div className="rounded-md border bg-muted/20 p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-md border bg-background p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Naam uit opgeslagen Kadasterrecord</p>
             <p className="mt-1 truncate text-sm">{kadasterNaam}</p>
@@ -120,12 +120,12 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
             value={zoekterm}
             onChange={(e) => setZoekterm(e.target.value)}
             placeholder="Zoek bestaande relatie op naam of bedrijf…"
-            className="pl-9"
+            className="pl-9 bg-background"
           />
         </div>
 
         {effectieveZoekterm && (
-          <div className="rounded-md border divide-y">
+          <div className="rounded-md border bg-background divide-y">
             {matches.length > 0 ? matches.map((relatie) => (
               <div key={relatie.id} className="flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
@@ -158,6 +158,6 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
           await koppel(relatie);
         }}
       />
-    </section>
+    </div>
   );
 }
