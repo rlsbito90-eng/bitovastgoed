@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
+import VastgoedkansEigenaarRelatieKaart from '@/components/acquisitie/VastgoedkansEigenaarRelatieKaart';
 import { useKadasterDataRecordsForVastgoedkans, laatsteRecordsPerProduct } from '@/hooks/useKadasterDataRecords';
 import { KadasterApiError, useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
@@ -222,6 +223,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
         </AlertDialogContent>
       </AlertDialog>
 
+      <VastgoedkansEigenaarRelatieKaart vastgoedkansId={vastgoedkansId} />
       <KadasterPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} preview={preview} gebiedsVariant="gebiedscontext" />
     </section>
   );
