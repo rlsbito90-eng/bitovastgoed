@@ -4,6 +4,11 @@ import path from 'node:path';
 import {
   DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE,
   filterEnSorteerVastgoedkansen,
+  listWorkspaceAlleZichtbaarGeselecteerd,
+  listWorkspaceSelectieLabel,
+  listWorkspaceZichtbareSelectieIds,
+  normaliseerListWorkspaceZoektekst,
+  toggleListWorkspaceZichtbareIds,
   type VastgoedkansLijstWorkspaceState,
 } from '@/lib/vastgoedkansWorkspace';
 import type { Vastgoedkans } from '@/lib/vastgoedkansen';
@@ -65,6 +70,38 @@ const state = (extra: Partial<VastgoedkansLijstWorkspaceState> = {}): Vastgoedka
   ...DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE,
   ...extra,
   filters: extra.filters ?? DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE.filters,
+});
+
+describe('BUILD 2.0D — gedeeld List Workspace-contract', () => {
+  it('normaliseert zoeken en zichtbare selectie voorspelbaar', () => {
+    expect(normaliseerListWorkspaceZoektekst('  José   Vastgoed ')).toBe('jose vastgoed');
+    const selectie = new Set(['a', 'c']);
+    expect(listWorkspaceZichtbareSelectieIds(selectie, ['a', 'b'])).toEqual(['a']);
+    expect(listWorkspaceAlleZichtbaarGeselecteerd(selectie, ['a', 'b'])).toBe(false);
+    expect([...toggleListWorkspaceZichtbareIds(selectie, ['a', 'b'])].sort()).toEqual(['a', 'b', 'c']);
+    expect(listWorkspaceSelectieLabel(selectie, ['a', 'b'])).toBe('2 geselecteerd · 1 zichtbaar');
+  });
+
+  it('Acquisitieselectie heeft bewaarde viewstate, zoeken, sortering en expliciete zichtbare selectie', () => {
+    const tab = fs.readFileSync(path.join(process.cwd(), 'src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx'), 'utf8');
+    expect(tab).toContain('WERKBAK_KEY');
+    expect(tab).toContain('SORTEER_KEY');
+    expect(tab).toContain('ZOEK_KEY');
+    expect(tab).toContain('normaliseerZoektekst');
+    expect(tab).toContain('selecteerZichtbareBulk');
+    expect(tab).toContain('selecteerAlleGeschikteBulk');
+    expect(tab).toContain('verwijderBulkUitSelectie');
+  });
+
+  it('Pandenverkenner heeft bewaarde zoekcontext, sortering, zichtbare selectie en handmatige preflight', () => {
+    const lijst = fs.readFileSync(path.join(process.cwd(), 'src/components/bag/BagServicePandenlijst.tsx'), 'utf8');
+    expect(lijst).toContain('bewaarWerkcontext');
+    expect(lijst).toContain('filterEnSorteerBagPanden');
+    expect(lijst).toContain('Sorteer geladen pagina');
+    expect(lijst).toContain('Selecteer zichtbare pagina');
+    expect(lijst).toContain('Controleer selectie');
+    expect(lijst).toContain('onHandmatigPromoveren');
+  });
 });
 
 describe('BUILD 2.0D — Vastgoedkans List Workspace', () => {

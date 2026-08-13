@@ -33,6 +33,52 @@ export interface VastgoedkansLijstWorkspaceState {
   filters: VastgoedkansLijstFilters;
 }
 
+export function normaliseerListWorkspaceZoektekst(waarde: unknown): string {
+  return String(waarde ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('nl-NL')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function listWorkspaceZichtbareSelectieIds(
+  geselecteerd: ReadonlySet<string>,
+  zichtbareIds: readonly string[],
+): string[] {
+  return zichtbareIds.filter((id) => geselecteerd.has(id));
+}
+
+export function listWorkspaceAlleZichtbaarGeselecteerd(
+  geselecteerd: ReadonlySet<string>,
+  zichtbareIds: readonly string[],
+): boolean {
+  return zichtbareIds.length > 0 && zichtbareIds.every((id) => geselecteerd.has(id));
+}
+
+export function toggleListWorkspaceZichtbareIds(
+  geselecteerd: ReadonlySet<string>,
+  zichtbareIds: readonly string[],
+): Set<string> {
+  const volgende = new Set(geselecteerd);
+  if (listWorkspaceAlleZichtbaarGeselecteerd(geselecteerd, zichtbareIds)) {
+    zichtbareIds.forEach((id) => volgende.delete(id));
+  } else {
+    zichtbareIds.forEach((id) => volgende.add(id));
+  }
+  return volgende;
+}
+
+export function listWorkspaceSelectieLabel(
+  geselecteerd: ReadonlySet<string>,
+  zichtbareIds: readonly string[],
+): string {
+  const zichtbaar = listWorkspaceZichtbareSelectieIds(geselecteerd, zichtbareIds).length;
+  return geselecteerd.size === zichtbaar
+    ? `${geselecteerd.size} geselecteerd`
+    : `${geselecteerd.size} geselecteerd · ${zichtbaar} zichtbaar`;
+}
+
 const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
 const LIST_STORAGE_KEY = 'bito-vastgoedkansen-list-workspace-v1';
 
@@ -134,8 +180,7 @@ export function bewaarVastgoedkansLijstWorkspace(state: VastgoedkansLijstWorkspa
   window.localStorage.setItem(LIST_STORAGE_KEY, JSON.stringify(state));
 }
 
-const norm = (waarde: string | null | undefined): string =>
-  (waarde ?? '').toLocaleLowerCase('nl-NL').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+const norm = normaliseerListWorkspaceZoektekst;
 const millis = (waarde: string | null | undefined): number | null => {
   if (!waarde) return null;
   const n = Date.parse(waarde);
