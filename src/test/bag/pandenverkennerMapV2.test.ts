@@ -50,6 +50,14 @@ describe('Pandenverkenner Map v2', () => {
     expect(kaart).not.toContain('clusterRadius');
     expect(model).toContain('bouwBagKaartV3Contouren');
   });
+
+  it('blokkeert kandidaatselectie voor bestaande CRM-records en toont het bestaande dossier', () => {
+    expect(kaart).toContain('bouwCrmObjectMatchIndex');
+    expect(kaart).toContain('vindCrmObjectMatch');
+    expect(kaart).toContain('<BagCrmMatchBadge pand={geselecteerdPand}');
+    expect(kaart).toContain('onKandidaatToggle&&!crmMatch');
+    expect(kaart).toContain('Open bestaand CRM-dossier');
+  });
 });
 
 // 1G.2 UX-contract: serverclusters zijn interactief en kaartbeweging ververst gedebounced.
