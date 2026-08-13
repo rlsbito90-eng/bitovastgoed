@@ -57,11 +57,6 @@ export function bouwEigenaarGoogleUrl(naam: string, plaats?: string | null): str
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 
-export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcontext, 'bijgewerktOp'>): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...context, bijgewerktOp: new Date().toISOString() }));
-}
-
 export function leesVastgoedkansWerkcontext(): VastgoedkansWerkcontext | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -75,13 +70,32 @@ export function leesVastgoedkansWerkcontext(): VastgoedkansWerkcontext | null {
   }
 }
 
+export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcontext, 'bijgewerktOp'>): void {
+  if (typeof window === 'undefined') return;
+  let volgende = context;
+  if (context.zoekterm === undefined) {
+    const bestaand = leesVastgoedkansWerkcontext();
+    if (bestaand?.ids?.includes(context.kansId)) {
+      volgende = {
+        ...context,
+        werkbak: bestaand.werkbak ?? context.werkbak,
+        zoekterm: bestaand.zoekterm,
+        ids: bestaand.ids,
+      };
+    }
+  }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...volgende, bijgewerktOp: new Date().toISOString() }));
+}
+
 export function bepaalWerkcontextNavigatie(ids: string[], huidigId: string) {
-  const index = ids.indexOf(huidigId);
+  const opgeslagen = leesVastgoedkansWerkcontext();
+  const effectieveIds = opgeslagen?.ids?.includes(huidigId) ? opgeslagen.ids : ids;
+  const index = effectieveIds.indexOf(huidigId);
   return {
     index,
-    total: ids.length,
-    vorigeId: index > 0 ? ids[index - 1] : null,
-    volgendeId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
+    total: effectieveIds.length,
+    vorigeId: index > 0 ? effectieveIds[index - 1] : null,
+    volgendeId: index >= 0 && index < effectieveIds.length - 1 ? effectieveIds[index + 1] : null,
   };
 }
 
