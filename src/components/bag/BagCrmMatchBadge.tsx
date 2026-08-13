@@ -28,7 +28,7 @@ function formatteerArchiefdatum(value: string | null | undefined): string | null
   return datum.toLocaleDateString('nl-NL');
 }
 
-export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie = false }: Props) {
+export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie = true }: Props) {
   const { kansen, archief, restoreKansen } = useVastgoedkansen();
   const alleVastgoedkansen = useMemo(() => [...kansen, ...archief], [kansen, archief]);
   const actieveVastgoedkansSelectieIds = useActieveVastgoedkansSelectieIds();
