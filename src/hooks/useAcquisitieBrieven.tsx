@@ -16,6 +16,7 @@ export interface AcquisitieBrief extends Omit<OffMarketBrief, 'signaal_id'> {
 export interface VastgoedkansBriefConceptInput {
   id?: string;
   vastgoedkans_id: string;
+  campagne_stap?: 'brief_1' | 'brief_2';
   eigenaar_naam?: string | null;
   eigenaar_bedrijfsnaam?: string | null;
   verzendadres?: string | null;
@@ -78,7 +79,7 @@ export function useUpsertVastgoedkansBriefConcept() {
         status: 'concept',
         aangemaakt_door: u.user?.id ?? null,
         kanaal: 'post',
-        campagne_stap: 'brief_1',
+        campagne_stap: input.campagne_stap ?? 'brief_1',
         geadresseerde_key: key,
         verzendstatus: 'concept',
       };
