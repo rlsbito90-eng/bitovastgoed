@@ -1,6 +1,6 @@
-// React Query hook voor opgeslagen Kadasterrecords per object.
+// React Query hooks voor opgeslagen Kadasterrecords per CRM-bron.
 // Read-only — invoegen gebeurt door de edge function direct na een
-// succesvolle Kadaster-response.
+// succesvolle, expliciet bevestigde Kadaster-response.
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { KadasterDeliverStatus, KadasterProductCode } from '@/lib/kadaster/types';
@@ -9,6 +9,7 @@ export interface KadasterDataRecord {
   id: string;
   object_id: string | null;
   signaal_id: string | null;
+  vastgoedkans_id: string | null;
   source: string;
   mode: string;
   product_code: KadasterProductCode;
@@ -49,15 +50,22 @@ export interface KadasterDataRecord {
   updated_at: string;
 }
 
-export function useKadasterDataRecords(objectId: string | null | undefined) {
+type KadasterBronKolom = 'object_id' | 'signaal_id' | 'vastgoedkans_id';
+type KadasterBronType = 'object' | 'signaal' | 'vastgoedkans';
+
+function useKadasterDataRecordsVoorBron(
+  bron: KadasterBronType,
+  kolom: KadasterBronKolom,
+  id: string | null | undefined,
+) {
   return useQuery({
-    queryKey: ['kadaster_data_records', 'object', objectId],
-    enabled: !!objectId,
+    queryKey: ['kadaster_data_records', bron, id],
+    enabled: !!id,
     queryFn: async (): Promise<KadasterDataRecord[]> => {
       const { data, error } = await (supabase as unknown as {
         from: (t: string) => {
           select: (c: string) => {
-            eq: (k: string, v: string) => {
+            eq: (k: KadasterBronKolom, v: string) => {
               order: (k: string, o: { ascending: boolean }) => Promise<{
                 data: KadasterDataRecord[] | null; error: { message: string } | null;
               }>;
@@ -67,12 +75,26 @@ export function useKadasterDataRecords(objectId: string | null | undefined) {
       })
         .from('kadaster_data_records')
         .select('*')
-        .eq('object_id', objectId as string)
+        .eq(kolom, id as string)
         .order('fetched_at', { ascending: false });
       if (error) throw new Error(error.message);
       return (data ?? []) as KadasterDataRecord[];
     },
   });
+}
+
+export function useKadasterDataRecords(objectId: string | null | undefined) {
+  return useKadasterDataRecordsVoorBron('object', 'object_id', objectId);
+}
+
+/** Variant per signaal (Off Market Radar). Read-only. */
+export function useKadasterDataRecordsForSignaal(signaalId: string | null | undefined) {
+  return useKadasterDataRecordsVoorBron('signaal', 'signaal_id', signaalId);
+}
+
+/** Variant per Vastgoedkans. Read-only; vereist BUILD 2.0B.1 schema-activatie. */
+export function useKadasterDataRecordsForVastgoedkans(vastgoedkansId: string | null | undefined) {
+  return useKadasterDataRecordsVoorBron('vastgoedkans', 'vastgoedkans_id', vastgoedkansId);
 }
 
 /** Laatste record per product_code. */
@@ -85,31 +107,4 @@ export function laatsteRecordsPerProduct(
     if (!map.has(r.product_code)) map.set(r.product_code, r);
   }
   return map;
-}
-
-/** Variant per signaal (Off Market Radar). Read-only. */
-export function useKadasterDataRecordsForSignaal(signaalId: string | null | undefined) {
-  return useQuery({
-    queryKey: ['kadaster_data_records', 'signaal', signaalId],
-    enabled: !!signaalId,
-    queryFn: async (): Promise<KadasterDataRecord[]> => {
-      const { data, error } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (c: string) => {
-            eq: (k: string, v: string) => {
-              order: (k: string, o: { ascending: boolean }) => Promise<{
-                data: KadasterDataRecord[] | null; error: { message: string } | null;
-              }>;
-            };
-          };
-        };
-      })
-        .from('kadaster_data_records')
-        .select('*')
-        .eq('signaal_id', signaalId as string)
-        .order('fetched_at', { ascending: false });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as KadasterDataRecord[];
-    },
-  });
 }
