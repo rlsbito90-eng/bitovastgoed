@@ -19,14 +19,15 @@ interface Props {
 }
 
 export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
-  const { kansen } = useVastgoedkansen();
+  const { kansen, archief } = useVastgoedkansen();
+  const alleVastgoedkansen = useMemo(() => [...kansen, ...archief], [kansen, archief]);
   const actieveVastgoedkansSelectieIds = useActieveVastgoedkansSelectieIds();
   const { objecten } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalenAlle();
 
   const index = useMemo(() => {
     const referenties: CrmObjectReferentie[] = [
-      ...kansen.map(kans => ({
+      ...alleVastgoedkansen.map(kans => ({
         bron: 'vastgoedkans' as const,
         recordId: kans.id,
         route: `/vastgoedkansen/${kans.id}`,
@@ -58,7 +59,7 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
       }),
     ];
     return bouwCrmObjectMatchIndex(referenties.filter(referentie => referentie.adres || referentie.bagPandId));
-  }, [kansen, objecten, signalen]);
+  }, [alleVastgoedkansen, objecten, signalen]);
 
   const match = vindCrmObjectMatch(pand, index);
   if (!match) return <Badge variant="secondary">{fallbackLabel}</Badge>;
@@ -67,7 +68,7 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
   let variant: 'secondary' | 'outline' = 'secondary';
 
   if (match.bron === 'vastgoedkans') {
-    const kans = kansen.find(item => item.id === match.recordId);
+    const kans = alleVastgoedkansen.find(item => item.id === match.recordId);
     if (kans?.archivedAt) {
       label = 'Gearchiveerd';
       variant = 'outline';

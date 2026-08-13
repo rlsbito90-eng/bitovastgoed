@@ -40,7 +40,8 @@ function foutmelding(error: unknown, fallback: string): string {
 }
 
 export default function VastgoedkansenVindenPage() {
-  const { kansen, addKans } = useVastgoedkansen();
+  const { kansen, archief, addKans } = useVastgoedkansen();
+  const alleVastgoedkansen = useMemo(() => [...kansen, ...archief], [kansen, archief]);
   const { data: signalen = [] } = useOffMarketSignalenAlle();
   const { objecten } = useDataStore();
   const objectRefs = useMemo(() => objecten as Array<(typeof objecten)[number] & {
@@ -59,14 +60,14 @@ export default function VastgoedkansenVindenPage() {
   const [opslaan, setOpslaan] = useState(false);
 
   const bestaandeBagIds = useMemo(() => new Set([
-    ...kansen.map(k => k.bagPandId),
+    ...alleVastgoedkansen.map(k => k.bagPandId),
     ...objectRefs.map(o => o.bagPandId),
-  ].filter((value): value is string => Boolean(value))), [kansen, objectRefs]);
+  ].filter((value): value is string => Boolean(value))), [alleVastgoedkansen, objectRefs]);
   const bestaandeAdressen = useMemo(() => new Set([
-    ...kansen.map(k => norm(`${k.adres}|${k.postcode}`)),
+    ...alleVastgoedkansen.map(k => norm(`${k.adres}|${k.postcode}`)),
     ...objectRefs.map(o => norm(`${o.adres ?? o.straatAdres ?? ''}|${o.postcode ?? ''}`)),
     ...signalen.map(s => norm(`${s.adres ?? ''}|${s.postcode ?? ''}`)),
-  ].filter(Boolean)), [kansen, objectRefs, signalen]);
+  ].filter(Boolean)), [alleVastgoedkansen, objectRefs, signalen]);
 
   const toggleDoel = (doel: string) => setGebruiksdoelen(prev => prev.includes(doel) ? prev.filter(x => x !== doel) : [...prev, doel]);
   const isBestaand = (k: BagKandidaat) => bestaandeBagIds.has(k.bagPandId) || bestaandeAdressen.has(norm(`${k.adres}|${k.postcode}`));
