@@ -29,8 +29,10 @@ import { vastgoedkansNaarBrievenReadModel } from '@/lib/acquisitieBrievenAdapter
 import { vastgoedkansNaarKadasterReadModel } from '@/lib/acquisitieKadasterAdapters';
 import { bouwAcquisitieEigenaarWerkstroomModel } from '@/lib/acquisitieEigenaarWerkstroom';
 import { bouwVastgoedkansOnderzoekModel } from '@/lib/vastgoedkansOnderzoek';
+import { bouwVastgoedkansWorkflowReadModel } from '@/lib/workflow/vastgoedkansWorkflowReadModel';
 
 const selectClass = 'h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm';
+const WORKFLOW_MODE_LABEL = { automatic: 'Automatisch afgeleid', proposal: 'Voorstel', confirmation: 'Bevestiging nodig' } as const;
 
 export default function VastgoedkansDetailPage() {
   const { id = '' } = useParams();
@@ -70,6 +72,10 @@ export default function VastgoedkansDetailPage() {
     () => actueleBron ? vastgoedkansNaarBrievenReadModel(actueleBron as any) : null,
     [actueleBron],
   );
+  const workflowReadModel = useMemo(
+    () => actueleBron ? bouwVastgoedkansWorkflowReadModel(actueleBron as any) : null,
+    [actueleBron],
+  );
   const eigenaarWerkstroom = useMemo(
     () => dossierContext ? bouwAcquisitieEigenaarWerkstroomModel({
       dossier: dossierContext,
@@ -102,8 +108,7 @@ export default function VastgoedkansDetailPage() {
 
   const openKans = (targetId: string | null) => targetId && navigate(`/vastgoedkansen/${targetId}`);
   const setReactie = (value: ReactieStatus) => {
-    const status: VastgoedkansStatus = value === 'interesse' ? 'positieve_reactie' : value === 'geen_interesse' ? 'afgevallen' : value === 'later_contact' ? 'wachten' : value === 'reactie_ontvangen' ? 'opvolgen' : form.status ?? kans.status;
-    setForm({ ...form, reactieStatus: value, status, briefStatus: value === 'geen_reactie' ? form.briefStatus : 'reactie_ontvangen' });
+    setForm({ ...form, reactieStatus: value, briefStatus: value === 'geen_reactie' ? form.briefStatus : 'reactie_ontvangen' });
   };
   const scrollNaar = (targetId: string) => requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const openOnderzoek = () => scrollNaar('vastgoedkans-kadasteronderzoek');
@@ -144,7 +149,18 @@ export default function VastgoedkansDetailPage() {
       </TabsList>
 
       <TabsContent value="overzicht" className="space-y-4">
-        <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Volgende stap</h2><p className="mt-1 text-sm text-muted-foreground">De werkbank toont alleen wat nu nodig is. Verdieping staat in de andere tabs.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div></div></section>
+        <section className="section-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-medium">Volgende actie</h2>
+              <p className="mt-1 text-sm font-medium">{workflowReadModel?.nextAction?.label ?? 'Geen open workflowactie'}</p>
+              {workflowReadModel?.nextAction?.dueAt && <p className="mt-1 text-xs text-muted-foreground">Uiterlijk {new Date(`${workflowReadModel.nextAction.dueAt}T12:00:00`).toLocaleDateString('nl-NL')}</p>}
+            </div>
+            {workflowReadModel?.nextAction && <Badge variant="outline">{WORKFLOW_MODE_LABEL[workflowReadModel.nextAction.mode]}</Badge>}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">De workflow-engine leidt dit advies af uit de dossierfeiten. Commerciële statuswijzigingen en externe acties blijven expliciete gebruikersbeslissingen.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Kadaster</p><p className="mt-1 text-sm">{KADASTER_LABEL[(form.kadasterStatus ?? kans.kadasterStatus) as KadasterOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Eigenaar</p><p className="mt-1 text-sm">{EIGENAAR_LABEL[(form.eigenaarStatus ?? kans.eigenaarStatus) as EigenaarOnderzoekStatus]}</p></div><div><p className="text-xs text-muted-foreground">Brief</p><p className="mt-1 text-sm">{BRIEF_LABEL[(form.briefStatus ?? kans.briefStatus) as BriefStatus]}</p></div></div>
+        </section>
         <section className="section-card p-4 sm:p-5"><h2 className="font-medium">Pand</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Adres</p><p className="mt-1 text-sm">{adres || 'Niet ingevuld'}</p></div><div><p className="text-xs text-muted-foreground">Type</p><p className="mt-1 text-sm">{kans.typeVastgoed || 'Niet ingevuld'}</p></div></div>{kans.redenInteressant && <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{kans.redenInteressant}</p>}</section>
       </TabsContent>
 
