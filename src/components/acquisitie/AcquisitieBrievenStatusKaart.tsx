@@ -2,6 +2,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AcquisitieBriefHistorieKaart } from '@/components/acquisitie/AcquisitieBriefHistorieKaart';
 import { AcquisitieWerkstroomBediening } from '@/components/acquisitie/AcquisitieWerkstroomBediening';
+import VastgoedkansConceptbriefKaart from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
+import { useVastgoedkansBrieven } from '@/hooks/useAcquisitieBrieven';
 import type { AcquisitieBrievenMetHistorieReadModel } from '@/lib/acquisitieBrievenAdapters';
 import type { AcquisitieWerkstroomCommando } from '@/lib/acquisitieWerkstroomCommando';
 
@@ -22,6 +24,12 @@ export function AcquisitieBrievenStatusKaart({
   onCommando,
   commandoBezig = false,
 }: AcquisitieBrievenStatusKaartProps) {
+  const isVastgoedkans = model.dossier.bronType === 'vastgoedkans';
+  const vastgoedkansBrieven = useVastgoedkansBrieven(isVastgoedkans ? model.dossier.bronId : null);
+  const heeftPersistedConcept = isVastgoedkans
+    && (vastgoedkansBrieven.data ?? []).some((brief) => brief.status === 'concept');
+  const briefVoorbereid = model.briefVoorbereid || heeftPersistedConcept;
+
   return (
     <div className="space-y-4">
       <Card data-testid="acquisitie-brieven-statuskaart">
@@ -52,7 +60,7 @@ export function AcquisitieBrievenStatusKaart({
             </div>
             <div>
               <dt className="text-muted-foreground">Brief voorbereid</dt>
-              <dd className="font-medium">{jaNee(model.briefVoorbereid)}</dd>
+              <dd className="font-medium">{jaNee(briefVoorbereid)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Brief verzonden</dt>
@@ -75,6 +83,16 @@ export function AcquisitieBrievenStatusKaart({
           <p className="text-xs text-muted-foreground">{model.veiligheidsmelding}</p>
         </CardContent>
       </Card>
+
+      {isVastgoedkans && (
+        <VastgoedkansConceptbriefKaart
+          vastgoedkansId={model.dossier.bronId}
+          adres={model.dossier.adres}
+          plaats={model.dossier.plaats}
+          eigenaarNaam={model.eigenaarNaam}
+          enabled={model.eigenaarBekend && model.relatieGekoppeld}
+        />
+      )}
 
       <AcquisitieBriefHistorieKaart model={model.briefDossier} />
     </div>
