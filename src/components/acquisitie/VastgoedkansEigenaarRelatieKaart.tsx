@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link2, Plus, Search, Unlink } from 'lucide-react';
+import { CalendarPlus, Link2, MessageSquarePlus, Plus, Search, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
+import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import { QuickCreateRelationDialog } from '@/components/forms/QuickCreateRelationDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,8 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
 
   const [zoekterm, setZoekterm] = useState('');
   const [nieuwOpen, setNieuwOpen] = useState(false);
+  const [taakOpen, setTaakOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const [bezigId, setBezigId] = useState<string | null>(null);
 
   const effectieveZoekterm = zoekterm.trim();
@@ -39,6 +43,8 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
       .sort((a, b) => getRelatieDropdownLabel(a).localeCompare(getRelatieDropdownLabel(b), 'nl', { sensitivity: 'base' }))
       .slice(0, 8);
   }, [effectieveZoekterm, relaties]);
+
+  const kansContext = [kans?.kansnummer, kans?.adres, kans?.plaats].filter(Boolean).join(' · ');
 
   async function koppel(relatie: Relatie) {
     setBezigId(relatie.id);
@@ -86,17 +92,32 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
       </div>
 
       {gekoppeld ? (
-        <div className="rounded-md border bg-background p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Gekoppelde relatie</p>
-            <p className="mt-1 truncate text-sm font-medium">{getRelatieDropdownLabel(gekoppeld)}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground capitalize">{gekoppeld.type}</p>
+        <div className="rounded-md border bg-background p-3 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Gekoppelde relatie</p>
+              <p className="mt-1 truncate text-sm font-medium">{getRelatieDropdownLabel(gekoppeld)}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground capitalize">{gekoppeld.type}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline"><a href={`/relaties/${gekoppeld.id}`}>Open relatie</a></Button>
+              <Button size="sm" variant="outline" disabled={bezigId === 'ontkoppelen'} onClick={ontkoppel}>
+                <Unlink className="mr-1.5 h-3.5 w-3.5" />Ontkoppelen
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline"><a href={`/relaties/${gekoppeld.id}`}>Open relatie</a></Button>
-            <Button size="sm" variant="outline" disabled={bezigId === 'ontkoppelen'} onClick={ontkoppel}>
-              <Unlink className="mr-1.5 h-3.5 w-3.5" />Ontkoppelen
-            </Button>
+
+          <div className="border-t pt-3">
+            <p className="mb-2 text-xs text-muted-foreground">CRM-acties voor deze eigenaar</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setContactOpen(true)}>
+                <MessageSquarePlus className="mr-1.5 h-4 w-4" />Contactmoment loggen
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setTaakOpen(true)}>
+                <CalendarPlus className="mr-1.5 h-4 w-4" />Taak aanmaken
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">Deze acties gebruiken de bestaande CRM-relatie en, indien beschikbaar, het gekoppelde CRM-object. Er wordt geen fake Off-Market-signaal aangemaakt.</p>
           </div>
         </div>
       ) : (
@@ -158,6 +179,26 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
           await koppel(relatie);
         }}
       />
+
+      {gekoppeld && (
+        <>
+          <ContactMomentFormDialog
+            open={contactOpen}
+            onOpenChange={setContactOpen}
+            defaultRelatieId={gekoppeld.id}
+            defaultObjectId={kans?.objectId ?? undefined}
+          />
+          <TaakFormDialog
+            open={taakOpen}
+            onOpenChange={setTaakOpen}
+            defaultRelatieId={gekoppeld.id}
+            defaultObjectId={kans?.objectId ?? undefined}
+            defaultTitel="Opvolgen eigenaar Vastgoedkans"
+            defaultType="Follow-up"
+            defaultNotities={kansContext ? `Vastgoedkans: ${kansContext}` : `Vastgoedkans-ID: ${vastgoedkansId}`}
+          />
+        </>
+      )}
     </div>
   );
 }
