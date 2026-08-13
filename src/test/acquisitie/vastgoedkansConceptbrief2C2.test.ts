@@ -26,10 +26,9 @@ describe('BUILD 2.0C.2 — Vastgoedkans conceptbrief', () => {
     expect(hook).toContain(".eq('status', 'concept')");
   });
 
-  it('introduceert geen verzending, PDF of automatische Vastgoedkans-mutatie', () => {
+  it('houdt Off-Market-verzending en automatische Vastgoedkans-mutatie buiten deze flow', () => {
     expect(hook).not.toContain('useMarkBriefVerstuurd');
     expect(hook).not.toContain('updateKans');
-    expect(kaart).not.toContain('@react-pdf/renderer');
     expect(kaart).not.toContain('useMarkBriefVerstuurd');
     expect(kaart).not.toContain('updateKans');
   });
