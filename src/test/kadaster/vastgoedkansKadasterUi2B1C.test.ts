@@ -7,6 +7,7 @@ const kaartBron = fs.readFileSync(path.join(root, 'src/components/acquisitie/Vas
 const detailBron = fs.readFileSync(path.join(root, 'src/pages/VastgoedkansDetailPage.tsx'), 'utf8');
 const objectKaartBron = fs.readFileSync(path.join(root, 'src/components/object/kadaster/KadasterGebiedsdataKaart.tsx'), 'utf8');
 const bagLookupBron = fs.readFileSync(path.join(root, 'src/components/shared/BagAdresLookup.tsx'), 'utf8');
+const documentenHookBron = fs.readFileSync(path.join(root, 'src/hooks/useKadasterDocumenten.tsx'), 'utf8');
 
 describe('BUILD 2.0B.1C — Vastgoedkans Kadaster-UI', () => {
   it('persist uitsluitend naar de Vastgoedkans-context', () => {
@@ -24,7 +25,7 @@ describe('BUILD 2.0B.1C — Vastgoedkans Kadaster-UI', () => {
     expect(kaartBron).not.toContain('setTimeout(');
   });
 
-  it('vereist nu eerst dezelfde officiële BAG/PDOK-resolutie als Radar', () => {
+  it('vereist eerst dezelfde officiële BAG/PDOK-resolutie als Radar', () => {
     expect(kaartBron).toContain("import BagAdresLookup from '@/components/shared/BagAdresLookup';");
     expect(kaartBron).toContain('<BagAdresLookup');
     expect(kaartBron).toContain('const adresKlaar = !!gekozenBagAdres && !!postcodeApi && !!huisnummer;');
@@ -33,14 +34,17 @@ describe('BUILD 2.0B.1C — Vastgoedkans Kadaster-UI', () => {
     expect(bagLookupBron).toContain('BAG-adres controleren (PDOK)');
   });
 
-  it('houdt PDF uit de Vastgoedkans-flow', () => {
-    expect(kaartBron).toContain('includePdf: false');
-    expect(kaartBron).not.toContain('setSelPdf');
-    expect(kaartBron).not.toContain('Kadasterbericht/PDF intern opslaan');
+  it('ondersteunt nu optionele PDF-opslag en teruglezen voor Vastgoedkansen', () => {
+    expect(kaartBron).toContain('const [selPdf, setSelPdf] = useState(true);');
+    expect(kaartBron).toContain('includePdf: selPdf');
+    expect(kaartBron).toContain('Kadasterbericht/PDF intern opslaan');
+    expect(kaartBron).toContain('useKadasterDocumentenForVastgoedkans(vastgoedkansId)');
+    expect(kaartBron).toContain('Kadasterbericht openen');
+    expect(documentenHookBron).toContain("type Col = 'object_id' | 'signaal_id' | 'vastgoedkans_id';");
+    expect(documentenHookBron).toContain("gebruikKadasterDocumenten('vastgoedkans_id', vastgoedkansId)");
   });
 
   it('houdt rechten standaard uit en vereist een aparte bevestiging', () => {
-    expect(kaartBron).toContain('useState(false)');
     expect(kaartBron).toContain('setRechtenOpen(true)');
     expect(kaartBron).toContain('Rechten / eigendomsinformatie bevestigen');
     expect(kaartBron).toContain('er wordt geen eigenaar of relatie automatisch aangemaakt of gekoppeld');
