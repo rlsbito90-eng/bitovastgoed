@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AcquisitieBriefHistorieKaart } from '@/components/acquisitie/AcquisitieBriefHistorieKaart';
 import { AcquisitieWerkstroomBediening } from '@/components/acquisitie/AcquisitieWerkstroomBediening';
+import VastgoedkansConceptbriefKaart from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
 import type { AcquisitieBrievenMetHistorieReadModel } from '@/lib/acquisitieBrievenAdapters';
 import type { AcquisitieWerkstroomCommando } from '@/lib/acquisitieWerkstroomCommando';
 
@@ -22,6 +23,8 @@ export function AcquisitieBrievenStatusKaart({
   onCommando,
   commandoBezig = false,
 }: AcquisitieBrievenStatusKaartProps) {
+  const isVastgoedkans = model.dossier.bronType === 'vastgoedkans';
+
   return (
     <div className="space-y-4">
       <Card data-testid="acquisitie-brieven-statuskaart">
@@ -75,6 +78,16 @@ export function AcquisitieBrievenStatusKaart({
           <p className="text-xs text-muted-foreground">{model.veiligheidsmelding}</p>
         </CardContent>
       </Card>
+
+      {isVastgoedkans && (
+        <VastgoedkansConceptbriefKaart
+          vastgoedkansId={model.dossier.bronId}
+          adres={model.dossier.adres}
+          plaats={model.dossier.plaats}
+          eigenaarNaam={model.eigenaarNaam}
+          enabled={model.eigenaarBekend && model.relatieGekoppeld}
+        />
+      )}
 
       <AcquisitieBriefHistorieKaart model={model.briefDossier} />
     </div>
