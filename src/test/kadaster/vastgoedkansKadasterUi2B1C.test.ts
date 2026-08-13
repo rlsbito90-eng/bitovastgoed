@@ -6,6 +6,7 @@ const root = process.cwd();
 const kaartBron = fs.readFileSync(path.join(root, 'src/components/acquisitie/VastgoedkansKadasterKaart.tsx'), 'utf8');
 const detailBron = fs.readFileSync(path.join(root, 'src/pages/VastgoedkansDetailPage.tsx'), 'utf8');
 const objectKaartBron = fs.readFileSync(path.join(root, 'src/components/object/kadaster/KadasterGebiedsdataKaart.tsx'), 'utf8');
+const bagLookupBron = fs.readFileSync(path.join(root, 'src/components/shared/BagAdresLookup.tsx'), 'utf8');
 
 describe('BUILD 2.0B.1C — Vastgoedkans Kadaster-UI', () => {
   it('persist uitsluitend naar de Vastgoedkans-context', () => {
@@ -21,6 +22,15 @@ describe('BUILD 2.0B.1C — Vastgoedkans Kadaster-UI', () => {
     expect(kaartBron).not.toContain('useEffect(');
     expect(kaartBron).not.toContain('setInterval(');
     expect(kaartBron).not.toContain('setTimeout(');
+  });
+
+  it('vereist nu eerst dezelfde officiële BAG/PDOK-resolutie als Radar', () => {
+    expect(kaartBron).toContain("import BagAdresLookup from '@/components/shared/BagAdresLookup';");
+    expect(kaartBron).toContain('<BagAdresLookup');
+    expect(kaartBron).toContain('const adresKlaar = !!gekozenBagAdres && !!postcodeApi && !!huisnummer;');
+    expect(kaartBron).toContain('gekozenBagAdres.huisnummertoevoeging');
+    expect(bagLookupBron).toContain('zoekBagAdressen');
+    expect(bagLookupBron).toContain('BAG-adres controleren (PDOK)');
   });
 
   it('houdt PDF uit de Vastgoedkans-flow', () => {
