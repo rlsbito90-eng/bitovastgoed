@@ -257,7 +257,7 @@ export default function VastgoedkansenPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Checkbox checked={alleZichtbaarGeselecteerd} onCheckedChange={toggleAlles} aria-label="Selecteer alle zichtbare vastgoedkansen" />
-          <div><p className="text-sm font-medium">{geselecteerdZichtbaar.length} geselecteerd</p><p className="text-xs text-muted-foreground">Alle bulkacties gelden uitsluitend voor geselecteerde kansen in de huidige weergave.</p></div>
+          <div><p className="text-sm font-medium">{geselecteerd.size} geselecteerd{geselecteerd.size !== geselecteerdZichtbaar.length ? ` · ${geselecteerdZichtbaar.length} zichtbaar` : ''}</p><p className="text-xs text-muted-foreground">Alle bulkacties gelden uitsluitend voor geselecteerde kansen in de huidige weergave.</p></div>
         </div>
         <div className="flex flex-wrap gap-2">
           {werkbak === 'archief'
