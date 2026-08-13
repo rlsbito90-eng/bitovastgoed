@@ -1,9 +1,10 @@
-// PDF-extractie + opslag voor Kadasterbericht (Fase 4K.5).
+// PDF-extractie + opslag voor Kadasterbericht (Fase 4K.5 / BUILD 2.0B).
 //
 // Doel:
 //   - Wanneer een Kadaster-respons een PDF/Kadasterbericht bevat (vereist
 //     `includePdf: true` in het request), wordt de PDF intern opgeslagen
 //     in Storage en als rij in `kadaster_documenten` vastgelegd.
+//   - Ondersteunt Object, Off-Market-signaal en Vastgoedkans als dossierbron.
 //   - Geen automatische deling in dataroom, geen export, geen relatie-
 //     koppeling, geen OCR/parsing. Alleen ophalen + intern terugvindbaar.
 //
@@ -18,20 +19,16 @@
 type SupabaseClient = ReturnType<typeof import('npm:@supabase/supabase-js@2').createClient>;
 
 const PDF_KEY_HINT = /pdf|document|bericht|report|kadasterbericht/i;
-const BASE64_PDF_PREFIX = 'JVBERi'; // base64-encoded "%PDF-"
-const MAX_PDF_BYTES = 30 * 1024 * 1024; // 30 MB defensieve bovengrens
+const BASE64_PDF_PREFIX = 'JVBERi';
+const MAX_PDF_BYTES = 30 * 1024 * 1024;
 
 export interface ExtractedPdf {
-  /** Base64-string zonder data-URL prefix. */
   base64: string;
-  /** Geschatte byte-grootte (na decode). */
   bytes: number;
-  /** Sleutel waar de PDF onder gevonden is (alleen voor debug — geen inhoud). */
   source_key: string | null;
 }
 
 function stripDataUrl(s: string): string {
-  // "data:application/pdf;base64,JVBERi..." → "JVBERi..."
   const idx = s.indexOf('base64,');
   if (idx >= 0) return s.slice(idx + 'base64,'.length);
   return s;
@@ -43,10 +40,6 @@ function looksLikePdfBase64(value: string): boolean {
   return cleaned.startsWith(BASE64_PDF_PREFIX);
 }
 
-/**
- * Zoek in een willekeurige Kadaster-respons recursief naar een PDF.
- * Stopt bij eerste hit. Diepte begrensd om endless objects te voorkomen.
- */
 export function extractPdfFromResponse(raw: unknown, maxDepth = 5): ExtractedPdf | null {
   if (!raw) return null;
 
@@ -55,11 +48,7 @@ export function extractPdfFromResponse(raw: unknown, maxDepth = 5): ExtractedPdf
     if (typeof node === 'string') {
       if (looksLikePdfBase64(node)) {
         const base64 = stripDataUrl(node).replace(/\s+/g, '');
-        return {
-          base64,
-          bytes: Math.floor((base64.length * 3) / 4),
-          source_key: path.join('.') || null,
-        };
+        return { base64, bytes: Math.floor((base64.length * 3) / 4), source_key: path.join('.') || null };
       }
       return null;
     }
@@ -72,7 +61,6 @@ export function extractPdfFromResponse(raw: unknown, maxDepth = 5): ExtractedPdf
     }
     if (typeof node === 'object') {
       const obj = node as Record<string, unknown>;
-      // Eerst keys die op een PDF lijken — geeft betere `source_key`.
       const keys = Object.keys(obj).sort((a, b) => {
         const ah = PDF_KEY_HINT.test(a) ? 0 : 1;
         const bh = PDF_KEY_HINT.test(b) ? 0 : 1;
@@ -103,6 +91,7 @@ function veiligPad(stuk: string): string {
 export function buildKadasterPdfPad(args: {
   objectId: string | null;
   signaalId: string | null;
+  vastgoedkansId: string | null;
   zoekadres: string;
   producten: string[];
   fetchedAt: string;
@@ -110,7 +99,9 @@ export function buildKadasterPdfPad(args: {
 }): { storagePath: string; bestandsnaam: string } {
   const root = args.objectId
     ? `${args.objectId}/kadaster`
-    : `signaal/${args.signaalId}/kadaster`;
+    : args.signaalId
+      ? `signaal/${args.signaalId}/kadaster`
+      : `vastgoedkans/${args.vastgoedkansId}/kadaster`;
   const datum = (args.fetchedAt.split('T')[0]) ?? new Date().toISOString().slice(0, 10);
   const zoek = veiligPad(args.zoekadres.replace(/\s+/g, '_'));
   const prod = veiligPad(args.producten.join('-'));
@@ -122,6 +113,7 @@ export function buildKadasterPdfPad(args: {
 export interface PdfPersistArgs {
   objectId: string | null;
   signaalId: string | null;
+  vastgoedkansId: string | null;
   recordIds: string[];
   productCodes: string[];
   zoekadres: { type: string; waarde: string };
@@ -140,10 +132,7 @@ export interface PdfPersistResult {
   error: string | null;
 }
 
-export async function persistKadasterPdf(
-  client: SupabaseClient,
-  args: PdfPersistArgs,
-): Promise<PdfPersistResult> {
+export async function persistKadasterPdf(client: SupabaseClient, args: PdfPersistArgs): Promise<PdfPersistResult> {
   const empty: PdfPersistResult = {
     ok: false, document_id: null, storage_path: null,
     bestandsnaam: null, bestandsgrootte_bytes: null,
@@ -152,14 +141,15 @@ export async function persistKadasterPdf(
   if (args.pdf.bytes > MAX_PDF_BYTES) {
     return { ...empty, error: `Kadasterbericht (${args.pdf.bytes} bytes) overschrijdt limiet.` };
   }
-  if (!args.objectId && !args.signaalId) {
-    return { ...empty, error: 'Geen object_id of signaal_id om PDF aan te koppelen.' };
+  const targetCount = [args.objectId, args.signaalId, args.vastgoedkansId].filter(Boolean).length;
+  if (targetCount !== 1) {
+    return { ...empty, error: 'Kadasterbericht vereist precies één dossierdoel.' };
   }
 
   let bytes: Uint8Array;
   try {
     bytes = base64ToBytes(args.pdf.base64);
-  } catch (e) {
+  } catch {
     return { ...empty, error: 'Kon Kadasterbericht/PDF niet decoderen.' };
   }
 
@@ -167,19 +157,16 @@ export async function persistKadasterPdf(
   const { storagePath, bestandsnaam } = buildKadasterPdfPad({
     objectId: args.objectId,
     signaalId: args.signaalId,
+    vastgoedkansId: args.vastgoedkansId,
     zoekadres: args.zoekadres.waarde || 'onbekend',
     producten: args.productCodes,
     fetchedAt: args.fetchedAt,
     fileId,
   });
 
-  const uploadRes = await client.storage
-    .from('bito-objecten')
-    .upload(storagePath, bytes, {
-      contentType: 'application/pdf',
-      upsert: false,
-      cacheControl: '3600',
-    });
+  const uploadRes = await client.storage.from('bito-objecten').upload(storagePath, bytes, {
+    contentType: 'application/pdf', upsert: false, cacheControl: '3600',
+  });
   if (uploadRes.error) {
     return { ...empty, error: `Opslaan in storage mislukt: ${uploadRes.error.message}` };
   }
@@ -187,6 +174,7 @@ export async function persistKadasterPdf(
   const insertPayload: Record<string, unknown> = {
     object_id: args.objectId,
     signaal_id: args.signaalId,
+    vastgoedkans_id: args.vastgoedkansId,
     kadaster_data_record_id: args.recordIds[0] ?? null,
     source: 'kadaster_objectinformatie_api',
     product_codes: args.productCodes,
@@ -201,21 +189,15 @@ export async function persistKadasterPdf(
     created_by: args.userId,
   };
 
-  const ins = await client
-    .from('kadaster_documenten')
-    .insert(insertPayload)
-    .select('id')
-    .single();
+  const ins = await client.from('kadaster_documenten').insert(insertPayload).select('id').single();
   if (ins.error || !ins.data) {
-    // Rollback storage-upload zodat we geen weespad krijgen.
     await client.storage.from('bito-objecten').remove([storagePath]).catch(() => {});
     return { ...empty, error: `Documentregistratie mislukt: ${ins.error?.message ?? 'onbekend'}` };
   }
 
   const documentId = (ins.data as { id: string }).id;
   if (args.recordIds.length > 0) {
-    await client
-      .from('kadaster_data_records')
+    await client.from('kadaster_data_records')
       .update({ pdf_document_id: documentId })
       .in('id', args.recordIds)
       .then(() => undefined, () => undefined);
