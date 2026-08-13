@@ -61,6 +61,7 @@ function whitelist(obj: unknown, keys: string[]): Record<string, unknown> {
 interface BaseRow {
   object_id: string | null;
   signaal_id: string | null;
+  vastgoedkans_id: string | null;
   source: string;
   mode: string;
   product_code: KadasterProductCode;
@@ -306,6 +307,7 @@ export async function persistKadasterRecords(
   args: {
     objectId: string | null;
     signaalId: string | null;
+    vastgoedkansId: string | null;
     mode: string;
     fetchedAt: string;
     zoekadres: Record<string, unknown>;
@@ -316,6 +318,7 @@ export async function persistKadasterRecords(
   const base: BaseRow = {
     object_id: args.objectId,
     signaal_id: args.signaalId,
+    vastgoedkans_id: args.vastgoedkansId,
     source: 'kadaster_objectinformatie_api',
     mode: args.mode,
     product_code: 'object',
