@@ -34,18 +34,19 @@ export interface KadasterRequestInput {
   /**
    * Wanneer true vraagt de edge function het Kadasterbericht/PDF mee aan
    * Kadaster (`includePdf: true`). Geen extra Kadaster-call — de PDF zit
-   * in dezelfde respons. Vereist `persist: true` + context om opgeslagen
-   * te worden in `kadaster_documenten`.
+   * in dezelfde respons. Opslag in 2.0B.1 blijft beperkt tot object/signaal;
+   * Vastgoedkansen bieden includePdf daarom nog niet aan.
    */
   includePdf?: boolean | null;
-  /** Optioneel: object_id of signaal_id voor audit-log + persist. */
+  /** Optionele CRM-context voor audit-log + persist. */
   context?: {
     object_id?: string | null;
     signaal_id?: string | null;
+    vastgoedkans_id?: string | null;
   };
   /**
-   * Wanneer true en context.object_id/signaal_id aanwezig is, slaat de
-   * edge function elk product direct op in `kadaster_data_records`.
+   * Wanneer true en minimaal één contextbron aanwezig is, slaat de edge
+   * function elk product direct op in `kadaster_data_records`.
    * Geen extra Kadaster-call; persist is een DB-write, geen retry.
    */
   persist?: boolean | null;
