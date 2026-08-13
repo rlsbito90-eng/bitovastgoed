@@ -12,13 +12,13 @@ import { bepaalAanhef, bepaalOnderwerp, bouwBriefTekst } from '@/lib/offMarket/b
 interface Props {
   vastgoedkansId: string;
   adres?: string | null;
-  postcode?: string | null;
   plaats?: string | null;
   eigenaarNaam?: string | null;
+  enabled?: boolean;
 }
 
 export default function VastgoedkansConceptbriefKaart({
-  vastgoedkansId, adres, postcode, plaats, eigenaarNaam,
+  vastgoedkansId, adres, plaats, eigenaarNaam, enabled = true,
 }: Props) {
   const brieven = useVastgoedkansBrieven(vastgoedkansId);
   const upsert = useUpsertVastgoedkansBriefConcept();
@@ -26,10 +26,9 @@ export default function VastgoedkansConceptbriefKaart({
     () => (brieven.data ?? []).find((brief) => brief.status === 'concept') ?? null,
     [brieven.data],
   );
-  const objectadres = [adres?.trim(), [postcode?.trim(), plaats?.trim()].filter(Boolean).join(' ')]
-    .filter(Boolean).join(', ');
-  const objectomschrijving = adres?.trim()
-    ? `${adres.trim()}${plaats?.trim() ? ` te ${plaats.trim()}` : ''}`
+  const objectadres = adres?.trim() ?? '';
+  const objectomschrijving = objectadres && plaats?.trim() && !objectadres.toLowerCase().includes(plaats.trim().toLowerCase())
+    ? `${objectadres} te ${plaats.trim()}`
     : objectadres;
 
   const [open, setOpen] = useState(false);
@@ -52,6 +51,7 @@ export default function VastgoedkansConceptbriefKaart({
   }, [open, concept, eigenaarNaam, objectomschrijving]);
 
   async function opslaan() {
+    if (!enabled) return;
     try {
       await upsert.mutateAsync({
         id: concept?.id,
@@ -61,7 +61,7 @@ export default function VastgoedkansConceptbriefKaart({
         verzendadres: verzendadres.trim() || null,
         objectadres: objectadres || null,
         objectomschrijving: objectomschrijving || null,
-        aanhef: bepaalAanhef(geadresseerde),
+        aanhef: concept?.aanhef ?? bepaalAanhef(geadresseerde),
         onderwerp: onderwerp.trim() || null,
         brieftekst,
       });
@@ -83,8 +83,13 @@ export default function VastgoedkansConceptbriefKaart({
           <p className="mt-1 text-xs text-muted-foreground">
             Bereid een brief voor en sla hem op in het acquisitiedossier. Verzenden, PDF en opvolging worden in volgende stappen aangesloten.
           </p>
+          {!enabled && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Koppel eerst bewust de eigenaar aan een CRM-relatie voordat je een conceptbrief voorbereidt.
+            </p>
+          )}
         </div>
-        <Button onClick={() => setOpen(true)} disabled={brieven.isLoading}>
+        <Button onClick={() => setOpen(true)} disabled={!enabled || brieven.isLoading}>
           {concept ? 'Open concept' : 'Brief voorbereiden'}
         </Button>
       </div>
@@ -118,7 +123,7 @@ export default function VastgoedkansConceptbriefKaart({
             <div><Label>Brieftekst</Label><Textarea rows={18} value={brieftekst} onChange={(e) => setBrieftekst(e.target.value)} /></div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
-              <Button onClick={opslaan} disabled={upsert.isPending || !brieftekst.trim()}>
+              <Button onClick={opslaan} disabled={!enabled || upsert.isPending || !brieftekst.trim()}>
                 <Save className="mr-1.5 h-4 w-4" />{upsert.isPending ? 'Opslaan…' : 'Concept opslaan'}
               </Button>
             </div>
