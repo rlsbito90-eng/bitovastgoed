@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Coins, FileSearch } from 'lucide-react';
+import { Coins, FileSearch, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -9,9 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import KadasterPreviewDialog from '@/components/object/kadaster/KadasterPreviewDialog';
 import VastgoedkansEigenaarRelatieKaart from '@/components/acquisitie/VastgoedkansEigenaarRelatieKaart';
+import BagAdresLookup from '@/components/shared/BagAdresLookup';
 import { useKadasterDataRecordsForVastgoedkans, laatsteRecordsPerProduct } from '@/hooks/useKadasterDataRecords';
 import { KadasterApiError, useKadasterObjectinformatie } from '@/hooks/useKadasterObjectinformatie';
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
+import type { BagAdresResultaat } from '@/lib/bag/pdokLookup';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type { KadasterPreview, KadasterProductCode, KadasterRequestInput } from '@/lib/kadaster/types';
 
@@ -41,11 +43,20 @@ function formatEuro(value: number | null | undefined): string {
 
 export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postcode, plaats }: Props) {
   const parsed = useMemo(() => parseObjectAdres(adres, postcode, plaats), [adres, postcode, plaats]);
-  const postcodeApi = normaliseerPostcode(postcode ?? parsed.postcode);
-  const huisnummer = parsed.huisnummers[0] ?? null;
-  const adresKlaar = !!postcodeApi && !!huisnummer?.huisnummer;
+  const [gekozenBagAdres, setGekozenBagAdres] = useState<BagAdresResultaat | null>(null);
+
+  useEffect(() => {
+    setGekozenBagAdres(null);
+  }, [vastgoedkansId, adres, postcode, plaats]);
+
+  const initieelHuisnummer = parsed.huisnummers[0] ?? null;
+  const postcodeApi = normaliseerPostcode(gekozenBagAdres?.postcode ?? postcode ?? parsed.postcode);
+  const huisnummer = gekozenBagAdres?.huisnummer ?? initieelHuisnummer?.huisnummer ?? null;
+  const huisletter = gekozenBagAdres ? gekozenBagAdres.huisletter : (initieelHuisnummer?.huisletter ?? null);
+  const toevoeging = gekozenBagAdres ? gekozenBagAdres.huisnummertoevoeging : (initieelHuisnummer?.toevoeging ?? null);
+  const adresKlaar = !!postcodeApi && !!huisnummer;
   const adresLabel = adresKlaar
-    ? [postcodeApi, `${huisnummer?.huisnummer ?? ''}${huisnummer?.huisletter ?? ''}`, huisnummer?.toevoeging].filter(Boolean).join(' ')
+    ? [postcodeApi, `${huisnummer ?? ''}${huisletter ?? ''}`, toevoeging].filter(Boolean).join(' ')
     : [adres, postcode, plaats].filter(Boolean).join(', ') || 'Adres niet compleet';
 
   const [kostenOpen, setKostenOpen] = useState(false);
@@ -75,7 +86,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
 
   async function voerCallUit() {
     if (!adresKlaar || !postcodeApi || !huisnummer) {
-      toast.error('Het adres is niet compleet genoeg voor Kadaster. Controleer postcode en huisnummer.');
+      toast.error('Het adres is niet compleet genoeg voor Kadaster. Controleer eerst het officiële BAG-adres.');
       return;
     }
     if (!heeftBetaaldProduct) {
@@ -87,9 +98,9 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
       modus: 'kadaster',
       adres: {
         postalcode: postcodeApi,
-        houseNumber: huisnummer.huisnummer,
-        houseLetter: huisnummer.huisletter ?? null,
-        houseNumberAddition: huisnummer.toevoeging ?? null,
+        houseNumber: huisnummer,
+        houseLetter: huisletter ?? null,
+        houseNumberAddition: toevoeging ?? null,
       },
       producten: geselecteerdeProducten(),
       context: { vastgoedkans_id: vastgoedkansId },
@@ -117,7 +128,7 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
 
   function bevestigKosten() {
     if (!adresKlaar) {
-      toast.error('Het Vastgoedkans-adres bevat geen geldige postcode en huisnummer.');
+      toast.error('Controleer eerst het Vastgoedkans-adres via BAG/PDOK en kies een officieel adres.');
       return;
     }
     setKostenOpen(true);
@@ -136,16 +147,35 @@ export default function VastgoedkansKadasterKaart({ vastgoedkansId, adres, postc
           <h2 className="font-medium">Kadastergegevens ophalen</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Alleen na expliciete kostenbevestiging. Een succesvolle aanvraag wordt direct aan deze Vastgoedkans opgeslagen. Er wordt niets automatisch naar eigenaar- of dossiervelden overgenomen.
+          Controleer eerst gratis het officiële BAG-adres. Alleen na expliciete kostenbevestiging wordt een Kadasteraanvraag gedaan en aan deze Vastgoedkans opgeslagen. Er wordt niets automatisch naar eigenaar- of dossiervelden overgenomen.
         </p>
       </div>
 
-      <div className="rounded-md border bg-muted/20 p-3 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-muted-foreground">Aanvraagadres</span>
-          <span className="font-mono-data">{adresLabel}</span>
+      <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>Zoekadres voor Kadaster</span>
         </div>
-        {!adresKlaar && <p className="mt-2 text-xs text-destructive">Postcode of huisnummer ontbreekt; Kadaster-opvragen is daarom geblokkeerd.</p>}
+        <BagAdresLookup
+          initieleStraat={parsed.straat ?? null}
+          initieelHuisnummer={initieelHuisnummer?.huisnummer ?? null}
+          initielePlaats={plaats ?? parsed.plaats ?? null}
+          initielePostcode={postcode ?? parsed.postcode ?? null}
+          voorkeursHuisnummerLabel={initieelHuisnummer?.label ?? null}
+          onKies={(resultaat) => setGekozenBagAdres(resultaat)}
+        />
+        <div className="rounded-md border bg-background/60 p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-muted-foreground">Aanvraagadres</span>
+            <span className="font-mono-data">{adresLabel}</span>
+          </div>
+          {gekozenBagAdres && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Officieel BAG-adres gekozen: {gekozenBagAdres.weergavenaam || adresLabel}
+            </p>
+          )}
+          {!adresKlaar && <p className="mt-2 text-xs text-destructive">Nog geen bruikbaar officieel adres; Kadaster-opvragen blijft geblokkeerd.</p>}
+        </div>
       </div>
 
       {(recordsQuery.data?.length ?? 0) > 0 && (
