@@ -111,10 +111,7 @@ export default function VastgoedkansDetailPage() {
     if (googleEigenaarUrl) window.open(googleEigenaarUrl, '_blank', 'noopener,noreferrer');
     else scrollNaar('vastgoedkans-eigenaaronderzoek');
   };
-  const openRelatieKoppelen = () => {
-    scrollNaar('vastgoedkans-eigenaaronderzoek');
-    toast.info('De gedeelde CRM-relatiekoppeling wordt in een volgende tranche aangesloten.');
-  };
+  const openRelatieKoppelen = () => scrollNaar('vastgoedkans-relatiekoppeling');
   const openBriefVoorbereiden = () => setTab('brieven');
 
   return <div className="page-shell-wide min-w-0 overflow-x-hidden">
