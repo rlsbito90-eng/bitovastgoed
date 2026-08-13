@@ -112,8 +112,9 @@ describe('BUILD 2.0D — Vastgoedkans List Workspace', () => {
     expect(bulk).not.toContain('snake(');
   });
 
-  it('lijstpagina bewaart exacte zichtbare volgorde vóór openen van een dossier', () => {
+  it('lijstpagina bewaart weergave en exacte zichtbare volgorde vóór openen van een dossier', () => {
     const pagina = fs.readFileSync(path.join(process.cwd(), 'src/pages/VastgoedkansenPage.tsx'), 'utf8');
+    expect(pagina).toContain('bewaarVastgoedkansLijstWorkspace');
     expect(pagina).toContain('ids: listIds');
     expect(pagina).toContain('zoekterm: q');
     expect(pagina).toContain('bepaalPrimaireWerkTab(kans)');
