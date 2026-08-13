@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useActieveVastgoedkansSelectieIds } from '@/hooks/useAcquisitieSelectie';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -16,14 +18,23 @@ import {
 interface Props {
   pand: BagVerkennerPand;
   fallbackLabel: string;
+  toonArchiefActie?: boolean;
 }
 
-export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
-  const { kansen, archief } = useVastgoedkansen();
+function formatteerArchiefdatum(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const datum = new Date(value);
+  if (Number.isNaN(datum.getTime())) return null;
+  return datum.toLocaleDateString('nl-NL');
+}
+
+export default function BagCrmMatchBadge({ pand, fallbackLabel, toonArchiefActie = true }: Props) {
+  const { kansen, archief, restoreKansen } = useVastgoedkansen();
   const alleVastgoedkansen = useMemo(() => [...kansen, ...archief], [kansen, archief]);
   const actieveVastgoedkansSelectieIds = useActieveVastgoedkansSelectieIds();
   const { objecten } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalenAlle();
+  const [heropenenBezig, setHeropenenBezig] = useState(false);
 
   const index = useMemo(() => {
     const referenties: CrmObjectReferentie[] = [
@@ -66,27 +77,52 @@ export default function BagCrmMatchBadge({ pand, fallbackLabel }: Props) {
 
   let label = `Al bekend als ${CRM_OBJECT_BRON_LABEL[match.bron]}`;
   let variant: 'secondary' | 'outline' = 'secondary';
+  const vastgoedkans = match.bron === 'vastgoedkans'
+    ? alleVastgoedkansen.find(item => item.id === match.recordId)
+    : undefined;
 
-  if (match.bron === 'vastgoedkans') {
-    const kans = alleVastgoedkansen.find(item => item.id === match.recordId);
-    if (kans?.archivedAt) {
-      label = 'Gearchiveerd';
-      variant = 'outline';
-    } else if (actieveVastgoedkansSelectieIds.has(match.recordId)) {
-      label = 'In Acquisitieselectie';
-    } else {
-      label = 'Al Vastgoedkans';
-    }
+  if (vastgoedkans?.archivedAt) {
+    label = 'Gearchiveerd';
+    variant = 'outline';
+  } else if (match.bron === 'vastgoedkans' && actieveVastgoedkansSelectieIds.has(match.recordId)) {
+    label = 'In Acquisitieselectie';
+  } else if (match.bron === 'vastgoedkans') {
+    label = 'Al Vastgoedkans';
   }
 
+  const archiefdatum = formatteerArchiefdatum(vastgoedkans?.archivedAt);
+  const toonHeropenen = Boolean(toonArchiefActie && vastgoedkans?.archivedAt);
+
+  const heropen = async () => {
+    if (!vastgoedkans?.archivedAt || heropenenBezig) return;
+    setHeropenenBezig(true);
+    try {
+      await restoreKansen([vastgoedkans.id]);
+      toast.success('Vastgoedkans heropend.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Heropenen mislukt.');
+    } finally {
+      setHeropenenBezig(false);
+    }
+  };
+
   return (
-    <Link
-      to={match.route}
-      aria-label={`${label}; open bestaand CRM-record`}
-      title={`${label} via ${match.matchtype === 'bag_id' ? 'BAG-ID' : 'adres'}`}
-      onClick={event => event.stopPropagation()}
-    >
-      <Badge variant={variant} className="cursor-pointer hover:underline">{label}</Badge>
-    </Link>
+    <div className="space-y-2" onClick={event => event.stopPropagation()}>
+      <Link
+        to={match.route}
+        aria-label={`${label}; open bestaand CRM-record`}
+        title={`${label} via ${match.matchtype === 'bag_id' ? 'BAG-ID' : 'adres'}`}
+      >
+        <Badge variant={variant} className="cursor-pointer hover:underline">{label}</Badge>
+      </Link>
+      {toonHeropenen && (
+        <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+          <p>{archiefdatum ? `Gearchiveerd op ${archiefdatum}` : 'Gearchiveerd'}{vastgoedkans?.archivedReason ? ` · ${vastgoedkans.archivedReason}` : ''}</p>
+          <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" disabled={heropenenBezig} onClick={() => void heropen()}>
+            {heropenenBezig ? 'Heropenen…' : 'Heropenen'}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

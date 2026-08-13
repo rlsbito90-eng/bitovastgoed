@@ -13,11 +13,12 @@ describe('Pandenverkenner archiefgrens', () => {
     expect(pagina).toContain('...alleVastgoedkansen.map(k => norm(`${k.adres}|${k.postcode}`))');
   });
 
-  it('kan een gearchiveerde Vastgoedkans als zodanig labelen', () => {
-    expect(badge).toContain('const { kansen, archief } = useVastgoedkansen();');
+  it('kan een gearchiveerde Vastgoedkans als zodanig labelen en heropenen', () => {
+    expect(badge).toContain('const { kansen, archief, restoreKansen } = useVastgoedkansen();');
     expect(badge).toContain('...alleVastgoedkansen.map(kans =>');
     expect(badge).toContain("label = 'Gearchiveerd'");
-    expect(badge).toContain('kans?.archivedAt');
+    expect(badge).toContain('vastgoedkans?.archivedAt');
+    expect(badge).toContain('restoreKansen([vastgoedkans.id])');
   });
 
   it('gebruikt het archief ook voor kaartmatch en workflowkleur', () => {
