@@ -19,11 +19,13 @@ describe('BUILD 2.0B.3 — CRM-acties voor gekoppelde Vastgoedkans-eigenaar', ()
     expect(bron).toContain('{gekoppeld && (');
   });
 
-  it('maakt geen fake Off-Market-signaal of automatische Kadastercall', () => {
+  it('maakt geen fake Off-Market-signaal, automatische Kadastercall of nieuwe CRM-relatie', () => {
     expect(bron).not.toContain('defaultOffMarketSignaalId=');
     expect(bron).not.toContain('mutateAsync(');
     expect(bron).not.toContain("from('off_market_signalen')");
-    expect(bron).toContain('Er wordt geen fake Off-Market-signaal aangemaakt.');
+    expect(bron).not.toContain('<QuickCreateRelationDialog');
+    expect(bron).not.toContain('addRelatie(');
+    expect(bron).toContain('Kadaster-eigenaren blijven acquisitiedata');
   });
 
   it('gebruikt een bestaande geldige taakcategorie en bewaart Vastgoedkans-context in notities', () => {
