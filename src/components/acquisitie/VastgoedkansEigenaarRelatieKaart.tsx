@@ -153,7 +153,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
         open={nieuwOpen}
         onOpenChange={setNieuwOpen}
         context="verkoper"
-        defaultValues={{ bedrijfsnaam: kadasterNaam || effectieveZoekterm, type: 'eigenaar' }}
+        defaultValues={{ naam: kadasterNaam || effectieveZoekterm, type: 'eigenaar' }}
         onCreated={async (relatie) => {
           await koppel(relatie);
         }}
