@@ -168,7 +168,12 @@ export function normaliseerBagServicePandV2(rij: BagServicePandV2Rij): BagVerken
 }
 
 function norm(value: unknown): string {
-  return String(value ?? '').trim().toLocaleLowerCase('nl');
+  return String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('nl-NL')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function filterEnSorteerBagPanden(
