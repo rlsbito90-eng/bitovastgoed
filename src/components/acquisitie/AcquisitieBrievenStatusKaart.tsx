@@ -26,9 +26,32 @@ export function AcquisitieBrievenStatusKaart({
 }: AcquisitieBrievenStatusKaartProps) {
   const isVastgoedkans = model.dossier.bronType === 'vastgoedkans';
   const vastgoedkansBrieven = useVastgoedkansBrieven(isVastgoedkans ? model.dossier.bronId : null);
-  const heeftPersistedConcept = isVastgoedkans
-    && (vastgoedkansBrieven.data ?? []).some((brief) => brief.status === 'concept');
-  const briefVoorbereid = model.briefVoorbereid || heeftPersistedConcept;
+  const persistedBrieven = isVastgoedkans ? (vastgoedkansBrieven.data ?? []) : [];
+  const heeftPersistedBrief = persistedBrieven.length > 0;
+  const heeftPersistedVerstuurd = persistedBrieven.some((brief) => brief.status === 'verstuurd');
+  const heeftPersistedGeadresseerde = persistedBrieven.some((brief) => Boolean(
+    brief.eigenaar_naam?.trim() || brief.eigenaar_bedrijfsnaam?.trim() || brief.verzendadres?.trim(),
+  ));
+
+  const geadresseerdeAanwezig = model.geadresseerdeAanwezig || heeftPersistedGeadresseerde;
+  const briefVoorbereid = model.briefVoorbereid || heeftPersistedBrief;
+  const briefVerzonden = model.briefVerzonden || heeftPersistedVerstuurd;
+
+  const faseLabel = isVastgoedkans && briefVerzonden && !model.reactieOntvangen
+    ? 'Opvolgen'
+    : isVastgoedkans && briefVoorbereid && !briefVerzonden
+      ? 'Verzending registreren'
+      : model.faseLabel;
+  const primaireActie = isVastgoedkans && briefVerzonden && !model.reactieOntvangen
+    ? 'Voer de geplande opvolging uit'
+    : isVastgoedkans && briefVoorbereid && !briefVerzonden
+      ? 'Genereer de PDF en registreer daarna de werkelijke verzending'
+      : model.primaireActie;
+  const toelichting = isVastgoedkans && briefVerzonden && !model.reactieOntvangen
+    ? 'De verzending is vastgelegd. Gebruik de berekende opvolgdatum voor het volgende contactmoment.'
+    : isVastgoedkans && briefVoorbereid && !briefVerzonden
+      ? 'Het concept staat in het dossier. PDF-generatie is lokaal; markeren als verstuurd gebeurt alleen na expliciete bevestiging.'
+      : model.toelichting;
 
   return (
     <div className="space-y-4">
@@ -36,9 +59,9 @@ export function AcquisitieBrievenStatusKaart({
         <CardHeader className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">{titel}</CardTitle>
-            <Badge variant="outline">{model.faseLabel}</Badge>
+            <Badge variant="outline">{faseLabel}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{model.toelichting}</p>
+          <p className="text-sm text-muted-foreground">{toelichting}</p>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -46,7 +69,7 @@ export function AcquisitieBrievenStatusKaart({
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Volgende actie
             </p>
-            <p className="mt-1 text-sm font-medium">{model.primaireActie}</p>
+            <p className="mt-1 text-sm font-medium">{primaireActie}</p>
           </div>
 
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -56,7 +79,7 @@ export function AcquisitieBrievenStatusKaart({
             </div>
             <div>
               <dt className="text-muted-foreground">Geadresseerde gecontroleerd</dt>
-              <dd className="font-medium">{jaNee(model.geadresseerdeAanwezig)}</dd>
+              <dd className="font-medium">{jaNee(geadresseerdeAanwezig)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Brief voorbereid</dt>
@@ -64,7 +87,7 @@ export function AcquisitieBrievenStatusKaart({
             </div>
             <div>
               <dt className="text-muted-foreground">Brief verzonden</dt>
-              <dd className="font-medium">{jaNee(model.briefVerzonden)}</dd>
+              <dd className="font-medium">{jaNee(briefVerzonden)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Reactie geregistreerd</dt>
