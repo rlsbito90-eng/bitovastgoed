@@ -65,13 +65,35 @@ function bouwOpvolgbriefTekst(aanhef: string, objectomschrijving: string): strin
   return `${aanhef}\n\nOnlangs heb ik u een brief gestuurd ${objectregel}. Ik wilde kort navragen of u gelegenheid heeft gehad om deze te bekijken.\n\nMocht verkoop nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Ook als het op dit moment niet speelt, hoor ik dat uiteraard graag.\n\nMet vriendelijke groet,\n\nRamysh Bito\nBito Vastgoed`;
 }
 
+function formatteerPostcode(value: string | null | undefined): string {
+  const compact = (value ?? '').replace(/\s+/g, '').toUpperCase();
+  return /^\d{4}[A-Z]{2}$/.test(compact) ? `${compact.slice(0, 4)} ${compact.slice(4)}` : (value ?? '').trim();
+}
+
+function formatteerPlaats(value: string | null | undefined): string {
+  const plaats = (value ?? '').trim();
+  if (!plaats) return '';
+  return plaats.toLocaleLowerCase('nl-NL').replace(/(^|[\s-])\p{L}/gu, (m) => m.toLocaleUpperCase('nl-NL'));
+}
+
+/**
+ * Een Vastgoedkans die op BAG-pandniveau is geselecteerd heeft geen vaste VBO-eenheid.
+ * Een representatief/gekozen VBO-suffix (bijv. -H of -1) mag dan niet automatisch
+ * de commerciële pandomschrijving in onderwerp en brieftekst worden.
+ */
+function pandAdresVoorBrief(adres: string | null | undefined, isBagPand: boolean, heeftVbo: boolean): string {
+  const schoon = (adres ?? '').trim();
+  if (!schoon || !isBagPand || heeftVbo) return schoon;
+  return schoon.replace(/-(?:H|[1-4])$/i, '').trim();
+}
+
 function eigenaarVelden(eigenaar: BriefEigenaarOptie | null) {
   if (!eigenaar) return { geadresseerde: '', bedrijfsnaam: '', verzendadres: '' };
   const isBedrijf = eigenaar.partijType === 'rechtspersoon';
   const bedrijfsnaam = eigenaar.bedrijfsnaam ?? (isBedrijf ? eigenaar.naam : '');
   const geadresseerde = isBedrijf ? '' : eigenaar.naam;
-  const plaatsregel = [eigenaar.postcode, eigenaar.plaats].filter(Boolean).join(' ');
-  const verzendadres = [eigenaar.adres, plaatsregel].filter(Boolean).join('\n');
+  const plaatsregel = [formatteerPostcode(eigenaar.postcode), formatteerPlaats(eigenaar.plaats)].filter(Boolean).join(' ');
+  const verzendadres = [eigenaar.adres?.trim(), plaatsregel].filter(Boolean).join('\n');
   return { geadresseerde, bedrijfsnaam, verzendadres };
 }
 
@@ -86,9 +108,9 @@ export default function VastgoedkansConceptbriefKaart({
   const alleBrieven = brieven.data ?? [];
   const brief1 = useMemo(() => briefVoorStap(alleBrieven, 'brief_1'), [alleBrieven]);
   const brief2 = useMemo(() => briefVoorStap(alleBrieven, 'brief_2'), [alleBrieven]);
-  const objectadres = adres?.trim() ?? '';
+  const objectadres = pandAdresVoorBrief(adres, Boolean(kans?.bagPandId), Boolean(kans?.bagVerblijfsobjectId));
   const objectomschrijving = objectadres && plaats?.trim() && !objectadres.toLowerCase().includes(plaats.trim().toLowerCase())
-    ? `${objectadres} te ${plaats.trim()}`
+    ? `${objectadres} te ${formatteerPlaats(plaats)}`
     : objectadres;
 
   const [open, setOpen] = useState(false);
@@ -381,7 +403,7 @@ export default function VastgoedkansConceptbriefKaart({
               <div><Label>Geadresseerde</Label><Input value={geadresseerde} onChange={(e) => setGeadresseerde(e.target.value)} /></div>
               <div><Label>Bedrijfsnaam</Label><Input value={bedrijfsnaam} onChange={(e) => setBedrijfsnaam(e.target.value)} /></div>
             </div>
-            <div><Label>Verzendadres</Label><Textarea rows={3} value={verzendadres} onChange={(e) => setVerzendadres(e.target.value)} placeholder="Straat en huisnummer\nPostcode en plaats" /></div>
+            <div><Label>Verzendadres</Label><Textarea rows={3} value={verzendadres} onChange={(e) => setVerzendadres(e.target.value)} placeholder={'Straat en huisnummer\nPostcode en plaats'} /></div>
             <div><Label>Onderwerp</Label><Input value={onderwerp} onChange={(e) => setOnderwerp(e.target.value)} /></div>
             <div><Label>Brieftekst</Label><Textarea rows={18} value={brieftekst} onChange={(e) => setBrieftekst(e.target.value)} /></div>
             <div className="flex justify-end gap-2">

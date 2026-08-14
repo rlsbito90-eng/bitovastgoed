@@ -49,7 +49,7 @@ describe('BUILD 2.0C.2 — Vastgoedkans conceptbrief', () => {
     expect(kaart).toContain('Kies bewust een geadresseerde');
     expect(kaart).toContain('Bij meerdere rechthebbenden wordt nooit automatisch gekozen');
     expect(kaart).toContain('eigenaarVelden(eigenaren[0])');
-    expect(kaart).toContain("[eigenaar.adres, plaatsregel].filter(Boolean).join('\\n')");
+    expect(kaart).toContain("[eigenaar.adres?.trim(), plaatsregel].filter(Boolean).join('\\n')");
     expect(kaart).not.toContain('Koppel eerst bewust de eigenaar aan een CRM-relatie');
   });
 });
