@@ -59,6 +59,8 @@ export function AcquisitieBrievenStatusKaart({
       crmRelatieId: koppeling.eigenaar!.crm_relatie_id,
     })), [eigenarenQuery.data]);
   const eigenaarInRegister = eigenaarOpties.length > 0;
+  const eigenaarCrmGekoppeld = eigenaarOpties.some((eigenaar) => Boolean(eigenaar.crmRelatieId));
+  const crmRelatieGekoppeld = model.relatieGekoppeld || eigenaarCrmGekoppeld;
 
   const [responsstatus, setResponsstatus] = useState<Responsstatus>('reactie_ontvangen');
   const [responsdatum, setResponsdatum] = useState(new Date().toISOString().slice(0, 10));
@@ -123,7 +125,7 @@ export function AcquisitieBrievenStatusKaart({
 
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {isVastgoedkans && <div><dt className="text-muted-foreground">Eigenaar in Eigenaarsregister</dt><dd className="font-medium">{jaNee(eigenaarInRegister)}</dd></div>}
-            <div><dt className="text-muted-foreground">CRM-relatie gekoppeld (optioneel)</dt><dd className="font-medium">{jaNee(model.relatieGekoppeld)}</dd></div>
+            <div><dt className="text-muted-foreground">CRM-relatie gekoppeld (optioneel)</dt><dd className="font-medium">{jaNee(crmRelatieGekoppeld)}</dd></div>
             <div><dt className="text-muted-foreground">Geadresseerde gecontroleerd</dt><dd className="font-medium">{jaNee(geadresseerdeAanwezig)}</dd></div>
             <div><dt className="text-muted-foreground">Brief voorbereid</dt><dd className="font-medium">{jaNee(briefVoorbereid)}</dd></div>
             <div><dt className="text-muted-foreground">Brief verzonden</dt><dd className="font-medium">{jaNee(briefVerzonden)}</dd></div>
