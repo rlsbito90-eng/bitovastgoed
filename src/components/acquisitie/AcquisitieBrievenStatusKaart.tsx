@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,10 +11,13 @@ import { AcquisitieWerkstroomBediening } from '@/components/acquisitie/Acquisiti
 import VastgoedkansConceptbriefKaart, { type BriefEigenaarOptie } from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
 import { useRegistreerVastgoedkansBriefRespons, useVastgoedkansBrieven } from '@/hooks/useAcquisitieBrieven';
 import { useVastgoedkansEigenaren } from '@/hooks/useVastgoedkansEigenaren';
+import { useVastgoedkansReactieVervolg } from '@/hooks/useVastgoedkansReactieVervolg';
+import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { RESPONS_LABEL, RESPONS_VOLGORDE, type Responsstatus } from '@/lib/offMarket/brieven/respons';
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import type { AcquisitieBrievenMetHistorieReadModel } from '@/lib/acquisitieBrievenAdapters';
 import type { AcquisitieWerkstroomCommando } from '@/lib/acquisitieWerkstroomCommando';
+import { bepaalVastgoedkansReactieVervolgadvies } from '@/lib/vastgoedkansReactieVervolg';
 
 interface AcquisitieBrievenStatusKaartProps {
   model: AcquisitieBrievenMetHistorieReadModel;
@@ -38,6 +42,8 @@ export function AcquisitieBrievenStatusKaart({
   const vastgoedkansBrieven = useVastgoedkansBrieven(vastgoedkansId);
   const eigenarenQuery = useVastgoedkansEigenaren(vastgoedkansId);
   const registreerRespons = useRegistreerVastgoedkansBriefRespons();
+  const pasVervolgToe = useVastgoedkansReactieVervolg();
+  const { refresh: refreshVastgoedkansen } = useVastgoedkansen();
   const persistedBrieven = isVastgoedkans ? (vastgoedkansBrieven.data ?? []) : [];
   const verstuurdeBrief = persistedBrieven.find((brief) => brief.status === 'verstuurd') ?? null;
   const heeftPersistedBrief = persistedBrieven.length > 0;
@@ -66,6 +72,13 @@ export function AcquisitieBrievenStatusKaart({
   const [responsdatum, setResponsdatum] = useState(new Date().toISOString().slice(0, 10));
   const [responsKanaal, setResponsKanaal] = useState<Kanaal>('telefoon');
   const [responsSamenvatting, setResponsSamenvatting] = useState('');
+  const opgeslagenRespons = (verstuurdeBrief?.responsstatus ?? null) as Responsstatus | null;
+  const vervolgadvies = useMemo(() => bepaalVastgoedkansReactieVervolgadvies(opgeslagenRespons), [opgeslagenRespons]);
+  const [vervolgdatum, setVervolgdatum] = useState('');
+
+  useEffect(() => {
+    setVervolgdatum('');
+  }, [opgeslagenRespons]);
 
   const geadresseerdeAanwezig = model.geadresseerdeAanwezig || heeftPersistedGeadresseerde;
   const briefVoorbereid = model.briefVoorbereid || heeftPersistedBrief;
@@ -104,6 +117,23 @@ export function AcquisitieBrievenStatusKaart({
       respons_kanaal: responsKanaal,
       respons_samenvatting: responsSamenvatting.trim() || null,
     });
+  };
+
+  const pasVervolgadviesToe = async () => {
+    if (!vastgoedkansId || !vervolgadvies) return;
+    if (vervolgadvies.datumVereist && !vervolgdatum) return;
+    try {
+      await pasVervolgToe.mutateAsync({
+        vastgoedkansId,
+        status: vervolgadvies.status,
+        volgendeActieOmschrijving: vervolgadvies.actie,
+        volgendeActieDatum: vervolgdatum || null,
+      });
+      await refreshVastgoedkansen();
+      toast.success(`Vastgoedkans verplaatst naar ${vervolgadvies.werkbakLabel}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Vervolgactie toepassen mislukt.');
+    }
   };
 
   return (
@@ -164,6 +194,33 @@ export function AcquisitieBrievenStatusKaart({
             <div className="sm:col-span-2"><Label>Samenvatting</Label><Textarea rows={3} value={responsSamenvatting} onChange={(e) => setResponsSamenvatting(e.target.value)} /></div>
           </div>
           <Button className="mt-4" onClick={slaResponsOp} disabled={registreerRespons.isPending || !responsdatum}>{registreerRespons.isPending ? 'Opslaan…' : 'Reactie opslaan'}</Button>
+
+          {vervolgadvies && (
+            <div className="mt-5 rounded-md border bg-muted/20 p-3 sm:p-4" data-testid="vastgoedkans-reactie-vervolgadvies">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Voorgestelde vervolgstap</p>
+                  <p className="mt-1 text-sm font-medium">{vervolgadvies.actie}</p>
+                </div>
+                <Badge variant="outline">Werkbak: {vervolgadvies.werkbakLabel}</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{vervolgadvies.toelichting}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div>
+                  <Label>{vervolgadvies.datumVereist ? 'Actiedatum (vereist)' : 'Actiedatum (optioneel)'}</Label>
+                  <Input className="mt-1" type="date" value={vervolgdatum} onChange={(e) => setVervolgdatum(e.target.value)} />
+                </div>
+                <Button
+                  type="button"
+                  onClick={pasVervolgadviesToe}
+                  disabled={pasVervolgToe.isPending || (vervolgadvies.datumVereist && !vervolgdatum)}
+                >
+                  {pasVervolgToe.isPending ? 'Toepassen…' : `Zet in ${vervolgadvies.werkbakLabel}`}
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">Dit gebeurt alleen na deze klik. De opgeslagen briefreactie, eigenaar, CRM-koppeling en Kadasterdata worden niet gewijzigd.</p>
+            </div>
+          )}
         </section>
       )}
 
