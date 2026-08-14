@@ -71,9 +71,11 @@ describe('BUILD 2.0B — eigenaaradres uit officieel Kadasterbericht/PDF', () =>
     expect(edgeBron).toContain("status: match ? 'matched' : 'no_match'");
   });
 
-  it('verrijkt automatisch alleen wanneer een nieuwe Rechten-PDF nog niet voor die eigenaar is verwerkt', () => {
+  it('verrijkt een nieuwe Rechten-PDF en probeert een eerdere no_match later veilig opnieuw', () => {
     expect(hookBron).toContain("includes('rechten')");
-    expect(hookBron).toContain("extractieMeta(k)?.document_id !== laatsteRechtenPdf.id");
+    expect(hookBron).toContain('meta?.document_id !== laatsteRechtenPdf.id');
+    expect(hookBron).toContain("meta?.status === 'no_match'");
+    expect(hookBron).toContain('laatstePoging.current === signature');
     expect(hookBron).toContain("supabase.functions.invoke('kadaster-pdf-eigenaar-extractie'");
     expect(hookBron).toContain("queryKey: ['eigenaarsregister', 'vastgoedkans', vastgoedkansId]");
   });
