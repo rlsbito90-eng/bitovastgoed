@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { vandaagNl } from '@/lib/datum/nlDatum';
 import {
   bepaalVastgoedkansActieContext,
   filterEnSorteerVastgoedkansen,
@@ -66,6 +69,12 @@ const state = (sortering: VastgoedkansLijstWorkspaceState['sortering']): Vastgoe
   filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
 });
 
+const verschuifDag = (iso: string, dagen: number): string => {
+  const datum = new Date(`${iso}T12:00:00Z`);
+  datum.setUTCDate(datum.getUTCDate() + dagen);
+  return datum.toISOString().slice(0, 10);
+};
+
 describe('BUILD 2.0C — Vastgoedkansen werkvolgorde', () => {
   it('geeft nieuwe commerciële actiedatum voorrang boven oude briefopvolgdatum', () => {
     const context = bepaalVastgoedkansActieContext(kans('a', {
@@ -92,6 +101,7 @@ describe('BUILD 2.0C — Vastgoedkansen werkvolgorde', () => {
       status: 'afgevallen',
       opvolgdatum: '2026-08-01',
       opvolgactie: 'Oude briefopvolging',
+      volgendeActieOmschrijving: 'Geen verdere acquisitieactie',
     }), '2026-08-15');
 
     expect(context.urgentie).toBe('geen_actie');
@@ -99,12 +109,13 @@ describe('BUILD 2.0C — Vastgoedkansen werkvolgorde', () => {
   });
 
   it('sorteert werkvolgorde op verlopen, vandaag, toekomst, zonder datum en daarna geen actie', () => {
+    const vandaag = vandaagNl();
     const lijst = [
       kans('geen'),
       kans('zonder', { volgendeActieOmschrijving: 'Beoordeel reactie' }),
-      kans('toekomst', { volgendeActieDatum: '2026-08-20', volgendeActieOmschrijving: 'Bel later' }),
-      kans('vandaag', { volgendeActieDatum: '2026-08-15', volgendeActieOmschrijving: 'Bel vandaag' }),
-      kans('verlopen', { volgendeActieDatum: '2026-08-14', volgendeActieOmschrijving: 'Bel eigenaar' }),
+      kans('toekomst', { volgendeActieDatum: verschuifDag(vandaag, 5), volgendeActieOmschrijving: 'Bel later' }),
+      kans('vandaag', { volgendeActieDatum: vandaag, volgendeActieOmschrijving: 'Bel vandaag' }),
+      kans('verlopen', { volgendeActieDatum: verschuifDag(vandaag, -1), volgendeActieOmschrijving: 'Bel eigenaar' }),
     ];
 
     const resultaat = filterEnSorteerVastgoedkansen(lijst, state('werkvolgorde'));
@@ -118,5 +129,13 @@ describe('BUILD 2.0C — Vastgoedkansen werkvolgorde', () => {
     ];
     const resultaat = filterEnSorteerVastgoedkansen(lijst, { ...state('recent'), zoekterm: 'taxatiegesprek' });
     expect(resultaat.map((item) => item.id)).toEqual(['a']);
+  });
+
+  it('toont werkvolgorde, concrete actie en eigenaarcontext in de Vastgoedkansen-lijst', () => {
+    const pagina = fs.readFileSync(path.join(process.cwd(), 'src/pages/VastgoedkansenPage.tsx'), 'utf8');
+    expect(pagina).toContain("werkvolgorde: 'Werkvolgorde'");
+    expect(pagina).toContain('bepaalVastgoedkansActieContext(kans)');
+    expect(pagina).toContain('data-testid="vastgoedkans-volgende-actie"');
+    expect(pagina).toContain("kans.eigenaarNaam?.trim() || EIGENAAR_LABEL[kans.eigenaarStatus]");
   });
 });
