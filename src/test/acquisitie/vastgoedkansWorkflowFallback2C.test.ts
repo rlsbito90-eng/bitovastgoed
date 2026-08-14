@@ -84,6 +84,7 @@ describe('BUILD 2.0C — workflow fallback in Vastgoedkansen', () => {
   it('leidt na bevestigde eigenaar de processtap Brief voorbereiden af', () => {
     const context = bepaalVastgoedkansActieContext(kans('a', {
       kadasterStatus: 'gegevens_bekend',
+      kadasterLaatstGecontroleerdOp: '2026-08-09',
       eigenaarStatus: 'bekend',
       eigenaarLaatstGecontroleerdOp: '2026-08-10',
     }));
@@ -92,7 +93,15 @@ describe('BUILD 2.0C — workflow fallback in Vastgoedkansen', () => {
   });
 
   it('neemt workflow-afgeleide actie mee in zoeken', () => {
-    const lijst = [kans('a'), kans('b', { kadasterStatus: 'gegevens_bekend', eigenaarStatus: 'bekend' })];
+    const lijst = [
+      kans('a'),
+      kans('b', {
+        kadasterStatus: 'gegevens_bekend',
+        kadasterLaatstGecontroleerdOp: '2026-08-09',
+        eigenaarStatus: 'bekend',
+        eigenaarLaatstGecontroleerdOp: '2026-08-10',
+      }),
+    ];
     const resultaat = filterEnSorteerVastgoedkansen(lijst, state('brief voorbereiden'));
     expect(resultaat.map((item) => item.id)).toEqual(['b']);
   });
