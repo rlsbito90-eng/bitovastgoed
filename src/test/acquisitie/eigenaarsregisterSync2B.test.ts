@@ -22,11 +22,22 @@ describe('BUILD 2.0B — automatische sync naar centraal Eigenaarsregister', () 
     expect(hookBron).toContain('eigenaar_laatst_gecontroleerd_op: vandaag');
   });
 
-  it('dedupliceert alleen met sterke identiteit en nooit op naam alleen', () => {
+  it('dedupliceert over dossiers alleen met sterke identiteit en nooit op naam alleen', () => {
     expect(hookBron).toContain('if (kvk) return `kvk:${kvk}`');
     expect(hookBron).toContain('if (naam && adres && postcode)');
     expect(hookBron).toContain('return null;');
     expect(hookBron).not.toContain('dedupe_sleutel: voorstel.sleutel');
+  });
+
+  it('is binnen één Vastgoedkans idempotent op hetzelfde Kadaster-record', () => {
+    expect(hookBron).toContain('gekoppeldPerKadasterRecord');
+    expect(hookBron).toContain('voorstel.bronRecordIds');
+    expect(hookBron).toContain('bestaandeOpKadaster?.eigenaar');
+    expect(hookBron).toContain('if (nieuwKadasterRecordId) gekoppeldPerKadasterRecord.set');
+  });
+
+  it('dedupliceert de teruggeschreven eigenaarnaam van de Vastgoedkans', () => {
+    expect(hookBron).toContain('const namen = [...new Set(voorstellen.map(displayNaam).filter(Boolean))]');
   });
 
   it('maakt of koppelt geen CRM-relatie automatisch en doet geen Kadastercall', () => {
