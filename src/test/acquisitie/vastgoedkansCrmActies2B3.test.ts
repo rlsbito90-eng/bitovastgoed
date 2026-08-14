@@ -3,36 +3,38 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const bron = fs.readFileSync(path.resolve('src/components/acquisitie/VastgoedkansEigenaarRelatieKaart.tsx'), 'utf8');
+const activiteitBron = fs.readFileSync(path.resolve('src/components/acquisitie/VastgoedkansEigenaarActiviteitKaart.tsx'), 'utf8');
+const crmHook = fs.readFileSync(path.resolve('src/hooks/useEigenaarCrmKoppeling.tsx'), 'utf8');
 const brievenBron = fs.readFileSync(path.resolve('src/components/acquisitie/VastgoedkansConceptbriefKaart.tsx'), 'utf8');
 
-describe('BUILD 2.0B.3 — CRM-acties voor gekoppelde Vastgoedkans-eigenaar', () => {
-  it('biedt bestaande CRM-dialogs aan naast de eigenaargebonden acquisitie-opvolging', () => {
-    expect(bron).toContain("import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'");
-    expect(bron).toContain("import TaakFormDialog from '@/components/forms/TaakFormDialog'");
-    expect(bron).toContain('CRM-contactmoment');
-    expect(bron).toContain('CRM-taak');
+describe('BUILD 2.0B.3 — eigenaar-specifieke CRM-koppeling', () => {
+  it('schrijft CRM-koppelingen op eigenaren en niet als nieuwe dossierkoppeling', () => {
+    expect(crmHook).toContain(".from('eigenaren')");
+    expect(crmHook).toContain('.update({ crm_relatie_id: relatieId })');
+    expect(bron).toContain('useEigenaarCrmKoppeling');
+    expect(bron).not.toContain('await updateEigenaarRelatie(vastgoedkansId, relatie.id)');
+  });
+
+  it('maakt iedere voorgestelde match expliciet eigenaar-specifiek', () => {
+    expect(bron).toContain('Koppel aan eigenaar');
+    expect(bron).toContain('CRM-relatie van deze eigenaar');
+    expect(bron).toContain('crm_relatie_id');
+    expect(bron).toContain('vindCrmMatches(voorstel, relaties)');
+  });
+
+  it('houdt oude dossierkoppelingen zichtbaar en migreert ze alleen bewust', () => {
+    expect(bron).toContain('Oude dossierniveau CRM-koppeling');
+    expect(bron).toContain('Overzetten naar');
+    expect(bron).toContain('await updateEigenaarRelatie(vastgoedkansId, null)');
+    expect(bron).not.toContain('automatisch overgezet');
+  });
+
+  it('laat acquisitie-opvolging eigenaargebonden en zonder verplichte CRM-relatie bestaan', () => {
     expect(bron).toContain('VastgoedkansEigenaarActiviteitKaart');
-  });
-
-  it('prefillt uitsluitend de expliciet gekoppelde relatie en bestaand object', () => {
-    expect(bron).toContain('defaultRelatieId={gekoppeld.id}');
-    expect(bron).toContain('defaultObjectId={kans?.objectId ?? undefined}');
-    expect(bron).toContain('{gekoppeld && (');
-  });
-
-  it('maakt geen fake Off-Market-signaal, automatische Kadastercall of nieuwe CRM-relatie', () => {
-    expect(bron).not.toContain('defaultOffMarketSignaalId=');
-    expect(bron).not.toContain('mutateAsync(');
-    expect(bron).not.toContain("from('off_market_signalen')");
+    expect(activiteitBron).toContain('relatieId: eigenaar.crm_relatie_id');
+    expect(activiteitBron).toContain('Een CRM-relatie is niet vereist');
     expect(bron).not.toContain('<QuickCreateRelationDialog');
     expect(bron).not.toContain('addRelatie(');
-    expect(bron).toContain('Kadaster-eigenaren blijven acquisitiedata');
-  });
-
-  it('gebruikt een bestaande geldige taakcategorie en bewaart Vastgoedkans-context in notities', () => {
-    expect(bron).toContain('defaultType="Follow-up"');
-    expect(bron).toContain('defaultNotities=');
-    expect(bron).toContain('Vastgoedkans:');
   });
 });
 
