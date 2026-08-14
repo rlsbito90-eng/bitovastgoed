@@ -12,47 +12,52 @@ const dossier: AcquisitieDossierContext = {
 };
 
 describe('bouwAcquisitieBrievenReadModel', () => {
-  it('blokkeert briefvoorbereiding zonder eigenaar en CRM-relatie', () => {
+  it('blokkeert briefvoorbereiding zonder bekende eigenaar', () => {
     const model = bouwAcquisitieBrievenReadModel(dossier, {});
 
     expect(model.fase).toBe('eigenaar_nodig');
     expect(model.magBriefVoorbereiden).toBe(false);
   });
 
-  it('vereist een bewuste CRM-relatiekoppeling wanneer de eigenaar al bekend is', () => {
+  it('vereist geen CRM-relatie wanneer de eigenaar al bekend is', () => {
     const model = bouwAcquisitieBrievenReadModel(dossier, {
       eigenaarNaam: 'Voorbeeld Vastgoed B.V.',
     });
 
-    expect(model.fase).toBe('eigenaar_nodig');
-    expect(model.primaireActie).toContain('CRM-relatie');
+    expect(model.fase).toBe('geadresseerde_controleren');
+    expect(model.relatieGekoppeld).toBe(false);
+    expect(model.primaireActie).toBe('Controleer naam en correspondentieadres');
+    expect(model.magBriefVoorbereiden).toBe(true);
   });
 
-  it('vraagt na relatiekoppeling eerst om controle van de geadresseerde', () => {
+  it('vraagt met bekende eigenaar eerst om controle van de geadresseerde', () => {
     const model = bouwAcquisitieBrievenReadModel(
       { ...dossier, eigenaarRelatieId: 'relatie-1' },
       { eigenaarNaam: 'Voorbeeld Vastgoed B.V.' },
     );
 
     expect(model.fase).toBe('geadresseerde_controleren');
-    expect(model.magBriefVoorbereiden).toBe(false);
+    expect(model.magBriefVoorbereiden).toBe(true);
   });
 
-  it('staat briefvoorbereiding toe met gekoppelde relatie en geadresseerde', () => {
+  it('staat briefvoorbereiding toe met bekende geadresseerde, ook zonder verplichte CRM-relatie', () => {
     const model = bouwAcquisitieBrievenReadModel(
-      { ...dossier, eigenaarRelatieId: 'relatie-1' },
-      { geadresseerde: 'Voorbeeld Vastgoed B.V.' },
+      dossier,
+      { eigenaarNaam: 'Voorbeeld Vastgoed B.V.', geadresseerde: 'Voorbeeld Vastgoed B.V.' },
     );
 
     expect(model.fase).toBe('brief_voorbereiden');
     expect(model.magBriefVoorbereiden).toBe(true);
-    expect(model.veiligheidsmelding).toContain('Geen automatische');
+    expect(model.relatieGekoppeld).toBe(false);
+    expect(model.veiligheidsmelding).toContain('Eigenaarsregister');
+    expect(model.veiligheidsmelding).toContain('expliciete gebruikershandelingen');
   });
 
   it('gaat van voorbereid naar expliciete verzendregistratie', () => {
     const model = bouwAcquisitieBrievenReadModel(
-      { ...dossier, eigenaarRelatieId: 'relatie-1' },
+      dossier,
       {
+        eigenaarNaam: 'Voorbeeld Vastgoed B.V.',
         geadresseerde: 'Voorbeeld Vastgoed B.V.',
         briefStatus: 'klaar',
         briefKenmerk: 'BR-2026-001',
@@ -65,8 +70,9 @@ describe('bouwAcquisitieBrievenReadModel', () => {
 
   it('plant opvolging na verzending en rondt af na een reactie', () => {
     const verzonden = bouwAcquisitieBrievenReadModel(
-      { ...dossier, eigenaarRelatieId: 'relatie-1' },
+      dossier,
       {
+        eigenaarNaam: 'Voorbeeld Vastgoed B.V.',
         geadresseerde: 'Voorbeeld Vastgoed B.V.',
         briefStatus: 'verzonden',
         briefVerzondenOp: '2026-08-05',
@@ -77,8 +83,9 @@ describe('bouwAcquisitieBrievenReadModel', () => {
     expect(verzonden.magOpvolgingRegistreren).toBe(true);
 
     const reactie = bouwAcquisitieBrievenReadModel(
-      { ...dossier, eigenaarRelatieId: 'relatie-1' },
+      dossier,
       {
+        eigenaarNaam: 'Voorbeeld Vastgoed B.V.',
         geadresseerde: 'Voorbeeld Vastgoed B.V.',
         briefStatus: 'reactie_ontvangen',
         reactieStatus: 'interesse',
