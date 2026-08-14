@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BagVerkennerPand } from './pandenverkennerModel';
-import { maakHandmatigeBagKans } from './handmatigePromotie';
+import { maakHandmatigeBagKans, pandAdresVoorPromotie } from './handmatigePromotie';
 
 const pand: BagVerkennerPand = {
   datasetversieId: '42', bagPandId: 'P123', voorkomenSleutel: 'P123:7',
@@ -18,6 +18,13 @@ describe('BAG 2A.12 handmatige promotiemapping', () => {
       herkomstReferentie: 'Private BAG scope NB; dataset 42; voorkomen P123:7',
       korteOmschrijving: 'Gemengd pand — Markt 1',
     });
+  });
+
+  it('bewaart bij meerdere VBO’s het pandniveau en niet een representatief VBO-suffix', () => {
+    expect(pandAdresVoorPromotie({ ...pand, adres: 'Singel 150-1' })).toBe('Singel 150');
+    expect(pandAdresVoorPromotie({ ...pand, adres: 'Singel 150-H' })).toBe('Singel 150');
+    expect(pandAdresVoorPromotie({ ...pand, adres: 'Singel 150', aantalVerblijfsobjecten: 2 })).toBe('Singel 150');
+    expect(pandAdresVoorPromotie({ ...pand, adres: 'Singel 150-1', aantalVerblijfsobjecten: 1 })).toBe('Singel 150-1');
   });
 
   it('start alle acquisitie- en Kadasterstappen expliciet onaangeraakt', () => {

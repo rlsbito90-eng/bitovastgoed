@@ -6,6 +6,17 @@ export interface BagPromotieResultaat {
   mislukt: string[];
 }
 
+/**
+ * Pandenverkenner werkt op BAG-pandniveau, maar `primair_adres` kan afkomstig zijn
+ * van één representatief VBO. Bij een pand met meerdere VBO's mag zo'n VBO-suffix
+ * niet stil het commerciële pandadres van de Vastgoedkans worden.
+ */
+export function pandAdresVoorPromotie(pand: BagVerkennerPand): string {
+  const adres = pand.adres.trim();
+  if (pand.aantalVerblijfsobjecten <= 1) return adres;
+  return adres.replace(/-(?:H|\d+)$/i, '').trim();
+}
+
 export function maakHandmatigeBagKans(
   pand: BagVerkennerPand,
   scopeCode: string,
@@ -13,12 +24,13 @@ export function maakHandmatigeBagKans(
   const hoofdtype = pand.gemengdGebruik
     ? 'Gemengd pand'
     : pand.gebruiksdoelen[0] ?? 'BAG-pand';
+  const pandAdres = pandAdresVoorPromotie(pand);
   return {
-    adres: pand.adres,
+    adres: pandAdres,
     postcode: pand.postcode ?? undefined,
     plaats: pand.plaats ?? undefined,
     typeVastgoed: pand.gebruiksdoelen.join(', ') || undefined,
-    korteOmschrijving: `${hoofdtype} — ${pand.adres}`,
+    korteOmschrijving: `${hoofdtype} — ${pandAdres}`,
     herkomst: 'bag_selectie',
     herkomstReferentie: pand.voorkomenSleutel
       ? `Private BAG scope ${scopeCode}; dataset ${pand.datasetversieId}; voorkomen ${pand.voorkomenSleutel}`
