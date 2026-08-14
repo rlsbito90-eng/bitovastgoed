@@ -28,6 +28,7 @@ import {
   bewaarVastgoedkansLijstWorkspace,
   bewaarVastgoedkansWerkcontext,
   bepaalPrimaireWerkTab,
+  bepaalVastgoedkansActieContext,
   filterEnSorteerVastgoedkansen,
   leesVastgoedkansLijstWorkspace,
   leesVastgoedkansWerkcontext,
@@ -43,10 +44,11 @@ import VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';
 const selectClass = 'h-10 rounded-md border border-input bg-background px-3 text-sm';
 const SORTERING_LABEL: Record<VastgoedkansSortering, string> = {
   recent: 'Recent gewijzigd',
+  werkvolgorde: 'Werkvolgorde',
   prioriteit: 'Prioriteit',
   score: 'Score hoog → laag',
   adres: 'Plaats / adres',
-  opvolgdatum: 'Opvolgdatum',
+  opvolgdatum: 'Actiedatum',
 };
 const HERKOMSTEN = Object.keys(HERKOMST_LABEL) as VastgoedkansHerkomst[];
 const EIGENAAR_STATUSSEN = Object.keys(EIGENAAR_LABEL) as EigenaarOnderzoekStatus[];
@@ -54,6 +56,14 @@ const BRIEF_STATUSSEN = Object.keys(BRIEF_LABEL) as BriefStatus[];
 
 const toggleInArray = <T,>(waarden: T[], waarde: T): T[] =>
   waarden.includes(waarde) ? waarden.filter((item) => item !== waarde) : [...waarden, waarde];
+
+const actieBadgeClass = (urgentie: ReturnType<typeof bepaalVastgoedkansActieContext>['urgentie']): string => {
+  if (urgentie === 'verlopen') return 'border-destructive/40 bg-destructive/10 text-destructive';
+  if (urgentie === 'vandaag') return 'border-primary/40 bg-primary/10 text-primary';
+  if (urgentie === 'gepland') return 'border-border bg-muted/40 text-foreground';
+  if (urgentie === 'zonder_datum') return 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+  return 'border-border bg-muted/20 text-muted-foreground';
+};
 
 export default function VastgoedkansenPage() {
   const { kansen, archief, laden, bulkUpdateKansen, archiveKansen, restoreKansen } = useVastgoedkansen();
@@ -229,7 +239,7 @@ export default function VastgoedkansenPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="min-w-0 pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Zoek adres, plaats, type, eigenaar, kansnummer of reden…" />
+          <Input className="min-w-0 pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Zoek adres, plaats, type, eigenaar, actie, kansnummer of reden…" />
         </div>
         <select className={`${selectClass} min-w-[180px]`} value={sortering} onChange={(event) => setSortering(event.target.value as VastgoedkansSortering)} aria-label="Sorteer vastgoedkansen">
           {(Object.keys(SORTERING_LABEL) as VastgoedkansSortering[]).map((waarde) => <option key={waarde} value={waarde}>{SORTERING_LABEL[waarde]}</option>)}
@@ -283,24 +293,32 @@ export default function VastgoedkansenPage() {
 
     <section className="section-card min-w-0 overflow-hidden">
       {laden ? <p className="p-8 text-sm text-muted-foreground">Laden…</p> : list.length === 0 ? <div className="p-10 text-center"><Database className="mx-auto h-8 w-8 text-muted-foreground/50" /><p className="mt-3 text-sm text-muted-foreground">{werkbak === 'archief' ? 'Geen gearchiveerde vastgoedkansen in deze weergave.' : 'Geen vastgoedkansen binnen deze werkbak en filters.'}</p></div> : <div className="divide-y divide-border/70">
-        {list.map((kans) => <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
-          {selectieModus && <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />}
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Link to={`/vastgoedkansen/${kans.id}`} onClick={() => bewaarOpenContext(kans)} className="min-w-0 break-words text-sm font-medium hover:text-primary hover:underline">{kansTitel(kans)}</Link>
-              {kans.kansnummer && <span className="text-[11px] font-mono-data text-muted-foreground">{kans.kansnummer}</span>}
-              <Badge variant="outline" className={VASTGOEDKANS_STATUS_PRESENTATIE[kans.status].chip}>{STATUS_LABEL[kans.status]}</Badge>
-              <Badge variant="outline">{PRIORITEIT_LABEL[kans.prioriteit] ?? `P${kans.prioriteit}`}</Badge>
-              {kans.algoritmeScore != null && <Badge variant="secondary">Score {kans.algoritmeScore}</Badge>}
-              {werkbak === 'archief' && <Badge variant="secondary">Gearchiveerd</Badge>}
+        {list.map((kans) => {
+          const actie = bepaalVastgoedkansActieContext(kans);
+          return <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
+            {selectieModus && <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />}
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Link to={`/vastgoedkansen/${kans.id}`} onClick={() => bewaarOpenContext(kans)} className="min-w-0 break-words text-sm font-medium hover:text-primary hover:underline">{kansTitel(kans)}</Link>
+                {kans.kansnummer && <span className="text-[11px] font-mono-data text-muted-foreground">{kans.kansnummer}</span>}
+                <Badge variant="outline" className={VASTGOEDKANS_STATUS_PRESENTATIE[kans.status].chip}>{STATUS_LABEL[kans.status]}</Badge>
+                <Badge variant="outline">{PRIORITEIT_LABEL[kans.prioriteit] ?? `P${kans.prioriteit}`}</Badge>
+                {kans.algoritmeScore != null && <Badge variant="secondary">Score {kans.algoritmeScore}</Badge>}
+                {werkbak === 'archief' && <Badge variant="secondary">Gearchiveerd</Badge>}
+              </div>
+              {kans.korteOmschrijving && <p className="mt-0.5 text-xs text-muted-foreground">{[kans.adres, kans.postcode, kans.plaats].filter(Boolean).join(', ')}</p>}
+              <p className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted-foreground"><span>{kans.typeVastgoed || 'Type onbekend'}</span><span>· {HERKOMST_LABEL[kans.herkomst]}</span><span>· Eigenaar: {kans.eigenaarNaam?.trim() || EIGENAAR_LABEL[kans.eigenaarStatus]}</span><span>· Brief: {BRIEF_LABEL[kans.briefStatus]}</span></p>
+              {actie.urgentie !== 'geen_actie' && <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs" data-testid="vastgoedkans-volgende-actie">
+                <Badge variant="outline" className={actieBadgeClass(actie.urgentie)}>{actie.urgentieLabel}</Badge>
+                <span className="min-w-0 font-medium text-foreground">{actie.omschrijving || 'Opvolgen'}</span>
+                {actie.datumLabel && <span className="text-muted-foreground">· {actie.datumLabel}</span>}
+              </div>}
+              {werkbak === 'archief' && kans.archivedAt && <p className="mt-1 text-xs text-muted-foreground">Gearchiveerd {new Date(kans.archivedAt).toLocaleDateString('nl-NL')}{kans.archivedReason ? ` · ${kans.archivedReason}` : ''}</p>}
+              {kans.redenInteressant && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{kans.redenInteressant}</p>}
             </div>
-            {kans.korteOmschrijving && <p className="mt-0.5 text-xs text-muted-foreground">{[kans.adres, kans.postcode, kans.plaats].filter(Boolean).join(', ')}</p>}
-            <p className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted-foreground"><span>{kans.typeVastgoed || 'Type onbekend'}</span><span>· {HERKOMST_LABEL[kans.herkomst]}</span><span>· Eigenaar: {EIGENAAR_LABEL[kans.eigenaarStatus]}</span><span>· Brief: {BRIEF_LABEL[kans.briefStatus]}</span>{kans.opvolgdatum && <span>· Opvolgen: {new Date(`${kans.opvolgdatum}T00:00:00`).toLocaleDateString('nl-NL')}</span>}</p>
-            {werkbak === 'archief' && kans.archivedAt && <p className="mt-1 text-xs text-muted-foreground">Gearchiveerd {new Date(kans.archivedAt).toLocaleDateString('nl-NL')}{kans.archivedReason ? ` · ${kans.archivedReason}` : ''}</p>}
-            {kans.redenInteressant && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{kans.redenInteressant}</p>}
-          </div>
-          {!selectieModus && <Button size="icon" variant="ghost" onClick={() => setForm({ open: true, kans })} aria-label="Bewerken" className="shrink-0"><Pencil className="h-4 w-4" /></Button>}
-        </div>)}
+            {!selectieModus && <Button size="icon" variant="ghost" onClick={() => setForm({ open: true, kans })} aria-label="Bewerken" className="shrink-0"><Pencil className="h-4 w-4" /></Button>}
+          </div>;
+        })}
       </div>}
     </section>
 
