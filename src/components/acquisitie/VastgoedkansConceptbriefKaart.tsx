@@ -126,7 +126,7 @@ export default function VastgoedkansConceptbriefKaart({
     if (!open || !actiefConcept) return;
     const naam = actiefConcept.eigenaar_naam ?? eigenaarNaam?.trim() ?? '';
     const omschrijving = actiefConcept.objectomschrijving ?? objectomschrijving;
-    const aanhef = actiefConcept.aanhef ?? bepaalAanhef(naam || actiefConcept.eigenaar_bedrijfsnaam ?? '');
+    const aanhef = actiefConcept.aanhef ?? bepaalAanhef(naam || (actiefConcept.eigenaar_bedrijfsnaam ?? ''));
     setGeselecteerdeEigenaarId('');
     setGeadresseerde(naam);
     setBedrijfsnaam(actiefConcept.eigenaar_bedrijfsnaam ?? '');
