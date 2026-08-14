@@ -6,11 +6,13 @@ import type {
   VastgoedkansStatus,
 } from '@/lib/vastgoedkansen';
 import { vandaagNl } from '@/lib/datum/nlDatum';
+import { bouwVastgoedkansWorkflowReadModel } from '@/lib/workflow/vastgoedkansWorkflowReadModel';
 
 export type VastgoedkansWerkTab = 'overzicht' | 'onderzoek' | 'kadaster' | 'brieven' | 'dossier';
 export type VastgoedkansWerkbak = VastgoedkansStatus | 'alles' | 'archief';
 export type VastgoedkansSortering = 'recent' | 'werkvolgorde' | 'prioriteit' | 'score' | 'adres' | 'opvolgdatum';
-export type VastgoedkansActieUrgentie = 'verlopen' | 'vandaag' | 'gepland' | 'zonder_datum' | 'geen_actie';
+export type VastgoedkansActieUrgentie = 'verlopen' | 'vandaag' | 'gepland' | 'zonder_datum' | 'processtap' | 'geen_actie';
+export type VastgoedkansActieBron = 'expliciet' | 'legacy' | 'workflow' | 'geen';
 
 export interface VastgoedkansActieContext {
   omschrijving: string | null;
@@ -19,6 +21,7 @@ export interface VastgoedkansActieContext {
   urgentieLabel: string;
   datumLabel: string | null;
   rang: number;
+  bron: VastgoedkansActieBron;
 }
 
 export interface VastgoedkansWerkcontext {
@@ -62,52 +65,12 @@ const formatActieDatum = (iso: string): string => {
   }
 };
 
-export function bepaalVastgoedkansActieContext(
-  kans: Vastgoedkans,
-  vandaag = vandaagNl(),
-): VastgoedkansActieContext {
-  const afgesloten = kans.status === 'afgevallen' || kans.status === 'gepromoveerd';
-  const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
-  const explicieteDatum = kans.volgendeActieDatum ?? null;
-
-  if (afgesloten && !explicieteDatum) {
-    return {
-      omschrijving: explicieteOmschrijving,
-      datum: null,
-      urgentie: 'geen_actie',
-      urgentieLabel: 'Geen open actie',
-      datumLabel: null,
-      rang: 4,
-    };
-  }
-
-  const legacyOmschrijving = afgesloten ? null : (kans.opvolgactie?.trim() || null);
-  const legacyDatum = afgesloten ? null : (kans.opvolgdatum ?? null);
-  const omschrijving = explicieteOmschrijving ?? legacyOmschrijving;
-  const datum = explicieteDatum ?? legacyDatum;
-
-  if (!omschrijving && !datum) {
-    return {
-      omschrijving: null,
-      datum: null,
-      urgentie: 'geen_actie',
-      urgentieLabel: 'Geen volgende actie',
-      datumLabel: null,
-      rang: 4,
-    };
-  }
-
-  if (!datum) {
-    return {
-      omschrijving,
-      datum: null,
-      urgentie: 'zonder_datum',
-      urgentieLabel: 'Datum ontbreekt',
-      datumLabel: null,
-      rang: 3,
-    };
-  }
-
+const actieMetDatum = (
+  omschrijving: string | null,
+  datum: string,
+  bron: VastgoedkansActieBron,
+  vandaag: string,
+): VastgoedkansActieContext => {
   const datumLabel = formatActieDatum(datum);
   if (datum < vandaag) {
     return {
@@ -117,6 +80,7 @@ export function bepaalVastgoedkansActieContext(
       urgentieLabel: 'Verlopen',
       datumLabel,
       rang: 0,
+      bron,
     };
   }
   if (datum === vandaag) {
@@ -127,6 +91,7 @@ export function bepaalVastgoedkansActieContext(
       urgentieLabel: 'Vandaag',
       datumLabel,
       rang: 1,
+      bron,
     };
   }
   return {
@@ -136,6 +101,80 @@ export function bepaalVastgoedkansActieContext(
     urgentieLabel: 'Gepland',
     datumLabel,
     rang: 2,
+    bron,
+  };
+};
+
+export function bepaalVastgoedkansActieContext(
+  kans: Vastgoedkans,
+  vandaag = vandaagNl(),
+): VastgoedkansActieContext {
+  const afgesloten = kans.status === 'afgevallen' || kans.status === 'gepromoveerd';
+  const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
+  const explicieteDatum = kans.volgendeActieDatum ?? null;
+
+  if (explicieteOmschrijving || explicieteDatum) {
+    if (explicieteDatum) return actieMetDatum(explicieteOmschrijving, explicieteDatum, 'expliciet', vandaag);
+    return {
+      omschrijving: explicieteOmschrijving,
+      datum: null,
+      urgentie: 'zonder_datum',
+      urgentieLabel: 'Datum ontbreekt',
+      datumLabel: null,
+      rang: 3,
+      bron: 'expliciet',
+    };
+  }
+
+  if (afgesloten) {
+    return {
+      omschrijving: null,
+      datum: null,
+      urgentie: 'geen_actie',
+      urgentieLabel: 'Geen open actie',
+      datumLabel: null,
+      rang: 5,
+      bron: 'geen',
+    };
+  }
+
+  const legacyOmschrijving = kans.opvolgactie?.trim() || null;
+  const legacyDatum = kans.opvolgdatum ?? null;
+  if (legacyOmschrijving || legacyDatum) {
+    if (legacyDatum) return actieMetDatum(legacyOmschrijving, legacyDatum, 'legacy', vandaag);
+    return {
+      omschrijving: legacyOmschrijving,
+      datum: null,
+      urgentie: 'zonder_datum',
+      urgentieLabel: 'Datum ontbreekt',
+      datumLabel: null,
+      rang: 3,
+      bron: 'legacy',
+    };
+  }
+
+  const workflowActie = bouwVastgoedkansWorkflowReadModel(kans).nextAction;
+  if (workflowActie) {
+    if (workflowActie.dueAt) return actieMetDatum(workflowActie.label, workflowActie.dueAt, 'workflow', vandaag);
+    return {
+      omschrijving: workflowActie.label,
+      datum: null,
+      urgentie: 'processtap',
+      urgentieLabel: 'Processtap',
+      datumLabel: null,
+      rang: 4,
+      bron: 'workflow',
+    };
+  }
+
+  return {
+    omschrijving: null,
+    datum: null,
+    urgentie: 'geen_actie',
+    urgentieLabel: 'Geen volgende actie',
+    datumLabel: null,
+    rang: 5,
+    bron: 'geen',
   };
 }
 
@@ -294,6 +333,7 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
   const q = norm(state.zoekterm.trim());
   const lijst = kansen.filter((kans) => {
     if (state.werkbak !== 'alles' && state.werkbak !== 'archief' && kans.status !== state.werkbak) return false;
+    const actie = bepaalVastgoedkansActieContext(kans);
     if (q && !norm([
       kans.korteOmschrijving,
       kans.adres,
@@ -306,6 +346,7 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
       kans.kansnummer,
       kans.volgendeActieOmschrijving,
       kans.opvolgactie,
+      actie.omschrijving,
     ].filter(Boolean).join(' ')).includes(q)) return false;
     if (state.filters.prioriteiten.length && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
     if (state.filters.herkomsten.length && !state.filters.herkomsten.includes(kans.herkomst)) return false;
@@ -337,5 +378,4 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
 
 export const telActieveVastgoedkansFilters = (filters: VastgoedkansLijstFilters): number =>
   filters.prioriteiten.length + filters.herkomsten.length + filters.eigenaar.length + filters.brief.length;
-
 export const legeVastgoedkansFilters = (): VastgoedkansLijstFilters => ({ prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] });
