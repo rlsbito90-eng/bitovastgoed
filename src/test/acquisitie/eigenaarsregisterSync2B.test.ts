@@ -32,7 +32,8 @@ describe('BUILD 2.0B — automatische sync naar centraal Eigenaarsregister', () 
   it('maakt of koppelt geen CRM-relatie automatisch en doet geen Kadastercall', () => {
     expect(hookBron).not.toContain("from('relaties').insert");
     expect(hookBron).not.toContain('mutateAsync(');
-    expect(kaartBron).toContain('worden alleen als match voorgesteld en nooit automatisch aangemaakt');
+    expect(kaartBron).toContain('Bestaande CRM-relaties worden alleen als match voorgesteld');
+    expect(kaartBron).toContain('wordt niet automatisch aan Relaties toegevoegd');
   });
 
   it('maakt automatische centrale opslag zichtbaar en biedt herstel zonder nieuwe Kadasteraanvraag', () => {
