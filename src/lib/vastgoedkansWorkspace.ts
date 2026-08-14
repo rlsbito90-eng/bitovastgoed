@@ -69,6 +69,18 @@ export function bepaalVastgoedkansActieContext(
   const afgesloten = kans.status === 'afgevallen' || kans.status === 'gepromoveerd';
   const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
   const explicieteDatum = kans.volgendeActieDatum ?? null;
+
+  if (afgesloten && !explicieteDatum) {
+    return {
+      omschrijving: explicieteOmschrijving,
+      datum: null,
+      urgentie: 'geen_actie',
+      urgentieLabel: 'Geen open actie',
+      datumLabel: null,
+      rang: 4,
+    };
+  }
+
   const legacyOmschrijving = afgesloten ? null : (kans.opvolgactie?.trim() || null);
   const legacyDatum = afgesloten ? null : (kans.opvolgdatum ?? null);
   const omschrijving = explicieteOmschrijving ?? legacyOmschrijving;
