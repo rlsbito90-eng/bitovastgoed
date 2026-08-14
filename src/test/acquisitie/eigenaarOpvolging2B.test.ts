@@ -38,11 +38,10 @@ describe('BUILD 2.0B — eigenaaropvolging zonder verplichte CRM-relatie', () =>
     expect(kaart).toContain("type: 'Follow-up'");
   });
 
-  it('toont eigenaaropvolging onafhankelijk van de CRM-koppeling', () => {
-    const activiteitPos = eigenaarKaart.indexOf('<VastgoedkansEigenaarActiviteitKaart');
-    const crmVoorwaardePos = eigenaarKaart.indexOf('{!gekoppeld && crmMatches.length > 0');
-    expect(activiteitPos).toBeGreaterThan(0);
-    expect(crmVoorwaardePos).toBeGreaterThan(activiteitPos);
+  it('toont eigenaaropvolging onafhankelijk van een CRM-koppeling', () => {
+    expect(eigenaarKaart).toContain('<VastgoedkansEigenaarActiviteitKaart');
     expect(eigenaarKaart).toContain('eigenaren={centraleEigenaren}');
+    expect(eigenaarKaart).toContain('Nog geen bestaande CRM-relatie aan een eigenaar gekoppeld');
+    expect(eigenaarKaart).not.toContain('{gekoppeld && (');
   });
 });
