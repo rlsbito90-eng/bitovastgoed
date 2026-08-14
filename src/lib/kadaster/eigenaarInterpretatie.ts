@@ -101,14 +101,18 @@ function kandidaatUitObject(o: Record<string, unknown>, inherited: { aandeel: st
     ?? obj(o.organisatie) ?? obj(o.legalEntity) ?? obj(o.naamNietNatuurlijkPersoon);
 
   const voornamen = zoekEerste(persoon, ['voornamen', 'givenNames']) ?? zoekEerste(o, ['voornamen', 'givenNames']);
-  const geslachtsnaam = zoekEerste(persoon, ['geslachtsnaam', 'achternaam', 'surname'])
+  const losseNaam = zoekEerste(persoon, ['naam']) ?? zoekEerste(o, ['naam']);
+  const explicieteGeslachtsnaam = zoekEerste(persoon, ['geslachtsnaam', 'achternaam', 'surname'])
     ?? zoekEerste(o, ['geslachtsnaam', 'achternaam', 'surname']);
-  const volledigeNaam = zoekEerste(persoon, ['volledigeNaam', 'naam'])
+  // Kadaster persons levert in de echte Rechten-response o.a. { naam: 'Enthoven', voornamen: 'Albertina Wilhelmina' }.
+  // Als voornamen apart aanwezig zijn, is een losse `naam` dus de geslachtsnaam en niet de volledige naam.
+  const geslachtsnaam = explicieteGeslachtsnaam ?? (voornamen ? losseNaam : null);
+  const volledigeNaam = zoekEerste(persoon, ['volledigeNaam', 'naamRechthebbende'])
     ?? zoekEerste(o, ['volledigeNaam', 'naamRechthebbende']);
   const natuurlijkeNaam = volledigeNaam ?? ([voornamen, geslachtsnaam].filter(Boolean).join(' ').trim() || null);
   const bedrijfsnaam = zoekEerste(onderneming, ['statutaireNaam', 'bedrijfsnaam', 'naam', 'handelsnaam', 'organisatieNaam'])
     ?? zoekEerste(o, ['bedrijfsnaam', 'statutaireNaam', 'handelsnaam', 'organisatieNaam']);
-  const naam = bedrijfsnaam ?? natuurlijkeNaam ?? zoekEerste(o, ['naam']);
+  const naam = bedrijfsnaam ?? natuurlijkeNaam ?? losseNaam;
   if (!naam) return null;
 
   const persoonType: Kandidaat['persoonType'] = onderneming || bedrijfsnaam
