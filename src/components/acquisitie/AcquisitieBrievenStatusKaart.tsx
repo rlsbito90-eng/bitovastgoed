@@ -56,6 +56,7 @@ export function AcquisitieBrievenStatusKaart({
       adres: koppeling.eigenaar!.adres,
       postcode: koppeling.eigenaar!.postcode,
       plaats: koppeling.eigenaar!.plaats,
+      crmRelatieId: koppeling.eigenaar!.crm_relatie_id,
     })), [eigenarenQuery.data]);
   const eigenaarInRegister = eigenaarOpties.length > 0;
 
