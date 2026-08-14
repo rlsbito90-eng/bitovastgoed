@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarPlus, Link2, MessageSquarePlus, Search, Unlink } from 'lucide-react';
+import { CalendarPlus, Database, Link2, MessageSquarePlus, Search, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useVastgoedkansEigenaarsregister } from '@/hooks/useEigenaarsregister';
 import { useKadasterDataRecordsForVastgoedkans } from '@/hooks/useKadasterDataRecords';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { bouwKadasterEigenaarVoorstellen, normaliseerPartijNaam, vindCrmMatches } from '@/lib/kadaster/eigenaarInterpretatie';
@@ -33,6 +34,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
     () => bouwKadasterEigenaarVoorstellen(records.data ?? []),
     [records.data],
   );
+  const register = useVastgoedkansEigenaarsregister(vastgoedkansId, eigenaarVoorstellen);
 
   const crmMatches = useMemo(() => {
     const beste = new Map<string, ReturnType<typeof vindCrmMatches>[number]>();
@@ -94,22 +96,39 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
             <h3 className="font-medium">Eigenaar & CRM-match</h3>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Kadaster-eigenaren blijven acquisitiedata. Bestaande CRM-relaties worden als match voorgesteld; een nieuwe Kadaster-eigenaar wordt niet automatisch aan Relaties toegevoegd.
+            Kadaster-eigenaren worden centraal als acquisitiedata opgeslagen. Bestaande CRM-relaties worden alleen als match voorgesteld en nooit automatisch aangemaakt.
           </p>
         </div>
-        {gekoppeld && <Badge variant="outline">CRM gekoppeld</Badge>}
+        <div className="flex flex-wrap gap-2">
+          {register.koppelingen.length > 0 && <Badge variant="outline"><Database className="mr-1 h-3 w-3" />Eigenaarsregister {register.koppelingen.length}</Badge>}
+          {gekoppeld && <Badge variant="outline">CRM gekoppeld</Badge>}
+        </div>
       </div>
+
+      {register.syncIsPending && (
+        <div className="rounded-md border bg-background p-3 text-xs text-muted-foreground">Eigenaarsregister automatisch bijwerken…</div>
+      )}
+      {register.syncError && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">Eigenaarsgegevens konden niet centraal worden opgeslagen. Er wordt geen nieuwe Kadasteraanvraag gedaan.</p>
+          <Button size="sm" variant="outline" onClick={register.retrySync}>Opnieuw opslaan</Button>
+        </div>
+      )}
 
       {eigenaarVoorstellen.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs font-medium">Eigenaarvoorstellen uit Kadaster ({eigenaarVoorstellen.length})</p>
           {eigenaarVoorstellen.map((e) => {
             const adres = [...e.adresRegels, [e.postcode, e.plaats].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+            const centraalOpgeslagen = register.koppelingen.some((k) => normaliseerPartijNaam(k.eigenaar?.bedrijfsnaam ?? k.eigenaar?.naam) === normaliseerPartijNaam(e.bedrijfsnaam ?? e.naam));
             return (
               <div key={e.sleutel} className="rounded-md border bg-background p-3 space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">{e.bedrijfsnaam ?? e.naam}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">{e.bedrijfsnaam ?? e.naam}</p>
+                      {centraalOpgeslagen && <Badge variant="secondary" className="text-[10px]">Centraal opgeslagen</Badge>}
+                    </div>
                     {e.persoonType === 'natuurlijk' && e.voorletters && <p className="text-xs text-muted-foreground">Voorletters: {e.voorletters}</p>}
                     <p className="text-xs text-muted-foreground">
                       {e.type || (e.persoonType === 'rechtspersoon' ? 'Rechtspersoon' : e.persoonType === 'natuurlijk' ? 'Natuurlijk persoon' : 'Rechthebbende volgens Kadaster')}
@@ -170,7 +189,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
         </div>
       ) : (
         <div className="rounded-md border border-dashed bg-background p-3 text-sm text-muted-foreground">
-          Nog geen bestaande CRM-relatie gekoppeld. Dat blokkeert het eigenaaronderzoek of de latere acquisitieworkflow niet.
+          Nog geen bestaande CRM-relatie gekoppeld. Dat blokkeert het eigenaaronderzoek, brieven of opvolging niet.
         </div>
       )}
 
@@ -193,7 +212,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
                 </Button>
               </div>
             )) : (
-              <p className="p-3 text-sm text-muted-foreground">Geen bestaande relatie gevonden. De Kadaster-eigenaar blijft acquisitiedata en wordt niet automatisch aan Relaties toegevoegd.</p>
+              <p className="p-3 text-sm text-muted-foreground">Geen bestaande relatie gevonden. De Kadaster-eigenaar blijft in het Eigenaarsregister en wordt niet automatisch aan Relaties toegevoegd.</p>
             )}
           </div>
         )}
