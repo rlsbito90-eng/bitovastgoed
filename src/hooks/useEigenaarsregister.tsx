@@ -134,16 +134,24 @@ async function haalVastgoedkansKoppelingen(vastgoedkansId: string): Promise<Eige
 async function synchroniseerVastgoedkansEigenaren(vastgoedkansId: string, voorstellen: KadasterEigenaarVoorstel[]) {
   const bestaandeKoppelingen = await haalVastgoedkansKoppelingen(vastgoedkansId);
   const gekoppeldPerNaam = new Map<string, EigenaarKoppelingRecord>();
+  const gekoppeldPerKadasterRecord = new Map<string, EigenaarKoppelingRecord>();
+
   for (const koppeling of bestaandeKoppelingen) {
     const e = koppeling.eigenaar;
     const naam = normaliseerPartijNaam(e?.bedrijfsnaam ?? e?.naam);
-    if (naam) gekoppeldPerNaam.set(naam, koppeling);
+    if (naam && !gekoppeldPerNaam.has(naam)) gekoppeldPerNaam.set(naam, koppeling);
+    if (koppeling.kadaster_record_id && !gekoppeldPerKadasterRecord.has(koppeling.kadaster_record_id)) {
+      gekoppeldPerKadasterRecord.set(koppeling.kadaster_record_id, koppeling);
+    }
   }
 
   for (const voorstel of voorstellen) {
     const naamNorm = normaliseerPartijNaam(voorstel.bedrijfsnaam ?? voorstel.naam);
     const dedupeSleutel = eigenaarDedupeSleutel(voorstel);
-    let eigenaar = gekoppeldPerNaam.get(naamNorm)?.eigenaar ?? null;
+    const bestaandeOpKadaster = voorstel.bronRecordIds
+      .map((recordId) => gekoppeldPerKadasterRecord.get(recordId))
+      .find(Boolean);
+    let eigenaar = bestaandeOpKadaster?.eigenaar ?? gekoppeldPerNaam.get(naamNorm)?.eigenaar ?? null;
 
     if (!eigenaar && dedupeSleutel) {
       const { data, error } = await sb
@@ -170,10 +178,11 @@ async function synchroniseerVastgoedkansEigenaren(vastgoedkansId: string, voorst
 
     const alGekoppeld = bestaandeKoppelingen.some((k) => k.eigenaar_id === eigenaar!.id);
     if (!alGekoppeld) {
+      const nieuwKadasterRecordId = voorstel.bronRecordIds[0] ?? null;
       const { error } = await sb.from('eigenaar_koppelingen').insert({
         eigenaar_id: eigenaar.id,
         vastgoedkans_id: vastgoedkansId,
-        kadaster_record_id: voorstel.bronRecordIds[0] ?? null,
+        kadaster_record_id: nieuwKadasterRecordId,
         rol: 'rechthebbende',
         rechtsoort: voorstel.rechtsoort || null,
         aandeel: voorstel.aandeel || null,
@@ -181,24 +190,31 @@ async function synchroniseerVastgoedkansEigenaren(vastgoedkansId: string, voorst
         betrouwbaarheid: 95,
       });
       if (error) throw error;
-      bestaandeKoppelingen.push({
+      const nieuweKoppeling: EigenaarKoppelingRecord = {
         id: `nieuw:${eigenaar.id}`,
         eigenaar_id: eigenaar.id,
         vastgoedkans_id: vastgoedkansId,
         signaal_id: null,
         object_id: null,
-        kadaster_record_id: voorstel.bronRecordIds[0] ?? null,
+        kadaster_record_id: nieuwKadasterRecordId,
         rol: 'rechthebbende',
         rechtsoort: voorstel.rechtsoort || null,
         aandeel: voorstel.aandeel || null,
         bron: 'kadaster',
         betrouwbaarheid: 95,
         eigenaar,
-      });
+      };
+      bestaandeKoppelingen.push(nieuweKoppeling);
+      if (nieuwKadasterRecordId) gekoppeldPerKadasterRecord.set(nieuwKadasterRecordId, nieuweKoppeling);
+    }
+
+    if (naamNorm && !gekoppeldPerNaam.has(naamNorm)) {
+      const koppeling = bestaandeKoppelingen.find((k) => k.eigenaar_id === eigenaar!.id);
+      if (koppeling) gekoppeldPerNaam.set(naamNorm, koppeling);
     }
   }
 
-  const namen = voorstellen.map(displayNaam).filter(Boolean);
+  const namen = [...new Set(voorstellen.map(displayNaam).filter(Boolean))];
   if (namen.length > 0) {
     const vandaag = new Date().toISOString().slice(0, 10);
     const { error } = await sb.from('vastgoedkansen').update({
