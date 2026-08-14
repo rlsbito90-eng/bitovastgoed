@@ -113,6 +113,20 @@ export function bepaalVastgoedkansActieContext(
   const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
   const explicieteDatum = kans.volgendeActieDatum ?? null;
 
+  // Een gesloten dossier wordt niet door alleen een beschrijvende resttekst opnieuw
+  // een actieve werkactie. Alleen een bewust vastgelegde nieuwe actiedatum kan dat doen.
+  if (afgesloten && !explicieteDatum) {
+    return {
+      omschrijving: explicieteOmschrijving,
+      datum: null,
+      urgentie: 'geen_actie',
+      urgentieLabel: 'Geen open actie',
+      datumLabel: null,
+      rang: 5,
+      bron: explicieteOmschrijving ? 'expliciet' : 'geen',
+    };
+  }
+
   if (explicieteOmschrijving || explicieteDatum) {
     if (explicieteDatum) return actieMetDatum(explicieteOmschrijving, explicieteDatum, 'expliciet', vandaag);
     return {
@@ -123,18 +137,6 @@ export function bepaalVastgoedkansActieContext(
       datumLabel: null,
       rang: 3,
       bron: 'expliciet',
-    };
-  }
-
-  if (afgesloten) {
-    return {
-      omschrijving: null,
-      datum: null,
-      urgentie: 'geen_actie',
-      urgentieLabel: 'Geen open actie',
-      datumLabel: null,
-      rang: 5,
-      bron: 'geen',
     };
   }
 
