@@ -3,11 +3,12 @@ import { CalendarPlus, Database, Link2, MessageSquarePlus, Search, Unlink } from
 import { toast } from 'sonner';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import VastgoedkansEigenaarActiviteitKaart from '@/components/acquisitie/VastgoedkansEigenaarActiviteitKaart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDataStore } from '@/hooks/useDataStore';
-import { useVastgoedkansEigenaarsregister } from '@/hooks/useEigenaarsregister';
+import { useVastgoedkansEigenaarsregister, type EigenaarRegisterRecord } from '@/hooks/useEigenaarsregister';
 import { useKadasterDataRecordsForVastgoedkans } from '@/hooks/useKadasterDataRecords';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
 import { bouwKadasterEigenaarVoorstellen, normaliseerPartijNaam, vindCrmMatches } from '@/lib/kadaster/eigenaarInterpretatie';
@@ -35,6 +36,10 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
     [records.data],
   );
   const register = useVastgoedkansEigenaarsregister(vastgoedkansId, eigenaarVoorstellen);
+  const centraleEigenaren = useMemo(
+    () => register.koppelingen.map((k) => k.eigenaar).filter((e): e is EigenaarRegisterRecord => Boolean(e)),
+    [register.koppelingen],
+  );
 
   const crmMatches = useMemo(() => {
     const beste = new Map<string, ReturnType<typeof vindCrmMatches>[number]>();
@@ -153,6 +158,13 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
         </div>
       )}
 
+      <VastgoedkansEigenaarActiviteitKaart
+        vastgoedkansId={vastgoedkansId}
+        eigenaren={centraleEigenaren}
+        objectId={kans?.objectId ?? null}
+        contextLabel={kansContext}
+      />
+
       {!gekoppeld && crmMatches.length > 0 && (
         <div className="rounded-md border bg-background p-3 space-y-2">
           <p className="text-xs font-medium">Bestaande CRM-match gevonden</p>
@@ -183,8 +195,8 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
             </div>
           </div>
           <div className="border-t pt-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setContactOpen(true)}><MessageSquarePlus className="mr-1.5 h-4 w-4" />Contactmoment loggen</Button>
-            <Button size="sm" variant="outline" onClick={() => setTaakOpen(true)}><CalendarPlus className="mr-1.5 h-4 w-4" />Taak aanmaken</Button>
+            <Button size="sm" variant="outline" onClick={() => setContactOpen(true)}><MessageSquarePlus className="mr-1.5 h-4 w-4" />CRM-contactmoment</Button>
+            <Button size="sm" variant="outline" onClick={() => setTaakOpen(true)}><CalendarPlus className="mr-1.5 h-4 w-4" />CRM-taak</Button>
           </div>
         </div>
       ) : (
