@@ -6,11 +6,12 @@ const bron = fs.readFileSync(path.resolve('src/components/acquisitie/Vastgoedkan
 const brievenBron = fs.readFileSync(path.resolve('src/components/acquisitie/VastgoedkansConceptbriefKaart.tsx'), 'utf8');
 
 describe('BUILD 2.0B.3 — CRM-acties voor gekoppelde Vastgoedkans-eigenaar', () => {
-  it('biedt bestaande CRM-dialogs aan zonder eigen taak/contact-datastore', () => {
+  it('biedt bestaande CRM-dialogs aan naast de eigenaargebonden acquisitie-opvolging', () => {
     expect(bron).toContain("import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'");
     expect(bron).toContain("import TaakFormDialog from '@/components/forms/TaakFormDialog'");
-    expect(bron).toContain('Contactmoment loggen');
-    expect(bron).toContain('Taak aanmaken');
+    expect(bron).toContain('CRM-contactmoment');
+    expect(bron).toContain('CRM-taak');
+    expect(bron).toContain('VastgoedkansEigenaarActiviteitKaart');
   });
 
   it('prefillt uitsluitend de expliciet gekoppelde relatie en bestaand object', () => {
