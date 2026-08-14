@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, Clock3, MessageSquarePlus, PhoneCall } from 'lucide-react';
+import { CalendarPlus, Clock3, MessageCircleReply, MessageSquarePlus, PhoneCall } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { EigenaarRegisterRecord } from '@/hooks/useEigenaarsregister';
+import { useVastgoedkansBrieven } from '@/hooks/useAcquisitieBrieven';
 import {
   useVastgoedkansEigenaarActiviteit,
   type EigenaarContactRichting,
   type EigenaarContactType,
 } from '@/hooks/useVastgoedkansEigenaarActiviteit';
+import { vindBriefEigenaar } from '@/lib/acquisitie/briefEigenaarMatch';
+import { RESPONS_LABEL, type Responsstatus } from '@/lib/offMarket/brieven/respons';
 
 interface Props {
   vastgoedkansId: string;
@@ -41,6 +44,17 @@ function datumNl(value: string | null | undefined) {
   if (!value) return 'Geen datum';
   return new Date(`${value}T12:00:00`).toLocaleDateString('nl-NL');
 }
+function kanaalLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    telefoon: 'Telefoon',
+    email: 'E-mail',
+    post: 'Post',
+    whatsapp: 'WhatsApp',
+    linkedin: 'LinkedIn',
+    anders: 'Anders',
+  };
+  return labels[value ?? ''] ?? value ?? 'Reactie';
+}
 
 export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, eigenaren, objectId, contextLabel }: Props) {
   const [eigenaarId, setEigenaarId] = useState('');
@@ -54,6 +68,7 @@ export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, ei
 
   const eigenaar = eigenaren.find((e) => e.id === eigenaarId) ?? null;
   const activiteit = useVastgoedkansEigenaarActiviteit(vastgoedkansId, eigenaar?.id ?? null);
+  const brieven = useVastgoedkansBrieven(vastgoedkansId);
 
   const [contact, setContact] = useState({
     type: 'telefoon' as EigenaarContactType,
@@ -137,6 +152,14 @@ export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, ei
     }
   }
 
+  const briefReacties = useMemo(() => {
+    if (!eigenaar) return [];
+    return (brieven.data ?? []).filter((brief) => {
+      if (!brief.responsstatus || !brief.responsdatum) return false;
+      return vindBriefEigenaar(brief, eigenaren)?.id === eigenaar.id;
+    });
+  }, [brieven.data, eigenaar, eigenaren]);
+
   const tijdlijn = useMemo(() => {
     const contactItems = activiteit.contacten.map((item) => ({
       key: `contact:${item.id}`,
@@ -154,15 +177,25 @@ export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, ei
       meta: `${item.status === 'afgerond' ? 'Afgerond' : 'Taak'} · ${datumNl(item.deadline)}`,
       detail: item.notities || '',
     }));
-    return [...contactItems, ...taakItems].sort((a, b) => b.sort.localeCompare(a.sort)).slice(0, 8);
-  }, [activiteit.contacten, activiteit.taken]);
+    const reactieItems = briefReacties.map((brief) => ({
+      key: `brief-reactie:${brief.id}`,
+      sort: `${brief.responsdatum}T23:59:58`,
+      soort: 'brief-reactie' as const,
+      titel: RESPONS_LABEL[brief.responsstatus as Responsstatus] ?? 'Reactie op brief',
+      meta: `${datumNl(brief.responsdatum)} · Reactie via ${kanaalLabel(brief.respons_kanaal)}`,
+      detail: brief.respons_samenvatting || `Reactie geregistreerd op ${brief.campagne_stap === 'brief_2' ? 'Brief 2' : 'Brief 1'}.`,
+    }));
+    return [...contactItems, ...taakItems, ...reactieItems].sort((a, b) => b.sort.localeCompare(a.sort)).slice(0, 10);
+  }, [activiteit.contacten, activiteit.taken, briefReacties]);
+
+  const isLoading = activiteit.isLoading || brieven.isLoading;
 
   return (
     <div className="rounded-md border bg-background p-3 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">Eigenaaropvolging</p>
-          <p className="mt-1 text-xs text-muted-foreground">Contactmomenten en taken worden aan de eigenaar én Vastgoedkans gekoppeld. Een CRM-relatie is niet vereist.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Contactmomenten, taken en geregistreerde briefreacties worden in één eigenaarstijdlijn getoond. Een CRM-relatie is niet vereist.</p>
         </div>
         {eigenaar && <Badge variant="outline">{eigenaar.crm_relatie_id ? 'CRM gekoppeld' : 'Acquisitie-eigenaar'}</Badge>}
       </div>
@@ -186,12 +219,16 @@ export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, ei
           </div>
           <div className="border-t pt-3">
             <p className="mb-2 text-xs font-medium">Recente activiteit</p>
-            {activiteit.isLoading ? <p className="text-xs text-muted-foreground">Activiteit laden…</p> : tijdlijn.length ? (
+            {isLoading ? <p className="text-xs text-muted-foreground">Activiteit laden…</p> : tijdlijn.length ? (
               <div className="space-y-2">
                 {tijdlijn.map((item) => (
                   <div key={item.key} className="rounded-md border bg-muted/10 p-2.5">
                     <div className="flex items-start gap-2">
-                      {item.soort === 'contact' ? <PhoneCall className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" /> : <Clock3 className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />}
+                      {item.soort === 'contact'
+                        ? <PhoneCall className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
+                        : item.soort === 'brief-reactie'
+                          ? <MessageCircleReply className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
+                          : <Clock3 className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />}
                       <div className="min-w-0">
                         <p className="text-xs font-medium">{item.titel}</p>
                         <p className="text-[11px] text-muted-foreground">{item.meta}</p>
@@ -201,7 +238,7 @@ export default function VastgoedkansEigenaarActiviteitKaart({ vastgoedkansId, ei
                   </div>
                 ))}
               </div>
-            ) : <p className="text-xs text-muted-foreground">Nog geen contactmomenten of taken voor deze eigenaar in deze Vastgoedkans.</p>}
+            ) : <p className="text-xs text-muted-foreground">Nog geen contactmomenten, taken of briefreacties voor deze eigenaar in deze Vastgoedkans.</p>}
           </div>
         </>
       ) : (
