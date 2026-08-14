@@ -37,7 +37,11 @@ export function useVastgoedkansPdfEigenaarVerrijking(
       if (!eigenaar || eigenaar.archived_at) return false;
       const mistAdres = !eigenaar.adres || !eigenaar.postcode || !eigenaar.plaats;
       if (!mistAdres) return false;
-      return extractieMeta(k)?.document_id !== laatsteRechtenPdf.id;
+      const meta = extractieMeta(k);
+      // Een eerdere no_match mag bij een volgende dossieropening opnieuw worden geprobeerd.
+      // Dat is nodig wanneer de eigenaarsset intussen is gecorrigeerd (bijv. duplicaat verwijderd)
+      // of de parser is verbeterd. De useRef voorkomt herhaalde calls binnen dezelfde mount.
+      return meta?.document_id !== laatsteRechtenPdf.id || meta?.status === 'no_match';
     });
   }, [koppelingen, laatsteRechtenPdf]);
 
