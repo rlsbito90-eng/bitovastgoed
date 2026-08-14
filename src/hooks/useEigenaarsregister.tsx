@@ -170,7 +170,14 @@ async function synchroniseerVastgoedkansEigenaren(vastgoedkansId: string, voorst
       if (error) throw error;
       eigenaar = data as EigenaarRegisterRecord;
     } else {
-      const patch = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== null && value !== '' && value !== undefined));
+      const payloadMetBronhistorie = {
+        ...payload,
+        bron_details: {
+          ...(eigenaar.bron_details ?? {}),
+          ...payload.bron_details,
+        },
+      };
+      const patch = Object.fromEntries(Object.entries(payloadMetBronhistorie).filter(([, value]) => value !== null && value !== '' && value !== undefined));
       const { data, error } = await sb.from('eigenaren').update(patch).eq('id', eigenaar.id).select('*').single();
       if (error) throw error;
       eigenaar = data as EigenaarRegisterRecord;
