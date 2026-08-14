@@ -42,7 +42,7 @@ describe('acquisitieBrievenAdapters', () => {
     expect(model.magOpvolgingRegistreren).toBe(true);
   });
 
-  it('blokkeert briefvoorbereiding zonder bewuste CRM-relatiekoppeling', () => {
+  it('laat briefvoorbereiding toe voor een bekende eigenaar zonder CRM-relatie', () => {
     const model = vastgoedkansNaarBrievenReadModel({
       id: 'kans-2',
       adres: 'Wibautstraat 1',
@@ -50,7 +50,8 @@ describe('acquisitieBrievenAdapters', () => {
       briefGeadresseerde: 'Bekende eigenaar',
     });
 
-    expect(model.fase).toBe('eigenaar_nodig');
-    expect(model.magBriefVoorbereiden).toBe(false);
+    expect(model.fase).toBe('brief_voorbereiden');
+    expect(model.relatieGekoppeld).toBe(false);
+    expect(model.magBriefVoorbereiden).toBe(true);
   });
 });

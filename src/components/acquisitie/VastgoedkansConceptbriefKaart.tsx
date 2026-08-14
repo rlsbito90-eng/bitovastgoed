@@ -26,11 +26,22 @@ import {
 
 type BriefStap = 'brief_1' | 'brief_2';
 
+export interface BriefEigenaarOptie {
+  id: string;
+  partijType: 'natuurlijk_persoon' | 'rechtspersoon' | 'onbekend';
+  naam: string;
+  bedrijfsnaam: string | null;
+  adres: string | null;
+  postcode: string | null;
+  plaats: string | null;
+}
+
 interface Props {
   vastgoedkansId: string;
   adres?: string | null;
   plaats?: string | null;
   eigenaarNaam?: string | null;
+  eigenaren?: BriefEigenaarOptie[];
   enabled?: boolean;
 }
 
@@ -54,8 +65,18 @@ function bouwOpvolgbriefTekst(aanhef: string, objectomschrijving: string): strin
   return `${aanhef}\n\nOnlangs heb ik u een brief gestuurd ${objectregel}. Ik wilde kort navragen of u gelegenheid heeft gehad om deze te bekijken.\n\nMocht verkoop nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Ook als het op dit moment niet speelt, hoor ik dat uiteraard graag.\n\nMet vriendelijke groet,\n\nRamysh Bito\nBito Vastgoed`;
 }
 
+function eigenaarVelden(eigenaar: BriefEigenaarOptie | null) {
+  if (!eigenaar) return { geadresseerde: '', bedrijfsnaam: '', verzendadres: '' };
+  const isBedrijf = eigenaar.partijType === 'rechtspersoon';
+  const bedrijfsnaam = eigenaar.bedrijfsnaam ?? (isBedrijf ? eigenaar.naam : '');
+  const geadresseerde = isBedrijf ? '' : eigenaar.naam;
+  const plaatsregel = [eigenaar.postcode, eigenaar.plaats].filter(Boolean).join(' ');
+  const verzendadres = [eigenaar.adres, plaatsregel].filter(Boolean).join('\n');
+  return { geadresseerde, bedrijfsnaam, verzendadres };
+}
+
 export default function VastgoedkansConceptbriefKaart({
-  vastgoedkansId, adres, plaats, eigenaarNaam, enabled = true,
+  vastgoedkansId, adres, plaats, eigenaarNaam, eigenaren = [], enabled = true,
 }: Props) {
   const brieven = useVastgoedkansBrieven(vastgoedkansId);
   const upsert = useUpsertVastgoedkansBriefConcept();
@@ -76,6 +97,7 @@ export default function VastgoedkansConceptbriefKaart({
   const [markeerTarget, setMarkeerTarget] = useState<AcquisitieBrief | null>(null);
   const [postdatum, setPostdatum] = useState(new Date().toISOString().slice(0, 10));
   const [pdfBezig, setPdfBezig] = useState<string | null>(null);
+  const [geselecteerdeEigenaarId, setGeselecteerdeEigenaarId] = useState('');
   const [geadresseerde, setGeadresseerde] = useState('');
   const [bedrijfsnaam, setBedrijfsnaam] = useState('');
   const [verzendadres, setVerzendadres] = useState('');
@@ -86,11 +108,26 @@ export default function VastgoedkansConceptbriefKaart({
   const actiefConcept = actieveBrief?.status === 'concept' ? actieveBrief : null;
   const kansContext = [kans?.kansnummer, objectomschrijving].filter(Boolean).join(' · ');
 
+  function zetBriefVelden(stap: BriefStap, velden: { geadresseerde: string; bedrijfsnaam: string; verzendadres: string }) {
+    const aanhefBasis = velden.geadresseerde || velden.bedrijfsnaam;
+    const aanhef = bepaalAanhef(aanhefBasis);
+    setGeadresseerde(velden.geadresseerde);
+    setBedrijfsnaam(velden.bedrijfsnaam);
+    setVerzendadres(velden.verzendadres);
+    setOnderwerp(stap === 'brief_2' ? `Opvolging: ${bepaalOnderwerp(objectomschrijving)}` : bepaalOnderwerp(objectomschrijving));
+    setBrieftekst(
+      stap === 'brief_2'
+        ? bouwOpvolgbriefTekst(aanhef, objectomschrijving)
+        : bouwBriefTekst({ aanhef, objectadres: objectomschrijving }),
+    );
+  }
+
   useEffect(() => {
     if (!open || !actiefConcept) return;
     const naam = actiefConcept.eigenaar_naam ?? eigenaarNaam?.trim() ?? '';
     const omschrijving = actiefConcept.objectomschrijving ?? objectomschrijving;
-    const aanhef = actiefConcept.aanhef ?? bepaalAanhef(naam);
+    const aanhef = actiefConcept.aanhef ?? bepaalAanhef(naam || (actiefConcept.eigenaar_bedrijfsnaam ?? ''));
+    setGeselecteerdeEigenaarId('');
     setGeadresseerde(naam);
     setBedrijfsnaam(actiefConcept.eigenaar_bedrijfsnaam ?? '');
     setVerzendadres(actiefConcept.verzendadres ?? '');
@@ -108,20 +145,31 @@ export default function VastgoedkansConceptbriefKaart({
     if (stap === 'brief_1' && brief1) return;
     if (stap === 'brief_2' && (!brief1 || brief1.status !== 'verstuurd' || brief2)) return;
 
-    const bron = stap === 'brief_2' ? brief1 : null;
-    const naam = bron?.eigenaar_naam ?? eigenaarNaam?.trim() ?? '';
-    const aanhef = bepaalAanhef(naam);
     setActieveStap(stap);
-    setGeadresseerde(naam);
-    setBedrijfsnaam(bron?.eigenaar_bedrijfsnaam ?? '');
-    setVerzendadres(bron?.verzendadres ?? '');
-    setOnderwerp(stap === 'brief_2' ? `Opvolging: ${bepaalOnderwerp(objectomschrijving)}` : bepaalOnderwerp(objectomschrijving));
-    setBrieftekst(
-      stap === 'brief_2'
-        ? bouwOpvolgbriefTekst(aanhef, objectomschrijving)
-        : bouwBriefTekst({ aanhef, objectadres: objectomschrijving }),
-    );
+    if (stap === 'brief_2' && brief1) {
+      setGeselecteerdeEigenaarId('');
+      zetBriefVelden(stap, {
+        geadresseerde: brief1.eigenaar_naam ?? '',
+        bedrijfsnaam: brief1.eigenaar_bedrijfsnaam ?? '',
+        verzendadres: brief1.verzendadres ?? '',
+      });
+    } else if (eigenaren.length === 1) {
+      setGeselecteerdeEigenaarId(eigenaren[0].id);
+      zetBriefVelden(stap, eigenaarVelden(eigenaren[0]));
+    } else if (eigenaren.length > 1) {
+      setGeselecteerdeEigenaarId('');
+      zetBriefVelden(stap, { geadresseerde: '', bedrijfsnaam: '', verzendadres: '' });
+    } else {
+      setGeselecteerdeEigenaarId('');
+      zetBriefVelden(stap, { geadresseerde: eigenaarNaam?.trim() ?? '', bedrijfsnaam: '', verzendadres: '' });
+    }
     setOpen(true);
+  }
+
+  function kiesEigenaar(id: string) {
+    setGeselecteerdeEigenaarId(id);
+    const eigenaar = eigenaren.find((item) => item.id === id) ?? null;
+    zetBriefVelden(actieveStap, eigenaarVelden(eigenaar));
   }
 
   function openConcept(stap: BriefStap) {
@@ -143,7 +191,7 @@ export default function VastgoedkansConceptbriefKaart({
         verzendadres: verzendadres.trim() || null,
         objectadres: objectadres || null,
         objectomschrijving: objectomschrijving || null,
-        aanhef: actiefConcept?.aanhef ?? bepaalAanhef(geadresseerde),
+        aanhef: actiefConcept?.aanhef ?? bepaalAanhef(geadresseerde || bedrijfsnaam),
         onderwerp: onderwerp.trim() || null,
         brieftekst,
       });
@@ -278,10 +326,10 @@ export default function VastgoedkansConceptbriefKaart({
         <h2 className="font-medium">Brieven</h2>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Elke brief blijft een afzonderlijke campagne-stap. PDF-generatie is lokaal; verzending wordt alleen handmatig geregistreerd.
+        Elke brief blijft een afzonderlijke campagne-stap. Gegevens uit het Eigenaarsregister mogen worden vooringevuld; PDF-generatie en verzending blijven expliciete handelingen.
       </p>
       {!enabled && !brief1 && (
-        <p className="mt-2 text-xs text-muted-foreground">Koppel eerst bewust de eigenaar aan een CRM-relatie voordat je een brief voorbereidt.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Rond eerst het eigenaarsonderzoek af. Een CRM-relatie is niet vereist om een brief voor te bereiden.</p>
       )}
 
       <div className="mt-4 space-y-3">
@@ -307,9 +355,28 @@ export default function VastgoedkansConceptbriefKaart({
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{actiefConcept ? `Brief ${actieveStap === 'brief_2' ? 2 : 1} bewerken` : `Brief ${actieveStap === 'brief_2' ? 2 : 1} voorbereiden`}</DialogTitle>
-            <DialogDescription>Dit slaat uitsluitend een concept op. Er wordt niets verzonden en de Vastgoedkans-status verandert niet automatisch.</DialogDescription>
+            <DialogDescription>Dit slaat uitsluitend een concept op. Controleer de vooringevulde eigenaar- en adresgegevens; er wordt niets verzonden.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {!actiefConcept && eigenaren.length > 1 && actieveStap === 'brief_1' && (
+              <div>
+                <Label>Eigenaar uit Eigenaarsregister</Label>
+                <select
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={geselecteerdeEigenaarId}
+                  onChange={(e) => kiesEigenaar(e.target.value)}
+                >
+                  <option value="">Kies bewust een geadresseerde…</option>
+                  {eigenaren.map((eigenaar) => (
+                    <option key={eigenaar.id} value={eigenaar.id}>{eigenaar.bedrijfsnaam || eigenaar.naam}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">Bij meerdere rechthebbenden wordt nooit automatisch gekozen wie de brief ontvangt.</p>
+              </div>
+            )}
+            {!actiefConcept && eigenaren.length === 1 && actieveStap === 'brief_1' && (
+              <p className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">Naam en beschikbaar correspondentieadres zijn vooringevuld uit het Eigenaarsregister. Controleer ze vóór opslaan.</p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div><Label>Geadresseerde</Label><Input value={geadresseerde} onChange={(e) => setGeadresseerde(e.target.value)} /></div>
               <div><Label>Bedrijfsnaam</Label><Input value={bedrijfsnaam} onChange={(e) => setBedrijfsnaam(e.target.value)} /></div>
@@ -319,7 +386,7 @@ export default function VastgoedkansConceptbriefKaart({
             <div><Label>Brieftekst</Label><Textarea rows={18} value={brieftekst} onChange={(e) => setBrieftekst(e.target.value)} /></div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>Annuleren</Button>
-              <Button onClick={opslaan} disabled={!enabled || upsert.isPending || !brieftekst.trim()}>
+              <Button onClick={opslaan} disabled={!enabled || upsert.isPending || !brieftekst.trim() || (!geadresseerde.trim() && !bedrijfsnaam.trim())}>
                 <Save className="mr-1.5 h-4 w-4" />{upsert.isPending ? 'Opslaan…' : 'Concept opslaan'}
               </Button>
             </div>

@@ -66,16 +66,16 @@ export function bouwAcquisitieBrievenReadModel(
   let primaireActie: string;
   let toelichting: string;
 
-  if (!eigenaarBekend || !relatieGekoppeld) {
+  if (!eigenaarBekend) {
     fase = 'eigenaar_nodig';
-    faseLabel = 'Eigenaar koppelen';
-    primaireActie = eigenaarBekend ? 'Koppel de eigenaar aan een CRM-relatie' : 'Rond eigenaarsonderzoek af';
-    toelichting = 'Een brief wordt pas voorbereid nadat de eigenaar bewust is beoordeeld en gekoppeld.';
+    faseLabel = 'Eigenaar nodig';
+    primaireActie = 'Rond eigenaarsonderzoek af';
+    toelichting = 'Een brief kan worden voorbereid zodra een bruikbare eigenaar bekend is. Een CRM-relatie is daarvoor niet vereist.';
   } else if (!geadresseerdeAanwezig) {
     fase = 'geadresseerde_controleren';
     faseLabel = 'Geadresseerde controleren';
     primaireActie = 'Controleer naam en correspondentieadres';
-    toelichting = 'Neem een geadresseerde niet automatisch over uit Kadaster- of brongegevens.';
+    toelichting = 'Eigenaarsgegevens mogen uit het Eigenaarsregister worden vooringevuld, maar controleer de geadresseerde vóór PDF-generatie of verzending.';
   } else if (!briefVoorbereid) {
     fase = 'brief_voorbereiden';
     faseLabel = 'Brief voorbereiden';
@@ -111,9 +111,9 @@ export function bouwAcquisitieBrievenReadModel(
     briefVoorbereid,
     briefVerzonden,
     reactieOntvangen,
-    magBriefVoorbereiden: eigenaarBekend && relatieGekoppeld && geadresseerdeAanwezig,
+    magBriefVoorbereiden: eigenaarBekend,
     magVerzendingRegistreren: briefVoorbereid && geadresseerdeAanwezig,
     magOpvolgingRegistreren: briefVerzonden,
-    veiligheidsmelding: 'Geen automatische eigenaarsovername, PDF-generatie, verzending of taakmutatie.',
+    veiligheidsmelding: 'Eigenaarsregister mag naam en adres voorinvullen; concept, PDF, verzending en taakmutatie blijven expliciete gebruikershandelingen.',
   };
 }

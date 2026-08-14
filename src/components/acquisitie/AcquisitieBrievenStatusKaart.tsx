@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AcquisitieBriefHistorieKaart } from '@/components/acquisitie/AcquisitieBriefHistorieKaart';
 import { AcquisitieWerkstroomBediening } from '@/components/acquisitie/AcquisitieWerkstroomBediening';
-import VastgoedkansConceptbriefKaart from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
+import VastgoedkansConceptbriefKaart, { type BriefEigenaarOptie } from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
 import { useRegistreerVastgoedkansBriefRespons, useVastgoedkansBrieven } from '@/hooks/useAcquisitieBrieven';
+import { useVastgoedkansEigenaren } from '@/hooks/useVastgoedkansEigenaren';
 import { RESPONS_LABEL, RESPONS_VOLGORDE, type Responsstatus } from '@/lib/offMarket/brieven/respons';
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import type { AcquisitieBrievenMetHistorieReadModel } from '@/lib/acquisitieBrievenAdapters';
@@ -33,7 +34,9 @@ export function AcquisitieBrievenStatusKaart({
   commandoBezig = false,
 }: AcquisitieBrievenStatusKaartProps) {
   const isVastgoedkans = model.dossier.bronType === 'vastgoedkans';
-  const vastgoedkansBrieven = useVastgoedkansBrieven(isVastgoedkans ? model.dossier.bronId : null);
+  const vastgoedkansId = isVastgoedkans ? model.dossier.bronId : null;
+  const vastgoedkansBrieven = useVastgoedkansBrieven(vastgoedkansId);
+  const eigenarenQuery = useVastgoedkansEigenaren(vastgoedkansId);
   const registreerRespons = useRegistreerVastgoedkansBriefRespons();
   const persistedBrieven = isVastgoedkans ? (vastgoedkansBrieven.data ?? []) : [];
   const verstuurdeBrief = persistedBrieven.find((brief) => brief.status === 'verstuurd') ?? null;
@@ -43,6 +46,19 @@ export function AcquisitieBrievenStatusKaart({
   const heeftPersistedGeadresseerde = persistedBrieven.some((brief) => Boolean(
     brief.eigenaar_naam?.trim() || brief.eigenaar_bedrijfsnaam?.trim() || brief.verzendadres?.trim(),
   ));
+  const eigenaarOpties = useMemo<BriefEigenaarOptie[]>(() => (eigenarenQuery.data ?? [])
+    .filter((koppeling) => Boolean(koppeling.eigenaar) && !koppeling.eigenaar?.archived_at)
+    .map((koppeling) => ({
+      id: koppeling.eigenaar!.id,
+      partijType: koppeling.eigenaar!.partij_type,
+      naam: koppeling.eigenaar!.naam,
+      bedrijfsnaam: koppeling.eigenaar!.bedrijfsnaam,
+      adres: koppeling.eigenaar!.adres,
+      postcode: koppeling.eigenaar!.postcode,
+      plaats: koppeling.eigenaar!.plaats,
+    })), [eigenarenQuery.data]);
+  const eigenaarInRegister = eigenaarOpties.length > 0;
+
   const [responsstatus, setResponsstatus] = useState<Responsstatus>('reactie_ontvangen');
   const [responsdatum, setResponsdatum] = useState(new Date().toISOString().slice(0, 10));
   const [responsKanaal, setResponsKanaal] = useState<Kanaal>('telefoon');
@@ -105,7 +121,8 @@ export function AcquisitieBrievenStatusKaart({
           </div>
 
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div><dt className="text-muted-foreground">CRM-relatie gekoppeld</dt><dd className="font-medium">{jaNee(model.relatieGekoppeld)}</dd></div>
+            {isVastgoedkans && <div><dt className="text-muted-foreground">Eigenaar in Eigenaarsregister</dt><dd className="font-medium">{jaNee(eigenaarInRegister)}</dd></div>}
+            <div><dt className="text-muted-foreground">CRM-relatie gekoppeld (optioneel)</dt><dd className="font-medium">{jaNee(model.relatieGekoppeld)}</dd></div>
             <div><dt className="text-muted-foreground">Geadresseerde gecontroleerd</dt><dd className="font-medium">{jaNee(geadresseerdeAanwezig)}</dd></div>
             <div><dt className="text-muted-foreground">Brief voorbereid</dt><dd className="font-medium">{jaNee(briefVoorbereid)}</dd></div>
             <div><dt className="text-muted-foreground">Brief verzonden</dt><dd className="font-medium">{jaNee(briefVerzonden)}</dd></div>
@@ -125,7 +142,8 @@ export function AcquisitieBrievenStatusKaart({
           adres={model.dossier.adres}
           plaats={model.dossier.plaats}
           eigenaarNaam={model.eigenaarNaam}
-          enabled={model.eigenaarBekend && model.relatieGekoppeld}
+          eigenaren={eigenaarOpties}
+          enabled={model.eigenaarBekend || eigenaarInRegister}
         />
       )}
 
