@@ -96,7 +96,7 @@ export default function VastgoedkansEigenaarRelatieKaart({ vastgoedkansId }: Pro
             <h3 className="font-medium">Eigenaar & CRM-match</h3>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Kadaster-eigenaren worden centraal als acquisitiedata opgeslagen. Bestaande CRM-relaties worden alleen als match voorgesteld en nooit automatisch aangemaakt.
+            Kadaster-eigenaren blijven acquisitiedata en worden centraal opgeslagen. Bestaande CRM-relaties worden alleen als match voorgesteld; een nieuwe Kadaster-eigenaar wordt niet automatisch aan Relaties toegevoegd.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
