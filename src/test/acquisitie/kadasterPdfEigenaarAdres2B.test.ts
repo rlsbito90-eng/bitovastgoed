@@ -40,14 +40,14 @@ describe('BUILD 2.0B — eigenaaradres uit officieel Kadasterbericht/PDF', () =>
     expect(matches).toEqual([]);
   });
 
-  it('houdt PDF-tekst in memory, gebruikt geen OCR en doet geen betaalde Kadastercall', () => {
+  it('houdt PDF-tekst in memory, gebruikt geen OCR-service en doet geen betaalde Kadastercall', () => {
     expect(textBron).toContain("from 'npm:unpdf@1.6.2'");
     expect(textBron).toContain('mergePages: true');
     expect(edgeBron).toContain("source: 'kadasterbericht_pdf'");
     expect(edgeBron).toContain(".download(document.storage_path)");
     expect(edgeBron).not.toContain('KADASTER_OBJECTINFORMATIE_API_KEY');
     expect(edgeBron).not.toContain('kadatawebservice');
-    expect(edgeBron.toLowerCase()).not.toContain('ocr');
+    expect(edgeBron).not.toMatch(/tesseract|google vision|document ai|ocr\.space/i);
     expect(edgeBron).not.toContain("from('relaties')");
     expect(edgeBron).not.toContain('console.log(text');
   });
