@@ -5,10 +5,21 @@ import type {
   VastgoedkansHerkomst,
   VastgoedkansStatus,
 } from '@/lib/vastgoedkansen';
+import { vandaagNl } from '@/lib/datum/nlDatum';
 
 export type VastgoedkansWerkTab = 'overzicht' | 'onderzoek' | 'kadaster' | 'brieven' | 'dossier';
 export type VastgoedkansWerkbak = VastgoedkansStatus | 'alles' | 'archief';
-export type VastgoedkansSortering = 'recent' | 'prioriteit' | 'score' | 'adres' | 'opvolgdatum';
+export type VastgoedkansSortering = 'recent' | 'werkvolgorde' | 'prioriteit' | 'score' | 'adres' | 'opvolgdatum';
+export type VastgoedkansActieUrgentie = 'verlopen' | 'vandaag' | 'gepland' | 'zonder_datum' | 'geen_actie';
+
+export interface VastgoedkansActieContext {
+  omschrijving: string | null;
+  datum: string | null;
+  urgentie: VastgoedkansActieUrgentie;
+  urgentieLabel: string;
+  datumLabel: string | null;
+  rang: number;
+}
 
 export interface VastgoedkansWerkcontext {
   tab: VastgoedkansWerkTab;
@@ -40,6 +51,92 @@ export function normaliseerListWorkspaceZoektekst(waarde: unknown): string {
     .toLocaleLowerCase('nl-NL')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+const formatActieDatum = (iso: string): string => {
+  try {
+    return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' })
+      .format(new Date(`${iso}T12:00:00`));
+  } catch {
+    return iso;
+  }
+};
+
+export function bepaalVastgoedkansActieContext(
+  kans: Vastgoedkans,
+  vandaag = vandaagNl(),
+): VastgoedkansActieContext {
+  const afgesloten = kans.status === 'afgevallen' || kans.status === 'gepromoveerd';
+  const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
+  const explicieteDatum = kans.volgendeActieDatum ?? null;
+
+  if (afgesloten && !explicieteDatum) {
+    return {
+      omschrijving: explicieteOmschrijving,
+      datum: null,
+      urgentie: 'geen_actie',
+      urgentieLabel: 'Geen open actie',
+      datumLabel: null,
+      rang: 4,
+    };
+  }
+
+  const legacyOmschrijving = afgesloten ? null : (kans.opvolgactie?.trim() || null);
+  const legacyDatum = afgesloten ? null : (kans.opvolgdatum ?? null);
+  const omschrijving = explicieteOmschrijving ?? legacyOmschrijving;
+  const datum = explicieteDatum ?? legacyDatum;
+
+  if (!omschrijving && !datum) {
+    return {
+      omschrijving: null,
+      datum: null,
+      urgentie: 'geen_actie',
+      urgentieLabel: 'Geen volgende actie',
+      datumLabel: null,
+      rang: 4,
+    };
+  }
+
+  if (!datum) {
+    return {
+      omschrijving,
+      datum: null,
+      urgentie: 'zonder_datum',
+      urgentieLabel: 'Datum ontbreekt',
+      datumLabel: null,
+      rang: 3,
+    };
+  }
+
+  const datumLabel = formatActieDatum(datum);
+  if (datum < vandaag) {
+    return {
+      omschrijving: omschrijving ?? 'Opvolgen',
+      datum,
+      urgentie: 'verlopen',
+      urgentieLabel: 'Verlopen',
+      datumLabel,
+      rang: 0,
+    };
+  }
+  if (datum === vandaag) {
+    return {
+      omschrijving: omschrijving ?? 'Opvolgen',
+      datum,
+      urgentie: 'vandaag',
+      urgentieLabel: 'Vandaag',
+      datumLabel,
+      rang: 1,
+    };
+  }
+  return {
+    omschrijving: omschrijving ?? 'Opvolgen',
+    datum,
+    urgentie: 'gepland',
+    urgentieLabel: 'Gepland',
+    datumLabel,
+    rang: 2,
+  };
 }
 
 export function listWorkspaceZichtbareSelectieIds(
@@ -148,7 +245,7 @@ export function bepaalWerkcontextNavigatie(ids: string[], huidigId: string) {
 const geldigWerkbak = (waarde: unknown): waarde is VastgoedkansWerkbak =>
   typeof waarde === 'string' && ['te_beoordelen','onderzoek','brief_voorbereiden','opvolgen','wachten','positieve_reactie','afgevallen','gepromoveerd','alles','archief'].includes(waarde);
 const geldigSortering = (waarde: unknown): waarde is VastgoedkansSortering =>
-  typeof waarde === 'string' && ['recent','prioriteit','score','adres','opvolgdatum'].includes(waarde);
+  typeof waarde === 'string' && ['recent','werkvolgorde','prioriteit','score','adres','opvolgdatum'].includes(waarde);
 const strings = <T extends string>(waarde: unknown): T[] => Array.isArray(waarde) ? waarde.filter((x): x is T => typeof x === 'string') : [];
 const prioriteiten = (waarde: unknown): number[] => Array.isArray(waarde) ? waarde.filter((x): x is number => Number.isInteger(x) && x >= 1 && x <= 5) : [];
 
@@ -197,7 +294,19 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
   const q = norm(state.zoekterm.trim());
   const lijst = kansen.filter((kans) => {
     if (state.werkbak !== 'alles' && state.werkbak !== 'archief' && kans.status !== state.werkbak) return false;
-    if (q && !norm([kans.korteOmschrijving,kans.adres,kans.postcode,kans.plaats,kans.provincie,kans.typeVastgoed,kans.redenInteressant,kans.eigenaarNaam,kans.kansnummer].filter(Boolean).join(' ')).includes(q)) return false;
+    if (q && !norm([
+      kans.korteOmschrijving,
+      kans.adres,
+      kans.postcode,
+      kans.plaats,
+      kans.provincie,
+      kans.typeVastgoed,
+      kans.redenInteressant,
+      kans.eigenaarNaam,
+      kans.kansnummer,
+      kans.volgendeActieOmschrijving,
+      kans.opvolgactie,
+    ].filter(Boolean).join(' ')).includes(q)) return false;
     if (state.filters.prioriteiten.length && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
     if (state.filters.herkomsten.length && !state.filters.herkomsten.includes(kans.herkomst)) return false;
     if (state.filters.eigenaar.length && !state.filters.eigenaar.includes(kans.eigenaarStatus)) return false;
@@ -206,10 +315,21 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
   });
   return [...lijst].sort((a, b) => {
     let verschil = 0;
+    if (state.sortering === 'werkvolgorde') {
+      const actieA = bepaalVastgoedkansActieContext(a);
+      const actieB = bepaalVastgoedkansActieContext(b);
+      verschil = actieA.rang - actieB.rang;
+      if (verschil === 0) verschil = cmpNullable(millis(actieA.datum), millis(actieB.datum));
+      if (verschil === 0) verschil = a.prioriteit - b.prioriteit;
+    }
     if (state.sortering === 'prioriteit') verschil = a.prioriteit - b.prioriteit;
     if (state.sortering === 'score') verschil = cmpNullable(a.algoritmeScore, b.algoritmeScore, true);
     if (state.sortering === 'adres') verschil = norm([a.plaats,a.adres].filter(Boolean).join(' ')).localeCompare(norm([b.plaats,b.adres].filter(Boolean).join(' ')), 'nl');
-    if (state.sortering === 'opvolgdatum') verschil = cmpNullable(millis(a.opvolgdatum ?? a.volgendeActieDatum), millis(b.opvolgdatum ?? b.volgendeActieDatum));
+    if (state.sortering === 'opvolgdatum') {
+      const actieA = bepaalVastgoedkansActieContext(a);
+      const actieB = bepaalVastgoedkansActieContext(b);
+      verschil = cmpNullable(millis(actieA.datum), millis(actieB.datum));
+    }
     if (state.sortering === 'recent' || verschil === 0) verschil = cmpNullable(millis(a.updatedAt), millis(b.updatedAt), true);
     return verschil || a.id.localeCompare(b.id);
   });
