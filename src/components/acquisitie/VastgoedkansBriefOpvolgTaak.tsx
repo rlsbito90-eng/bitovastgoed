@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useVastgoedkansEigenaarActiviteit } from '@/hooks/useVastgoedkansEigenaarActiviteit';
 import type { AcquisitieBrief } from '@/hooks/useAcquisitieBrieven';
 import type { BriefEigenaarOptie } from '@/components/acquisitie/VastgoedkansConceptbriefKaart';
+import { briefEigenaarNaam, vindBriefEigenaar } from '@/lib/acquisitie/briefEigenaarMatch';
 
 interface Props {
   vastgoedkansId: string;
@@ -16,46 +17,6 @@ interface Props {
   eigenaren: BriefEigenaarOptie[];
   objectId?: string | null;
   contextLabel?: string;
-}
-
-function norm(value: string | null | undefined) {
-  return (value ?? '')
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('nl-NL')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function formatteerPostcode(value: string | null | undefined) {
-  const compact = (value ?? '').replace(/\s+/g, '').toUpperCase();
-  return /^\d{4}[A-Z]{2}$/.test(compact) ? `${compact.slice(0, 4)} ${compact.slice(4)}` : (value ?? '').trim();
-}
-
-function eigenaarAdres(eigenaar: BriefEigenaarOptie) {
-  return [
-    eigenaar.adres?.trim(),
-    [formatteerPostcode(eigenaar.postcode), eigenaar.plaats?.trim()].filter(Boolean).join(' '),
-  ].filter(Boolean).join('\n');
-}
-
-function eigenaarNaam(eigenaar: BriefEigenaarOptie) {
-  return eigenaar.bedrijfsnaam || eigenaar.naam;
-}
-
-export function vindBriefEigenaar(brief: AcquisitieBrief, eigenaren: BriefEigenaarOptie[]): BriefEigenaarOptie | null {
-  const doelNaam = norm(brief.eigenaar_bedrijfsnaam || brief.eigenaar_naam);
-  const doelAdres = norm(brief.verzendadres);
-  if (!doelNaam) return null;
-
-  const naamMatches = eigenaren.filter((eigenaar) => norm(eigenaarNaam(eigenaar)) === doelNaam);
-  if (doelAdres) {
-    const exact = naamMatches.filter((eigenaar) => norm(eigenaarAdres(eigenaar)) === doelAdres);
-    if (exact.length === 1) return exact[0];
-    if (exact.length > 1) return null;
-  }
-  return naamMatches.length === 1 ? naamMatches[0] : null;
 }
 
 export default function VastgoedkansBriefOpvolgTaak({ vastgoedkansId, brief, eigenaren, objectId, contextLabel }: Props) {
@@ -74,7 +35,7 @@ export default function VastgoedkansBriefOpvolgTaak({ vastgoedkansId, brief, eig
 
   function openTaak() {
     if (!eigenaar) return;
-    setTitel(`Opvolgen: ${eigenaarNaam(eigenaar)}`);
+    setTitel(`Opvolgen: ${briefEigenaarNaam(eigenaar)}`);
     setDeadline(brief.opvolgdatum ?? new Date().toISOString().slice(0, 10));
     setNotities(contextLabel ? `Vastgoedkans: ${contextLabel}\nAanleiding: Brief 1 verstuurd.` : 'Aanleiding: Brief 1 verstuurd.');
     setOpen(true);
@@ -119,12 +80,12 @@ export default function VastgoedkansBriefOpvolgTaak({ vastgoedkansId, brief, eig
             <Label>Eigenaar voor opvolging</Label>
             <select className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={eigenaarId} onChange={(e) => setEigenaarId(e.target.value)}>
               <option value="">Kies bewust de geadresseerde eigenaar…</option>
-              {eigenaren.map((item) => <option key={item.id} value={item.id}>{eigenaarNaam(item)}</option>)}
+              {eigenaren.map((item) => <option key={item.id} value={item.id}>{briefEigenaarNaam(item)}</option>)}
             </select>
             <p className="mt-1 text-xs text-muted-foreground">De opgeslagen brief kon niet uniek aan één eigenaar worden gekoppeld; daarom wordt niets automatisch gekozen.</p>
           </div>
         )}
-        {automatisch && <p className="text-xs text-muted-foreground">Geadresseerde herkend: <span className="font-medium text-foreground">{eigenaarNaam(automatisch)}</span>.</p>}
+        {automatisch && <p className="text-xs text-muted-foreground">Geadresseerde herkend: <span className="font-medium text-foreground">{briefEigenaarNaam(automatisch)}</span>.</p>}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -134,7 +95,7 @@ export default function VastgoedkansBriefOpvolgTaak({ vastgoedkansId, brief, eig
             <DialogDescription>Dit maakt uitsluitend een interne taak aan; er wordt niets verzonden en geen commerciële status gewijzigd.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div><Label>Eigenaar</Label><Input value={eigenaar ? eigenaarNaam(eigenaar) : ''} disabled /></div>
+            <div><Label>Eigenaar</Label><Input value={eigenaar ? briefEigenaarNaam(eigenaar) : ''} disabled /></div>
             <div><Label>Titel</Label><Input value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
             <div><Label>Deadline</Label><Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
             <div><Label>Notities</Label><Textarea rows={4} value={notities} onChange={(e) => setNotities(e.target.value)} /></div>
