@@ -28,6 +28,20 @@ describe('BUILD 2.0E — bestaande briefevents naar workflow', () => {
     expect(projectie.workflowCode).toBe(code);
   });
 
+  it('maakt van geen_reactie geen inbound workflow-event', () => {
+    expect(naarWorkflowEventVanBriefEvent({
+      signaal_id: 'signaal-1', brief_id: 'brief-1', event_type: 'response_received', status: 'geen_reactie',
+    })).toBeNull();
+    expect(projecteerBriefEventNaarWorkflow({
+      signaal_id: 'signaal-1', brief_id: 'brief-1', event_type: 'response_received', status: 'geen_reactie',
+    })).toEqual({
+      volgendeActie: null,
+      volgendeActieOp: null,
+      workflowMode: null,
+      workflowCode: null,
+    });
+  });
+
   it('behandelt retourpost als eigenaar/adres-heronderzoek', () => {
     const event = naarWorkflowEventVanBriefEvent({
       signaal_id: 'signaal-1', brief_id: 'brief-1', event_type: 'returned_mail', status: 'retour_post',
