@@ -32,6 +32,13 @@ const RECOVERED_MIGRATIONS = [
   ['20260809195619_crm_mig_build3_source_governance_tables.sql', 'c64c334536f16a8d65a93de0d6594aba'],
   ['20260809195725_crm_mig_build6_remaining_core_tables.sql', 'a77031413ef5802b3439e96a8937a2e1'],
   ['20260809195756_crm_mig_build3_taxonomy_timing_dcf.sql', '91091c03f677d67e1b3708f7b4780ac4'],
+  ['20260809200015_crm_mig_build7_vastgoedrekenen_governance.sql', '2b83360662bcbbf0b5ff38c1a2b2ee73'],
+  ['20260809200026_crm_mig_build7_vastgoedrekenen_actor_guard.sql', '68a5d4c5fbd355c3f888832596cf345d'],
+  ['20260809200052_crm_mig_build7_mapping_guard_and_function_hardening.sql', '3ca466b9bc7c94f99f88e56c03aa57aa'],
+  ['20260809200524_crm_build7_vastgoedrekenen_import_rpcs.sql', 'a4968398565db9ca3e062c78bed7d409'],
+  ['20260809200638_crm_build7_object_kadaster_rls_performance.sql', 'f4fd3743629e47e78f40df46fda96f67'],
+  ['20260809200700_crm_build7_vastgoedrekenen_rls_hardening.sql', '0691766e4ab3cf093f25265c55c1b137'],
+  ['20260809200709_crm_build7_function_execute_hardening.sql', 'cf2eeed58730d5af81d016a317164880'],
 ] as const;
 
 describe('CRM migration history recovery', () => {
