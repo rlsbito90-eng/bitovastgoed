@@ -42,8 +42,11 @@ export interface AcquisitieEventProjectie {
   legacyStatus: string | null;
 }
 
-function bronVanBriefEvent(input: BriefEventInput): AcquisitieBron {
-  return input.vastgoedkans_id ? 'vastgoedkansen' : 'off_market_radar';
+function bronVanBriefEvent(input: BriefEventInput): AcquisitieBron | null {
+  const heeftSignaal = Boolean(input.signaal_id?.trim());
+  const heeftVastgoedkans = Boolean(input.vastgoedkans_id?.trim());
+  if (Number(heeftSignaal) + Number(heeftVastgoedkans) !== 1) return null;
+  return heeftVastgoedkans ? 'vastgoedkansen' : 'off_market_radar';
 }
 
 function kanaalVanBriefEvent(input: BriefEventInput): CommunicatieKanaal {
@@ -80,14 +83,18 @@ function sentimentVanResponsstatus(status?: string | null): ReactieSentiment {
  * Belangrijk:
  * - dit schrijft niets naar de database;
  * - legacy eventtypen blijven ongewijzigd beschikbaar;
+ * - exact één dossierbron is verplicht, gelijk aan de bestaande writer-invariant;
  * - `posted` en `sent` betekenen beide dat communicatie werkelijk verzonden is;
  * - `geen_reactie` is nooit een inbound reactie en wordt daarom niet als reactie geprojecteerd.
  */
 export function projecteerBriefEventNaarAcquisitieEvent(
   input: BriefEventInput,
 ): AcquisitieEventProjectie | null {
+  const bron = bronVanBriefEvent(input);
+  if (!bron) return null;
+
   const basis = {
-    bron: bronVanBriefEvent(input),
+    bron,
     occurredAt: input.event_date ?? null,
     legacyEventType: input.event_type,
     legacyStatus: input.status ?? null,
