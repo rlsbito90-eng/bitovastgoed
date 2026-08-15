@@ -11,12 +11,36 @@ export type VastgoedkansTaakActieContext = Omit<VastgoedkansActieContext, 'bron'
   bron: VastgoedkansActieContext['bron'] | 'taak';
 };
 
+export interface VastgoedkansTaakConsistentieWaarschuwing {
+  code: 'open_taak_op_afgesloten_dossier';
+  label: string;
+}
+
+export const VASTGOEDKANS_TAAK_PRIORITEIT_LABEL: Record<VastgoedkansLijstTaak['prioriteit'], string> = {
+  urgent: 'Urgent',
+  hoog: 'Hoog',
+  normaal: 'Normaal',
+  laag: 'Laag',
+};
+
 function projecteerTaakOpKans(kans: Vastgoedkans, taak: VastgoedkansLijstTaak | null | undefined): Vastgoedkans {
   if (!taak) return kans;
   return {
     ...kans,
     volgendeActieOmschrijving: taak.titel?.trim() || 'Taak uitvoeren',
     volgendeActieDatum: taak.deadline,
+  };
+}
+
+export function bepaalVastgoedkansTaakConsistentie(
+  kans: Vastgoedkans,
+  taak: VastgoedkansLijstTaak | null | undefined,
+): VastgoedkansTaakConsistentieWaarschuwing | null {
+  if (!taak) return null;
+  if (kans.status !== 'afgevallen' && kans.status !== 'gepromoveerd') return null;
+  return {
+    code: 'open_taak_op_afgesloten_dossier',
+    label: 'Open taak op afgesloten dossier',
   };
 }
 
