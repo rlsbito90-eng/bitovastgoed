@@ -59,6 +59,6 @@ describe('BUILD 2.0C — direct doorgaan naar workflowactie', () => {
   });
 
   it('behoudt Onderzoek als veilige fallback als er geen BAG-object is', () => {
-    expect(bepaalPrimaireWerkTab(kans({ bagPandId: null, bagVerblijfsobjectId: null }))).toBe('overzicht');
+    expect(bepaalPrimaireWerkTab(kans({ bagPandId: null, bagVerblijfsobjectId: null }))).toBe('onderzoek');
   });
 });
