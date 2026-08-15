@@ -19,6 +19,7 @@ import {
   type Responsstatus,
 } from '@/lib/offMarket/brieven/respons';
 import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
+import { logFollowUpCompletedVoorTaak } from '@/lib/offMarket/brieven/events';
 import { logSystemContactMoment } from '@/lib/contactMoments';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -92,6 +93,9 @@ export default function RegistreerResponsDialog({
       status: 'afgerond',
       notities: [taak.notities, reden].filter(Boolean).join('\n\n'),
     } as any);
+    // Zelfde meetfeit als bij handmatig afronden. De helper is fail-soft en
+    // idempotent, zodat een responswijziging nooit een dubbel completion-event maakt.
+    await logFollowUpCompletedVoorTaak(taak.id);
     return true;
   };
 
