@@ -1,1 +1,0 @@
-ALTER TABLE public.off_market_brieven ADD COLUMN IF NOT EXISTS objectomschrijving text;

@@ -1,1 +1,0 @@
-ALTER VIEW public.view_off_market_dealpotentie SET (security_invoker = true);

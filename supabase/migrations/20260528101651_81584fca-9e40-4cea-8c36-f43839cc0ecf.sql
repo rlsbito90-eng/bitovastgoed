@@ -1,1 +1,0 @@
-ALTER TABLE public.calculation_scenarios ADD COLUMN IF NOT EXISTS manual_zero_fields jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -1,1 +1,0 @@
-ALTER TABLE public.relaties ADD COLUMN IF NOT EXISTS deal_type_ids uuid[] NOT NULL DEFAULT '{}'::uuid[];

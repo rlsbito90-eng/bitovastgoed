@@ -1,1 +1,0 @@
-ALTER VIEW public.object_huur_metrics SET (security_invoker = true);
