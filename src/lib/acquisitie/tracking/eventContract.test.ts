@@ -27,6 +27,17 @@ describe('TRACK-1 uniform acquisitie-eventcontract', () => {
     });
   });
 
+  it('weigert een ontbrekende of dubbele dossierbron', () => {
+    expect(projecteerBriefEventNaarAcquisitieEvent({
+      event_type: 'posted',
+    })).toBeNull();
+    expect(projecteerBriefEventNaarAcquisitieEvent({
+      signaal_id: 'signaal-1',
+      vastgoedkans_id: 'kans-1',
+      event_type: 'posted',
+    })).toBeNull();
+  });
+
   it('telt gegenereerd, geprint of gekopieerde emailtekst niet als verzonden', () => {
     for (const event_type of ['pdf_generated', 'printed', 'email_text_copied'] as const) {
       const event = projecteerBriefEventNaarAcquisitieEvent({
