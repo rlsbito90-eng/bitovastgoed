@@ -50,11 +50,18 @@ describe('TRACK-7 acquisitiecockpit', () => {
     expect(result.signalen.some(s => s.id === 'positieve-respons-onder-doel')).toBe(true);
   });
 
-  it('leidt open opvolging uitsluitend af uit aangemaakt minus afgerond', () => {
-    const result = bouwCockpitSamenvatting(actuals, null, new Date(2026, 7, 16));
+  it('presenteert opvolgevents niet als bewezen actuele backlog', () => {
+    const result = bouwCockpitSamenvatting({
+      ...actuals,
+      opvolgingAangemaakt: 84,
+      opvolgingAfgerond: 0,
+      retourpost: 0,
+    }, null, new Date(2026, 7, 16));
 
-    expect(result.openOpvolging).toBe(6);
-    expect(result.signalen.some(s => s.id === 'open-opvolging')).toBe(true);
+    expect(result.opvolgingAangemaakt).toBe(84);
+    expect(result.opvolgingAfgerond).toBe(0);
+    expect(result.signalen.some(s => s.id === 'opvolging-completion-meting-ontbreekt' && s.severity === 'informatie')).toBe(true);
+    expect(result.signalen.some(s => s.id === 'open-opvolging')).toBe(false);
   });
 
   it('maakt ontbrekende doelen zichtbaar zonder actuals te blokkeren', () => {
