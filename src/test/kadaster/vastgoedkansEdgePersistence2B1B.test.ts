@@ -6,7 +6,7 @@ const root = process.cwd();
 const indexBron = fs.readFileSync(path.join(root, 'supabase/functions/kadaster-objectinformatie/index.ts'), 'utf8');
 const persistBron = fs.readFileSync(path.join(root, 'supabase/functions/kadaster-objectinformatie/_persist.ts'), 'utf8');
 const pdfBron = fs.readFileSync(path.join(root, 'supabase/functions/kadaster-objectinformatie/_pdf.ts'), 'utf8');
-const migratieBron = fs.readFileSync(path.join(root, 'supabase/migrations/20260813181500_kadaster_documenten_vastgoedkans.sql'), 'utf8');
+const migratieBron = fs.readFileSync(path.join(root, 'supabase/migration-archive/pre-baseline-snapshot/20260813181500_kadaster_documenten_vastgoedkans.sql'), 'utf8');
 
 describe('BUILD 2.0B — Kadaster persistence voor Vastgoedkansen', () => {
   it('gebruikt vastgoedkans_id als eigen persist-target', () => {

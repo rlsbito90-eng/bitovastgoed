@@ -144,7 +144,7 @@ describe('RenovateAndSellInputAdapter', () => {
 
   it('legt alleen additieve registratieve scenariovelden vast', () => {
     const migration = readFileSync(
-      `${process.cwd()}/supabase/migrations/20260727234500_vastgoedrekenen_2a3_renovate_and_sell.sql`,
+      `${process.cwd()}/supabase/migration-archive/pre-baseline-snapshot/20260727234500_vastgoedrekenen_2a3_renovate_and_sell.sql`,
       'utf8',
     );
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS renovation_area_m2 numeric');

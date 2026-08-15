@@ -35,7 +35,7 @@ describe('CRM-objectnummer', () => {
 
   it('legt de databasegaranties vast in de migratie', () => {
     const sql = readFileSync(
-      resolve(process.cwd(), 'supabase/migrations/20260802021000_add_crm_objectnummer.sql'),
+      resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260802021000_add_crm_objectnummer.sql'),
       'utf-8',
     );
 

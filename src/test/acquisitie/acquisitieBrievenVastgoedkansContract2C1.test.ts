@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { acquisitieDossierNaarBriefPersistenceTarget } from '@/lib/acquisitieBriefPersistenceTarget';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260813111500_acquisitie_brieven_vastgoedkans_contract.sql'),
+  resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260813111500_acquisitie_brieven_vastgoedkans_contract.sql'),
   'utf8',
 );
 

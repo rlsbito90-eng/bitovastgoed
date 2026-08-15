@@ -1,0 +1,40 @@
+do $$ begin create type public.off_market_vergunningtype as enum ('splitsing','woonvorming','omzetting','onttrekking','functiewijziging','transformatie','ontwikkeling','overig'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.off_market_aanvraag_besluit as enum ('aanvraag','besluit','melding','onbekend'); exception when duplicate_object then null; end $$;
+alter table public.off_market_signalen add column if not exists vergunningtype public.off_market_vergunningtype, add column if not exists aanvraag_of_besluit public.off_market_aanvraag_besluit;
+create index if not exists idx_off_market_signalen_vergunningtype on public.off_market_signalen(vergunningtype) where vergunningtype is not null;
+
+do $$ begin create type public.off_market_eigenaarstatus as enum ('onbekend','te_onderzoeken','gevonden','benaderd','in_gesprek','niet_bereikbaar','geen_interesse'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.off_market_eigenaartype as enum ('particulier','bv','stichting','vve','overheid','onbekend'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.off_market_eigenaarbron as enum ('kadaster','kvk','google','linkedin','netwerk','anders'); exception when duplicate_object then null; end $$;
+alter table public.off_market_signalen
+ add column if not exists eigenaarstatus public.off_market_eigenaarstatus not null default 'onbekend', add column if not exists eigenaar_naam text, add column if not exists eigenaar_type public.off_market_eigenaartype,
+ add column if not exists eigenaar_bedrijfsnaam text, add column if not exists eigenaar_kvk text, add column if not exists eigenaar_telefoon text, add column if not exists eigenaar_email text,
+ add column if not exists eigenaar_website text, add column if not exists eigenaar_linkedin text, add column if not exists kadastrale_aanduiding text, add column if not exists kadaster_check_op timestamptz,
+ add column if not exists eigenaarbron public.off_market_eigenaarbron, add column if not exists eigenaar_onderzoek_notities text;
+create index if not exists idx_off_market_signalen_eigenaarstatus on public.off_market_signalen(eigenaarstatus);
+
+do $$ begin create type public.off_market_kadaster_modus as enum ('mock','handmatig','api'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.off_market_kadaster_status as enum ('geslaagd','geen_resultaat','meerdere_resultaten','mislukt'); exception when duplicate_object then null; end $$;
+create table if not exists public.off_market_kadaster_checks (
+ id uuid primary key default gen_random_uuid(), signaal_id uuid not null references public.off_market_signalen(id) on delete cascade, uitgevoerd_door uuid references auth.users(id) on delete set null,
+ uitgevoerd_op timestamptz not null default now(), modus public.off_market_kadaster_modus not null, zoekvariant text, zoekterm jsonb, status public.off_market_kadaster_status not null,
+ match_confidence numeric(3,2), resultaten jsonb not null default '[]'::jsonb, gekozen_resultaat jsonb, overgenomen_op timestamptz, foutmelding text, kosten_eurocent integer,
+ created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create index if not exists idx_omkc_signaal on public.off_market_kadaster_checks(signaal_id,uitgevoerd_op desc);
+grant select,insert,update on public.off_market_kadaster_checks to authenticated; grant all on public.off_market_kadaster_checks to service_role;
+alter table public.off_market_kadaster_checks enable row level security;
+do $$ begin
+ if not exists(select 1 from pg_policies where schemaname='public' and tablename='off_market_kadaster_checks' and policyname='Interne gebruikers kunnen kadaster-checks bekijken') then create policy "Interne gebruikers kunnen kadaster-checks bekijken" on public.off_market_kadaster_checks for select to authenticated using(public.is_intern_gebruiker(auth.uid())); end if;
+ if not exists(select 1 from pg_policies where schemaname='public' and tablename='off_market_kadaster_checks' and policyname='Interne gebruikers kunnen kadaster-checks aanmaken') then create policy "Interne gebruikers kunnen kadaster-checks aanmaken" on public.off_market_kadaster_checks for insert to authenticated with check(public.is_intern_gebruiker(auth.uid())); end if;
+ if not exists(select 1 from pg_policies where schemaname='public' and tablename='off_market_kadaster_checks' and policyname='Interne gebruikers kunnen kadaster-checks bijwerken') then create policy "Interne gebruikers kunnen kadaster-checks bijwerken" on public.off_market_kadaster_checks for update to authenticated using(public.is_intern_gebruiker(auth.uid())) with check(public.is_intern_gebruiker(auth.uid())); end if;
+ if not exists(select 1 from pg_trigger where tgname='trg_omkc_updated_at' and not tgisinternal) then create trigger trg_omkc_updated_at before update on public.off_market_kadaster_checks for each row execute function public.update_updated_at_column(); end if;
+end $$;
+
+do $$ begin create type public.off_market_geo_status as enum ('niet_verrijkt','verrijkt','geen_coordinaten','geen_match','fout'); exception when duplicate_object then null; end $$;
+alter table public.off_market_signalen add column if not exists geo_gemeente_naam text, add column if not exists geo_gemeente_code text, add column if not exists geo_wijk_naam text, add column if not exists geo_wijk_code text, add column if not exists geo_buurt_naam text, add column if not exists geo_buurt_code text, add column if not exists geo_bron text, add column if not exists geo_verrijkt_op timestamptz, add column if not exists geo_status public.off_market_geo_status not null default 'niet_verrijkt', add column if not exists geo_foutmelding text;
+create index if not exists idx_off_market_signalen_geo_gemeente_code on public.off_market_signalen(geo_gemeente_code); create index if not exists idx_off_market_signalen_geo_wijk_code on public.off_market_signalen(geo_wijk_code); create index if not exists idx_off_market_signalen_geo_buurt_code on public.off_market_signalen(geo_buurt_code); create index if not exists idx_off_market_signalen_geo_status on public.off_market_signalen(geo_status);
+
+do $$ begin if not exists(select 1 from pg_type t join pg_namespace n on n.oid=t.typnamespace where n.nspname='public' and t.typname='off_market_bag_status') then create type public.off_market_bag_status as enum ('niet_verrijkt','bezig','verrijkt','geen_match','meerdere_matches','fout'); end if; end $$;
+alter table public.off_market_signalen add column if not exists bag_status public.off_market_bag_status not null default 'niet_verrijkt', add column if not exists bag_totaal_oppervlakte_m2 integer, add column if not exists bag_aantal_panden integer, add column if not exists bag_aantal_vbo integer, add column if not exists bag_gebruiksdoelen text[], add column if not exists bag_bouwjaar integer, add column if not exists bag_pand_status text, add column if not exists bag_pand_ids text[], add column if not exists bag_vbo_ids text[], add column if not exists bag_match_kwaliteit text, add column if not exists bag_verrijkt_op timestamptz, add column if not exists bag_foutmelding text, add column if not exists bag_vbos jsonb, add column if not exists kadasteradvies text, add column if not exists kadasteradvies_reden text, add column if not exists kadasteradvies_berekend_op timestamptz,
+ add column if not exists bag_match_kandidaten jsonb, add column if not exists bag_geselecteerd_vbo_id text, add column if not exists bag_geselecteerd_nummeraanduiding_id text, add column if not exists bag_geselecteerd_adres text, add column if not exists bag_geselecteerd_opp_m2 int, add column if not exists bag_geselecteerd_gebruiksdoel text[], add column if not exists bag_pandcontext_aantal_vbo int, add column if not exists bag_pandcontext_totaal_opp_m2 int, add column if not exists bag_pandcontext_incompleet boolean, add column if not exists bag_pandcontext_bron text;
+create index if not exists idx_off_market_signalen_bag_status on public.off_market_signalen(bag_status);

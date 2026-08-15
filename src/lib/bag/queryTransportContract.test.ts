@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(resolve(
-  process.cwd(), 'supabase/migrations/20260803213000_bag_2a9_gateway_role.sql',
+  process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260803213000_bag_2a9_gateway_role.sql',
 ), 'utf8').replace(/\s+/g, ' ').toLowerCase();
 const edge = readFileSync(resolve(
   process.cwd(), 'supabase/functions/bag-query-service/index.ts',

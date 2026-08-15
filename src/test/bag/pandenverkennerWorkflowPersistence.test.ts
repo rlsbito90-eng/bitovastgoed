@@ -5,7 +5,7 @@ const lijst = fs.readFileSync('src/components/bag/BagServicePandenlijst.tsx', 'u
 const review = fs.readFileSync('src/components/bag/BagSelectieReview.tsx', 'utf8');
 const persistence = fs.readFileSync('src/lib/bag/pandenverkennerPersistence.ts', 'utf8');
 const repository = fs.readFileSync('src/lib/bag/zoekprofielenRepository.ts', 'utf8');
-const migratie = fs.readFileSync('supabase/migrations/20260812191000_bag_saved_searches_v2.sql', 'utf8');
+const migratie = fs.readFileSync('supabase/migration-archive/pre-baseline-snapshot/20260812191000_bag_saved_searches_v2.sql', 'utf8');
 const dialog = fs.readFileSync('src/components/bag/BagHandmatigePromotieDialog.tsx', 'utf8');
 
 describe('Pandenverkenner workflow & persistence', () => {

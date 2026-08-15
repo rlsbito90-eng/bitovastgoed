@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260804183000_object_kadaster_rls_performance.sql'),
+  resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804183000_object_kadaster_rls_performance.sql'),
   'utf8',
 );
 

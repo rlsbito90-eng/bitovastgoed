@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/SnellePandcheckPage.tsx'), 'utf8');
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260804150000_crm_objectidentiteit.sql'), 'utf8');
+const migration = readFileSync(resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804150000_crm_objectidentiteit.sql'), 'utf8');
 
 describe('Snelle pandcheck', () => {
   it('controleert CRM-breed zonder automatische opslag', () => {

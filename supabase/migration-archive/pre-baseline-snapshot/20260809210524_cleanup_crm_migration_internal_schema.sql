@@ -1,0 +1,1 @@
+drop schema if exists migration_internal cascade;

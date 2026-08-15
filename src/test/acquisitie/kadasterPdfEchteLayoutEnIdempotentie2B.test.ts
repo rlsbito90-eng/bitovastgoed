@@ -6,7 +6,7 @@ import { normaliseerKadasterPdfTekst } from '../../../supabase/functions/_shared
 
 const root = process.cwd();
 const hookBron = fs.readFileSync(path.join(root, 'src/hooks/useVastgoedkansPdfEigenaarVerrijking.tsx'), 'utf8');
-const migratieBron = fs.readFileSync(path.join(root, 'supabase/migrations/20260814161000_eigenaar_kadaster_record_idempotentie.sql'), 'utf8');
+const migratieBron = fs.readFileSync(path.join(root, 'supabase/migration-archive/pre-baseline-snapshot/20260814161000_eigenaar_kadaster_record_idempotentie.sql'), 'utf8');
 
 describe('FIX 2.0B — echte Kadaster-PDF-layout en harde idempotentie', () => {
   it('herkent Naam + Adres + losse postcode/plaats-regels uit het echte Kadasterformat', () => {

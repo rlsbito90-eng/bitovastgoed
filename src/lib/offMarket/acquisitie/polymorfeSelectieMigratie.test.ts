@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const sql = fs.readFileSync('supabase/migrations/20260812234500_acquisitie_selectie_vastgoedkansen.sql', 'utf8');
+const sql = fs.readFileSync('supabase/migration-archive/pre-baseline-snapshot/20260812234500_acquisitie_selectie_vastgoedkansen.sql', 'utf8');
 
 describe('BUILD 2.0A.3 — polymorfe acquisitieselectie', () => {
   it('breidt het legacy contract uit zonder signaalrecords te herschrijven', () => {

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const MIGRATIEPAD =
-  'supabase/migrations/20260803143000_bag_2a3b_private_schema_candidate.sql';
+  'supabase/migration-archive/pre-baseline-snapshot/20260803143000_bag_2a3b_private_schema_candidate.sql';
 const sqlBron = readFileSync(resolve(process.cwd(), MIGRATIEPAD), 'utf-8');
 const sql = sqlBron.replace(/\s+/g, ' ').trim().toLowerCase();
 

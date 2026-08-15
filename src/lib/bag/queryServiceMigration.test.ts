@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const bron = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260803203000_bag_2a7_private_query_service.sql'),
+  resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260803203000_bag_2a7_private_query_service.sql'),
   'utf-8',
 );
 const sql = bron.replace(/\s+/g, ' ').trim().toLowerCase();

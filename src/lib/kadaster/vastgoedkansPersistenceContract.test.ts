@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const migratie = readFileSync('supabase/migrations/20260813070000_kadaster_data_records_vastgoedkans.sql', 'utf8');
+const migratie = readFileSync('supabase/migration-archive/pre-baseline-snapshot/20260813070000_kadaster_data_records_vastgoedkans.sql', 'utf8');
 const frontendTypes = readFileSync('src/lib/kadaster/types.ts', 'utf8');
 const edgeTypes = readFileSync('supabase/functions/kadaster-objectinformatie/_types.ts', 'utf8');
 const readHook = readFileSync('src/hooks/useKadasterDataRecords.tsx', 'utf8');

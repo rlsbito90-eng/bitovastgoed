@@ -12,7 +12,7 @@ import {
   resolveAnalysisMetadata,
 } from '@/lib/vastgoedrekenen/analysis';
 
-const migrationPath = `${process.cwd()}/supabase/migrations/20260728013000_vastgoedrekenen_scenario_taxonomy_fase_2.sql`;
+const migrationPath = `${process.cwd()}/supabase/migration-archive/pre-baseline-snapshot/20260728013000_vastgoedrekenen_scenario_taxonomy_fase_2.sql`;
 
 describe('scenario-taxonomie Fase 2 — dual read en persistence', () => {
   it('houdt een bestaand scenario zonder canonieke velden volledig op legacy-read', () => {
