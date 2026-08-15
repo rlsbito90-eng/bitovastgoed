@@ -131,11 +131,12 @@ describe('BUILD 2.0C — Vastgoedkansen werkvolgorde', () => {
     expect(resultaat.map((item) => item.id)).toEqual(['a']);
   });
 
-  it('toont werkvolgorde, concrete actie en eigenaarcontext in de Vastgoedkansen-lijst', () => {
+  it('toont werkvolgorde, taakbewuste concrete actie en eigenaarcontext in de Vastgoedkansen-lijst', () => {
     const pagina = fs.readFileSync(path.join(process.cwd(), 'src/pages/VastgoedkansenPage.tsx'), 'utf8');
     expect(pagina).toContain("werkvolgorde: 'Werkvolgorde'");
-    expect(pagina).toContain('bepaalVastgoedkansActieContext(kans)');
+    expect(pagina).toContain('bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak)');
     expect(pagina).toContain('data-testid="vastgoedkans-volgende-actie"');
+    expect(pagina).toContain('<Badge variant="secondary">Taak</Badge>');
     expect(pagina).toContain("kans.eigenaarNaam?.trim() || EIGENAAR_LABEL[kans.eigenaarStatus]");
   });
 });
