@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { useAcquisitieTrackingPrestaties } from '@/hooks/useAcquisitieTrackingPrestaties';
+import AcquisitieJaarDoelen from '@/components/acquisitie/AcquisitieJaarDoelen';
 
 const bronLabel: Record<string, string> = {
   off_market_radar: 'Off-Market Radar',
@@ -17,7 +18,8 @@ function fmtEuro(value: number) {
 }
 
 export default function AcquisitiePrestaties() {
-  const { cohort, maandKpis, isLoading, error } = useAcquisitieTrackingPrestaties();
+  const jaar = new Date().getFullYear();
+  const { cohort, maandKpis, jaarActuals, isLoading, error } = useAcquisitieTrackingPrestaties(jaar);
 
   const laatsteCohort = cohort[0] ?? null;
   const laatsteKadasterMaand = useMemo(
@@ -38,8 +40,6 @@ export default function AcquisitiePrestaties() {
     );
   }
 
-  if (!laatsteCohort) return null;
-
   return (
     <section className="rounded-lg border border-border bg-card p-4 space-y-4" data-testid="acquisitie-prestaties">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -54,21 +54,27 @@ export default function AcquisitiePrestaties() {
         </span>
       </div>
 
-      <div>
-        <div className="mb-2 text-xs font-medium text-muted-foreground">
-          Laatste verzendcohort · {fmtMaand(laatsteCohort.verzendmaand)} · {bronLabel[laatsteCohort.acquisitie_bron] ?? laatsteCohort.acquisitie_bron}
+      {laatsteCohort ? (
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            Laatste verzendcohort · {fmtMaand(laatsteCohort.verzendmaand)} · {bronLabel[laatsteCohort.acquisitie_bron] ?? laatsteCohort.acquisitie_bron}
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <Metric label="Verzonden brieven" value={String(laatsteCohort.verzonden_brieven)} />
+            <Metric label="Reacties" value={String(laatsteCohort.reacties)} detail={`${laatsteCohort.responspercentage}% respons`} />
+            <Metric label="Positieve reacties" value={String(laatsteCohort.positieve_reacties)} detail={`${laatsteCohort.positieve_responspercentage}% van verzonden`} />
+            <Metric label="Retourpost" value={String(laatsteCohort.retourpost)} />
+            <Metric
+              label="Gem. reactietijd"
+              value={laatsteCohort.gemiddelde_dagen_tot_reactie == null ? '—' : `${laatsteCohort.gemiddelde_dagen_tot_reactie} d`}
+            />
+          </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <Metric label="Verzonden brieven" value={String(laatsteCohort.verzonden_brieven)} />
-          <Metric label="Reacties" value={String(laatsteCohort.reacties)} detail={`${laatsteCohort.responspercentage}% respons`} />
-          <Metric label="Positieve reacties" value={String(laatsteCohort.positieve_reacties)} detail={`${laatsteCohort.positieve_responspercentage}% van verzonden`} />
-          <Metric label="Retourpost" value={String(laatsteCohort.retourpost)} />
-          <Metric
-            label="Gem. reactietijd"
-            value={laatsteCohort.gemiddelde_dagen_tot_reactie == null ? '—' : `${laatsteCohort.gemiddelde_dagen_tot_reactie} d`}
-          />
+      ) : (
+        <div className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+          Nog geen verzendcohort beschikbaar. Actuals en jaardoelen worden zichtbaar zodra acquisitie-events zijn geregistreerd.
         </div>
-      </div>
+      )}
 
       {laatsteKadasterMaand && (
         <div className="border-t border-border pt-3">
@@ -90,6 +96,8 @@ export default function AcquisitiePrestaties() {
           </div>
         </div>
       )}
+
+      <AcquisitieJaarDoelen jaar={jaar} actuals={jaarActuals} />
     </section>
   );
 }
