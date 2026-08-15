@@ -82,3 +82,75 @@ export async function logBriefEvent(input: BriefEventInput): Promise<void> {
     console.warn('logBriefEvent exception:', e);
   }
 }
+
+/**
+ * TRACK-7A — projecteer het afronden van een centrale CRM-taak naar het
+ * acquisitie-eventlog wanneer die taak expliciet aan één acquisitiebrief is
+ * gekoppeld.
+ *
+ * Veiligheidscontract:
+ * - fail-soft: taakafronding mag nooit stuklopen op meetlogging;
+ * - exact één gekoppelde brief is vereist; ambiguïteit wordt niet gegokt;
+ * - idempotent: maximaal één `follow_up_completed` per gekoppelde brief;
+ * - geen status-, taak- of briefmutatie; uitsluitend append-only meetevent.
+ */
+export async function logFollowUpCompletedVoorTaak(taakId: string): Promise<void> {
+  try {
+    const normalizedTaakId = taakId.trim();
+    if (!normalizedTaakId) return;
+
+    const { data: brieven, error: briefError } = await (supabase as any)
+      .from('off_market_brieven')
+      .select('id,signaal_id,vastgoedkans_id,geadresseerde_key,campagne_stap,kanaal')
+      .eq('gekoppelde_taak_id', normalizedTaakId)
+      .limit(2);
+
+    if (briefError) {
+      console.warn('logFollowUpCompletedVoorTaak brief lookup fout:', briefError.message);
+      return;
+    }
+    if (!Array.isArray(brieven) || brieven.length === 0) return;
+    if (brieven.length !== 1) {
+      console.warn('logFollowUpCompletedVoorTaak overgeslagen: taak is niet eenduidig aan één brief gekoppeld');
+      return;
+    }
+
+    const brief = brieven[0];
+    const heeftSignaal = Boolean(brief.signaal_id);
+    const heeftVastgoedkans = Boolean(brief.vastgoedkans_id);
+    if (Number(heeftSignaal) + Number(heeftVastgoedkans) !== 1) {
+      console.warn('logFollowUpCompletedVoorTaak overgeslagen: brief heeft geen eenduidige dossierbron');
+      return;
+    }
+
+    const { data: bestaand, error: eventError } = await (supabase as any)
+      .from('off_market_brief_events')
+      .select('id')
+      .eq('brief_id', brief.id)
+      .eq('event_type', 'follow_up_completed')
+      .limit(1);
+
+    if (eventError) {
+      console.warn('logFollowUpCompletedVoorTaak event lookup fout:', eventError.message);
+      return;
+    }
+    if (Array.isArray(bestaand) && bestaand.length > 0) return;
+
+    await logBriefEvent({
+      signaal_id: brief.signaal_id ?? null,
+      vastgoedkans_id: brief.vastgoedkans_id ?? null,
+      brief_id: brief.id,
+      geadresseerde_key: brief.geadresseerde_key ?? null,
+      campagne_stap: brief.campagne_stap ?? null,
+      kanaal: brief.kanaal ?? null,
+      event_type: 'follow_up_completed',
+      status: 'afgerond',
+      metadata: {
+        taak_id: normalizedTaakId,
+        bron: 'centrale_taakstatus',
+      },
+    });
+  } catch (e) {
+    console.warn('logFollowUpCompletedVoorTaak exception:', e);
+  }
+}
