@@ -186,6 +186,26 @@ describe('BUILD 2.0C — centrale taken in Vastgoedkans werkvoorraad', () => {
     expect(gesorteerd.map((item) => item.id)).toEqual(['a', 'b']);
   });
 
+  it('sorteert een ongedateerde open taak op een afgesloten dossier als echte taak en behoudt de dossierstatus', () => {
+    const afgesloten = kans('afgesloten', { status: 'afgevallen', prioriteit: 5 });
+    const actief = kans('actief', { status: 'opvolgen', prioriteit: 1 });
+    const taken = new Map([
+      ['afgesloten', taak({ id: 'ta', vastgoedkans_id: 'afgesloten', titel: 'Administratief afronden' })],
+      ['actief', taak({ id: 'tb', vastgoedkans_id: 'actief', titel: 'Nog bellen' })],
+    ]);
+
+    const gesorteerd = filterEnSorteerVastgoedkansenMetTaken([actief, afgesloten], {
+      werkbak: 'alles',
+      zoekterm: '',
+      sortering: 'werkvolgorde',
+      filters: legeVastgoedkansFilters(),
+    }, taken);
+
+    expect(gesorteerd.map((item) => item.id)).toEqual(['afgesloten', 'actief']);
+    expect(gesorteerd[0]).toBe(afgesloten);
+    expect(afgesloten.status).toBe('afgevallen');
+  });
+
   it('queryt alleen niet-verwijderde open taakstatussen en voorkomt zo afgerond/geannuleerd in de projectie', () => {
     const bron = fs.readFileSync(path.join(process.cwd(), 'src/hooks/useVastgoedkansLijstTaken.ts'), 'utf8');
     expect(bron).toContain(".is('soft_deleted_at', null)");
