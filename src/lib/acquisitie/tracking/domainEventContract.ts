@@ -6,6 +6,8 @@ export type AcquisitieDomeinEventType =
   | 'kadaster_geleverd'
   | 'kadaster_mislukt'
   | 'eigenaar_geidentificeerd'
+  | 'brief_definitief_gemaakt'
+  | 'batch_geprint'
   | 'communicatie_verzonden'
   | 'reactie_ontvangen'
   | 'opvolging_aangemaakt'
@@ -17,6 +19,7 @@ export interface AcquisitieEntiteitRefs {
   objectId?: string | null;
   eigenaarId?: string | null;
   briefId?: string | null;
+  briefVersieId?: string | null;
   batchId?: string | null;
   campagneId?: string | null;
 }
