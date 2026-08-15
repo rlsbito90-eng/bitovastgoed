@@ -1,0 +1,2 @@
+alter table public.referentie_objecten drop constraint if exists referentie_objecten_bouwjaar_check;
+alter table public.referentie_objecten add constraint referentie_objecten_bouwjaar_check check (bouwjaar between 1700 and 2100);
