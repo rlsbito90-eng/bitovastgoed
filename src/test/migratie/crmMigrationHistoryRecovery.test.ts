@@ -47,6 +47,14 @@ const RECOVERED_MIGRATIONS = [
   ['20260809210416_finalize_crm_objectnummer_after_import.sql', 'f125be1f866c5ee51bec8c9bfc248cba'],
   ['20260809210524_cleanup_crm_migration_internal_schema.sql', 'e7f4d293d32849fe318ee4623565f1ed'],
   ['20260809232122_user_alert_state.sql', 'cbe99d17edaffba2a6e4ab6e7db61e8a'],
+  ['20260812195123_bag_saved_searches_v2.sql', '8f567588bc78a9b5004f10b47d16e7ed'],
+  ['20260813030241_acquisitie_selectie_vastgoedkansen.sql', 'c64a5efc4ff65f350a280e8b8906a6e9'],
+  ['20260813062618_kadaster_data_records_vastgoedkans.sql', '48b357f02de690f486383f0bee20b058'],
+  ['20260813112839_acquisitie_brieven_vastgoedkans_contract.sql', '32ff788528b32b2b1b397a17dec87078'],
+  ['20260813185728_kadaster_documenten_vastgoedkans.sql', '6cb8bcf260ad611a6d4e35be3740a7d3'],
+  ['20260813215213_centraal_eigenaarsregister.sql', '8624aafa8139314fdb2600c44d828637'],
+  ['20260814141320_eigenaar_kadaster_record_idempotentie.sql', 'e2cd24a6c76318494b6dc234130d80e5'],
+  ['20260814201607_eigenaar_vastgoedkans_activiteit.sql', 'eeb38eaf21082e66d5ed6857de17bb8f'],
 ] as const;
 
 describe('CRM migration history recovery', () => {
