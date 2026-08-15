@@ -89,6 +89,7 @@ export default function VastgoedkansenPage() {
   const [bulkBezig, setBulkBezig] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkPrioriteit, setBulkPrioriteit] = useState('');
+  const [alleenControleNodig, setAlleenControleNodig] = useState(false);
   const hervat = useMemo(() => leesVastgoedkansWerkcontext(), [kansen.length]);
   const hervatKans = hervat ? kansen.find((kans) => kans.id === hervat.kansId) : null;
 
@@ -97,7 +98,14 @@ export default function VastgoedkansenPage() {
   }, [werkbak, q, sortering, filters]);
 
   const setWerkbak = (volgende: VastgoedkansWerkbak) => {
+    setAlleenControleNodig(false);
     setWerkbakState(volgende);
+    setGeselecteerd(new Set());
+  };
+
+  const openControleNodig = () => {
+    setWerkbakState('alles');
+    setAlleenControleNodig(true);
     setGeselecteerd(new Set());
   };
 
@@ -105,12 +113,21 @@ export default function VastgoedkansenPage() {
     () => Object.fromEntries(STATUS_VOLGORDE.map((status) => [status, kansen.filter((kans) => kans.status === status).length])),
     [kansen],
   );
+  const controleNodigIds = useMemo(() => new Set(
+    kansen
+      .filter((kans) => bepaalVastgoedkansTaakConsistentie(kans, taakPerKansId.get(kans.id)))
+      .map((kans) => kans.id),
+  ), [kansen, taakPerKansId]);
   const basis = werkbak === 'archief' ? archief : kansen;
-  const list = useMemo(
+  const basisList = useMemo(
     () => werkbak === 'archief'
       ? filterEnSorteerVastgoedkansen(basis, { werkbak, zoekterm: q, sortering, filters })
       : filterEnSorteerVastgoedkansenMetTaken(basis, { werkbak, zoekterm: q, sortering, filters }, taakPerKansId),
     [basis, werkbak, q, sortering, filters, taakPerKansId],
+  );
+  const list = useMemo(
+    () => alleenControleNodig ? basisList.filter((kans) => controleNodigIds.has(kans.id)) : basisList,
+    [alleenControleNodig, basisList, controleNodigIds],
   );
   const listIds = useMemo(() => list.map((kans) => kans.id), [list]);
   const zichtbareIdSet = useMemo(() => new Set(listIds), [listIds]);
@@ -240,9 +257,10 @@ export default function VastgoedkansenPage() {
     </section>}
 
     <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
-      {STATUS_VOLGORDE.map((status) => <button key={status} onClick={() => setWerkbak(status)} className={vastgoedkansStatusChipClass(status, werkbak === status)}>{STATUS_LABEL[status]} <span className="ml-1 opacity-70">{counts[status]}</span></button>)}
-      <button onClick={() => setWerkbak('alles')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${werkbak === 'alles' ? 'bg-foreground text-background' : 'bg-card text-muted-foreground'}`}>Alles {kansen.length}</button>
-      <button onClick={() => setWerkbak('archief')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${werkbak === 'archief' ? 'bg-foreground text-background' : 'bg-card text-muted-foreground'}`}><Archive className="mr-1 inline h-3.5 w-3.5" />Archief {archief.length}</button>
+      {STATUS_VOLGORDE.map((status) => <button key={status} onClick={() => setWerkbak(status)} className={vastgoedkansStatusChipClass(status, werkbak === status && !alleenControleNodig)}>{STATUS_LABEL[status]} <span className="ml-1 opacity-70">{counts[status]}</span></button>)}
+      <button onClick={() => setWerkbak('alles')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${werkbak === 'alles' && !alleenControleNodig ? 'bg-foreground text-background' : 'bg-card text-muted-foreground'}`}>Alles {kansen.length}</button>
+      <button onClick={openControleNodig} data-testid="vastgoedkansen-controle-nodig-filter" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${alleenControleNodig ? 'border-amber-500 bg-amber-500/15 text-amber-800 dark:text-amber-200' : 'bg-card text-muted-foreground'}`}><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />Controle nodig {controleNodigIds.size}</button>
+      <button onClick={() => setWerkbak('archief')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${werkbak === 'archief' && !alleenControleNodig ? 'bg-foreground text-background' : 'bg-card text-muted-foreground'}`}><Archive className="mr-1 inline h-3.5 w-3.5" />Archief {archief.length}</button>
     </div>
 
     <section className="section-card space-y-3 p-3 sm:p-4" data-testid="vastgoedkansen-list-workspace-controls">
@@ -268,7 +286,7 @@ export default function VastgoedkansenPage() {
       </details>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{list.length}</strong> zichtbaar van {basis.length}</span>
+        <span><strong className="text-foreground">{list.length}</strong> zichtbaar van {alleenControleNodig ? controleNodigIds.size : basis.length}{alleenControleNodig ? ' · alleen controlepunten' : ''}</span>
         <span>Weergave wordt automatisch onthouden</span>
       </div>
     </section>
@@ -302,7 +320,7 @@ export default function VastgoedkansenPage() {
     </section>}
 
     <section className="section-card min-w-0 overflow-hidden">
-      {laden ? <p className="p-8 text-sm text-muted-foreground">Laden…</p> : list.length === 0 ? <div className="p-10 text-center"><Database className="mx-auto h-8 w-8 text-muted-foreground/50" /><p className="mt-3 text-sm text-muted-foreground">{werkbak === 'archief' ? 'Geen gearchiveerde vastgoedkansen in deze weergave.' : 'Geen vastgoedkansen binnen deze werkbak en filters.'}</p></div> : <div className="divide-y divide-border/70">
+      {laden ? <p className="p-8 text-sm text-muted-foreground">Laden…</p> : list.length === 0 ? <div className="p-10 text-center"><Database className="mx-auto h-8 w-8 text-muted-foreground/50" /><p className="mt-3 text-sm text-muted-foreground">{werkbak === 'archief' ? 'Geen gearchiveerde vastgoedkansen in deze weergave.' : alleenControleNodig ? 'Geen open taken op afgesloten dossiers. Er is nu niets te controleren.' : 'Geen vastgoedkansen binnen deze werkbak en filters.'}</p></div> : <div className="divide-y divide-border/70">
         {list.map((kans) => {
           const leidendeTaak = werkbak === 'archief' ? null : taakPerKansId.get(kans.id) ?? null;
           const actie = bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak);
