@@ -301,7 +301,6 @@ export function shouldShowMeerTab(
   return (
     hasJuridischData(object) ||
     hasContactenData(object) ||
-    deals.length > 0 ||
     (kadasterRecords && kadasterRecords.length > 0) ||
     (kadasterDocs && kadasterDocs.length > 0)
   );
@@ -322,7 +321,6 @@ const BASE_SECTIONS: SectionDef[] = [
   { id: 'aanbieding', label: 'Aanbieding', icon: Sparkles },
   { id: 'dossier', label: 'Dossier', icon: ClipboardCheck },
   { id: 'kandidaten', label: 'Kandidaten', icon: Users },
-  // referenties (conditioneel) wordt hier dynamisch tussen geplaatst (na 'kandidaten')
   { id: 'vastgoedrekenen', label: 'Vastgoedrekenen', icon: Calculator },
   { id: 'biedingen', label: 'Biedingen', icon: Coins },
   { id: 'activiteit', label: 'Activiteit', icon: Target },
@@ -359,7 +357,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobi
 const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
   overzicht: 'overzicht',
   dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
-  kandidaten: 'kandidaten', referenties: 'kandidaten',
+  kandidaten: 'kandidaten', referenties: 'financieel',
   vastgoedrekenen: 'vastgoedrekenen',
   financieel: 'financieel', verhuur: 'financieel',
   dossier: 'dossier', aanbieding: 'dossier', documenten: 'dossier',
@@ -1931,52 +1929,9 @@ export default function ObjectDetailPage() {
             );
           })()}
 
-          {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
-          {activeTab === 'meer' && hasJuridischData(object) && (
-            <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
-              <div className="section-card p-5 sm:p-6 space-y-3">
-                {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
-                {(object.kadastraleGemeente || object.kadastraalNummer) && (
-                  <Field label="Kadaster">
-                    {[object.kadastraleGemeente, object.kadastraleSectie, object.kadastraalNummer].filter(Boolean).join(' ')}
-                  </Field>
-                )}
-                {object.erfpachtinformatie && <Field label="Erfpacht">{object.erfpachtinformatie}</Field>}
-                {object.bestemmingsinformatie && <Field label="Bestemming">{object.bestemmingsinformatie}</Field>}
-              </div>
-            </SectionAnchor>
-          )}
-
-          {/* ============ KADASTER & GEBIEDSDATA ============ */}
-          {activeTab === 'meer' && (
-            <SectionAnchor id="kadaster-data" eyebrow={eyebrowFor("kadaster-data", "Kadaster")} title="Kadaster & gebiedsdata">
-              <KadasterGebiedsdataKaart
-                objectId={object.id}
-                adres={object.adres}
-                postcode={object.postcode}
-                plaats={object.plaats}
-                typeVastgoed={(object as { type?: string | null }).type ?? null}
-                objectVelden={{
-                  bouwjaar: object.bouwjaar ?? null,
-                  oppervlakte: object.oppervlakte ?? null,
-                }}
-                onOvernemen={async (patch, beschrijving) => {
-                  await store.updateObject(object.id, patch);
-                  // beschrijving wordt voorlopig alleen voor toast-context gebruikt.
-                  void beschrijving;
-                }}
-              />
-              <div className="mt-4">
-                <KadasterOpgeslagenKaart objectId={object.id} />
-              </div>
-            </SectionAnchor>
-          )}
-
-
-
-          {/* ============ CONTACTEN (conditioneel) ============ */}
-          {activeTab === 'meer' && (hasContactenData(object) || deals.length > 0) && (
-            <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Verkoper & relaties">
+          {/* ============ EIGENDOM & RELATIES (conditioneel) ============ */}
+          {activeTab === 'meer' && hasContactenData(object) && (
+            <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Eigendom & relaties">
 
               {/* Gekoppelde (primaire) relatie via eigenaar_relatie_id — privacy-safe label */}
               {(() => {
@@ -2078,85 +2033,45 @@ export default function ObjectDetailPage() {
 
           )}
 
-
-          {/* ============ AANBIEDING & PROCES ============ */}
-          {activeTab === 'dossier' && (
-          <SectionAnchor id="aanbieding" eyebrow={eyebrowFor("aanbieding", "Offering")} title="Aanbieding & proces">
-            {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
-              object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
-              documentatieStatusRows.length > 0 || verborgenImSecties.length > 0 || object.interneOpmerkingen) ? (
-              <div className="section-card p-5 sm:p-6 space-y-4">
-                {object.samenvatting && <Field label="Samenvatting">{object.samenvatting}</Field>}
-                {object.investeringsthese && (
-                  <Field label="Investeringsthese">
-                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.investeringsthese}</pre>
+          {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
+          {activeTab === 'meer' && hasJuridischData(object) && (
+            <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
+              <div className="section-card p-5 sm:p-6 space-y-3">
+                {object.eigendomssituatie && <Field label="Eigendomssituatie">{object.eigendomssituatie}</Field>}
+                {(object.kadastraleGemeente || object.kadastraalNummer) && (
+                  <Field label="Kadaster">
+                    {[object.kadastraleGemeente, object.kadastraleSectie, object.kadastraalNummer].filter(Boolean).join(' ')}
                   </Field>
                 )}
-                {object.onderscheidendeKenmerken && (
-                  <Field label="Onderscheidende kenmerken">{object.onderscheidendeKenmerken}</Field>
-                )}
-                {object.risicos && (
-                  <Field label="Risico's">
-                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.risicos}</pre>
-                  </Field>
-                )}
-                {object.opmerkingen && <Field label="Opmerkingen">{object.opmerkingen}</Field>}
-                {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
-                {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
-                {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
-                {object.dataroomUrl && (
-                  <Field label="Dataroom">
-                    <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
-                      {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
-                    </a>
-                  </Field>
-                )}
-                {documentatieStatusRows.length > 0 && (
-                  <Field label="Documentatie-overzicht">
-                    <div className="flex flex-wrap gap-1.5">
-                      {documentatieStatusRows.map(([type, status]) => (
-                        <span key={type} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
-                          {DOCUMENT_TYPE_LABELS[type as keyof typeof DOCUMENT_TYPE_LABELS] ?? type}: {status === 'beschikbaar' ? 'beschikbaar' : status === 'op_aanvraag' ? 'op aanvraag' : 'na NDA'}
-                        </span>
-                      ))}
-                    </div>
-                  </Field>
-                )}
-                {verborgenImSecties.length > 0 && (
-                  <Field label="Niet getoond in IM">
-                    <div className="flex flex-wrap gap-1.5">
-                      {verborgenImSecties.map(key => (
-                        <span key={key} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
-                          {IM_SECTIE_LABELS[key] ?? key}
-                        </span>
-                      ))}
-                    </div>
-                  </Field>
-                )}
-                {object.interneOpmerkingen && (
-                  <div className="bg-warning/5 border border-warning/20 rounded-md p-3.5">
-                    <p className="field-label text-warning">Interne opmerking</p>
-                    <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{object.interneOpmerkingen}</p>
-                  </div>
-                )}
+                {object.erfpachtinformatie && <Field label="Erfpacht">{object.erfpachtinformatie}</Field>}
+                {object.bestemmingsinformatie && <Field label="Bestemming">{object.bestemmingsinformatie}</Field>}
               </div>
-            ) : (
-              <div className="section-card p-5 text-sm text-muted-foreground">
-                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => openEdit('aanbieding')} className="text-accent hover:underline">Object bewerken</button>.
-              </div>
-            )}
-          </SectionAnchor>
+            </SectionAnchor>
           )}
 
-          {/* ============ DOSSIERSTATUS ============ */}
-          {activeTab === 'dossier' && (
-          <SectionAnchor id="dossier" eyebrow={eyebrowFor("dossier", "Readiness")} title="Dossierstatus">
-            <ObjectDossierCard
-              objectId={object.id}
-              objectRecord={object as unknown as Record<string, unknown>}
-              openTabRequest={dossierOpenRequest}
-            />
-          </SectionAnchor>
+          {/* ============ BRONDATA (Kadaster & gebiedsdata) ============ */}
+          {activeTab === 'meer' && (
+            <SectionAnchor id="kadaster-data" eyebrow={eyebrowFor("kadaster-data", "Kadaster")} title="Brondata (Kadaster & gebied)">
+              <KadasterGebiedsdataKaart
+                objectId={object.id}
+                adres={object.adres}
+                postcode={object.postcode}
+                plaats={object.plaats}
+                typeVastgoed={(object as { type?: string | null }).type ?? null}
+                objectVelden={{
+                  bouwjaar: object.bouwjaar ?? null,
+                  oppervlakte: object.oppervlakte ?? null,
+                }}
+                onOvernemen={async (patch, beschrijving) => {
+                  await store.updateObject(object.id, patch);
+                  // beschrijving wordt voorlopig alleen voor toast-context gebruikt.
+                  void beschrijving;
+                }}
+              />
+              <div className="mt-4">
+                <KadasterOpgeslagenKaart objectId={object.id} />
+              </div>
+            </SectionAnchor>
           )}
 
           {/* ============ KANDIDATEN ============ */}
@@ -2216,14 +2131,23 @@ export default function ObjectDetailPage() {
           </SectionAnchor>
           )}
 
-
           {/* ============ REFERENTIES (conditioneel) ============ */}
-          {activeTab === 'kandidaten' && object.referentieanalyseZichtbaar !== false && (
+          {activeTab === 'financieel' && object.referentieanalyseZichtbaar !== false && (
             <SectionAnchor id="referenties" eyebrow={eyebrowFor("referenties", "Benchmarks")} title="Referentieanalyse">
               <ObjectReferentieAnalyseSectie object={object} />
             </SectionAnchor>
           )}
 
+          {/* ============ DOSSIERSTATUS ============ */}
+          {activeTab === 'dossier' && (
+          <SectionAnchor id="dossier" eyebrow={eyebrowFor("dossier", "Readiness")} title="Dossierstatus">
+            <ObjectDossierCard
+              objectId={object.id}
+              objectRecord={object as unknown as Record<string, unknown>}
+              openTabRequest={dossierOpenRequest}
+            />
+          </SectionAnchor>
+          )}
 
           {/* ============ DOCUMENTEN (ondersteunend, zonder hoofdnummer) ============ */}
           {activeTab === 'dossier' && documenten.length > 0 && (
@@ -2296,6 +2220,75 @@ export default function ObjectDetailPage() {
                 );
               })()}
             </SectionAnchor>
+          )}
+
+          {/* ============ AANBIEDING & PROCES ============ */}
+          {activeTab === 'dossier' && (
+          <SectionAnchor id="aanbieding" eyebrow={eyebrowFor("aanbieding", "Offering")} title="Aanbieding & proces">
+            {(object.samenvatting || object.investeringsthese || object.onderscheidendeKenmerken || object.risicos || object.opmerkingen ||
+              object.propositie || object.objectomschrijving || object.procesVoorwaarden || object.dataroomUrl ||
+              documentatieStatusRows.length > 0 || verborgenImSecties.length > 0 || object.interneOpmerkingen) ? (
+              <div className="section-card p-5 sm:p-6 space-y-4">
+                {object.samenvatting && <Field label="Samenvatting">{object.samenvatting}</Field>}
+                {object.investeringsthese && (
+                  <Field label="Investeringsthese">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.investeringsthese}</pre>
+                  </Field>
+                )}
+                {object.onderscheidendeKenmerken && (
+                  <Field label="Onderscheidende kenmerken">{object.onderscheidendeKenmerken}</Field>
+                )}
+                {object.risicos && (
+                  <Field label="Risico's">
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.risicos}</pre>
+                  </Field>
+                )}
+                {object.opmerkingen && <Field label="Opmerkingen">{object.opmerkingen}</Field>}
+                {object.propositie && <Field label="Propositie"><pre className="whitespace-pre-wrap font-sans text-sm">{object.propositie}</pre></Field>}
+                {object.objectomschrijving && <Field label="Objectomschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.objectomschrijving}</pre></Field>}
+                {object.procesVoorwaarden && <Field label="Procesvoorwaarden"><pre className="whitespace-pre-wrap font-sans text-sm">{object.procesVoorwaarden}</pre></Field>}
+                {object.dataroomUrl && (
+                  <Field label="Dataroom">
+                    <a href={object.dataroomUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-1 break-all">
+                      {object.dataroomUrl} <ArrowUpRight className="h-3 w-3" />
+                    </a>
+                  </Field>
+                )}
+                {documentatieStatusRows.length > 0 && (
+                  <Field label="Documentatie-overzicht">
+                    <div className="flex flex-wrap gap-1.5">
+                      {documentatieStatusRows.map(([type, status]) => (
+                        <span key={type} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
+                          {DOCUMENT_TYPE_LABELS[type as keyof typeof DOCUMENT_TYPE_LABELS] ?? type}: {status === 'beschikbaar' ? 'beschikbaar' : status === 'op_aanvraag' ? 'op aanvraag' : 'na NDA'}
+                        </span>
+                      ))}
+                    </div>
+                  </Field>
+                )}
+                {verborgenImSecties.length > 0 && (
+                  <Field label="Niet getoond in IM">
+                    <div className="flex flex-wrap gap-1.5">
+                      {verborgenImSecties.map(key => (
+                        <span key={key} className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
+                          {IM_SECTIE_LABELS[key] ?? key}
+                        </span>
+                      ))}
+                    </div>
+                  </Field>
+                )}
+                {object.interneOpmerkingen && (
+                  <div className="bg-warning/5 border border-warning/20 rounded-md p-3.5">
+                    <p className="field-label text-warning">Interne opmerking</p>
+                    <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{object.interneOpmerkingen}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="section-card p-5 text-sm text-muted-foreground">
+                Nog geen aanbiedingsteksten ingevuld. Voeg deze toe via <button type="button" onClick={() => openEdit('aanbieding')} className="text-accent hover:underline">Object bewerken</button>.
+              </div>
+            )}
+          </SectionAnchor>
           )}
 
 
