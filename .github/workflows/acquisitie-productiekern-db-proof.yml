@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/acquisitie-productiekern-build-a
+      - feat/track-2-productiekern-releaseproof
     paths:
       - 'scripts/acquisitie/run-productiekern-isolated-db-proof.sh'
       - 'scripts/acquisitie/run-productiekern-e2e-acceptatie.sh'
