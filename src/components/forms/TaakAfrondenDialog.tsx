@@ -15,6 +15,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { toast } from 'sonner';
 import type { Taak } from '@/data/mock-data';
 import type { ContactMomentType, ContactMomentDirection } from '@/lib/contactMoments';
+import { logFollowUpCompletedVoorTaak } from '@/lib/offMarket/brieven/events';
 
 type UitkomstKey =
   | 'geen'           // geen contactmoment, alleen taak afronden
@@ -64,6 +65,9 @@ export default function TaakAfrondenDialog({ open, onOpenChange, taak }: Props) 
     setBezig(true);
     try {
       await updateTaak(taak.id, { status: 'afgerond' });
+      // Meetprojectie is bewust fail-soft en idempotent. Een mislukte
+      // acquisitie-eventlog mag de centrale taakafronding nooit terugdraaien.
+      await logFollowUpCompletedVoorTaak(taak.id);
 
       const opt = OPTIES.find(o => o.key === uitkomst)!;
       if (opt.type) {
