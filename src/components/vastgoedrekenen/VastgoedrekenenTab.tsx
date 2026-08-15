@@ -307,7 +307,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                   return (
                     <button key={scenario.id} type="button" onClick={() => setActiveScenarioId(scenario.id)} className={`min-w-[220px] max-w-[280px] rounded-lg border px-3 py-2.5 text-left transition-all ${selected ? 'border-primary/40 bg-primary/[0.07] shadow-sm' : 'border-border/50 bg-card hover:border-primary/25 hover:bg-muted/30'}`}>
                       <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold">{scenario.scenario_name || 'Naamloos scenario'}</p><p className="mt-1 truncate text-[11px] text-muted-foreground">{getBusinessCaseLabel(taxonomy.value.businessCase)} · {getInterventionLabel(taxonomy.value.intervention)}</p></div><ChevronRight className={`mt-0.5 h-4 w-4 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} /></div>
-                      <div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{VR_STATUS_LABELS[scenario.status]}</span><span>·</span><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{getDispositionLabel(taxonomy.value.disposition)}</span></div>
+                      <div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{VR_STATUS_LABELS[scenario.status]}</span><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{getDispositionLabel(taxonomy.value.disposition)}</span></div>
                     </button>
                   );
                 })}
