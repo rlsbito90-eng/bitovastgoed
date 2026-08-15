@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Vastgoedkans } from '@/lib/vastgoedkansen';
 import {
@@ -81,7 +83,15 @@ describe('BUILD 2.0C — centrale taken in Vastgoedkans werkvoorraad', () => {
     expect(kiesLeidendeVastgoedkansTaak(taken)?.id).toBe('vroeg-hoog');
   });
 
-  it('laat een open taak voorgaan op de commerciële dossieractie', () => {
+  it('zet gedateerde taken vóór ongedateerde taken', () => {
+    const taken = [
+      taak({ id: 'zonder', vastgoedkans_id: '1', titel: 'Zonder datum', prioriteit: 'urgent' }),
+      taak({ id: 'met', vastgoedkans_id: '1', titel: 'Met datum', deadline: '2026-08-30', prioriteit: 'laag' }),
+    ];
+    expect(kiesLeidendeVastgoedkansTaak(taken)?.id).toBe('met');
+  });
+
+  it('laat een open taak voorgaan op de commerciële dossieractie en classificeert vandaag correct', () => {
     const dossier = kans('1', {
       volgendeActieOmschrijving: 'Later opnieuw benaderen',
       volgendeActieDatum: '2026-08-30',
@@ -91,6 +101,43 @@ describe('BUILD 2.0C — centrale taken in Vastgoedkans werkvoorraad', () => {
     expect(context.bron).toBe('taak');
     expect(context.omschrijving).toBe('Bel eigenaar');
     expect(context.urgentie).toBe('vandaag');
+  });
+
+  it('classificeert een verlopen en toekomstige taak via dezelfde operationele context', () => {
+    expect(bepaalVastgoedkansActieContextMetTaak(
+      kans('1'),
+      taak({ id: 'verlopen', vastgoedkans_id: '1', titel: 'Bel eigenaar', deadline: '2026-08-14' }),
+      '2026-08-15',
+    ).urgentie).toBe('verlopen');
+
+    expect(bepaalVastgoedkansActieContextMetTaak(
+      kans('1'),
+      taak({ id: 'toekomst', vastgoedkans_id: '1', titel: 'Bel eigenaar', deadline: '2026-08-20' }),
+      '2026-08-15',
+    ).urgentie).toBe('gepland');
+  });
+
+  it('houdt een echte open taak zichtbaar op een afgesloten dossier, ook zonder deadline', () => {
+    const context = bepaalVastgoedkansActieContextMetTaak(
+      kans('1', { status: 'afgevallen', volgendeActieOmschrijving: null, volgendeActieDatum: null }),
+      taak({ id: 'open-na-afvallen', vastgoedkans_id: '1', titel: 'Administratief afronden' }),
+      '2026-08-15',
+    );
+
+    expect(context.bron).toBe('taak');
+    expect(context.omschrijving).toBe('Administratief afronden');
+    expect(context.urgentie).toBe('zonder_datum');
+  });
+
+  it('valt zonder taak terug op expliciete Vastgoedkans volgende actie', () => {
+    const context = bepaalVastgoedkansActieContextMetTaak(kans('1', {
+      volgendeActieOmschrijving: 'Aanvullende informatie sturen',
+      volgendeActieDatum: '2026-08-20',
+    }), null, '2026-08-15');
+
+    expect(context.bron).toBe('expliciet');
+    expect(context.omschrijving).toBe('Aanvullende informatie sturen');
+    expect(context.urgentie).toBe('gepland');
   });
 
   it('gebruikt taaktekst voor zoeken en taakdeadline voor werkvolgorde zonder originele kans te muteren', () => {
@@ -117,5 +164,12 @@ describe('BUILD 2.0C — centrale taken in Vastgoedkans werkvoorraad', () => {
       filters: legeVastgoedkansFilters(),
     }, taken);
     expect(gesorteerd.map((item) => item.id)).toEqual(['a', 'b']);
+  });
+
+  it('queryt alleen niet-verwijderde open taakstatussen en voorkomt zo afgerond/geannuleerd in de projectie', () => {
+    const bron = fs.readFileSync(path.join(process.cwd(), 'src/hooks/useVastgoedkansLijstTaken.ts'), 'utf8');
+    expect(bron).toContain(".is('soft_deleted_at', null)");
+    expect(bron).toContain(".in('status', ['open', 'in_uitvoering', 'wacht_op_reactie'])");
+    expect(bron).not.toContain("'afgerond', 'geannuleerd'");
   });
 });
