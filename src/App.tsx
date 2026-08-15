@@ -15,7 +15,7 @@ import { queryClient } from "@/lib/queryClient";
 import AcquisitiePage from "@/pages/AcquisitiePage";
 import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
 import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
-import AcquisitieFunnelPage from "@/pages/AcquisitieFunnelPage";
+import AcquisitieFunnelMetPrestatiesPage from "@/pages/AcquisitieFunnelMetPrestatiesPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
@@ -120,7 +120,7 @@ const App = () => (
                           <Route path="/zoekprofielen" element={<ZoekprofielenPage />} />
                           <Route path="/pipeline" element={<PipelinePage />} />
                           <Route path="/acquisitie" element={<AcquisitiePage />} />
-                          <Route path="/acquisitie/funnel" element={<AcquisitieFunnelPage />} />
+                          <Route path="/acquisitie/funnel" element={<AcquisitieFunnelMetPrestatiesPage />} />
                           <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
                           <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
                           <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
