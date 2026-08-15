@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
+import { useVastgoedkansLijstTaken } from '@/hooks/useVastgoedkansLijstTaken';
 import { useActieveVastgoedkansSelectieIds, useVoegVastgoedkansToeAanAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import {
   BRIEF_LABEL,
@@ -38,6 +39,10 @@ import {
   type VastgoedkansSortering,
   type VastgoedkansWerkbak,
 } from '@/lib/vastgoedkansWorkspace';
+import {
+  bepaalVastgoedkansActieContextMetTaak,
+  filterEnSorteerVastgoedkansenMetTaken,
+} from '@/lib/vastgoedkansTakenWerkvoorraad';
 import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';
 import VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';
 
@@ -67,6 +72,7 @@ const actieBadgeClass = (urgentie: ReturnType<typeof bepaalVastgoedkansActieCont
 
 export default function VastgoedkansenPage() {
   const { kansen, archief, laden, bulkUpdateKansen, archiveKansen, restoreKansen } = useVastgoedkansen();
+  const { taakPerKansId } = useVastgoedkansLijstTaken();
   const actieveAcquisitieIds = useActieveVastgoedkansSelectieIds();
   const voegToeAanAcquisitie = useVoegVastgoedkansToeAanAcquisitieSelectie();
   const init = useMemo(() => leesVastgoedkansLijstWorkspace(), []);
@@ -99,8 +105,10 @@ export default function VastgoedkansenPage() {
   );
   const basis = werkbak === 'archief' ? archief : kansen;
   const list = useMemo(
-    () => filterEnSorteerVastgoedkansen(basis, { werkbak, zoekterm: q, sortering, filters }),
-    [basis, werkbak, q, sortering, filters],
+    () => werkbak === 'archief'
+      ? filterEnSorteerVastgoedkansen(basis, { werkbak, zoekterm: q, sortering, filters })
+      : filterEnSorteerVastgoedkansenMetTaken(basis, { werkbak, zoekterm: q, sortering, filters }, taakPerKansId),
+    [basis, werkbak, q, sortering, filters, taakPerKansId],
   );
   const listIds = useMemo(() => list.map((kans) => kans.id), [list]);
   const zichtbareIdSet = useMemo(() => new Set(listIds), [listIds]);
@@ -294,7 +302,8 @@ export default function VastgoedkansenPage() {
     <section className="section-card min-w-0 overflow-hidden">
       {laden ? <p className="p-8 text-sm text-muted-foreground">Laden…</p> : list.length === 0 ? <div className="p-10 text-center"><Database className="mx-auto h-8 w-8 text-muted-foreground/50" /><p className="mt-3 text-sm text-muted-foreground">{werkbak === 'archief' ? 'Geen gearchiveerde vastgoedkansen in deze weergave.' : 'Geen vastgoedkansen binnen deze werkbak en filters.'}</p></div> : <div className="divide-y divide-border/70">
         {list.map((kans) => {
-          const actie = bepaalVastgoedkansActieContext(kans);
+          const leidendeTaak = werkbak === 'archief' ? null : taakPerKansId.get(kans.id) ?? null;
+          const actie = bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak);
           return <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
             {selectieModus && <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />}
             <div className="min-w-0 flex-1">
@@ -309,6 +318,7 @@ export default function VastgoedkansenPage() {
               {kans.korteOmschrijving && <p className="mt-0.5 text-xs text-muted-foreground">{[kans.adres, kans.postcode, kans.plaats].filter(Boolean).join(', ')}</p>}
               <p className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted-foreground"><span>{kans.typeVastgoed || 'Type onbekend'}</span><span>· {HERKOMST_LABEL[kans.herkomst]}</span><span>· Eigenaar: {kans.eigenaarNaam?.trim() || EIGENAAR_LABEL[kans.eigenaarStatus]}</span><span>· Brief: {BRIEF_LABEL[kans.briefStatus]}</span></p>
               {actie.urgentie !== 'geen_actie' && <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs" data-testid="vastgoedkans-volgende-actie">
+                {leidendeTaak && <Badge variant="secondary">Taak</Badge>}
                 <Badge variant="outline" className={actieBadgeClass(actie.urgentie)}>{actie.urgentieLabel}</Badge>
                 <span className="min-w-0 font-medium text-foreground">{actie.omschrijving || 'Opvolgen'}</span>
                 {actie.datumLabel && <span className="text-muted-foreground">· {actie.datumLabel}</span>}
