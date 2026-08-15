@@ -27,6 +27,11 @@ const RECOVERED_MIGRATIONS = [
   ['20260809195330_crm_mig_build3_kengetallen_acquisition.sql', 'c5d86980e5f15a28ce5300d07d4815c8'],
   ['20260809195354_crm_mig_build3_valuation_extensions.sql', '61e9133aec8c37397baa043c5f357609'],
   ['20260809195418_crm_mig_build3_financing.sql', '656a4a0baf340e85fbfd219ca48272c2'],
+  ['20260809195506_crm_mig_build3_taxonomy_area_preferences.sql', 'fe4c971fa902373fb561ac26c7a4bccd'],
+  ['20260809195530_crm_mig_build3_scenario_profiles.sql', '85daf9a9bc431075470a24618f817634'],
+  ['20260809195619_crm_mig_build3_source_governance_tables.sql', 'c64c334536f16a8d65a93de0d6594aba'],
+  ['20260809195725_crm_mig_build6_remaining_core_tables.sql', 'a77031413ef5802b3439e96a8937a2e1'],
+  ['20260809195756_crm_mig_build3_taxonomy_timing_dcf.sql', '91091c03f677d67e1b3708f7b4780ac4'],
 ] as const;
 
 describe('CRM migration history recovery', () => {
