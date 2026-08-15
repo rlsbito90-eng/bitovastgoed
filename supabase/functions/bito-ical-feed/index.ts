@@ -11,6 +11,7 @@
 //   - Pipeline volgende actie (object_pipeline.volgende_actie_datum)
 //   - Gewenste levering     (object_pipeline.gewenste_levering)
 //   - NDA-datum relatie     (relaties.nda_datum)
+//   - Vastgoedkans volgende actie / opvolging met concrete datum
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -164,10 +165,11 @@ Deno.serve(async (req: Request) => {
 
     if (dealsErr) console.error('Deals query error:', dealsErr);
 
-    // Taken — flat select
+    // Taken — flat select. vastgoedkans_id wordt alleen gebruikt om dubbele
+    // agenda-items te voorkomen als dezelfde gedateerde actie ook als taak bestaat.
     const { data: taken, error: takenErr } = await supabase
       .from('taken')
-      .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id')
+      .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id, vastgoedkans_id')
       .is('soft_deleted_at', null)
       .gte('deadline', vanafDate)
       .neq('status', 'afgerond');
@@ -191,6 +193,16 @@ Deno.serve(async (req: Request) => {
       .gte('nda_datum', vanafDate);
 
     if (ndaErr) console.error('NDA-relaties query error:', ndaErr);
+
+    // Vastgoedkansen: alleen dossiers met een echte datum. Ongedateerde
+    // workflowadviezen horen in de CRM-werkbak en niet in de agenda.
+    const { data: vastgoedkansen, error: vastgoedkansenErr } = await supabase
+      .from('vastgoedkansen')
+      .select('id, kansnummer, adres, postcode, plaats, korte_omschrijving, status, eigenaar_naam, volgende_actie_datum, volgende_actie_omschrijving, opvolgdatum, opvolgactie, archived_at')
+      .is('archived_at', null)
+      .or(`volgende_actie_datum.gte.${vanafDate},opvolgdatum.gte.${vanafDate}`);
+
+    if (vastgoedkansenErr) console.error('Vastgoedkansen query error:', vastgoedkansenErr);
 
     // Verzamel alle benodigde object_ids en relatie_ids
     const objectIds = new Set<string>();
@@ -289,7 +301,6 @@ Deno.serve(async (req: Request) => {
 
     // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
     const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
-      const parts: string[] = [];
       const subj = [naam, object].filter(Boolean).join(' · ');
       if (actie && subj) return `${actie} — ${subj}`;
       if (actie) return actie;
@@ -476,6 +487,54 @@ Deno.serve(async (req: Request) => {
       events.push(buildVEvent(event, dtstamp));
     }
 
+    // === VASTGOEDKANSEN ===
+    // Een expliciete volgende_actie_datum heeft altijd voorrang. Legacy opvolgdatum
+    // is alleen fallback en opent een afgesloten dossier niet opnieuw. Als voor
+    // dezelfde Vastgoedkans en datum al een open taak bestaat, wint de taak in iCal.
+    const taakDeadlineSleutels = new Set(
+      (taken ?? [])
+        .filter((t) => t.vastgoedkans_id && t.deadline)
+        .map((t) => `${t.vastgoedkans_id}|${t.deadline}`),
+    );
+
+    for (const k of vastgoedkansen ?? []) {
+      const explicieteDatum = k.volgende_actie_datum ?? null;
+      const isAfgesloten = k.status === 'afgevallen' || k.status === 'gepromoveerd';
+      const legacyDatum = !explicieteDatum && !isAfgesloten ? (k.opvolgdatum ?? null) : null;
+      const actieDatum = explicieteDatum ?? legacyDatum;
+      if (!actieDatum || actieDatum < vanafDate) continue;
+      if (taakDeadlineSleutels.has(`${k.id}|${actieDatum}`)) continue;
+
+      const explicieteActie = explicieteDatum ? cleanStr(k.volgende_actie_omschrijving) : '';
+      const legacyActie = legacyDatum ? cleanStr(k.opvolgactie) : '';
+      const actie = explicieteActie || legacyActie || 'Vastgoedkans opvolgen';
+      const locatie = [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ') || undefined;
+      const dossierTitel = cleanStr(k.korte_omschrijving)
+        || [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ')
+        || cleanStr(k.kansnummer)
+        || 'Vastgoedkans';
+      const eigenaar = cleanStr(k.eigenaar_naam);
+      const kansUrl = `${APP_BASE_URL}/vastgoedkansen/${k.id}`;
+
+      events.push(buildVEvent({
+        uid: makeUid('vastgoedkans-actie', k.id),
+        summary: `📌 ${buildAgendaTitle(actie, eigenaar, dossierTitel)}`,
+        description: [
+          descLines(
+            ['Vastgoedkans', cleanStr(k.kansnummer) || dossierTitel],
+            ['Eigenaar', eigenaar],
+            ['Status', humanizeFaseInline(k.status)],
+            ['Actie', actie],
+          ),
+          `\n${kansUrl}`,
+        ].filter(Boolean).join('\n'),
+        location: locatie,
+        url: kansUrl,
+        startDate: actieDatum,
+        endDate: addOneDay(actieDatum),
+      }, dtstamp));
+    }
+
     // === PIPELINE-KANDIDATEN ===
     // Per pipeline-record kunnen meerdere agenda-events ontstaan:
     //  - bezichtiging_datum
@@ -622,14 +681,13 @@ Deno.serve(async (req: Request) => {
       }, dtstamp));
     }
 
-
     const ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//Bito Vastgoed//Agenda Feed//NL',
       'METHOD:PUBLISH',
       'X-WR-CALNAME:Bito Vastgoed',
-      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups, closings, kandidaat-acties, leveringen en NDA-data',
+      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups, closings, Vastgoedkans-acties, kandidaat-acties, leveringen en NDA-data',
       'X-WR-TIMEZONE:Europe/Amsterdam',
       'CALSCALE:GREGORIAN',
       ...events,
