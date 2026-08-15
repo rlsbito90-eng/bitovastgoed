@@ -32,7 +32,8 @@ export interface CockpitSignaal {
 export interface CockpitSamenvatting {
   jaarVoortgang: number;
   doelDekking: number;
-  openOpvolging: number;
+  opvolgingAangemaakt: number;
+  opvolgingAfgerond: number;
   signalen: CockpitSignaal[];
   status: 'kritiek' | 'aandacht' | 'op_schema';
 }
@@ -59,7 +60,6 @@ export function bouwCockpitSamenvatting(
   now = new Date(),
 ): CockpitSamenvatting {
   const jaarVoortgang = berekenJaarVoortgang(now, actuals.jaar);
-  const openOpvolging = Math.max(0, actuals.opvolgingAangemaakt - actuals.opvolgingAfgerond);
   const doelvelden = doel ? [
     doel.acquisitie_brieven_doel,
     doel.acquisitie_responspercentage_doel,
@@ -124,12 +124,19 @@ export function bouwCockpitSamenvatting(
     });
   }
 
-  if (openOpvolging > 0) {
+  if (actuals.opvolgingAangemaakt > 0 && actuals.opvolgingAfgerond === 0) {
     signalen.push({
-      id: 'open-opvolging',
-      severity: 'aandacht',
-      titel: 'Opvolging vraagt aandacht',
-      toelichting: `${openOpvolging} geregistreerde opvolgacties zijn nog niet als afgerond gemeten.`,
+      id: 'opvolging-completion-meting-ontbreekt',
+      severity: 'informatie',
+      titel: 'Opvolgvoltooiing nog niet zichtbaar in meetlaag',
+      toelichting: `${actuals.opvolgingAangemaakt} opvolgacties zijn als aangemaakt gemeten en nog geen enkele als afgerond. Dit wordt niet als bewezen backlog geïnterpreteerd.`,
+    });
+  } else if (actuals.opvolgingAangemaakt > actuals.opvolgingAfgerond) {
+    signalen.push({
+      id: 'opvolging-balans',
+      severity: 'informatie',
+      titel: 'Meer opvolging aangemaakt dan afgerond gemeten',
+      toelichting: `${actuals.opvolgingAangemaakt} aangemaakt tegenover ${actuals.opvolgingAfgerond} afgerond in ${actuals.jaar}.`,
     });
   }
 
@@ -156,7 +163,7 @@ export function bouwCockpitSamenvatting(
       id: 'op-schema',
       severity: 'op_schema',
       titel: 'Geen directe stuurafwijking',
-      toelichting: 'De ingestelde acquisitiedoelen en gemeten opvolging geven nu geen afwijking die directe aandacht vraagt.',
+      toelichting: 'De ingestelde acquisitiedoelen geven nu geen afwijking die directe aandacht vraagt.',
     });
   }
 
@@ -166,5 +173,12 @@ export function bouwCockpitSamenvatting(
       ? 'aandacht'
       : 'op_schema';
 
-  return { jaarVoortgang, doelDekking, openOpvolging, signalen, status };
+  return {
+    jaarVoortgang,
+    doelDekking,
+    opvolgingAangemaakt: actuals.opvolgingAangemaakt,
+    opvolgingAfgerond: actuals.opvolgingAfgerond,
+    signalen,
+    status,
+  };
 }
