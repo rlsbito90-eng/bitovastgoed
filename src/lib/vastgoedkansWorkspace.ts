@@ -73,161 +73,83 @@ const actieMetDatum = (
 ): VastgoedkansActieContext => {
   const datumLabel = formatActieDatum(datum);
   if (datum < vandaag) {
-    return {
-      omschrijving: omschrijving ?? 'Opvolgen',
-      datum,
-      urgentie: 'verlopen',
-      urgentieLabel: 'Verlopen',
-      datumLabel,
-      rang: 0,
-      bron,
-    };
+    return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'verlopen', urgentieLabel: 'Verlopen', datumLabel, rang: 0, bron };
   }
   if (datum === vandaag) {
-    return {
-      omschrijving: omschrijving ?? 'Opvolgen',
-      datum,
-      urgentie: 'vandaag',
-      urgentieLabel: 'Vandaag',
-      datumLabel,
-      rang: 1,
-      bron,
-    };
+    return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'vandaag', urgentieLabel: 'Vandaag', datumLabel, rang: 1, bron };
   }
-  return {
-    omschrijving: omschrijving ?? 'Opvolgen',
-    datum,
-    urgentie: 'gepland',
-    urgentieLabel: 'Gepland',
-    datumLabel,
-    rang: 2,
-    bron,
-  };
+  return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'gepland', urgentieLabel: 'Gepland', datumLabel, rang: 2, bron };
 };
 
-export function bepaalVastgoedkansActieContext(
-  kans: Vastgoedkans,
-  vandaag = vandaagNl(),
-): VastgoedkansActieContext {
+export function bepaalVastgoedkansActieContext(kans: Vastgoedkans, vandaag = vandaagNl()): VastgoedkansActieContext {
   const afgesloten = kans.status === 'afgevallen' || kans.status === 'gepromoveerd';
   const explicieteOmschrijving = kans.volgendeActieOmschrijving?.trim() || null;
   const explicieteDatum = kans.volgendeActieDatum ?? null;
 
-  // Een gesloten dossier wordt niet door alleen een beschrijvende resttekst opnieuw
-  // een actieve werkactie. Alleen een bewust vastgelegde nieuwe actiedatum kan dat doen.
   if (afgesloten && !explicieteDatum) {
-    return {
-      omschrijving: explicieteOmschrijving,
-      datum: null,
-      urgentie: 'geen_actie',
-      urgentieLabel: 'Geen open actie',
-      datumLabel: null,
-      rang: 5,
-      bron: explicieteOmschrijving ? 'expliciet' : 'geen',
-    };
+    return { omschrijving: explicieteOmschrijving, datum: null, urgentie: 'geen_actie', urgentieLabel: 'Geen open actie', datumLabel: null, rang: 5, bron: explicieteOmschrijving ? 'expliciet' : 'geen' };
   }
-
   if (explicieteOmschrijving || explicieteDatum) {
     if (explicieteDatum) return actieMetDatum(explicieteOmschrijving, explicieteDatum, 'expliciet', vandaag);
-    return {
-      omschrijving: explicieteOmschrijving,
-      datum: null,
-      urgentie: 'zonder_datum',
-      urgentieLabel: 'Datum ontbreekt',
-      datumLabel: null,
-      rang: 3,
-      bron: 'expliciet',
-    };
+    return { omschrijving: explicieteOmschrijving, datum: null, urgentie: 'zonder_datum', urgentieLabel: 'Datum ontbreekt', datumLabel: null, rang: 3, bron: 'expliciet' };
   }
 
   const legacyOmschrijving = kans.opvolgactie?.trim() || null;
   const legacyDatum = kans.opvolgdatum ?? null;
   if (legacyOmschrijving || legacyDatum) {
     if (legacyDatum) return actieMetDatum(legacyOmschrijving, legacyDatum, 'legacy', vandaag);
-    return {
-      omschrijving: legacyOmschrijving,
-      datum: null,
-      urgentie: 'zonder_datum',
-      urgentieLabel: 'Datum ontbreekt',
-      datumLabel: null,
-      rang: 3,
-      bron: 'legacy',
-    };
+    return { omschrijving: legacyOmschrijving, datum: null, urgentie: 'zonder_datum', urgentieLabel: 'Datum ontbreekt', datumLabel: null, rang: 3, bron: 'legacy' };
   }
 
   const workflowActie = bouwVastgoedkansWorkflowReadModel(kans).nextAction;
   if (workflowActie) {
     if (workflowActie.dueAt) return actieMetDatum(workflowActie.label, workflowActie.dueAt, 'workflow', vandaag);
-    return {
-      omschrijving: workflowActie.label,
-      datum: null,
-      urgentie: 'processtap',
-      urgentieLabel: 'Processtap',
-      datumLabel: null,
-      rang: 4,
-      bron: 'workflow',
-    };
+    return { omschrijving: workflowActie.label, datum: null, urgentie: 'processtap', urgentieLabel: 'Processtap', datumLabel: null, rang: 4, bron: 'workflow' };
   }
 
-  return {
-    omschrijving: null,
-    datum: null,
-    urgentie: 'geen_actie',
-    urgentieLabel: 'Geen volgende actie',
-    datumLabel: null,
-    rang: 5,
-    bron: 'geen',
-  };
+  return { omschrijving: null, datum: null, urgentie: 'geen_actie', urgentieLabel: 'Geen volgende actie', datumLabel: null, rang: 5, bron: 'geen' };
 }
 
-export function listWorkspaceZichtbareSelectieIds(
-  geselecteerd: ReadonlySet<string>,
-  zichtbareIds: readonly string[],
-): string[] {
+export function listWorkspaceZichtbareSelectieIds(geselecteerd: ReadonlySet<string>, zichtbareIds: readonly string[]): string[] {
   return zichtbareIds.filter((id) => geselecteerd.has(id));
 }
 
-export function listWorkspaceAlleZichtbaarGeselecteerd(
-  geselecteerd: ReadonlySet<string>,
-  zichtbareIds: readonly string[],
-): boolean {
+export function listWorkspaceAlleZichtbaarGeselecteerd(geselecteerd: ReadonlySet<string>, zichtbareIds: readonly string[]): boolean {
   return zichtbareIds.length > 0 && zichtbareIds.every((id) => geselecteerd.has(id));
 }
 
-export function toggleListWorkspaceZichtbareIds(
-  geselecteerd: ReadonlySet<string>,
-  zichtbareIds: readonly string[],
-): Set<string> {
+export function toggleListWorkspaceZichtbareIds(geselecteerd: ReadonlySet<string>, zichtbareIds: readonly string[]): Set<string> {
   const volgende = new Set(geselecteerd);
-  if (listWorkspaceAlleZichtbaarGeselecteerd(geselecteerd, zichtbareIds)) {
-    zichtbareIds.forEach((id) => volgende.delete(id));
-  } else {
-    zichtbareIds.forEach((id) => volgende.add(id));
-  }
+  if (listWorkspaceAlleZichtbaarGeselecteerd(geselecteerd, zichtbareIds)) zichtbareIds.forEach((id) => volgende.delete(id));
+  else zichtbareIds.forEach((id) => volgende.add(id));
   return volgende;
 }
 
-export function listWorkspaceSelectieLabel(
-  geselecteerd: ReadonlySet<string>,
-  zichtbareIds: readonly string[],
-): string {
+export function listWorkspaceSelectieLabel(geselecteerd: ReadonlySet<string>, zichtbareIds: readonly string[]): string {
   const zichtbaar = listWorkspaceZichtbareSelectieIds(geselecteerd, zichtbareIds).length;
-  return geselecteerd.size === zichtbaar
-    ? `${geselecteerd.size} geselecteerd`
-    : `${geselecteerd.size} geselecteerd · ${zichtbaar} zichtbaar`;
+  return geselecteerd.size === zichtbaar ? `${geselecteerd.size} geselecteerd` : `${geselecteerd.size} geselecteerd · ${zichtbaar} zichtbaar`;
 }
 
 const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
 const LIST_STORAGE_KEY = 'bito-vastgoedkansen-list-workspace-v1';
 
 export const DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE: VastgoedkansLijstWorkspaceState = {
-  werkbak: 'te_beoordelen',
-  zoekterm: '',
-  sortering: 'recent',
-  filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
+  werkbak: 'te_beoordelen', zoekterm: '', sortering: 'recent', filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
 };
 
+const KADASTER_WORKFLOW_CODES = new Set(['eigenaar_bevestigen', 'rechthebbenden_controleren', 'eigenaar_heronderzoek']);
+const BRIEVEN_WORKFLOW_CODES = new Set([
+  'brief_voorbereiden', 'brief_controleren', 'opvolgen', 'vervolg_interesse', 'informatie_sturen',
+  'later_bellen', 'reactie_beoordelen',
+]);
+const OVERZICHT_WORKFLOW_CODES = new Set(['beoordelen', 'herbeoordelen', 'afsluiten_beoordelen']);
+
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
+  const actieCode = bouwVastgoedkansWorkflowReadModel(kans).nextAction?.code ?? null;
+  if (actieCode && KADASTER_WORKFLOW_CODES.has(actieCode)) return 'kadaster';
+  if (actieCode && BRIEVEN_WORKFLOW_CODES.has(actieCode)) return 'brieven';
+  if (actieCode && OVERZICHT_WORKFLOW_CODES.has(actieCode)) return 'overzicht';
+
   if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
   if (kans.kadasterStatus !== 'gegevens_bekend' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
   if (kans.briefStatus !== 'verzonden' && kans.briefStatus !== 'reactie_ontvangen') return 'brieven';
@@ -249,9 +171,7 @@ export function leesVastgoedkansWerkcontext(): VastgoedkansWerkcontext | null {
     const value = JSON.parse(raw) as VastgoedkansWerkcontext;
     if (!value?.kansId || !['overzicht', 'onderzoek', 'kadaster', 'brieven', 'dossier'].includes(value.tab)) return null;
     return value;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcontext, 'bijgewerktOp'>): void {
@@ -260,12 +180,7 @@ export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcont
   if (context.zoekterm === undefined) {
     const bestaand = leesVastgoedkansWerkcontext();
     if (bestaand?.ids?.includes(context.kansId)) {
-      volgende = {
-        ...context,
-        werkbak: bestaand.werkbak ?? context.werkbak,
-        zoekterm: bestaand.zoekterm,
-        ids: bestaand.ids,
-      };
+      volgende = { ...context, werkbak: bestaand.werkbak ?? context.werkbak, zoekterm: bestaand.zoekterm, ids: bestaand.ids };
     }
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...volgende, bijgewerktOp: new Date().toISOString() }));
@@ -275,12 +190,7 @@ export function bepaalWerkcontextNavigatie(ids: string[], huidigId: string) {
   const opgeslagen = leesVastgoedkansWerkcontext();
   const effectieveIds = opgeslagen?.ids?.includes(huidigId) ? opgeslagen.ids : ids;
   const index = effectieveIds.indexOf(huidigId);
-  return {
-    index,
-    total: effectieveIds.length,
-    vorigeId: index > 0 ? effectieveIds[index - 1] : null,
-    volgendeId: index >= 0 && index < effectieveIds.length - 1 ? effectieveIds[index + 1] : null,
-  };
+  return { index, total: effectieveIds.length, vorigeId: index > 0 ? effectieveIds[index - 1] : null, volgendeId: index >= 0 && index < effectieveIds.length - 1 ? effectieveIds[index + 1] : null };
 }
 
 const geldigWerkbak = (waarde: unknown): waarde is VastgoedkansWerkbak =>
@@ -308,9 +218,7 @@ export function leesVastgoedkansLijstWorkspace(): VastgoedkansLijstWorkspaceStat
         brief: strings<BriefStatus>(filters.brief),
       },
     };
-  } catch {
-    return DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE;
-  }
+  } catch { return DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE; }
 }
 
 export function bewaarVastgoedkansLijstWorkspace(state: VastgoedkansLijstWorkspaceState): void {
@@ -337,18 +245,8 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
     if (state.werkbak !== 'alles' && state.werkbak !== 'archief' && kans.status !== state.werkbak) return false;
     const actie = bepaalVastgoedkansActieContext(kans);
     if (q && !norm([
-      kans.korteOmschrijving,
-      kans.adres,
-      kans.postcode,
-      kans.plaats,
-      kans.provincie,
-      kans.typeVastgoed,
-      kans.redenInteressant,
-      kans.eigenaarNaam,
-      kans.kansnummer,
-      kans.volgendeActieOmschrijving,
-      kans.opvolgactie,
-      actie.omschrijving,
+      kans.korteOmschrijving, kans.adres, kans.postcode, kans.plaats, kans.provincie, kans.typeVastgoed,
+      kans.redenInteressant, kans.eigenaarNaam, kans.kansnummer, kans.volgendeActieOmschrijving, kans.opvolgactie, actie.omschrijving,
     ].filter(Boolean).join(' ')).includes(q)) return false;
     if (state.filters.prioriteiten.length && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
     if (state.filters.herkomsten.length && !state.filters.herkomsten.includes(kans.herkomst)) return false;
