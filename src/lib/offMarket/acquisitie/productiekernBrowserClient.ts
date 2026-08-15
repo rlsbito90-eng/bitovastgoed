@@ -8,8 +8,13 @@ import {
   stelProductiekernBrowserLezenSamen,
   stelProductiekernBrowserLezenSamenMetBesluit,
 } from './productiekernBrowserLeesSamenstelling';
+import { bepaalProductieActivatie } from './productieActivatiePoort';
+import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
 import { bepaalWerkCrmActivatie } from './werkCrmActivatiePoort';
-import { bouwWerkCrmActivatieBewijs } from './werkCrmOmgevingsBewijs';
+import {
+  bouwWerkCrmActivatieBewijs,
+  haalSupabaseProjectrefUitUrl,
+} from './werkCrmOmgevingsBewijs';
 
 /**
  * Smalle adapter rond de reeds bestaande CRM-Supabase-client.
@@ -31,11 +36,14 @@ function viteOmgeving(): ProductiekernBrowserOmgeving {
   return import.meta.env as ProductiekernBrowserOmgeving;
 }
 
+function isExplicietWaar(waarde: string | boolean | undefined): boolean {
+  return waarde === true || waarde === 'true';
+}
+
 /**
- * Bouwt uitsluitend uit expliciete Vite/Vercel-configuratie een werk-CRM-
- * activatiebesluit. Een previewhostname, branchnaam of Vercel-context opent
- * niets automatisch. De daadwerkelijke VITE_SUPABASE_URL moet exact bij de
- * apart ingestelde verwachte projectref horen.
+ * Bestaande, afzonderlijke werk-CRM-poort. Deze blijft ongewijzigd bruikbaar
+ * voor een duurzame werkdatabase en wordt nooit gebruikt om productie te
+ * vermommen als `werkcrm`.
  */
 export function bepaalBrowserWerkCrmActivatieUitOmgeving(
   env: ProductiekernBrowserOmgeving,
@@ -62,23 +70,103 @@ export function bepaalBrowserWerkCrmActivatieUitOmgeving(
   return bepaalWerkCrmActivatie(bewijs);
 }
 
+/**
+ * Browservertaling voor de reeds bestaande productie-releasepoort.
+ *
+ * Naast de zeven inhoudelijke productiebewijzen geldt hier een harde
+ * omgevingsgrens: modus moet `productie` zijn en VITE_SUPABASE_URL moet exact
+ * dezelfde projectref bevatten als de afzonderlijk ingestelde verwachte
+ * productieprojectref. Een preview/branch/hostname opent de poort nooit.
+ */
+export function bepaalBrowserProductieActivatieUitOmgeving(
+  env: ProductiekernBrowserOmgeving,
+): ProductiekernActivatieBesluit {
+  const actueleProjectref = haalSupabaseProjectrefUitUrl(
+    env.VITE_SUPABASE_URL as string | undefined,
+  );
+  const verwachteProjectref = (
+    env.VITE_ACQUISITIE_PRODUCTIEKERN_PRODUCTIE_PROJECTREF as string | undefined
+  )?.trim().toLowerCase() || null;
+
+  const modusGroen = env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'productie';
+  const doelGroen = Boolean(
+    actueleProjectref
+    && verwachteProjectref
+    && actueleProjectref === verwachteProjectref,
+  );
+
+  if (!modusGroen || !doelGroen) {
+    return {
+      lezenActief: false,
+      schrijvenActief: false,
+      ontbrekendBewijs: [
+        ...(!modusGroen ? ['De doelomgeving is niet expliciet als productie gemarkeerd.'] : []),
+        ...(!doelGroen ? ['De gekoppelde Supabase-omgeving komt niet overeen met het verwachte productiedoel.'] : []),
+      ],
+    };
+  }
+
+  return bepaalProductieActivatie({
+    actueleDdlGeverifieerd: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_DDL_GEVERIFIEERD,
+    ),
+    actueleRlsGeverifieerd: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_RLS_GEVERIFIEERD,
+    ),
+    geisoleerdeMigratieproefGroen: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_MIGRATIEPROEF_GROEN,
+    ),
+    concurrencyproefGroen: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_CONCURRENCYPROEF_GROEN,
+    ),
+    volledigeTestsuiteGroen: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_VOLLEDIGE_TESTSUITE_GROEN,
+    ),
+    productiebuildGroen: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_BUILD_GROEN,
+    ),
+    explicietProductieakkoord: isExplicietWaar(
+      env.VITE_ACQUISITIE_PRODUCTIEKERN_PRODUCTIEAKKOORD,
+    ),
+  });
+}
+
+/**
+ * Enige browserdispatch voor runtime-activatie. Onbekende of ontbrekende modus
+ * blijft fail-closed via de standaard productiekern-readroute.
+ */
+export function bepaalBrowserProductiekernActivatieUitOmgeving(
+  env: ProductiekernBrowserOmgeving,
+): ProductiekernActivatieBesluit {
+  if (env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'werkcrm') {
+    return bepaalBrowserWerkCrmActivatieUitOmgeving(env);
+  }
+  if (env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'productie') {
+    return bepaalBrowserProductieActivatieUitOmgeving(env);
+  }
+  return {
+    lezenActief: false,
+    schrijvenActief: false,
+    ontbrekendBewijs: ['Geen geldige Acquisitieproductiekern-runtimeomgeving geconfigureerd.'],
+  };
+}
+
 export function bepaalBrowserWerkCrmActivatie() {
   return bepaalBrowserWerkCrmActivatieUitOmgeving(viteOmgeving());
 }
 
 /**
- * Huidige applicatiesamenstelling.
- *
- * Alleen de expliciete werk-CRM-modus kan via de afzonderlijke werk-CRM-poort
- * lezen vrijgeven. Iedere andere modus valt bewust terug op de bestaande
- * productie-readroute met undefined bewijs en blijft dus volledig gesloten.
+ * Huidige applicatiesamenstelling. Werk-CRM en productie hebben elk hun eigen
+ * bewijsroute; alle andere configuraties blijven volledig gesloten.
  */
 export function maakStandaardProductiekernBrowserLeesSamenstelling() {
   const env = viteOmgeving();
-  if (env.VITE_ACQUISITIE_PRODUCTIEKERN_MODUS === 'werkcrm') {
+  const activatie = bepaalBrowserProductiekernActivatieUitOmgeving(env);
+
+  if (activatie.lezenActief) {
     return stelProductiekernBrowserLezenSamenMetBesluit(
       productiekernBrowserSupabaseClient,
-      bepaalBrowserWerkCrmActivatieUitOmgeving(env),
+      activatie,
     );
   }
 

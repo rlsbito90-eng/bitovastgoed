@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { stelProductiekernBrowserWritesSamen } from './productiekernBrowserWriteClient';
 
-function groeneOmgeving() {
+function groeneWerkCrmOmgeving() {
   return {
     VITE_ACQUISITIE_PRODUCTIEKERN_MODUS: 'werkcrm',
     VITE_SUPABASE_URL: 'https://werkcrm123.supabase.co',
@@ -16,13 +16,28 @@ function groeneOmgeving() {
   };
 }
 
+function groeneProductieOmgeving() {
+  return {
+    VITE_ACQUISITIE_PRODUCTIEKERN_MODUS: 'productie',
+    VITE_SUPABASE_URL: 'https://productie123.supabase.co',
+    VITE_ACQUISITIE_PRODUCTIEKERN_PRODUCTIE_PROJECTREF: 'productie123',
+    VITE_ACQUISITIE_PRODUCTIEKERN_DDL_GEVERIFIEERD: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_RLS_GEVERIFIEERD: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_MIGRATIEPROEF_GROEN: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_CONCURRENCYPROEF_GROEN: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_VOLLEDIGE_TESTSUITE_GROEN: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_BUILD_GROEN: 'true',
+    VITE_ACQUISITIE_PRODUCTIEKERN_PRODUCTIEAKKOORD: 'true',
+  };
+}
+
 describe('productiekernBrowserWriteClient', () => {
   it('blokkeert alle write-adapters bij ontbrekend werk-CRM-bewijs vóór een RPC', async () => {
     const vroegeRpc = vi.fn();
     const bridgeRpc = vi.fn();
     const lateRpc = vi.fn();
     const samenstelling = stelProductiekernBrowserWritesSamen(
-      { ...groeneOmgeving(), VITE_ACQUISITIE_PRODUCTIEKERN_DUURZAME_DATA: 'false' },
+      { ...groeneWerkCrmOmgeving(), VITE_ACQUISITIE_PRODUCTIEKERN_DUURZAME_DATA: 'false' },
       {
         vroege: { rpc: vroegeRpc },
         bestaandConceptBridge: { rpc: bridgeRpc },
@@ -55,7 +70,7 @@ describe('productiekernBrowserWriteClient', () => {
   });
 
   it('gebruikt exact hetzelfde groene werk-CRM-besluit voor alle write-adapters', () => {
-    const samenstelling = stelProductiekernBrowserWritesSamen(groeneOmgeving(), {
+    const samenstelling = stelProductiekernBrowserWritesSamen(groeneWerkCrmOmgeving(), {
       vroege: { rpc: vi.fn() },
       bestaandConceptBridge: { rpc: vi.fn() },
       transacties: { voerRpcUit: vi.fn() },
@@ -66,9 +81,21 @@ describe('productiekernBrowserWriteClient', () => {
     expect(samenstelling.activatie.ontbrekendBewijs).toEqual([]);
   });
 
-  it('blijft volledig dicht wanneer de actuele Supabase-projectref niet overeenkomt', () => {
+  it('activeert dezelfde write-adapters via de afzonderlijke productiepoort', () => {
+    const samenstelling = stelProductiekernBrowserWritesSamen(groeneProductieOmgeving(), {
+      vroege: { rpc: vi.fn() },
+      bestaandConceptBridge: { rpc: vi.fn() },
+      transacties: { voerRpcUit: vi.fn() },
+    });
+
+    expect(samenstelling.activatie.lezenActief).toBe(true);
+    expect(samenstelling.activatie.schrijvenActief).toBe(true);
+    expect(samenstelling.activatie.ontbrekendBewijs).toEqual([]);
+  });
+
+  it('blijft volledig dicht wanneer de productie-Supabase-projectref niet overeenkomt', () => {
     const samenstelling = stelProductiekernBrowserWritesSamen(
-      { ...groeneOmgeving(), VITE_SUPABASE_URL: 'https://anderproject.supabase.co' },
+      { ...groeneProductieOmgeving(), VITE_SUPABASE_URL: 'https://anderproject.supabase.co' },
       {
         vroege: { rpc: vi.fn() },
         bestaandConceptBridge: { rpc: vi.fn() },
@@ -77,6 +104,8 @@ describe('productiekernBrowserWriteClient', () => {
     );
 
     expect(samenstelling.activatie.schrijvenActief).toBe(false);
-    expect(samenstelling.activatie.ontbrekendBewijs.length).toBeGreaterThan(0);
+    expect(samenstelling.activatie.ontbrekendBewijs).toContain(
+      'De gekoppelde Supabase-omgeving komt niet overeen met het verwachte productiedoel.',
+    );
   });
 });
