@@ -221,14 +221,32 @@ const STORAGE_KEY = 'bito-vastgoedkansen-werkcontext-v1';
 const LIST_STORAGE_KEY = 'bito-vastgoedkansen-list-workspace-v1';
 
 export const DEFAULT_VASTGOEDKANS_LIJST_WORKSPACE: VastgoedkansLijstWorkspaceState = {
-  werkbak: 'te_beoordelen',
-  zoekterm: '',
-  sortering: 'recent',
-  filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
+  werkbak: 'te_beoordelen', zoekterm: '', sortering: 'recent', filters: { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] },
 };
+
+const KADASTER_WORKFLOW_CODES = new Set(['eigenaar_bevestigen', 'rechthebbenden_controleren', 'eigenaar_heronderzoek']);
+const BRIEVEN_WORKFLOW_CODES = new Set([
+  'brief_voorbereiden', 'brief_controleren', 'opvolgen', 'vervolg_interesse', 'informatie_sturen',
+  'later_bellen', 'reactie_beoordelen',
+]);
+const OVERZICHT_WORKFLOW_CODES = new Set(['beoordelen', 'herbeoordelen', 'afsluiten_beoordelen']);
 
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
   if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
+
+  // Oudere/incomplete read-models kunnen zonder tijdlijnvelden binnenkomen. In dat
+  // geval blijft de bewezen statusfallback leidend en raadplegen we de workflow-engine
+  // pas zodra createdAt/updatedAt beschikbaar zijn.
+  const heeftWorkflowTijdlijn = typeof kans.createdAt === 'string' && kans.createdAt.length > 0
+    && typeof kans.updatedAt === 'string' && kans.updatedAt.length > 0;
+  const actieCode = heeftWorkflowTijdlijn
+    ? bouwVastgoedkansWorkflowReadModel(kans).nextAction?.code ?? null
+    : null;
+
+  if (actieCode && KADASTER_WORKFLOW_CODES.has(actieCode)) return 'kadaster';
+  if (actieCode && BRIEVEN_WORKFLOW_CODES.has(actieCode)) return 'brieven';
+  if (actieCode && OVERZICHT_WORKFLOW_CODES.has(actieCode)) return 'overzicht';
+
   if (kans.kadasterStatus !== 'gegevens_bekend' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
   if (kans.briefStatus !== 'verzonden' && kans.briefStatus !== 'reactie_ontvangen') return 'brieven';
   return kans.status === 'opvolgen' || kans.status === 'wachten' ? 'brieven' : 'overzicht';
@@ -249,9 +267,7 @@ export function leesVastgoedkansWerkcontext(): VastgoedkansWerkcontext | null {
     const value = JSON.parse(raw) as VastgoedkansWerkcontext;
     if (!value?.kansId || !['overzicht', 'onderzoek', 'kadaster', 'brieven', 'dossier'].includes(value.tab)) return null;
     return value;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcontext, 'bijgewerktOp'>): void {
@@ -260,12 +276,7 @@ export function bewaarVastgoedkansWerkcontext(context: Omit<VastgoedkansWerkcont
   if (context.zoekterm === undefined) {
     const bestaand = leesVastgoedkansWerkcontext();
     if (bestaand?.ids?.includes(context.kansId)) {
-      volgende = {
-        ...context,
-        werkbak: bestaand.werkbak ?? context.werkbak,
-        zoekterm: bestaand.zoekterm,
-        ids: bestaand.ids,
-      };
+      volgende = { ...context, werkbak: bestaand.werkbak ?? context.werkbak, zoekterm: bestaand.zoekterm, ids: bestaand.ids };
     }
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...volgende, bijgewerktOp: new Date().toISOString() }));
@@ -335,49 +346,44 @@ export function filterEnSorteerVastgoedkansen(kansen: Vastgoedkans[], state: Vas
   const q = norm(state.zoekterm.trim());
   const lijst = kansen.filter((kans) => {
     if (state.werkbak !== 'alles' && state.werkbak !== 'archief' && kans.status !== state.werkbak) return false;
+    if (state.filters.prioriteiten.length > 0 && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
+    if (state.filters.herkomsten.length > 0 && !state.filters.herkomsten.includes(kans.herkomst)) return false;
+    if (state.filters.eigenaar.length > 0 && !state.filters.eigenaar.includes(kans.eigenaarStatus)) return false;
+    if (state.filters.brief.length > 0 && !state.filters.brief.includes(kans.briefStatus)) return false;
+    if (!q) return true;
     const actie = bepaalVastgoedkansActieContext(kans);
-    if (q && !norm([
-      kans.korteOmschrijving,
-      kans.adres,
-      kans.postcode,
-      kans.plaats,
-      kans.provincie,
-      kans.typeVastgoed,
-      kans.redenInteressant,
-      kans.eigenaarNaam,
-      kans.kansnummer,
-      kans.volgendeActieOmschrijving,
-      kans.opvolgactie,
+    return norm([
+      kans.kansnummer, kans.adres, kans.postcode, kans.plaats, kans.korteOmschrijving, kans.typeVastgoed,
+      kans.eigenaarNaam, kans.redenInteressant, kans.notities, kans.opvolgactie, kans.volgendeActieOmschrijving,
       actie.omschrijving,
-    ].filter(Boolean).join(' ')).includes(q)) return false;
-    if (state.filters.prioriteiten.length && !state.filters.prioriteiten.includes(kans.prioriteit)) return false;
-    if (state.filters.herkomsten.length && !state.filters.herkomsten.includes(kans.herkomst)) return false;
-    if (state.filters.eigenaar.length && !state.filters.eigenaar.includes(kans.eigenaarStatus)) return false;
-    if (state.filters.brief.length && !state.filters.brief.includes(kans.briefStatus)) return false;
-    return true;
+    ].filter(Boolean).join(' ')).includes(q);
   });
+
   return [...lijst].sort((a, b) => {
-    let verschil = 0;
     if (state.sortering === 'werkvolgorde') {
-      const actieA = bepaalVastgoedkansActieContext(a);
-      const actieB = bepaalVastgoedkansActieContext(b);
-      verschil = actieA.rang - actieB.rang;
-      if (verschil === 0) verschil = cmpNullable(millis(actieA.datum), millis(actieB.datum));
-      if (verschil === 0) verschil = a.prioriteit - b.prioriteit;
+      const aa = bepaalVastgoedkansActieContext(a);
+      const bb = bepaalVastgoedkansActieContext(b);
+      return aa.rang - bb.rang
+        || cmpNullable(millis(aa.datum), millis(bb.datum))
+        || (b.prioriteit ?? 0) - (a.prioriteit ?? 0)
+        || (millis(b.updatedAt) ?? 0) - (millis(a.updatedAt) ?? 0);
     }
-    if (state.sortering === 'prioriteit') verschil = a.prioriteit - b.prioriteit;
-    if (state.sortering === 'score') verschil = cmpNullable(a.algoritmeScore, b.algoritmeScore, true);
-    if (state.sortering === 'adres') verschil = norm([a.plaats,a.adres].filter(Boolean).join(' ')).localeCompare(norm([b.plaats,b.adres].filter(Boolean).join(' ')), 'nl');
+    if (state.sortering === 'prioriteit') return (b.prioriteit ?? 0) - (a.prioriteit ?? 0) || (millis(b.updatedAt) ?? 0) - (millis(a.updatedAt) ?? 0);
+    if (state.sortering === 'score') return (b.algoritmeScore ?? -Infinity) - (a.algoritmeScore ?? -Infinity) || (millis(b.updatedAt) ?? 0) - (millis(a.updatedAt) ?? 0);
+    if (state.sortering === 'adres') return `${a.plaats ?? ''} ${a.adres ?? ''}`.localeCompare(`${b.plaats ?? ''} ${b.adres ?? ''}`, 'nl');
     if (state.sortering === 'opvolgdatum') {
-      const actieA = bepaalVastgoedkansActieContext(a);
-      const actieB = bepaalVastgoedkansActieContext(b);
-      verschil = cmpNullable(millis(actieA.datum), millis(actieB.datum));
+      const aa = bepaalVastgoedkansActieContext(a);
+      const bb = bepaalVastgoedkansActieContext(b);
+      return cmpNullable(millis(aa.datum), millis(bb.datum)) || (millis(b.updatedAt) ?? 0) - (millis(a.updatedAt) ?? 0);
     }
-    if (state.sortering === 'recent' || verschil === 0) verschil = cmpNullable(millis(a.updatedAt), millis(b.updatedAt), true);
-    return verschil || a.id.localeCompare(b.id);
+    return (millis(b.updatedAt) ?? 0) - (millis(a.updatedAt) ?? 0);
   });
 }
 
-export const telActieveVastgoedkansFilters = (filters: VastgoedkansLijstFilters): number =>
-  filters.prioriteiten.length + filters.herkomsten.length + filters.eigenaar.length + filters.brief.length;
-export const legeVastgoedkansFilters = (): VastgoedkansLijstFilters => ({ prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] });
+export function legeVastgoedkansFilters(): VastgoedkansLijstFilters {
+  return { prioriteiten: [], herkomsten: [], eigenaar: [], brief: [] };
+}
+
+export function telActieveVastgoedkansFilters(filters: VastgoedkansLijstFilters): number {
+  return filters.prioriteiten.length + filters.herkomsten.length + filters.eigenaar.length + filters.brief.length;
+}
