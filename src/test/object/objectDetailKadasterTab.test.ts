@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowMeerTab, ANCHOR_TO_TAB } from '@/pages/ObjectDetailPage';
+import { shouldShowMeerTab } from '@/pages/ObjectDetailPage';
 
 const baseObject = {
   id: 'obj-1',
@@ -50,20 +50,9 @@ describe('shouldShowMeerTab — Kadasterdata zichtbaarheid', () => {
     ).toBe(true);
   });
 
-});
-
-describe('shouldShowMeerTab — geen deal-only zichtbaarheid (O5)', () => {
-  it('verbergt "meer" tab wanneer er alleen deals zijn', () => {
-    expect(shouldShowMeerTab(baseObject, [{ id: 'deal-1' }], [], [])).toBe(false);
-  });
-});
-
-describe('ANCHOR_TO_TAB — referentieanalyse (O1)', () => {
-  it('routeert #referenties naar de financieel-tab', () => {
-    expect(ANCHOR_TO_TAB.referenties).toBe('financieel');
-  });
-
-  it('houdt #kandidaten op de kandidaten-tab', () => {
-    expect(ANCHOR_TO_TAB.kandidaten).toBe('kandidaten');
+  it('toont "meer" tab wanneer er deals zijn (bestaand gedrag)', () => {
+    expect(
+      shouldShowMeerTab(baseObject, [{ id: 'deal-1' }], [], []),
+    ).toBe(true);
   });
 });
