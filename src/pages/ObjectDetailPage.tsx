@@ -354,7 +354,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobi
 ];
 
 /** Map van anchor-id (deep links blijven werken) naar tab waarop het anchor leeft */
-const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
+export const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
   overzicht: 'overzicht',
   dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
   kandidaten: 'kandidaten', referenties: 'financieel',
