@@ -1,0 +1,94 @@
+-- Fase 6B: gecontroleerde scenario-invoerprofielen en audit van toegepaste kengetallen.
+-- Additief: bestaande scenario's, kengetallen en snapshots worden niet gewijzigd.
+
+alter table public.vastgoedrekenen_kengetallen
+  add column if not exists conservative_band text null,
+  add column if not exists optimistic_band text null;
+
+alter table public.vastgoedrekenen_kengetallen
+  drop constraint if exists vastgoedrekenen_kengetallen_conservative_band_check,
+  add constraint vastgoedrekenen_kengetallen_conservative_band_check
+    check (conservative_band is null or conservative_band in ('minimum', 'basis', 'maximum')),
+  drop constraint if exists vastgoedrekenen_kengetallen_optimistic_band_check,
+  add constraint vastgoedrekenen_kengetallen_optimistic_band_check
+    check (optimistic_band is null or optimistic_band in ('minimum', 'basis', 'maximum'));
+
+comment on column public.vastgoedrekenen_kengetallen.conservative_band is
+  'Expliciete minimum/basis/maximum-band voor een conservatief invoerprofiel; null betekent niet expliciet ingericht.';
+comment on column public.vastgoedrekenen_kengetallen.optimistic_band is
+  'Expliciete minimum/basis/maximum-band voor een optimistisch invoerprofiel; null betekent niet expliciet ingericht.';
+
+create table if not exists public.scenario_kengetal_contexts (
+  scenario_id uuid primary key references public.calculation_scenarios(id) on delete cascade,
+  asset_type_code text null,
+  strategy_code text null,
+  project_phase_code text null,
+  risk_class_code text null,
+  quality_level_code text null,
+  complexity_code text null,
+  location_type_code text null,
+  market_condition_code text null,
+  scenario_profile_code text not null,
+  location_keys text[] not null default '{}',
+  derivation_notes jsonb not null default '{}'::jsonb,
+  schema_version integer not null,
+  updated_by uuid null references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint scenario_kengetal_contexts_profile_check
+    check (scenario_profile_code in ('conservative', 'base', 'optimistic')),
+  constraint scenario_kengetal_contexts_schema_check
+    check (schema_version = 1),
+  constraint scenario_kengetal_contexts_notes_object_check
+    check (jsonb_typeof(derivation_notes) = 'object')
+);
+
+alter table public.scenario_kengetal_contexts enable row level security;
+
+drop policy if exists "Authenticated users can read scenario kengetal contexts" on public.scenario_kengetal_contexts;
+create policy "Authenticated users can read scenario kengetal contexts"
+  on public.scenario_kengetal_contexts for select to authenticated using (true);
+
+drop policy if exists "Authenticated users can manage scenario kengetal contexts" on public.scenario_kengetal_contexts;
+create policy "Authenticated users can manage scenario kengetal contexts"
+  on public.scenario_kengetal_contexts for all to authenticated using (true) with check (true);
+
+create table if not exists public.scenario_kengetal_profile_applications (
+  id uuid primary key default gen_random_uuid(),
+  scenario_id uuid not null references public.calculation_scenarios(id) on delete cascade,
+  profile_code text not null,
+  context_snapshot jsonb not null,
+  applied_items jsonb not null default '[]'::jsonb,
+  skipped_items jsonb not null default '[]'::jsonb,
+  status text not null,
+  created_by uuid null references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint scenario_kengetal_profile_applications_profile_check
+    check (profile_code in ('conservative', 'base', 'optimistic')),
+  constraint scenario_kengetal_profile_applications_status_check
+    check (status in ('completed', 'partial', 'failed')),
+  constraint scenario_kengetal_profile_applications_context_check
+    check (jsonb_typeof(context_snapshot) = 'object'),
+  constraint scenario_kengetal_profile_applications_applied_check
+    check (jsonb_typeof(applied_items) = 'array'),
+  constraint scenario_kengetal_profile_applications_skipped_check
+    check (jsonb_typeof(skipped_items) = 'array')
+);
+
+create index if not exists scenario_kengetal_profile_applications_scenario_idx
+  on public.scenario_kengetal_profile_applications (scenario_id, created_at desc);
+
+alter table public.scenario_kengetal_profile_applications enable row level security;
+
+drop policy if exists "Authenticated users can read scenario profile applications" on public.scenario_kengetal_profile_applications;
+create policy "Authenticated users can read scenario profile applications"
+  on public.scenario_kengetal_profile_applications for select to authenticated using (true);
+
+drop policy if exists "Authenticated users can manage scenario profile applications" on public.scenario_kengetal_profile_applications;
+create policy "Authenticated users can manage scenario profile applications"
+  on public.scenario_kengetal_profile_applications for all to authenticated using (true) with check (true);
+
+comment on table public.scenario_kengetal_contexts is
+  'Expliciet opgeslagen classificatiecontext waarmee passende kengetallen worden gerangschikt. Opslaan wijzigt geen financiële velden.';
+comment on table public.scenario_kengetal_profile_applications is
+  'Auditregels van expliciet toegepaste of overgeslagen kengetallen per scenario-invoerprofiel.';

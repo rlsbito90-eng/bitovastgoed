@@ -7,11 +7,11 @@ import {
 } from './databaseContract';
 
 const objectMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260804150000_crm_objectidentiteit.sql'),
+  resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804150000_crm_objectidentiteit.sql'),
   'utf8',
 );
 const kostenMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260804152000_kadaster_kostenbeheer.sql'),
+  resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804152000_kadaster_kostenbeheer.sql'),
   'utf8',
 );
 const preflight = readFileSync(

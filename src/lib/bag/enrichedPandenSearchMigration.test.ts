@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const sql = readFileSync(resolve(
-  process.cwd(), 'supabase/migrations/20260803233000_bag_2a13_enriched_panden_search.sql',
+  process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260803233000_bag_2a13_enriched_panden_search.sql',
 ), 'utf8').replace(/\s+/g, ' ').toLowerCase();
 
 describe('BAG 2A.13 relationeel verrijkte Pandenverkennerquery', () => {

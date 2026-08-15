@@ -9,7 +9,7 @@ const normaliseer = (pad: string) =>
     .toLowerCase();
 
 const migration = normaliseer(
-  'supabase/migrations/20260803190000_bag_2a6_version_activation.sql',
+  'supabase/migration-archive/pre-baseline-snapshot/20260803190000_bag_2a6_version_activation.sql',
 );
 const probe = normaliseer(
   'experiments/bag/2a6/version-activation-shadow-probe.sql',
