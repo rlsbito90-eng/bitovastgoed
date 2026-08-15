@@ -58,8 +58,7 @@ export function normaliseerListWorkspaceZoektekst(waarde: unknown): string {
 
 const formatActieDatum = (iso: string): string => {
   try {
-    return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' })
-      .format(new Date(`${iso}T12:00:00`));
+    return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00`));
   } catch {
     return iso;
   }
@@ -72,12 +71,8 @@ const actieMetDatum = (
   vandaag: string,
 ): VastgoedkansActieContext => {
   const datumLabel = formatActieDatum(datum);
-  if (datum < vandaag) {
-    return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'verlopen', urgentieLabel: 'Verlopen', datumLabel, rang: 0, bron };
-  }
-  if (datum === vandaag) {
-    return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'vandaag', urgentieLabel: 'Vandaag', datumLabel, rang: 1, bron };
-  }
+  if (datum < vandaag) return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'verlopen', urgentieLabel: 'Verlopen', datumLabel, rang: 0, bron };
+  if (datum === vandaag) return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'vandaag', urgentieLabel: 'Vandaag', datumLabel, rang: 1, bron };
   return { omschrijving: omschrijving ?? 'Opvolgen', datum, urgentie: 'gepland', urgentieLabel: 'Gepland', datumLabel, rang: 2, bron };
 };
 
@@ -145,12 +140,13 @@ const BRIEVEN_WORKFLOW_CODES = new Set([
 const OVERZICHT_WORKFLOW_CODES = new Set(['beoordelen', 'herbeoordelen', 'afsluiten_beoordelen']);
 
 export function bepaalPrimaireWerkTab(kans: Vastgoedkans): VastgoedkansWerkTab {
+  if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
+
   const actieCode = bouwVastgoedkansWorkflowReadModel(kans).nextAction?.code ?? null;
   if (actieCode && KADASTER_WORKFLOW_CODES.has(actieCode)) return 'kadaster';
   if (actieCode && BRIEVEN_WORKFLOW_CODES.has(actieCode)) return 'brieven';
   if (actieCode && OVERZICHT_WORKFLOW_CODES.has(actieCode)) return 'overzicht';
 
-  if (!kans.bagPandId && !kans.bagVerblijfsobjectId) return 'onderzoek';
   if (kans.kadasterStatus !== 'gegevens_bekend' || kans.eigenaarStatus !== 'bekend') return 'kadaster';
   if (kans.briefStatus !== 'verzonden' && kans.briefStatus !== 'reactie_ontvangen') return 'brieven';
   return kans.status === 'opvolgen' || kans.status === 'wachten' ? 'brieven' : 'overzicht';
