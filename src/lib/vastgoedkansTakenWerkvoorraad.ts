@@ -32,6 +32,21 @@ function projecteerTaakOpKans(kans: Vastgoedkans, taak: VastgoedkansLijstTaak | 
   };
 }
 
+const millis = (waarde: string | null | undefined): number | null => {
+  if (!waarde) return null;
+  const n = Date.parse(waarde);
+  return Number.isNaN(n) ? null : n;
+};
+
+const vergelijkNullableDatum = (a: string | null, b: string | null): number => {
+  const aa = millis(a);
+  const bb = millis(b);
+  if (aa == null && bb == null) return 0;
+  if (aa == null) return 1;
+  if (bb == null) return -1;
+  return aa - bb;
+};
+
 export function bepaalVastgoedkansTaakConsistentie(
   kans: Vastgoedkans,
   taak: VastgoedkansLijstTaak | null | undefined,
@@ -75,6 +90,30 @@ export function filterEnSorteerVastgoedkansenMetTaken(
 
   const origineelPerId = new Map(kansen.map((kans) => [kans.id, kans]));
   const geprojecteerd = kansen.map((kans) => projecteerTaakOpKans(kans, taakPerKansId.get(kans.id)));
-  return filterEnSorteerVastgoedkansen(geprojecteerd, state)
-    .map((kans) => origineelPerId.get(kans.id) ?? kans);
+  const gefilterd = filterEnSorteerVastgoedkansen(geprojecteerd, state);
+
+  // Filteren blijft bewust op de echte commerciële dossierstatus gebeuren. Voor
+  // operationele sorteringen moet daarna echter exact dezelfde taakbewuste context
+  // gelden als in de rijweergave. Zo blijft een ongedateerde open taak op een
+  // afgesloten dossier rang 'zonder datum' houden in plaats van 'geen actie'.
+  if (state.sortering === 'werkvolgorde' || state.sortering === 'opvolgdatum') {
+    gefilterd.sort((a, b) => {
+      const origineelA = origineelPerId.get(a.id) ?? a;
+      const origineelB = origineelPerId.get(b.id) ?? b;
+      const aa = bepaalVastgoedkansActieContextMetTaak(origineelA, taakPerKansId.get(a.id));
+      const bb = bepaalVastgoedkansActieContextMetTaak(origineelB, taakPerKansId.get(b.id));
+
+      if (state.sortering === 'werkvolgorde') {
+        return aa.rang - bb.rang
+          || vergelijkNullableDatum(aa.datum, bb.datum)
+          || (origineelB.prioriteit ?? 0) - (origineelA.prioriteit ?? 0)
+          || (millis(origineelB.updatedAt) ?? 0) - (millis(origineelA.updatedAt) ?? 0);
+      }
+
+      return vergelijkNullableDatum(aa.datum, bb.datum)
+        || (millis(origineelB.updatedAt) ?? 0) - (millis(origineelA.updatedAt) ?? 0);
+    });
+  }
+
+  return gefilterd.map((kans) => origineelPerId.get(kans.id) ?? kans);
 }
