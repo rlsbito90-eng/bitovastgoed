@@ -26,8 +26,20 @@ export function bepaalVastgoedkansActieContextMetTaak(
   vandaag?: string,
 ): VastgoedkansTaakActieContext {
   if (!taak) return bepaalVastgoedkansActieContext(kans, vandaag);
-  const context = bepaalVastgoedkansActieContext(projecteerTaakOpKans(kans, taak), vandaag);
-  return { ...context, bron: context.urgentie === 'geen_actie' ? context.bron : 'taak' };
+
+  // Een echte open centrale taak blijft een operationele actie, ook wanneer het
+  // commerciële dossier inmiddels is afgesloten. Alleen voor deze read-projectie
+  // omzeilen we daarom de gesloten-dossier guard; de Vastgoedkans zelf wordt niet
+  // gemuteerd en krijgt geen andere commerciële status.
+  const taakProjectie = projecteerTaakOpKans(kans, taak);
+  const context = bepaalVastgoedkansActieContext(
+    kans.status === 'afgevallen' || kans.status === 'gepromoveerd'
+      ? { ...taakProjectie, status: 'opvolgen' }
+      : taakProjectie,
+    vandaag,
+  );
+
+  return { ...context, bron: 'taak' };
 }
 
 export function filterEnSorteerVastgoedkansenMetTaken(
