@@ -110,7 +110,7 @@ export interface VastgoedkansBulkWijziging {
   prioriteit?: number;
 }
 
-const snake = (x: KansInput) => ({
+const createPayload = (x: KansInput) => ({
   adres: x.adres || null,
   postcode: x.postcode || null,
   plaats: x.plaats || null,
@@ -149,6 +149,61 @@ const snake = (x: KansInput) => ({
   bag_pand_id: x.bagPandId || null,
   bag_verblijfsobject_id: x.bagVerblijfsobjectId || null,
 });
+
+const heeft = (x: KansInput, key: keyof KansInput) => Object.prototype.hasOwnProperty.call(x, key);
+
+export const patchPayload = (x: KansInput): Record<string, unknown> => {
+  const patch: Record<string, unknown> = {};
+  const text = (key: keyof KansInput, db: string) => {
+    if (heeft(x, key)) patch[db] = (x[key] as string | undefined) || null;
+  };
+  const nullable = (key: keyof KansInput, db: string) => {
+    if (heeft(x, key)) patch[db] = x[key] ?? null;
+  };
+  const direct = (key: keyof KansInput, db: string) => {
+    if (heeft(x, key)) patch[db] = x[key];
+  };
+
+  text('adres', 'adres');
+  text('postcode', 'postcode');
+  text('plaats', 'plaats');
+  text('provincie', 'provincie');
+  text('typeVastgoed', 'type_vastgoed');
+  text('korteOmschrijving', 'korte_omschrijving');
+  direct('herkomst', 'herkomst');
+  text('herkomstReferentie', 'herkomst_referentie');
+  direct('status', 'status');
+  direct('prioriteit', 'prioriteit');
+  direct('eigenaarStatus', 'eigenaar_status');
+  text('eigenaarNaam', 'eigenaar_naam');
+  text('eigenaarBron', 'eigenaar_bron');
+  nullable('eigenaarRelatieId', 'eigenaar_relatie_id');
+  nullable('eigenaarLaatstGecontroleerdOp', 'eigenaar_laatst_gecontroleerd_op');
+  direct('kadasterStatus', 'kadaster_status');
+  text('kadastraleAanduiding', 'kadastrale_aanduiding');
+  nullable('kadasterLaatstGecontroleerdOp', 'kadaster_laatst_gecontroleerd_op');
+  text('onderzoeksnotities', 'onderzoeksnotities');
+  direct('briefStatus', 'brief_status');
+  text('briefGeadresseerde', 'brief_geadresseerde');
+  text('briefVerzendwijze', 'brief_verzendwijze');
+  nullable('briefVerzondenOp', 'brief_verzonden_op');
+  text('briefKenmerk', 'brief_kenmerk');
+  nullable('opvolgdatum', 'opvolgdatum');
+  text('opvolgactie', 'opvolgactie');
+  direct('reactieStatus', 'reactie_status');
+  nullable('reactieOntvangenOp', 'reactie_ontvangen_op');
+  text('reactieKanaal', 'reactie_kanaal');
+  text('reactieSamenvatting', 'reactie_samenvatting');
+  text('reactieUitkomst', 'reactie_uitkomst');
+  nullable('volgendeActieDatum', 'volgende_actie_datum');
+  text('volgendeActieOmschrijving', 'volgende_actie_omschrijving');
+  text('redenInteressant', 'reden_interessant');
+  text('notities', 'notities');
+  text('bagPandId', 'bag_pand_id');
+  text('bagVerblijfsobjectId', 'bag_verblijfsobject_id');
+
+  return patch;
+};
 
 type C = {
   kansen: Vastgoedkans[];
@@ -193,13 +248,15 @@ export function VastgoedkansenProvider({ children }: { children: React.ReactNode
   useEffect(() => { void refresh(); }, [refresh]);
 
   const addKans = useCallback(async (x: KansInput) => {
-    const { data, error } = await sb.from('vastgoedkansen').insert({ ...snake(x), aangemaakt_door: user?.id ?? null }).select().single();
+    const { data, error } = await sb.from('vastgoedkansen').insert({ ...createPayload(x), aangemaakt_door: user?.id ?? null }).select().single();
     if (error) throw error;
     setKansen((p) => [fromDb(data), ...p]);
   }, [user]);
 
   const updateKans = useCallback(async (id: string, x: KansInput) => {
-    const { data, error } = await sb.from('vastgoedkansen').update(snake(x)).eq('id', id).select().single();
+    const patch = patchPayload(x);
+    if (Object.keys(patch).length === 0) return;
+    const { data, error } = await sb.from('vastgoedkansen').update(patch).eq('id', id).select().single();
     if (error) throw error;
     const next = fromDb(data);
     setKansen((p) => next.archivedAt ? p.filter((k) => k.id !== id) : p.map((k) => k.id === id ? next : k));
