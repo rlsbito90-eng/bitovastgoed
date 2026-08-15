@@ -15,6 +15,13 @@ const RECOVERED_MIGRATIONS = [
   ['20260809141459_crm_mig_off_market_import_contract.sql', '798ab1ee635c0882983492bd3a4db96a'],
   ['20260809141552_crm_mig_off_market_brief_acquisitie.sql', '5f205742756bebff24a1b98e19fc54f2'],
   ['20260809141657_crm_mig_off_market_promote_rpc.sql', '77f73110632b8839ac0fb847aa9c1906'],
+  ['20260809194328_crm_mig_build_1a_safe_additive_enums.sql', 'c399a3cce033f522224c038ff452918e'],
+  ['20260809194418_crm_mig_build_1b_object_status_canonical.sql', 'ef19bbefb86152a4ae2efaeed783c964'],
+  ['20260809194513_crm_mig_build_1c_safe_core_deltas.sql', '790caf91d0426fdaf4e9e4b111f0bbd4'],
+  ['20260809194556_crm_mig_build_1d1_objecten_canonical_preimport.sql', '0c25f0d31abca99c2cb8ac37bc77ab44'],
+  ['20260809194624_crm_mig_build_2_object_identity.sql', '7c75109b10c1c3ac08a38ed295e88a9c'],
+  ['20260809194645_crm_mig_build_5_kadaster_cost_governance.sql', '07e7648d1e007c3afa9e8cf396713f6b'],
+  ['20260809194724_crm_mig_build_4_acquisition_vastgoedkansen.sql', 'b85e9c51ea4df4beebcf359bc527c77f'],
 ] as const;
 
 describe('CRM migration history recovery', () => {
