@@ -120,7 +120,7 @@ export default function AcquisitieCockpit() {
             <div>
               <h2 className="text-sm font-semibold text-foreground">Wat vraagt aandacht?</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Deterministisch uit doeltempo, respons, budget en geregistreerde opvolging.
+                Deterministisch uit doeltempo, respons, budget en kwaliteit van de geregistreerde meetevents.
               </p>
             </div>
             <span className="text-xs text-muted-foreground">{samenvatting.signalen.length} signaal{samenvatting.signalen.length === 1 ? '' : 'en'}</span>
@@ -149,10 +149,12 @@ export default function AcquisitieCockpit() {
             </p>
           </div>
           <div className="border-t border-border pt-4">
-            <div className="text-xs font-medium text-muted-foreground">Open opvolging</div>
-            <div className="mt-1 text-2xl font-semibold font-mono-data text-foreground">{samenvatting.openOpvolging}</div>
+            <div className="text-xs font-medium text-muted-foreground">Opvolging in meetlaag</div>
+            <div className="mt-1 text-lg font-semibold font-mono-data text-foreground">
+              {samenvatting.opvolgingAangemaakt} aangemaakt · {samenvatting.opvolgingAfgerond} afgerond
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              aangemaakt minus afgerond in de geregistreerde acquisitie-events.
+              Dit is eventregistratie, niet automatisch hetzelfde als de actuele operationele takenvoorraad.
             </p>
           </div>
           <div className="border-t border-border pt-4 text-xs text-muted-foreground flex gap-2">
