@@ -1,3 +1,4 @@
+import { projecteerBriefEventNaarAcquisitieEvent } from '@/lib/acquisitie/tracking/eventContract';
 import type { BriefEventInput } from '@/lib/offMarket/brieven/events';
 import type { Responsstatus } from '@/lib/offMarket/brieven/respons';
 import {
@@ -23,17 +24,21 @@ export function naarWorkflowEventVanBriefEvent(
 ): AcquisitieWorkflowEvent | null {
   const occurredAt = input.event_date ?? new Date().toISOString();
   const metadata = input.metadata ?? {};
+  const acquisitieEvent = projecteerBriefEventNaarAcquisitieEvent(input);
 
   if (input.event_type === 'concept_created') {
     return { id: fallbackId, type: 'brief_concept_aangemaakt', occurredAt, metadata };
   }
-  if (input.event_type === 'posted' || input.event_type === 'sent') {
+  if (acquisitieEvent?.feit === 'communicatie_verzonden') {
     return { id: fallbackId, type: 'brief_verzonden', occurredAt, metadata };
   }
   if (input.event_type === 'returned_mail' || input.status === 'retour_post') {
     return { id: fallbackId, type: 'retour_post', occurredAt, metadata };
   }
   if (input.event_type === 'response_received') {
+    // TRACK-1: "geen reactie" is afwezigheid van een inbound gebeurtenis en
+    // mag dus geen reactie-event of workflowadvies veroorzaken.
+    if (!acquisitieEvent?.teltAlsReactie) return null;
     return {
       id: fallbackId,
       type: 'reactie_ontvangen',
