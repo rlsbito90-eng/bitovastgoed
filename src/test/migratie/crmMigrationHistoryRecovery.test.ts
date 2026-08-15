@@ -39,6 +39,14 @@ const RECOVERED_MIGRATIONS = [
   ['20260809200638_crm_build7_object_kadaster_rls_performance.sql', 'f4fd3743629e47e78f40df46fda96f67'],
   ['20260809200700_crm_build7_vastgoedrekenen_rls_hardening.sql', '0691766e4ab3cf093f25265c55c1b137'],
   ['20260809200709_crm_build7_function_execute_hardening.sql', 'cf2eeed58730d5af81d016a317164880'],
+  ['20260809204913_crm_import_staging_storage.sql', 'a43b191b618dfc1e66913251f82dda88'],
+  ['20260809204932_crm_import_staging_upload_revoke.sql', 'b250db8c351c508b6f0da9e1120c0a84'],
+  ['20260809205123_crm_migration_internal_log.sql', 'bafd30ebac6ddb17e932f4a36f26e6b2'],
+  ['20260809205654_crm_import_source_schema_alignment_1b.sql', 'bf5304399eb3231c5bd4b62e33d6b52c'],
+  ['20260809205842_crm_import_referentie_bouwjaar_alignment.sql', '101b00005bacbdcef6366938cbc38768'],
+  ['20260809210416_finalize_crm_objectnummer_after_import.sql', 'f125be1f866c5ee51bec8c9bfc248cba'],
+  ['20260809210524_cleanup_crm_migration_internal_schema.sql', 'e7f4d293d32849fe318ee4623565f1ed'],
+  ['20260809232122_user_alert_state.sql', 'cbe99d17edaffba2a6e4ab6e7db61e8a'],
 ] as const;
 
 describe('CRM migration history recovery', () => {
