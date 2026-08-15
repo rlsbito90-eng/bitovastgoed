@@ -6,7 +6,7 @@ import {
   type BestaandConceptBridgeRpcUitvoerder,
 } from './bestaandConceptBridgeSupabaseRepository';
 import {
-  bepaalBrowserWerkCrmActivatieUitOmgeving,
+  bepaalBrowserProductiekernActivatieUitOmgeving,
   type ProductiekernBrowserOmgeving,
 } from './productiekernBrowserClient';
 import {
@@ -35,10 +35,10 @@ export interface ProductiekernBrowserWriteUitvoerders {
 }
 
 /**
- * Bouwt de browser-writekant uitsluitend bovenop één reeds fail-closed
- * werk-CRM-activatiebesluit. Alle repository-adapters behouden hun eigen
- * `schrijvenActief`-controle; deze compositie voegt geen alternatieve
- * featureflag of bypass toe.
+ * Bouwt browserwrites uitsluitend bovenop één centraal runtimebesluit. De
+ * werk-CRM en productie leveren hun bewijs via afzonderlijke fail-closed
+ * poorten; de repositories behouden daarnaast hun eigen `schrijvenActief`-
+ * controle en er bestaat geen alternatieve featureflag/bypass.
  *
  * De bestaand-concept-bridge is hier alleen technisch samengesteld. Zolang
  * geen UI die repository aanroept, en zolang de databasefunctie niet apart is
@@ -48,7 +48,7 @@ export function stelProductiekernBrowserWritesSamen(
   env: ProductiekernBrowserOmgeving,
   uitvoerders: ProductiekernBrowserWriteUitvoerders,
 ): ProductiekernBrowserWriteSamenstelling {
-  const activatie = bepaalBrowserWerkCrmActivatieUitOmgeving(env);
+  const activatie = bepaalBrowserProductiekernActivatieUitOmgeving(env);
 
   return {
     activatie,
@@ -111,9 +111,9 @@ const browserUitvoerders: ProductiekernBrowserWriteUitvoerders = {
 };
 
 /**
- * Standaard browsercompositie. Er wordt niets automatisch geactiveerd: zonder
- * alle expliciete werk-CRM-envbewijzen leveren alle repositories uitsluitend
- * fail-closed schrijfgedrag op.
+ * Standaard browsercompositie. Zonder een volledig groen runtimebesluit voor
+ * óf werk-CRM óf productie leveren alle repositories uitsluitend fail-closed
+ * schrijfgedrag op.
  */
 export function maakStandaardProductiekernBrowserWriteSamenstelling(): ProductiekernBrowserWriteSamenstelling {
   return stelProductiekernBrowserWritesSamen(
