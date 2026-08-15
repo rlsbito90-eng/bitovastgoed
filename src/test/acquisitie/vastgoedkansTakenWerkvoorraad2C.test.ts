@@ -8,7 +8,9 @@ import {
 } from '@/hooks/useVastgoedkansLijstTaken';
 import {
   bepaalVastgoedkansActieContextMetTaak,
+  bepaalVastgoedkansTaakConsistentie,
   filterEnSorteerVastgoedkansenMetTaken,
+  VASTGOEDKANS_TAAK_PRIORITEIT_LABEL,
 } from '@/lib/vastgoedkansTakenWerkvoorraad';
 import { legeVastgoedkansFilters } from '@/lib/vastgoedkansWorkspace';
 
@@ -127,6 +129,24 @@ describe('BUILD 2.0C — centrale taken in Vastgoedkans werkvoorraad', () => {
     expect(context.bron).toBe('taak');
     expect(context.omschrijving).toBe('Administratief afronden');
     expect(context.urgentie).toBe('zonder_datum');
+  });
+
+  it('waarschuwt alleen bij een open taak op een commercieel afgesloten dossier', () => {
+    const openTaak = taak({ id: 't1', vastgoedkans_id: '1', titel: 'Nog bellen' });
+    expect(bepaalVastgoedkansTaakConsistentie(kans('1', { status: 'afgevallen' }), openTaak)?.code)
+      .toBe('open_taak_op_afgesloten_dossier');
+    expect(bepaalVastgoedkansTaakConsistentie(kans('1', { status: 'gepromoveerd' }), openTaak)?.code)
+      .toBe('open_taak_op_afgesloten_dossier');
+    expect(bepaalVastgoedkansTaakConsistentie(kans('1', { status: 'wachten' }), openTaak)).toBeNull();
+    expect(bepaalVastgoedkansTaakConsistentie(kans('1', { status: 'positieve_reactie' }), openTaak)).toBeNull();
+    expect(bepaalVastgoedkansTaakConsistentie(kans('1', { status: 'afgevallen' }), null)).toBeNull();
+  });
+
+  it('heeft stabiele taakprioriteitlabels voor de lijstweergave', () => {
+    expect(VASTGOEDKANS_TAAK_PRIORITEIT_LABEL.urgent).toBe('Urgent');
+    expect(VASTGOEDKANS_TAAK_PRIORITEIT_LABEL.hoog).toBe('Hoog');
+    expect(VASTGOEDKANS_TAAK_PRIORITEIT_LABEL.normaal).toBe('Normaal');
+    expect(VASTGOEDKANS_TAAK_PRIORITEIT_LABEL.laag).toBe('Laag');
   });
 
   it('valt zonder taak terug op expliciete Vastgoedkans volgende actie', () => {

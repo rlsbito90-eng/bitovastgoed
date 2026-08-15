@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, CheckSquare2, Database, Filter, MapPin, Pencil, PlayCircle, Plus, Radar, RotateCcw, Search, X } from 'lucide-react';
+import { AlertTriangle, Archive, CheckSquare2, Database, Filter, MapPin, Pencil, PlayCircle, Plus, Radar, RotateCcw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,9 @@ import {
 } from '@/lib/vastgoedkansWorkspace';
 import {
   bepaalVastgoedkansActieContextMetTaak,
+  bepaalVastgoedkansTaakConsistentie,
   filterEnSorteerVastgoedkansenMetTaken,
+  VASTGOEDKANS_TAAK_PRIORITEIT_LABEL,
 } from '@/lib/vastgoedkansTakenWerkvoorraad';
 import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';
 import VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';
@@ -304,6 +306,7 @@ export default function VastgoedkansenPage() {
         {list.map((kans) => {
           const leidendeTaak = werkbak === 'archief' ? null : taakPerKansId.get(kans.id) ?? null;
           const actie = bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak);
+          const taakWaarschuwing = bepaalVastgoedkansTaakConsistentie(kans, leidendeTaak);
           return <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
             {selectieModus && <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />}
             <div className="min-w-0 flex-1">
@@ -319,10 +322,12 @@ export default function VastgoedkansenPage() {
               <p className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted-foreground"><span>{kans.typeVastgoed || 'Type onbekend'}</span><span>· {HERKOMST_LABEL[kans.herkomst]}</span><span>· Eigenaar: {kans.eigenaarNaam?.trim() || EIGENAAR_LABEL[kans.eigenaarStatus]}</span><span>· Brief: {BRIEF_LABEL[kans.briefStatus]}</span></p>
               {actie.urgentie !== 'geen_actie' && <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs" data-testid="vastgoedkans-volgende-actie">
                 {leidendeTaak && <Badge variant="secondary">Taak</Badge>}
+                {leidendeTaak && <Badge variant="outline">Prioriteit {VASTGOEDKANS_TAAK_PRIORITEIT_LABEL[leidendeTaak.prioriteit]}</Badge>}
                 <Badge variant="outline" className={actieBadgeClass(actie.urgentie)}>{actie.urgentieLabel}</Badge>
                 <span className="min-w-0 font-medium text-foreground">{actie.omschrijving || 'Opvolgen'}</span>
                 {actie.datumLabel && <span className="text-muted-foreground">· {actie.datumLabel}</span>}
               </div>}
+              {taakWaarschuwing && <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300" data-testid="vastgoedkans-taak-consistentie-waarschuwing"><AlertTriangle className="h-3.5 w-3.5 shrink-0" />{taakWaarschuwing.label} — controleer of de taak nog nodig is.</div>}
               {werkbak === 'archief' && kans.archivedAt && <p className="mt-1 text-xs text-muted-foreground">Gearchiveerd {new Date(kans.archivedAt).toLocaleDateString('nl-NL')}{kans.archivedReason ? ` · ${kans.archivedReason}` : ''}</p>}
               {kans.redenInteressant && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{kans.redenInteressant}</p>}
             </div>
