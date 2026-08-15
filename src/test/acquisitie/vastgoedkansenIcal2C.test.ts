@@ -12,8 +12,8 @@ describe('BUILD 2.0C — Vastgoedkansen in iCal', () => {
     expect(bron).toContain('opvolgdatum');
     expect(bron).toContain(".is('archived_at', null)");
     expect(bron).toContain('.or(`volgende_actie_datum.gte.${vanafDate},opvolgdatum.gte.${vanafDate}`)');
-    expect(bron).not.toContain("workflowReadModel");
-    expect(bron).not.toContain("bouwVastgoedkansWorkflowReadModel");
+    expect(bron).not.toContain('workflowReadModel');
+    expect(bron).not.toContain('bouwVastgoedkansWorkflowReadModel');
   });
 
   it('geeft de expliciete commerciële actiedatum voorrang op legacy opvolging', () => {
@@ -36,5 +36,10 @@ describe('BUILD 2.0C — Vastgoedkansen in iCal', () => {
     expect(bron).toContain('startDate: actieDatum');
     expect(bron).toContain('endDate: addOneDay(actieDatum)');
     expect(bron).toContain('📌');
+  });
+
+  it('gebruikt Vercel als veilige fallback voor alle teruglinks en geen Lovable-runtime', () => {
+    expect(bron).toContain("Deno.env.get('APP_BASE_URL') ?? 'https://bitovastgoed.vercel.app'");
+    expect(bron).not.toContain('bitovastgoed.lovable.app');
   });
 });
