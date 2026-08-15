@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const migration = fs.readFileSync(path.join(process.cwd(), 'supabase/migrations/20260814220500_eigenaar_vastgoedkans_activiteit.sql'), 'utf8');
+const migration = fs.readFileSync(path.join(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260814220500_eigenaar_vastgoedkans_activiteit.sql'), 'utf8');
 const hook = fs.readFileSync(path.join(process.cwd(), 'src/hooks/useVastgoedkansEigenaarActiviteit.tsx'), 'utf8');
 const kaart = fs.readFileSync(path.join(process.cwd(), 'src/components/acquisitie/VastgoedkansEigenaarActiviteitKaart.tsx'), 'utf8');
 const eigenaarKaart = fs.readFileSync(path.join(process.cwd(), 'src/components/acquisitie/VastgoedkansEigenaarRelatieKaart.tsx'), 'utf8');
