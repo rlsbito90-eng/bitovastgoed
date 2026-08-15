@@ -20,6 +20,8 @@ import {
 import { useObjectCalculations, useQuickscanDetail, useTaxSettings } from '@/hooks/useVastgoedrekenen';
 import { cloneScenarioKengetalSnapshots } from '@/hooks/useKengetallenregister';
 import { useVastgoedrekenenPrefs } from '@/hooks/useVastgoedrekenenPrefs';
+import { useDataStore } from '@/hooks/useDataStore';
+import { getBerekenM2Bron } from '@/lib/derivations';
 import ScenarioEditor from './ScenarioEditor';
 import ScenarioVergelijking from './ScenarioVergelijking';
 import ScenarioKengetallenPanel from './ScenarioKengetallenPanel';
@@ -305,7 +307,7 @@ function QuickscanDetail({ calculationId, taxSettings, objectArea, objectWoz, ob
                   return (
                     <button key={scenario.id} type="button" onClick={() => setActiveScenarioId(scenario.id)} className={`min-w-[220px] max-w-[280px] rounded-lg border px-3 py-2.5 text-left transition-all ${selected ? 'border-primary/40 bg-primary/[0.07] shadow-sm' : 'border-border/50 bg-card hover:border-primary/25 hover:bg-muted/30'}`}>
                       <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-semibold">{scenario.scenario_name || 'Naamloos scenario'}</p><p className="mt-1 truncate text-[11px] text-muted-foreground">{getBusinessCaseLabel(taxonomy.value.businessCase)} · {getInterventionLabel(taxonomy.value.intervention)}</p></div><ChevronRight className={`mt-0.5 h-4 w-4 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} /></div>
-                      <div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{VR_STATUS_LABELS[scenario.status]}</span><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{getDispositionLabel(taxonomy.value.disposition)}</span></div>
+                      <div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{VR_STATUS_LABELS[scenario.status]}</span><span>·</span><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{getDispositionLabel(taxonomy.value.disposition)}</span></div>
                     </button>
                   );
                 })}
@@ -345,6 +347,11 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
   const { calculations, createAnalysis } = useObjectCalculations(objectId);
   const { settings: taxSettings } = useTaxSettings();
   const { viewMode, setViewMode } = useVastgoedrekenenPrefs();
+  const store = useDataStore();
+  const object = store.getObjectById(objectId);
+  const canonicalObjectArea = object
+    ? getBerekenM2Bron(object, (object as { type?: string | null }).type ?? null).m2
+    : objectArea;
   const location = useLocation();
   const navigate = useNavigate();
   const safeCalculations = useMemo(() => calculations.filter((calculation) => Boolean(calculation?.id)), [calculations]);
@@ -393,7 +400,7 @@ export default function VastgoedrekenenTab({ objectId, objectArea, objectWoz, ob
       </Card>
 
       {active ? (
-        <QuickscanDetail key={active} calculationId={active} taxSettings={taxSettings} objectArea={objectArea} objectWoz={objectWoz} objectEnergyLabel={objectEnergyLabel} objectBouwjaar={objectBouwjaar} objectRawType={objectRawType} objectVraagprijs={objectVraagprijs} viewMode={viewMode} />
+        <QuickscanDetail key={active} calculationId={active} taxSettings={taxSettings} objectArea={canonicalObjectArea} objectWoz={objectWoz} objectEnergyLabel={objectEnergyLabel} objectBouwjaar={objectBouwjaar} objectRawType={objectRawType} objectVraagprijs={objectVraagprijs} viewMode={viewMode} />
       ) : (
         <Card className="border-dashed"><CardContent className="flex flex-col items-center justify-center py-14 text-center"><LayoutDashboard className="h-9 w-9 text-muted-foreground" /><h3 className="mt-3 text-base font-semibold">Nog geen analyse aangemaakt</h3><p className="mt-1 text-sm text-muted-foreground">Maak een analyse aan om de vastgoedcase door te rekenen.</p><Button className="mt-4" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nieuwe analyse</Button></CardContent></Card>
       )}
