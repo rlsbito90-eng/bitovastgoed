@@ -11,7 +11,7 @@ import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import { formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import {
-  bouwBulkKadasterPreflight,
+  bouwBulkKadasterPreflightMetBag,
   type BulkKadasterBestaandDocument,
   type BulkKadasterBestaandRecord,
   type BulkKadasterPreflightRij,
@@ -97,7 +97,11 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
     setUitvoer([]);
     try {
       const bestaand = await laadBestaandeData(signaalIds);
-      setPreflight(bouwBulkKadasterPreflight(signalen, bestaand.records, bestaand.documenten));
+      setPreflight(await bouwBulkKadasterPreflightMetBag(
+        signalen,
+        bestaand.records,
+        bestaand.documenten,
+      ));
       setFase('preflight');
     } catch (e) {
       setPreflight([]);
@@ -124,7 +128,11 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
 
   const verversEnCheckOfAlAanwezig = async (signaal: OffMarketSignaal) => {
     const bestaand = await laadBestaandeData([signaal.id]);
-    return bouwBulkKadasterPreflight([signaal], bestaand.records, bestaand.documenten)[0];
+    return (await bouwBulkKadasterPreflightMetBag(
+      [signaal],
+      bestaand.records,
+      bestaand.documenten,
+    ))[0];
   };
 
   const updateUitvoer = (id: string, patch: Partial<UitvoerRij>) => {
@@ -160,7 +168,7 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
         setStopReden(melding);
         break;
       }
-      if (actueel.status !== 'aanvragen') {
+      if (actueel.status !== 'aanvragen' || !actueel.adresInput) {
         updateUitvoer(signaal.id, { status: 'overgeslagen', melding: actueel.reden });
         continue;
       }
@@ -169,7 +177,7 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
       try {
         const resp = await mutation.mutateAsync({
           modus: 'kadaster',
-          adres: rij.adresInput,
+          adres: actueel.adresInput,
           producten: ['rechten'],
           context: { signaal_id: signaal.id },
           persist: true,
