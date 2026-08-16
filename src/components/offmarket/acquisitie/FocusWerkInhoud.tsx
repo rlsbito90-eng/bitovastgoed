@@ -100,6 +100,16 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
         </div>
       </section>
 
+      {/*
+       * Een formeel dossier start generiek bij eigenaar_achterhalen. Bestaande
+       * CRM-selecties kunnen echter al een volledig postconcept bevatten. Mount
+       * de Productiekern-bridge daarom ook hier: het component rendert zelf
+       * uitsluitend bij een geldige selectie + postconcept en blijft anders
+       * volledig onzichtbaar. De expliciete BR-actie verplaatst het dossier pas
+       * na bevestiging transactioneel naar brief_opstellen.
+       */}
+      <ProductiekernBriefActies signaalId={signaal.id} />
+
       <div id="focus-onderzoek" className="scroll-mt-4 space-y-4 min-w-0">
         <SignaalOnderzoeksacties signaal={signaal} />
         <SignaalGebiedsindeling signaal={signaal} />
