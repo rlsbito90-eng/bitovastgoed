@@ -1,21 +1,17 @@
 import { useState } from 'react';
-import { pdf } from '@react-pdf/renderer';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import type { BatchAdreslabelRij } from '@/lib/offMarket/acquisitie/batchAdreslabelRijen';
-import { serializeerBatchAdreslabelsCsv } from '@/lib/offMarket/acquisitie/batchAdreslabelsCsv';
 import type { BatchControlelijst } from '@/lib/offMarket/acquisitie/batchControlelijst';
 import type { BatchProductiepakketManifest } from '@/lib/offMarket/acquisitie/batchProductiepakket';
 import type { BatchVoorbladModel } from '@/lib/offMarket/acquisitie/batchVoorblad';
 import type { BriefRenderInvoer } from '@/lib/offMarket/acquisitie/briefRenderInvoer';
-
-import ProductiekernBrievenPDF from './ProductiekernBrievenPDF';
 import {
-  ProductiekernBatchControlelijstPDF,
-  ProductiekernBatchVoorbladPDF,
-} from './ProductiekernBatchDocumenten';
+  downloadProductiekernBestand,
+  genereerProductiekernProductiepakketBestanden,
+} from './productiekernProductiepakketBestanden';
 
 interface Props {
   manifest: BatchProductiepakketManifest;
@@ -24,23 +20,6 @@ interface Props {
   labels: readonly BatchAdreslabelRij[];
   brieven: readonly BriefRenderInvoer[];
   disabled?: boolean;
-}
-
-function downloadBlob(blob: Blob, bestandsnaam: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = bestandsnaam;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-function vindBestandsnaam(manifest: BatchProductiepakketManifest, suffix: string): string {
-  const gevonden = manifest.documentBestanden.find((naam) => naam.endsWith(suffix));
-  if (!gevonden) throw new Error(`Productiepakket mist bestand ${suffix}.`);
-  return gevonden;
 }
 
 /**
@@ -68,23 +47,20 @@ export default function ProductiekernProductiepakketDownload({
 
     setBezig(true);
     try {
-      const [voorbladBlob, controleBlob, brievenBlob] = await Promise.all([
-        pdf(<ProductiekernBatchVoorbladPDF model={voorblad} />).toBlob(),
-        pdf(<ProductiekernBatchControlelijstPDF lijst={controlelijst} />).toBlob(),
-        pdf(<ProductiekernBrievenPDF brieven={brieven} />).toBlob(),
-      ]);
-      const labelsCsv = serializeerBatchAdreslabelsCsv(labels);
-      const labelsBlob = new Blob([labelsCsv], { type: 'text/csv;charset=utf-8' });
-
-      downloadBlob(voorbladBlob, vindBestandsnaam(manifest, '-voorblad.pdf'));
-      downloadBlob(controleBlob, vindBestandsnaam(manifest, '-controlelijst.pdf'));
-      downloadBlob(brievenBlob, vindBestandsnaam(manifest, '-brieven.pdf'));
-      downloadBlob(labelsBlob, vindBestandsnaam(manifest, '-adreslabels.csv'));
-
+      const bestanden = await genereerProductiekernProductiepakketBestanden({
+        manifest,
+        voorblad,
+        controlelijst,
+        labels,
+        brieven,
+      });
+      for (const bestand of bestanden) downloadProductiekernBestand(bestand);
       toast.success(`Productiepakket ${manifest.batchnummer} gegenereerd (4 bestanden).`);
     } catch (error) {
       console.error('Productiekern productiepakket genereren mislukt', error);
-      toast.error('Productiekern productiepakket genereren mislukt.');
+      toast.error(error instanceof Error
+        ? error.message
+        : 'Productiekern productiepakket genereren mislukt.');
     } finally {
       setBezig(false);
     }

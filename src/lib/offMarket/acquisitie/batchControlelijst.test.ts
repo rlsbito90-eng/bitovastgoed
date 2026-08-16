@@ -27,7 +27,7 @@ function versie(id: string, verificatiestatus: 'onbekend' | 'handmatig_gecontrol
 }
 
 describe('bouwBatchControlelijst', () => {
-  it('sorteert en telt adres- en PDF-afwijkingen', () => {
+  it('sorteert en telt adresafwijkingen zonder een renderbare immutable snapshot als ontbrekende PDF te zien', () => {
     const lijst = bouwBatchControlelijst({
       batch,
       brieven: [
@@ -37,10 +37,15 @@ describe('bouwBatchControlelijst', () => {
     });
 
     expect(lijst.rijen.map((rij) => rij.briefnummer)).toEqual(['BR2026000001', 'BR2026000002']);
-    expect(lijst).toMatchObject({ totaal: 2, nietGeverifieerd: 1, pdfOntbreekt: 1 });
+    expect(lijst).toMatchObject({ totaal: 2, nietGeverifieerd: 1, pdfOntbreekt: 0 });
+    expect(lijst.rijen.map((rij) => [rij.briefnummer, rij.pdfBron])).toEqual([
+      ['BR2026000001', 'opgeslagen_bestand'],
+      ['BR2026000002', 'immutable_snapshot'],
+    ]);
+    expect(lijst.rijen.every((rij) => rij.pdfBeschikbaar)).toBe(true);
   });
 
-  it('weigert dubbele briefnummers en niet-actieve versies', () => {
+  it('weigert dubbele briefnummers en niet-actieve versies vóór renderbaarheid wordt aangenomen', () => {
     expect(() => bouwBatchControlelijst({
       batch,
       brieven: [
