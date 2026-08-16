@@ -9,6 +9,7 @@ import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigen
 import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
 import AutomatischeKadasterPdfEigenaarVerrijking from './AutomatischeKadasterPdfEigenaarVerrijking';
 import KadasterBronOverzicht from './KadasterBronOverzicht';
+import KadasterBerichtOpenKnop from './KadasterBerichtOpenKnop';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import {
   VERGUNNINGTYPE_LABEL,
@@ -39,9 +40,12 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
   if (focusContext.context !== 'onderzoeken') {
     return (
       <section data-testid="focus-brieven-inhoud" className="space-y-2 min-w-0">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Mail className="h-3.5 w-3.5" />
-          Brieven &amp; opvolging is de primaire werkcontext voor deze stap.
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Mail className="h-3.5 w-3.5" />
+            Brieven &amp; opvolging is de primaire werkcontext voor deze stap.
+          </div>
+          <KadasterBerichtOpenKnop signaalId={signaal.id} hideWhenMissing />
         </div>
         <SignaalBrievenSectie signaal={signaal} />
       </section>
