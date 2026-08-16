@@ -8,6 +8,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 import { BITO_ICON_URL } from '@/lib/pdf/logo';
 import type { BriefViewModel } from '@/lib/offMarket/brief';
+import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 
 // Compacte, ingetogen typografie. Bewust géén Playfair (te zwaar voor een brief).
 const styles = StyleSheet.create({
@@ -99,6 +100,15 @@ export function BriefPagina({ vm, logo }: BriefPaginaProps) {
     .map(p => p.trim())
     .filter(Boolean);
 
+  // Eén canonieke renderregel voor handmatige én automatisch aangemaakte
+  // concepten. Legacy Kadaster-biografieregels worden hier defensief
+  // verwijderd; natuurlijke personen krijgen dezelfde initialenopmaak als
+  // in de handmatige briefwizard. Het opgeslagen concept zelf wordt niet
+  // stilzwijgend gemuteerd.
+  const geadresseerdeNaam = vm.bedrijfsnaam
+    ? vm.geadresseerdeNaam
+    : naarVoorlettersAchternaam(vm.geadresseerdeNaam);
+
   const mode = logo?.mode ?? 'icon';
   const iconSrc = mode === 'icon' ? (logo?.url ?? BITO_ICON_URL) : null;
   const fullSrc = mode === 'full' ? (logo as { url: string }).url : null;
@@ -132,7 +142,7 @@ export function BriefPagina({ vm, logo }: BriefPaginaProps) {
 
       <View style={styles.addressee}>
         {vm.bedrijfsnaam ? <Text style={styles.addresseeLine}>{vm.bedrijfsnaam}</Text> : null}
-        {vm.geadresseerdeNaam ? <Text style={styles.addresseeLine}>{vm.geadresseerdeNaam}</Text> : null}
+        {geadresseerdeNaam ? <Text style={styles.addresseeLine}>{geadresseerdeNaam}</Text> : null}
         {vm.verzendadresRegels.map((r, i) => (
           <Text key={i} style={styles.addresseeLine}>{r}</Text>
         ))}
