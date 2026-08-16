@@ -115,6 +115,47 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
     return koppelingen.filter((koppeling) => koppeling.verwijderdOp === null);
   }
 
+  /**
+   * Herstelt de canonieke actieve BAT voor een set immutable briefversies.
+   * Geen koppeling betekent nog geen BAT. Een gedeeltelijke scope, meerdere
+   * actieve koppelingen voor één versie of meerdere BAT's is juist verdacht en
+   * wordt fail-closed geblokkeerd in plaats van stil een nieuwe BAT te maken.
+   */
+  async haalActievePrintbatchIdVoorBriefversies(briefVersieIds: readonly string[]): Promise<string | null> {
+    const ids = [...new Set(briefVersieIds.map((id) => id.trim()).filter(Boolean))].sort();
+    if (ids.length === 0) return null;
+
+    const gevonden: Array<{ versieId: string; batchId: string | null }> = [];
+    for (const versieId of ids) {
+      const rijen = await this.transport.haalMeerdere(
+        'off_market_printbatch_brieven',
+        { brief_versie_id: versieId },
+        { kolom: 'created_at', oplopend: true },
+      );
+      const actief = rijen
+        .map(mapPrintbatchBriefRij)
+        .filter((koppeling) => koppeling.verwijderdOp === null);
+      if (actief.length > 1) {
+        throw new Error(`Briefversie ${versieId} zit in meerdere actieve printbatches.`);
+      }
+      if (actief[0] && actief[0].briefVersieId !== versieId) {
+        throw new Error('Teruggelezen printbatchkoppeling wijkt af van de gevraagde briefversie.');
+      }
+      gevonden.push({ versieId, batchId: actief[0]?.batchId ?? null });
+    }
+
+    const metBatch = gevonden.filter((item) => item.batchId !== null);
+    if (metBatch.length === 0) return null;
+    if (metBatch.length !== gevonden.length) {
+      throw new Error('Definitieve brieven zijn slechts gedeeltelijk aan een actieve printbatch gekoppeld.');
+    }
+    const batchIds = new Set(metBatch.map((item) => item.batchId!));
+    if (batchIds.size !== 1) {
+      throw new Error('Definitieve brieven zijn verdeeld over meerdere actieve printbatches.');
+    }
+    return [...batchIds][0];
+  }
+
   private schrijfpadGeblokkeerd<T>(handeling: string): Promise<T> {
     return Promise.reject(new ProductiekernNietGeactiveerdError(handeling));
   }
