@@ -25,7 +25,7 @@ function signaal(overrides: Partial<any> = {}): OffMarketSignaal {
 }
 
 describe('rechtenbewuste eigenaar — readiness', () => {
-  it('controleflag wint vóór adres/briefvoorbereiding en gebruikt actuele reden', () => {
+  it('controleflag wint vóór adres/briefvoorbereiding en bewaart actuele blokkadereden', () => {
     const r = bepaalSignaalReadiness({
       signaal: signaal({
         eigenaar_controle_nodig: true,
@@ -37,7 +37,7 @@ describe('rechtenbewuste eigenaar — readiness', () => {
     expect(r.fase).toBe('eigenaar_controleren');
     expect(r.info.status).toBe('geblokkeerd');
     expect(r.info.label).toBe('Eigenaar controleren');
-    expect(r.info.reden).toBe('Meerdere rechthebbenden binnen het primaire recht.');
+    expect(r.info.reden).toContain('handmatige controle');
     expect(r.blokkadeReden).toBe('Meerdere rechthebbenden binnen het primaire recht.');
   });
 
@@ -49,6 +49,7 @@ describe('rechtenbewuste eigenaar — readiness', () => {
 
     expect(r.fase).toBe('eigenaar_controleren');
     expect(r.info.reden).toContain('handmatige controle');
+    expect(r.blokkadeReden).toContain('handmatige controle');
   });
 
   it('afgeronde dossierstatus blijft leidend boven controleflag', () => {
@@ -66,7 +67,7 @@ describe('rechtenbewuste eigenaar — readiness', () => {
 });
 
 describe('rechtenbewuste eigenaar — routering', () => {
-  it('plaatst eigenaar_controleren in Actie > Onderzoeken', () => {
+  it('plaatst eigenaar_controleren in Actie > Eigenaar controleren', () => {
     const s = signaal({ eigenaar_controle_nodig: true });
     const readiness = bepaalSignaalReadiness({ signaal: s, brieven: [] });
     const ctx = bepaalWerkbakContext({
@@ -78,8 +79,8 @@ describe('rechtenbewuste eigenaar — routering', () => {
     });
 
     expect(ctx.werkbak).toBe('actie');
-    expect(ctx.actieSubfilter).toBe('onderzoeken');
-    expect(ctx.actieCategorie).toBe('onderzoek');
+    expect(ctx.actieSubfilter).toBe('eigenaar_controleren');
+    expect(ctx.actieCategorie).toBe('eigenaar_controleren');
     expect(ctx.procesDatum?.label).toBe('Eigenaar controleren');
   });
 
