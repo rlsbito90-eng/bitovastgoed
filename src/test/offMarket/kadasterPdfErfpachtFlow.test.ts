@@ -61,7 +61,7 @@ describe('Kadaster PDF-verrijking — erfpacht', () => {
     expect(uitkomst.postcode).toBe('1016 CH');
     expect(uitkomst.plaats).toBe('Amsterdam');
     expect(uitkomst.adresCompleet).toBe(true);
-    expect(uitkomst.blootEigenaar?.bedrijfsnaam).toBe('Gemeente Amsterdam');
+    expect(uitkomst.blootEigenaar?.naam).toBe('Gemeente Amsterdam');
     expect(uitkomst.blootEigenaar?.kvk).toBe('34366966');
   });
 });
