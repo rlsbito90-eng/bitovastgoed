@@ -18,11 +18,12 @@ describe('productiekern Supabase leesquerycontracten', () => {
     ]);
   });
 
-  it('beperkt bulk reads tot drie vaste ID-setcontracten', () => {
+  it('beperkt bulk reads tot vier vaste ID-setcontracten', () => {
     expect(Object.keys(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN)).toEqual([
       'haal_dossiers_op_selectie_ids',
       'haal_brieven_op_ids',
       'haal_briefversies_op_ids',
+      'haal_printbatch_brieven_op_versie_ids',
     ]);
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_dossiers_op_selectie_ids).toMatchObject({
       tabel: 'off_market_acquisitie_dossiers', filterKolom: 'selectie_id', cardinaliteit: 'lijst',
@@ -31,6 +32,10 @@ describe('productiekern Supabase leesquerycontracten', () => {
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_brieven_op_ids).toMatchObject({
       tabel: 'off_market_brieven', filterKolom: 'id', cardinaliteit: 'lijst',
       maximaalAantalRecords: 1000, maximaalAantalFilterwaarden: 1000,
+    });
+    expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_printbatch_brieven_op_versie_ids).toMatchObject({
+      tabel: 'off_market_printbatch_brieven', filterKolom: 'brief_versie_id', cardinaliteit: 'lijst',
+      maximaalAantalRecords: 2000, maximaalAantalFilterwaarden: 1000,
     });
   });
 
@@ -47,37 +52,28 @@ describe('productiekern Supabase leesquerycontracten', () => {
   });
 
   it('legt cardinaliteit en deterministische lijstvolgorde vast', () => {
-    expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_dossier.cardinaliteit)
-      .toBe('nul_of_een');
+    expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_dossier.cardinaliteit).toBe('nul_of_een');
     expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_briefversies).toMatchObject({
-      cardinaliteit: 'lijst',
-      volgorde: { kolom: 'versienummer', oplopend: true },
+      cardinaliteit: 'lijst', volgorde: { kolom: 'versienummer', oplopend: true },
     });
     expect(PRODUCTIEKERN_LEES_QUERY_CONTRACTEN.haal_printbatch_brieven).toMatchObject({
-      cardinaliteit: 'lijst',
-      tabel: 'off_market_printbatch_brieven',
-      filterKolom: 'batch_id',
-      volgorde: { kolom: 'created_at', oplopend: true },
-      maximaalAantalRecords: 1000,
+      cardinaliteit: 'lijst', tabel: 'off_market_printbatch_brieven', filterKolom: 'batch_id',
+      volgorde: { kolom: 'created_at', oplopend: true }, maximaalAantalRecords: 1000,
     });
   });
 
   it('weigert lege waarden en normaliseert/dedupliceert bulk-ID sets', () => {
-    expect(() => bouwProductiekernLeesQuery('haal_brief', '   '))
-      .toThrow('Filterwaarde voor haal_brief is verplicht.');
+    expect(() => bouwProductiekernLeesQuery('haal_brief', '   ')).toThrow('Filterwaarde voor haal_brief is verplicht.');
     expect(() => bouwProductiekernBulkLeesQuery('haal_dossiers_op_selectie_ids', []))
       .toThrow('Filterwaarden voor haal_dossiers_op_selectie_ids zijn verplicht.');
-
     expect(bouwProductiekernBulkLeesQuery(
-      'haal_dossiers_op_selectie_ids',
-      [' selectie-2 ', 'selectie-1', 'selectie-2'],
+      'haal_dossiers_op_selectie_ids', [' selectie-2 ', 'selectie-1', 'selectie-2'],
     ).filterWaarden).toEqual(['selectie-2', 'selectie-1']);
   });
 
   it('weigert bulksets boven de harde bovengrens', () => {
     expect(() => bouwProductiekernBulkLeesQuery(
-      'haal_briefversies_op_ids',
-      Array.from({ length: 1001 }, (_, index) => `versie-${index}`),
+      'haal_briefversies_op_ids', Array.from({ length: 1001 }, (_, index) => `versie-${index}`),
     )).toThrow('Te veel filterwaarden voor haal_briefversies_op_ids.');
   });
 
