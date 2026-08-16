@@ -36,7 +36,15 @@ export function bouwProductiekernBatchProductiepakket(input: {
     if (brief.actieveVersie !== versie.versienummer) {
       throw new Error(`Actieve versie van brief ${brief.id} wijkt af.`);
     }
-    return { briefnummer: brief.briefnummer, versie };
+    return {
+      briefnummer: brief.briefnummer,
+      versie,
+      // De legacy-bridge is alleen bereikbaar via de expliciete knop
+      // “Definitief maken (BR)”, waarbij het verzendadres in de Focus zichtbaar
+      // wordt bevestigd. Pas ná de definitief-check hierboven mag dit daarom als
+      // handmatige adresbevestiging naar de controlelijst worden doorgegeven.
+      adresHandmatigBevestigd: versie.geadresseerde.bron === 'legacy_concept',
+    };
   });
 
   const plan = bouwBatchDocumentPlan({
