@@ -31,18 +31,21 @@ function groeneProductieOmgeving() {
   };
 }
 
+function uitvoerders() {
+  return {
+    vroege: { rpc: vi.fn() },
+    bestaandConceptBridge: { rpc: vi.fn() },
+    atomischePrintbatch: { rpc: vi.fn() },
+    transacties: { voerRpcUit: vi.fn() },
+  };
+}
+
 describe('productiekernBrowserWriteClient', () => {
   it('blokkeert alle write-adapters bij ontbrekend werk-CRM-bewijs vóór een RPC', async () => {
-    const vroegeRpc = vi.fn();
-    const bridgeRpc = vi.fn();
-    const lateRpc = vi.fn();
+    const x = uitvoerders();
     const samenstelling = stelProductiekernBrowserWritesSamen(
       { ...groeneWerkCrmOmgeving(), VITE_ACQUISITIE_PRODUCTIEKERN_DUURZAME_DATA: 'false' },
-      {
-        vroege: { rpc: vroegeRpc },
-        bestaandConceptBridge: { rpc: bridgeRpc },
-        transacties: { voerRpcUit: lateRpc },
-      },
+      x,
     );
 
     expect(samenstelling.activatie.schrijvenActief).toBe(false);
@@ -58,36 +61,31 @@ describe('productiekernBrowserWriteClient', () => {
       inhoudSnapshot: { brieftekst: 'Tekst' },
       geadresseerdeSnapshot: { naam: 'Eigenaar' },
     })).rejects.toThrow(/niet geactiveerd/i);
+    await expect(samenstelling.atomischePrintbatchRepository.maakPrintbatchMetBrieven({
+      actorId: 'actor-1', operationKey: 'op-batch', datum: '2026-08-16',
+      brieven: [{ briefId: 'brief-1', briefVersieId: 'versie-1' }],
+    })).rejects.toThrow(/niet geactiveerd/i);
     expect(() => samenstelling.transactieRepository.markeerBatchGeprint({
       soort: 'batch_geprint_markeren',
       batchId: 'batch-1', actorId: 'actor-1', operationKey: 'op-2',
       verwachtDocumentversie: 1, printdatum: '2026-08-08',
     })).toThrow(/niet geactiveerd/i);
 
-    expect(vroegeRpc).not.toHaveBeenCalled();
-    expect(bridgeRpc).not.toHaveBeenCalled();
-    expect(lateRpc).not.toHaveBeenCalled();
+    expect(x.vroege.rpc).not.toHaveBeenCalled();
+    expect(x.bestaandConceptBridge.rpc).not.toHaveBeenCalled();
+    expect(x.atomischePrintbatch.rpc).not.toHaveBeenCalled();
+    expect(x.transacties.voerRpcUit).not.toHaveBeenCalled();
   });
 
   it('gebruikt exact hetzelfde groene werk-CRM-besluit voor alle write-adapters', () => {
-    const samenstelling = stelProductiekernBrowserWritesSamen(groeneWerkCrmOmgeving(), {
-      vroege: { rpc: vi.fn() },
-      bestaandConceptBridge: { rpc: vi.fn() },
-      transacties: { voerRpcUit: vi.fn() },
-    });
-
+    const samenstelling = stelProductiekernBrowserWritesSamen(groeneWerkCrmOmgeving(), uitvoerders());
     expect(samenstelling.activatie.lezenActief).toBe(true);
     expect(samenstelling.activatie.schrijvenActief).toBe(true);
     expect(samenstelling.activatie.ontbrekendBewijs).toEqual([]);
   });
 
   it('activeert dezelfde write-adapters via de afzonderlijke productiepoort', () => {
-    const samenstelling = stelProductiekernBrowserWritesSamen(groeneProductieOmgeving(), {
-      vroege: { rpc: vi.fn() },
-      bestaandConceptBridge: { rpc: vi.fn() },
-      transacties: { voerRpcUit: vi.fn() },
-    });
-
+    const samenstelling = stelProductiekernBrowserWritesSamen(groeneProductieOmgeving(), uitvoerders());
     expect(samenstelling.activatie.lezenActief).toBe(true);
     expect(samenstelling.activatie.schrijvenActief).toBe(true);
     expect(samenstelling.activatie.ontbrekendBewijs).toEqual([]);
@@ -96,11 +94,7 @@ describe('productiekernBrowserWriteClient', () => {
   it('blijft volledig dicht wanneer de productie-Supabase-projectref niet overeenkomt', () => {
     const samenstelling = stelProductiekernBrowserWritesSamen(
       { ...groeneProductieOmgeving(), VITE_SUPABASE_URL: 'https://anderproject.supabase.co' },
-      {
-        vroege: { rpc: vi.fn() },
-        bestaandConceptBridge: { rpc: vi.fn() },
-        transacties: { voerRpcUit: vi.fn() },
-      },
+      uitvoerders(),
     );
 
     expect(samenstelling.activatie.schrijvenActief).toBe(false);
