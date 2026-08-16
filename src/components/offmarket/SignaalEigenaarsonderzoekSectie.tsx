@@ -43,6 +43,7 @@ import {
   bouwAutomatischeEigenaarPatch,
   bouwVerzendadres,
   formatteerBlootEigenaar,
+  isAdresControleReden,
   RECHTSSITUATIE_LABEL,
   RECHTSSITUATIES_MET_BLOOT_EIGENAAR,
   type PrimaireRechthebbende,
@@ -194,10 +195,18 @@ export default function SignaalEigenaarsonderzoekSectie({
     update.mutate(
       { id: signaal.id, patch: patch as any },
       {
-        onSuccess: () => {
+        onSuccess: (row) => {
+          // Focusmodus staat permanent in editMode. Zonder expliciete sync bleef het
+          // formulier daardoor hangen op de eigenaar die vóór de automatische
+          // Kadastermutatie in props stond. Hydrateer na autosave altijd uit de
+          // werkelijk opgeslagen rij, zodat de UI nooit een stale bloot-eigenaar
+          // of oud placeholderadres als primaire eigenaar kan tonen.
+          setForm(snapshot(row));
           toast.success(
             rechtenUitkomst.controleNodig
-              ? 'Eigenaar vraagt controle op basis van het Kadasterrecord'
+              ? isAdresControleReden(rechtenUitkomst.controleReden)
+                ? 'Eigenaar gevonden; verzendadres nog achterhalen'
+                : 'Eigenaar vraagt controle op basis van het Kadasterrecord'
               : rechtenUitkomst.status === 'meervoudig'
                 ? `${rechtenUitkomst.primaireRechthebbenden.length} rechthebbenden automatisch verwerkt`
                 : 'Eigenaargegevens automatisch overgenomen uit het Kadasterrecord',
@@ -272,7 +281,8 @@ export default function SignaalEigenaarsonderzoekSectie({
         patch.eigenaar_controle_nodig = false;
         patch.eigenaar_controle_reden = null;
       }
-      await update.mutateAsync({ id: signaal.id, patch });
+      const row = await update.mutateAsync({ id: signaal.id, patch });
+      setForm(snapshot(row));
       toast.success('Eigenaargegevens opgeslagen');
       setEditMode(focusMode);
     } catch (e: any) {
@@ -377,7 +387,9 @@ export default function SignaalEigenaarsonderzoekSectie({
       )}
       {focusMode && rechtenUitkomst.controleNodig && (
         <div data-testid="kadaster-eigenaar-controle" className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
-          {rechtenUitkomst.controleReden || 'Kadastergegevens vragen handmatige controle.'}
+          {isAdresControleReden(rechtenUitkomst.controleReden)
+            ? 'Eigenaar gevonden. Het verzendadres ontbreekt nog en moet worden achterhaald.'
+            : (rechtenUitkomst.controleReden || 'Kadastergegevens vragen handmatige controle.')}
         </div>
       )}
 
@@ -538,6 +550,7 @@ function RechtssituatieBlok({
   const blootLabel = formatteerBlootEigenaar(a.bloot_eigenaar ?? null);
   const controleNodig = a.eigenaar_controle_nodig === true;
   const controleReden = (a.eigenaar_controle_reden ?? '') as string;
+  const adresAchterhalen = controleNodig && isAdresControleReden(controleReden);
   const meerdere = primaireRechthebbenden.length > 1;
   if (!situatie && !aandeel && !blootLabel && !controleNodig && primaireRechthebbenden.length === 0) return null;
   const toonBloot = !!blootLabel && (!situatie || RECHTSSITUATIES_MET_BLOOT_EIGENAAR.includes(situatie));
@@ -547,7 +560,7 @@ function RechtssituatieBlok({
         {situatie && <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{RECHTSSITUATIE_LABEL[situatie] ?? situatie}</span>}
         {!meerdere && aandeel && <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono-data text-foreground">Aandeel {aandeel}</span>}
         {meerdere && <span data-testid="meerdere-rechthebbenden-badge" className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{primaireRechthebbenden.length} rechthebbenden</span>}
-        {controleNodig && <span data-testid="eigenaar-controle-badge" className="inline-flex items-center rounded-md border border-amber-300 bg-amber-50/60 px-2 py-0.5 text-[11px] text-amber-950">Eigenaar controleren</span>}
+        {controleNodig && <span data-testid="eigenaar-controle-badge" className="inline-flex items-center rounded-md border border-amber-300 bg-amber-50/60 px-2 py-0.5 text-[11px] text-amber-950">{adresAchterhalen ? 'Adres achterhalen' : 'Eigenaar controleren'}</span>}
       </div>
       {controleNodig && controleReden && <p className="text-[11px] text-muted-foreground">{controleReden}</p>}
       {meerdere && (
