@@ -5,7 +5,7 @@ import { ACTIE_SUBFILTER_LABEL, WERKBAK_LABEL } from '@/lib/offMarket/acquisitie
 
 const HOOFD_VOLGORDE: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
 const SUB_VOLGORDE: ActieSubfilter[] = [
-  'alle', 'onderzoeken', 'eigenaar_controleren', 'brief_voorbereiden',
+  'alle', 'onderzoeken', 'eigenaar_controleren', 'adres_achterhalen', 'brief_voorbereiden',
   'printen_posten', 'opvolgen',
 ];
 
@@ -26,15 +26,8 @@ export default function AcquisitieWerkbakChips({
   return (
     <div className="flex min-w-0 flex-col gap-2.5" data-testid="acquisitie-werkbak-chips">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Werkbak
-        </span>
-        <div
-          role="tablist"
-          aria-label="Werkbak"
-          data-testid="acquisitie-werkbak-hoofd"
-          className="flex flex-wrap gap-1.5"
-        >
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Werkbak</span>
+        <div role="tablist" aria-label="Werkbak" data-testid="acquisitie-werkbak-hoofd" className="flex flex-wrap gap-1.5">
           {HOOFD_VOLGORDE.map(id => {
             const actief = werkbak === id;
             const aantal = counts.werkbak[id] ?? 0;
@@ -53,13 +46,9 @@ export default function AcquisitieWerkbakChips({
                 }`}
               >
                 <span>{WERKBAK_LABEL[id]}</span>
-                <span
-                  className={`rounded px-1.5 py-0.5 font-mono-data text-[10px] leading-none ${
-                    actief ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {aantal}
-                </span>
+                <span className={`rounded px-1.5 py-0.5 font-mono-data text-[10px] leading-none ${
+                  actief ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'
+                }`}>{aantal}</span>
               </button>
             );
           })}
@@ -68,15 +57,8 @@ export default function AcquisitieWerkbakChips({
 
       {werkbak === 'actie' && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Actiestap
-          </span>
-          <div
-            role="tablist"
-            aria-label="Actiestap"
-            data-testid="acquisitie-werkbak-sub"
-            className="flex flex-wrap gap-1.5"
-          >
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Actiestap</span>
+          <div role="tablist" aria-label="Actiestap" data-testid="acquisitie-werkbak-sub" className="flex flex-wrap gap-1.5">
             {SUB_VOLGORDE.map(id => {
               const actief = subfilter === id;
               const aantal = counts.subfilter[id] ?? 0;
