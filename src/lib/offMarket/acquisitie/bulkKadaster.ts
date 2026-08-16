@@ -19,6 +19,7 @@ export interface BulkKadasterBestaandRecord {
   status: string;
   fetched_at: string;
   zoekadres?: Record<string, unknown> | null;
+  raw_limited?: Record<string, unknown> | null;
 }
 
 export interface BulkKadasterBestaandDocument {
@@ -36,6 +37,7 @@ export interface BulkKadasterPreflightRij {
   zoekadresLabel: string | null;
   reden: string;
   bestaandRecordId: string | null;
+  bestaandDocumentId: string | null;
 }
 
 type BagZoeker = (input: {
@@ -161,11 +163,6 @@ export function bepaalBulkKadasterAdres(signaal: OffMarketSignaal): BulkKadaster
   return { status: 'klaar', adresInput, zoekadresLabel, reden: null };
 }
 
-/**
- * Spiegelt de gratis BAG-resolutie uit SignaalKadasterKaart/BagAdresLookup.
- * Alleen gebruikt als de ruwe signaalvelden nog geen veilig Kadasteradres opleveren.
- * Er wordt hiermee NOOIT een Kadasteraanvraag uitgevoerd.
- */
 export async function bepaalBulkKadasterAdresMetBag(
   signaal: OffMarketSignaal,
   bagZoeker: BagZoeker = zoekBagAdressen,
@@ -206,24 +203,24 @@ export async function bepaalBulkKadasterAdresMetBag(
   return adresUitBag(kandidaten[0]) ?? direct;
 }
 
-function heeftPdfVoorRecord(
+function documentVoorRecord(
   record: BulkKadasterBestaandRecord,
   documenten: BulkKadasterBestaandDocument[],
-): boolean {
-  const direct = documenten.some((d) =>
+): BulkKadasterBestaandDocument | null {
+  const direct = documenten.find((d) =>
     d.signaal_id === record.signaal_id
     && d.kadaster_data_record_id === record.id
     && (d.product_codes ?? []).includes('rechten'),
   );
-  if (direct) return true;
+  if (direct) return direct;
 
   const rt = new Date(record.fetched_at).getTime();
-  return documenten.some((d) => {
+  return documenten.find((d) => {
     if (d.signaal_id !== record.signaal_id) return false;
     if (!(d.product_codes ?? []).includes('rechten')) return false;
     const dt = Math.abs(new Date(d.fetched_at).getTime() - rt);
     return Number.isFinite(dt) && dt <= 5 * 60 * 1000;
-  });
+  }) ?? null;
 }
 
 function bestaandRechtenRecord(
@@ -237,12 +234,24 @@ function bestaandRechtenRecord(
   );
 }
 
+function definitieveNotFound(
+  signaalId: string,
+  records: BulkKadasterBestaandRecord[],
+): BulkKadasterBestaandRecord | undefined {
+  return records.find((r) => {
+    if (r.signaal_id !== signaalId || r.product_code !== 'rechten' || r.status !== 'niet_geleverd') return false;
+    const poging = r.raw_limited?.poging;
+    return !!poging && typeof poging === 'object'
+      && (poging as Record<string, unknown>).uitkomst === 'not_found';
+  });
+}
+
 function rijVoorBestaand(
   signaal: OffMarketSignaal,
   bestaand: BulkKadasterBestaandRecord,
   documenten: BulkKadasterBestaandDocument[],
 ): BulkKadasterPreflightRij {
-  const metPdf = heeftPdfVoorRecord(bestaand, documenten);
+  const document = documentVoorRecord(bestaand, documenten);
   return {
     signaal,
     status: 'aanwezig',
@@ -250,10 +259,26 @@ function rijVoorBestaand(
     zoekadresLabel: typeof bestaand.zoekadres?.waarde === 'string'
       ? String(bestaand.zoekadres.waarde)
       : null,
-    reden: metPdf
+    reden: document
       ? 'Rechten + intern Kadasterbericht zijn al aanwezig; geen nieuwe betaalde aanvraag.'
       : 'Rechten zijn al opgehaald, maar het interne PDF-bericht ontbreekt. Veiligheidshalve geen nieuwe betaalde aanvraag; eerst handmatig controleren.',
     bestaandRecordId: bestaand.id,
+    bestaandDocumentId: document?.id ?? null,
+  };
+}
+
+function rijVoorNotFound(
+  signaal: OffMarketSignaal,
+  poging: BulkKadasterBestaandRecord,
+): BulkKadasterPreflightRij {
+  return {
+    signaal,
+    status: 'geblokkeerd',
+    adresInput: null,
+    zoekadresLabel: typeof poging.zoekadres?.waarde === 'string' ? String(poging.zoekadres.waarde) : null,
+    reden: 'Eerdere Kadasterpoging gaf definitief: geen Kadasterobject gevonden voor dit zoekadres. Geen automatische herhaalaanvraag; controleer eerst het BAG-/zoekadres.',
+    bestaandRecordId: poging.id,
+    bestaandDocumentId: null,
   };
 }
 
@@ -265,6 +290,8 @@ export function bouwBulkKadasterPreflight(
   return signalen.map((signaal) => {
     const bestaand = bestaandRechtenRecord(signaal.id, records);
     if (bestaand) return rijVoorBestaand(signaal, bestaand, documenten);
+    const notFound = definitieveNotFound(signaal.id, records);
+    if (notFound) return rijVoorNotFound(signaal, notFound);
 
     const adres = bepaalBulkKadasterAdres(signaal);
     if (adres.status === 'geblokkeerd') {
@@ -275,6 +302,7 @@ export function bouwBulkKadasterPreflight(
         zoekadresLabel: null,
         reden: adres.reden ?? 'Adres moet eerst worden gecontroleerd.',
         bestaandRecordId: null,
+        bestaandDocumentId: null,
       };
     }
 
@@ -285,6 +313,7 @@ export function bouwBulkKadasterPreflight(
       zoekadresLabel: adres.zoekadresLabel,
       reden: 'Nieuwe Rechten-aanvraag nodig.',
       bestaandRecordId: null,
+      bestaandDocumentId: null,
     };
   });
 }
@@ -300,6 +329,11 @@ export async function bouwBulkKadasterPreflightMetBag(
     const bestaand = bestaandRechtenRecord(signaal.id, records);
     if (bestaand) {
       out.push(rijVoorBestaand(signaal, bestaand, documenten));
+      continue;
+    }
+    const notFound = definitieveNotFound(signaal.id, records);
+    if (notFound) {
+      out.push(rijVoorNotFound(signaal, notFound));
       continue;
     }
 
@@ -324,6 +358,7 @@ export async function bouwBulkKadasterPreflightMetBag(
         zoekadresLabel: null,
         reden: adres.reden ?? 'Adres moet eerst worden gecontroleerd.',
         bestaandRecordId: null,
+        bestaandDocumentId: null,
       });
       continue;
     }
@@ -337,6 +372,7 @@ export async function bouwBulkKadasterPreflightMetBag(
         ? `Nieuwe Rechten-aanvraag nodig. ${adres.reden}`
         : 'Nieuwe Rechten-aanvraag nodig.',
       bestaandRecordId: null,
+      bestaandDocumentId: null,
     });
   }
   return out;
