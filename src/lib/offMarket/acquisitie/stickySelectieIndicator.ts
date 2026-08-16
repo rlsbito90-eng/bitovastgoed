@@ -1,6 +1,7 @@
 const BULK_TELLING_SELECTOR = '[data-testid="acquisitie-bulk-telling"]';
 const LIJST_SELECTOR = '[data-testid="acquisitie-selectie-lijst"]';
 const BAR_ID = 'acquisitie-sticky-selectieteller';
+const OPEN_DIALOG_SELECTOR = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
 
 let observer: MutationObserver | null = null;
 let gebruikers = 0;
@@ -27,6 +28,10 @@ function vindWisSelectieKnop(): HTMLButtonElement | null {
 
 function verwijderBar() {
   document.getElementById(BAR_ID)?.remove();
+}
+
+function heeftOpenModal(root: ParentNode = document): boolean {
+  return root.querySelector(OPEN_DIALOG_SELECTOR) != null;
 }
 
 function maakBar(): HTMLDivElement {
@@ -70,6 +75,11 @@ function maakBar(): HTMLDivElement {
 
 export function synchroniseerStickySelectieIndicator(root: ParentNode = document) {
   if (typeof document === 'undefined') return;
+
+  if (heeftOpenModal(root)) {
+    verwijderBar();
+    return;
+  }
 
   const telling = root.querySelector(BULK_TELLING_SELECTOR)?.textContent;
   const geselecteerd = leesAantalGeselecteerdUitBulkTekst(telling);
