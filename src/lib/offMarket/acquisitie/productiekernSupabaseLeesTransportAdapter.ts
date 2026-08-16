@@ -171,6 +171,7 @@ export function maakProductiekernSupabaseLeesTransport(
         off_market_acquisitie_dossiers: 'haal_dossiers_op_selectie_ids',
         off_market_brieven: 'haal_brieven_op_ids',
         off_market_brief_versies: 'haal_briefversies_op_ids',
+        off_market_printbatch_brieven: 'haal_printbatch_brieven_op_versie_ids',
       };
       const queryNaam = mapping[tabel];
       if (!queryNaam) throw new Error(`Niet-toegestane productiekern-bulkleestabel: ${tabel}.`);
