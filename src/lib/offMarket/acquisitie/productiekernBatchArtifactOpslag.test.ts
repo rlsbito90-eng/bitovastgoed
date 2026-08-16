@@ -9,12 +9,28 @@ const batch: PrintbatchContract = {
   geannuleerdOp: null, annuleringsreden: null,
 };
 
+/**
+ * jsdom's Blob mist in sommige Node-runners nog `arrayBuffer()`, terwijl echte
+ * browsers dit wel aanbieden. Vul alleen die ontbrekende test-API aan zodat de
+ * productiecode exact dezelfde hashingroute blijft testen.
+ */
+function testBlob(tekst: string): Blob {
+  const blob = new Blob([tekst]);
+  if (typeof blob.arrayBuffer !== 'function') {
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: async () => new TextEncoder().encode(tekst).buffer,
+    });
+  }
+  return blob;
+}
+
 function bestanden() {
   return [
-    { documenttype: 'batchvoorblad' as const, bestandsnaam: 'BAT-v1-voorblad.pdf', blob: new Blob(['a']), mimeType: 'application/pdf' as const },
-    { documenttype: 'controlelijst' as const, bestandsnaam: 'BAT-v1-controlelijst.pdf', blob: new Blob(['b']), mimeType: 'application/pdf' as const },
-    { documenttype: 'brieven_pdf' as const, bestandsnaam: 'BAT-v1-brieven.pdf', blob: new Blob(['c']), mimeType: 'application/pdf' as const },
-    { documenttype: 'adreslabels' as const, bestandsnaam: 'BAT-v1-adreslabels.csv', blob: new Blob(['d']), mimeType: 'text/csv' as const },
+    { documenttype: 'batchvoorblad' as const, bestandsnaam: 'BAT-v1-voorblad.pdf', blob: testBlob('a'), mimeType: 'application/pdf' as const },
+    { documenttype: 'controlelijst' as const, bestandsnaam: 'BAT-v1-controlelijst.pdf', blob: testBlob('b'), mimeType: 'application/pdf' as const },
+    { documenttype: 'brieven_pdf' as const, bestandsnaam: 'BAT-v1-brieven.pdf', blob: testBlob('c'), mimeType: 'application/pdf' as const },
+    { documenttype: 'adreslabels' as const, bestandsnaam: 'BAT-v1-adreslabels.csv', blob: testBlob('d'), mimeType: 'text/csv' as const },
   ];
 }
 
