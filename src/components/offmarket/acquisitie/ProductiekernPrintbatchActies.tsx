@@ -7,9 +7,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { bouwProductiekernBatchProductiepakket } from '@/lib/offMarket/acquisitie/productiekernBatchProductiepakket';
+import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 import { startProductiekernPrintbatch, type ProductiekernBatchBrief } from '@/lib/offMarket/acquisitie/productiekernPrintbatch';
 import ProductiekernProductiepakketDownload from './ProductiekernProductiepakketDownload';
+import ProductiekernProductiepakketVastleggen from './ProductiekernProductiepakketVastleggen';
 
 interface Props {
   signaalId: string;
@@ -27,12 +29,13 @@ function lokaleDatum(): string {
 /**
  * Expliciete BAT-actie voor de definitieve postbrieven van één Focus-dossier.
  * Er wordt pas geschreven na een klik. BAT + alle immutable koppelingen worden
- * atomair aangemaakt; downloaden rendert daarna uitsluitend lokaal en markeert
- * nooit automatisch als geprint of gepost.
+ * atomair aangemaakt. Daarna moeten de vier artifacts private/append-only zijn
+ * opgeslagen én transactioneel geregistreerd voordat de batch printgereed is.
  */
 export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: Props) {
   const [bezig, setBezig] = useState(false);
   const [pakket, setPakket] = useState<ProductiekernProductiepakketPayload | null>(null);
+  const [batch, setBatch] = useState<PrintbatchContract | null>(null);
 
   const writes = useMemo(() => maakStandaardProductiekernBrowserWriteSamenstelling(), []);
   const lezen = useMemo(() => maakStandaardProductiekernBrowserLeesSamenstelling(), []);
@@ -41,7 +44,7 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
   if (!writes.activatie.schrijvenActief || !lezen.activatie.lezenActief || ids.length === 0) return null;
 
   const maakBatch = async () => {
-    if (bezig || pakket) return;
+    if (bezig || pakket || batch) return;
     setBezig(true);
     try {
       const auth = await supabase.auth.getUser();
@@ -83,6 +86,7 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
         batch: gestart.batch,
         brieven: gestart.brieven,
       });
+      setBatch(gestart.batch);
       setPakket(nieuwPakket);
       toast.success(`Printbatch ${gestart.batch.batchnummer} aangemaakt.`);
     } catch (error) {
@@ -94,7 +98,7 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
 
   return (
     <div className="rounded-md border bg-muted/20 p-2.5 space-y-2" data-testid="productiekern-printbatch-acties">
-      {!pakket ? (
+      {!pakket || !batch ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs">
             <p className="font-medium">{ids.length} definitieve {ids.length === 1 ? 'brief' : 'brieven'} klaar voor BAT</p>
@@ -111,15 +115,27 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
             <span>Printbatch</span>
             <span className="font-mono-data font-semibold">{pakket.manifest.batchnummer}</span>
           </div>
-          <ProductiekernProductiepakketDownload
-            manifest={pakket.manifest}
-            voorblad={pakket.voorblad}
-            controlelijst={pakket.controlelijst}
-            labels={pakket.labels}
-            brieven={pakket.brieven}
-          />
+
+          {batch.status === 'concept' ? (
+            <ProductiekernProductiepakketVastleggen
+              batch={batch}
+              pakket={pakket}
+              onVastgelegd={setBatch}
+            />
+          ) : (
+            <ProductiekernProductiepakketDownload
+              manifest={pakket.manifest}
+              voorblad={pakket.voorblad}
+              controlelijst={pakket.controlelijst}
+              labels={pakket.labels}
+              brieven={pakket.brieven}
+            />
+          )}
+
           <p className="text-[11px] text-muted-foreground">
-            Downloaden registreert nog niets als geprint of gepost. Die statussen vereisen afzonderlijke bevestiging.
+            {batch.status === 'concept'
+              ? 'Eerst worden de vier artifacts duurzaam en append-only opgeslagen; pas daarna is deze BAT printgereed.'
+              : 'Documenten zijn formeel geregistreerd. Downloaden markeert de batch nog niet als geprint of gepost.'}
           </p>
         </div>
       )}
