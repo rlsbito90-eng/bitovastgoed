@@ -14,6 +14,7 @@ export interface BatchControleRij {
   plaats: string;
   adresGeverifieerd: boolean;
   pdfBeschikbaar: boolean;
+  pdfBron: 'opgeslagen_bestand' | 'immutable_snapshot';
 }
 
 export interface BatchControlelijst {
@@ -26,6 +27,12 @@ export interface BatchControlelijst {
   rijen: BatchControleRij[];
 }
 
+/**
+ * De Productiekern hoeft geen individuele PDF per brief vooraf op te slaan.
+ * Een geldige actieve immutable briefversie + BR-nummer is zelf de canonieke
+ * renderbron. `bestandReferentie` blijft bruikbaar voor reeds opgeslagen legacy-
+ * of voorgerenderde PDF's, maar null is geen blokkade voor batchproductie.
+ */
 export function bouwBatchControlelijst(input: {
   batch: PrintbatchContract;
   brieven: readonly BatchControleInvoer[];
@@ -48,6 +55,7 @@ export function bouwBatchControlelijst(input: {
       nummers.add(item.briefnummer);
       versieIds.add(item.versie.id);
 
+      const opgeslagenPdf = Boolean(item.versie.bestandReferentie?.trim());
       return {
         volgnummer: index + 1,
         briefnummer: item.briefnummer,
@@ -57,7 +65,9 @@ export function bouwBatchControlelijst(input: {
           || '',
         plaats: item.versie.geadresseerde.plaats.trim(),
         adresGeverifieerd: item.versie.geadresseerde.verificatiestatus !== 'onbekend',
-        pdfBeschikbaar: Boolean(item.versie.bestandReferentie?.trim()),
+        // Na de validaties hierboven is de immutable snapshot deterministisch renderbaar.
+        pdfBeschikbaar: true,
+        pdfBron: opgeslagenPdf ? 'opgeslagen_bestand' : 'immutable_snapshot',
       };
     });
 
