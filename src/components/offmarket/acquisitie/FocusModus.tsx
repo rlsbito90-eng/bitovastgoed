@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  Check, ChevronLeft, ExternalLink, Mail, SkipForward,
+  Check, ChevronLeft, ExternalLink, FileSearch, Mail, SkipForward,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
@@ -19,6 +19,7 @@ import {
   ReadinessBadge, WaarschuwingBadges,
 } from './ReadinessBadge';
 import FocusWerkInhoud from './FocusWerkInhoud';
+import BulkKadasterWizard from './BulkKadasterWizard';
 import { cleanAdres, cleanPlaats, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import {
   SIGNAALTYPE_LABEL, type OffMarketSignaal,
@@ -83,11 +84,23 @@ export default function FocusModus({
 }: Props) {
   const navigate = useNavigate();
   const [werkronde, setWerkronde] = useState<Werkronde | null>(() => leesWerkronde());
+  const [bulkKadasterOpen, setBulkKadasterOpen] = useState(false);
 
   const beschikbareIds = useMemo(
     () => items.map((item) => item.signaal.id),
     [items],
   );
+
+  const bulkKadasterSignalen = useMemo(() => {
+    const doelIds = selectedIds?.length
+      ? new Set(selectedIds)
+      : focusScopeIds?.length
+        ? new Set(focusScopeIds)
+        : new Set(beschikbareIds);
+    return items
+      .filter((item) => doelIds.has(item.signaal.id))
+      .map((item) => item.signaal);
+  }, [items, selectedIds, focusScopeIds, beschikbareIds]);
 
   const werkrondeBeschikbareIds = useMemo(() => {
     if (!werkronde) return beschikbareIds;
@@ -240,199 +253,219 @@ export default function FocusModus({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
-      <DialogContent
-        data-testid="focus-modus"
-        data-focus-context={focusContext.context}
-        className="
-          p-0 gap-0
-          sm:max-w-4xl
-          max-sm:!fixed max-sm:!inset-0 max-sm:!w-screen max-sm:!h-[100dvh]
-          max-sm:!max-w-none max-sm:!translate-x-0 max-sm:!translate-y-0
-          max-sm:!left-0 max-sm:!top-0 max-sm:!rounded-none
-          flex flex-col overflow-hidden
-        "
-      >
-        <DialogTitle className="sr-only">{focusContext.titel}</DialogTitle>
-        <DialogDescription className="sr-only">
-          Focusmodus voor de acquisitieselectie. {focusContext.instructie}
-        </DialogDescription>
-
-        <div
-          data-testid="focus-header"
-          className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-background/85 backdrop-blur"
+    <>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) sluitEnBewaar(); }}>
+        <DialogContent
+          data-testid="focus-modus"
+          data-focus-context={focusContext.context}
+          className="
+            p-0 gap-0
+            sm:max-w-4xl
+            max-sm:!fixed max-sm:!inset-0 max-sm:!w-screen max-sm:!h-[100dvh]
+            max-sm:!max-w-none max-sm:!translate-x-0 max-sm:!translate-y-0
+            max-sm:!left-0 max-sm:!top-0 max-sm:!rounded-none
+            flex flex-col overflow-hidden
+          "
         >
-          <div className="min-w-0 pr-8 flex-1">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-              <div className="min-w-0 shrink-0">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
+          <DialogTitle className="sr-only">{focusContext.titel}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Focusmodus voor de acquisitieselectie. {focusContext.instructie}
+          </DialogDescription>
+
+          <div
+            data-testid="focus-header"
+            className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-background/85 backdrop-blur"
+          >
+            <div className="min-w-0 pr-8 flex-1">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                <div className="min-w-0 shrink-0">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
+                  </p>
+                  <h2 className="text-sm font-medium text-foreground truncate">{focusContext.titel}</h2>
+                </div>
+                <div className="min-w-0 sm:text-right" data-testid="focus-onderwerp-adres">
+                  <p className="text-sm font-semibold text-foreground truncate" title={adres}>{adres}</p>
+                  {plaats && (
+                    <p className="text-[11px] text-muted-foreground truncate" title={plaats}>{plaats}</p>
+                  )}
+                </div>
+              </div>
+              {voortgangInfo && (
+                <p className="mt-1 text-[11px] text-muted-foreground" data-testid="focus-werkronde-voortgang">
+                  {voortgangTekst(voortgangInfo)}
                 </p>
-                <h2 className="text-sm font-medium text-foreground truncate">{focusContext.titel}</h2>
-              </div>
-              <div className="min-w-0 sm:text-right" data-testid="focus-onderwerp-adres">
-                <p className="text-sm font-semibold text-foreground truncate" title={adres}>{adres}</p>
-                {plaats && (
-                  <p className="text-[11px] text-muted-foreground truncate" title={plaats}>{plaats}</p>
-                )}
-              </div>
-            </div>
-            {voortgangInfo && (
-              <p className="mt-1 text-[11px] text-muted-foreground" data-testid="focus-werkronde-voortgang">
-                {voortgangTekst(voortgangInfo)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
-          style={{ paddingBottom: 'calc(7.5rem + env(safe-area-inset-bottom))' }}
-          data-testid="focus-body"
-        >
-          <section className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
-                {tekstType(signaal)}
-              </span>
-              <OffMarketStatusBadge status={signaal.status} />
-              <OffMarketAiStatusBadge status={signaal.ai_status} />
-              {(signaal as any).bag_status && <BagKaartBadge signaal={signaal} size="sm" />}
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-border bg-card p-3 space-y-2">
-            <p className="text-xs font-medium text-foreground" data-testid="focus-context-instructie">
-              {focusContext.instructie}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <ReadinessBadge fase={readiness.fase} />
-              <span className="text-xs text-muted-foreground">{readiness.info.reden}</span>
-            </div>
-            {readiness.blokkadeReden && (
-              <p className="text-xs text-destructive" data-testid="focus-blokkade">
-                {readiness.blokkadeReden}
-              </p>
-            )}
-            <WaarschuwingBadges waarschuwingen={readiness.waarschuwingen} max={6} />
-            <p className="text-xs text-muted-foreground">
-              Volgende actie: <span className="text-foreground">{readiness.info.volgendeActie}</span>
-            </p>
-          </section>
-
-          <FocusWerkInhoud signaal={signaal} focusContext={focusContext} />
-
-          <section className="rounded-lg border border-border bg-card p-3 space-y-1.5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Geadresseerden ({readiness.telling.totaal})
-            </p>
-            <ul className="space-y-1" data-testid="focus-geadresseerden">
-              {readiness.geadresseerden.length === 0 && (
-                <li className="text-xs text-muted-foreground">Nog geen geadresseerden bekend.</li>
               )}
-              {readiness.geadresseerden.map(g => (
-                <li key={g.key} className="text-xs text-foreground break-words">
-                  <span className="font-medium">
-                    {g.naam || g.bedrijfsnaam || '(onbekende geadresseerde)'}
-                  </span>
-                  {g.bedrijfsnaam && g.naam && (
-                    <span className="text-muted-foreground"> — {g.bedrijfsnaam}</span>
-                  )}
-                  {!g.volledigPostadres && !g.heeftEmailVerzonden && (
-                    <span className="ml-1 text-[10px] text-amber-700">· adres onvolledig</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px] text-muted-foreground">
-              <span>Volledig adres: {readiness.telling.metVolledigAdres}</span>
-              <span>Actief concept: {readiness.telling.metActiefConcept}</span>
-              <span>Printklaar: {readiness.telling.gereedVoorPrint}</span>
-              <span>Geprint/gepost: {readiness.telling.geprintOfGepost}</span>
             </div>
-          </section>
-        </div>
+          </div>
 
-        <div
-          data-testid="focus-footer"
-          className="sticky bottom-0 left-0 right-0 border-t border-border/60 bg-background/85 backdrop-blur"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <div className="flex flex-wrap gap-2 px-4 py-3">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => openDetail()}
-              data-testid="focus-open-signaal"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open signaal
-            </Button>
-            {kanNaarBrieven && (
+          <div
+            className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+            style={{ paddingBottom: 'calc(7.5rem + env(safe-area-inset-bottom))' }}
+            data-testid="focus-body"
+          >
+            <section className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
+                  {tekstType(signaal)}
+                </span>
+                <OffMarketStatusBadge status={signaal.status} />
+                <OffMarketAiStatusBadge status={signaal.ai_status} />
+                {(signaal as any).bag_status && <BagKaartBadge signaal={signaal} size="sm" />}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-border bg-card p-3 space-y-2">
+              <p className="text-xs font-medium text-foreground" data-testid="focus-context-instructie">
+                {focusContext.instructie}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <ReadinessBadge fase={readiness.fase} />
+                <span className="text-xs text-muted-foreground">{readiness.info.reden}</span>
+              </div>
+              {readiness.blokkadeReden && (
+                <p className="text-xs text-destructive" data-testid="focus-blokkade">
+                  {readiness.blokkadeReden}
+                </p>
+              )}
+              <WaarschuwingBadges waarschuwingen={readiness.waarschuwingen} max={6} />
+              <p className="text-xs text-muted-foreground">
+                Volgende actie: <span className="text-foreground">{readiness.info.volgendeActie}</span>
+              </p>
+            </section>
+
+            <FocusWerkInhoud signaal={signaal} focusContext={focusContext} />
+
+            <section className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Geadresseerden ({readiness.telling.totaal})
+              </p>
+              <ul className="space-y-1" data-testid="focus-geadresseerden">
+                {readiness.geadresseerden.length === 0 && (
+                  <li className="text-xs text-muted-foreground">Nog geen geadresseerden bekend.</li>
+                )}
+                {readiness.geadresseerden.map(g => (
+                  <li key={g.key} className="text-xs text-foreground break-words">
+                    <span className="font-medium">
+                      {g.naam || g.bedrijfsnaam || '(onbekende geadresseerde)'}
+                    </span>
+                    {g.bedrijfsnaam && g.naam && (
+                      <span className="text-muted-foreground"> — {g.bedrijfsnaam}</span>
+                    )}
+                    {!g.volledigPostadres && !g.heeftEmailVerzonden && (
+                      <span className="ml-1 text-[10px] text-amber-700">· adres onvolledig</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-[11px] text-muted-foreground">
+                <span>Volledig adres: {readiness.telling.metVolledigAdres}</span>
+                <span>Actief concept: {readiness.telling.metActiefConcept}</span>
+                <span>Printklaar: {readiness.telling.gereedVoorPrint}</span>
+                <span>Geprint/gepost: {readiness.telling.geprintOfGepost}</span>
+              </div>
+            </section>
+          </div>
+
+          <div
+            data-testid="focus-footer"
+            className="sticky bottom-0 left-0 right-0 border-t border-border/60 bg-background/85 backdrop-blur"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            <div className="flex flex-wrap gap-2 px-4 py-3">
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => openDetail('brieven')}
-                data-testid="focus-naar-brieven"
+                onClick={() => openDetail()}
+                data-testid="focus-open-signaal"
               >
-                <Mail className="h-4 w-4" />
-                Naar Brieven &amp; opvolging
+                <ExternalLink className="h-4 w-4" />
+                Open signaal
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={goVorige}
-              disabled={positieInWerkronde <= 0}
-              data-testid="focus-vorige"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Vorige
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={slaHuidigOver}
-              data-testid="focus-overslaan"
-            >
-              <SkipForward className="h-4 w-4" />
-              Later behandelen
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={markeerHuidigBehandeld}
-              data-testid="focus-volgende"
-            >
-              <Check className="h-4 w-4" />
-              Gereed → volgende
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={sluitEnBewaar}
-              data-testid="focus-sluiten"
-            >
-              Sluiten en later doorgaan
-            </Button>
-            <div className="w-full flex justify-center pt-1">
-              <ToevoegenAanAcquisitieSelectieKnop
-                signaalId={signaal.id}
-                variant="compact"
-                labelMode="remove"
-                isInSelectie
-                className="min-h-0 h-8 border-0 bg-transparent px-2 text-[11px] font-normal text-muted-foreground shadow-none hover:bg-muted/50 hover:text-foreground"
-              />
+              {bulkKadasterSignalen.length > 0 && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setBulkKadasterOpen(true)}
+                  data-testid="focus-bulk-kadaster"
+                >
+                  <FileSearch className="h-4 w-4" />
+                  Kadaster voor selectie ({bulkKadasterSignalen.length})
+                </Button>
+              )}
+              {kanNaarBrieven && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => openDetail('brieven')}
+                  data-testid="focus-naar-brieven"
+                >
+                  <Mail className="h-4 w-4" />
+                  Naar Brieven &amp; opvolging
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={goVorige}
+                disabled={positieInWerkronde <= 0}
+                data-testid="focus-vorige"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Vorige
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={slaHuidigOver}
+                data-testid="focus-overslaan"
+              >
+                <SkipForward className="h-4 w-4" />
+                Later behandelen
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={markeerHuidigBehandeld}
+                data-testid="focus-volgende"
+              >
+                <Check className="h-4 w-4" />
+                Gereed → volgende
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={sluitEnBewaar}
+                data-testid="focus-sluiten"
+              >
+                Sluiten en later doorgaan
+              </Button>
+              <div className="w-full flex justify-center pt-1">
+                <ToevoegenAanAcquisitieSelectieKnop
+                  signaalId={signaal.id}
+                  variant="compact"
+                  labelMode="remove"
+                  isInSelectie
+                  className="min-h-0 h-8 border-0 bg-transparent px-2 text-[11px] font-normal text-muted-foreground shadow-none hover:bg-muted/50 hover:text-foreground"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <BulkKadasterWizard
+        open={bulkKadasterOpen}
+        onClose={() => setBulkKadasterOpen(false)}
+        signalen={bulkKadasterSignalen}
+      />
+    </>
   );
 }
