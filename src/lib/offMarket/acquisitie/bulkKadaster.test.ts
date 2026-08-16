@@ -63,7 +63,7 @@ describe('bouwBulkKadasterPreflight', () => {
     expect(r.bestaandDocumentId).toBeNull();
   });
 
-  it('blokkeert een eerder definitief not-found zoekadres tegen automatische betaalde retry', () => {
+  it('blokkeert alleen wanneer exact dezelfde zoekvariant eerder not-found was', () => {
     const s = signaal();
     const [r] = bouwBulkKadasterPreflight(
       [s],
@@ -76,8 +76,22 @@ describe('bouwBulkKadasterPreflight', () => {
     );
     expect(r.status).toBe('geblokkeerd');
     expect(r.zoekadresLabel).toBe('1013RW 189');
-    expect(r.reden).toContain('geen Kadasterobject gevonden');
-    expect(r.reden).toContain('Geen automatische herhaalaanvraag');
+    expect(r.reden).toContain('exacte Kadasterzoekadres');
+  });
+
+  it('laat een andere geldige zoekvariant toe na not-found op een eerdere variant', () => {
+    const s = signaal({ adres: 'Zaanstraat 189-H' });
+    const [r] = bouwBulkKadasterPreflight(
+      [s],
+      [{
+        id: 'rec-not-found', signaal_id: s.id, product_code: 'rechten', status: 'niet_geleverd',
+        fetched_at: '2026-08-16T10:00:00Z', zoekadres: { type: 'pht', waarde: '1013RW 189' },
+        raw_limited: { poging: { uitkomst: 'not_found', bron: 'bulk_kadaster' } },
+      }],
+      [],
+    );
+    expect(r.status).toBe('aanvragen');
+    expect(r.zoekadresLabel).toBe('1013RW 189H');
   });
 
   it('markeert een dossier zonder bestaand Rechten-record voor aanvraag', () => {
@@ -124,16 +138,38 @@ describe('bouwBulkKadasterPreflightMetBag', () => {
     expect(calls).toBe(0);
   });
 
-  it('doet geen BAG-call als hetzelfde zoekadres al definitief not-found is', async () => {
-    const s = signaal({ postcode: null });
+  it('blokkeert na BAG-resolutie als exact die variant eerder not-found was', async () => {
+    const s = signaal({ adres: 'Haarlemmermeerstraat 121', postcode: null, plaats: 'Amsterdam' });
     let calls = 0;
     const [r] = await bouwBulkKadasterPreflightMetBag(
       [s],
-      [{ id: 'rec-nf', signaal_id: s.id, product_code: 'rechten', status: 'niet_geleverd', fetched_at: '2026-08-16T10:00:00Z', raw_limited: { poging: { uitkomst: 'not_found' } } }],
+      [{
+        id: 'rec-nf', signaal_id: s.id, product_code: 'rechten', status: 'niet_geleverd', fetched_at: '2026-08-16T10:00:00Z',
+        zoekadres: { type: 'pht', waarde: '1058JW 121' }, raw_limited: { poging: { uitkomst: 'not_found' } },
+      }],
       [],
-      async () => { calls += 1; return []; },
+      async () => {
+        calls += 1;
+        return [{ id: 'bag-121', weergavenaam: '', straat: 'Haarlemmermeerstraat', huisnummer: '121', huisletter: null, huisnummertoevoeging: null, postcode: '1058JW', woonplaats: 'Amsterdam', nummeraanduiding_id: null, adresseerbaar_object_id: null }];
+      },
     );
+    expect(calls).toBe(1);
     expect(r.status).toBe('geblokkeerd');
-    expect(calls).toBe(0);
+    expect(r.zoekadresLabel).toBe('1058JW 121');
+  });
+
+  it('laat een andere BAG-variant toe als alleen de eerdere variant not-found was', async () => {
+    const s = signaal({ adres: 'Agamemnonstraat 55', postcode: null, plaats: 'Amsterdam' });
+    const [r] = await bouwBulkKadasterPreflightMetBag(
+      [s],
+      [{
+        id: 'rec-nf', signaal_id: s.id, product_code: 'rechten', status: 'niet_geleverd', fetched_at: '2026-08-16T10:00:00Z',
+        zoekadres: { type: 'pht', waarde: '1076LS 55' }, raw_limited: { poging: { uitkomst: 'not_found' } },
+      }],
+      [],
+      async () => [{ id: 'bag-55h', weergavenaam: '', straat: 'Agamemnonstraat', huisnummer: '55', huisletter: 'H', huisnummertoevoeging: null, postcode: '1076LS', woonplaats: 'Amsterdam', nummeraanduiding_id: null, adresseerbaar_object_id: null }],
+    );
+    expect(r.status).toBe('aanvragen');
+    expect(r.zoekadresLabel).toBe('1076LS 55H');
   });
 });
