@@ -5,11 +5,9 @@
 // betaalde actie. De PDF is leidend voor rechten + correspondentieadres:
 // erfpachter/opstalhouder krijgt voorrang boven bloot eigenaar.
 //
-// De functie is idempotent en vervangt alleen bestaande eigenaarvelden als
-// deze leeg zijn, exact overeenkomen, of aantoonbaar uit de eerdere
-// automatische Kadasterverwerking komen terwijl het dossier nog op
-// eigenaarcontrole staat. Handmatige/andere brondata wordt niet stil
-// overschreven.
+// Belangrijk: een rechthebbende blijft ook kandidaat als het adres niet
+// uitleesbaar is. Zo kan een erfpachter nooit wegvallen waarna de bloot
+// eigenaar ten onrechte als primaire acquisitiepartij overblijft.
 
 // @ts-nocheck — Deno runtime
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -34,11 +32,23 @@ type Kandidaat = {
   naam: string | null;
   bedrijfsnaam: string | null;
   kvk: string | null;
-  straatHuisnummer: string;
-  postcode: string;
-  plaats: string;
-  verzendadres: string;
+  straatHuisnummer: string | null;
+  postcode: string | null;
+  plaats: string | null;
+  verzendadres: string | null;
 };
+
+const HEADER_DEFS: Array<{ re: RegExp; label: string; situatie: Rechtssituatie; rang: number }> = [
+  { re: /^erfpacht\s*\(recht van\)$/i, label: 'Erfpacht (recht van)', situatie: 'erfpacht', rang: 50 },
+  { re: /^opstal\s*\(recht van\)$/i, label: 'Opstal (recht van)', situatie: 'opstal', rang: 45 },
+  { re: /^appartementsrecht$/i, label: 'Appartementsrecht', situatie: 'appartementsrecht', rang: 40 },
+  { re: /^eigendom\s*\(recht van\)$/i, label: 'Eigendom (recht van)', situatie: 'volle_eigendom', rang: 30 },
+  { re: /^vruchtgebruik\s*\(recht van\)$/i, label: 'Vruchtgebruik (recht van)', situatie: 'overig', rang: 20 },
+];
+
+const HEADER_GLOBAL = /(Erfpacht\s*\(recht van\)|Opstal\s*\(recht van\)|Appartementsrecht|Eigendom\s*\(recht van\)|Vruchtgebruik\s*\(recht van\))/gi;
+const FIELD_GLOBAL = /(Aandeel|Naam|Adres|Postbus|Zetel|KvK[- ]nummer|Gebaseerd op)\b\s*:?\s*/gi;
+const POSTCODE_RE = /\b(\d{4})\s*([A-Z]{2})\b/i;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -76,138 +86,115 @@ function eigenaarType(naam: string, kvk: string | null): string {
   return kvk ? 'onbekend' : 'particulier';
 }
 
-function normaliseerTekst(raw: string): string {
-  let s = raw.replace(/\r\n/g, '\n').replace(/\f/g, '\n');
-  const grenzen = [
-    'Rechten', 'Overige rechten', 'Eigendom (recht van)', 'Erfpacht (recht van)',
-    'Opstal (recht van)', 'Vruchtgebruik (recht van)', 'Appartementsrecht',
-    'Bijzonderheden', 'Koopsom', 'Gemeentelijke lasten', 'Buurtstatistieken',
-  ];
-  for (const label of grenzen) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    s = s.replace(new RegExp(`(?<!\\n)(?=${escaped}\\b)`, 'gi'), '\n');
-  }
-  for (const label of ['Aandeel', 'Naam', 'Adres', 'Postbus', 'Zetel', 'KvK-nummer', 'KvK nummer', 'Gebaseerd op']) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    s = s.replace(new RegExp(`(?<=\\S)\\s+(?=${escaped}\\b)`, 'gi'), '\n');
-  }
-  return s
-    .split('\n')
-    .map((r) => r.replace(/\*\*/g, '').replace(/^\s*#+\s*/, '').trim())
-    .filter((r) => !/^Pagina\s+\d+/i.test(r) && !/^Blad\s+\d+/i.test(r))
-    .join('\n');
+function compactPdfText(raw: string): string {
+  return String(raw ?? '')
+    .replace(/\u00ad/g, '')
+    .replace(/[\r\n\f\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-const HEADER_DEFS: Array<{ re: RegExp; label: string; situatie: Rechtssituatie; rang: number }> = [
-  { re: /^erfpacht\s*\(recht van\)\s*$/i, label: 'Erfpacht (recht van)', situatie: 'erfpacht', rang: 50 },
-  { re: /^opstal\s*\(recht van\)\s*$/i, label: 'Opstal (recht van)', situatie: 'opstal', rang: 45 },
-  { re: /^appartementsrecht\s*$/i, label: 'Appartementsrecht', situatie: 'appartementsrecht', rang: 40 },
-  { re: /^eigendom\s*\(recht van\)\s*$/i, label: 'Eigendom (recht van)', situatie: 'volle_eigendom', rang: 30 },
-  { re: /^vruchtgebruik\s*\(recht van\)\s*$/i, label: 'Vruchtgebruik (recht van)', situatie: 'overig', rang: 20 },
-];
+function parseFields(body: string): Map<string, string> {
+  const matches = [...body.matchAll(FIELD_GLOBAL)];
+  const fields = new Map<string, string>();
 
-const VELD_RE = /^(Aandeel|Naam|Adres|Postbus|Zetel|KvK[- ]nummer|Gebaseerd op)\b\s*:?\s*(.*)$/i;
-const POSTCODE_RE = /\b(\d{4})\s*([A-Z]{2})\b/i;
-
-function leesVelden(regels: string[]): Map<string, string[]> {
-  const out = new Map<string, string[]>();
-  let huidig: string | null = null;
-  for (const raw of regels) {
-    const r = raw.trim();
-    if (!r) continue;
-    const m = r.match(VELD_RE);
-    if (m) {
-      huidig = /^kvk/i.test(m[1]) ? 'KvK-nummer' : m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
-      const arr = out.get(huidig) ?? [];
-      if (m[2]?.trim()) arr.push(m[2].trim());
-      out.set(huidig, arr);
-    } else if (huidig) {
-      const arr = out.get(huidig) ?? [];
-      arr.push(r);
-      out.set(huidig, arr);
-    }
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const rawLabel = match[1];
+    const label = /^kvk/i.test(rawLabel)
+      ? 'KvK-nummer'
+      : rawLabel[0].toUpperCase() + rawLabel.slice(1).toLowerCase();
+    const start = (match.index ?? 0) + match[0].length;
+    const end = index + 1 < matches.length ? (matches[index + 1].index ?? body.length) : body.length;
+    const value = body.slice(start, end).replace(/\s+/g, ' ').trim();
+    if (value && value !== '-') fields.set(label, value);
   }
-  return out;
+
+  return fields;
 }
 
-function parseAdres(values: string[] | undefined, postbusValues: string[] | undefined): {
-  straatHuisnummer: string; postcode: string; plaats: string; verzendadres: string;
+function parseAdres(value: string | null | undefined): {
+  straatHuisnummer: string;
+  postcode: string;
+  plaats: string;
+  verzendadres: string;
 } | null {
-  const bron = values?.length ? values.join(' ') : postbusValues?.length ? `Postbus ${postbusValues.join(' ')}` : '';
-  const compact = bron.replace(/\s+/g, ' ').trim();
-  const m = compact.match(POSTCODE_RE);
-  if (!compact || !m) return null;
-  const idx = compact.search(POSTCODE_RE);
-  let straat = compact.slice(0, idx).trim().replace(/[,\s]+$/, '');
-  if (!straat) return null;
-  straat = straat.replace(/([A-Za-zÀ-ÿ.])(\d)/g, '$1 $2').replace(/\s+/g, ' ').trim();
-  const rest = compact.slice(idx + m[0].length).trim().replace(/^[,\s]+/, '');
-  const plaats = rest.split(/\s+/)[0]?.trim() ?? '';
+  const compact = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (!compact || compact === '-') return null;
+
+  const postcodeMatch = compact.match(POSTCODE_RE);
+  if (!postcodeMatch) return null;
+  const postcodeIndex = compact.search(POSTCODE_RE);
+
+  let straatHuisnummer = compact.slice(0, postcodeIndex).trim().replace(/[,\s]+$/, '');
+  if (!straatHuisnummer) return null;
+  straatHuisnummer = straatHuisnummer
+    .replace(/([A-Za-zÀ-ÿ.])(\d)/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const plaats = compact
+    .slice(postcodeIndex + postcodeMatch[0].length)
+    .trim()
+    .replace(/^[,\s]+/, '')
+    .replace(/\s+/g, ' ');
   if (!plaats) return null;
-  const postcode = `${m[1]} ${m[2].toUpperCase()}`;
+
+  const postcode = `${postcodeMatch[1]} ${postcodeMatch[2].toUpperCase()}`;
   return {
-    straatHuisnummer: straat,
+    straatHuisnummer,
     postcode,
-    plaats: plaats.replace(/[^A-Za-zÀ-ÿ' -]/g, '').trim() || plaats,
-    verzendadres: `${straat}\n${postcode} ${plaats}`,
+    plaats,
+    verzendadres: `${straatHuisnummer}\n${postcode} ${plaats}`,
   };
 }
 
-function parseKandidaten(normalised: string): Kandidaat[] {
-  const regels = normalised.split('\n').map((r) => r.trim()).filter(Boolean);
-  let start = regels.findIndex((r) => /^rechten\s*$/i.test(r));
-  if (start < 0) start = 0;
-  let eind = regels.length;
-  for (let i = start + 1; i < regels.length; i++) {
-    if (/^(bijzonderheden|koopsom|gemeentelijke lasten|buurtstatistieken|omgeving)\s*$/i.test(regels[i])) {
-      eind = i;
-      break;
-    }
-  }
+function parseKandidaten(rawText: string): Kandidaat[] {
+  const text = compactPdfText(rawText);
+  if (!text) return [];
 
-  const blokken: Array<{ def: typeof HEADER_DEFS[number]; regels: string[] }> = [];
-  let huidig: { def: typeof HEADER_DEFS[number]; regels: string[] } | null = null;
-  for (let i = start; i < eind; i++) {
-    const r = regels[i];
-    if (/^overige rechten\s*$/i.test(r)) continue;
-    const def = HEADER_DEFS.find((d) => d.re.test(r));
-    if (def) {
-      if (huidig) blokken.push(huidig);
-      huidig = { def, regels: [] };
-      continue;
-    }
-    if (huidig) huidig.regels.push(r);
-  }
-  if (huidig) blokken.push(huidig);
+  const matches = [...text.matchAll(HEADER_GLOBAL)];
+  const kandidaten: Kandidaat[] = [];
 
-  const out: Kandidaat[] = [];
-  for (const blok of blokken) {
-    const velden = leesVelden(blok.regels);
-    const naam = (velden.get('Naam') ?? []).join(' ').replace(/\s+/g, ' ').trim();
-    const kvkRaw = (velden.get('KvK-nummer') ?? []).join(' ');
-    const kvk = kvkRaw.match(/\b\d{8}\b/)?.[0] ?? null;
-    const adres = parseAdres(velden.get('Adres'), velden.get('Postbus'));
-    if (!naam || !adres) continue;
-    const isBedrijf = rechtspersoon(naam, kvk);
-    out.push({
-      rolLabel: blok.def.label,
-      rechtssituatie: blok.def.situatie,
-      aandeel: (velden.get('Aandeel') ?? [])[0]?.trim() || null,
-      naam: isBedrijf ? null : naam,
-      bedrijfsnaam: isBedrijf ? naam : null,
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const header = match[1].replace(/\s+/g, ' ').trim();
+    const def = HEADER_DEFS.find((candidate) => candidate.re.test(header));
+    if (!def) continue;
+
+    const start = (match.index ?? 0) + match[0].length;
+    let end = index + 1 < matches.length ? (matches[index + 1].index ?? text.length) : text.length;
+    const terminal = text.slice(start, end).search(/\b(Bijzonderheden|Koopsom|Gemeentelijke lasten|Buurtstatistieken|Omgeving)\b/i);
+    if (terminal >= 0) end = start + terminal;
+
+    const fields = parseFields(text.slice(start, end));
+    const partijNaam = fields.get('Naam')?.replace(/\s+/g, ' ').trim() ?? '';
+    if (!partijNaam) continue;
+
+    const kvk = fields.get('KvK-nummer')?.match(/\b\d{8}\b/)?.[0] ?? null;
+    const adres = parseAdres(fields.get('Adres') ?? null)
+      ?? parseAdres(fields.get('Postbus') ? `Postbus ${fields.get('Postbus')}` : null);
+    const isBedrijf = rechtspersoon(partijNaam, kvk);
+
+    kandidaten.push({
+      rolLabel: def.label,
+      rechtssituatie: def.situatie,
+      aandeel: fields.get('Aandeel')?.match(/\b\d+\s*\/\s*\d+\b/)?.[0]?.replace(/\s+/g, '') ?? null,
+      naam: isBedrijf ? null : partijNaam,
+      bedrijfsnaam: isBedrijf ? partijNaam : null,
       kvk,
-      ...adres,
+      straatHuisnummer: adres?.straatHuisnummer ?? null,
+      postcode: adres?.postcode ?? null,
+      plaats: adres?.plaats ?? null,
+      verzendadres: adres?.verzendadres ?? null,
     });
   }
-  return out;
+
+  return kandidaten;
 }
 
 function rang(k: Kandidaat): number {
-  if (k.rechtssituatie === 'erfpacht') return 50;
-  if (k.rechtssituatie === 'opstal') return 45;
-  if (k.rechtssituatie === 'appartementsrecht') return 40;
-  if (k.rechtssituatie === 'volle_eigendom') return 30;
-  return 20;
+  return HEADER_DEFS.find((def) => def.situatie === k.rechtssituatie)?.rang ?? 1;
 }
 
 function kandidaatLabel(k: Kandidaat): string {
@@ -215,17 +202,19 @@ function kandidaatLabel(k: Kandidaat): string {
 }
 
 function pseudoBlok(k: Kandidaat): Record<string, unknown> {
-  const adres = {
-    straat: k.straatHuisnummer.replace(/\s+\d.*$/, '').trim(),
-    huisnummer: k.straatHuisnummer.match(/\b\d+[A-Za-z0-9\-]*\b/)?.[0] ?? '',
-    postcode: k.postcode,
-    plaats: k.plaats,
-  };
-  const partij = {
+  const partij: Record<string, unknown> = {
     naam: kandidaatLabel(k),
     ...(k.kvk ? { kvk: k.kvk } : {}),
-    adres,
   };
+
+  if (k.straatHuisnummer && k.postcode && k.plaats) {
+    const huisnummer = k.straatHuisnummer.match(/\b\d+[A-Za-z0-9\-]*\b/)?.[0] ?? '';
+    const straat = huisnummer
+      ? k.straatHuisnummer.slice(0, k.straatHuisnummer.lastIndexOf(huisnummer)).trim()
+      : k.straatHuisnummer;
+    partij.adres = { straat, huisnummer, postcode: k.postcode, plaats: k.plaats };
+  }
+
   return {
     omschrijving: k.rolLabel,
     aandeelInRecht: k.aandeel,
@@ -240,6 +229,10 @@ function veiligVervangbaar(huidig: Record<string, unknown>, primair: Kandidaat):
   if (norm(bestaand) === norm(kandidaatLabel(primair))) return true;
   return schoon(huidig.eigenaarbron).toLowerCase() === 'kadaster'
     && huidig.eigenaar_controle_nodig === true;
+}
+
+function adresCompleet(k: Kandidaat): boolean {
+  return !!(k.straatHuisnummer && k.postcode && k.plaats && k.verzendadres);
 }
 
 Deno.serve(async (req: Request) => {
@@ -284,7 +277,7 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    let recordQuery = admin
+    const { data: records, error: recordError } = await admin
       .from('kadaster_data_records')
       .select('id,raw_limited,fetched_at,status')
       .eq('signaal_id', body.signaal_id)
@@ -292,7 +285,6 @@ Deno.serve(async (req: Request) => {
       .in('status', ['geleverd', 'gedeeltelijk'])
       .order('fetched_at', { ascending: false })
       .limit(10);
-    const { data: records, error: recordError } = await recordQuery;
     if (recordError) return json({ error: 'Kon Kadasterrecord niet lezen.' }, 500);
     const record = (records ?? []).find((r) => !body.record_id || r.id === body.record_id) ?? null;
     if (!record) return json({ ok: true, status: 'geen_rechten_record', updated: false });
@@ -322,6 +314,7 @@ Deno.serve(async (req: Request) => {
       .from(document.storage_bucket || 'bito-objecten')
       .download(document.storage_path);
     if (downloadError || !pdfBlob) return json({ error: 'Kon het opgeslagen Kadasterbericht niet lezen.' }, 500);
+
     const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
     if (bytes.byteLength > MAX_BYTES) return json({ error: 'Kadasterbericht is te groot voor tekstextractie.' }, 413);
 
@@ -331,17 +324,16 @@ Deno.serve(async (req: Request) => {
       const out = await extractText(proxy, { mergePages: true });
       rawText = typeof out?.text === 'string' ? out.text : Array.isArray(out?.text) ? out.text.join('\n') : '';
     } catch {
+      console.log('[offmarket-kadaster-pdf-eigenaar-extractie] status=geen_uitleesbare_tekstlaag');
       return json({ ok: true, status: 'geen_uitleesbare_tekstlaag', document_id: document.id, record_id: record.id, updated: false });
     }
 
-    const kandidaten = parseKandidaten(normaliseerTekst(rawText));
+    const kandidaten = parseKandidaten(rawText);
+    console.log(`[offmarket-kadaster-pdf-eigenaar-extractie] kandidaten=${kandidaten.length}`);
     if (!kandidaten.length) {
-      return json({ ok: true, status: 'geen_adresvoorstellen', document_id: document.id, record_id: record.id, updated: false });
+      return json({ ok: true, status: 'geen_rechthebbenden_uit_pdf', document_id: document.id, record_id: record.id, updated: false });
     }
 
-    // Bewaar de uit de officiële PDF afgeleide rechtenblokken in raw_limited,
-    // zodat ook bestaande records (waar rechtenOverig destijds niet in de
-    // whitelist zat) voortaan Eigendom + Erfpacht/Opstal correct tonen.
     const rawLimited = record.raw_limited && typeof record.raw_limited === 'object'
       ? { ...(record.raw_limited as Record<string, unknown>) }
       : {};
@@ -355,6 +347,7 @@ Deno.serve(async (req: Request) => {
       aantal_blokken: kandidaten.length,
     };
     rawLimited.rechten = rechten;
+
     const { error: rawUpdateError } = await admin
       .from('kadaster_data_records')
       .update({ raw_limited: rawLimited })
@@ -402,6 +395,13 @@ Deno.serve(async (req: Request) => {
         }
       : null;
 
+    const compleet = adresCompleet(primair);
+    const bestaandeNaam = schoon(huidig.eigenaar_bedrijfsnaam) || schoon(huidig.eigenaar_naam);
+    const vervangtOudeAutoKadaster = !!bestaandeNaam
+      && norm(bestaandeNaam) !== norm(kandidaatLabel(primair))
+      && schoon(huidig.eigenaarbron).toLowerCase() === 'kadaster'
+      && huidig.eigenaar_controle_nodig === true;
+
     const patch: Record<string, unknown> = {
       eigenaarstatus: 'gevonden',
       eigenaar_bekend: true,
@@ -410,18 +410,27 @@ Deno.serve(async (req: Request) => {
       eigenaar_naam: primair.naam,
       eigenaar_bedrijfsnaam: primair.bedrijfsnaam,
       eigenaar_kvk: primair.kvk,
-      eigenaar_straat_huisnummer: primair.straatHuisnummer,
-      eigenaar_postcode: primair.postcode,
-      eigenaar_plaats: primair.plaats,
-      eigenaar_verzendadres: primair.verzendadres,
       eigenaar_rechtstype: primair.rolLabel,
       eigenaar_rechtssituatie: primair.rechtssituatie,
       eigenaar_aandeel: primair.aandeel,
       bloot_eigenaar: bloot,
-      eigenaar_controle_nodig: false,
-      eigenaar_controle_reden: null,
+      eigenaar_controle_nodig: !compleet,
+      eigenaar_controle_reden: compleet ? null : 'Adresgegevens van de primaire rechthebbende zijn onvolledig.',
       updated_by: userId,
     };
+
+    if (compleet) {
+      patch.eigenaar_straat_huisnummer = primair.straatHuisnummer;
+      patch.eigenaar_postcode = primair.postcode;
+      patch.eigenaar_plaats = primair.plaats;
+      patch.eigenaar_verzendadres = primair.verzendadres;
+    } else if (vervangtOudeAutoKadaster) {
+      patch.eigenaar_straat_huisnummer = null;
+      patch.eigenaar_postcode = null;
+      patch.eigenaar_plaats = null;
+      patch.eigenaar_verzendadres = null;
+    }
+
     if (['nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen'].includes(String(huidig.status ?? ''))) {
       patch.status = 'eigenaar_gevonden';
     }
@@ -434,13 +443,13 @@ Deno.serve(async (req: Request) => {
 
     return json({
       ok: true,
-      status: 'verwerkt',
+      status: compleet ? 'verwerkt' : 'verwerkt_controle_nodig',
       document_id: document.id,
       record_id: record.id,
       updated: true,
       rechtssituatie: primair.rechtssituatie,
       primaire_rechthebbende: kandidaatLabel(primair),
-      adres_compleet: true,
+      adres_compleet: compleet,
       source: 'kadasterbericht_pdf',
     });
   } catch (error) {
