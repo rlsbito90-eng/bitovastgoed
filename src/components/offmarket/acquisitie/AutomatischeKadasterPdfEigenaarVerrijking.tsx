@@ -9,6 +9,8 @@ import {
   documentenPerRecord,
   useKadasterDocumentenForSignaal,
 } from '@/hooks/useKadasterDocumenten';
+import { mapRechtenBlokken } from '@/lib/kadaster/rechtenBlokken';
+import { bepaalRechtenbewusteEigenaar } from '@/lib/offMarket/acquisitie/rechtenbewusteEigenaar';
 
 interface Props {
   signaalId: string;
@@ -18,6 +20,11 @@ interface Props {
  * Verwerkt een reeds opgeslagen Rechten-Kadasterbericht automatisch voor
  * Off-Market eigenaarsonderzoek. Dit component doet NOOIT een Kadastercall;
  * het leest alleen de bestaande interne PDF via een beveiligde Edge Function.
+ *
+ * Na PDF-verrijking worden meerdere primaire rechthebbenden ook canoniek op
+ * het signaal opgeslagen, zodat readiness/geadresseerdentelling ze als
+ * afzonderlijke acquisitiegeadresseerden kan gebruiken zonder al brieven
+ * aan te maken.
  */
 export default function AutomatischeKadasterPdfEigenaarVerrijking({ signaalId }: Props) {
   const qc = useQueryClient();
@@ -50,11 +57,47 @@ export default function AutomatischeKadasterPdfEigenaarVerrijking({ signaalId }:
           document_id: document.id,
         },
       })
-      .then(({ error }) => {
+      .then(async ({ error }) => {
         if (error) {
           bezigRef.current.delete(guard);
           return;
         }
+
+        // Lees het zojuist door de Edge Function verrijkte record terug. Dit is
+        // read-only richting Kadaster: er wordt geen externe aanvraag uitgevoerd.
+        const { data: versRecord } = await supabase
+          .from('kadaster_data_records')
+          .select('raw_limited')
+          .eq('id', rechtenRecord.id)
+          .maybeSingle();
+        const rawRechten = (versRecord?.raw_limited as Record<string, unknown> | null | undefined)?.rechten;
+        const blokken = mapRechtenBlokken(rawRechten);
+        const uitkomst = bepaalRechtenbewusteEigenaar(blokken);
+
+        if (uitkomst.status === 'meervoudig') {
+          const rechthebbenden = uitkomst.primaireRechthebbenden.map((r) => ({
+            naam: r.naam,
+            bedrijfsnaam: r.bedrijfsnaam,
+            kvk: r.kvk,
+            aandeel: r.aandeel,
+            rechtstype: r.rechtstype,
+            rechtssituatie: uitkomst.rechtssituatie,
+            straat_huisnummer: r.straatHuisnummer,
+            postcode: r.postcode,
+            plaats: r.plaats,
+            verzendadres: r.verzendadres,
+            bron: 'kadaster',
+          }));
+          const { error: persistError } = await supabase
+            .from('off_market_signalen')
+            .update({ eigenaar_rechthebbenden: rechthebbenden } as any)
+            .eq('id', signaalId);
+          if (persistError) {
+            bezigRef.current.delete(guard);
+            return;
+          }
+        }
+
         void qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
         void qc.invalidateQueries({ queryKey: ['off-market-signalen', 'alle'] });
         void qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });

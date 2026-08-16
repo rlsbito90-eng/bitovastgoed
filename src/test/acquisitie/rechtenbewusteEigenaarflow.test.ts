@@ -57,16 +57,38 @@ describe('rechtenbewuste eigenaarflow', () => {
     expect(r.controleNodig).toBe(false);
   });
 
-  it('meerdere primaire rechthebbenden gaan naar controle zonder eigenaarpatch', () => {
+  it('meerdere primaire rechthebbenden worden automatisch verwerkt zonder controleflag', () => {
     const tweede = blok({
       id: 'tweede', persoonType: 'rechtspersoon', bedrijfsnaam: 'Tweede B.V.',
       adresRegels: ['Dam 1'], postcode: '1012JS', plaats: 'Amsterdam', aandeel: '1/2',
     });
     const r = bepaalRechtenbewusteEigenaar([volleEigendom, tweede]);
     const patch = bouwAutomatischeEigenaarPatch({}, r);
-    expect(r.status).toBe('ambigu');
-    expect(patch?.eigenaar_controle_nodig).toBe(true);
-    expect(patch?.eigenaar_bedrijfsnaam).toBeUndefined();
+    expect(r.status).toBe('meervoudig');
+    expect(r.primaireRechthebbenden).toHaveLength(2);
+    expect(r.controleNodig).toBe(false);
+    expect(patch?.eigenaar_controle_nodig).toBe(false);
+    expect(patch?.eigenaarstatus).toBe('gevonden');
+    expect(patch?.eigenaar_bekend).toBe(true);
+    expect(patch?.eigenaar_type).toBeNull();
+    expect(patch?.eigenaar_bedrijfsnaam).toBeNull();
+  });
+
+  it('erfpacht met meerdere erfpachters houdt alle partijen en de bloot eigenaar apart', () => {
+    const erfpachters = [
+      blok({ id: 'e1', rechtstype: 'Erfpacht (recht van)', persoonType: 'rechtspersoon', bedrijfsnaam: 'Be Find Bad B.V.', kvkNummer: '81221010', aandeel: '1/2', adresRegels: ['Laan van Nieuw Oosteinde 245'], postcode: '2274GD', plaats: 'Voorburg' }),
+      blok({ id: 'e2', rechtstype: 'Erfpacht (recht van)', persoonType: 'rechtspersoon', bedrijfsnaam: 'Lairesse Vastgoed B.V.', kvkNummer: '64429423', aandeel: '1/4', adresRegels: ['Bachstraat 15'], postcode: '1077GE', plaats: 'Amsterdam' }),
+      blok({ id: 'e3', rechtstype: 'Erfpacht (recht van)', persoonType: 'rechtspersoon', bedrijfsnaam: 'Four Stones Group B.V.', kvkNummer: '91411203', aandeel: '1/4', adresRegels: ['Marnixstraat 285-A'], postcode: '1015WL', plaats: 'Amsterdam' }),
+    ];
+    const r = bepaalRechtenbewusteEigenaar([gemeente, ...erfpachters]);
+    expect(r.status).toBe('meervoudig');
+    expect(r.rechtssituatie).toBe('erfpacht');
+    expect(r.primaireRechthebbenden.map((x) => x.bedrijfsnaam)).toEqual([
+      'Be Find Bad B.V.', 'Lairesse Vastgoed B.V.', 'Four Stones Group B.V.',
+    ]);
+    expect(r.primaireRechthebbenden.map((x) => x.aandeel)).toEqual(['1/2', '1/4', '1/4']);
+    expect(r.blootEigenaar?.bedrijfsnaam).toBe('Gemeente Amsterdam');
+    expect(r.controleNodig).toBe(false);
   });
 
   it('incompleet adres vereist controle', () => {
@@ -83,6 +105,25 @@ describe('rechtenbewuste eigenaarflow', () => {
     expect(patch?.eigenaar_bedrijfsnaam).toBeUndefined();
     expect(patch?.eigenaar_kvk).toBeUndefined();
     expect(patch?.eigenaar_straat_huisnummer).toBe('Sarphatistraat 370');
+  });
+
+  it('meervoudig wist alleen een oude automatische Kadaster-hoofdpartij', () => {
+    const tweede = blok({
+      id: 'tweede', persoonType: 'rechtspersoon', bedrijfsnaam: 'Tweede B.V.',
+      adresRegels: ['Dam 1'], postcode: '1012JS', plaats: 'Amsterdam', aandeel: '1/2',
+    });
+    const r = bepaalRechtenbewusteEigenaar([volleEigendom, tweede]);
+    const automatisch = bouwAutomatischeEigenaarPatch({
+      eigenaar_bedrijfsnaam: 'Gemeente Amsterdam', eigenaarbron: 'kadaster', eigenaar_type: 'overheid',
+    }, r);
+    expect(automatisch?.eigenaar_bedrijfsnaam).toBeNull();
+    expect(automatisch?.eigenaar_type).toBeNull();
+
+    const handmatig = bouwAutomatischeEigenaarPatch({
+      eigenaar_bedrijfsnaam: 'Handmatig Vastgoed B.V.', eigenaarbron: 'handmatig',
+    }, r);
+    expect(handmatig?.eigenaar_controle_nodig).toBe(true);
+    expect(handmatig?.eigenaar_bedrijfsnaam).toBeUndefined();
   });
 
   it('bouwt verzendadres deterministisch', () => {
@@ -107,9 +148,10 @@ describe('rechtenbewuste eigenaarflow', () => {
     expect(ctx.actieSubfilter).toBe('eigenaar_controleren');
   });
 
-  it('processtatus ondersteunt gevonden/controleren/ontbreekt', () => {
+  it('processtatus ondersteunt gevonden zonder enkel hoofdnaamveld bij meervoudige rechten', () => {
     expect(bepaalEigenaarProcesStatus({})).toBe('ontbreekt');
     expect(bepaalEigenaarProcesStatus({ eigenaar_bedrijfsnaam: 'X B.V.' })).toBe('gevonden');
+    expect(bepaalEigenaarProcesStatus({ eigenaar_bekend: true, eigenaarstatus: 'gevonden', eigenaar_rechtssituatie: 'erfpacht' })).toBe('gevonden');
     expect(bepaalEigenaarProcesStatus({ eigenaar_controle_nodig: true })).toBe('controleren');
   });
 });

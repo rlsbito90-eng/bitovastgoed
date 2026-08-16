@@ -9,6 +9,7 @@ import {
   bepaalSignaalReadiness, aggregeerKpis,
   type SignaalReadiness, type AcquisitieKpis,
 } from '@/lib/offMarket/acquisitie/readiness';
+import { pasCanoniekeRechthebbendenToeOpReadiness } from '@/lib/offMarket/acquisitie/readinessRechthebbenden';
 
 export function useBrievenVoorSignalen(signaalIds: string[]) {
   const ids = useMemo(() => [...signaalIds].sort(), [signaalIds]);
@@ -49,10 +50,12 @@ export function useAcquisitieReadiness(
     const perSignaal = new Map<string, SignaalReadiness>();
     const lijst: Array<{ signaal: OffMarketSignaal; readiness: SignaalReadiness }> = [];
     for (const s of signalen) {
-      const r = bepaalSignaalReadiness({
+      const signaalBrieven = brievenPerSignaal.get(s.id) ?? [];
+      const basis = bepaalSignaalReadiness({
         signaal: s,
-        brieven: brievenPerSignaal.get(s.id) ?? [],
+        brieven: signaalBrieven,
       });
+      const r = pasCanoniekeRechthebbendenToeOpReadiness(s, signaalBrieven, basis);
       perSignaal.set(s.id, r);
       lijst.push({ signaal: s, readiness: r });
     }

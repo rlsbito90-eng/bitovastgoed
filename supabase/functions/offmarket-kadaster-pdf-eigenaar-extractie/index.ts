@@ -5,9 +5,10 @@
 // betaalde actie. De PDF is leidend voor rechten + correspondentieadres:
 // erfpachter/opstalhouder krijgt voorrang boven bloot eigenaar.
 //
-// Belangrijk: een rechthebbende blijft ook kandidaat als het adres niet
-// uitleesbaar is. Zo kan een erfpachter nooit wegvallen waarna de bloot
-// eigenaar ten onrechte als primaire acquisitiepartij overblijft.
+// Belangrijk: meerdere rechthebbenden binnen dezelfde primaire rechtssituatie
+// zijn een normale uitkomst. Zij blijven allemaal als rechtenblokken bewaard;
+// het dossier krijgt dan geen kunstmatige enkele eigenaar en geen controleflag
+// zolang de adressen compleet zijn.
 
 // @ts-nocheck — Deno runtime
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -231,6 +232,13 @@ function veiligVervangbaar(huidig: Record<string, unknown>, primair: Kandidaat):
     && huidig.eigenaar_controle_nodig === true;
 }
 
+function veiligMeervoudigVervangbaar(huidig: Record<string, unknown>): boolean {
+  const bestaand = schoon(huidig.eigenaar_bedrijfsnaam) || schoon(huidig.eigenaar_naam);
+  if (!bestaand) return true;
+  const bron = schoon(huidig.eigenaarbron).toLowerCase();
+  return !bron || bron === 'kadaster';
+}
+
 function adresCompleet(k: Kandidaat): boolean {
   return !!(k.straatHuisnummer && k.postcode && k.plaats && k.verzendadres);
 }
@@ -357,23 +365,95 @@ Deno.serve(async (req: Request) => {
     const hoogste = Math.max(...kandidaten.map(rang));
     const primairen = kandidaten.filter((k) => rang(k) === hoogste);
     const uniek = new Map(primairen.map((k) => [norm(kandidaatLabel(k)), k]));
+    const primairePartijen = [...uniek.values()];
 
-    if (uniek.size !== 1) {
-      await admin.from('off_market_signalen').update({
-        eigenaar_controle_nodig: true,
-        eigenaar_controle_reden: 'Meerdere primaire rechthebbenden in het officiële Kadasterbericht.',
-        updated_by: userId,
-      }).eq('id', body.signaal_id);
-      return json({ ok: true, status: 'ambigu', document_id: document.id, record_id: record.id, updated: true });
-    }
-
-    const primair = [...uniek.values()][0];
     const { data: huidig, error: huidigError } = await admin
       .from('off_market_signalen')
       .select('id,eigenaar_naam,eigenaar_bedrijfsnaam,eigenaar_type,eigenaar_kvk,eigenaar_straat_huisnummer,eigenaar_postcode,eigenaar_plaats,eigenaar_verzendadres,eigenaarbron,eigenaarstatus,eigenaar_bekend,eigenaar_controle_nodig,eigenaar_rechtstype,eigenaar_rechtssituatie,eigenaar_aandeel,bloot_eigenaar,status')
       .eq('id', body.signaal_id)
       .single();
     if (huidigError || !huidig) return json({ error: 'Kon huidige eigenaarstatus niet lezen.' }, 500);
+
+    const eigendom = kandidaten.filter((k) => k.rechtssituatie === 'volle_eigendom');
+    const primaireSituatie = primairePartijen[0]?.rechtssituatie ?? null;
+    const bloot = (primaireSituatie === 'erfpacht' || primaireSituatie === 'opstal') && eigendom.length === 1
+      ? {
+          naam: eigendom[0].naam,
+          bedrijfsnaam: eigendom[0].bedrijfsnaam,
+          kvk: eigendom[0].kvk,
+          aandeel: eigendom[0].aandeel,
+          rechtssituatie: 'volle_eigendom',
+        }
+      : null;
+
+    if (primairePartijen.length > 1) {
+      if (!veiligMeervoudigVervangbaar(huidig as Record<string, unknown>)) {
+        await admin.from('off_market_signalen').update({
+          eigenaar_controle_nodig: true,
+          eigenaar_controle_reden: 'Kadasterrechten wijken af van bestaande handmatige eigenaargegevens.',
+          updated_by: userId,
+        }).eq('id', body.signaal_id);
+        return json({ ok: true, status: 'conflict', document_id: document.id, record_id: record.id, updated: true });
+      }
+
+      const alleAdressenCompleet = primairePartijen.every(adresCompleet);
+      const patch: Record<string, unknown> = {
+        eigenaarstatus: 'gevonden',
+        eigenaar_bekend: true,
+        eigenaarbron: 'kadaster',
+        eigenaar_type: null,
+        eigenaar_naam: null,
+        eigenaar_bedrijfsnaam: null,
+        eigenaar_kvk: null,
+        eigenaar_straat_huisnummer: null,
+        eigenaar_postcode: null,
+        eigenaar_plaats: null,
+        eigenaar_verzendadres: null,
+        eigenaar_rechtstype: primairePartijen[0]?.rolLabel ?? null,
+        eigenaar_rechtssituatie: primaireSituatie,
+        eigenaar_aandeel: null,
+        bloot_eigenaar: bloot,
+        eigenaar_controle_nodig: !alleAdressenCompleet,
+        eigenaar_controle_reden: alleAdressenCompleet
+          ? null
+          : 'Van één of meer primaire rechthebbenden ontbreken volledige adresgegevens.',
+        updated_by: userId,
+      };
+      if (['nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen'].includes(String(huidig.status ?? ''))) {
+        patch.status = 'eigenaar_gevonden';
+      }
+
+      const { error: updateError } = await admin
+        .from('off_market_signalen')
+        .update(patch)
+        .eq('id', body.signaal_id);
+      if (updateError) return json({ error: 'Kon meerdere rechthebbenden niet automatisch opslaan.' }, 500);
+
+      return json({
+        ok: true,
+        status: alleAdressenCompleet ? 'verwerkt_meerdere' : 'verwerkt_meerdere_controle_nodig',
+        document_id: document.id,
+        record_id: record.id,
+        updated: true,
+        rechtssituatie: primaireSituatie,
+        aantal_primaire_rechthebbenden: primairePartijen.length,
+        primaire_rechthebbenden: primairePartijen.map((k) => ({
+          naam: kandidaatLabel(k),
+          kvk: k.kvk,
+          aandeel: k.aandeel,
+          straat_huisnummer: k.straatHuisnummer,
+          postcode: k.postcode,
+          plaats: k.plaats,
+        })),
+        adressen_compleet: alleAdressenCompleet,
+        source: 'kadasterbericht_pdf',
+      });
+    }
+
+    const primair = primairePartijen[0];
+    if (!primair) {
+      return json({ ok: true, status: 'geen_primaire_rechthebbende', document_id: document.id, record_id: record.id, updated: false });
+    }
 
     if (!veiligVervangbaar(huidig as Record<string, unknown>, primair)) {
       await admin.from('off_market_signalen').update({
@@ -383,17 +463,6 @@ Deno.serve(async (req: Request) => {
       }).eq('id', body.signaal_id);
       return json({ ok: true, status: 'conflict', document_id: document.id, record_id: record.id, updated: true });
     }
-
-    const eigendom = kandidaten.filter((k) => k.rechtssituatie === 'volle_eigendom');
-    const bloot = (primair.rechtssituatie === 'erfpacht' || primair.rechtssituatie === 'opstal') && eigendom.length === 1
-      ? {
-          naam: eigendom[0].naam,
-          bedrijfsnaam: eigendom[0].bedrijfsnaam,
-          kvk: eigendom[0].kvk,
-          aandeel: eigendom[0].aandeel,
-          rechtssituatie: 'volle_eigendom',
-        }
-      : null;
 
     const compleet = adresCompleet(primair);
     const bestaandeNaam = schoon(huidig.eigenaar_bedrijfsnaam) || schoon(huidig.eigenaar_naam);
