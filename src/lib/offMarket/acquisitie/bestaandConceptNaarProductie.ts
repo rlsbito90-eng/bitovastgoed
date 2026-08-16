@@ -7,6 +7,7 @@ import type {
 } from './productiekernContract';
 import type { AcquisitieProductiekernRepository } from './productiekernRepository';
 import type { BestaandConceptBridgeRepository } from './bestaandConceptBridgeSupabaseRepository';
+import type { VroegeProductieWriteRepository } from './vroegeProductieSupabaseRepository';
 import type {
   AcquisitieProductieTransactieRepository,
   BriefDefinitiefResultaat,
@@ -117,6 +118,31 @@ export function bouwProductiekernSnapshotsUitLegacyBrief(brief: OffMarketBrief):
   };
 }
 
+function normaliseerSnapshotWaarde(waarde: unknown): unknown {
+  if (Array.isArray(waarde)) return waarde.map(normaliseerSnapshotWaarde);
+  if (waarde && typeof waarde === 'object') {
+    return Object.fromEntries(
+      Object.entries(waarde as Record<string, unknown>)
+        .filter(([, v]) => v !== undefined)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => [k, normaliseerSnapshotWaarde(v)]),
+    );
+  }
+  return waarde;
+}
+
+function snapshotsGelijk(a: unknown, b: unknown): boolean {
+  return JSON.stringify(normaliseerSnapshotWaarde(a)) === JSON.stringify(normaliseerSnapshotWaarde(b));
+}
+
+function actieveVersie(versies: BriefversieContract[]): BriefversieContract | null {
+  const actief = versies.filter((versie) => versie.status === 'actief');
+  if (actief.length > 1) {
+    throw new Error('Productiekern bevat meer dan één actieve briefversie; definitief maken is geblokkeerd.');
+  }
+  return actief[0] ?? null;
+}
+
 function vindActieveVersie(
   versies: BriefversieContract[],
   verwachtId: string,
@@ -150,57 +176,106 @@ function bewaakFormeleBrief(
   return brief;
 }
 
+async function zorgVoorActueleFormeleVersie(input: BestaandConceptProductieInput, deps: {
+  bridge: BestaandConceptBridgeRepository;
+  vroeg: VroegeProductieWriteRepository;
+  lezen: Pick<AcquisitieProductiekernRepository, 'haalBrief' | 'haalBriefversies'>;
+}, snapshots: { inhoud: InhoudSnapshot; geadresseerde: GeadresseerdeSnapshot }): Promise<{
+  brief: BriefContract;
+  versie: BriefversieContract;
+}> {
+  const bestaandFormeel = await deps.lezen.haalBrief(input.brief.id);
+
+  // Eerste overgang vanuit het bestaande CRM-concept: transactionele bridge.
+  if (!bestaandFormeel) {
+    const gekoppeld = await deps.bridge.koppelBestaandConcept({
+      selectieId: input.selectieId,
+      signaalId: input.signaalId,
+      briefId: input.brief.id,
+      actorId: input.actorId,
+      operationKey: `legacy-bridge:${input.brief.id}`,
+      inhoudSnapshot: snapshots.inhoud,
+      geadresseerdeSnapshot: snapshots.geadresseerde,
+    });
+
+    const [formeleBriefRuw, versies] = await Promise.all([
+      deps.lezen.haalBrief(input.brief.id),
+      deps.lezen.haalBriefversies(input.brief.id),
+    ]);
+    return {
+      brief: bewaakFormeleBrief(formeleBriefRuw, input),
+      versie: vindActieveVersie(versies, gekoppeld.briefVersieId, gekoppeld.versienummer),
+    };
+  }
+
+  const formeleBrief = bewaakFormeleBrief(bestaandFormeel, input);
+  const versies = await deps.lezen.haalBriefversies(input.brief.id);
+  const huidig = actieveVersie(versies);
+  if (!huidig) {
+    throw new Error('Formele conceptbrief mist een actieve briefversie.');
+  }
+  if (formeleBrief.actieveVersie !== huidig.versienummer) {
+    throw new Error('Actieve versie op de brief wijkt af van de actieve immutable versie.');
+  }
+
+  if (
+    snapshotsGelijk(huidig.inhoud, snapshots.inhoud)
+    && snapshotsGelijk(huidig.geadresseerde, snapshots.geadresseerde)
+  ) {
+    return { brief: formeleBrief, versie: huidig };
+  }
+
+  // Het legacy concept is sinds de vorige formele snapshot gewijzigd. Maak
+  // atomair een nieuwe immutable versie via de bestaande Productiekern-RPC;
+  // deze zet de vorige actieve versie in dezelfde transactie op `vervallen`.
+  const vernieuwd = await deps.vroeg.maakBriefversie({
+    briefId: input.brief.id,
+    actorId: input.actorId,
+    operationKey: `briefversie:${input.brief.id}:na-v${huidig.versienummer}`,
+    inhoudSnapshot: snapshots.inhoud,
+    geadresseerdeSnapshot: snapshots.geadresseerde,
+  });
+
+  if (vernieuwd.versienummer !== huidig.versienummer + 1) {
+    throw new Error('Nieuwe briefversie sloot niet aan op de verwachte versiereeks.');
+  }
+  return { brief: { ...formeleBrief, actieveVersie: vernieuwd.versienummer }, versie: vernieuwd };
+}
+
 /**
  * Expliciete, fail-closed overgang:
- * legacy concept -> eerste immutable Productiekern-versie -> definitief BR-nummer.
+ * legacy concept -> immutable Productiekern-versie -> definitief BR-nummer.
  *
- * De bridge en definitief-transactie hebben elk een deterministische operation
- * key. Daardoor is een veilige retry idempotent, terwijl drift naar een andere
- * selectie/versie door de databasegrenzen wordt geweigerd.
+ * Bij een reeds formeel concept wordt de huidige immutable snapshot hergebruikt
+ * als de inhoud gelijk is. Is het opgeslagen CRM-concept gewijzigd, dan maakt
+ * de bestaande Productiekern-RPC eerst atomair een volgende versie en laat de
+ * vorige versie vervallen. Definitieve/vergrendelde brieven worden nooit
+ * gewijzigd of opnieuw genummerd.
  */
 export async function maakBestaandConceptDefinitief(input: BestaandConceptProductieInput, deps: {
   bridge: BestaandConceptBridgeRepository;
+  vroeg: VroegeProductieWriteRepository;
   lezen: Pick<AcquisitieProductiekernRepository, 'haalBrief' | 'haalBriefversies'>;
   transacties: AcquisitieProductieTransactieRepository;
 }): Promise<BestaandConceptProductieResultaat> {
   const snapshots = bouwProductiekernSnapshotsUitLegacyBrief(input.brief);
   const uitgevoerdOp = input.uitgevoerdOp ?? new Date().toISOString();
-
-  const gekoppeld = await deps.bridge.koppelBestaandConcept({
-    selectieId: input.selectieId,
-    signaalId: input.signaalId,
-    briefId: input.brief.id,
-    actorId: input.actorId,
-    operationKey: `legacy-bridge:${input.brief.id}`,
-    inhoudSnapshot: snapshots.inhoud,
-    geadresseerdeSnapshot: snapshots.geadresseerde,
-  });
-
-  const [formeleBriefRuw, versies] = await Promise.all([
-    deps.lezen.haalBrief(input.brief.id),
-    deps.lezen.haalBriefversies(input.brief.id),
-  ]);
-  const formeleBrief = bewaakFormeleBrief(formeleBriefRuw, input);
-  const actieveVersie = vindActieveVersie(
-    versies,
-    gekoppeld.briefVersieId,
-    gekoppeld.versienummer,
-  );
+  const actueel = await zorgVoorActueleFormeleVersie(input, deps, snapshots);
 
   const definitief = await deps.transacties.maakBriefDefinitief({
     actie: 'brief_definitief_maken',
-    brief: formeleBrief,
-    actieveVersie,
+    brief: actueel.brief,
+    actieveVersie: actueel.versie,
     actorId: input.actorId,
-    operationKey: `brief-definitief:${input.brief.id}:v${actieveVersie.versienummer}`,
-    verwachtVersienummer: actieveVersie.versienummer,
+    operationKey: `brief-definitief:${input.brief.id}:v${actueel.versie.versienummer}`,
+    verwachtVersienummer: actueel.versie.versienummer,
     uitgevoerdOp,
     jaar: new Date(uitgevoerdOp).getUTCFullYear(),
   });
 
   return {
     ...definitief,
-    briefVersieId: actieveVersie.id,
-    versienummer: actieveVersie.versienummer,
+    briefVersieId: actueel.versie.id,
+    versienummer: actueel.versie.versienummer,
   };
 }
