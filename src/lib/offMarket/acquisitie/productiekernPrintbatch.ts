@@ -20,13 +20,17 @@ export interface ProductiekernBatchStartResultaat {
   brieven: ProductiekernBatchBrief[];
 }
 
-function bewaakBatchBrief(item: ProductiekernBatchBrief): void {
+function bewaakBatchBriefIdentiteit(item: ProductiekernBatchBrief): void {
   if (item.brief.status !== 'definitief') throw new Error('Alleen definitieve brieven mogen in een printbatch.');
   if (!item.brief.briefnummer?.trim()) throw new Error('Definitieve brief mist BR-nummer.');
   if (item.versie.briefId !== item.brief.id) throw new Error('Briefversie hoort niet bij de opgegeven brief.');
-  if (item.versie.status !== 'actief') throw new Error('Alleen de actieve briefversie mag in een nieuwe printbatch.');
-  if (item.brief.actieveVersie !== item.versie.versienummer) throw new Error('Brief en actieve versie lopen niet gelijk.');
+  if (item.brief.actieveVersie !== item.versie.versienummer) throw new Error('Brief en gekoppelde versie lopen niet gelijk.');
   if (!item.geadresseerdeKey.trim()) throw new Error('Geadresseerde key is verplicht voor printproductie.');
+}
+
+function bewaakBatchBrief(item: ProductiekernBatchBrief): void {
+  bewaakBatchBriefIdentiteit(item);
+  if (item.versie.status !== 'actief') throw new Error('Alleen de actieve briefversie mag in een nieuwe printbatch.');
 }
 
 function sorteerBrieven(brieven: ProductiekernBatchBrief[]): ProductiekernBatchBrief[] {
@@ -69,10 +73,7 @@ export async function startProductiekernPrintbatch(input: {
     actorId: input.actorId,
     operationKey: `printbatch:${input.operationScope}`,
     datum: input.datum,
-    brieven: brieven.map((item) => ({
-      briefId: item.brief.id,
-      briefVersieId: item.versie.id,
-    })),
+    brieven: brieven.map((item) => ({ briefId: item.brief.id, briefVersieId: item.versie.id })),
   });
 
   const planInvoer: BatchBriefInvoer[] = brieven.map((item) => ({
@@ -99,7 +100,6 @@ function exactVierDocumenten(plan: BatchDocumentPlan, documenten: BatchdocumentC
   if (gezien.size !== gepland.size) throw new Error('Niet alle vier geplande documenttypen zijn opgeslagen.');
 }
 
-/** Registreert de vier reeds duurzaam opgeslagen artifacts atomair bij de BAT. */
 export async function registreerProductiekernBatchdocumenten(input: {
   batch: PrintbatchContract;
   plan: BatchDocumentPlan;
@@ -121,7 +121,6 @@ export async function registreerProductiekernBatchdocumenten(input: {
   });
 }
 
-/** Expliciete printbevestiging; documentgeneratie alleen is nooit 'geprint'. */
 export async function markeerProductiekernBatchGeprint(input: {
   batch: PrintbatchContract;
   actorId: string;
@@ -140,9 +139,10 @@ export async function markeerProductiekernBatchGeprint(input: {
 }
 
 /**
- * Post alle opgegeven immutable briefversies één voor één via de transactionele
- * RPC. De database zet de BAT zelf op gedeeltelijk_gepost/gepost op basis van de
- * resterende gekoppelde versies. Er bestaat geen automatische postmarkering.
+ * Post alle nog niet verzonden immutable briefversies één voor één. Bij een
+ * gedeeltelijke eerdere poging worden reeds `verzonden` versies op identiteit
+ * gecontroleerd en overgeslagen; de resterende writes behouden hun vaste
+ * operation keys. Hierdoor is een refresh/retry veilig en hervatbaar.
  */
 export async function markeerProductiekernBrievenGepost(input: {
   batch: PrintbatchContract;
@@ -155,8 +155,13 @@ export async function markeerProductiekernBrievenGepost(input: {
   }
   if (!input.batch.printdatum) throw new Error('Batch mist printdatum.');
   const verzenddatum = input.verzenddatum ?? new Date().toISOString();
+
   for (const item of sorteerBrieven(input.brieven)) {
-    bewaakBatchBrief(item);
+    bewaakBatchBriefIdentiteit(item);
+    if (item.versie.status === 'verzonden') continue;
+    if (item.versie.status !== 'actief') {
+      throw new Error(`Briefversie ${item.versie.id} kan niet als gepost worden verwerkt.`);
+    }
     await transacties.markeerBriefGepost({
       actie: 'brief_gepost_markeren',
       brief: item.brief,
