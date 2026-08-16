@@ -39,10 +39,16 @@ export function bepaalFocusContext(fase: ReadinessFase): FocusContextInfo {
     case 'adres_ontbreekt':
       return {
         context: 'onderzoeken',
-        titel: fase === 'eigenaar_controleren' ? 'Eigenaar controleren' : 'Onderzoeken',
+        titel: fase === 'eigenaar_controleren'
+          ? 'Eigenaar controleren'
+          : fase === 'adres_ontbreekt'
+            ? 'Adres achterhalen'
+            : 'Onderzoeken',
         instructie: fase === 'eigenaar_controleren'
-          ? 'Controleer de Kadasterrechten, rechthebbende en het verzendadres voordat je verdergaat.'
-          : 'Controleer en vul de ontbrekende eigenaar- of adresgegevens aan.',
+          ? 'Controleer de Kadasterrechten en rechthebbende voordat je verdergaat.'
+          : fase === 'adres_ontbreekt'
+            ? 'De eigenaar is bekend. Achterhaal en vul het ontbrekende verzendadres aan.'
+            : 'Controleer en vul de ontbrekende eigenaar- of adresgegevens aan.',
         tab: 'kadaster',
       };
     case 'brief_voorbereiden':

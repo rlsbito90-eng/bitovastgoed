@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { bepaalFocusContext, tabVoorFocusContext } from './focusContext';
 
 describe('bepaalFocusContext', () => {
-  it('groepeert onderzoeksfasen onder Onderzoeken en routeert naar Kadaster & eigenaar', () => {
+  it('onderscheidt eigenaaronderzoek en adres achterhalen binnen Kadastercontext', () => {
     expect(bepaalFocusContext('onderzoek_nodig').context).toBe('onderzoeken');
     expect(bepaalFocusContext('eigenaar_ontbreekt').titel).toBe('Onderzoeken');
-    expect(bepaalFocusContext('adres_ontbreekt').titel).toBe('Onderzoeken');
+    expect(bepaalFocusContext('adres_ontbreekt').titel).toBe('Adres achterhalen');
+    expect(bepaalFocusContext('adres_ontbreekt').context).toBe('onderzoeken');
     expect(bepaalFocusContext('onderzoek_nodig').tab).toBe('kadaster');
     expect(tabVoorFocusContext('onderzoeken')).toBe('kadaster');
   });
