@@ -1,6 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 import {
+  maakAtomischePrintbatchSupabaseRepository,
+  type AtomischePrintbatchRepository,
+  type AtomischePrintbatchRpcUitvoerder,
+} from './atomischePrintbatchSupabaseRepository';
+import {
   maakBestaandConceptBridgeSupabaseRepository,
   type BestaandConceptBridgeRepository,
   type BestaandConceptBridgeRpcUitvoerder,
@@ -25,24 +30,22 @@ export interface ProductiekernBrowserWriteSamenstelling {
   activatie: ProductiekernActivatieBesluit;
   vroegeRepository: VroegeProductieWriteRepository;
   bestaandConceptBridgeRepository: BestaandConceptBridgeRepository;
+  atomischePrintbatchRepository: AtomischePrintbatchRepository;
   transactieRepository: AcquisitieProductieTransactieRepository;
 }
 
 export interface ProductiekernBrowserWriteUitvoerders {
   vroege: VroegeRpcUitvoerder;
   bestaandConceptBridge: BestaandConceptBridgeRpcUitvoerder;
+  atomischePrintbatch: AtomischePrintbatchRpcUitvoerder;
   transacties: ProductieSupabaseRpcUitvoerder;
 }
 
 /**
  * Bouwt browserwrites uitsluitend bovenop één centraal runtimebesluit. De
  * werk-CRM en productie leveren hun bewijs via afzonderlijke fail-closed
- * poorten; de repositories behouden daarnaast hun eigen `schrijvenActief`-
+ * poorten; alle repositories behouden daarnaast hun eigen `schrijvenActief`-
  * controle en er bestaat geen alternatieve featureflag/bypass.
- *
- * De bestaand-concept-bridge is hier alleen technisch samengesteld. Zolang
- * geen UI die repository aanroept, en zolang de databasefunctie niet apart is
- * geïnstalleerd/gegrant, ontstaat er geen operationeel bridgepad.
  */
 export function stelProductiekernBrowserWritesSamen(
   env: ProductiekernBrowserOmgeving,
@@ -59,6 +62,10 @@ export function stelProductiekernBrowserWritesSamen(
     bestaandConceptBridgeRepository: maakBestaandConceptBridgeSupabaseRepository({
       activatie,
       uitvoerder: uitvoerders.bestaandConceptBridge,
+    }),
+    atomischePrintbatchRepository: maakAtomischePrintbatchSupabaseRepository({
+      activatie,
+      uitvoerder: uitvoerders.atomischePrintbatch,
     }),
     transactieRepository: maakGepoorteSupabaseProductieTransactieRepository(
       activatie,
@@ -91,6 +98,9 @@ const browserUitvoerders: ProductiekernBrowserWriteUitvoerders = {
     rpc: voerBrowserRpcUit,
   },
   bestaandConceptBridge: {
+    rpc: voerBrowserRpcUit,
+  },
+  atomischePrintbatch: {
     rpc: voerBrowserRpcUit,
   },
   transacties: {
