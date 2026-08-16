@@ -10,6 +10,7 @@ import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
 import AutomatischeKadasterPdfEigenaarVerrijking from './AutomatischeKadasterPdfEigenaarVerrijking';
 import KadasterBronOverzicht from './KadasterBronOverzicht';
 import KadasterBerichtOpenKnop from './KadasterBerichtOpenKnop';
+import ProductiekernBriefActies from './ProductiekernBriefActies';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import {
   VERGUNNINGTYPE_LABEL,
@@ -48,6 +49,7 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
           <KadasterBerichtOpenKnop signaalId={signaal.id} hideWhenMissing />
         </div>
         <SignaalBrievenSectie signaal={signaal} />
+        <ProductiekernBriefActies signaalId={signaal.id} />
       </section>
     );
   }
