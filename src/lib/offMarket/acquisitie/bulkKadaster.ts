@@ -79,6 +79,13 @@ function normaliseerLabel(v: string | null | undefined): string {
     .replace(/^-|-$/g, '');
 }
 
+function normaliseerZoekadres(v: string | null | undefined): string {
+  return (v ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, ' ');
+}
+
 function bagVoorkeurScore(r: BagAdresResultaat, explicietLabel: string | null): number {
   const label = normaliseerLabel(bagHuisnummerLabel(r));
   const exact = normaliseerLabel(explicietLabel);
@@ -234,15 +241,22 @@ function bestaandRechtenRecord(
   );
 }
 
-function definitieveNotFound(
+function definitieveNotFoundVoorZoekadres(
   signaalId: string,
+  zoekadresLabel: string | null,
   records: BulkKadasterBestaandRecord[],
 ): BulkKadasterBestaandRecord | undefined {
+  if (!zoekadresLabel) return undefined;
+  const kandidaat = normaliseerZoekadres(zoekadresLabel);
   return records.find((r) => {
     if (r.signaal_id !== signaalId || r.product_code !== 'rechten' || r.status !== 'niet_geleverd') return false;
     const poging = r.raw_limited?.poging;
+    const opgeslagenZoekadres = typeof r.zoekadres?.waarde === 'string'
+      ? normaliseerZoekadres(String(r.zoekadres.waarde))
+      : '';
     return !!poging && typeof poging === 'object'
-      && (poging as Record<string, unknown>).uitkomst === 'not_found';
+      && (poging as Record<string, unknown>).uitkomst === 'not_found'
+      && opgeslagenZoekadres === kandidaat;
   });
 }
 
@@ -276,7 +290,7 @@ function rijVoorNotFound(
     status: 'geblokkeerd',
     adresInput: null,
     zoekadresLabel: typeof poging.zoekadres?.waarde === 'string' ? String(poging.zoekadres.waarde) : null,
-    reden: 'Eerdere Kadasterpoging gaf definitief: geen Kadasterobject gevonden voor dit zoekadres. Geen automatische herhaalaanvraag; controleer eerst het BAG-/zoekadres.',
+    reden: 'Dit exacte Kadasterzoekadres gaf eerder definitief: geen Kadasterobject gevonden. Dezelfde variant wordt niet automatisch opnieuw betaald aangevraagd; een andere geldige BAG-/adresvariant mag wel opnieuw worden gecontroleerd.',
     bestaandRecordId: poging.id,
     bestaandDocumentId: null,
   };
@@ -290,8 +304,6 @@ export function bouwBulkKadasterPreflight(
   return signalen.map((signaal) => {
     const bestaand = bestaandRechtenRecord(signaal.id, records);
     if (bestaand) return rijVoorBestaand(signaal, bestaand, documenten);
-    const notFound = definitieveNotFound(signaal.id, records);
-    if (notFound) return rijVoorNotFound(signaal, notFound);
 
     const adres = bepaalBulkKadasterAdres(signaal);
     if (adres.status === 'geblokkeerd') {
@@ -305,6 +317,9 @@ export function bouwBulkKadasterPreflight(
         bestaandDocumentId: null,
       };
     }
+
+    const notFound = definitieveNotFoundVoorZoekadres(signaal.id, adres.zoekadresLabel, records);
+    if (notFound) return rijVoorNotFound(signaal, notFound);
 
     return {
       signaal,
@@ -331,11 +346,6 @@ export async function bouwBulkKadasterPreflightMetBag(
       out.push(rijVoorBestaand(signaal, bestaand, documenten));
       continue;
     }
-    const notFound = definitieveNotFound(signaal.id, records);
-    if (notFound) {
-      out.push(rijVoorNotFound(signaal, notFound));
-      continue;
-    }
 
     let adres: BulkKadasterAdresResultaat;
     try {
@@ -360,6 +370,12 @@ export async function bouwBulkKadasterPreflightMetBag(
         bestaandRecordId: null,
         bestaandDocumentId: null,
       });
+      continue;
+    }
+
+    const notFound = definitieveNotFoundVoorZoekadres(signaal.id, adres.zoekadresLabel, records);
+    if (notFound) {
+      out.push(rijVoorNotFound(signaal, notFound));
       continue;
     }
 
