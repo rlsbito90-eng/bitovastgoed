@@ -75,6 +75,7 @@ export default function ProductiekernBriefActies({ signaalId }: Props) {
         actorId: data.user.id,
       }, {
         bridge: writes.bestaandConceptBridgeRepository,
+        vroeg: writes.vroegeRepository,
         lezen: lezen.repository,
         transacties: writes.transactieRepository,
       });
@@ -118,7 +119,7 @@ export default function ProductiekernBriefActies({ signaalId }: Props) {
           <div className="min-w-0 text-xs">
             <p className="font-medium truncate">{geadresseerdeLabel(brief)}</p>
             <p className="text-[11px] text-muted-foreground">
-              Opgeslagen concept · na definitief maken vergrendeld
+              Opgeslagen concept · wijzigingen worden eerst als nieuwe immutable versie vastgelegd
             </p>
           </div>
           <Button
