@@ -4,6 +4,8 @@ import { valideerBriefversie, valideerPrintbatch } from './productiekernContract
 export interface BatchControleInvoer {
   briefnummer: string;
   versie: BriefversieContract;
+  /** Expliciete handmatige bevestiging uit een gecontroleerde overgang, nooit afgeleid uit adresvorm alleen. */
+  adresHandmatigBevestigd?: boolean;
 }
 
 export interface BatchControleRij {
@@ -32,6 +34,10 @@ export interface BatchControlelijst {
  * Een geldige actieve immutable briefversie + BR-nummer is zelf de canonieke
  * renderbron. `bestandReferentie` blijft bruikbaar voor reeds opgeslagen legacy-
  * of voorgerenderde PDF's, maar null is geen blokkade voor batchproductie.
+ *
+ * `adresHandmatigBevestigd` is alleen een expliciete input van een hogere,
+ * gecontroleerde overgang. Een syntactisch geldig adres wordt hier nooit uit
+ * zichzelf als geverifieerd beschouwd.
  */
 export function bouwBatchControlelijst(input: {
   batch: PrintbatchContract;
@@ -64,7 +70,9 @@ export function bouwBatchControlelijst(input: {
           || item.versie.geadresseerde.naam?.trim()
           || '',
         plaats: item.versie.geadresseerde.plaats.trim(),
-        adresGeverifieerd: item.versie.geadresseerde.verificatiestatus !== 'onbekend',
+        adresGeverifieerd:
+          item.versie.geadresseerde.verificatiestatus !== 'onbekend'
+          || item.adresHandmatigBevestigd === true,
         // Na de validaties hierboven is de immutable snapshot deterministisch renderbaar.
         pdfBeschikbaar: true,
         pdfBron: opgeslagenPdf ? 'opgeslagen_bestand' : 'immutable_snapshot',
