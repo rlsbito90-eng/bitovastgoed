@@ -1,3 +1,4 @@
+import { zoekBagAdressen, type BagAdresResultaat } from '@/lib/bag/pdokLookup';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import type { KadasterAdresInput } from '@/lib/kadaster/types';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
@@ -37,8 +38,78 @@ export interface BulkKadasterPreflightRij {
   bestaandRecordId: string | null;
 }
 
+type BagZoeker = (input: {
+  straat?: string | null;
+  huisnummer?: string | null;
+  plaats?: string | null;
+  postcode?: string | null;
+}) => Promise<BagAdresResultaat[]>;
+
 function compactPostcode(postcode: string): string {
   return postcode.replace(/\s+/g, '').toUpperCase();
+}
+
+function norm(v: string | null | undefined): string {
+  return (v ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function bagHuisnummerLabel(r: BagAdresResultaat): string {
+  const base = r.huisnummer ?? '';
+  const letter = r.huisletter ?? '';
+  const toevoeging = r.huisnummertoevoeging ?? '';
+  if (!base) return '';
+  if (letter && toevoeging) return `${base}-${letter}${toevoeging}`;
+  if (letter) return `${base}-${letter}`;
+  if (toevoeging) return `${base}-${toevoeging}`;
+  return base;
+}
+
+function normaliseerLabel(v: string | null | undefined): string {
+  return (v ?? '')
+    .toUpperCase()
+    .replace(/[\s_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function bagVoorkeurScore(r: BagAdresResultaat, explicietLabel: string | null): number {
+  const label = normaliseerLabel(bagHuisnummerLabel(r));
+  const exact = normaliseerLabel(explicietLabel);
+  if (exact && label === exact) return 0;
+  const suffix = label.includes('-') ? label.slice(label.indexOf('-') + 1) : '';
+  if (suffix === 'H') return 10;
+  if (suffix === '1') return 20;
+  if (suffix === 'A') return 30;
+  if (suffix) return 40;
+  return 50;
+}
+
+function adresUitBag(r: BagAdresResultaat): BulkKadasterAdresResultaat | null {
+  if (!r.postcode || !r.huisnummer) return null;
+  const postcode = compactPostcode(r.postcode);
+  if (!/^\d{4}[A-Z]{2}$/.test(postcode)) return null;
+  const adresInput: KadasterAdresInput = {
+    postalcode: postcode,
+    houseNumber: r.huisnummer,
+    houseLetter: r.huisletter ?? null,
+    houseNumberAddition: r.huisnummertoevoeging ?? null,
+  };
+  const zoekadresLabel = [
+    postcode,
+    `${r.huisnummer}${r.huisletter ?? ''}`,
+    r.huisnummertoevoeging ?? null,
+  ].filter(Boolean).join(' ');
+  return {
+    status: 'klaar',
+    adresInput,
+    zoekadresLabel,
+    reden: 'Zoekadres gratis bevestigd via BAG/PDOK.',
+  };
 }
 
 export function bepaalBulkKadasterAdres(signaal: OffMarketSignaal): BulkKadasterAdresResultaat {
@@ -90,6 +161,51 @@ export function bepaalBulkKadasterAdres(signaal: OffMarketSignaal): BulkKadaster
   return { status: 'klaar', adresInput, zoekadresLabel, reden: null };
 }
 
+/**
+ * Spiegelt de gratis BAG-resolutie uit SignaalKadasterKaart/BagAdresLookup.
+ * Alleen gebruikt als de ruwe signaalvelden nog geen veilig Kadasteradres opleveren.
+ * Er wordt hiermee NOOIT een Kadasteraanvraag uitgevoerd.
+ */
+export async function bepaalBulkKadasterAdresMetBag(
+  signaal: OffMarketSignaal,
+  bagZoeker: BagZoeker = zoekBagAdressen,
+): Promise<BulkKadasterAdresResultaat> {
+  const direct = bepaalBulkKadasterAdres(signaal);
+  if (direct.status === 'klaar') return direct;
+
+  const parsed = parseObjectAdres(
+    signaal.adres ?? signaal.titel ?? '',
+    (signaal as any).postcode ?? null,
+    signaal.plaats ?? null,
+  );
+  const eerste = parsed.huisnummers[0] ?? null;
+  const straat = parsed.straat?.trim() ?? '';
+  const plaats = signaal.plaats?.trim() ?? parsed.plaats?.trim() ?? '';
+  if (!straat || !plaats || !eerste?.huisnummer) return direct;
+
+  const explicietLabel = (eerste.huisletter || eerste.toevoeging) ? eerste.label : null;
+  const raw = await bagZoeker({
+    straat,
+    huisnummer: eerste.huisnummer,
+    plaats,
+    postcode: null,
+  });
+
+  const officieel = raw.filter((r) =>
+    norm(r.straat) === norm(straat)
+    && String(r.huisnummer ?? '') === eerste.huisnummer
+    && norm(r.woonplaats) === norm(plaats),
+  );
+  if (officieel.length === 0) return direct;
+
+  const kandidaten = [...officieel].sort((a, b) => {
+    const pref = bagVoorkeurScore(a, explicietLabel) - bagVoorkeurScore(b, explicietLabel);
+    if (pref !== 0) return pref;
+    return bagHuisnummerLabel(a).localeCompare(bagHuisnummerLabel(b), 'nl', { numeric: true });
+  });
+  return adresUitBag(kandidaten[0]) ?? direct;
+}
+
 function heeftPdfVoorRecord(
   record: BulkKadasterBestaandRecord,
   documenten: BulkKadasterBestaandDocument[],
@@ -110,12 +226,46 @@ function heeftPdfVoorRecord(
   });
 }
 
+function bestaandRechtenRecord(
+  signaalId: string,
+  records: BulkKadasterBestaandRecord[],
+): BulkKadasterBestaandRecord | undefined {
+  return records.find((r) =>
+    r.signaal_id === signaalId
+    && r.product_code === 'rechten'
+    && (r.status === 'geleverd' || r.status === 'gedeeltelijk'),
+  );
+}
+
+function rijVoorBestaand(
+  signaal: OffMarketSignaal,
+  bestaand: BulkKadasterBestaandRecord,
+  documenten: BulkKadasterBestaandDocument[],
+): BulkKadasterPreflightRij {
+  const metPdf = heeftPdfVoorRecord(bestaand, documenten);
+  return {
+    signaal,
+    status: 'aanwezig',
+    adresInput: null,
+    zoekadresLabel: typeof bestaand.zoekadres?.waarde === 'string'
+      ? String(bestaand.zoekadres.waarde)
+      : null,
+    reden: metPdf
+      ? 'Rechten + intern Kadasterbericht zijn al aanwezig; geen nieuwe betaalde aanvraag.'
+      : 'Rechten zijn al opgehaald, maar het interne PDF-bericht ontbreekt. Veiligheidshalve geen nieuwe betaalde aanvraag; eerst handmatig controleren.',
+    bestaandRecordId: bestaand.id,
+  };
+}
+
 export function bouwBulkKadasterPreflight(
   signalen: OffMarketSignaal[],
   records: BulkKadasterBestaandRecord[],
   documenten: BulkKadasterBestaandDocument[],
 ): BulkKadasterPreflightRij[] {
   return signalen.map((signaal) => {
+    const bestaand = bestaandRechtenRecord(signaal.id, records);
+    if (bestaand) return rijVoorBestaand(signaal, bestaand, documenten);
+
     const adres = bepaalBulkKadasterAdres(signaal);
     if (adres.status === 'geblokkeerd') {
       return {
@@ -128,25 +278,6 @@ export function bouwBulkKadasterPreflight(
       };
     }
 
-    const bestaand = records.find((r) =>
-      r.signaal_id === signaal.id
-      && r.product_code === 'rechten'
-      && (r.status === 'geleverd' || r.status === 'gedeeltelijk'),
-    );
-    if (bestaand) {
-      const metPdf = heeftPdfVoorRecord(bestaand, documenten);
-      return {
-        signaal,
-        status: 'aanwezig',
-        adresInput: adres.adresInput,
-        zoekadresLabel: adres.zoekadresLabel,
-        reden: metPdf
-          ? 'Rechten + intern Kadasterbericht zijn al aanwezig; geen nieuwe betaalde aanvraag.'
-          : 'Rechten zijn al opgehaald, maar het interne PDF-bericht ontbreekt. Veiligheidshalve geen nieuwe betaalde aanvraag; eerst handmatig controleren.',
-        bestaandRecordId: bestaand.id,
-      };
-    }
-
     return {
       signaal,
       status: 'aanvragen',
@@ -156,4 +287,57 @@ export function bouwBulkKadasterPreflight(
       bestaandRecordId: null,
     };
   });
+}
+
+export async function bouwBulkKadasterPreflightMetBag(
+  signalen: OffMarketSignaal[],
+  records: BulkKadasterBestaandRecord[],
+  documenten: BulkKadasterBestaandDocument[],
+  bagZoeker: BagZoeker = zoekBagAdressen,
+): Promise<BulkKadasterPreflightRij[]> {
+  const out: BulkKadasterPreflightRij[] = [];
+  for (const signaal of signalen) {
+    const bestaand = bestaandRechtenRecord(signaal.id, records);
+    if (bestaand) {
+      out.push(rijVoorBestaand(signaal, bestaand, documenten));
+      continue;
+    }
+
+    let adres: BulkKadasterAdresResultaat;
+    try {
+      adres = await bepaalBulkKadasterAdresMetBag(signaal, bagZoeker);
+    } catch (e) {
+      const direct = bepaalBulkKadasterAdres(signaal);
+      adres = direct.status === 'klaar'
+        ? direct
+        : {
+            ...direct,
+            reden: `BAG/PDOK-controle mislukt: ${e instanceof Error ? e.message : 'onbekende fout'}. Geen betaalde aanvraag gestart.`,
+          };
+    }
+
+    if (adres.status === 'geblokkeerd') {
+      out.push({
+        signaal,
+        status: 'geblokkeerd',
+        adresInput: null,
+        zoekadresLabel: null,
+        reden: adres.reden ?? 'Adres moet eerst worden gecontroleerd.',
+        bestaandRecordId: null,
+      });
+      continue;
+    }
+
+    out.push({
+      signaal,
+      status: 'aanvragen',
+      adresInput: adres.adresInput,
+      zoekadresLabel: adres.zoekadresLabel,
+      reden: adres.reden
+        ? `Nieuwe Rechten-aanvraag nodig. ${adres.reden}`
+        : 'Nieuwe Rechten-aanvraag nodig.',
+      bestaandRecordId: null,
+    });
+  }
+  return out;
 }
