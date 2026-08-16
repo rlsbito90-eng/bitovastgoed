@@ -79,9 +79,11 @@ export default function ProductiekernProductiepakketVastleggen({
             return {
               documenttype: opgeslagen.documenttype,
               bestandsnaam,
-              briefVersieIds: pakket.manifest.briefVersieIds,
+              documentversie: pakket.manifest.documentversie,
+              briefVersieIds: [...pakket.manifest.briefVersieIds],
             };
           }),
+          waarschuwingen: [],
         },
         opgeslagenDocumenten,
         actorId: auth.data.user.id,
