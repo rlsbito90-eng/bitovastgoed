@@ -258,14 +258,27 @@ export default function FocusModus({
           Focusmodus voor de acquisitieselectie. {focusContext.instructie}
         </DialogDescription>
 
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60 bg-background/70 backdrop-blur">
-          <div className="min-w-0 pr-8">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
-            </p>
-            <h2 className="text-sm font-medium text-foreground truncate">{focusContext.titel}</h2>
+        <div
+          data-testid="focus-header"
+          className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-background/85 backdrop-blur"
+        >
+          <div className="min-w-0 pr-8 flex-1">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div className="min-w-0 shrink-0">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Focus · {positieInWerkronde + 1} van {werkrondeBeschikbareIds.length}
+                </p>
+                <h2 className="text-sm font-medium text-foreground truncate">{focusContext.titel}</h2>
+              </div>
+              <div className="min-w-0 sm:text-right" data-testid="focus-onderwerp-adres">
+                <p className="text-sm font-semibold text-foreground truncate" title={adres}>{adres}</p>
+                {plaats && (
+                  <p className="text-[11px] text-muted-foreground truncate" title={plaats}>{plaats}</p>
+                )}
+              </div>
+            </div>
             {voortgangInfo && (
-              <p className="text-[11px] text-muted-foreground" data-testid="focus-werkronde-voortgang">
+              <p className="mt-1 text-[11px] text-muted-foreground" data-testid="focus-werkronde-voortgang">
                 {voortgangTekst(voortgangInfo)}
               </p>
             )}
@@ -278,9 +291,7 @@ export default function FocusModus({
           data-testid="focus-body"
         >
           <section className="space-y-1.5">
-            <p className="text-base font-medium text-foreground break-words">{adres}</p>
-            {plaats && <p className="text-xs text-muted-foreground">{plaats}</p>}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">
                 {tekstType(signaal)}
               </span>
