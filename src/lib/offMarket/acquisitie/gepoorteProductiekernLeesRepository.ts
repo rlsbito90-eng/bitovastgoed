@@ -53,6 +53,11 @@ implements AcquisitieProductiekernRepository {
     return this.achterliggend.haalPrintbatchBrieven(batchId);
   }
 
+  haalActievePrintbatchIdVoorBriefversies(briefVersieIds: readonly string[]) {
+    this.eisLeestoegang('haalActievePrintbatchIdVoorBriefversies');
+    return this.achterliggend.haalActievePrintbatchIdVoorBriefversies(briefVersieIds);
+  }
+
   startVerwerking(): never {
     return this.blokkeerSchrijven('startVerwerking');
   }
