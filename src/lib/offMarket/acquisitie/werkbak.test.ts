@@ -39,7 +39,7 @@ function bepaal(fase: string, brieven: any[] = [], extraSignaal: Record<string, 
 }
 
 describe('bepaalWerkbakContext', () => {
-  it.each(['onderzoek_nodig', 'eigenaar_ontbreekt', 'adres_ontbreekt'])(
+  it.each(['onderzoek_nodig', 'eigenaar_ontbreekt'])(
     'plaatst %s in Onderzoeken',
     (fase) => {
       const ctx = bepaal(fase);
@@ -51,6 +51,16 @@ describe('bepaalWerkbakContext', () => {
       expect(ctx.procesDatum?.label).toBe('Nog niet onderzocht');
     },
   );
+
+  it('plaatst adres_ontbreekt in Adres achterhalen', () => {
+    const ctx = bepaal('adres_ontbreekt');
+    expect(ctx).toMatchObject({
+      werkbak: 'actie',
+      actieCategorie: 'adres_achterhalen',
+      actieSubfilter: 'adres_achterhalen',
+    });
+    expect(ctx.procesDatum?.label).toBe('Adres achterhalen');
+  });
 
   it('plaatst een signaal zonder concept in Brief voorbereiden', () => {
     const ctx = bepaal('brief_voorbereiden');
