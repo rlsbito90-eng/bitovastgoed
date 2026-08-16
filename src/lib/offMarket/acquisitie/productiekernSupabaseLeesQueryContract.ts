@@ -6,11 +6,15 @@ export type ProductiekernLeesQueryNaam =
   | 'haal_printbatch_brieven'
   | 'haal_dossiers_op_selectie_ids'
   | 'haal_brieven_op_ids'
-  | 'haal_briefversies_op_ids';
+  | 'haal_briefversies_op_ids'
+  | 'haal_printbatch_brieven_op_versie_ids';
 
 export type ProductiekernBulkLeesQueryNaam = Extract<
   ProductiekernLeesQueryNaam,
-  'haal_dossiers_op_selectie_ids' | 'haal_brieven_op_ids' | 'haal_briefversies_op_ids'
+  | 'haal_dossiers_op_selectie_ids'
+  | 'haal_brieven_op_ids'
+  | 'haal_briefversies_op_ids'
+  | 'haal_printbatch_brieven_op_versie_ids'
 >;
 
 export interface ProductiekernLeesQueryContract {
@@ -44,6 +48,11 @@ const BRIEFVERSIE_KOLOMMEN = [
   'id', 'brief_id', 'versienummer', 'status', 'inhoud_snapshot',
   'geadresseerde_snapshot', 'bestand_referentie', 'created_at',
   'vervallen_op', 'verzonden_op',
+] as const;
+
+const PRINTBATCH_BRIEF_KOLOMMEN = [
+  'id', 'batch_id', 'brief_id', 'brief_versie_id', 'verwijderd_op',
+  'afwijkingsstatus', 'afwijkingsreden', 'created_at',
 ] as const;
 
 export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
@@ -90,10 +99,7 @@ export const PRODUCTIEKERN_LEES_QUERY_CONTRACTEN: Readonly<
     naam: 'haal_printbatch_brieven',
     tabel: 'off_market_printbatch_brieven',
     filterKolom: 'batch_id',
-    selectKolommen: [
-      'id', 'batch_id', 'brief_id', 'brief_versie_id', 'verwijderd_op',
-      'afwijkingsstatus', 'afwijkingsreden', 'created_at',
-    ],
+    selectKolommen: PRINTBATCH_BRIEF_KOLOMMEN,
     volgorde: { kolom: 'created_at', oplopend: true },
     cardinaliteit: 'lijst',
     maximaalAantalRecords: 1000,
@@ -128,6 +134,15 @@ export const PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN: Readonly<
     selectKolommen: BRIEFVERSIE_KOLOMMEN,
     cardinaliteit: 'lijst',
     maximaalAantalRecords: 1000,
+    maximaalAantalFilterwaarden: 1000,
+  },
+  haal_printbatch_brieven_op_versie_ids: {
+    naam: 'haal_printbatch_brieven_op_versie_ids',
+    tabel: 'off_market_printbatch_brieven',
+    filterKolom: 'brief_versie_id',
+    selectKolommen: PRINTBATCH_BRIEF_KOLOMMEN,
+    cardinaliteit: 'lijst',
+    maximaalAantalRecords: 2000,
     maximaalAantalFilterwaarden: 1000,
   },
 };
