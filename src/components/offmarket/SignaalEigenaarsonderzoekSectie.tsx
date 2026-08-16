@@ -1,7 +1,8 @@
 // Handmatige eigenaarsonderzoek-sectie. Geen autosave: bekijken-modus +
 // expliciete Bewerken/Opslaan/Annuleren met dirty-guard.
 // In Acquisitie Focusmodus worden reeds opgeslagen Kadasterrechten automatisch
-// verwerkt als dat eenduidig en veilig kan; uitzonderingen gaan naar controle.
+// verwerkt; meerdere primaire rechthebbenden binnen dezelfde rechtssituatie
+// worden als normale, automatische uitkomst getoond.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -44,6 +45,7 @@ import {
   formatteerBlootEigenaar,
   RECHTSSITUATIE_LABEL,
   RECHTSSITUATIES_MET_BLOOT_EIGENAAR,
+  type PrimaireRechthebbende,
   type Rechtssituatie,
 } from '@/lib/offMarket/acquisitie/rechtenbewusteEigenaar';
 import {
@@ -172,9 +174,9 @@ export default function SignaalEigenaarsonderzoekSectie({
   }, [focusMode, signaal.id]);
 
   useEffect(() => {
-    if (!focusMode || kadasterVoorstel.status !== 'eenduidig') return;
+    if (!focusMode || rechtenUitkomst.status !== 'eenduidig' || kadasterVoorstel.status !== 'eenduidig') return;
     setForm((prev) => pasKadasterVoorstelToe(prev, kadasterVoorstel));
-  }, [focusMode, kadasterVoorstel]);
+  }, [focusMode, kadasterVoorstel, rechtenUitkomst.status]);
 
   const autoVerwerktRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -196,7 +198,9 @@ export default function SignaalEigenaarsonderzoekSectie({
           toast.success(
             rechtenUitkomst.controleNodig
               ? 'Eigenaar vraagt controle op basis van het Kadasterrecord'
-              : 'Eigenaargegevens automatisch overgenomen uit het Kadasterrecord',
+              : rechtenUitkomst.status === 'meervoudig'
+                ? `${rechtenUitkomst.primaireRechthebbenden.length} rechthebbenden automatisch verwerkt`
+                : 'Eigenaargegevens automatisch overgenomen uit het Kadasterrecord',
           );
         },
         onError: () => { autoVerwerktRef.current.delete(guard); },
@@ -363,19 +367,24 @@ export default function SignaalEigenaarsonderzoekSectie({
         )}
       </div>
 
-      {focusMode && kadasterVoorstel.status === 'eenduidig' && (
+      {focusMode && (rechtenUitkomst.status === 'eenduidig' || rechtenUitkomst.status === 'meervoudig') && !rechtenUitkomst.controleNodig && (
         <div data-testid="kadaster-eigenaar-voorstel" className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-foreground">
           <span className="font-medium">Kadaster verwerkt.</span>{' '}
-          Eenduidige gegevens worden automatisch opgeslagen; controleer eventuele uitzonderingen hieronder.
+          {rechtenUitkomst.status === 'meervoudig'
+            ? `${rechtenUitkomst.primaireRechthebbenden.length} primaire rechthebbenden zijn automatisch verwerkt.`
+            : 'De primaire rechthebbende is automatisch verwerkt.'}
         </div>
       )}
-      {focusMode && kadasterVoorstel.status === 'ambigu' && (
-        <div data-testid="kadaster-eigenaar-ambigu" className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
-          Meerdere verschillende rechthebbenden gevonden. Het dossier gaat naar Eigenaar controleren.
+      {focusMode && rechtenUitkomst.controleNodig && (
+        <div data-testid="kadaster-eigenaar-controle" className="rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
+          {rechtenUitkomst.controleReden || 'Kadastergegevens vragen handmatige controle.'}
         </div>
       )}
 
-      <RechtssituatieBlok signaal={signaal} />
+      <RechtssituatieBlok
+        signaal={signaal}
+        primaireRechthebbenden={rechtenUitkomst.primaireRechthebbenden}
+      />
 
       {gekoppeldeRelatie && gekoppeldeRelatieNamen && (
         <div className="rounded-md border border-border bg-card px-3 py-2.5 space-y-2">
@@ -489,23 +498,68 @@ export default function SignaalEigenaarsonderzoekSectie({
   );
 }
 
-function RechtssituatieBlok({ signaal }: { signaal: OffMarketSignaal }) {
+function RechthebbendeKaart({ rechthebbende }: { rechthebbende: PrimaireRechthebbende }) {
+  const label = rechthebbende.bedrijfsnaam || rechthebbende.naam || 'Onbekende rechthebbende';
+  const adres = [
+    rechthebbende.straatHuisnummer,
+    [rechthebbende.postcode, rechthebbende.plaats].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ');
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2.5 space-y-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Primaire rechthebbende</p>
+          <p className="text-sm font-medium text-foreground break-words">{label}</p>
+        </div>
+        {rechthebbende.aandeel && (
+          <span className="shrink-0 inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono-data text-foreground">
+            Aandeel {rechthebbende.aandeel}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
+        {rechthebbende.kvk && <span>KvK <span className="font-mono-data text-foreground">{rechthebbende.kvk}</span></span>}
+        {adres && <span>{adres}</span>}
+      </div>
+    </div>
+  );
+}
+
+function RechtssituatieBlok({
+  signaal,
+  primaireRechthebbenden,
+}: {
+  signaal: OffMarketSignaal;
+  primaireRechthebbenden: PrimaireRechthebbende[];
+}) {
   const a = signaal as any;
   const situatie = (a.eigenaar_rechtssituatie ?? null) as Rechtssituatie | null;
   const aandeel = (a.eigenaar_aandeel ?? '') as string;
   const blootLabel = formatteerBlootEigenaar(a.bloot_eigenaar ?? null);
   const controleNodig = a.eigenaar_controle_nodig === true;
   const controleReden = (a.eigenaar_controle_reden ?? '') as string;
-  if (!situatie && !aandeel && !blootLabel && !controleNodig) return null;
+  const meerdere = primaireRechthebbenden.length > 1;
+  if (!situatie && !aandeel && !blootLabel && !controleNodig && primaireRechthebbenden.length === 0) return null;
   const toonBloot = !!blootLabel && (!situatie || RECHTSSITUATIES_MET_BLOOT_EIGENAAR.includes(situatie));
   return (
-    <div data-testid="eigenaar-rechtssituatie" className="space-y-1.5">
+    <div data-testid="eigenaar-rechtssituatie" className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5">
         {situatie && <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{RECHTSSITUATIE_LABEL[situatie] ?? situatie}</span>}
-        {aandeel && <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono-data text-foreground">Aandeel {aandeel}</span>}
+        {!meerdere && aandeel && <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono-data text-foreground">Aandeel {aandeel}</span>}
+        {meerdere && <span data-testid="meerdere-rechthebbenden-badge" className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{primaireRechthebbenden.length} rechthebbenden</span>}
         {controleNodig && <span data-testid="eigenaar-controle-badge" className="inline-flex items-center rounded-md border border-amber-300 bg-amber-50/60 px-2 py-0.5 text-[11px] text-amber-950">Eigenaar controleren</span>}
       </div>
       {controleNodig && controleReden && <p className="text-[11px] text-muted-foreground">{controleReden}</p>}
+      {meerdere && (
+        <div data-testid="primaire-rechthebbenden-lijst" className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+          {primaireRechthebbenden.map((rechthebbende, index) => (
+            <RechthebbendeKaart
+              key={`${rechthebbende.bedrijfsnaam || rechthebbende.naam || 'rechthebbende'}-${rechthebbende.kvk || index}`}
+              rechthebbende={rechthebbende}
+            />
+          ))}
+        </div>
+      )}
       {toonBloot && (
         <div data-testid="eigenaar-bloot-eigenaar" className="rounded-md border border-border bg-muted/20 px-3 py-2">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Bloot eigenaar</p>
