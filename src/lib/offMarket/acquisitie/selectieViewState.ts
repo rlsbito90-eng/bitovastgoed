@@ -9,21 +9,16 @@ import {
   type WerkbakView,
 } from './werkbak';
 
-// ---------------------------------------------------------------------
-// SessionStorage-view: werkbak + subfilter
-// ---------------------------------------------------------------------
-
 export const WERKBAK_KEY = 'off-market-acq:werkbak';
 export const SUBFILTER_KEY = 'off-market-acq:subfilter';
 export const LEGACY_FILTER_KEY = 'off-market-acq:filter';
 
 const GELDIGE_WERKBAK: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
 const GELDIG_SUBFILTER: ActieSubfilter[] = [
-  'alle', 'onderzoeken', 'eigenaar_controleren', 'brief_voorbereiden',
+  'alle', 'onderzoeken', 'eigenaar_controleren', 'adres_achterhalen', 'brief_voorbereiden',
   'printen_posten', 'opvolgen',
 ];
 
-/** Vertaal de oude filterchip-waarde naar (werkbak, subfilter). */
 export function migreerLegacyFilter(v: string | null): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
   switch (v) {
     case 'alles': return { werkbak: 'alles', subfilter: 'alle' };
@@ -35,15 +30,8 @@ export function migreerLegacyFilter(v: string | null): { werkbak: WerkbakView; s
   }
 }
 
-export interface StorageLike {
-  getItem(key: string): string | null;
-}
+export interface StorageLike { getItem(key: string): string | null; }
 
-/**
- * Bepaalt de initiële view op basis van sessionStorage.
- * Geeft altijd een geldige combinatie terug; ongeldige waarden vallen
- * defensief terug op {actie, alle}.
- */
 export function leesInitieleView(storage?: StorageLike): { werkbak: WerkbakView; subfilter: ActieSubfilter } {
   try {
     const s = storage ?? (typeof sessionStorage !== 'undefined' ? sessionStorage : null);
@@ -64,10 +52,6 @@ export function leesInitieleView(storage?: StorageLike): { werkbak: WerkbakView;
   return { werkbak: 'actie', subfilter: 'alle' };
 }
 
-// ---------------------------------------------------------------------
-// Verplaatsfeedback — pure diff-berekening
-// ---------------------------------------------------------------------
-
 export interface VorigeCtx {
   werkbak: Werkbak;
   subfilter: ActieSubfilter | null;
@@ -79,17 +63,6 @@ export interface VerplaatsToast {
   doelLabel: string;
 }
 
-/**
- * Bepaal welke signalen sinds `vorig` een zichtbare verplaatsing maakten
- * die door een expliciete gebruikersmutatie in deze sessie is veroorzaakt.
- *
- * - Als `vorig` `null` is (initiële laadactie), retourneer lege lijst.
- * - Signalen zonder recente mutatie binnen `ttlMs` worden overgeslagen
- *   (achtergrondrefresh of externe wijziging).
- * - Wisseling van hoofdwerkbak → `soort='werkbak'` met werkbak-label.
- * - Zelfde werkbak='actie' met andere subfilter → `soort='subfilter'`
- *   met subfilter-label.
- */
 export function bepaalVerplaatsToasts(input: {
   vorig: Map<string, VorigeCtx> | null;
   huidig: Map<string, VorigeCtx>;
@@ -104,29 +77,20 @@ export function bepaalVerplaatsToasts(input: {
     const nieuw = huidig.get(id);
     if (!nieuw) continue;
     const werkbakChanged = nieuw.werkbak !== oud.werkbak;
-    const subfilterChanged =
-      nieuw.werkbak === 'actie' && oud.werkbak === 'actie'
-      && nieuw.subfilter !== oud.subfilter;
+    const subfilterChanged = nieuw.werkbak === 'actie' && oud.werkbak === 'actie' && nieuw.subfilter !== oud.subfilter;
     if (!werkbakChanged && !subfilterChanged) continue;
     const mutAt = recenteMutaties.get(id);
     if (!mutAt || nu - mutAt > ttlMs) continue;
-
     if (werkbakChanged) {
       out.push({ id, soort: 'werkbak', doelLabel: WERKBAK_LABEL[nieuw.werkbak] });
     } else {
-      const label = nieuw.subfilter
-        ? ACTIE_SUBFILTER_LABEL[nieuw.subfilter]
-        : WERKBAK_LABEL.actie;
+      const label = nieuw.subfilter ? ACTIE_SUBFILTER_LABEL[nieuw.subfilter] : WERKBAK_LABEL.actie;
       out.push({ id, soort: 'subfilter', doelLabel: label });
     }
   }
   return out;
 }
 
-/**
- * Extraheer signaal-id's uit de `variables` van een react-query mutatie.
- * Accepteert `{ id }`, `{ signaal_id }`, `{ signaalId }` en arrays.
- */
 export function extraheerSignaalIds(vars: unknown): string[] {
   if (vars == null) return [];
   if (Array.isArray(vars)) return vars.flatMap(extraheerSignaalIds);
