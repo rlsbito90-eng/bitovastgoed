@@ -36,8 +36,21 @@ export interface BlootEigenaar {
   rechtssituatie: Rechtssituatie;
 }
 
+export interface PrimaireRechthebbende {
+  naam: string | null;
+  bedrijfsnaam: string | null;
+  kvk: string | null;
+  aandeel: string | null;
+  rechtstype: string | null;
+  straatHuisnummer: string | null;
+  postcode: string | null;
+  plaats: string | null;
+  verzendadres: string | null;
+  adresCompleet: boolean;
+}
+
 export interface RechtenbewusteEigenaarUitkomst {
-  status: 'geen' | 'eenduidig' | 'ambigu';
+  status: 'geen' | 'eenduidig' | 'meervoudig' | 'ambigu';
   rechtssituatie: Rechtssituatie;
   rechtstype: string | null;
   voorstel: KadasterEigenaarVoorstel;
@@ -47,6 +60,7 @@ export interface RechtenbewusteEigenaarUitkomst {
   plaats: string | null;
   verzendadres: string | null;
   adresCompleet: boolean;
+  primaireRechthebbenden: PrimaireRechthebbende[];
   blootEigenaar: BlootEigenaar | null;
   controleNodig: boolean;
   controleReden: string | null;
@@ -98,6 +112,25 @@ function blokLabel(blok: KadasterRechtenBlok): string {
   return blok.persoonType === 'natuurlijk' ? (naam || bedrijf) : (bedrijf || naam);
 }
 
+function naarPrimaireRechthebbende(blok: KadasterRechtenBlok): PrimaireRechthebbende {
+  const straatHuisnummer = schoon(blok.adresRegels?.[0]) || null;
+  const postcode = schoon(blok.postcode) || null;
+  const plaats = schoon(blok.plaats) || null;
+  const verzendadres = bouwVerzendadres(straatHuisnummer, postcode, plaats);
+  return {
+    naam: schoon(blok.naam) || null,
+    bedrijfsnaam: schoon(blok.bedrijfsnaam) || null,
+    kvk: schoon(blok.kvkNummer) || null,
+    aandeel: schoon(blok.aandeel) || null,
+    rechtstype: schoon(blok.rechtstype) || null,
+    straatHuisnummer,
+    postcode,
+    plaats,
+    verzendadres,
+    adresCompleet: !!verzendadres,
+  };
+}
+
 export function bepaalRechtenbewusteEigenaar(
   blokken: readonly KadasterRechtenBlok[],
 ): RechtenbewusteEigenaarUitkomst {
@@ -108,7 +141,7 @@ export function bepaalRechtenbewusteEigenaar(
       status: 'geen', rechtssituatie: 'onbekend', rechtstype: null,
       voorstel: { status: 'geen', controleNodig: true, controleReden: reden },
       aandeel: null, straatHuisnummer: null, postcode: null, plaats: null,
-      verzendadres: null, adresCompleet: false, blootEigenaar: null,
+      verzendadres: null, adresCompleet: false, primaireRechthebbenden: [], blootEigenaar: null,
       controleNodig: true, controleReden: reden,
     };
   }
@@ -127,6 +160,8 @@ export function bepaalRechtenbewusteEigenaar(
     (b) => classificeerRechtssituatie(b.rechtstype) === besteSituatie,
   );
   const voorstel = maakKadasterEigenaarVoorstel(primaireBlokken);
+  const primaireRechthebbenden = primaireBlokken.map(naarPrimaireRechthebbende);
+  const meervoudig = primaireRechthebbenden.length > 1;
 
   let blootEigenaar: BlootEigenaar | null = null;
   if (RECHTSSITUATIES_MET_BLOOT_EIGENAAR.includes(besteSituatie)) {
@@ -145,35 +180,54 @@ export function bepaalRechtenbewusteEigenaar(
     }
   }
 
-  const primair = primaireBlokken[0] ?? null;
-  const eenduidig = voorstel.status === 'eenduidig';
-  const straatHuisnummer = eenduidig ? (schoon(primair?.adresRegels?.[0]) || null) : null;
-  const postcode = eenduidig ? (schoon(primair?.postcode) || null) : null;
-  const plaats = eenduidig ? (schoon(primair?.plaats) || null) : null;
-  const verzendadres = bouwVerzendadres(straatHuisnummer, postcode, plaats);
-  const adresCompleet = !!verzendadres;
+  const primair = primaireRechthebbenden[0] ?? null;
+  const alleAdressenCompleet = primaireRechthebbenden.length > 0
+    && primaireRechthebbenden.every((r) => r.adresCompleet);
 
-  let controleNodig = voorstel.status !== 'eenduidig' || !adresCompleet || voorstel.controleNodig;
+  if (meervoudig) {
+    return {
+      status: 'meervoudig',
+      rechtssituatie: besteSituatie,
+      rechtstype: primair?.rechtstype ?? null,
+      voorstel,
+      aandeel: null,
+      straatHuisnummer: null,
+      postcode: null,
+      plaats: null,
+      verzendadres: null,
+      adresCompleet: alleAdressenCompleet,
+      primaireRechthebbenden,
+      blootEigenaar,
+      controleNodig: !alleAdressenCompleet,
+      controleReden: alleAdressenCompleet
+        ? null
+        : 'Van één of meer primaire rechthebbenden ontbreken volledige adresgegevens.',
+    };
+  }
+
+  const eenduidig = voorstel.status === 'eenduidig' && !!primair;
+  const controleNodig = !eenduidig || !alleAdressenCompleet || voorstel.controleNodig;
   let controleReden = voorstel.controleReden ?? null;
   if (voorstel.status === 'ambigu') {
-    controleReden = 'Meerdere verschillende primaire rechthebbenden gevonden in het Kadasterrecord.';
+    controleReden = 'De primaire rechthebbende kan niet veilig automatisch worden bepaald.';
   } else if (voorstel.status === 'geen') {
     controleReden = 'Geen bruikbare primaire rechthebbende gevonden in het Kadasterrecord.';
-  } else if (!adresCompleet) {
+  } else if (!alleAdressenCompleet) {
     controleReden = 'Adresgegevens van de primaire rechthebbende zijn onvolledig.';
   }
 
   return {
-    status: voorstel.status,
+    status: eenduidig ? 'eenduidig' : voorstel.status,
     rechtssituatie: besteSituatie,
-    rechtstype: schoon(primair?.rechtstype) || null,
+    rechtstype: primair?.rechtstype ?? null,
     voorstel,
-    aandeel: schoon(primair?.aandeel) || null,
-    straatHuisnummer,
-    postcode,
-    plaats,
-    verzendadres,
-    adresCompleet,
+    aandeel: primair?.aandeel ?? null,
+    straatHuisnummer: primair?.straatHuisnummer ?? null,
+    postcode: primair?.postcode ?? null,
+    plaats: primair?.plaats ?? null,
+    verzendadres: primair?.verzendadres ?? null,
+    adresCompleet: !!primair?.adresCompleet,
+    primaireRechthebbenden,
     blootEigenaar,
     controleNodig,
     controleReden,
@@ -214,13 +268,53 @@ export function formatteerBlootEigenaar(
   return aandeel ? `${naam} · ${aandeel}` : naam;
 }
 
+function patchMeervoudigeRechthebbenden(
+  huidig: HuidigeEigenaarVelden,
+  uitkomst: RechtenbewusteEigenaarUitkomst,
+): Record<string, unknown> | null {
+  const bron = schoon(huidig.eigenaarbron).toLowerCase();
+  const heeftBestaandeEnkelePartij = !leeg(huidig.eigenaar_naam) || !leeg(huidig.eigenaar_bedrijfsnaam);
+  if (heeftBestaandeEnkelePartij && bron && bron !== 'kadaster') {
+    return {
+      eigenaar_controle_nodig: true,
+      eigenaar_controle_reden: 'Kadasterrechten wijken af van bestaande handmatige eigenaargegevens.',
+    };
+  }
+
+  const patch: Record<string, unknown> = {
+    eigenaarstatus: 'gevonden',
+    eigenaar_bekend: true,
+    eigenaarbron: 'kadaster',
+    eigenaar_type: null,
+    eigenaar_naam: null,
+    eigenaar_bedrijfsnaam: null,
+    eigenaar_kvk: null,
+    eigenaar_straat_huisnummer: null,
+    eigenaar_postcode: null,
+    eigenaar_plaats: null,
+    eigenaar_verzendadres: null,
+    eigenaar_rechtstype: uitkomst.rechtstype,
+    eigenaar_rechtssituatie: uitkomst.rechtssituatie,
+    eigenaar_aandeel: null,
+    bloot_eigenaar: uitkomst.blootEigenaar,
+    eigenaar_controle_nodig: uitkomst.controleNodig,
+    eigenaar_controle_reden: uitkomst.controleReden,
+  };
+  if (['', 'nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen'].includes(huidig.status ?? '')) {
+    patch.status = 'eigenaar_gevonden';
+  }
+  return patch;
+}
+
 export function bouwAutomatischeEigenaarPatch(
   huidig: HuidigeEigenaarVelden,
   uitkomst: RechtenbewusteEigenaarUitkomst,
 ): Record<string, unknown> | null {
-  const patch: Record<string, unknown> = {};
+  if (uitkomst.status === 'meervoudig') {
+    return patchMeervoudigeRechthebbenden(huidig, uitkomst);
+  }
 
-  // Exception: geen primaire eigenaar overschrijven of invullen.
+  const patch: Record<string, unknown> = {};
   if (uitkomst.status !== 'eenduidig' || uitkomst.controleNodig) {
     if (!uitkomst.controleNodig) return null;
     if (huidig.eigenaar_controle_nodig !== true) patch.eigenaar_controle_nodig = true;
@@ -278,6 +372,7 @@ export const EIGENAAR_PROCES_LABEL: Record<EigenaarProcesStatus, string> = {
 
 export function bepaalEigenaarProcesStatus(signaal: HuidigeEigenaarVelden): EigenaarProcesStatus {
   if (signaal.eigenaar_controle_nodig === true) return 'controleren';
+  if (signaal.eigenaar_bekend === true && signaal.eigenaarstatus === 'gevonden') return 'gevonden';
   const heeftNaam = !leeg(signaal.eigenaar_naam) || !leeg(signaal.eigenaar_bedrijfsnaam);
   return heeftNaam ? 'gevonden' : 'ontbreekt';
 }
