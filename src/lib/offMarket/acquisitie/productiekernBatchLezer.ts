@@ -11,6 +11,9 @@ export interface GeladenProductiekernBatch {
  * Leest een bestaande BAT terug vanuit uitsluitend Productiekern-tabellen en
  * reconstrueert exact de gekoppelde immutable briefversies. Verwijderde
  * koppelingen worden genegeerd; ontbrekende of gedrifte data blokkeert.
+ *
+ * Een gekoppelde versie kan na fysieke verzending status `verzonden` hebben.
+ * Dat is geen versie-drift: dezelfde immutable versie blijft de BAT-identiteit.
  */
 export async function laadProductiekernBatch(
   batchId: string,
@@ -55,17 +58,28 @@ export async function laadProductiekernBatch(
     const versie = versies.find((v) => v.id === koppeling.briefVersieId);
     if (!versie) throw new Error(`Gekoppelde briefversie ${koppeling.briefVersieId} ontbreekt.`);
     if (versie.briefId !== brief.id) throw new Error('Gekoppelde briefversie hoort bij een andere brief.');
-    if (versie.status !== 'actief') throw new Error(`Gekoppelde briefversie ${versie.id} is niet actief.`);
+    if (versie.status !== 'actief' && versie.status !== 'verzonden') {
+      throw new Error(`Gekoppelde briefversie ${versie.id} is vervallen.`);
+    }
     if (brief.actieveVersie !== versie.versienummer) throw new Error(`Brief ${brief.id} heeft versie-drift.`);
 
     return {
       brief,
       versie,
-      // Stabiele, uitsluitend interne sleutel. De formele versie-ID is uniek en
-      // voorkomt afhankelijkheid van veranderlijke naam/adrestekst.
       geadresseerdeKey: `${brief.signaalId}|${versie.id}`,
     };
   }));
+
+  const verzondenAantal = brieven.filter((item) => item.versie.status === 'verzonden').length;
+  if (['concept', 'documenten_gegenereerd', 'geprint'].includes(batch.status) && verzondenAantal > 0) {
+    throw new Error(`Printbatch ${batch.batchnummer} bevat verzonden briefversies vóór een poststatus.`);
+  }
+  if (batch.status === 'gedeeltelijk_gepost' && (verzondenAantal === 0 || verzondenAantal === brieven.length)) {
+    throw new Error(`Printbatch ${batch.batchnummer} heeft een inconsistente gedeeltelijke poststatus.`);
+  }
+  if (batch.status === 'gepost' && verzondenAantal !== brieven.length) {
+    throw new Error(`Printbatch ${batch.batchnummer} is gepost maar niet alle briefversies zijn verzonden.`);
+  }
 
   brieven.sort((a, b) =>
     (a.brief.briefnummer ?? '').localeCompare(b.brief.briefnummer ?? '')
