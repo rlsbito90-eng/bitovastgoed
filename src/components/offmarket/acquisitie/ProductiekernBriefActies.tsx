@@ -116,11 +116,14 @@ export default function ProductiekernBriefActies({ signaalId }: Props) {
       })}
 
       {postConcepten.map((brief) => (
-        <div key={brief.id} className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0 text-xs">
+        <div key={brief.id} className="flex flex-wrap items-end justify-between gap-2 rounded-md border bg-background/60 p-2">
+          <div className="min-w-0 text-xs space-y-1">
             <p className="font-medium truncate">{geadresseerdeLabel(brief)}</p>
+            <p className="whitespace-pre-line text-[11px] leading-4 text-foreground/80">
+              {brief.verzendadres || 'Geen verzendadres'}
+            </p>
             <p className="text-[11px] text-muted-foreground">
-              Opgeslagen concept · wijzigingen worden eerst als nieuwe immutable versie vastgelegd
+              Controleer naam en verzendadres. Met “Definitief maken” bevestig je deze gegevens voor de printversie; latere wijzigingen vereisen een nieuwe brief.
             </p>
           </div>
           <Button
