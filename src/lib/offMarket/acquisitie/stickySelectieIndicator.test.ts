@@ -51,4 +51,29 @@ describe('stickySelectieIndicator', () => {
     synchroniseerStickySelectieIndicator();
     expect(document.querySelector('[data-testid="acquisitie-sticky-selectieteller"]')).toBeNull();
   });
+
+  it('verdwijnt zolang een modal geopend is en komt daarna terug', () => {
+    document.body.innerHTML = `
+      <div data-testid="acquisitie-bulk-toolbar">
+        <button>Wis selectie</button>
+        <span data-testid="acquisitie-bulk-telling">5 signalen · 7 geadresseerden · 5 brieven</span>
+      </div>
+      <ul data-testid="acquisitie-selectie-lijst"><li></li><li></li></ul>
+    `;
+
+    synchroniseerStickySelectieIndicator();
+    expect(document.querySelector('[data-testid="acquisitie-sticky-selectieteller"]')).not.toBeNull();
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('data-state', 'open');
+    document.body.appendChild(dialog);
+    synchroniseerStickySelectieIndicator();
+    expect(document.querySelector('[data-testid="acquisitie-sticky-selectieteller"]')).toBeNull();
+
+    dialog.remove();
+    synchroniseerStickySelectieIndicator();
+    expect(document.querySelector('[data-testid="acquisitie-sticky-selectieteller"]')?.textContent)
+      .toContain('5 geselecteerd · 2 zichtbaar');
+  });
 });
