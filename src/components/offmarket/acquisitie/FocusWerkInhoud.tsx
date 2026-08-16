@@ -7,6 +7,7 @@ import SignaalKadasterKaart from '@/components/offmarket/kadaster/SignaalKadaste
 import { KadasterAdresPreferenceProvider } from '@/components/offmarket/kadaster/KadasterAdresPreferenceContext';
 import SignaalEigenaarsonderzoekSectie from '@/components/offmarket/SignaalEigenaarsonderzoekSectie';
 import SignaalBrievenSectie from '@/components/offmarket/SignaalBrievenSectie';
+import AutomatischeKadasterPdfEigenaarVerrijking from './AutomatischeKadasterPdfEigenaarVerrijking';
 import { parseObjectAdres } from '@/lib/kadaster/adres';
 import {
   VERGUNNINGTYPE_LABEL,
@@ -108,6 +109,7 @@ export default function FocusWerkInhoud({ signaal, focusContext }: Props) {
       </details>
 
       <div id="focus-kadaster" className="scroll-mt-4 space-y-4 min-w-0">
+        <AutomatischeKadasterPdfEigenaarVerrijking signaalId={signaal.id} />
         <KadasterAdresPreferenceProvider value={voorkeursHuisnummerLabel}>
           <SignaalKadasterKaart key={`kadaster-${signaal.id}`} signaal={signaal} />
         </KadasterAdresPreferenceProvider>
