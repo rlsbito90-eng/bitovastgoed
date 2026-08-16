@@ -60,6 +60,13 @@ function norm(v: string | null | undefined): string {
     .replace(/\s+/g, ' ');
 }
 
+function straatKomtOvereen(a: string | null | undefined, b: string | null | undefined): boolean {
+  const links = norm(a);
+  const rechts = norm(b);
+  if (!links || !rechts) return false;
+  return links === rechts || links.endsWith(` ${rechts}`) || rechts.endsWith(` ${links}`);
+}
+
 function bagHuisnummerLabel(r: BagAdresResultaat): string {
   const base = r.huisnummer ?? '';
   const letter = r.huisletter ?? '';
@@ -98,7 +105,7 @@ function bagVoorkeurScore(r: BagAdresResultaat, explicietLabel: string | null): 
   return 50;
 }
 
-function adresUitBag(r: BagAdresResultaat): BulkKadasterAdresResultaat | null {
+function adresUitBag(r: BagAdresResultaat, reden = 'Zoekadres gratis bevestigd via BAG/PDOK.'): BulkKadasterAdresResultaat | null {
   if (!r.postcode || !r.huisnummer) return null;
   const postcode = compactPostcode(r.postcode);
   if (!/^\d{4}[A-Z]{2}$/.test(postcode)) return null;
@@ -117,8 +124,48 @@ function adresUitBag(r: BagAdresResultaat): BulkKadasterAdresResultaat | null {
     status: 'klaar',
     adresInput,
     zoekadresLabel,
-    reden: 'Zoekadres gratis bevestigd via BAG/PDOK.',
+    reden,
   };
+}
+
+function opgeslagenBagKandidaten(signaal: OffMarketSignaal): BagAdresResultaat[] {
+  const raw = (signaal as any).bag_match_kandidaten;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((k): k is Record<string, unknown> => !!k && typeof k === 'object')
+    .map((k) => ({
+      straat: typeof k.openbareruimte === 'string'
+        ? k.openbareruimte
+        : (typeof k.straat === 'string' ? k.straat : ''),
+      huisnummer: k.huisnummer == null ? null : String(k.huisnummer),
+      huisletter: typeof k.huisletter === 'string' ? k.huisletter : null,
+      huisnummertoevoeging: typeof k.huisnummertoevoeging === 'string' ? k.huisnummertoevoeging : null,
+      postcode: typeof k.postcode === 'string'
+        ? k.postcode
+        : (typeof k.postcode_normalized === 'string' ? k.postcode_normalized : null),
+      woonplaats: typeof k.woonplaats === 'string' ? k.woonplaats : null,
+    } as BagAdresResultaat));
+}
+
+function kiesBagKandidaat(
+  kandidaten: BagAdresResultaat[],
+  straat: string,
+  huisnummer: string,
+  plaats: string,
+  explicietLabel: string | null,
+): BagAdresResultaat | null {
+  const officieel = kandidaten.filter((r) =>
+    straatKomtOvereen(r.straat, straat)
+    && String(r.huisnummer ?? '') === huisnummer
+    && norm(r.woonplaats) === norm(plaats),
+  );
+  if (officieel.length === 0) return null;
+
+  return [...officieel].sort((a, b) => {
+    const pref = bagVoorkeurScore(a, explicietLabel) - bagVoorkeurScore(b, explicietLabel);
+    if (pref !== 0) return pref;
+    return bagHuisnummerLabel(a).localeCompare(bagHuisnummerLabel(b), 'nl', { numeric: true });
+  })[0] ?? null;
 }
 
 export function bepaalBulkKadasterAdres(signaal: OffMarketSignaal): BulkKadasterAdresResultaat {
@@ -188,26 +235,26 @@ export async function bepaalBulkKadasterAdresMetBag(
   if (!straat || !plaats || !eerste?.huisnummer) return direct;
 
   const explicietLabel = (eerste.huisletter || eerste.toevoeging) ? eerste.label : null;
+
+  const opgeslagen = kiesBagKandidaat(
+    opgeslagenBagKandidaten(signaal),
+    straat,
+    eerste.huisnummer,
+    plaats,
+    explicietLabel,
+  );
+  if (opgeslagen) {
+    return adresUitBag(opgeslagen, 'Zoekadres bevestigd via reeds opgeslagen BAG-kandidaten.') ?? direct;
+  }
+
   const raw = await bagZoeker({
     straat,
     huisnummer: eerste.huisnummer,
     plaats,
     postcode: null,
   });
-
-  const officieel = raw.filter((r) =>
-    norm(r.straat) === norm(straat)
-    && String(r.huisnummer ?? '') === eerste.huisnummer
-    && norm(r.woonplaats) === norm(plaats),
-  );
-  if (officieel.length === 0) return direct;
-
-  const kandidaten = [...officieel].sort((a, b) => {
-    const pref = bagVoorkeurScore(a, explicietLabel) - bagVoorkeurScore(b, explicietLabel);
-    if (pref !== 0) return pref;
-    return bagHuisnummerLabel(a).localeCompare(bagHuisnummerLabel(b), 'nl', { numeric: true });
-  });
-  return adresUitBag(kandidaten[0]) ?? direct;
+  const kandidaat = kiesBagKandidaat(raw, straat, eerste.huisnummer, plaats, explicietLabel);
+  return kandidaat ? (adresUitBag(kandidaat) ?? direct) : direct;
 }
 
 function documentVoorRecord(

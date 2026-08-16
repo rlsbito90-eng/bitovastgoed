@@ -1,6 +1,7 @@
 const BULK_TELLING_SELECTOR = '[data-testid="acquisitie-bulk-telling"]';
 const LIJST_SELECTOR = '[data-testid="acquisitie-selectie-lijst"]';
 const BAR_ID = 'acquisitie-sticky-selectieteller';
+const OPEN_DIALOG_SELECTOR = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
 
 let observer: MutationObserver | null = null;
 let gebruikers = 0;
@@ -29,6 +30,10 @@ function verwijderBar() {
   document.getElementById(BAR_ID)?.remove();
 }
 
+function heeftOpenModal(root: ParentNode = document): boolean {
+  return root.querySelector(OPEN_DIALOG_SELECTOR) != null;
+}
+
 function maakBar(): HTMLDivElement {
   const bestaand = document.getElementById(BAR_ID);
   if (bestaand instanceof HTMLDivElement) return bestaand;
@@ -41,21 +46,24 @@ function maakBar(): HTMLDivElement {
   bar.className = [
     'fixed', 'bottom-4', 'left-1/2', 'z-[70]', '-translate-x-1/2',
     'flex', 'max-w-[calc(100vw-2rem)]', 'items-center', 'gap-3',
-    'rounded-xl', 'border', 'border-border', 'bg-background/95', 'px-4', 'py-2.5',
-    'shadow-lg', 'backdrop-blur',
+    'rounded-2xl', 'border', 'border-white/30', 'dark:border-white/10',
+    'bg-background/60', 'px-4', 'py-2.5',
+    'shadow-[0_12px_40px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.38)]',
+    'backdrop-blur-xl', 'backdrop-saturate-150',
   ].join(' ');
 
   const tekst = document.createElement('span');
   tekst.dataset.role = 'telling';
-  tekst.className = 'whitespace-nowrap text-sm font-medium text-foreground tabular-nums';
+  tekst.className = 'whitespace-nowrap text-sm font-medium text-foreground tabular-nums drop-shadow-[0_1px_0_rgba(255,255,255,0.25)]';
   bar.appendChild(tekst);
 
   const wissen = document.createElement('button');
   wissen.type = 'button';
   wissen.dataset.role = 'wissen';
   wissen.className = [
-    'rounded-md', 'px-2.5', 'py-1.5', 'text-xs', 'font-medium', 'text-muted-foreground',
-    'transition-colors', 'hover:bg-muted', 'hover:text-foreground',
+    'rounded-lg', 'border', 'border-white/20', 'bg-background/25',
+    'px-2.5', 'py-1.5', 'text-xs', 'font-medium', 'text-muted-foreground',
+    'transition-colors', 'hover:bg-background/45', 'hover:text-foreground',
   ].join(' ');
   wissen.textContent = 'Selectie wissen';
   wissen.addEventListener('click', () => vindWisSelectieKnop()?.click());
@@ -67,6 +75,11 @@ function maakBar(): HTMLDivElement {
 
 export function synchroniseerStickySelectieIndicator(root: ParentNode = document) {
   if (typeof document === 'undefined') return;
+
+  if (heeftOpenModal(root)) {
+    verwijderBar();
+    return;
+  }
 
   const telling = root.querySelector(BULK_TELLING_SELECTOR)?.textContent;
   const geselecteerd = leesAantalGeselecteerdUitBulkTekst(telling);
