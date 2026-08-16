@@ -12,6 +12,7 @@ export function werkrondeBronVoorView(input: {
   if (input.heeftHandmatigeSelectie) return 'handmatig';
   if (input.werkbak !== 'actie') return 'handmatig';
   if (input.subfilter === 'onderzoeken') return 'onderzoeken';
+  if (input.subfilter === 'eigenaar_controleren') return 'eigenaar_controleren';
   if (input.subfilter === 'brief_voorbereiden') return 'brief_voorbereiden';
   if (input.subfilter === 'opvolgen') return 'opvolgen';
   if (input.subfilter === 'printen_posten' && input.printPost !== 'alles') return input.printPost;
@@ -25,6 +26,9 @@ export function hoortWerkbakContextBijBron(
   if (!ctx) return false;
   if (bron === 'onderzoeken') {
     return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'onderzoeken';
+  }
+  if (bron === 'eigenaar_controleren') {
+    return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'eigenaar_controleren';
   }
   if (bron === 'brief_voorbereiden') {
     return ctx.werkbak === 'actie' && ctx.actieSubfilter === 'brief_voorbereiden';
@@ -41,5 +45,6 @@ export function hoortWerkbakContextBijBron(
 /** Primaire detailtab voor een rij in Acquisitieselectie. */
 export function focusTabVoorWerkbakContext(ctx: WerkbakContext | undefined): FocusTab {
   if (ctx?.werkbak === 'actie' && ctx.actieSubfilter === 'onderzoeken') return 'kadaster';
+  if (ctx?.werkbak === 'actie' && ctx.actieSubfilter === 'eigenaar_controleren') return 'kadaster';
   return 'brieven';
 }

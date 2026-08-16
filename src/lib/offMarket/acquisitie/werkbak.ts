@@ -33,6 +33,7 @@ export type WerkbakView = Werkbak | 'alles';
 export type ActieSubfilter =
   | 'alle'
   | 'onderzoeken'
+  | 'eigenaar_controleren'
   | 'brief_voorbereiden'
   | 'printen_posten'
   | 'opvolgen';
@@ -46,6 +47,7 @@ export type ActieCategorie =
   | 'gereed_voor_print'
   | 'concept_controleren'
   | 'brief_voorbereiden'
+  | 'eigenaar_controleren'
   | 'onderzoek';
 
 export interface ProcesDatum {
@@ -75,6 +77,7 @@ export interface WerkbakContext {
 export const FASE_WERKBAK: Record<ReadinessFase, Werkbak> = {
   onderzoek_nodig: 'actie',
   eigenaar_ontbreekt: 'actie',
+  eigenaar_controleren: 'actie',
   adres_ontbreekt: 'actie',
   brief_voorbereiden: 'actie',
   concept_gereed: 'actie',
@@ -361,6 +364,17 @@ function bepaalActie(
         },
       };
 
+    case 'eigenaar_controleren':
+      return {
+        categorie: 'eigenaar_controleren',
+        subfilter: 'eigenaar_controleren',
+        procesDatum: {
+          iso: null,
+          label: 'Eigenaar controleren',
+          a11yLabel: 'Eigenaar/recht controleren',
+        },
+      };
+
     case 'brief_voorbereiden':
       return {
         categorie: 'brief_voorbereiden',
@@ -489,6 +503,7 @@ const ACTIE_RANG: Record<ActieCategorie, number> = {
   gereed_voor_print: 50,
   concept_controleren: 60,
   brief_voorbereiden: 70,
+  eigenaar_controleren: 75,
   onderzoek: 80,
 };
 
@@ -577,6 +592,7 @@ export const WERKBAK_LABEL: Record<WerkbakView, string> = {
 export const ACTIE_SUBFILTER_LABEL: Record<ActieSubfilter, string> = {
   alle: 'Alle acties',
   onderzoeken: 'Onderzoeken',
+  eigenaar_controleren: 'Eigenaar controleren',
   brief_voorbereiden: 'Brief voorbereiden',
   printen_posten: 'Printen & posten',
   opvolgen: 'Opvolgen',

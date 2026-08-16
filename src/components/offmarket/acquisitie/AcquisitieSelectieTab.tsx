@@ -21,6 +21,11 @@ import {
 import StatusWijzigDropdown from '@/components/offmarket/overzicht/StatusWijzigDropdown';
 import PrioriteitWijzigDropdown from '@/components/offmarket/cockpit/PrioriteitWijzigDropdown';
 import EigenaarstatusWijzigDropdown from '@/components/offmarket/cockpit/EigenaarstatusWijzigDropdown';
+import {
+  bepaalEigenaarProcesStatus,
+  toonErfpachtChip,
+  EIGENAAR_PROCES_LABEL,
+} from '@/lib/offMarket/acquisitie/rechtenbewusteEigenaar';
 import SignaalBriefStatusBadge from '@/components/offmarket/SignaalBriefStatusBadge';
 import { bepaalBriefStatus, type BriefStatus } from '@/lib/offMarket/briefStatus';
 import { groepeerBrievenPerGeadresseerde } from '@/lib/offMarket/brieven/groepering';
@@ -248,7 +253,8 @@ export default function AcquisitieSelectieTab() {
   const tellingen = useMemo(() => {
     const wb: Record<WerkbakView, number> = { actie: 0, wachten: 0, afgehandeld: 0, alles: 0 };
     const sf: Record<ActieSubfilter, number> = {
-      alle: 0, onderzoeken: 0, brief_voorbereiden: 0, printen_posten: 0, opvolgen: 0,
+      alle: 0, onderzoeken: 0, eigenaar_controleren: 0, brief_voorbereiden: 0,
+      printen_posten: 0, opvolgen: 0,
     };
     const pp: Record<PrintPostFilter, number> = { alles: 0, te_printen: 0, te_posten: 0 };
     for (const ctx of werkbakPerSignaal.values()) {
@@ -593,6 +599,7 @@ export default function AcquisitieSelectieTab() {
       return { bron, naam: `Handmatige selectie (${bulkSelectie.size})` };
     }
     if (bron === 'onderzoeken') return { bron, naam: ACTIE_SUBFILTER_LABEL.onderzoeken };
+    if (bron === 'eigenaar_controleren') return { bron, naam: ACTIE_SUBFILTER_LABEL.eigenaar_controleren };
     if (bron === 'brief_voorbereiden') return { bron, naam: ACTIE_SUBFILTER_LABEL.brief_voorbereiden };
     if (bron === 'opvolgen') return { bron, naam: ACTIE_SUBFILTER_LABEL.opvolgen };
     if (bron === 'te_printen' || bron === 'te_posten') return { bron, naam: PRINT_POST_LABEL[bron] };
@@ -1057,6 +1064,30 @@ export default function AcquisitieSelectieTab() {
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {r.telling.totaal} geadr.
                         </span>
+                        {(() => {
+                          const proces = bepaalEigenaarProcesStatus(signaal as any);
+                          const kleur = proces === 'gevonden'
+                            ? 'border-border bg-card text-muted-foreground'
+                            : proces === 'controleren'
+                              ? 'border-amber-300 bg-amber-50/60 text-amber-950'
+                              : 'border-border bg-muted/40 text-muted-foreground';
+                          return (
+                            <span
+                              data-testid="acquisitie-rij-eigenaarproces"
+                              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap ${kleur}`}
+                            >
+                              {EIGENAAR_PROCES_LABEL[proces]}
+                            </span>
+                          );
+                        })()}
+                        {toonErfpachtChip(signaal as any) && (
+                          <span
+                            data-testid="acquisitie-rij-erfpacht"
+                            className="inline-flex items-center rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap"
+                          >
+                            Erfpacht
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                         {ctx.procesDatum && (

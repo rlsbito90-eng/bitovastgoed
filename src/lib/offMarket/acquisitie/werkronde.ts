@@ -6,6 +6,7 @@
 
 export type WerkrondeBron =
   | 'onderzoeken'
+  | 'eigenaar_controleren'
   | 'brief_voorbereiden'
   | 'te_printen'
   | 'te_posten'
@@ -62,7 +63,8 @@ export function parseWerkronde(raw: string | null): Werkronde | null {
   if (typeof r.naam !== 'string' || typeof r.gestartOp !== 'string') return null;
   const bron = r.bron;
   const geldigeBron: WerkrondeBron[] = [
-    'onderzoeken', 'brief_voorbereiden', 'te_printen', 'te_posten', 'opvolgen', 'werkbak', 'handmatig',
+    'onderzoeken', 'eigenaar_controleren', 'brief_voorbereiden',
+    'te_printen', 'te_posten', 'opvolgen', 'werkbak', 'handmatig',
   ];
   if (typeof bron !== 'string' || !(geldigeBron as string[]).includes(bron)) return null;
   return {
