@@ -10,6 +10,7 @@ import { useOffMarketBrievenForSignaal, type OffMarketBrief } from '@/hooks/useO
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { maakBestaandConceptDefinitief } from '@/lib/offMarket/acquisitie/bestaandConceptNaarProductie';
+import ProductiekernPrintbatchActies from './ProductiekernPrintbatchActies';
 
 interface Props {
   signaalId: string;
@@ -136,6 +137,13 @@ export default function ProductiekernBriefActies({ signaalId }: Props) {
           </Button>
         </div>
       ))}
+
+      {postConcepten.length === 0 && definitieveBrieven.length > 0 && (
+        <ProductiekernPrintbatchActies
+          signaalId={signaalId}
+          briefIds={definitieveBrieven.map((brief) => brief.id)}
+        />
+      )}
     </section>
   );
 }
