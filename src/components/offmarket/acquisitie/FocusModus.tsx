@@ -85,6 +85,7 @@ export default function FocusModus({
   const navigate = useNavigate();
   const [werkronde, setWerkronde] = useState<Werkronde | null>(() => leesWerkronde());
   const [bulkKadasterOpen, setBulkKadasterOpen] = useState(false);
+  const [vasteFasePerSignaal, setVasteFasePerSignaal] = useState<Record<string, SignaalReadiness['fase']>>({});
 
   const beschikbareIds = useMemo(
     () => items.map((item) => item.signaal.id),
@@ -114,6 +115,24 @@ export default function FocusModus({
     if (index >= items.length) return items.length - 1;
     return index;
   }, [items.length, index]);
+
+  const huidigVoorFase = items[veiligIndex] ?? null;
+  const huidigVoorFaseId = huidigVoorFase?.signaal.id ?? null;
+
+  useEffect(() => {
+    if (!open) {
+      setVasteFasePerSignaal({});
+      return;
+    }
+    if (!huidigVoorFaseId || !huidigVoorFase) return;
+    setVasteFasePerSignaal((prev) => {
+      if (prev[huidigVoorFaseId]) return prev;
+      return { ...prev, [huidigVoorFaseId]: huidigVoorFase.readiness.fase };
+    });
+    // Bewust niet afhankelijk van readiness.fase: de actieve werkstap blijft
+    // tijdens deze Focus-kaart staan totdat de gebruiker Gereed → volgende kiest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, huidigVoorFaseId]);
 
   const bewaarWerkronde = (volgende: Werkronde) => {
     setWerkronde(volgende);
@@ -221,7 +240,9 @@ export default function FocusModus({
 
   const huidig = items[veiligIndex];
   const { signaal, readiness } = huidig;
-  const focusContext = bepaalFocusContext(readiness.fase);
+  const vasteFase = vasteFasePerSignaal[signaal.id] ?? readiness.fase;
+  const focusContext = bepaalFocusContext(vasteFase);
+  const readinessIsDoorgestroomd = vasteFase !== readiness.fase;
   const adres = formatSignaalAdres(signaal) || cleanAdres(signaal.adres) || '—';
   const plaats = cleanPlaats(signaal.plaats) || '';
   const positieInWerkronde = Math.max(0, werkrondeBeschikbareIds.indexOf(signaal.id));
@@ -323,6 +344,11 @@ export default function FocusModus({
                 <ReadinessBadge fase={readiness.fase} />
                 <span className="text-xs text-muted-foreground">{readiness.info.reden}</span>
               </div>
+              {readinessIsDoorgestroomd && (
+                <p className="text-xs text-emerald-700" data-testid="focus-doorgestroomd-melding">
+                  Deze stap is inhoudelijk afgerond. Volgende stap: {readiness.info.volgendeActie}. Je blijft hier totdat je Gereed → volgende kiest.
+                </p>
+              )}
               {readiness.blokkadeReden && (
                 <p className="text-xs text-destructive" data-testid="focus-blokkade">
                   {readiness.blokkadeReden}
