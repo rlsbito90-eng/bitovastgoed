@@ -1,5 +1,6 @@
 import type {
   AcquisitiedossierContract,
+  BatchdocumentContract,
   BriefContract,
   BriefversieContract,
   GeadresseerdeSnapshot,
@@ -30,6 +31,8 @@ const BATCHSTATUSSEN = new Set([
   'concept', 'documenten_gegenereerd', 'geprint', 'gedeeltelijk_gepost',
   'gepost', 'geannuleerd',
 ]);
+const BATCHDOCUMENTTYPEN = new Set(['brieven_pdf', 'adreslabels', 'controlelijst', 'batchvoorblad']);
+const BATCHDOCUMENTSTATUSSEN = new Set(['actief', 'vervallen']);
 
 function tekst(rij: Rij, veld: string, entiteit: string): string {
   const waarde = rij[veld];
@@ -64,12 +67,7 @@ function object(rij: Rij, veld: string, entiteit: string): Record<string, unknow
   }
   return waarde as Record<string, unknown>;
 }
-function enumWaarde<T extends string>(
-  rij: Rij,
-  veld: string,
-  toegestaan: ReadonlySet<string>,
-  entiteit: string,
-): T {
+function enumWaarde<T extends string>(rij: Rij, veld: string, toegestaan: ReadonlySet<string>, entiteit: string): T {
   const waarde = tekst(rij, veld, entiteit);
   if (!toegestaan.has(waarde)) {
     throw new ProductiekernRijOngeldigError(entiteit, `${veld} bevat een onbekende waarde`);
@@ -79,71 +77,60 @@ function enumWaarde<T extends string>(
 
 export function mapAcquisitiedossierRij(rij: Rij): AcquisitiedossierContract {
   return {
-    selectieId: tekst(rij, 'selectie_id', 'Acquisitiedossier'),
-    signaalId: tekst(rij, 'signaal_id', 'Acquisitiedossier'),
-    objectId: nullableTekst(rij, 'object_id', 'Acquisitiedossier'),
-    verwerkingGestartOp: nullableTekst(rij, 'verwerking_gestart_op', 'Acquisitiedossier'),
-    verwerkingGestartDoor: nullableTekst(rij, 'verwerking_gestart_door', 'Acquisitiedossier'),
-    primaireWerkbak: enumWaarde(rij, 'primaire_werkbak', WERKBAKKEN, 'Acquisitiedossier'),
-    volgendeActieOp: nullableTekst(rij, 'volgende_actie_op', 'Acquisitiedossier'),
-    volgendeActieOmschrijving: nullableTekst(rij, 'volgende_actie_omschrijving', 'Acquisitiedossier'),
+    selectieId: tekst(rij, 'selectie_id', 'Acquisitiedossier'), signaalId: tekst(rij, 'signaal_id', 'Acquisitiedossier'),
+    objectId: nullableTekst(rij, 'object_id', 'Acquisitiedossier'), verwerkingGestartOp: nullableTekst(rij, 'verwerking_gestart_op', 'Acquisitiedossier'),
+    verwerkingGestartDoor: nullableTekst(rij, 'verwerking_gestart_door', 'Acquisitiedossier'), primaireWerkbak: enumWaarde(rij, 'primaire_werkbak', WERKBAKKEN, 'Acquisitiedossier'),
+    volgendeActieOp: nullableTekst(rij, 'volgende_actie_op', 'Acquisitiedossier'), volgendeActieOmschrijving: nullableTekst(rij, 'volgende_actie_omschrijving', 'Acquisitiedossier'),
   };
 }
 
 export function mapBriefRij(rij: Rij): BriefContract {
   return {
-    id: tekst(rij, 'id', 'Brief'),
-    briefnummer: nullableTekst(rij, 'briefnummer', 'Brief'),
-    signaalId: tekst(rij, 'signaal_id', 'Brief'),
-    selectieId: nullableTekst(rij, 'selectie_id', 'Brief'),
-    objectId: nullableTekst(rij, 'object_id', 'Brief'),
-    relatieId: nullableTekst(rij, 'relatie_id', 'Brief'),
-    actieveVersie: nullableGeheelGetal(rij, 'actieve_versie', 'Brief'),
-    status: enumWaarde(rij, 'status', BRIEFSTATUSSEN, 'Brief'),
-    vervangingVanBriefId: nullableTekst(rij, 'vervanging_van_brief_id', 'Brief'),
-    definitiefOp: nullableTekst(rij, 'definitief_op', 'Brief'),
-    vergrendeldOp: nullableTekst(rij, 'vergrendeld_op', 'Brief'),
-    annuleringsreden: nullableTekst(rij, 'annuleringsreden', 'Brief'),
+    id: tekst(rij, 'id', 'Brief'), briefnummer: nullableTekst(rij, 'briefnummer', 'Brief'), signaalId: tekst(rij, 'signaal_id', 'Brief'),
+    selectieId: nullableTekst(rij, 'selectie_id', 'Brief'), objectId: nullableTekst(rij, 'object_id', 'Brief'), relatieId: nullableTekst(rij, 'relatie_id', 'Brief'),
+    actieveVersie: nullableGeheelGetal(rij, 'actieve_versie', 'Brief'), status: enumWaarde(rij, 'status', BRIEFSTATUSSEN, 'Brief'),
+    vervangingVanBriefId: nullableTekst(rij, 'vervanging_van_brief_id', 'Brief'), definitiefOp: nullableTekst(rij, 'definitief_op', 'Brief'),
+    vergrendeldOp: nullableTekst(rij, 'vergrendeld_op', 'Brief'), annuleringsreden: nullableTekst(rij, 'annuleringsreden', 'Brief'),
   };
 }
 
 export function mapBriefversieRij(rij: Rij): BriefversieContract {
   return {
-    id: tekst(rij, 'id', 'Briefversie'),
-    briefId: tekst(rij, 'brief_id', 'Briefversie'),
-    versienummer: geheelGetal(rij, 'versienummer', 'Briefversie'),
-    status: enumWaarde(rij, 'status', VERSIESTATUSSEN, 'Briefversie'),
-    inhoud: object(rij, 'inhoud_snapshot', 'Briefversie') as unknown as InhoudSnapshot,
+    id: tekst(rij, 'id', 'Briefversie'), briefId: tekst(rij, 'brief_id', 'Briefversie'), versienummer: geheelGetal(rij, 'versienummer', 'Briefversie'),
+    status: enumWaarde(rij, 'status', VERSIESTATUSSEN, 'Briefversie'), inhoud: object(rij, 'inhoud_snapshot', 'Briefversie') as unknown as InhoudSnapshot,
     geadresseerde: object(rij, 'geadresseerde_snapshot', 'Briefversie') as unknown as GeadresseerdeSnapshot,
-    bestandReferentie: nullableTekst(rij, 'bestand_referentie', 'Briefversie'),
-    createdAt: tekst(rij, 'created_at', 'Briefversie'),
-    vervallenOp: nullableTekst(rij, 'vervallen_op', 'Briefversie'),
-    verzondenOp: nullableTekst(rij, 'verzonden_op', 'Briefversie'),
+    bestandReferentie: nullableTekst(rij, 'bestand_referentie', 'Briefversie'), createdAt: tekst(rij, 'created_at', 'Briefversie'),
+    vervallenOp: nullableTekst(rij, 'vervallen_op', 'Briefversie'), verzondenOp: nullableTekst(rij, 'verzonden_op', 'Briefversie'),
   };
 }
 
 export function mapPrintbatchRij(rij: Rij): PrintbatchContract {
   return {
-    id: tekst(rij, 'id', 'Printbatch'),
-    batchnummer: tekst(rij, 'batchnummer', 'Printbatch'),
-    status: enumWaarde(rij, 'status', BATCHSTATUSSEN, 'Printbatch'),
-    documentversie: geheelGetal(rij, 'documentversie', 'Printbatch'),
-    aanvullingOpBatchId: nullableTekst(rij, 'aanvulling_op_batch_id', 'Printbatch'),
-    printdatum: nullableTekst(rij, 'printdatum', 'Printbatch'),
-    verzenddatum: nullableTekst(rij, 'verzenddatum', 'Printbatch'),
-    geannuleerdOp: nullableTekst(rij, 'geannuleerd_op', 'Printbatch'),
-    annuleringsreden: nullableTekst(rij, 'annuleringsreden', 'Printbatch'),
+    id: tekst(rij, 'id', 'Printbatch'), batchnummer: tekst(rij, 'batchnummer', 'Printbatch'), status: enumWaarde(rij, 'status', BATCHSTATUSSEN, 'Printbatch'),
+    documentversie: geheelGetal(rij, 'documentversie', 'Printbatch'), aanvullingOpBatchId: nullableTekst(rij, 'aanvulling_op_batch_id', 'Printbatch'),
+    printdatum: nullableTekst(rij, 'printdatum', 'Printbatch'), verzenddatum: nullableTekst(rij, 'verzenddatum', 'Printbatch'),
+    geannuleerdOp: nullableTekst(rij, 'geannuleerd_op', 'Printbatch'), annuleringsreden: nullableTekst(rij, 'annuleringsreden', 'Printbatch'),
   };
 }
 
 export function mapPrintbatchBriefRij(rij: Rij): PrintbatchBriefContract {
   return {
-    id: tekst(rij, 'id', 'Printbatchbrief'),
-    batchId: tekst(rij, 'batch_id', 'Printbatchbrief'),
-    briefId: tekst(rij, 'brief_id', 'Printbatchbrief'),
-    briefVersieId: tekst(rij, 'brief_versie_id', 'Printbatchbrief'),
-    verwijderdOp: nullableTekst(rij, 'verwijderd_op', 'Printbatchbrief'),
-    afwijkingsstatus: nullableTekst(rij, 'afwijkingsstatus', 'Printbatchbrief'),
-    afwijkingsreden: nullableTekst(rij, 'afwijkingsreden', 'Printbatchbrief'),
+    id: tekst(rij, 'id', 'Printbatchbrief'), batchId: tekst(rij, 'batch_id', 'Printbatchbrief'), briefId: tekst(rij, 'brief_id', 'Printbatchbrief'),
+    briefVersieId: tekst(rij, 'brief_versie_id', 'Printbatchbrief'), verwijderdOp: nullableTekst(rij, 'verwijderd_op', 'Printbatchbrief'),
+    afwijkingsstatus: nullableTekst(rij, 'afwijkingsstatus', 'Printbatchbrief'), afwijkingsreden: nullableTekst(rij, 'afwijkingsreden', 'Printbatchbrief'),
+  };
+}
+
+export function mapBatchdocumentRij(rij: Rij): BatchdocumentContract {
+  return {
+    id: tekst(rij, 'id', 'Batchdocument'),
+    batchId: tekst(rij, 'batch_id', 'Batchdocument'),
+    documentversie: geheelGetal(rij, 'documentversie', 'Batchdocument'),
+    documenttype: enumWaarde(rij, 'documenttype', BATCHDOCUMENTTYPEN, 'Batchdocument'),
+    bestandReferentie: tekst(rij, 'bestand_referentie', 'Batchdocument'),
+    status: enumWaarde(rij, 'status', BATCHDOCUMENTSTATUSSEN, 'Batchdocument'),
+    metadata: object(rij, 'metadata', 'Batchdocument'),
+    createdAt: tekst(rij, 'created_at', 'Batchdocument'),
+    vervallenOp: nullableTekst(rij, 'vervallen_op', 'Batchdocument'),
   };
 }
