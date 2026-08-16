@@ -72,6 +72,16 @@ const navItems: NavItem[] = [
   { path: "/rapportage", label: "Rapportage", icon: BarChart3, group: "Inzicht" },
 ];
 
+export function isNavItemActive(itemPath: string, pathname: string): boolean {
+  if (itemPath === "/") return pathname === "/";
+  if (itemPath === "/acquisitie") {
+    return pathname === "/acquisitie"
+      || pathname.startsWith("/acquisitie/targets/")
+      || pathname.startsWith("/acquisitie/campagnes/");
+  }
+  return pathname.startsWith(itemPath);
+}
+
 function VastgoedrekenenSubmenu({
   pathname,
   search,
@@ -235,7 +245,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </Link>
         <nav className={`flex-1 space-y-0.5 overflow-y-auto py-4 ${desktopCollapsed ? "px-2" : "px-3"}`}>
           {navItems.map((item) => {
-            const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+            const isActive = isNavItemActive(item.path, location.pathname);
             return (
               <div key={item.path}>
                 <Link
@@ -340,7 +350,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
               <nav className="min-h-0 flex-1 overflow-y-auto pr-1" aria-label="Hoofdnavigatie">
                 {navItems.map((item, index) => {
-                  const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+                  const isActive = isNavItemActive(item.path, location.pathname);
                   const showGroup = index === 0 || navItems[index - 1].group !== item.group;
                   return (
                     <div key={item.path}>
