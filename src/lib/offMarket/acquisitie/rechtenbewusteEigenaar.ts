@@ -69,6 +69,19 @@ export interface RechtenbewusteEigenaarUitkomst {
 const schoon = (v: string | null | undefined): string => (v ?? '').trim();
 const leeg = (v: unknown): boolean => v == null || (typeof v === 'string' && v.trim() === '');
 
+/**
+ * Adres ontbreekt is een operationele vervolgstap, geen twijfel over de identiteit
+ * van de rechthebbende. Deze helper houdt dat onderscheid centraal en testbaar.
+ */
+export function isAdresControleReden(reden: string | null | undefined): boolean {
+  const r = schoon(reden).toLowerCase();
+  return !!r && r.includes('adres') && (
+    r.includes('onvolledig')
+    || r.includes('ontbre')
+    || r.includes('volledige adresgegevens')
+  );
+}
+
 export function classificeerRechtssituatie(rechtstype: string | null | undefined): Rechtssituatie {
   const v = schoon(rechtstype).toLowerCase();
   if (!v) return 'onbekend';
@@ -301,7 +314,7 @@ function patchMeervoudigeRechthebbenden(
     eigenaar_controle_reden: uitkomst.controleReden,
   };
   if (['', 'nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen'].includes(huidig.status ?? '')) {
-    patch.status = 'eigenaar_gevonden';
+    patch.status = uitkomst.controleNodig ? 'eigenaar_achterhalen' : 'eigenaar_gevonden';
   }
   return patch;
 }
@@ -315,7 +328,7 @@ export function bouwAutomatischeEigenaarPatch(
   }
 
   const patch: Record<string, unknown> = {};
-  if (uitkomst.status !== 'eenduidig' || uitkomst.controleNodig) {
+  if (uitkomst.status !== 'eenduidig') {
     if (!uitkomst.controleNodig) return null;
     if (huidig.eigenaar_controle_nodig !== true) patch.eigenaar_controle_nodig = true;
     if (schoon(huidig.eigenaar_controle_reden) !== schoon(uitkomst.controleReden)) {
@@ -325,53 +338,84 @@ export function bouwAutomatischeEigenaarPatch(
   }
 
   const v = uitkomst.voorstel;
-  if (leeg(huidig.eigenaar_naam) && v.eigenaar_naam) patch.eigenaar_naam = v.eigenaar_naam;
-  if (leeg(huidig.eigenaar_bedrijfsnaam) && v.eigenaar_bedrijfsnaam) patch.eigenaar_bedrijfsnaam = v.eigenaar_bedrijfsnaam;
-  if (leeg(huidig.eigenaar_type) && v.eigenaar_type) patch.eigenaar_type = v.eigenaar_type;
-  if (leeg(huidig.eigenaar_kvk) && v.eigenaar_kvk) patch.eigenaar_kvk = v.eigenaar_kvk;
-  if (leeg(huidig.kadastrale_aanduiding) && v.kadastrale_aanduiding) patch.kadastrale_aanduiding = v.kadastrale_aanduiding;
-  if (leeg(huidig.eigenaar_straat_huisnummer) && uitkomst.straatHuisnummer) {
+  const bron = schoon(huidig.eigenaarbron).toLowerCase();
+  const kadasterIsCanoniek = !bron || bron === 'kadaster';
+
+  if (kadasterIsCanoniek) {
+    // Een eenduidig nieuw Kadasterresultaat vervangt eerdere automatisch afgeleide
+    // eigenaar-identiteit en adresvelden. Null is hier betekenisvol: een bron met
+    // "Adres -" moet een oud/placeholderadres juist verwijderen, niet behouden.
+    patch.eigenaar_naam = v.eigenaar_naam ?? null;
+    patch.eigenaar_bedrijfsnaam = v.eigenaar_bedrijfsnaam ?? null;
+    patch.eigenaar_type = v.eigenaar_type ?? null;
+    patch.eigenaar_kvk = v.eigenaar_kvk ?? null;
     patch.eigenaar_straat_huisnummer = uitkomst.straatHuisnummer;
+    patch.eigenaar_postcode = uitkomst.postcode;
+    patch.eigenaar_plaats = uitkomst.plaats;
+    patch.eigenaar_verzendadres = uitkomst.verzendadres;
+    patch.eigenaar_rechtstype = uitkomst.rechtstype;
+    patch.eigenaar_rechtssituatie = uitkomst.rechtssituatie !== 'onbekend'
+      ? uitkomst.rechtssituatie
+      : null;
+    patch.eigenaar_aandeel = uitkomst.aandeel;
+    patch.bloot_eigenaar = uitkomst.blootEigenaar;
+    patch.eigenaarbron = 'kadaster';
+    if (v.kadastrale_aanduiding) patch.kadastrale_aanduiding = v.kadastrale_aanduiding;
+  } else {
+    // Handmatige/externe eigenaargegevens blijven leidend. Alleen lege velden
+    // mogen door het eenduidige Kadasterresultaat worden aangevuld.
+    if (leeg(huidig.eigenaar_naam) && v.eigenaar_naam) patch.eigenaar_naam = v.eigenaar_naam;
+    if (leeg(huidig.eigenaar_bedrijfsnaam) && v.eigenaar_bedrijfsnaam) patch.eigenaar_bedrijfsnaam = v.eigenaar_bedrijfsnaam;
+    if (leeg(huidig.eigenaar_type) && v.eigenaar_type) patch.eigenaar_type = v.eigenaar_type;
+    if (leeg(huidig.eigenaar_kvk) && v.eigenaar_kvk) patch.eigenaar_kvk = v.eigenaar_kvk;
+    if (leeg(huidig.kadastrale_aanduiding) && v.kadastrale_aanduiding) patch.kadastrale_aanduiding = v.kadastrale_aanduiding;
+    if (leeg(huidig.eigenaar_straat_huisnummer) && uitkomst.straatHuisnummer) {
+      patch.eigenaar_straat_huisnummer = uitkomst.straatHuisnummer;
+    }
+    if (leeg(huidig.eigenaar_postcode) && uitkomst.postcode) patch.eigenaar_postcode = uitkomst.postcode;
+    if (leeg(huidig.eigenaar_plaats) && uitkomst.plaats) patch.eigenaar_plaats = uitkomst.plaats;
+    if (leeg(huidig.eigenaar_verzendadres) && uitkomst.verzendadres) patch.eigenaar_verzendadres = uitkomst.verzendadres;
+    if (leeg(huidig.eigenaar_rechtstype) && uitkomst.rechtstype) patch.eigenaar_rechtstype = uitkomst.rechtstype;
+    if (leeg(huidig.eigenaar_rechtssituatie) && uitkomst.rechtssituatie !== 'onbekend') {
+      patch.eigenaar_rechtssituatie = uitkomst.rechtssituatie;
+    }
+    if (leeg(huidig.eigenaar_aandeel) && uitkomst.aandeel) patch.eigenaar_aandeel = uitkomst.aandeel;
+    if (!huidig.bloot_eigenaar && uitkomst.blootEigenaar) patch.bloot_eigenaar = uitkomst.blootEigenaar;
   }
-  if (leeg(huidig.eigenaar_postcode) && uitkomst.postcode) patch.eigenaar_postcode = uitkomst.postcode;
-  if (leeg(huidig.eigenaar_plaats) && uitkomst.plaats) patch.eigenaar_plaats = uitkomst.plaats;
-  if (leeg(huidig.eigenaar_verzendadres) && uitkomst.verzendadres) patch.eigenaar_verzendadres = uitkomst.verzendadres;
-  if (leeg(huidig.eigenaar_rechtstype) && uitkomst.rechtstype) patch.eigenaar_rechtstype = uitkomst.rechtstype;
-  if (leeg(huidig.eigenaar_rechtssituatie) && uitkomst.rechtssituatie !== 'onbekend') {
-    patch.eigenaar_rechtssituatie = uitkomst.rechtssituatie;
-  }
-  if (leeg(huidig.eigenaar_aandeel) && uitkomst.aandeel) patch.eigenaar_aandeel = uitkomst.aandeel;
-  if (!huidig.bloot_eigenaar && uitkomst.blootEigenaar) patch.bloot_eigenaar = uitkomst.blootEigenaar;
-  if (leeg(huidig.eigenaarbron) && v.eigenaarbron) patch.eigenaarbron = v.eigenaarbron;
 
   const krijgtEigenaar = !!(
-    !leeg(huidig.eigenaar_naam) || !leeg(huidig.eigenaar_bedrijfsnaam)
-    || patch.eigenaar_naam || patch.eigenaar_bedrijfsnaam
+    v.eigenaar_naam || v.eigenaar_bedrijfsnaam
+    || !leeg(huidig.eigenaar_naam) || !leeg(huidig.eigenaar_bedrijfsnaam)
   );
-  if (krijgtEigenaar && huidig.eigenaarstatus !== 'gevonden' && huidig.eigenaarstatus !== 'benaderd') {
+  if (krijgtEigenaar) {
     patch.eigenaarstatus = 'gevonden';
+    patch.eigenaar_bekend = true;
   }
-  if (krijgtEigenaar && huidig.eigenaar_bekend !== true) patch.eigenaar_bekend = true;
-  if (huidig.eigenaar_controle_nodig === true) {
-    patch.eigenaar_controle_nodig = false;
-    patch.eigenaar_controle_reden = null;
-  }
-  if (['', 'nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen'].includes(huidig.status ?? '')) {
-    patch.status = 'eigenaar_gevonden';
+
+  patch.eigenaar_controle_nodig = uitkomst.controleNodig;
+  patch.eigenaar_controle_reden = uitkomst.controleReden;
+
+  if (['', 'nieuw_signaal', 'te_onderzoeken', 'twijfel', 'eigenaar_achterhalen', 'eigenaar_gevonden'].includes(huidig.status ?? '')) {
+    patch.status = uitkomst.controleNodig ? 'eigenaar_achterhalen' : 'eigenaar_gevonden';
   }
 
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
-export type EigenaarProcesStatus = 'gevonden' | 'controleren' | 'ontbreekt';
+export type EigenaarProcesStatus = 'gevonden' | 'adres_achterhalen' | 'controleren' | 'ontbreekt';
 export const EIGENAAR_PROCES_LABEL: Record<EigenaarProcesStatus, string> = {
   gevonden: 'Eigenaar gevonden',
+  adres_achterhalen: 'Adres achterhalen',
   controleren: 'Eigenaar controleren',
   ontbreekt: 'Eigenaar ontbreekt',
 };
 
 export function bepaalEigenaarProcesStatus(signaal: HuidigeEigenaarVelden): EigenaarProcesStatus {
-  if (signaal.eigenaar_controle_nodig === true) return 'controleren';
+  if (signaal.eigenaar_controle_nodig === true) {
+    return isAdresControleReden(signaal.eigenaar_controle_reden)
+      ? 'adres_achterhalen'
+      : 'controleren';
+  }
   if (signaal.eigenaar_bekend === true && signaal.eigenaarstatus === 'gevonden') return 'gevonden';
   const heeftNaam = !leeg(signaal.eigenaar_naam) || !leeg(signaal.eigenaar_bedrijfsnaam);
   return heeftNaam ? 'gevonden' : 'ontbreekt';
