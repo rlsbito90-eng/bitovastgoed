@@ -319,6 +319,10 @@ function patchMeervoudigeRechthebbenden(
   return patch;
 }
 
+function normaliseerIdentiteit(v: string | null | undefined): string {
+  return schoon(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 export function bouwAutomatischeEigenaarPatch(
   huidig: HuidigeEigenaarVelden,
   uitkomst: RechtenbewusteEigenaarUitkomst,
@@ -339,20 +343,27 @@ export function bouwAutomatischeEigenaarPatch(
 
   const v = uitkomst.voorstel;
   const bron = schoon(huidig.eigenaarbron).toLowerCase();
-  const kadasterIsCanoniek = !bron || bron === 'kadaster';
+  const huidigeIdentiteit = schoon(huidig.eigenaar_bedrijfsnaam) || schoon(huidig.eigenaar_naam);
+  const nieuweIdentiteit = schoon(v.eigenaar_bedrijfsnaam) || schoon(v.eigenaar_naam);
+  const heeftBestaandeIdentiteit = !!huidigeIdentiteit;
+  const zelfdeIdentiteit = !!huidigeIdentiteit && !!nieuweIdentiteit
+    && normaliseerIdentiteit(huidigeIdentiteit) === normaliseerIdentiteit(nieuweIdentiteit);
+  const kadasterIsCanoniek = bron === 'kadaster' || (!bron && !heeftBestaandeIdentiteit);
 
   if (kadasterIsCanoniek) {
-    // Een eenduidig nieuw Kadasterresultaat vervangt eerdere automatisch afgeleide
-    // eigenaar-identiteit en adresvelden. Null is hier betekenisvol: een bron met
-    // "Adres -" moet een oud/placeholderadres juist verwijderen, niet behouden.
+    // Een aantoonbaar automatisch/Kadaster-resultaat mag de eigenaar-identiteit
+    // actualiseren. Bij dezelfde eigenaar behouden we echter handmatig aangevulde
+    // adresvelden als het nieuwe Kadasterbericht zelf geen adres bevat.
     patch.eigenaar_naam = v.eigenaar_naam ?? null;
     patch.eigenaar_bedrijfsnaam = v.eigenaar_bedrijfsnaam ?? null;
     patch.eigenaar_type = v.eigenaar_type ?? null;
     patch.eigenaar_kvk = v.eigenaar_kvk ?? null;
-    patch.eigenaar_straat_huisnummer = uitkomst.straatHuisnummer;
-    patch.eigenaar_postcode = uitkomst.postcode;
-    patch.eigenaar_plaats = uitkomst.plaats;
-    patch.eigenaar_verzendadres = uitkomst.verzendadres;
+
+    if (uitkomst.straatHuisnummer || !zelfdeIdentiteit) patch.eigenaar_straat_huisnummer = uitkomst.straatHuisnummer;
+    if (uitkomst.postcode || !zelfdeIdentiteit) patch.eigenaar_postcode = uitkomst.postcode;
+    if (uitkomst.plaats || !zelfdeIdentiteit) patch.eigenaar_plaats = uitkomst.plaats;
+    if (uitkomst.verzendadres || !zelfdeIdentiteit) patch.eigenaar_verzendadres = uitkomst.verzendadres;
+
     patch.eigenaar_rechtstype = uitkomst.rechtstype;
     patch.eigenaar_rechtssituatie = uitkomst.rechtssituatie !== 'onbekend'
       ? uitkomst.rechtssituatie
@@ -362,7 +373,8 @@ export function bouwAutomatischeEigenaarPatch(
     patch.eigenaarbron = 'kadaster';
     if (v.kadastrale_aanduiding) patch.kadastrale_aanduiding = v.kadastrale_aanduiding;
   } else {
-    // Handmatige/externe eigenaargegevens blijven leidend. Alleen lege velden
+    // Bestaande velden zonder bron behandelen we defensief als handmatig/legacy.
+    // Handmatige/externe eigenaargegevens blijven leidend; alleen lege velden
     // mogen door het eenduidige Kadasterresultaat worden aangevuld.
     if (leeg(huidig.eigenaar_naam) && v.eigenaar_naam) patch.eigenaar_naam = v.eigenaar_naam;
     if (leeg(huidig.eigenaar_bedrijfsnaam) && v.eigenaar_bedrijfsnaam) patch.eigenaar_bedrijfsnaam = v.eigenaar_bedrijfsnaam;
