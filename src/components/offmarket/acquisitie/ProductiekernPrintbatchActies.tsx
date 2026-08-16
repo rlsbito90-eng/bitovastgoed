@@ -10,6 +10,7 @@ import { bouwProductiekernBatchProductiepakket } from '@/lib/offMarket/acquisiti
 import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 import { startProductiekernPrintbatch, type ProductiekernBatchBrief } from '@/lib/offMarket/acquisitie/productiekernPrintbatch';
+import ProductiekernPrintPostBevestiging from './ProductiekernPrintPostBevestiging';
 import ProductiekernProductiepakketDownload from './ProductiekernProductiepakketDownload';
 import ProductiekernProductiepakketVastleggen from './ProductiekernProductiepakketVastleggen';
 
@@ -26,16 +27,12 @@ function lokaleDatum(): string {
   return `${jaar}-${maand}-${dag}`;
 }
 
-/**
- * Expliciete BAT-actie voor de definitieve postbrieven van één Focus-dossier.
- * Er wordt pas geschreven na een klik. BAT + alle immutable koppelingen worden
- * atomair aangemaakt. Daarna moeten de vier artifacts private/append-only zijn
- * opgeslagen én transactioneel geregistreerd voordat de batch printgereed is.
- */
+/** Volledige expliciete BAT-keten: maken → vastleggen → print bevestigen → post bevestigen. */
 export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: Props) {
   const [bezig, setBezig] = useState(false);
   const [pakket, setPakket] = useState<ProductiekernProductiepakketPayload | null>(null);
   const [batch, setBatch] = useState<PrintbatchContract | null>(null);
+  const [batchBrieven, setBatchBrieven] = useState<ProductiekernBatchBrief[]>([]);
 
   const writes = useMemo(() => maakStandaardProductiekernBrowserWriteSamenstelling(), []);
   const lezen = useMemo(() => maakStandaardProductiekernBrowserLeesSamenstelling(), []);
@@ -50,7 +47,7 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
       const auth = await supabase.auth.getUser();
       if (auth.error || !auth.data.user?.id) throw new Error('Ingelogde gebruiker kon niet worden vastgesteld.');
 
-      const batchBrieven: ProductiekernBatchBrief[] = [];
+      const brievenVoorBatch: ProductiekernBatchBrief[] = [];
       for (const briefId of ids) {
         const [brief, versies] = await Promise.all([
           lezen.repository.haalBrief(briefId),
@@ -61,33 +58,24 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
         if (brief.status !== 'definitief' || !brief.briefnummer?.trim()) {
           throw new Error(`Brief ${briefId} is niet definitief of mist een BR-nummer.`);
         }
-        const versie = versies.find((item) =>
-          item.status === 'actief' && item.versienummer === brief.actieveVersie);
+        const versie = versies.find((item) => item.status === 'actief' && item.versienummer === brief.actieveVersie);
         if (!versie) throw new Error(`Actieve immutable versie voor ${brief.briefnummer} ontbreekt.`);
-        batchBrieven.push({
-          brief,
-          versie,
-          geadresseerdeKey: `${brief.signaalId}|${versie.id}`,
-        });
+        brievenVoorBatch.push({ brief, versie, geadresseerdeKey: `${brief.signaalId}|${versie.id}` });
       }
 
-      batchBrieven.sort((a, b) =>
-        (a.brief.briefnummer ?? '').localeCompare(b.brief.briefnummer ?? '')
-        || a.versie.id.localeCompare(b.versie.id));
-      const versieScope = batchBrieven.map((item) => item.versie.id).join('.');
+      brievenVoorBatch.sort((a, b) =>
+        (a.brief.briefnummer ?? '').localeCompare(b.brief.briefnummer ?? '') || a.versie.id.localeCompare(b.versie.id));
+      const versieScope = brievenVoorBatch.map((item) => item.versie.id).join('.');
       const gestart = await startProductiekernPrintbatch({
-        brieven: batchBrieven,
+        brieven: brievenVoorBatch,
         actorId: auth.data.user.id,
         datum: lokaleDatum(),
         operationScope: `focus:${signaalId}:${versieScope}`,
       }, writes.atomischePrintbatchRepository);
 
-      const nieuwPakket = bouwProductiekernBatchProductiepakket({
-        batch: gestart.batch,
-        brieven: gestart.brieven,
-      });
       setBatch(gestart.batch);
-      setPakket(nieuwPakket);
+      setBatchBrieven(gestart.brieven);
+      setPakket(bouwProductiekernBatchProductiepakket({ batch: gestart.batch, brieven: gestart.brieven }));
       toast.success(`Printbatch ${gestart.batch.batchnummer} aangemaakt.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Printbatch aanmaken is mislukt.');
@@ -117,11 +105,7 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
           </div>
 
           {batch.status === 'concept' ? (
-            <ProductiekernProductiepakketVastleggen
-              batch={batch}
-              pakket={pakket}
-              onVastgelegd={setBatch}
-            />
+            <ProductiekernProductiepakketVastleggen batch={batch} pakket={pakket} onVastgelegd={setBatch} />
           ) : (
             <ProductiekernProductiepakketDownload
               manifest={pakket.manifest}
@@ -132,10 +116,18 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
             />
           )}
 
+          {batch.status !== 'concept' && (
+            <ProductiekernPrintPostBevestiging
+              batch={batch}
+              brieven={batchBrieven}
+              onBatchChange={setBatch}
+            />
+          )}
+
           <p className="text-[11px] text-muted-foreground">
             {batch.status === 'concept'
               ? 'Eerst worden de vier artifacts duurzaam en append-only opgeslagen; pas daarna is deze BAT printgereed.'
-              : 'Documenten zijn formeel geregistreerd. Downloaden markeert de batch nog niet als geprint of gepost.'}
+              : 'Downloaden verandert geen fysieke status. Print en post worden uitsluitend via de afzonderlijke bevestigingen geregistreerd.'}
           </p>
         </div>
       )}
